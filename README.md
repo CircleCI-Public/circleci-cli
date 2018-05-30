@@ -4,7 +4,7 @@ Summary
 
 ## Requirements
 
-* Go 1.x
+* Go 1.9+
 * Make
 * ...
 
@@ -17,12 +17,29 @@ It's written in Go. If you are new to Go, we recommend the following resources:
 
 ### 1. Go Dependencies
 
+Install `dep`:
+https://github.com/golang/dep
+
+On MacOS:
+
 ```
-$ go get github.com/spf13/cobra
-$ go get github.com/spf13/viper
-$ go get github.com/machinebox/graphql
-$ go get ...
+$ brew install dep
+$ brew upgrade dep
 ```
+
+On Linux, etc:
+
+```
+$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+```
+
+Ensure dependencies are installed:
+
+```
+$ dep ensure
+```
+
+TODO: we want `make` to check vendor? They are committed...
 
 ### 2. Build it
 
