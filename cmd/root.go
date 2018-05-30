@@ -31,8 +31,8 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	RootCmd.PersistentFlags().StringP("host", "", "host", "the host of your CircleCI install")
-	RootCmd.PersistentFlags().StringP("token", "t", "token", "your token for using CircleCI")
+	RootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
+	RootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
 	viper.BindPFlag("host", RootCmd.PersistentFlags().Lookup("host"))
 	viper.BindPFlag("token", RootCmd.PersistentFlags().Lookup("token"))

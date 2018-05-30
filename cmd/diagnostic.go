@@ -8,6 +8,7 @@ import (
 
 	"github.com/machinebox/graphql"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 var diagnosticCmd = &cobra.Command{
@@ -17,9 +18,10 @@ var diagnosticCmd = &cobra.Command{
 }
 
 func diagnostic(cmd *cobra.Command, args []string) {
-	client := graphql.NewClient("https://circleci.com/graphql")
-
-	req := graphql.NewRequest(`
+	// TODO: Pass token once figure out how api-service uses it
+	host := viper.GetString("host") + "/graphql"
+	client := graphql.NewClient(host)
+	query := `
   query IntrospectionQuery {
     __schema {
       queryType { name }
@@ -42,16 +44,19 @@ func diagnostic(cmd *cobra.Command, args []string) {
     fields(includeDeprecated: true) {
       name
     }
-  }
-`)
+  }`
+
+	req := graphql.NewRequest(query)
 
 	ctx := context.Background()
 	var resp map[string]interface{}
 
+	fmt.Println("Querying", host, "with:\n", query, "\n")
 	if err := client.Run(ctx, req, &resp); err != nil {
 		log.Fatal(err)
 	}
 
 	b, _ := json.MarshalIndent(resp, "", "  ")
-	fmt.Print(string(b))
+	fmt.Println("Result: \n")
+	fmt.Println(string(b))
 }
