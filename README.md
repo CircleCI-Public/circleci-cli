@@ -47,10 +47,10 @@ TODO: we want `make` to check vendor? They are committed...
 $ make
 ```
 
-### 3. Run Check
+### 3. Run Diagnostic check
 
 ```
-$ cli check
+$ ./build/target/linux/amd64/cli diagnostic
 # some output
 ```
 

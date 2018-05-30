@@ -10,13 +10,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var checkCmd = &cobra.Command{
-	Use:   "check",
-	Short: "Check status of CircleCI",
-	Run:   check,
+var diagnosticCmd = &cobra.Command{
+	Use:   "diagnostic",
+	Short: "Check the status of your CircleCI CLI.",
+	Run:   diagnostic,
 }
 
-func check(cmd *cobra.Command, args []string) {
+func diagnostic(cmd *cobra.Command, args []string) {
 	client := graphql.NewClient("https://circleci.com/graphql")
 
 	req := graphql.NewRequest(`

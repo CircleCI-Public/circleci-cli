@@ -15,7 +15,7 @@ var RootCmd = &cobra.Command{
 }
 
 func AddCommands() {
-	RootCmd.AddCommand(checkCmd)
+	RootCmd.AddCommand(diagnosticCmd)
 }
 
 // TODO: This convention was carried over from admin-cli, do we still need it?
