@@ -38,7 +38,7 @@ func Execute() {
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.circleci/cli.yml)")
+	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
 	RootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
 	RootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 

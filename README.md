@@ -51,7 +51,19 @@ $ make
 
 ```
 $ ./build/target/linux/amd64/cli diagnostic
-# some output
+
+Please enter your CircleCI API token:
+OK.
+Your configuration has been created in `/home/zzak/.circleci/cli.yml`.
+It can edited manually for advanced settings.
+
+---
+CircleCI CLI Diagnostics
+---
+
+Config found: `/home/zzak/.circleci/cli.yml`
+Host is: https://circleci.com
+OK, got a token.
 ```
 
 ## Known Issues

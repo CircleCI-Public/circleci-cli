@@ -17,7 +17,7 @@ func diagnostic(cmd *cobra.Command, args []string) {
 	host := viper.GetString("host")
 	token := viper.GetString("token")
 
-	fmt.Printf("---\nCircleCI CLI Diagnostics\n---\n")
+	fmt.Printf("\n---\nCircleCI CLI Diagnostics\n---\n\n")
 	fmt.Printf("Config found: `%v`\n", viper.ConfigFileUsed())
 
 	if host == "host" || host == "" {
