@@ -1,12 +1,8 @@
 package cmd
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
-	"log"
 
-	"github.com/machinebox/graphql"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,46 +14,21 @@ var diagnosticCmd = &cobra.Command{
 }
 
 func diagnostic(cmd *cobra.Command, args []string) {
-	// TODO: Pass token once figure out how api-service uses it
-	host := viper.GetString("host") + "/graphql"
-	client := graphql.NewClient(host)
-	query := `
-  query IntrospectionQuery {
-    __schema {
-      queryType { name }
-      mutationType { name }
-      subscriptionType { name }
-      types {
-        ...FullType
-      }
-      directives {
-        name
-        description
-      }
-    }
-  }
+	host := viper.GetString("host")
+	token := viper.GetString("token")
 
-  fragment FullType on __Type {
-    kind
-    name
-    description
-    fields(includeDeprecated: true) {
-      name
-    }
-  }`
+	fmt.Printf("---\nCircleCI CLI Diagnostics\n---\n")
+	fmt.Printf("Config found: `%v`\n", viper.ConfigFileUsed())
 
-	req := graphql.NewRequest(query)
-	req.Header.Set("Authorization", viper.GetString("token"))
-
-	ctx := context.Background()
-	var resp map[string]interface{}
-
-	fmt.Println("Querying", host, "with:\n", query, "\n")
-	if err := client.Run(ctx, req, &resp); err != nil {
-		log.Fatal(err)
+	if host == "host" || host == "" {
+		fmt.Println("Please set a host!")
+	} else {
+		fmt.Printf("Host is: %s\n", host)
 	}
 
-	b, _ := json.MarshalIndent(resp, "", "  ")
-	fmt.Println("Result: \n")
-	fmt.Println(string(b))
+	if token == "token" || token == "" {
+		fmt.Println("Please set a token!")
+	} else {
+		fmt.Println("OK, got a token.")
+	}
 }
