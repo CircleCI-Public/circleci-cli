@@ -47,6 +47,7 @@ func diagnostic(cmd *cobra.Command, args []string) {
   }`
 
 	req := graphql.NewRequest(query)
+	req.Header.Set("Authorization", viper.GetString("token"))
 
 	ctx := context.Background()
 	var resp map[string]interface{}
