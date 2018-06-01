@@ -53,12 +53,12 @@ func query(cmd *cobra.Command, args []string) {
 	ctx := context.Background()
 	var resp map[string]interface{}
 
-	fmt.Println("Querying", host, "with:\n", query, "\n")
+	fmt.Print("Querying ", host, " with:\n\n", query, "\n\n")
 	if err := client.Run(ctx, req, &resp); err != nil {
 		log.Fatal(err)
 	}
 
 	b, _ := json.MarshalIndent(resp, "", "  ")
-	fmt.Println("Result: \n")
+	fmt.Print("Result: \n\n")
 	fmt.Println(string(b))
 }

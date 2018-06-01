@@ -5,5 +5,6 @@ import (
 )
 
 func main() {
+	// See cmd/root.go for Execute()
 	cmd.Execute()
 }

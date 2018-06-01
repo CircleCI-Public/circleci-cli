@@ -15,9 +15,9 @@ var RootCmd = &cobra.Command{
 }
 
 var (
-	cfgFile           string
-	cfgName           = "cli"
-	configPathDefault = fmt.Sprintf("%s/.circleci/%s.yml", os.Getenv("HOME"), cfgName)
+	cfgFile        string
+	cfgName        = "cli"
+	cfgPathDefault = fmt.Sprintf("%s/.circleci/%s.yml", os.Getenv("HOME"), cfgName)
 )
 
 func AddCommands() {
@@ -25,9 +25,9 @@ func AddCommands() {
 	RootCmd.AddCommand(queryCmd)
 }
 
-// TODO: This convention was carried over from admin-cli, do we still need it?
-// Execute adds all child commands to the root command sets flags appropriately.
-// This is called by main.main(). It only needs to happen once to the rootCmd.
+// Add all child commands to RootCmd and set flags appropriately.
+// This function is called by main.main().
+// It only needs to happen once to the RootCmd.
 func Execute() {
 	AddCommands()
 	if err := RootCmd.Execute(); err != nil {
@@ -53,7 +53,7 @@ func initConfig() {
 			fmt.Println(err.Error())
 			os.Exit(-1)
 		}
-		cfgFile = configPathDefault
+		cfgFile = cfgPathDefault
 		readConfig() // reload config after creating it
 	}
 }
@@ -81,32 +81,31 @@ func readConfig() (err error) {
 func createConfig() (err error) {
 	// Don't support creating config at --config flag, only default
 	if cfgFile != "" {
-		fmt.Printf("Setting up default config at: %v\n", configPathDefault)
+		fmt.Printf("Setting up default config at: %v\n", cfgPathDefault)
 	}
-
-	var host, token string
 
 	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0777)
+		os.Mkdir(path, 0775)
 	}
 
 	// Create default config file
-	if _, err := os.Create(configPathDefault); err != nil {
+	if _, err := os.Create(cfgPathDefault); err != nil {
 		return err
 	}
 
 	// open file with read & write
-	file, err := os.OpenFile(configPathDefault, os.O_RDWR, 0644)
+	file, err := os.OpenFile(cfgPathDefault, os.O_RDWR, 0644)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(-1)
 	}
+	defer file.Close()
 
 	// read flag values
-	host = viper.GetString("host")
-	token = viper.GetString("token")
+	host := viper.GetString("host")
+	token := viper.GetString("token")
 
 	if host == "host" || host == "" {
 		fmt.Print("Please enter the HTTP(S) host of your CircleCI installation:")
@@ -115,7 +114,7 @@ func createConfig() (err error) {
 	}
 
 	if token == "token" || token == "" {
-		fmt.Print("Please enter your CircleCI API token:")
+		fmt.Print("Please enter your CircleCI API token: ")
 		fmt.Scanln(&token)
 		fmt.Println("OK.")
 	}
@@ -129,7 +128,7 @@ func createConfig() (err error) {
 		os.Exit(-1)
 	}
 
-	fmt.Printf("Your configuration has been created in `%v`.\n", configPathDefault)
+	fmt.Printf("Your configuration has been created in `%v`.\n", cfgPathDefault)
 	fmt.Println("It can edited manually for advanced settings.")
 	return err
 }

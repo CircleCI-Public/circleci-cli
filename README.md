@@ -39,8 +39,6 @@ Ensure dependencies are installed:
 $ dep ensure
 ```
 
-TODO: we want `make` to check vendor? They are committed...
-
 ### 2. Build it
 
 ```
