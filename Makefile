@@ -28,3 +28,7 @@ test:
 .PHONY: cover
 coverage:
 	go test -coverprofile=coverage.txt -covermode=count ./...
+
+.PHONY: lint
+lint:
+	gometalinter --vendor ./...
