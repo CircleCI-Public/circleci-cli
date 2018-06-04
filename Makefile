@@ -4,9 +4,9 @@ SHA=$(shell git rev-parse --short HEAD)
 
 GOFILES = $(shell find . -name '*.go' -not -path './vendor/*')
 
-CLIPATH=github.com/circleci/cli
+CLIPATH=github.com/circleci/circleci-cli
 
-EXECUTABLE=cli
+EXECUTABLE=circleci-cli
 BUILD_DIR=build
 
 .PHONY: build/linux

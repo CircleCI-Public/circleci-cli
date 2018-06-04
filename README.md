@@ -13,30 +13,17 @@ It's written in Go. If you are new to Go, we recommend the following resources:
 * [A Tour of Go](https://tour.golang.org/welcome/1)
 * [The Go documentation](https://golang.org/doc/)
 
-## Development Workflow
+## Development
 
-### 1. Go Dependencies
+You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
 
-Install `dep`:
-https://github.com/golang/dep
+This includes setting a valid `$GOPATH`.
 
-On MacOS:
-
-```
-$ brew install dep
-$ brew upgrade dep
-```
-
-On Linux, etc:
+### 1. Get the repo
 
 ```
-$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-```
-
-Ensure dependencies are installed:
-
-```
-$ dep ensure
+$ go get -u github.com/circleci/circleci-cli
+$ cd $GOPATH/src/github.com/circleci/circleci-cli
 ```
 
 ### 2. Build it
@@ -48,7 +35,7 @@ $ make
 ### 3. Run Diagnostic check
 
 ```
-$ ./build/target/linux/amd64/cli diagnostic
+$ ./build/target/linux/amd64/circleci-cli diagnostic
 
 Please enter your CircleCI API token:
 OK.
@@ -64,23 +51,56 @@ Host is: https://circleci.com
 OK, got a token.
 ```
 
+## Dependencies
+
+We use `dep` for vendoring our depencencies:
+https://github.com/golang/dep
+
+You can install it on MacOS:
+
+```
+$ brew install dep
+$ brew upgrade dep
+```
+
+Or on Linux, etc:
+
+```
+$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
+```
+
+To make sure dependencies are installed:
+
+```
+$ dep ensure
+```
+
 ## Known Issues
 
 * ...
 
 ## Doc
 
-You can view godoc of cli in your browser.
+You can view `godoc` of cli in your browser.
 
 1. Run `godoc -http=:6060`
-2. Access http://localhost:6060/pkg/github.com/circleci/cli/
+2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
 
 ## Editor support
 
-Go has great tooling for editors.
+Go has great tooling such as [`gofmt`](https://golang.org/cmd/gofmt/) and [`goimports`](https://godoc.org/golang.org/x/tools/cmd/goimports).
 
 ```
 $ go get golang.org/x/tools/cmd/goimports
 ```
 
-More [here](https://blog.golang.org/go-fmt-your-code).
+You can read about `gofmt` [here](https://blog.golang.org/go-fmt-your-code). In particular, you can set it up with [vim](https://github.com/fatih/vim-go) or [emacs](https://github.com/dominikh/go-mode.el).
+
+I've the following in my `.emacs.d/init.el`:
+
+```
+(setq gofmt-command "goimports")
+(require 'go-mode)
+(add-hook 'before-save-hook 'gofmt-before-save)
+(require 'go-rename)
+```
