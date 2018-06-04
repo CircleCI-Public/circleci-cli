@@ -57,17 +57,17 @@ func init() {
 
 // TODO: move config stuff to it's own package
 func initConfig() {
-	if err := readConfig(); err != nil {
-		if err = createConfig(); err != nil {
-			fmt.Println(err.Error())
-			os.Exit(-1)
-		}
-		cfgFile = cfgPathDefault
-		fatalOnError(
-			"Failed to re-read config after creating a new file",
-			readConfig(), // reload config after creating it
-		)
+	if err := readConfig(); err == nil {
+		return
 	}
+
+	fatalOnError("Error creating a new config file", createConfig())
+
+	cfgFile = cfgPathDefault
+	fatalOnError(
+		"Failed to re-read config after creating a new file",
+		readConfig(), // reload config after creating it
+	)
 }
 
 func readConfig() (err error) {
