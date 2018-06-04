@@ -31,10 +31,10 @@
   version = "v1.0"
 
 [[projects]]
-  branch = "master"
   name = "github.com/machinebox/graphql"
   packages = ["."]
   revision = "05b17f3157491bbfa5d6fc2006443a272d960d15"
+  version = "v0.2.2"
 
 [[projects]]
   name = "github.com/magiconair/properties"
