@@ -1,6 +1,6 @@
-# circleci/cli
+# circleci-cli [![CircleCI](https://circleci.com/gh/circleci/plans-service.svg?style=svg&circle-token=CCCCC)](https://circleci.com/gh/circleci/circleci-cli) [![codecov](https://codecov.io/gh/circleci/circleci-cli/branch/master/graph/badge.svg?token=CCCCC)](https://codecov.io/gh/circleci/circleci-ci)
 
-Summary
+This project is the seed for CircleCI's new command-line application.
 
 ## Requirements
 
