@@ -35,7 +35,7 @@ $ make
 ### 3. Run Diagnostic check
 
 ```
-$ ./build/target/linux/amd64/cli diagnostic
+$ ./build/target/linux/amd64/circleci-cli diagnostic
 
 Please enter your CircleCI API token:
 OK.

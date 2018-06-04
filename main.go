@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/circleci/cli/cmd"
+	"github.com/circleci/circleci-cli/cmd"
 )
 
 func main() {
