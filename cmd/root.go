@@ -2,13 +2,25 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var RootCmd = &cobra.Command{
+// Execute adds all child commands to RootCmd and
+// sets flags appropriately. This function is called
+// by main.main(). It only needs to happen once to
+// the RootCmd.
+func Execute() {
+	addCommands()
+	if err := rootCmd.Execute(); err != nil {
+		os.Exit(-1)
+	}
+}
+
+var rootCmd = &cobra.Command{
 	Use:   "cli",
 	Short: "Use CircleCI from the command line.",
 	Long:  `Use CircleCI from the command line.`,
@@ -20,30 +32,27 @@ var (
 	cfgPathDefault = fmt.Sprintf("%s/.circleci/%s.yml", os.Getenv("HOME"), cfgName)
 )
 
-func AddCommands() {
-	RootCmd.AddCommand(diagnosticCmd)
-	RootCmd.AddCommand(queryCmd)
+func addCommands() {
+	rootCmd.AddCommand(diagnosticCmd)
+	rootCmd.AddCommand(queryCmd)
 }
 
-// Add all child commands to RootCmd and set flags appropriately.
-// This function is called by main.main().
-// It only needs to happen once to the RootCmd.
-func Execute() {
-	AddCommands()
-	if err := RootCmd.Execute(); err != nil {
-		os.Exit(-1)
+func fatalOnError(msg string, err error) {
+	if err == nil {
+		return
 	}
+	log.Fatalln(msg, err.Error())
 }
 
 func init() {
 	cobra.OnInitialize(initConfig)
 
-	RootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
-	RootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
-	RootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
+	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
+	rootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
+	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	viper.BindPFlag("host", RootCmd.PersistentFlags().Lookup("host"))
-	viper.BindPFlag("token", RootCmd.PersistentFlags().Lookup("token"))
+	fatalOnError("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
+	fatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
 }
 
 // TODO: move config stuff to it's own package
@@ -54,7 +63,10 @@ func initConfig() {
 			os.Exit(-1)
 		}
 		cfgFile = cfgPathDefault
-		readConfig() // reload config after creating it
+		fatalOnError(
+			"Failed to re-read config after creating a new file",
+			readConfig(), // reload config after creating it
+		)
 	}
 }
 
@@ -86,22 +98,27 @@ func createConfig() (err error) {
 
 	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
 
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		os.Mkdir(path, 0775)
+	if _, err = os.Stat(path); os.IsNotExist(err) {
+		fatalOnError(
+			fmt.Sprintf("Error creating directory: '%s'", path),
+			os.Mkdir(path, 0644),
+		)
+	} else {
+		fatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
 	}
 
 	// Create default config file
-	if _, err := os.Create(cfgPathDefault); err != nil {
+	if _, err = os.Create(cfgPathDefault); err != nil {
 		return err
 	}
 
 	// open file with read & write
-	file, err := os.OpenFile(cfgPathDefault, os.O_RDWR, 0644)
+	file, err := os.OpenFile(cfgPathDefault, os.O_RDWR, 0600)
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(-1)
 	}
-	defer file.Close()
+	defer fatalOnError("Error closing config file", file.Close())
 
 	// read flag values
 	host := viper.GetString("host")
