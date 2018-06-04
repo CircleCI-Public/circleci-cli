@@ -23,7 +23,7 @@ clean:
 
 .PHONY: test
 test:
-	go test -short ./...
+	go test -v -short ./...
 
 .PHONY: cover
 coverage:
