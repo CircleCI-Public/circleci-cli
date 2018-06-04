@@ -81,22 +81,20 @@ $ dep ensure
 
 ## Doc
 
-You can view godoc of cli in your browser.
+You can view `godoc` of cli in your browser.
 
 1. Run `godoc -http=:6060`
-2. Access http://localhost:6060/pkg/github.com/circleci/cli/
+2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
 
 ## Editor support
 
-Go has great tooling such as [`gofmt`][https://golang.org/cmd/gofmt/] and [`goimports`](https://godoc.org/golang.org/x/tools/cmd/goimports).
+Go has great tooling such as [`gofmt`](https://golang.org/cmd/gofmt/) and [`goimports`](https://godoc.org/golang.org/x/tools/cmd/goimports).
 
 ```
 $ go get golang.org/x/tools/cmd/goimports
 ```
 
-You can read about `gofmt` [here](https://blog.golang.org/go-fmt-your-code).
-
-In particular, you should it up with [vim](https://github.com/fatih/vim-go) or [emacs](https://github.com/dominikh/go-mode.el).
+You can read about `gofmt` [here](https://blog.golang.org/go-fmt-your-code). In particular, you can set it up with [vim](https://github.com/fatih/vim-go) or [emacs](https://github.com/dominikh/go-mode.el).
 
 I've the following in my `.emacs.d/init.el`:
 
