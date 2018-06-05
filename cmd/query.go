@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
 
 	"github.com/circleci/circleci-cli/client"
 	"github.com/spf13/cobra"
@@ -17,32 +19,10 @@ var queryCmd = &cobra.Command{
 func query(cmd *cobra.Command, args []string) {
 	client := client.NewClient(viper.GetString("host"), viper.GetString("token"), Logger)
 
-	query := `
-		  query IntrospectionQuery {
-		    __schema {
-		      queryType { name }
-		      mutationType { name }
-		      subscriptionType { name }
-		      types {
-		        ...FullType
-		      }
-		      directives {
-		        name
-		        description
-		      }
-		    }
-		  }
+	query, err := ioutil.ReadAll(os.Stdin)
+	Logger.FatalOnError("Something happened", err)
 
-		  fragment FullType on __Type {
-		    kind
-		    name
-		    description
-		    fields(includeDeprecated: true) {
-		      name
-		    }
-		  }`
-
-	resp, err := client.Run(query)
+	resp, err := client.Run(string(query))
 	Logger.FatalOnError("Something happend", err)
 	b, err := json.MarshalIndent(resp, "", "  ")
 	Logger.FatalOnError("Could not parse graphql response", err)
