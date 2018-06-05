@@ -21,20 +21,26 @@ func NewLogger(verbose bool) *Logger {
 	}
 }
 
-func (l *Logger) Debug(msg string, args ...interface{}) {
+func (l *Logger) Debug(format string, args ...interface{}) {
 	if l.verbose {
-		l.debug.Printf(msg, args...)
+		l.debug.Printf(format, args...)
 	}
 }
 
-func (l *Logger) Info(msg string, args ...interface{}) {
-	l.info.Printf(msg, args...)
+func (l *Logger) Info(args ...interface{}) {
+	l.info.Print(args...)
+}
+
+func (l *Logger) Infof(format string, args ...interface{}) {
+	l.info.Printf(format, args...)
 }
 
 func (l *Logger) Error(msg string, err error) {
-	if err == nil {
-		l.error.Println(msg)
-	} else {
+	l.error.Print(msg, err.Error())
+}
+
+func (l *Logger) FatalOnError(msg string, err error) {
+	if err != nil {
 		l.error.Fatalln(msg, err.Error())
 	}
 }

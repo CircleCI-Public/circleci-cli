@@ -48,8 +48,8 @@ func init() {
 	rootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	Logger.Error("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
-	Logger.Error("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
+	Logger.FatalOnError("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
+	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
 }
 
 // TODO: move config stuff to it's own package
@@ -58,10 +58,10 @@ func initConfig() {
 		return
 	}
 
-	Logger.Error("Error creating a new config file", createConfig())
+	Logger.FatalOnError("Error creating a new config file", createConfig())
 
 	cfgFile = cfgPathDefault
-	Logger.Error(
+	Logger.FatalOnError(
 		"Failed to re-read config after creating a new file",
 		readConfig(), // reload config after creating it
 	)
@@ -96,12 +96,12 @@ func createConfig() (err error) {
 	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
 
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		Logger.Error(
+		Logger.FatalOnError(
 			fmt.Sprintf("Error creating directory: '%s'", path),
 			os.Mkdir(path, 0644),
 		)
 	} else {
-		Logger.Error(fmt.Sprintf("Error accessing '%s'", path), err)
+		Logger.FatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
 	}
 
 	// Create default config file
@@ -112,9 +112,9 @@ func createConfig() (err error) {
 	// open file with read & write
 	file, err := os.OpenFile(cfgPathDefault, os.O_RDWR, 0600)
 	if err != nil {
-		Logger.Error("", err)
+		Logger.FatalOnError("", err)
 	}
-	defer Logger.Error("Error closing config file", file.Close())
+	defer Logger.FatalOnError("Error closing config file", file.Close())
 
 	// read flag values
 	host := viper.GetString("host")
@@ -137,7 +137,7 @@ func createConfig() (err error) {
 
 	// write new config values to file
 	if _, err = file.WriteString(configValues); err != nil {
-		Logger.Error("", err)
+		Logger.FatalOnError("", err)
 	}
 
 	Logger.Info("Your configuration has been created in `%v`.\n", cfgPathDefault)
