@@ -1,4 +1,4 @@
-# circleci-cli [![CircleCI](https://circleci.com/gh/circleci/plans-service.svg?style=svg&circle-token=CCCCC)](https://circleci.com/gh/circleci/circleci-cli) [![codecov](https://codecov.io/gh/circleci/circleci-cli/branch/master/graph/badge.svg?token=CCCCC)](https://codecov.io/gh/circleci/circleci-ci)
+# circleci-cli [![CircleCI](https://circleci.com/gh/circleci/circleci-cli.svg?style=svg&circle-token=8adb850cb9110a49ab0990f198dd78966f9e6073)](https://circleci.com/gh/circleci/circleci-cli) [![codecov](https://codecov.io/gh/circleci/circleci-cli/branch/master/graph/badge.svg?token=VJMF7kG1Om](https://codecov.io/gh/circleci/circleci-ci)
 
 This project is the seed for CircleCI's new command-line application.
 

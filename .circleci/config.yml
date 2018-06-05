@@ -5,6 +5,7 @@ workflows:
   ci:
     jobs:
       - test
+      - coverage
       - lint
 
 jobs:
@@ -15,6 +16,31 @@ jobs:
     steps:
       - checkout
       - run: make test
+  coverage:
+    docker:
+      - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/circleci/circleci-cli
+    steps:
+      - checkout
+      - run: make cover
+      - store_artifacts:
+          path: ./coverage.txt
+          destination: coverage.txt
+      - run:
+          name: Upload code coverage report to codecov.io
+          command: |
+            curl -ivX POST -H 'Accept: text/plain' \
+            --data-binary @coverage.txt \
+            "https://codecov.io/upload/v2\
+            ?service=circleci\
+            &token=$CODECOV_TOKEN\
+            &commit=$CIRCLE_SHA1\
+            &branch=$CIRCLE_BRANCH\
+            &build=$CIRCLE_BUILD_NUM\
+            &job=$CIRCLE_NODE_INDEX\
+            &build_url=$CIRCLE_BUILD_URL\
+            &slug=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME\
+            &pr=$CIRCLE_PR_NUMBER"
   lint:
     docker:
       - image: circleci/golang:1.10
