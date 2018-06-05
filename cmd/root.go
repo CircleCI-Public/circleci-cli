@@ -45,10 +45,10 @@ func init() {
 	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging.")
 	Logger = logger.NewLogger(verbose)
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
-	rootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
+	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	Logger.FatalOnError("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
+	Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
 	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
 }
 
@@ -78,7 +78,7 @@ func readConfig() (err error) {
 	}
 
 	// read in environment variables that match
-	// set a prefix for config, i.e. CIRCLECI_CLI_HOST
+	// set a prefix for config, i.e. CIRCLECI_CLI_ENDPOINT
 	viper.SetEnvPrefix("circleci_cli")
 	viper.AutomaticEnv()
 
@@ -117,12 +117,12 @@ func createConfig() (err error) {
 	defer Logger.FatalOnError("Error closing config file", file.Close())
 
 	// read flag values
-	host := viper.GetString("host")
+	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
-	if host == "host" || host == "" {
-		Logger.Info("Please enter the HTTP(S) host of your CircleCI installation:")
-		fmt.Scanln(&host)
+	if endpoint == "endpoint" || endpoint == "" {
+		Logger.Info("Please enter the HTTP(S) endpoint to your CircleCI GraphQL API:")
+		fmt.Scanln(&endpoint)
 		Logger.Info("OK.\n")
 	}
 
@@ -133,7 +133,7 @@ func createConfig() (err error) {
 	}
 
 	// format input
-	configValues := fmt.Sprintf("host: %v\ntoken: %v\n", host, token)
+	configValues := fmt.Sprintf("endpoint: %v\ntoken: %v\n", endpoint, token)
 
 	// write new config values to file
 	if _, err = file.WriteString(configValues); err != nil {

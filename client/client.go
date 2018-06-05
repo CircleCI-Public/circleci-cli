@@ -8,17 +8,17 @@ import (
 )
 
 type Client struct {
-	host   string
-	token  string
-	client *graphql.Client
-	logger *logger.Logger
+	endpoint string
+	token    string
+	client   *graphql.Client
+	logger   *logger.Logger
 }
 
-func NewClient(host string, token string, logger *logger.Logger) *Client {
+func NewClient(endpoint string, token string, logger *logger.Logger) *Client {
 	return &Client{
-		host,
+		endpoint,
 		token,
-		graphql.NewClient(host + "/graphql"),
+		graphql.NewClient(endpoint),
 		logger,
 	}
 }
@@ -30,8 +30,7 @@ func (c *Client) Run(query string) (map[string]interface{}, error) {
 	ctx := context.Background()
 	var resp map[string]interface{}
 
-	// TODO: fix wrapping logs with
-	c.logger.Info("Querying ", c.host, " with:\n\n", query, "\n\n")
+	c.logger.Info("Querying ", c.endpoint, " with:\n\n", query, "\n\n")
 	err := c.client.Run(ctx, req, &resp)
 	return resp, err
 }
