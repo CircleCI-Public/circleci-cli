@@ -1,12 +1,9 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
-	"fmt"
-	"log"
 
-	"github.com/machinebox/graphql"
+	"github.com/circleci/circleci-cli/client"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,9 +15,7 @@ var queryCmd = &cobra.Command{
 }
 
 func query(cmd *cobra.Command, args []string) {
-	host := viper.GetString("host")
-	token := viper.GetString("token")
-	client := graphql.NewClient(host + "/graphql")
+	client := client.NewClient(viper.GetString("host"), viper.GetString("token"), Logger)
 
 	query := `
 		  query IntrospectionQuery {
@@ -47,21 +42,11 @@ func query(cmd *cobra.Command, args []string) {
 		    }
 		  }`
 
-	req := graphql.NewRequest(query)
-	req.Header.Set("Authorization", token)
-
-	ctx := context.Background()
-	var resp map[string]interface{}
-
-	fmt.Print("Querying ", host, " with:\n\n", query, "\n\n")
-	if err := client.Run(ctx, req, &resp); err != nil {
-		log.Fatal(err)
-	}
-
+	resp, err := client.Run(query)
+	Logger.FatalOnError("Something happend", err)
 	b, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		log.Fatalln("Could not parse graphql response", err.Error())
-	}
-	fmt.Print("Result: \n\n")
-	fmt.Println(string(b))
+	Logger.FatalOnError("Could not parse graphql response", err)
+
+	Logger.Info("Result: \n\n")
+	Logger.Info(string(b) + "\n")
 }
