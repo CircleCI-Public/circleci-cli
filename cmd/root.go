@@ -2,14 +2,14 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/circleci/circleci-cli/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// Execute adds all child commands to RootCmd and
+// Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
 // the RootCmd.
@@ -27,9 +27,11 @@ var rootCmd = &cobra.Command{
 }
 
 var (
+	verbose        bool
 	cfgFile        string
 	cfgName        = "cli"
 	cfgPathDefault = fmt.Sprintf("%s/.circleci/%s.yml", os.Getenv("HOME"), cfgName)
+	Logger         *logger.Logger
 )
 
 func addCommands() {
@@ -37,22 +39,17 @@ func addCommands() {
 	rootCmd.AddCommand(queryCmd)
 }
 
-func fatalOnError(msg string, err error) {
-	if err == nil {
-		return
-	}
-	log.Fatalln(msg, err.Error())
-}
-
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging.")
+	Logger = logger.NewLogger(verbose)
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
 	rootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	fatalOnError("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
-	fatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
+	Logger.Error("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
+	Logger.Error("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
 }
 
 // TODO: move config stuff to it's own package
@@ -61,10 +58,10 @@ func initConfig() {
 		return
 	}
 
-	fatalOnError("Error creating a new config file", createConfig())
+	Logger.Error("Error creating a new config file", createConfig())
 
 	cfgFile = cfgPathDefault
-	fatalOnError(
+	Logger.Error(
 		"Failed to re-read config after creating a new file",
 		readConfig(), // reload config after creating it
 	)
@@ -93,18 +90,18 @@ func readConfig() (err error) {
 func createConfig() (err error) {
 	// Don't support creating config at --config flag, only default
 	if cfgFile != "" {
-		fmt.Printf("Setting up default config at: %v\n", cfgPathDefault)
+		Logger.Debug("Setting up default config at: %v\n", cfgPathDefault)
 	}
 
 	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
 
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		fatalOnError(
+		Logger.Error(
 			fmt.Sprintf("Error creating directory: '%s'", path),
 			os.Mkdir(path, 0644),
 		)
 	} else {
-		fatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
+		Logger.Error(fmt.Sprintf("Error accessing '%s'", path), err)
 	}
 
 	// Create default config file
@@ -115,25 +112,24 @@ func createConfig() (err error) {
 	// open file with read & write
 	file, err := os.OpenFile(cfgPathDefault, os.O_RDWR, 0600)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(-1)
+		Logger.Error("", err)
 	}
-	defer fatalOnError("Error closing config file", file.Close())
+	defer Logger.Error("Error closing config file", file.Close())
 
 	// read flag values
 	host := viper.GetString("host")
 	token := viper.GetString("token")
 
 	if host == "host" || host == "" {
-		fmt.Print("Please enter the HTTP(S) host of your CircleCI installation:")
+		Logger.Info("Please enter the HTTP(S) host of your CircleCI installation:")
 		fmt.Scanln(&host)
-		fmt.Println("OK.")
+		Logger.Info("OK.\n")
 	}
 
 	if token == "token" || token == "" {
-		fmt.Print("Please enter your CircleCI API token: ")
+		Logger.Info("Please enter your CircleCI API token: ")
 		fmt.Scanln(&token)
-		fmt.Println("OK.")
+		Logger.Info("OK.\n")
 	}
 
 	// format input
@@ -141,11 +137,10 @@ func createConfig() (err error) {
 
 	// write new config values to file
 	if _, err = file.WriteString(configValues); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(-1)
+		Logger.Error("", err)
 	}
 
-	fmt.Printf("Your configuration has been created in `%v`.\n", cfgPathDefault)
-	fmt.Println("It can edited manually for advanced settings.")
+	Logger.Info("Your configuration has been created in `%v`.\n", cfgPathDefault)
+	Logger.Info("It can edited manually for advanced settings.\n")
 	return err
 }
