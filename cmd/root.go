@@ -118,7 +118,9 @@ func createConfig() (err error) {
 		fmt.Println(err.Error())
 		os.Exit(-1)
 	}
-	defer fatalOnError("Error closing config file", file.Close())
+	defer func() {
+		fatalOnError("Error closing config file", file.Close())
+	}()
 
 	// read flag values
 	host := viper.GetString("host")
