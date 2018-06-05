@@ -26,7 +26,7 @@ test:
 	go test -v -short ./...
 
 .PHONY: cover
-coverage:
+cover:
 	go test -coverprofile=coverage.txt -covermode=count ./...
 
 .PHONY: lint
