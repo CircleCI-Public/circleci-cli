@@ -1,0 +1,29 @@
+version: 2
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - test
+      - lint
+
+jobs:
+  test:
+    docker:
+      - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/circleci/circleci-cli
+    steps:
+      - checkout
+      - run: make test
+  lint:
+    docker:
+      - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/circleci/circleci-cli
+    steps:
+      - checkout
+      - run:
+          name: Install
+          command: |
+            go get -u github.com/alecthomas/gometalinter
+            gometalinter --install
+      - run: make lint

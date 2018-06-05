@@ -23,8 +23,12 @@ clean:
 
 .PHONY: test
 test:
-	go test -short ./...
+	go test -v -short ./...
 
 .PHONY: cover
 coverage:
 	go test -coverprofile=coverage.txt -covermode=count ./...
+
+.PHONY: lint
+lint:
+	gometalinter --deadline 60s --vendor ./...
