@@ -1,3 +1,4 @@
 build/
 TODO
 circleci-cli
+coverage.txt
