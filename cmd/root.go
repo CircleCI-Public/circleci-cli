@@ -117,7 +117,9 @@ func createConfig() (err error) {
 	if err != nil {
 		Logger.FatalOnError("", err)
 	}
-	defer Logger.FatalOnError("Error closing config file", file.Close())
+	defer func() {
+	  Logger.FatalOnError("Error closing config file", file.Close())
+	}()
 
 	// read flag values
 	endpoint := viper.GetString("endpoint")
