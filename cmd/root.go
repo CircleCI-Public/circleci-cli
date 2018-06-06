@@ -101,7 +101,7 @@ func createConfig() (err error) {
 	if _, err = os.Stat(path); os.IsNotExist(err) {
 		Logger.FatalOnError(
 			fmt.Sprintf("Error creating directory: '%s'", path),
-			os.Mkdir(path, 0644),
+			os.Mkdir(path, 0700),
 		)
 	} else {
 		Logger.FatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
