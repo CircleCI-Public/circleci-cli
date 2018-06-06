@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -14,21 +12,18 @@ var diagnosticCmd = &cobra.Command{
 }
 
 func diagnostic(cmd *cobra.Command, args []string) {
-	host := viper.GetString("host")
+	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
-	fmt.Printf("\n---\nCircleCI CLI Diagnostics\n---\n\n")
-	fmt.Printf("Config found: `%v`\n", viper.ConfigFileUsed())
+	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---\n")
+	Logger.Infof("Config found: `%v`\n", viper.ConfigFileUsed())
 
-	if host == "host" || host == "" {
-		fmt.Println("Please set a host!")
-	} else {
-		fmt.Printf("Host is: %s\n", host)
-	}
+	Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
 
 	if token == "token" || token == "" {
-		fmt.Println("Please set a token!")
+		var err error
+		Logger.FatalOnError("Please set a token!", err)
 	} else {
-		fmt.Println("OK, got a token.")
+		Logger.Infoln("OK, got a token.")
 	}
 }

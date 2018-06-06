@@ -75,15 +75,30 @@ To make sure dependencies are installed:
 $ dep ensure
 ```
 
+## Linting
+
+We use [`gometalinter`](github.com/alecthomas/gometalinter) for linting.
+
+You can install it via `$ make dev` or manually with:
+
+```
+$ go get -u github.com/alecthomas/gometalinter
+$ gometalinter --install
+```
+
+Then you can run it with `$ make lint`.
+
 ## Known Issues
 
 * ...
 
 ## Doc
 
-You can view `godoc` of cli in your browser.
+You can view `godoc` of the cli in your browser.
 
-1. Run `godoc -http=:6060`
+After installing it either via `go get golang.org/x/tools/cmd/godoc` or running `make dev`.
+
+1. Run `make doc` or `godoc -http=:6060`
 2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
 
 ## Editor support

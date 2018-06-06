@@ -2,14 +2,14 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"os"
 
+	"github.com/circleci/circleci-cli/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-// Execute adds all child commands to RootCmd and
+// Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
 // the RootCmd.
@@ -27,32 +27,32 @@ var rootCmd = &cobra.Command{
 }
 
 var (
+	verbose        bool
 	cfgFile        string
 	cfgName        = "cli"
 	cfgPathDefault = fmt.Sprintf("%s/.circleci/%s.yml", os.Getenv("HOME"), cfgName)
 )
+
+// Logger is exposed here so we can access it from subcommands.
+// This allows us to print to the log at anytime from within the `cmd` package.
+var Logger *logger.Logger
 
 func addCommands() {
 	rootCmd.AddCommand(diagnosticCmd)
 	rootCmd.AddCommand(queryCmd)
 }
 
-func fatalOnError(msg string, err error) {
-	if err == nil {
-		return
-	}
-	log.Fatalln(msg, err.Error())
-}
-
 func init() {
 	cobra.OnInitialize(initConfig)
 
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable verbose logging.")
+	Logger = logger.NewLogger(verbose)
 	rootCmd.PersistentFlags().StringVarP(&cfgFile, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
-	rootCmd.PersistentFlags().StringP("host", "H", "https://circleci.com", "the host of your CircleCI install")
+	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	fatalOnError("Error binding host flag", viper.BindPFlag("host", rootCmd.PersistentFlags().Lookup("host")))
-	fatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
+	Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
+	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
 }
 
 // TODO: move config stuff to it's own package
@@ -61,10 +61,10 @@ func initConfig() {
 		return
 	}
 
-	fatalOnError("Error creating a new config file", createConfig())
+	Logger.FatalOnError("Error creating a new config file", createConfig())
 
 	cfgFile = cfgPathDefault
-	fatalOnError(
+	Logger.FatalOnError(
 		"Failed to re-read config after creating a new file",
 		readConfig(), // reload config after creating it
 	)
@@ -81,7 +81,7 @@ func readConfig() (err error) {
 	}
 
 	// read in environment variables that match
-	// set a prefix for config, i.e. CIRCLECI_CLI_HOST
+	// set a prefix for config, i.e. CIRCLECI_CLI_ENDPOINT
 	viper.SetEnvPrefix("circleci_cli")
 	viper.AutomaticEnv()
 
@@ -93,18 +93,18 @@ func readConfig() (err error) {
 func createConfig() (err error) {
 	// Don't support creating config at --config flag, only default
 	if cfgFile != "" {
-		fmt.Printf("Setting up default config at: %v\n", cfgPathDefault)
+		Logger.Debug("Setting up default config at: %v\n", cfgPathDefault)
 	}
 
 	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
 
 	if _, err = os.Stat(path); os.IsNotExist(err) {
-		fatalOnError(
+		Logger.FatalOnError(
 			fmt.Sprintf("Error creating directory: '%s'", path),
 			os.Mkdir(path, 0644),
 		)
 	} else {
-		fatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
+		Logger.FatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
 	}
 
 	// Create default config file
@@ -115,39 +115,31 @@ func createConfig() (err error) {
 	// open file with read & write
 	file, err := os.OpenFile(cfgPathDefault, os.O_RDWR, 0600)
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(-1)
+		Logger.FatalOnError("", err)
 	}
 	defer func() {
-		fatalOnError("Error closing config file", file.Close())
+	  Logger.FatalOnError("Error closing config file", file.Close())
 	}()
 
 	// read flag values
-	host := viper.GetString("host")
+	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
-	if host == "host" || host == "" {
-		fmt.Print("Please enter the HTTP(S) host of your CircleCI installation:")
-		fmt.Scanln(&host)
-		fmt.Println("OK.")
-	}
-
 	if token == "token" || token == "" {
-		fmt.Print("Please enter your CircleCI API token: ")
+		Logger.Info("Please enter your CircleCI API token: ")
 		fmt.Scanln(&token)
-		fmt.Println("OK.")
+		Logger.Infoln("OK.")
 	}
 
 	// format input
-	configValues := fmt.Sprintf("host: %v\ntoken: %v\n", host, token)
+	configValues := fmt.Sprintf("endpoint: %v\ntoken: %v\n", endpoint, token)
 
 	// write new config values to file
 	if _, err = file.WriteString(configValues); err != nil {
-		fmt.Println(err.Error())
-		os.Exit(-1)
+		Logger.FatalOnError("", err)
 	}
 
-	fmt.Printf("Your configuration has been created in `%v`.\n", cfgPathDefault)
-	fmt.Println("It can edited manually for advanced settings.")
+	Logger.Info("Your configuration has been created in `%v`.\n", cfgPathDefault)
+	Logger.Infoln("It can edited manually for advanced settings.")
 	return err
 }
