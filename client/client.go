@@ -37,7 +37,7 @@ func (c *Client) Run(query string) (map[string]interface{}, error) {
 	ctx := context.Background()
 	var resp map[string]interface{}
 
-	c.logger.Info("Querying ", c.endpoint, " with:\n\n", query, "\n\n")
+	c.logger.Debug("Querying %s with:\n\n%s\n\n", c.endpoint, query)
 	err := c.client.Run(ctx, req, &resp)
 	return resp, err
 }

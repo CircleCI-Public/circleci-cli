@@ -27,6 +27,5 @@ func query(cmd *cobra.Command, args []string) {
 	b, err := json.MarshalIndent(resp, "", "  ")
 	Logger.FatalOnError("Could not parse graphql response", err)
 
-	Logger.Info("Result: \n\n")
-	Logger.Info(string(b) + "\n")
+	Logger.Infoln(string(b))
 }

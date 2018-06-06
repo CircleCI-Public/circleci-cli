@@ -43,6 +43,12 @@ func (l *Logger) Info(args ...interface{}) {
 	l.info.Print(args...)
 }
 
+// Infoln prints all args to os.Stdout followed by a newline.
+// This method wraps log.Logger.Println
+func (l *Logger) Infoln(args ...interface{}) {
+	l.info.Println(args...)
+}
+
 // Infof prints a formatted message to stdout
 // This method wraps log.Logger.Printf
 func (l *Logger) Infof(format string, args ...interface{}) {

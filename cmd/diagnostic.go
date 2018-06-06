@@ -15,14 +15,15 @@ func diagnostic(cmd *cobra.Command, args []string) {
 	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
-	Logger.Info("\n---\nCircleCI CLI Diagnostics\n---\n\n")
+	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---\n")
 	Logger.Infof("Config found: `%v`\n", viper.ConfigFileUsed())
 
 	Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
 
 	if token == "token" || token == "" {
-		Logger.Info("Please set a token!")
+		var err error
+		Logger.FatalOnError("Please set a token!", err)
 	} else {
-		Logger.Info("OK, got a token.")
+		Logger.Infoln("OK, got a token.")
 	}
 }

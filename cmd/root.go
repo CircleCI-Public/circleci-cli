@@ -123,16 +123,10 @@ func createConfig() (err error) {
 	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
-	if endpoint == "endpoint" || endpoint == "" {
-		Logger.Info("Please enter the HTTP(S) endpoint to your CircleCI GraphQL API:")
-		fmt.Scanln(&endpoint)
-		Logger.Info("OK.\n")
-	}
-
 	if token == "token" || token == "" {
 		Logger.Info("Please enter your CircleCI API token: ")
 		fmt.Scanln(&token)
-		Logger.Info("OK.\n")
+		Logger.Infoln("OK.")
 	}
 
 	// format input
@@ -144,6 +138,6 @@ func createConfig() (err error) {
 	}
 
 	Logger.Info("Your configuration has been created in `%v`.\n", cfgPathDefault)
-	Logger.Info("It can edited manually for advanced settings.\n")
+	Logger.Infoln("It can edited manually for advanced settings.")
 	return err
 }
