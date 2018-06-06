@@ -31,8 +31,11 @@ var (
 	cfgFile        string
 	cfgName        = "cli"
 	cfgPathDefault = fmt.Sprintf("%s/.circleci/%s.yml", os.Getenv("HOME"), cfgName)
-	Logger         *logger.Logger
 )
+
+// Logger is exposed here so we can access it from subcommands.
+// This allows us to print to the log at anytime from within the `cmd` package.
+var Logger *logger.Logger
 
 func addCommands() {
 	rootCmd.AddCommand(diagnosticCmd)

@@ -32,3 +32,13 @@ cover:
 .PHONY: lint
 lint:
 	gometalinter --deadline 60s --vendor ./...
+
+.PHONY: doc
+doc:
+	godoc -http=:6060
+
+.PHONY: dev
+dev:
+	go get golang.org/x/tools/cmd/godoc
+	go get -u github.com/alecthomas/gometalinter
+	gometalinter --install
