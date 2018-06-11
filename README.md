@@ -4,7 +4,7 @@ This project is the seed for CircleCI's new command-line application.
 
 ## Requirements
 
-* Go 1.9+
+* Go 1.10+
 * Make
 * ...
 
