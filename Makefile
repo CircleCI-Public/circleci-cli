@@ -4,17 +4,27 @@ SHA=$(shell git rev-parse --short HEAD)
 
 GOFILES = $(shell find . -name '*.go' -not -path './vendor/*')
 
+OS = $(shell uname)
+
 CLIPATH=github.com/circleci/circleci-cli
 
 EXECUTABLE=circleci-cli
 BUILD_DIR=build
 
-.PHONY: build/linux
+.PHONY: build
+build:
+ifeq ($(OS), Darwin)
+	GOOS=darwin GOARCH=amd64 go build -o $(BUILD_DIR)/darwin/amd64/$(EXECUTABLE)
+else ifeq ($(OS), Linux)
+	GOOS=linux GOARCH=amd64 go build -o $(BUILD_DIR)/linux/amd64/$(EXECUTABLE)
+endif
+
+.PHONY: build/*
 $(BUILD_DIR)/%/amd64/$(EXECUTABLE): $(GOFILES)
 	GOOS=$* GOARCH=amd64 CGO_ENABLED=0 go build $(LDFLAGS) -o $(BUILD_DIR)/$*/amd64/$(EXECUTABLE) .
 
-.PHONY: build
-build: $(BUILD_DIR)/darwin/amd64/$(EXECUTABLE) $(BUILD_DIR)/linux/amd64/$(EXECUTABLE)
+.PHONY: build-all
+build-all: $(BUILD_DIR)/darwin/amd64/$(EXECUTABLE) $(BUILD_DIR)/linux/amd64/$(EXECUTABLE)
 
 .PHONY: clean
 clean:
@@ -27,7 +37,7 @@ test:
 
 .PHONY: cover
 cover:
-	go test -coverprofile=coverage.txt -covermode=count ./...
+	go test -race -coverprofile=coverage.txt ./...
 
 .PHONY: lint
 lint:

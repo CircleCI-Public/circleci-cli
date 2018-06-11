@@ -118,7 +118,7 @@ func createConfig() (err error) {
 		Logger.FatalOnError("", err)
 	}
 	defer func() {
-	  Logger.FatalOnError("Error closing config file", file.Close())
+		Logger.FatalOnError("Error closing config file", file.Close())
 	}()
 
 	// read flag values
@@ -139,7 +139,7 @@ func createConfig() (err error) {
 		Logger.FatalOnError("", err)
 	}
 
-	Logger.Info("Your configuration has been created in `%v`.\n", cfgPathDefault)
+	Logger.Infof("Your configuration has been created in `%v`.\n", cfgPathDefault)
 	Logger.Infoln("It can edited manually for advanced settings.")
 	return err
 }
