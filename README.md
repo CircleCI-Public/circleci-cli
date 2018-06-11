@@ -4,16 +4,11 @@ This project is the seed for CircleCI's new command-line application.
 
 ## Requirements
 
-* Go 1.9+
+* Go 1.10+
 * Make
 * ...
 
-It's written in Go. If you are new to Go, we recommend the following resources:
-
-* [A Tour of Go](https://tour.golang.org/welcome/1)
-* [The Go documentation](https://golang.org/doc/)
-
-## Development
+## Getting Started
 
 You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
 
@@ -21,12 +16,19 @@ This includes setting a valid `$GOPATH`.
 
 ### 1. Get the repo
 
+TODO: make this easier once repo is public
+
 ```
-$ go get -u github.com/circleci/circleci-cli
-$ cd $GOPATH/src/github.com/circleci/circleci-cli
+# Setup circleci source in your $GOPATH
+$ mkdir -p $GOPATH/src/github.com/circleci
+$ cd $GOPATH/src/github.com/circleci
+
+# Clone the repo
+$ git clone git@github.com/circleci/circleci-cli
+$ cd circleci-cli
 ```
 
-### 2. Build it
+### 2. Build the binary
 
 ```
 $ make
@@ -35,7 +37,7 @@ $ make
 ### 3. Run Diagnostic check
 
 ```
-$ ./build/target/linux/amd64/circleci-cli diagnostic
+$ ./build/target/darwin/amd64/circleci-cli diagnostic
 
 Please enter your CircleCI API token:
 OK.
@@ -51,71 +53,64 @@ Host is: https://circleci.com
 OK, got a token.
 ```
 
-## Dependencies
+## Running a query
 
-We use `dep` for vendoring our depencencies:
-https://github.com/golang/dep
+After you've setup the CLI, you can try executing a GraphQL query against the client.
 
-You can install it on MacOS:
+Given we've written the following query in a file called `query.gql`:
 
-```
-$ brew install dep
-$ brew upgrade dep
-```
+``` graphql
+query IntrospectionQuery {
+	__schema {
+		queryType { name }
+		mutationType { name }
+		subscriptionType { name }
+		types {
+			...FullType
+		}
+		directives {
+			name
+			description
+		}
+	}
+}
 
-Or on Linux, etc:
-
-```
-$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-```
-
-To make sure dependencies are installed:
-
-```
-$ dep ensure
-```
-
-## Linting
-
-We use [`gometalinter`](github.com/alecthomas/gometalinter) for linting.
-
-You can install it via `$ make dev` or manually with:
-
-```
-$ go get -u github.com/alecthomas/gometalinter
-$ gometalinter --install
+fragment FullType on __Type {
+	kind
+	name
+	description
+	fields(includeDeprecated: true) {
+		name
+	}
+}
 ```
 
-Then you can run it with `$ make lint`.
+You can now pipe that file to the `query` command to send it.
+
+```
+$ cat query.gql | ./build/target/darwin/amd64/circleci-cli query
+```
+
+This should pretty-print back a JSON response from the server:
+
+```
+{
+	"__schema": {
+		# ...Tons O' Schema
+	}
+}
+```
 
 ## Known Issues
 
 * ...
 
-## Doc
+## Viewing API Documentation
 
-You can view `godoc` of the cli in your browser.
+You can view the documentation for this project in your browser using `godoc`.
 
-After installing it either via `go get golang.org/x/tools/cmd/godoc` or running `make dev`.
+After installing it via `make dev`.
 
-1. Run `make doc` or `godoc -http=:6060`
+1. Run `make doc`.
 2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
 
-## Editor support
-
-Go has great tooling such as [`gofmt`](https://golang.org/cmd/gofmt/) and [`goimports`](https://godoc.org/golang.org/x/tools/cmd/goimports).
-
-```
-$ go get golang.org/x/tools/cmd/goimports
-```
-
-You can read about `gofmt` [here](https://blog.golang.org/go-fmt-your-code). In particular, you can set it up with [vim](https://github.com/fatih/vim-go) or [emacs](https://github.com/dominikh/go-mode.el).
-
-I've the following in my `.emacs.d/init.el`:
-
-```
-(setq gofmt-command "goimports")
-(require 'go-mode)
-(add-hook 'before-save-hook 'gofmt-before-save)
-(require 'go-rename)
-```
