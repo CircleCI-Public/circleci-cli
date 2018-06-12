@@ -28,5 +28,5 @@ func query(cmd *cobra.Command, args []string) {
 		Logger.FatalOnError("Error occurred when running query", err)
 	}
 
-	Logger.Infoln(resp)
+	Logger.Prettyify(resp)
 }

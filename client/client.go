@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/circleci/circleci-cli/logger"
 	"github.com/machinebox/graphql"
@@ -31,7 +30,7 @@ func NewClient(endpoint string, token string, logger *logger.Logger) *Client {
 // Run will construct a request using graphql.NewRequest.
 // Then it will execute the given query using graphql.Client.Run.
 // This function will return the unmarshalled response as JSON.
-func (c *Client) Run(query string) (string, error) {
+func (c *Client) Run(query string) (map[string]interface{}, error) {
 	req := graphql.NewRequest(query)
 	req.Header.Set("Authorization", c.token)
 
@@ -40,13 +39,5 @@ func (c *Client) Run(query string) (string, error) {
 
 	c.logger.Debug("Querying %s with:\n\n%s\n\n", c.endpoint, query)
 	err := c.client.Run(ctx, req, &resp)
-	if err != nil {
-		return "", err
-	}
-
-	b, err := json.MarshalIndent(resp, "", "  ")
-	if err != nil {
-		return "", err
-	}
-	return string(b), err
+	return resp, err
 }
