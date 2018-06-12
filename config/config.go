@@ -1,56 +1,50 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 
-	"github.com/circleci/circleci-cli/logger"
 	"github.com/spf13/viper"
 )
 
-type config struct {
+type Config struct {
 	Verbose     bool
 	File        string
 	Name        string
 	DefaultPath string
 }
 
-// Logger is exposed here so we can access it from subcommands.
-// Use this to print to the log at anytime.
-var Logger *logger.Logger
-
-// Config is a struct of the current configuration available at runtime.
-var Config = &config{
-	Verbose:     false,
-	Name:        "cli",
-	DefaultPath: fmt.Sprintf("%s/.circleci/cli.yml", os.Getenv("HOME")),
-}
-
 // Init is called on initialize of the root command.
-func Init() {
-	Logger = logger.NewLogger(Config.Verbose)
-	if err := Read(); err == nil {
-		return
+func (c *Config) Init() error {
+	// try to read the config for the user
+	if err := c.read(); err == nil {
+		return err
 	}
 
-	Logger.FatalOnError("Error creating a new config file", Create())
+	// create a new config, prompting the user
+	if err := c.create(); err != nil {
+		return err
+	}
 
-	Config.File = Config.DefaultPath
-	Logger.FatalOnError(
-		"Failed to re-read config after creating a new file",
-		Read(), // reload config after creating it
-	)
+	c.File = c.DefaultPath
+
+	// reload after creating config
+	if err := c.read(); err != nil {
+		return err
+	}
+	return nil
 }
 
-// Read tries to load the config either from Config.DefaultPath or Config.File.
-func Read() (err error) {
-	if Config.File != "" {
-		viper.SetConfigFile(Config.File)
+// read tries to load the config either from Config.defaultPath or Config.file.
+func (c *Config) read() error {
+	if c.File != "" {
+		viper.SetConfigFile(c.File)
 	}
 
 	if viper.ConfigFileUsed() == "" {
 		viper.AddConfigPath("$HOME/.circleci")
-		viper.SetConfigName(Config.Name)
+		viper.SetConfigName(c.Name)
 	}
 
 	// read in environment variables that match
@@ -59,40 +53,39 @@ func Read() (err error) {
 	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
-	err = viper.ReadInConfig()
+	err := viper.ReadInConfig()
 	return err
 }
 
-// Create will generate a new config, after asking the user for their token.
-func Create() (err error) {
+// create will generate a new config, after asking the user for their token.
+func (c *Config) create() error {
 	// Don't support creating config at --config flag, only default
-	if Config.File != "" {
-		Logger.Debug("Setting up default config at: %v\n", Config.DefaultPath)
+	if c.File != "" {
+		fmt.Printf("Setting up default config at: %v\n", c.DefaultPath)
 	}
 
 	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
 
-	if _, err = os.Stat(path); os.IsNotExist(err) {
-		Logger.FatalOnError(
-			fmt.Sprintf("Error creating directory: '%s'", path),
-			os.Mkdir(path, 0700),
-		)
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		if err = os.Mkdir(path, 0700); err != nil {
+			return errors.New(fmt.Sprintf("Error creating directory: '%s'", path))
+		}
 	} else {
-		Logger.FatalOnError(fmt.Sprintf("Error accessing '%s'", path), err)
+		return errors.New(fmt.Sprintf("Error accessing directory: '%s'", path))
 	}
 
 	// Create default config file
-	if _, err = os.Create(Config.DefaultPath); err != nil {
+	if _, err := os.Create(c.DefaultPath); err != nil {
 		return err
 	}
 
 	// open file with read & write
-	file, err := os.OpenFile(Config.DefaultPath, os.O_RDWR, 0600)
+	file, err := os.OpenFile(c.DefaultPath, os.O_RDWR, 0600)
 	if err != nil {
-		Logger.FatalOnError("", err)
+		return err
 	}
 	defer func() {
-		Logger.FatalOnError("Error closing config file", file.Close())
+		file.Close()
 	}()
 
 	// read flag values
@@ -100,9 +93,9 @@ func Create() (err error) {
 	token := viper.GetString("token")
 
 	if token == "token" || token == "" {
-		Logger.Info("Please enter your CircleCI API token: ")
+		fmt.Print("Please enter your CircleCI API token: ")
 		fmt.Scanln(&token)
-		Logger.Infoln("OK.")
+		fmt.Println("OK.")
 	}
 
 	// format input
@@ -110,10 +103,10 @@ func Create() (err error) {
 
 	// write new config values to file
 	if _, err = file.WriteString(configValues); err != nil {
-		Logger.FatalOnError("", err)
+		return err
 	}
 
-	Logger.Infof("Your configuration has been created in `%v`.\n", Config.DefaultPath)
-	Logger.Infoln("It can edited manually for advanced settings.")
+	fmt.Printf("Your configuration has been created in `%v`.\n", c.DefaultPath)
+	fmt.Println("It can edited manually for advanced settings.")
 	return err
 }
