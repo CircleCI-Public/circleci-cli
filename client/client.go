@@ -40,6 +40,9 @@ func (c *Client) Run(query string) (string, error) {
 
 	c.logger.Debug("Querying %s with:\n\n%s\n\n", c.endpoint, query)
 	err := c.client.Run(ctx, req, &resp)
+	if err != nil {
+		return "", err
+	}
 
 	b, err := json.MarshalIndent(resp, "", "  ")
 	if err != nil {

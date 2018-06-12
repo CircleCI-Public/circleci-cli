@@ -1,13 +1,13 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"os"
 
 	"github.com/spf13/viper"
 )
 
+// Config is a struct of the current configuration available at runtime.
 type Config struct {
 	Verbose     bool
 	File        string
@@ -30,10 +30,8 @@ func (c *Config) Init() error {
 	c.File = c.DefaultPath
 
 	// reload after creating config
-	if err := c.read(); err != nil {
-		return err
-	}
-	return nil
+	err := c.read()
+	return err
 }
 
 // read tries to load the config either from Config.defaultPath or Config.file.
@@ -68,10 +66,10 @@ func (c *Config) create() error {
 
 	if _, err := os.Stat(path); os.IsNotExist(err) {
 		if err = os.Mkdir(path, 0700); err != nil {
-			return errors.New(fmt.Sprintf("Error creating directory: '%s'", path))
+			return fmt.Errorf("Error creating directory: '%s'", path)
 		}
 	} else {
-		return errors.New(fmt.Sprintf("Error accessing directory: '%s'", path))
+		return fmt.Errorf("Error accessing directory: '%s'", path)
 	}
 
 	// Create default config file
@@ -85,7 +83,10 @@ func (c *Config) create() error {
 		return err
 	}
 	defer func() {
-		file.Close()
+		cerr := file.Close()
+		if err == nil {
+			err = cerr
+		}
 	}()
 
 	// read flag values
@@ -94,7 +95,9 @@ func (c *Config) create() error {
 
 	if token == "token" || token == "" {
 		fmt.Print("Please enter your CircleCI API token: ")
-		fmt.Scanln(&token)
+		if _, err = fmt.Scanln(&token); err != nil {
+			return err
+		}
 		fmt.Println("OK.")
 	}
 
