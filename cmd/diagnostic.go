@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/circleci/circleci-cli/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -15,15 +16,17 @@ func diagnostic(cmd *cobra.Command, args []string) {
 	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
-	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---\n")
-	Logger.Infof("Config found: `%v`\n", viper.ConfigFileUsed())
+	config.Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---\n")
+	config.Logger.Infof("Config found: %v\n", viper.ConfigFileUsed())
 
-	Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
+	config.Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
 
 	if token == "token" || token == "" {
 		var err error
-		Logger.FatalOnError("Please set a token!", err)
+		config.Logger.FatalOnError("Please set a token!", err)
 	} else {
-		Logger.Infoln("OK, got a token.")
+		config.Logger.Infoln("OK, got a token.")
 	}
+
+	config.Logger.Infof("Verbose mode: %v\n", config.Config.Verbose)
 }
