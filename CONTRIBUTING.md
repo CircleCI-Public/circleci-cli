@@ -72,3 +72,12 @@ For example, I've the following in my `.emacs.d/init.el`:
 (add-hook 'before-save-hook 'gofmt-before-save)
 (require 'go-rename)
 ```
+
+## Viewing API Documentation
+
+You can view the documentation for this project in your browser using `godoc`.
+
+After installing it via `make dev`.
+
+1. Run `make doc`.
+2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
