@@ -18,7 +18,7 @@ var queryCmd = &cobra.Command{
 }
 
 func query(cmd *cobra.Command, args []string) {
-	client := client.NewClient(viper.GetString("endpoint"), viper.GetString("token"), config.Logger)
+	client := client.NewClient(viper.GetString("endpoint"), viper.GetString("token"))
 
 	query, err := ioutil.ReadAll(os.Stdin)
 	config.Logger.FatalOnError("Something happened", err)
