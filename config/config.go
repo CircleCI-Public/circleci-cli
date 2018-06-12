@@ -9,10 +9,9 @@ import (
 
 // Config is a struct of the current configuration available at runtime.
 type Config struct {
-	Verbose     bool
-	File        string
-	Name        string
-	DefaultPath string
+	Verbose bool
+	File    string
+	Name    string
 }
 
 // Init is called on initialize of the root command.
@@ -27,7 +26,7 @@ func (c *Config) Init() error {
 		return err
 	}
 
-	c.File = c.DefaultPath
+	c.File = c.defaultFile()
 
 	// reload after creating config
 	err := c.read()
@@ -55,30 +54,41 @@ func (c *Config) read() error {
 	return err
 }
 
+// defaultPath is the default path to the parent directory that contains the config file
+func (c *Config) defaultPath() string {
+	return fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
+}
+
+// defaultFile is the path to the default config file
+func (c *Config) defaultFile() string {
+	return fmt.Sprintf("%s/%s.yml", c.defaultPath(), c.Name)
+}
+
+func (c *Config) setupDefaults() error {
+	if _, err := os.Stat(c.defaultPath()); os.IsNotExist(err) {
+		if err = os.Mkdir(c.defaultPath(), 0700); err != nil {
+			return fmt.Errorf("Error creating directory: '%s'", c.defaultPath())
+		}
+	}
+
+	// Create default config file
+	_, err := os.Create(c.defaultFile())
+	return err
+}
+
 // create will generate a new config, after asking the user for their token.
 func (c *Config) create() error {
 	// Don't support creating config at --config flag, only default
 	if c.File != "" {
-		fmt.Printf("Setting up default config at: %v\n", c.DefaultPath)
+		fmt.Printf("Setting up default config at: %v\n", c.defaultFile())
 	}
 
-	path := fmt.Sprintf("%s/.circleci", os.Getenv("HOME"))
-
-	if _, err := os.Stat(path); os.IsNotExist(err) {
-		if err = os.Mkdir(path, 0700); err != nil {
-			return fmt.Errorf("Error creating directory: '%s'", path)
-		}
-	} else {
-		return fmt.Errorf("Error accessing directory: '%s'", path)
-	}
-
-	// Create default config file
-	if _, err := os.Create(c.DefaultPath); err != nil {
+	if err := c.setupDefaults(); err != nil {
 		return err
 	}
 
 	// open file with read & write
-	file, err := os.OpenFile(c.DefaultPath, os.O_RDWR, 0600)
+	file, err := os.OpenFile(c.defaultFile(), os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
@@ -95,8 +105,8 @@ func (c *Config) create() error {
 
 	if token == "token" || token == "" {
 		fmt.Print("Please enter your CircleCI API token: ")
-		if _, err = fmt.Scanln(&token); err != nil {
-			return err
+		if n, es := fmt.Scanln(&token); n < 0 {
+			return es
 		}
 		fmt.Println("OK.")
 	}
@@ -109,7 +119,7 @@ func (c *Config) create() error {
 		return err
 	}
 
-	fmt.Printf("Your configuration has been created in `%v`.\n", c.DefaultPath)
+	fmt.Printf("Your configuration has been created in `%v`.\n", c.defaultFile())
 	fmt.Println("It can edited manually for advanced settings.")
 	return err
 }

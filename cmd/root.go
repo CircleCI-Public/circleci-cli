@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/circleci/circleci-cli/config"
@@ -27,9 +26,8 @@ var Logger *logger.Logger
 
 // Config is the current configuration available to all commands in `cmd` package.
 var Config = &config.Config{
-	Verbose:     false,
-	Name:        "cli",
-	DefaultPath: fmt.Sprintf("%s/.circleci/cli.yml", os.Getenv("HOME")),
+	Verbose: false,
+	Name:    "cli",
 }
 
 var rootCmd = &cobra.Command{
@@ -59,7 +57,7 @@ func init() {
 func setup() {
 	Logger = logger.NewLogger(Config.Verbose)
 	Logger.FatalOnError(
-		"Failed to setup configuration",
+		"Failed to setup configuration: ",
 		Config.Init(),
 	)
 }
