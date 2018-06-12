@@ -1,12 +1,10 @@
 package cmd
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"os"
 
 	"github.com/circleci/circleci-cli/client"
-	"github.com/circleci/circleci-cli/config"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -18,15 +16,17 @@ var queryCmd = &cobra.Command{
 }
 
 func query(cmd *cobra.Command, args []string) {
-	client := client.NewClient(viper.GetString("endpoint"), viper.GetString("token"))
+	client := client.NewClient(viper.GetString("endpoint"), viper.GetString("token"), Logger)
 
 	query, err := ioutil.ReadAll(os.Stdin)
-	config.Logger.FatalOnError("Something happened", err)
+	if err != nil {
+		Logger.FatalOnError("Unable to read query", err)
+	}
 
 	resp, err := client.Run(string(query))
-	config.Logger.FatalOnError("Something happend", err)
-	b, err := json.MarshalIndent(resp, "", "  ")
-	config.Logger.FatalOnError("Could not parse graphql response", err)
+	if err != nil {
+		Logger.FatalOnError("Error occurred when running query", err)
+	}
 
-	config.Logger.Infoln(string(b))
+	Logger.Prettyify(resp)
 }

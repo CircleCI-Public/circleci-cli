@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/circleci/circleci-cli/config"
+	"github.com/circleci/circleci-cli/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -19,6 +20,16 @@ func Execute() {
 	}
 }
 
+// Logger is exposed here so we can access it from subcommands.
+// This allows us to print to the log at anytime from within the `cmd` package.
+var Logger *logger.Logger
+
+// Config is the current configuration available to all commands in `cmd` package.
+var Config = &config.Config{
+	Verbose: false,
+	Name:    "cli",
+}
+
 var rootCmd = &cobra.Command{
 	Use:   "cli",
 	Short: "Use CircleCI from the command line.",
@@ -31,14 +42,22 @@ func addCommands() {
 }
 
 func init() {
-	cobra.OnInitialize(config.Init)
+	cobra.OnInitialize(setup)
 
-	rootCmd.PersistentFlags().BoolVarP(&config.Config.Verbose, "verbose", "v", false, "Enable verbose logging.")
+	rootCmd.PersistentFlags().BoolVarP(&Config.Verbose, "verbose", "v", false, "Enable verbose logging.")
 
-	rootCmd.PersistentFlags().StringVarP(&config.Config.File, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
+	rootCmd.PersistentFlags().StringVarP(&Config.File, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	config.Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
-	config.Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
+	Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
+	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
+}
+
+func setup() {
+	Logger = logger.NewLogger(Config.Verbose)
+	Logger.FatalOnError(
+		"Failed to setup configuration: ",
+		Config.Init(),
+	)
 }
