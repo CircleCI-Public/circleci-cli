@@ -78,13 +78,12 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          keys: [v1-goreleaser-]
+          keys: [v2-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
-            [[ -e goreleaser ]] && exit
-            curl --silent --location --fail --retry 3 $GORELEASER_URL > /tmp/goreleaser_amd64.deb
-            sudo apt install /tmp/goreleaser_amd64.deb
+            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
+            sudo apt install ~/goreleaser_amd64.deb
       - run:
           name: Tag Repo
           command: |
@@ -96,5 +95,5 @@ jobs:
           name: Release
           command: goreleaser
       - save_cache:
-          key: v1-goreleaser-{{ checksum "/usr/local/bin/goreleaser" }}
-          paths: [/usr/local/bin/goreleaser]
+          key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          paths: [~/goreleaser_amd64.deb]
