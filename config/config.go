@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/viper"
 )
@@ -26,23 +27,18 @@ func (c *Config) Init() error {
 		return err
 	}
 
-	c.File = c.defaultFile()
-
 	// reload after creating config
 	err := c.read()
 	return err
 }
 
-// read tries to load the config either from Config.defaultPath or Config.file.
+// read tries to load the config either from (*Config).defaultPath() or (*Config).File.
 func (c *Config) read() error {
-	if c.File != "" {
-		viper.SetConfigFile(c.File)
+	file, err := c.flagOrDefaultFile()
+	if err != nil {
+		return err
 	}
-
-	if viper.ConfigFileUsed() == "" {
-		viper.AddConfigPath("$HOME/.circleci")
-		viper.SetConfigName(c.Name)
-	}
+	viper.SetConfigFile(file)
 
 	// read in environment variables that match
 	// set a prefix for config, i.e. CIRCLECI_CLI_ENDPOINT
@@ -50,7 +46,7 @@ func (c *Config) read() error {
 	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
-	err := viper.ReadInConfig()
+	err = viper.ReadInConfig()
 	return err
 }
 
@@ -64,31 +60,63 @@ func (c *Config) defaultFile() string {
 	return fmt.Sprintf("%s/%s.yml", c.defaultPath(), c.Name)
 }
 
-func (c *Config) setupDefaults() error {
-	if _, err := os.Stat(c.defaultPath()); os.IsNotExist(err) {
-		if err = os.Mkdir(c.defaultPath(), 0700); err != nil {
-			return fmt.Errorf("Error creating directory: '%s'", c.defaultPath())
+func (c *Config) configPath() (string, error) {
+	file, err := c.flagOrDefaultFile()
+	if err != nil {
+		return c.defaultFile(), err
+	}
+
+	return filepath.Abs(filepath.Dir(file))
+}
+
+func (c *Config) flagOrDefaultFile() (string, error) {
+	if c.File != "" {
+		absFile, err := filepath.Abs(c.File)
+		if err != nil {
+			return c.defaultFile(), err
+		}
+		return absFile, err
+	}
+
+	return c.defaultFile(), nil
+}
+
+func (c *Config) setup() error {
+	path, err := c.configPath()
+
+	if err != nil {
+		return err
+	}
+
+	if _, err = os.Stat(path); os.IsNotExist(err) {
+		if err = os.Mkdir(path, 0700); err != nil {
+			return fmt.Errorf("Error creating directory: '%s'", path)
 		}
 	}
 
-	// Create default config file
-	_, err := os.Create(c.defaultFile())
+	// Create config file
+	file, err := c.flagOrDefaultFile()
+	if err != nil {
+		return err
+	}
+	_, err = os.Create(file)
 	return err
 }
 
 // create will generate a new config, after asking the user for their token.
 func (c *Config) create() error {
-	// Don't support creating config at --config flag, only default
-	if c.File != "" {
-		fmt.Printf("Setting up default config at: %v\n", c.defaultFile())
+	cfg, err := c.flagOrDefaultFile()
+	if err != nil {
+		return err
 	}
+	fmt.Printf("Setting up default config at: %v\n", cfg)
 
-	if err := c.setupDefaults(); err != nil {
+	if err = c.setup(); err != nil {
 		return err
 	}
 
 	// open file with read & write
-	file, err := os.OpenFile(c.defaultFile(), os.O_RDWR, 0600)
+	file, err := os.OpenFile(cfg, os.O_RDWR, 0600)
 	if err != nil {
 		return err
 	}
@@ -119,7 +147,7 @@ func (c *Config) create() error {
 		return err
 	}
 
-	fmt.Printf("Your configuration has been created in `%v`.\n", c.defaultFile())
+	fmt.Printf("Your configuration has been created in `%v`.\n", cfg)
 	fmt.Println("It can edited manually for advanced settings.")
 	return err
 }
