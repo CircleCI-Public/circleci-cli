@@ -16,14 +16,14 @@ var queryCmd = &cobra.Command{
 }
 
 func query(cmd *cobra.Command, args []string) {
-	client := client.NewClient(viper.GetString("endpoint"), viper.GetString("token"), Logger)
+	c := client.NewClient(viper.GetString("endpoint"), Logger)
 
 	query, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		Logger.FatalOnError("Unable to read query", err)
 	}
 
-	resp, err := client.Run(string(query))
+	resp, err := client.Run(c, viper.GetString("token"), string(query))
 	if err != nil {
 		Logger.FatalOnError("Error occurred when running query", err)
 	}

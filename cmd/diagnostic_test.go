@@ -87,7 +87,7 @@ token:
 			It("print error", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Please set a token!"))
+				Eventually(session.Err).Should(gbytes.Say("Error: please set a token"))
 				Eventually(session.Out).Should(gbytes.Say("GraphQL API endpoint: https://example.com/graphql"))
 				Eventually(session).Should(gexec.Exit(1))
 			})
