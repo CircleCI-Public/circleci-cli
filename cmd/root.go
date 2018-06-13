@@ -26,8 +26,7 @@ var Logger *logger.Logger
 
 // Config is the current configuration available to all commands in `cmd` package.
 var Config = &config.Config{
-	Verbose: false,
-	Name:    "cli",
+	Name: "cli",
 }
 
 var rootCmd = &cobra.Command{
@@ -44,7 +43,7 @@ func addCommands() {
 func init() {
 	cobra.OnInitialize(setup)
 
-	rootCmd.PersistentFlags().BoolVarP(&Config.Verbose, "verbose", "v", false, "Enable verbose logging.")
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 
 	rootCmd.PersistentFlags().StringVarP(&Config.File, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
@@ -52,10 +51,18 @@ func init() {
 
 	Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
 	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
+
+	err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+
+	if err != nil {
+		panic(err)
+	}
+
+	addCommands()
 }
 
 func setup() {
-	Logger = logger.NewLogger(Config.Verbose)
+	Logger = logger.NewLogger(viper.GetBool("verbose"))
 	Logger.FatalOnError(
 		"Failed to setup configuration: ",
 		Config.Init(),
