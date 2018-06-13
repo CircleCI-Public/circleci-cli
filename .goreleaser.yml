@@ -1,0 +1,13 @@
+archive:
+  format_overrides:
+    - goos: windows
+      format: zip
+    
+builds:
+  - binary: circleci-beta
+    goos:
+      - windows
+      - darwin
+      - linux
+    goarch:
+      - amd64

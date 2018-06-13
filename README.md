@@ -100,17 +100,3 @@ This should pretty-print back a JSON response from the server:
 	}
 }
 ```
-
-## Known Issues
-
-* ...
-
-## Viewing API Documentation
-
-You can view the documentation for this project in your browser using `godoc`.
-
-After installing it via `make dev`.
-
-1. Run `make doc`.
-2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
-

@@ -7,6 +7,14 @@ workflows:
       - test
       - coverage
       - lint
+      - deploy:
+          requires:
+            - test
+            - coverage
+            - lint
+          filters:
+            branches:
+              only: master
 
 jobs:
   test:
@@ -53,3 +61,28 @@ jobs:
             go get -u github.com/alecthomas/gometalinter
             gometalinter --install
       - run: make lint
+
+  deploy:
+    docker:
+      - image: circleci/golang:1.10
+    environment:
+      GORELEASER_URL:  https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
+
+    working_directory: /go/src/github.com/circleci/circleci-cli
+    steps:
+      - checkout
+      - run:
+          name: Install GoReleaser
+          command: |
+            curl --silent --location --fail --retry 3 $GORELEASER_URL > /tmp/goreleaser_amd64.deb
+            sudo apt install /tmp/goreleaser_amd64.deb
+      - run:
+          name: Tag Repo
+          command: |
+            git config --global user.email "marc@circleci.com"
+            git config --global user.name "Marc O'Morain"
+            git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
+            git push origin "v0.1.$CIRCLE_BUILD_NUM"
+      - run:
+          name: Release
+          command: goreleaser
