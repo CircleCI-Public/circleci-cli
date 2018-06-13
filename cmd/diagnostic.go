@@ -28,5 +28,5 @@ func diagnostic(cmd *cobra.Command, args []string) {
 		Logger.Infoln("OK, got a token.")
 	}
 
-	Logger.Infof("Verbose mode: %v\n", Config.Verbose)
+	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
 }

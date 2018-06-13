@@ -9,9 +9,8 @@ import (
 
 // Config is a struct of the current configuration available at runtime.
 type Config struct {
-	Verbose bool
-	File    string
-	Name    string
+	File string
+	Name string
 }
 
 // Init is called on initialize of the root command.
