@@ -1,4 +1,4 @@
-package main_test
+package cmd_test
 
 import (
 	"os/exec"
@@ -9,7 +9,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("Main", func() {
+var _ = Describe("Root", func() {
 	Describe("when run with --help", func() {
 		It("return exit code 0 with help message", func() {
 			command := exec.Command(pathCLI, "--help")
