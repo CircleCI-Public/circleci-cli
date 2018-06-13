@@ -55,12 +55,18 @@ jobs:
     working_directory: /go/src/github.com/circleci/circleci-cli
     steps:
       - checkout
+      - restore_cache:
+          keys: [v1-gometalinter-]
       - run:
           name: Install
           command: |
+            [[ -e /go/bin/gometalinter ]] && exit
             go get -u github.com/alecthomas/gometalinter
             gometalinter --install
       - run: make lint
+      - save_cache:
+          key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
+          paths: [/go/bin/*]
 
   deploy:
     docker:
@@ -71,9 +77,12 @@ jobs:
     working_directory: /go/src/github.com/circleci/circleci-cli
     steps:
       - checkout
+      - restore_cache:
+          keys: [v1-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
+            [[ -e goreleaser ]] && exit
             curl --silent --location --fail --retry 3 $GORELEASER_URL > /tmp/goreleaser_amd64.deb
             sudo apt install /tmp/goreleaser_amd64.deb
       - run:
@@ -86,3 +95,6 @@ jobs:
       - run:
           name: Release
           command: goreleaser
+      - save_cache:
+          key: v1-goreleaser-{{ checksum "/usr/local/bin/goreleaser" }}
+          paths: [/usr/local/bin/goreleaser]
