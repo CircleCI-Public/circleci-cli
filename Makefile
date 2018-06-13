@@ -1,6 +1,4 @@
 VERSION=0.1
-DATE = $(shell date "+%FT%T%z")
-SHA=$(shell git rev-parse --short HEAD)
 
 GOFILES = $(shell find . -name '*.go' -not -path './vendor/*')
 
