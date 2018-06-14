@@ -2,8 +2,9 @@ package cmd
 
 import (
 	"os"
+	"path"
+	"runtime"
 
-	"github.com/circleci/circleci-cli/config"
 	"github.com/circleci/circleci-cli/logger"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -14,7 +15,6 @@ import (
 // by main.main(). It only needs to happen once to
 // the RootCmd.
 func Execute() {
-	addCommands()
 	if err := rootCmd.Execute(); err != nil {
 		os.Exit(-1)
 	}
@@ -23,11 +23,6 @@ func Execute() {
 // Logger is exposed here so we can access it from subcommands.
 // This allows us to print to the log at anytime from within the `cmd` package.
 var Logger *logger.Logger
-
-// Config is the current configuration available to all commands in `cmd` package.
-var Config = &config.Config{
-	Name: "cli",
-}
 
 var rootCmd = &cobra.Command{
 	Use:   "cli",
@@ -38,21 +33,53 @@ var rootCmd = &cobra.Command{
 func addCommands() {
 	rootCmd.AddCommand(diagnosticCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(configureCommand)
+}
+
+func userHomeDir() string {
+	if runtime.GOOS == "windows" {
+		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
+		if home == "" {
+			home = os.Getenv("USERPROFILE")
+		}
+		return home
+	}
+	return os.Getenv("HOME")
 }
 
 func init() {
+
+	configDir := path.Join(userHomeDir(), ".circleci")
 	cobra.OnInitialize(setup)
 
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
+	viper.SetConfigName("cli")
+	viper.AddConfigPath(configDir)
+	viper.SetEnvPrefix("circleci_cli")
+	viper.AutomaticEnv()
 
-	rootCmd.PersistentFlags().StringVarP(&Config.File, "config", "c", "", "config file (default is $HOME/.circleci/cli.yml)")
+	err := viper.ReadInConfig()
+
+	// If reading the config file failed, then we want to create it.
+	// TODO - handle invalid YAML config files.
+	if err != nil {
+		if _, err = os.Stat(configDir); os.IsNotExist(err) {
+			if err = os.MkdirAll(configDir, 0700); err != nil {
+				panic(err)
+			}
+		}
+		if _, err = os.Create(path.Join(configDir, "cli.yml")); err != nil {
+			panic(err)
+		}
+	}
+
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
 	Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
 	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
 
-	err := viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
+	err = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
 
 	if err != nil {
 		panic(err)
@@ -63,8 +90,4 @@ func init() {
 
 func setup() {
 	Logger = logger.NewLogger(viper.GetBool("verbose"))
-	Logger.FatalOnError(
-		"Failed to setup configuration: ",
-		Config.Init(),
-	)
 }

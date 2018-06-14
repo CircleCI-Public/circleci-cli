@@ -13,7 +13,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("Diagnostic", func() {
+var _ = Describe("Configure", func() {
 	var (
 		tempHome string
 		command  *exec.Cmd
@@ -24,9 +24,10 @@ var _ = Describe("Diagnostic", func() {
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 
-		command = exec.Command(pathCLI, "diagnostic")
+		command = exec.Command(pathCLI, "configure", "--testing")
 		command.Env = append(os.Environ(),
 			fmt.Sprintf("HOME=%s", tempHome),
+			fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
 		)
 	})
 
@@ -55,30 +56,26 @@ var _ = Describe("Diagnostic", func() {
 		})
 
 		Describe("token and endpoint set in config file", func() {
-			BeforeEach(func() {
-				_, err := config.Write([]byte(`
-endpoint: https://example.com/graphql
-token: mytoken
-`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
-			})
 
 			It("print success", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API endpoint: https://example.com/graphql"))
-				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
+
+				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
+				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
+				Eventually(session.Out).Should(gbytes.Say("CircleCI API End Point"))
+				Eventually(session.Out).Should(gbytes.Say("API endpoint has been set."))
+				Eventually(session.Out).Should(gbytes.Say("Configuration has been saved."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 
-		Context("token set to empty string in config file", func() {
+		Context("token set to some string in config file", func() {
 			BeforeEach(func() {
 				_, err := config.Write([]byte(`
 endpoint: https://example.com/graphql
-token: 
+token: fooBarBaz
 `))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(config.Close()).To(Succeed())
@@ -87,9 +84,13 @@ token:
 			It("print error", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Please set a token!"))
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API endpoint: https://example.com/graphql"))
-				Eventually(session).Should(gexec.Exit(1))
+				Eventually(session.Out).Should(gbytes.Say("A CircleCI token is already set. Do you want to change it"))
+				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
+				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
+				Eventually(session.Out).Should(gbytes.Say("CircleCI API End Point"))
+				Eventually(session.Out).Should(gbytes.Say("API endpoint has been set."))
+				Eventually(session.Out).Should(gbytes.Say("Configuration has been saved."))
+				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 	})
