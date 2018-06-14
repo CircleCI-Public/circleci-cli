@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 )
 
+// Node represents a leaf in the filetree
 type Node struct {
 	FullPath string
 	Info     *os.FileInfo
@@ -13,10 +14,20 @@ type Node struct {
 	Parent   *Node
 }
 
+// Helper function that returns true if a path exists in excludes array
+func excluded(exclude []string, path string) bool {
+	for _, n := range exclude {
+		if path == n {
+			return true
+		}
+	}
+	return false
+}
+
+// NewTree creates a new filetree starting at the root
 func NewTree(root string) (*Node, error) {
 	parents := make(map[string]*Node)
-	// need to pass this in as an array
-	exclude := []string{"path/to/skip"}
+	var result *Node
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -24,20 +35,21 @@ func NewTree(root string) (*Node, error) {
 		}
 
 		// check if file is in exclude slice and skip it
-		name := info.Name()
-		_, exists := exclude[name]
-		if exists {
-			fmt.Printf("skipping a dir without errors: %+v \n", info.Name())
+		// need to pass this in as an array
+		exclude := []string{"path/to/skip"}
+		if excluded(exclude, path) {
+			fmt.Printf("skipping: %+v \n", info.Name())
 			return filepath.SkipDir
 		}
 
 		parents[path] = &Node{
 			FullPath: path,
-			Info:     info,
+			Info:     &info,
 			Children: make([]*Node, 0),
 		}
 		return nil
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -47,8 +59,10 @@ func NewTree(root string) (*Node, error) {
 		if exists {
 			node.Parent = parent
 			parent.Children = append(parent.Children, node)
+		} else {
+			result = node
 		}
 
 	}
-	return node, err
+	return result, err
 }
