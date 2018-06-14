@@ -28,14 +28,16 @@ var _ = Describe("filetree", func() {
 	})
 
 	Describe("NewTree", func() {
+		var rootFile, subDir, subDirFile string
+
 		BeforeEach(func() {
-			var err error
-			_, err = os.OpenFile(
-				filepath.Join(tempRoot, "foo"),
-				os.O_RDWR|os.O_CREATE,
-				0600,
-			)
-			Expect(err).ToNot(HaveOccurred())
+			rootFile = filepath.Join(tempRoot, "root_file")
+			subDir = filepath.Join(tempRoot, "sub_dir")
+			subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file")
+
+			Expect(ioutil.WriteFile(rootFile, []byte{}, 0600)).To(Succeed())
+			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
+			Expect(ioutil.WriteFile(subDirFile, []byte{}, 0600)).To(Succeed())
 		})
 
 		It("Builds a tree of the nested file-structure", func() {
@@ -45,9 +47,15 @@ var _ = Describe("filetree", func() {
 			Expect(tree.FullPath).To(Equal(tempRoot))
 			Expect(tree.Info.Name()).To(Equal(filepath.Base(tempRoot)))
 
-			fooPath := filepath.Join(tempRoot, "foo")
-			Expect(tree.Children[0].Info.Name()).To(Equal("foo"))
-			Expect(tree.Children[0].FullPath).To(Equal(fooPath))
+			Expect(tree.Children).To(HaveLen(2))
+			Expect(tree.Children[0].Info.Name()).To(Equal("root_file"))
+			Expect(tree.Children[0].FullPath).To(Equal(rootFile))
+			Expect(tree.Children[1].Info.Name()).To(Equal("sub_dir"))
+			Expect(tree.Children[1].FullPath).To(Equal(subDir))
+
+			Expect(tree.Children[1].Children).To(HaveLen(1))
+			Expect(tree.Children[1].Children[0].Info.Name()).To(Equal("sub_dir_file"))
+			Expect(tree.Children[1].Children[0].FullPath).To(Equal(subDirFile))
 		})
 	})
 })
