@@ -9,7 +9,7 @@ import (
 // Node represents a leaf in the filetree
 type Node struct {
 	FullPath string
-	Info     *os.FileInfo
+	Info     os.FileInfo
 	Children []*Node
 	Parent   *Node
 }
@@ -44,7 +44,7 @@ func NewTree(root string) (*Node, error) {
 
 		parents[path] = &Node{
 			FullPath: path,
-			Info:     &info,
+			Info:     info,
 			Children: make([]*Node, 0),
 		}
 		return nil
