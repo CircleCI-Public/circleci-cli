@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -48,6 +49,9 @@ var _ = Describe("filetree", func() {
 			Expect(tree.Info.Name()).To(Equal(filepath.Base(tempRoot)))
 
 			Expect(tree.Children).To(HaveLen(2))
+			sort.Slice(tree.Children, func(i, j int) bool {
+				return tree.Children[i].FullPath < tree.Children[j].FullPath
+			})
 			Expect(tree.Children[0].Info.Name()).To(Equal("root_file"))
 			Expect(tree.Children[0].FullPath).To(Equal(rootFile))
 			Expect(tree.Children[1].Info.Name()).To(Equal("sub_dir"))
