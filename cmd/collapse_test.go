@@ -8,7 +8,6 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 )
 
@@ -30,23 +29,38 @@ var _ = Describe("collapse", func() {
 		Expect(os.RemoveAll(tempRoot)).To(Succeed())
 	})
 
-	Describe("with a single file under root", func() {
+	Describe("with two YAML files within separate directory structures", func() {
 		BeforeEach(func() {
-			var err error
-			_, err = os.OpenFile(
-				filepath.Join(tempRoot, "foo"),
-				os.O_RDWR|os.O_CREATE,
-				0600,
-			)
-			Expect(err).ToNot(HaveOccurred())
+			for _, dirName := range []string{"one", "two"} {
+				path := filepath.Join(tempRoot, "orbs", dirName, "commands")
+				Expect(os.MkdirAll(path, 0700)).To(Succeed())
+				Expect(ioutil.WriteFile(
+					filepath.Join(path, "file.yml"),
+					[]byte("contents_one: 1\ncontents_two: 2\n"),
+					0600),
+				).To(Succeed())
+			}
 		})
 
-		It("Prints a JSON tree of the nested file-structure", func() {
+		It("collapse all YAML contents using directory structure as keys", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			session.Wait()
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 
-			Eventually(session.Out).Should(gbytes.Say("{}"))
+			Eventually(session.Out.Contents()).Should(MatchYAML(`
+orbs:
+  one:
+    commands:
+      file:
+        contents_one: 1
+        contents_two: 2
+  two:
+    commands:
+      file:
+        contents_one: 1
+        contents_two: 2
+`))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
