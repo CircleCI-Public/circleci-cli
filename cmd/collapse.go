@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
-
 	"github.com/circleci/circleci-cli/filetree"
 	"github.com/spf13/cobra"
 )
@@ -26,9 +24,5 @@ func collapse(cmd *cobra.Command, args []string) {
 		Logger.FatalOnError("An error occurred", err)
 	}
 
-	data, err := json.MarshalIndent(tree, "", "  ")
-	if err != nil {
-		Logger.FatalOnError("An error occurred trying to marshal", err)
-	}
-	Logger.Infoln(data)
+	Logger.Prettyify(tree)
 }
