@@ -8,10 +8,10 @@ import (
 
 // Node represents a leaf in the filetree
 type Node struct {
-	FullPath string
-	Info     os.FileInfo
-	Children []*Node
-	Parent   *Node
+	FullPath string      `json:"full_path"`
+	Info     os.FileInfo `json:"info"`
+	Children []*Node     `json:"children"`
+	Parent   *Node       `json:"-"`
 }
 
 // Helper function that returns true if a path exists in excludes array
