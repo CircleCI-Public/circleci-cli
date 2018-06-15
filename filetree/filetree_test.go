@@ -9,6 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/circleci/circleci-cli/filetree"
 )
@@ -60,6 +61,18 @@ var _ = Describe("filetree", func() {
 			Expect(tree.Children[1].Children).To(HaveLen(1))
 			Expect(tree.Children[1].Children[0].Info.Name()).To(Equal("sub_dir_file"))
 			Expect(tree.Children[1].Children[0].FullPath).To(Equal(subDirFile))
+		})
+
+		It("renders to YAML", func() {
+			tree, err := filetree.NewTree(tempRoot)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := yaml.Marshal(tree)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(MatchYAML(`root_file: {}
+sub_dir:
+  sub_dir_file: {}
+`))
 		})
 	})
 })

@@ -14,6 +14,19 @@ type Node struct {
 	Parent   *Node       `json:"-"`
 }
 
+func (n Node) MarshalYAML() (interface{}, error) {
+	tree := map[string]interface{}{}
+	for _, child := range n.Children {
+		c, err := child.MarshalYAML()
+		if err != nil {
+			return tree, err
+		}
+		tree[child.Info.Name()] = c
+	}
+
+	return tree, nil
+}
+
 // Helper function that returns true if a path exists in excludes array
 func excluded(exclude []string, path string) bool {
 	for _, n := range exclude {
