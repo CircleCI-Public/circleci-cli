@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -32,10 +33,28 @@ func (n Node) marshalParent() (interface{}, error) {
 		if err != nil {
 			return tree, err
 		}
-		tree[child.Info.Name()] = c
+
+		if len(child.siblings()) > 0 {
+			result := make(map[string]interface{})
+			merge, _ := json.Marshal(c)
+			json.Unmarshal(merge, &result)
+			tree[child.Parent.Info.Name()] = result
+		} else {
+			tree[child.Info.Name()] = c
+		}
 	}
 
 	return tree, nil
+}
+
+func (n Node) siblings() []*Node {
+	siblings := []*Node{}
+	for _, child := range n.Parent.Children {
+		if child != &n {
+			siblings = append(siblings, child)
+		}
+	}
+	return siblings
 }
 
 func (n Node) marshalLeaf() (interface{}, error) {
