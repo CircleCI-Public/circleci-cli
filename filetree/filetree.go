@@ -18,10 +18,9 @@ type Node struct {
 }
 
 func (n Node) MarshalYAML() (interface{}, error) {
-	switch len(n.Children) {
-	case 0:
+	if len(n.Children) == 0 {
 		return n.marshalLeaf()
-	default:
+	} else {
 		return n.marshalParent()
 	}
 }
@@ -41,6 +40,9 @@ func (n Node) marshalParent() (interface{}, error) {
 
 func (n Node) marshalLeaf() (interface{}, error) {
 	var content interface{}
+	if n.Info.IsDir() {
+		return content, nil
+	}
 
 	buf, err := ioutil.ReadFile(n.FullPath)
 	if err != nil {
