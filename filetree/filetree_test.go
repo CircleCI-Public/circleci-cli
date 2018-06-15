@@ -33,13 +33,13 @@ var _ = Describe("filetree", func() {
 		var rootFile, subDir, subDirFile string
 
 		BeforeEach(func() {
-			rootFile = filepath.Join(tempRoot, "root_file")
+			rootFile = filepath.Join(tempRoot, "root_file.yml")
 			subDir = filepath.Join(tempRoot, "sub_dir")
-			subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file")
+			subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file.yml")
 
-			Expect(ioutil.WriteFile(rootFile, []byte{}, 0600)).To(Succeed())
+			Expect(ioutil.WriteFile(rootFile, []byte("foo:\n  bar"), 0600)).To(Succeed())
 			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
-			Expect(ioutil.WriteFile(subDirFile, []byte{}, 0600)).To(Succeed())
+			Expect(ioutil.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
 		})
 
 		It("Builds a tree of the nested file-structure", func() {
@@ -53,13 +53,13 @@ var _ = Describe("filetree", func() {
 			sort.Slice(tree.Children, func(i, j int) bool {
 				return tree.Children[i].FullPath < tree.Children[j].FullPath
 			})
-			Expect(tree.Children[0].Info.Name()).To(Equal("root_file"))
+			Expect(tree.Children[0].Info.Name()).To(Equal("root_file.yml"))
 			Expect(tree.Children[0].FullPath).To(Equal(rootFile))
 			Expect(tree.Children[1].Info.Name()).To(Equal("sub_dir"))
 			Expect(tree.Children[1].FullPath).To(Equal(subDir))
 
 			Expect(tree.Children[1].Children).To(HaveLen(1))
-			Expect(tree.Children[1].Children[0].Info.Name()).To(Equal("sub_dir_file"))
+			Expect(tree.Children[1].Children[0].Info.Name()).To(Equal("sub_dir_file.yml"))
 			Expect(tree.Children[1].Children[0].FullPath).To(Equal(subDirFile))
 		})
 
@@ -69,9 +69,14 @@ var _ = Describe("filetree", func() {
 
 			out, err := yaml.Marshal(tree)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchYAML(`root_file: {}
+			Expect(out).To(MatchYAML(`root_file.yml:
+  foo:
+    bar
 sub_dir:
-  sub_dir_file: {}
+  sub_dir_file.yml:
+    foo:
+      bar:
+        baz
 `))
 		})
 	})

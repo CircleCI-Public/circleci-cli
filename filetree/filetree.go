@@ -2,8 +2,11 @@ package filetree
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+
+	yaml "gopkg.in/yaml.v2"
 )
 
 // Node represents a leaf in the filetree
@@ -15,6 +18,15 @@ type Node struct {
 }
 
 func (n Node) MarshalYAML() (interface{}, error) {
+	switch len(n.Children) {
+	case 0:
+		return n.marshalLeaf()
+	default:
+		return n.marshalParent()
+	}
+}
+
+func (n Node) marshalParent() (interface{}, error) {
 	tree := map[string]interface{}{}
 	for _, child := range n.Children {
 		c, err := child.MarshalYAML()
@@ -25,6 +37,19 @@ func (n Node) MarshalYAML() (interface{}, error) {
 	}
 
 	return tree, nil
+}
+
+func (n Node) marshalLeaf() (interface{}, error) {
+	var content interface{}
+
+	buf, err := ioutil.ReadFile(n.FullPath)
+	if err != nil {
+		return content, err
+	}
+
+	err = yaml.Unmarshal(buf, &content)
+
+	return content, err
 }
 
 // Helper function that returns true if a path exists in excludes array
