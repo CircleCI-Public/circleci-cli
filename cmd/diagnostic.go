@@ -10,10 +10,10 @@ import (
 var diagnosticCmd = &cobra.Command{
 	Use:   "diagnostic",
 	Short: "Check the status of your CircleCI CLI.",
-	Run:   diagnostic,
+	RunE:  diagnostic,
 }
 
-func diagnostic(cmd *cobra.Command, args []string) {
+func diagnostic(cmd *cobra.Command, args []string) error {
 	endpoint := viper.GetString("endpoint")
 	token := viper.GetString("token")
 
@@ -23,10 +23,10 @@ func diagnostic(cmd *cobra.Command, args []string) {
 	Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
 
 	if token == "token" || token == "" {
-		Logger.FatalOnError("Please set a token!", errors.New(""))
-	} else {
-		Logger.Infoln("OK, got a token.")
+		return errors.New("please set a token")
 	}
-
+	Logger.Infoln("OK, got a token.")
 	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
+
+	return nil
 }

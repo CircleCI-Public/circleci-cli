@@ -3,9 +3,10 @@ package cmd
 import (
 	"os"
 	"path"
-	"runtime"
 
 	"github.com/circleci/circleci-cli/logger"
+	"github.com/circleci/circleci-cli/settings"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
@@ -34,22 +35,30 @@ func addCommands() {
 	rootCmd.AddCommand(diagnosticCmd)
 	rootCmd.AddCommand(queryCmd)
 	rootCmd.AddCommand(configureCommand)
+	rootCmd.AddCommand(configCmd)
+
+	// Cobra has a peculiar default behaviour:
+	// https://github.com/spf13/cobra/issues/340
+	// If you expose a command with `RunE`, and return an error from your
+	// command, then Cobra will print the error message, followed by the usage
+	// infomation for the command. This makes it really difficult to see what's
+	// gone wrong. It usually prints a one line error message followed by 15
+	// lines of usage information.
+	// This flag disables that behaviour, so that if a comment fails, it prints
+	// just the error message.
+	rootCmd.SilenceUsage = true
 }
 
-func userHomeDir() string {
-	if runtime.GOOS == "windows" {
-		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
-		if home == "" {
-			home = os.Getenv("USERPROFILE")
-		}
-		return home
+func bindCobraFlagToViper(flag string) {
+	if err := viper.BindPFlag(flag, rootCmd.PersistentFlags().Lookup(flag)); err != nil {
+		panic(errors.Wrapf(err, "internal error binding cobra flag '%s' to viper", flag))
 	}
-	return os.Getenv("HOME")
 }
 
 func init() {
 
-	configDir := path.Join(userHomeDir(), ".circleci")
+	configDir := path.Join(settings.UserHomeDir(), ".circleci")
+
 	cobra.OnInitialize(setup)
 
 	viper.SetConfigName("cli")
@@ -57,34 +66,21 @@ func init() {
 	viper.SetEnvPrefix("circleci_cli")
 	viper.AutomaticEnv()
 
-	err := viper.ReadInConfig()
+	if err := settings.EnsureSettingsFileExists(configDir, "cli.yml"); err != nil {
+		panic(err)
+	}
 
-	// If reading the config file failed, then we want to create it.
-	// TODO - handle invalid YAML config files.
-	if err != nil {
-		if _, err = os.Stat(configDir); os.IsNotExist(err) {
-			if err = os.MkdirAll(configDir, 0700); err != nil {
-				panic(err)
-			}
-		}
-		if _, err = os.Create(path.Join(configDir, "cli.yml")); err != nil {
-			panic(err)
-		}
+	if err := viper.ReadInConfig(); err != nil {
+		panic(err)
 	}
 
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
-	Logger.FatalOnError("Error binding endpoint flag", viper.BindPFlag("endpoint", rootCmd.PersistentFlags().Lookup("endpoint")))
-	Logger.FatalOnError("Error binding token flag", viper.BindPFlag("token", rootCmd.PersistentFlags().Lookup("token")))
-
-	err = viper.BindPFlag("verbose", rootCmd.PersistentFlags().Lookup("verbose"))
-
-	if err != nil {
-		panic(err)
+	for _, flag := range []string{"endpoint", "token", "verbose"} {
+		bindCobraFlagToViper(flag)
 	}
-
 	addCommands()
 }
 
