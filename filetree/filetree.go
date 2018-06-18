@@ -1,12 +1,12 @@
 package filetree
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 
+	"github.com/mitchellh/mapstructure"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -34,17 +34,31 @@ func (n Node) marshalParent() (interface{}, error) {
 			return tree, err
 		}
 
-		if len(child.siblings()) > 0 {
-			result := make(map[string]interface{})
-			merge, _ := json.Marshal(c)
-			json.Unmarshal(merge, &result)
-			tree[child.Parent.Info.Name()] = result
+		if len(child.siblings()) > 0 && child.onlyFile() {
+			find := make(map[string]interface{})
+			if err := mapstructure.Decode(c, &find); err != nil {
+				panic(err)
+			}
+			tree[child.Parent.Info.Name()] = find
 		} else {
 			tree[child.Info.Name()] = c
 		}
 	}
 
 	return tree, nil
+}
+
+// Returns true/false if this node is the only file of it's siblings
+func (n Node) onlyFile() bool {
+	if n.Info.IsDir() {
+		return false
+	}
+	for _, v := range n.siblings() {
+		if v.Info.IsDir() {
+			return true
+		}
+	}
+	return false
 }
 
 func (n Node) siblings() []*Node {
