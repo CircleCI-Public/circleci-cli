@@ -89,7 +89,7 @@ token:
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error: please set a token"))
 				Eventually(session.Out).Should(gbytes.Say("GraphQL API endpoint: https://example.com/graphql"))
-				Eventually(session).Should(gexec.Exit(1))
+				Eventually(session).Should(gexec.Exit(255))
 			})
 		})
 	})
