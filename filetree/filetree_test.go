@@ -93,6 +93,35 @@ sub_dir:
 `))
 		})
 	})
+
+	Describe("MarshalYAML", func() {
+		var subDir, subDirFile, emptyDir string
+
+		BeforeEach(func() {
+			subDir = filepath.Join(tempRoot, "sub_dir")
+			subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file.yml")
+			emptyDir = filepath.Join(tempRoot, "empty_dir")
+
+			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
+			Expect(ioutil.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
+			Expect(os.Mkdir(emptyDir, 0700)).To(Succeed())
+
+		})
+		It("renders to YAML", func() {
+			tree, err := filetree.NewTree(tempRoot)
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := yaml.Marshal(tree)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(MatchYAML(`empty_dir: null
+sub_dir:
+  sub_dir_file.yml:
+    foo:
+      bar:
+        baz
+`))
+		})
+	})
 })
 
 func TestCmd(t *testing.T) {

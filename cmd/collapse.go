@@ -3,6 +3,7 @@ package cmd
 import (
 	"github.com/circleci/circleci-cli/filetree"
 	"github.com/spf13/cobra"
+	yaml "gopkg.in/yaml.v2"
 )
 
 var collapseCommand = &cobra.Command{
@@ -21,8 +22,12 @@ func init() {
 func collapse(cmd *cobra.Command, args []string) {
 	tree, err := filetree.NewTree(root)
 	if err != nil {
-		Logger.FatalOnError("An error occurred", err)
+		Logger.FatalOnError("An error occurred trying to build the tree", err)
 	}
 
-	Logger.Prettyify(tree)
+	y, err := yaml.Marshal(&tree)
+	if err != nil {
+		Logger.FatalOnError("Failed trying to marshal the tree to YAML ", err)
+	}
+	Logger.Infof("%s\n", string(y))
 }

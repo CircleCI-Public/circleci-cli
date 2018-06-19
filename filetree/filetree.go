@@ -1,10 +1,10 @@
 package filetree
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 
 	"github.com/mitchellh/mapstructure"
 	yaml "gopkg.in/yaml.v2"
@@ -107,11 +107,19 @@ func NewTree(root string) (*Node, error) {
 			return err
 		}
 
+		// Skip any dotfiles automatically
+		re := regexp.MustCompile(`^\..+`)
+		if re.MatchString(info.Name()) {
+			// Turn off logging to stdout in this package
+			// fmt.Printf("Skipping: %+v\n", info.Name())
+			return filepath.SkipDir
+		}
+
 		// check if file is in exclude slice and skip it
 		// need to pass this in as an array
 		exclude := []string{"path/to/skip"}
 		if excluded(exclude, path) {
-			fmt.Printf("skipping: %+v \n", info.Name())
+			//fmt.Printf("skipping: %+v \n", info.Name())
 			return filepath.SkipDir
 		}
 
