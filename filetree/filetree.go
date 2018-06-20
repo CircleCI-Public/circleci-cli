@@ -1,10 +1,12 @@
 package filetree
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
+	"strings"
 
 	"github.com/mitchellh/mapstructure"
 	yaml "gopkg.in/yaml.v2"
@@ -13,18 +15,46 @@ import (
 // Node represents a leaf in the filetree
 type Node struct {
 	FullPath string      `json:"full_path"`
-	Info     os.FileInfo `json:"info"`
-	Children []*Node     `json:"children"`
+	Info     os.FileInfo `json:"-"`
+	Children []*Node     `json:"-"`
 	Parent   *Node       `json:"-"`
 }
 
+// MarshalYaml serializes the tree into YAML
 func (n Node) MarshalYAML() (interface{}, error) {
 	if len(n.Children) == 0 {
 		return n.marshalLeaf()
-	} else {
-		return n.marshalParent()
 	}
+	return n.marshalParent()
 }
+
+func (n Node) basename() string {
+	return n.Info.Name()
+}
+
+func (n Node) name() string {
+	return strings.TrimSuffix(n.basename(), filepath.Ext(n.basename()))
+}
+
+func (n Node) rootFile() bool {
+	return n.Info.Mode().IsRegular() && n.root() == n.Parent
+}
+
+func mergeTree(trees ...interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for _, tree := range trees {
+		kvp := make(map[string]interface{})
+		if err := mapstructure.Decode(tree, &kvp); err != nil {
+			panic(err)
+		}
+		for k, v := range kvp {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+var SpecialCase func(path string) bool
 
 func (n Node) marshalParent() (interface{}, error) {
 	tree := map[string]interface{}{}
@@ -34,46 +64,38 @@ func (n Node) marshalParent() (interface{}, error) {
 			return tree, err
 		}
 
-		if len(child.siblings()) > 0 && child.onlyFile() {
-			find := make(map[string]interface{})
-			if err := mapstructure.Decode(c, &find); err != nil {
-				panic(err)
-			}
-			tree[child.Parent.Info.Name()] = find
+		if child.rootFile() {
+			merged := mergeTree(tree, c)
+			tree = merged
+		} else if SpecialCase(child.basename()) {
+			merged := mergeTree(tree, tree[child.Parent.name()], c)
+			tree = merged
 		} else {
-			tree[child.Info.Name()] = c
+			merged := mergeTree(tree[child.name()], c)
+			tree[child.name()] = merged
 		}
 	}
 
 	return tree, nil
 }
 
-// Returns true/false if this node is the only file of it's siblings
-func (n Node) onlyFile() bool {
-	if n.Info.IsDir() {
-		return false
-	}
-	for _, v := range n.siblings() {
-		if v.Info.IsDir() {
-			return true
-		}
-	}
-	return false
-}
+// Returns the root node
+func (n Node) root() *Node {
+	root := n.Parent
 
-func (n Node) siblings() []*Node {
-	siblings := []*Node{}
-	for _, child := range n.Parent.Children {
-		if child != &n {
-			siblings = append(siblings, child)
-		}
+	for root.Parent != nil {
+		root = root.Parent
 	}
-	return siblings
+
+	return root
 }
 
 func (n Node) marshalLeaf() (interface{}, error) {
 	var content interface{}
 	if n.Info.IsDir() {
+		return content, nil
+	}
+	if n.notYaml() {
 		return content, nil
 	}
 
@@ -87,18 +109,23 @@ func (n Node) marshalLeaf() (interface{}, error) {
 	return content, err
 }
 
-// Helper function that returns true if a path exists in excludes array
-func excluded(exclude []string, path string) bool {
-	for _, n := range exclude {
-		if path == n {
-			return true
-		}
-	}
-	return false
+func (n Node) notYaml() bool {
+	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
+	return !re.MatchString(n.FullPath)
+}
+
+func dotfile(path string) bool {
+	re := regexp.MustCompile(`^\..+`)
+	return re.MatchString(path)
+}
+
+func dotfolder(info os.FileInfo) bool {
+	return info.IsDir() && dotfile(info.Name())
 }
 
 // NewTree creates a new filetree starting at the root
-func NewTree(root string) (*Node, error) {
+func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
+	SpecialCase = specialCase
 	parents := make(map[string]*Node)
 	var result *Node
 
@@ -107,24 +134,19 @@ func NewTree(root string) (*Node, error) {
 			return err
 		}
 
-		// Skip any dotfiles automatically
-		re := regexp.MustCompile(`^\..+`)
-		if re.MatchString(info.Name()) {
+		// Skip any dotfolders automatically
+		if root != path && dotfolder(info) {
 			// Turn off logging to stdout in this package
-			// fmt.Printf("Skipping: %+v\n", info.Name())
+			fmt.Printf("Skipping dotfolder: %+v\n", path)
 			return filepath.SkipDir
 		}
 
-		// check if file is in exclude slice and skip it
-		// need to pass this in as an array
-		exclude := []string{"path/to/skip"}
-		if excluded(exclude, path) {
-			//fmt.Printf("skipping: %+v \n", info.Name())
-			return filepath.SkipDir
+		fp, err := filepath.Abs(path)
+		if err != nil {
+			return err
 		}
-
 		parents[path] = &Node{
-			FullPath: path,
+			FullPath: fp,
 			Info:     info,
 			Children: make([]*Node, 0),
 		}
@@ -134,6 +156,7 @@ func NewTree(root string) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	for path, node := range parents {
 		parentPath := filepath.Dir(path)
 		parent, exists := parents[parentPath]
@@ -145,5 +168,6 @@ func NewTree(root string) (*Node, error) {
 		}
 
 	}
+
 	return result, err
 }

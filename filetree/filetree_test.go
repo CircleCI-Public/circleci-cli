@@ -48,7 +48,7 @@ var _ = Describe("filetree", func() {
 			anotherDirFile := filepath.Join(tempRoot, "another_dir", "another_dir_file.yml")
 			Expect(os.Mkdir(anotherDir, 0700)).To(Succeed())
 			Expect(ioutil.WriteFile(anotherDirFile, []byte("1some: in: valid: yaml"), 0600)).To(Succeed())
-			tree, err := filetree.NewTree(tempRoot)
+			tree, err := filetree.NewTree(tempRoot, func(path string) bool { return false })
 			Expect(err).ToNot(HaveOccurred())
 
 			_, err = yaml.Marshal(tree)
@@ -56,7 +56,7 @@ var _ = Describe("filetree", func() {
 		})
 
 		It("Builds a tree of the nested file-structure", func() {
-			tree, err := filetree.NewTree(tempRoot)
+			tree, err := filetree.NewTree(tempRoot, func(path string) bool { return false })
 
 			Expect(err).ToNot(HaveOccurred())
 			Expect(tree.FullPath).To(Equal(tempRoot))
@@ -79,14 +79,14 @@ var _ = Describe("filetree", func() {
 		})
 
 		It("renders to YAML", func() {
-			tree, err := filetree.NewTree(tempRoot)
+			tree, err := filetree.NewTree(tempRoot, func(path string) bool { return false })
 			Expect(err).ToNot(HaveOccurred())
 
 			out, err := yaml.Marshal(tree)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchYAML(`empty_dir: null
+			Expect(out).To(MatchYAML(`empty_dir: {}
 sub_dir:
-  sub_dir_file.yml:
+  sub_dir_file:
     foo:
       bar:
         baz
@@ -108,14 +108,14 @@ sub_dir:
 
 		})
 		It("renders to YAML", func() {
-			tree, err := filetree.NewTree(tempRoot)
+			tree, err := filetree.NewTree(tempRoot, func(path string) bool { return false })
 			Expect(err).ToNot(HaveOccurred())
 
 			out, err := yaml.Marshal(tree)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchYAML(`empty_dir: null
+			Expect(out).To(MatchYAML(`empty_dir: {}
 sub_dir:
-  sub_dir_file.yml:
+  sub_dir_file:
     foo:
       bar:
         baz
