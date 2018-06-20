@@ -1,7 +1,6 @@
 package filetree
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -141,7 +140,7 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 		// Skip any dotfolders automatically
 		if root != path && dotfolder(info) {
 			// Turn off logging to stdout in this package
-			fmt.Printf("Skipping dotfolder: %+v\n", path)
+			//fmt.Printf("Skipping dotfolder: %+v\n", path)
 			return filepath.SkipDir
 		}
 
