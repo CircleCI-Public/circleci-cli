@@ -12,6 +12,26 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// This is a quick hack of a function to convert interfaces
+// into to map[string]interface{} and combine them.
+func mergeTree(trees ...interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for _, tree := range trees {
+		kvp := make(map[string]interface{})
+		if err := mapstructure.Decode(tree, &kvp); err != nil {
+			panic(err)
+		}
+		for k, v := range kvp {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+// SpecialCase is a function you can pass to NewTree
+// in order to override the behavior when marshalling a node.
+var SpecialCase func(path string) bool
+
 // Node represents a leaf in the filetree
 type Node struct {
 	FullPath string      `json:"full_path"`
@@ -20,7 +40,7 @@ type Node struct {
 	Parent   *Node       `json:"-"`
 }
 
-// MarshalYaml serializes the tree into YAML
+// MarshalYAML serializes the tree into YAML
 func (n Node) MarshalYAML() (interface{}, error) {
 	if len(n.Children) == 0 {
 		return n.marshalLeaf()
@@ -40,21 +60,10 @@ func (n Node) rootFile() bool {
 	return n.Info.Mode().IsRegular() && n.root() == n.Parent
 }
 
-func mergeTree(trees ...interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for _, tree := range trees {
-		kvp := make(map[string]interface{})
-		if err := mapstructure.Decode(tree, &kvp); err != nil {
-			panic(err)
-		}
-		for k, v := range kvp {
-			result[k] = v
-		}
-	}
-	return result
+func (n Node) notYaml() bool {
+	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
+	return !re.MatchString(n.FullPath)
 }
-
-var SpecialCase func(path string) bool
 
 func (n Node) marshalParent() (interface{}, error) {
 	tree := map[string]interface{}{}
@@ -107,11 +116,6 @@ func (n Node) marshalLeaf() (interface{}, error) {
 	err = yaml.Unmarshal(buf, &content)
 
 	return content, err
-}
-
-func (n Node) notYaml() bool {
-	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
-	return !re.MatchString(n.FullPath)
 }
 
 func dotfile(path string) bool {
