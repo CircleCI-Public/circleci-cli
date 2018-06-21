@@ -59,11 +59,6 @@ func (n Node) rootFile() bool {
 	return n.Info.Mode().IsRegular() && n.root() == n.Parent
 }
 
-func (n Node) isYaml() bool {
-	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
-	return re.MatchString(n.FullPath)
-}
-
 func (n Node) marshalParent() (interface{}, error) {
 	subtree := map[string]interface{}{}
 	for _, child := range n.Children {
@@ -100,10 +95,12 @@ func (n Node) root() *Node {
 
 func (n Node) marshalLeaf() (interface{}, error) {
 	var content interface{}
+
+	// TODO: this check may be unnecessary with the isYaml check
 	if n.Info.IsDir() {
 		return content, nil
 	}
-	if !n.isYaml() {
+	if !isYaml(n.Info) {
 		return content, nil
 	}
 
@@ -118,13 +115,18 @@ func (n Node) marshalLeaf() (interface{}, error) {
 	return content, err
 }
 
-func dotfile(path string) bool {
+func dotfile(info os.FileInfo) bool {
 	re := regexp.MustCompile(`^\..+`)
-	return re.MatchString(path)
+	return re.MatchString(info.Name())
 }
 
 func dotfolder(info os.FileInfo) bool {
-	return info.IsDir() && dotfile(info.Name())
+	return info.IsDir() && dotfile(info)
+}
+
+func isYaml(info os.FileInfo) bool {
+	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
+	return re.MatchString(info.Name())
 }
 
 // NewTree creates a new filetree starting at the root
@@ -173,8 +175,10 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 	for _, path := range pathKeys {
 		node := parents[path]
 		// skip dotfile nodes that aren't the root path
-		if absroot != path && dotfile(node.Info.Name()) {
-			continue
+		if absroot != path && node.Info.Mode().IsRegular() {
+			if dotfile(node.Info) || !isYaml(node.Info) {
+				continue
+			}
 		}
 		parentPath := filepath.Dir(path)
 		parent, exists := parents[parentPath]
