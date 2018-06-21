@@ -129,26 +129,48 @@ func isYaml(info os.FileInfo) bool {
 	return re.MatchString(info.Name())
 }
 
-// NewTree creates a new filetree starting at the root
-func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
-	SpecialCase = specialCase
-	parents := make(map[string]*Node)
-	var (
-		result   *Node
-		pathKeys []string
-	)
-	absroot, err := filepath.Abs(root)
-	if err != nil {
-		return result, err
+// PathNodes is a map of filepaths to tree nodes with ordered path keys.
+type PathNodes struct {
+	Map  map[string]*Node
+	Keys []string
+}
+
+func buildTree(absRootPath string, pathNodes PathNodes) *Node {
+	var rootNode *Node
+
+	for _, path := range pathNodes.Keys {
+		node := pathNodes.Map[path]
+		// skip dotfile nodes that aren't the root path
+		if absRootPath != path && node.Info.Mode().IsRegular() {
+			if dotfile(node.Info) || !isYaml(node.Info) {
+				continue
+			}
+		}
+		parentPath := filepath.Dir(path)
+		parent, exists := pathNodes.Map[parentPath]
+		if exists {
+			node.Parent = parent
+			parent.Children = append(parent.Children, node)
+		} else {
+			rootNode = node
+		}
 	}
 
-	err = filepath.Walk(absroot, func(path string, info os.FileInfo, err error) error {
+	return rootNode
+}
+
+func collectNodes(absRootPath string) (PathNodes, error) {
+	pathNodes := PathNodes{}
+	pathNodes.Map = make(map[string]*Node)
+	pathNodes.Keys = []string{}
+
+	err := filepath.Walk(absRootPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
 		// Skip any dotfolders that aren't the root path
-		if absroot != path && dotfolder(info) {
+		if absRootPath != path && dotfolder(info) {
 			// Turn off logging to stdout in this package
 			//fmt.Printf("Skipping dotfolder: %+v\n", path)
 			return filepath.SkipDir
@@ -159,8 +181,8 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 			return err
 		}
 
-		pathKeys = append(pathKeys, path)
-		parents[path] = &Node{
+		pathNodes.Keys = append(pathNodes.Keys, path)
+		pathNodes.Map[path] = &Node{
 			FullPath: fp,
 			Info:     info,
 			Children: make([]*Node, 0),
@@ -168,28 +190,24 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 		return nil
 	})
 
+	return pathNodes, err
+}
+
+// NewTree creates a new filetree starting at the root
+func NewTree(rootPath string, specialCase func(path string) bool) (*Node, error) {
+	SpecialCase = specialCase
+
+	absRootPath, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, err
 	}
 
-	for _, path := range pathKeys {
-		node := parents[path]
-		// skip dotfile nodes that aren't the root path
-		if absroot != path && node.Info.Mode().IsRegular() {
-			if dotfile(node.Info) || !isYaml(node.Info) {
-				continue
-			}
-		}
-		parentPath := filepath.Dir(path)
-		parent, exists := parents[parentPath]
-		if exists {
-			node.Parent = parent
-			parent.Children = append(parent.Children, node)
-		} else {
-			result = node
-		}
-
+	pathNodes, err := collectNodes(absRootPath)
+	if err != nil {
+		return nil, err
 	}
 
-	return result, err
+	rootNode := buildTree(absRootPath, pathNodes)
+
+	return rootNode, err
 }
