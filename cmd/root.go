@@ -37,6 +37,7 @@ func addCommands() {
 	rootCmd.AddCommand(collapseCommand)
 	rootCmd.AddCommand(configureCommand)
 	rootCmd.AddCommand(configCmd)
+	rootCmd.AddCommand(newOrbCommand())
 
 	// Cobra has a peculiar default behaviour:
 	// https://github.com/spf13/cobra/issues/340
