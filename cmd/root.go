@@ -34,6 +34,7 @@ var rootCmd = &cobra.Command{
 func addCommands() {
 	rootCmd.AddCommand(diagnosticCmd)
 	rootCmd.AddCommand(queryCmd)
+	rootCmd.AddCommand(collapseCommand)
 	rootCmd.AddCommand(configureCommand)
 	rootCmd.AddCommand(configCmd)
 

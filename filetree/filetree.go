@@ -1,49 +1,165 @@
 package filetree
 
 import (
-	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/mitchellh/mapstructure"
+	yaml "gopkg.in/yaml.v2"
 )
+
+// This is a quick hack of a function to convert interfaces
+// into to map[string]interface{} and combine them.
+func mergeTree(trees ...interface{}) map[string]interface{} {
+	result := make(map[string]interface{})
+	for _, tree := range trees {
+		kvp := make(map[string]interface{})
+		if err := mapstructure.Decode(tree, &kvp); err != nil {
+			panic(err)
+		}
+		for k, v := range kvp {
+			result[k] = v
+		}
+	}
+	return result
+}
+
+// SpecialCase is a function you can pass to NewTree
+// in order to override the behavior when marshalling a node.
+var SpecialCase func(path string) bool
 
 // Node represents a leaf in the filetree
 type Node struct {
-	FullPath string
-	Info     os.FileInfo
-	Children []*Node
-	Parent   *Node
+	FullPath string      `json:"full_path"`
+	Info     os.FileInfo `json:"-"`
+	Children []*Node     `json:"-"`
+	Parent   *Node       `json:"-"`
 }
 
-// Helper function that returns true if a path exists in excludes array
-func excluded(exclude []string, path string) bool {
-	for _, n := range exclude {
-		if path == n {
-			return true
+// MarshalYAML serializes the tree into YAML
+func (n Node) MarshalYAML() (interface{}, error) {
+	if len(n.Children) == 0 {
+		return n.marshalLeaf()
+	}
+	return n.marshalParent()
+}
+
+func (n Node) basename() string {
+	return n.Info.Name()
+}
+
+func (n Node) name() string {
+	return strings.TrimSuffix(n.basename(), filepath.Ext(n.basename()))
+}
+
+func (n Node) rootFile() bool {
+	return n.Info.Mode().IsRegular() && n.root() == n.Parent
+}
+
+func (n Node) notYaml() bool {
+	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
+	return !re.MatchString(n.FullPath)
+}
+
+func (n Node) marshalParent() (interface{}, error) {
+	tree := map[string]interface{}{}
+	for _, child := range n.Children {
+		c, err := child.MarshalYAML()
+		if err != nil {
+			return tree, err
+		}
+
+		if child.rootFile() {
+			merged := mergeTree(tree, c)
+			tree = merged
+		} else if SpecialCase(child.basename()) {
+			merged := mergeTree(tree, tree[child.Parent.name()], c)
+			tree = merged
+		} else {
+			merged := mergeTree(tree[child.name()], c)
+			tree[child.name()] = merged
 		}
 	}
-	return false
+
+	return tree, nil
+}
+
+// Returns the root node
+func (n Node) root() *Node {
+	root := n.Parent
+
+	for root.Parent != nil {
+		root = root.Parent
+	}
+
+	return root
+}
+
+func (n Node) marshalLeaf() (interface{}, error) {
+	var content interface{}
+	if n.Info.IsDir() {
+		return content, nil
+	}
+	if n.notYaml() {
+		return content, nil
+	}
+
+	buf, err := ioutil.ReadFile(n.FullPath)
+
+	if err != nil {
+		return content, err
+	}
+
+	err = yaml.Unmarshal(buf, &content)
+
+	return content, err
+}
+
+func dotfile(path string) bool {
+	re := regexp.MustCompile(`^\..+`)
+	return re.MatchString(path)
+}
+
+func dotfolder(info os.FileInfo) bool {
+	return info.IsDir() && dotfile(info.Name())
 }
 
 // NewTree creates a new filetree starting at the root
-func NewTree(root string) (*Node, error) {
+func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
+	SpecialCase = specialCase
 	parents := make(map[string]*Node)
-	var result *Node
+	var (
+		result   *Node
+		pathKeys []string
+	)
+	absroot, err := filepath.Abs(root)
+	if err != nil {
+		return result, err
+	}
 
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(absroot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// check if file is in exclude slice and skip it
-		// need to pass this in as an array
-		exclude := []string{"path/to/skip"}
-		if excluded(exclude, path) {
-			fmt.Printf("skipping: %+v \n", info.Name())
+		// Skip any dotfolders automatically
+		if root != path && dotfolder(info) {
+			// Turn off logging to stdout in this package
+			//fmt.Printf("Skipping dotfolder: %+v\n", path)
 			return filepath.SkipDir
 		}
 
+		fp, err := filepath.Abs(path)
+		if err != nil {
+			return err
+		}
+
+		pathKeys = append(pathKeys, path)
 		parents[path] = &Node{
-			FullPath: path,
+			FullPath: fp,
 			Info:     info,
 			Children: make([]*Node, 0),
 		}
@@ -53,7 +169,9 @@ func NewTree(root string) (*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-	for path, node := range parents {
+
+	for _, path := range pathKeys {
+		node := parents[path]
 		parentPath := filepath.Dir(path)
 		parent, exists := parents[parentPath]
 		if exists {
@@ -64,5 +182,6 @@ func NewTree(root string) (*Node, error) {
 		}
 
 	}
+
 	return result, err
 }
