@@ -108,6 +108,7 @@ func (n Node) marshalLeaf() (interface{}, error) {
 	}
 
 	buf, err := ioutil.ReadFile(n.FullPath)
+
 	if err != nil {
 		return content, err
 	}
@@ -130,7 +131,10 @@ func dotfolder(info os.FileInfo) bool {
 func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 	SpecialCase = specialCase
 	parents := make(map[string]*Node)
-	var result *Node
+	var (
+		result   *Node
+		pathKeys []string
+	)
 
 	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -148,6 +152,8 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 		if err != nil {
 			return err
 		}
+
+		pathKeys = append(pathKeys, path)
 		parents[path] = &Node{
 			FullPath: fp,
 			Info:     info,
@@ -160,7 +166,8 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 		return nil, err
 	}
 
-	for path, node := range parents {
+	for _, path := range pathKeys {
+		node := parents[path]
 		parentPath := filepath.Dir(path)
 		parent, exists := parents[parentPath]
 		if exists {
