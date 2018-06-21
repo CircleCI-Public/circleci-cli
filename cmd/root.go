@@ -76,7 +76,7 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
-	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql", "the endpoint of your CircleCI GraphQL API")
+	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/unstable", "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
 	for _, flag := range []string{"endpoint", "token", "verbose"} {
