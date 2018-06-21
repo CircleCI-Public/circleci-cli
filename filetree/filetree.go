@@ -59,32 +59,32 @@ func (n Node) rootFile() bool {
 	return n.Info.Mode().IsRegular() && n.root() == n.Parent
 }
 
-func (n Node) notYaml() bool {
+func (n Node) isYaml() bool {
 	re := regexp.MustCompile(`.+\.(yml|yaml)$`)
-	return !re.MatchString(n.FullPath)
+	return re.MatchString(n.FullPath)
 }
 
 func (n Node) marshalParent() (interface{}, error) {
-	tree := map[string]interface{}{}
+	subtree := map[string]interface{}{}
 	for _, child := range n.Children {
 		c, err := child.MarshalYAML()
 		if err != nil {
-			return tree, err
+			return subtree, err
 		}
 
 		if child.rootFile() {
-			merged := mergeTree(tree, c)
-			tree = merged
+			merged := mergeTree(subtree, c)
+			subtree = merged
 		} else if SpecialCase(child.basename()) {
-			merged := mergeTree(tree, tree[child.Parent.name()], c)
-			tree = merged
+			merged := mergeTree(subtree, subtree[child.Parent.name()], c)
+			subtree = merged
 		} else {
-			merged := mergeTree(tree[child.name()], c)
-			tree[child.name()] = merged
+			merged := mergeTree(subtree[child.name()], c)
+			subtree[child.name()] = merged
 		}
 	}
 
-	return tree, nil
+	return subtree, nil
 }
 
 // Returns the root node
@@ -103,7 +103,7 @@ func (n Node) marshalLeaf() (interface{}, error) {
 	if n.Info.IsDir() {
 		return content, nil
 	}
-	if n.notYaml() {
+	if !n.isYaml() {
 		return content, nil
 	}
 
@@ -145,7 +145,7 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 			return err
 		}
 
-		// Skip any dotfolders automatically
+		// Skip any dotfolders that aren't the root path
 		if absroot != path && dotfolder(info) {
 			// Turn off logging to stdout in this package
 			//fmt.Printf("Skipping dotfolder: %+v\n", path)
@@ -172,6 +172,10 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 
 	for _, path := range pathKeys {
 		node := parents[path]
+		// skip dotfile nodes that aren't the root path
+		if absroot != path && dotfile(node.Info.Name()) {
+			continue
+		}
 		parentPath := filepath.Dir(path)
 		parent, exists := parents[parentPath]
 		if exists {
