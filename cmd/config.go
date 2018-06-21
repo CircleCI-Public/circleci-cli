@@ -3,7 +3,6 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 
 	"github.com/pkg/errors"
@@ -28,68 +27,133 @@ var validateCommand = &cobra.Command{
 	RunE:    validateConfig,
 }
 
+var expandCommand = &cobra.Command{
+	Use:   "expand",
+	Short: "Expand the config.",
+	RunE:  expandConfig,
+}
+
 func init() {
-	validateCommand.Flags().StringVarP(&configPath, "path", "p", ".circleci/config.yml", "path to build config")
+	configCmd.PersistentFlags().StringVarP(&configPath, "path", "p", ".circleci/config.yml", "path to build config")
 	configCmd.AddCommand(validateCommand)
+	configCmd.AddCommand(expandCommand)
+}
+
+// Define a structure that matches the result of the GQL
+// query, so that we can use mapstructure to convert from
+// nested maps to a strongly typed struct.
+type buildConfigResponse struct {
+	BuildConfig struct {
+		Valid      bool
+		SourceYaml string
+		OutputYaml string
+
+		Errors []struct {
+			Message string
+		}
+	}
+}
+
+func queryAPI(query string, variables map[string]string, response interface{}) error {
+	ctx := context.Background()
+
+	request := graphql.NewRequest(query)
+	request.Header.Set("Authorization", viper.GetString("token"))
+	for varName, varValue := range variables {
+		request.Var(varName, varValue)
+	}
+
+	client := graphql.NewClient(viper.GetString("endpoint"))
+
+	return client.Run(ctx, request, response)
+}
+
+func loadYaml(path string) (string, error) {
+	config, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		return "", errors.Wrapf(err, "Could not load config file at %s", path)
+	}
+
+	return string(config), nil
+}
+
+func (response buildConfigResponse) processErrors() error {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("\n")
+	for i := range response.BuildConfig.Errors {
+		buffer.WriteString("-- ")
+		buffer.WriteString(response.BuildConfig.Errors[i].Message)
+		buffer.WriteString(",\n")
+	}
+
+	return errors.New(buffer.String())
 }
 
 func validateConfig(cmd *cobra.Command, args []string) error {
-
-	ctx := context.Background()
-
-	// Define a structure that matches the result of the GQL
-	// query, so that we can use mapstructure to convert from
-	// nested maps to a strongly typed struct.
-	type validateResult struct {
-		BuildConfig struct {
-			Valid      bool
-			SourceYaml string
-			Errors     []struct {
-				Message string
-			}
-		}
-	}
-
-	request := graphql.NewRequest(`
+	query := `
 		query ValidateConfig ($config: String!) {
 			buildConfig(configYaml: $config) {
 				valid,
 				errors { message },
 				sourceYaml
 			}
-		}`)
+		}`
 
-	config, err := ioutil.ReadFile(configPath)
-
+	config, err := loadYaml(configPath)
 	if err != nil {
-		return errors.Wrapf(err, "Could not load config file at %s", configPath)
+		return err
 	}
 
-	request.Var("config", string(config))
+	variables := map[string]string{
+		"config": config,
+	}
 
-	client := graphql.NewClient(viper.GetString("endpoint"))
-
-	var result validateResult
-
-	err = client.Run(ctx, request, &result)
-
+	var response buildConfigResponse
+	err = queryAPI(query, variables, &response)
 	if err != nil {
-		return errors.Wrap(err, "GraphQL query failed")
+		return errors.New("Unable to validate config")
 	}
 
-	if !result.BuildConfig.Valid {
-
-		var buffer bytes.Buffer
-
-		for i := range result.BuildConfig.Errors {
-			buffer.WriteString(result.BuildConfig.Errors[i].Message)
-			buffer.WriteString("\n")
-		}
-
-		return fmt.Errorf("config file is invalid:\n%s", buffer.String())
+	if !response.BuildConfig.Valid {
+		return response.processErrors()
 	}
 
-	fmt.Println("Config is valid")
+	Logger.Infoln("Config is valid")
 	return nil
+}
 
+func expandConfig(cmd *cobra.Command, args []string) error {
+	query := `
+		query ExpandConfig($config: String!) {
+			buildConfig(configYaml: $config) {
+				outputYaml
+				valid
+				errors { message }
+			}
+		}
+	`
+
+	config, err := loadYaml(configPath)
+	if err != nil {
+		return err
+	}
+
+	variables := map[string]string{
+		"config": config,
+	}
+
+	var response buildConfigResponse
+	err = queryAPI(query, variables, &response)
+	if err != nil {
+		return errors.New("Unable to expand config")
+	}
+
+	if !response.BuildConfig.Valid {
+		return response.processErrors()
+	}
+
+	Logger.Info(response.BuildConfig.OutputYaml)
+	return nil
 }
