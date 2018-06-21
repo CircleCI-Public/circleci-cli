@@ -135,8 +135,12 @@ func NewTree(root string, specialCase func(path string) bool) (*Node, error) {
 		result   *Node
 		pathKeys []string
 	)
+	absroot, err := filepath.Abs(root)
+	if err != nil {
+		return result, err
+	}
 
-	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+	err = filepath.Walk(absroot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
