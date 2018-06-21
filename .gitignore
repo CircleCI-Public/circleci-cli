@@ -3,3 +3,4 @@ TODO
 circleci-cli
 coverage.txt
 dist/
+.vscode
