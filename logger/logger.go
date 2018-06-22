@@ -73,9 +73,9 @@ func (l *Logger) FatalOnError(msg string, err error) {
 	}
 }
 
-// Prettyify accepts a map fo data and pretty prints it.
+// Prettyify accepts a map of data and pretty prints it.
 // It's using json.MarshalIndent and printing with log.Logger.Infoln
-func (l *Logger) Prettyify(data ...interface{}) {
+func (l *Logger) Prettyify(data map[string]interface{}) {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		l.error.Fatalln(err)
