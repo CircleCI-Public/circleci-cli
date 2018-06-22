@@ -77,6 +77,7 @@ var _ = Describe("Query", func() {
 	}
 }
 `
+
 			server.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/"),
@@ -96,7 +97,7 @@ var _ = Describe("Query", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			session.Wait()
 			Eventually(session.Err.Contents()).Should(BeEmpty())
-			//Eventually(session.Out.Contents()).Should(MatchJSON(responseData))
+			Eventually(session.Out.Contents()).Should(MatchJSON(responseData))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
