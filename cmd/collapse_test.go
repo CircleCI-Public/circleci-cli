@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"io/ioutil"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -12,39 +11,6 @@ import (
 )
 
 var _ = Describe("collapse", func() {
-	var (
-		tempRoot string
-		command  *exec.Cmd
-	)
-
-	BeforeEach(func() {
-		var err error
-		tempRoot, err = ioutil.TempDir("", "circleci-cli-test-")
-		Expect(err).ToNot(HaveOccurred())
-
-		command = exec.Command(pathCLI, "collapse", "-r", tempRoot)
-	})
-
-	AfterEach(func() {
-		Expect(os.RemoveAll(tempRoot)).To(Succeed())
-	})
-
-	Describe("with two YAML files within separate directory structures", func() {
-		BeforeEach(func() {
-			for _, dirName := range []string{"one", "two"} {
-				path := filepath.Join(tempRoot, "orbs", dirName, "commands")
-				Expect(os.MkdirAll(path, 0700)).To(Succeed())
-				Expect(ioutil.WriteFile(
-					filepath.Join(path, "file.yml"),
-					[]byte("contents_one: 1\ncontents_two: 2\n"),
-					0600),
-				).To(Succeed())
-			}
-		})
-	})
-})
-
-var _ = Describe("collapse with testdata", func() {
 	var (
 		command *exec.Cmd
 		results []byte
