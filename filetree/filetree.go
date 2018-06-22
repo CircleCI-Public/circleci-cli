@@ -59,6 +59,11 @@ func (n Node) rootFile() bool {
 	return n.Info.Mode().IsRegular() && n.root() == n.Parent
 }
 
+func (n Node) specialCase() bool {
+	re := regexp.MustCompile(`orb\.(yml|yaml)$`)
+	return re.MatchString(n.basename())
+}
+
 func (n Node) marshalParent() (interface{}, error) {
 	subtree := map[string]interface{}{}
 	for _, child := range n.Children {
@@ -70,7 +75,7 @@ func (n Node) marshalParent() (interface{}, error) {
 		if child.rootFile() {
 			merged := mergeTree(subtree, c)
 			subtree = merged
-		} else if SpecialCase(child.basename()) {
+		} else if child.specialCase() {
 			merged := mergeTree(subtree, subtree[child.Parent.name()], c)
 			subtree = merged
 		} else {
@@ -194,9 +199,7 @@ func collectNodes(absRootPath string) (PathNodes, error) {
 }
 
 // NewTree creates a new filetree starting at the root
-func NewTree(rootPath string, specialCase func(path string) bool) (*Node, error) {
-	SpecialCase = specialCase
-
+func NewTree(rootPath string) (*Node, error) {
 	absRootPath, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, err
