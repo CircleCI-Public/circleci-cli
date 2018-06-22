@@ -4,7 +4,7 @@ GOFILES = $(shell find . -name '*.go' -not -path './vendor/*')
 
 OS = $(shell uname)
 
-CLIPATH=github.com/circleci/circleci-cli
+CLIPATH=github.com/CircleCI-Public/circleci-cli
 
 EXECUTABLE=circleci-cli
 BUILD_DIR=build

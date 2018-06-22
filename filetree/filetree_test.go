@@ -11,7 +11,7 @@ import (
 	. "github.com/onsi/gomega"
 	yaml "gopkg.in/yaml.v2"
 
-	"github.com/circleci/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/filetree"
 )
 
 var _ = Describe("filetree", func() {
