@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"regexp"
-
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
@@ -20,13 +18,8 @@ func init() {
 	collapseCommand.Flags().StringVarP(&root, "root", "r", ".circleci", "path to your configuration (default is .circleci)")
 }
 
-func specialCase(path string) bool {
-	re := regexp.MustCompile(`orb\.(yml|yaml)$`)
-	return re.MatchString(path)
-}
-
 func collapse(cmd *cobra.Command, args []string) {
-	tree, err := filetree.NewTree(root, specialCase)
+	tree, err := filetree.NewTree(root)
 	if err != nil {
 		Logger.FatalOnError("An error occurred trying to build the tree", err)
 	}
