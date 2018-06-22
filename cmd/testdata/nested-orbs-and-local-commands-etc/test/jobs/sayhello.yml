@@ -1,0 +1,10 @@
+description: A job that does very little other than demonstrate what a parameterized job looks like
+parameters:
+  saywhat:
+    description: "To whom shall we say hello?"
+    type: string
+    default: "World"
+machine: true
+steps:
+  - say:
+      saywhat: Hello << parameters.saywhat >>
