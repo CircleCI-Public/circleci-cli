@@ -5,6 +5,7 @@ import (
 	"context"
 	"io/ioutil"
 
+	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 
 	"github.com/machinebox/graphql"
@@ -54,11 +55,10 @@ type buildConfigResponse struct {
 	}
 }
 
-func queryAPI(query string, variables map[string]string, response interface{}) error {
-	ctx := context.Background()
+func queryAPI(ctx context.Context, query string, variables map[string]string, response interface{}) error {
 
-	request := graphql.NewRequest(query)
-	request.Header.Set("Authorization", viper.GetString("token"))
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+
 	for varName, varValue := range variables {
 		request.Var(varName, varValue)
 	}
@@ -69,6 +69,7 @@ func queryAPI(query string, variables map[string]string, response interface{}) e
 }
 
 func loadYaml(path string) (string, error) {
+
 	config, err := ioutil.ReadFile(path)
 
 	if err != nil {
@@ -91,19 +92,21 @@ func (response buildConfigResponse) processErrors() error {
 	return errors.New(buffer.String())
 }
 
-func validateConfig(cmd *cobra.Command, args []string) error {
+func configQuery(ctx context.Context) (*buildConfigResponse, error) {
+
 	query := `
 		query ValidateConfig ($config: String!) {
 			buildConfig(configYaml: $config) {
 				valid,
 				errors { message },
-				sourceYaml
+				sourceYaml,
+				outputYaml
 			}
 		}`
 
 	config, err := loadYaml(configPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	variables := map[string]string{
@@ -111,43 +114,36 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	var response buildConfigResponse
-	err = queryAPI(query, variables, &response)
+	err = queryAPI(ctx, query, variables, &response)
 	if err != nil {
-		return errors.New("Unable to validate config")
+		return nil, errors.Wrap(err, "Unable to validate config")
+	}
+
+	return &response, nil
+}
+
+func validateConfig(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	response, err := configQuery(ctx)
+
+	if err != nil {
+		return err
 	}
 
 	if !response.BuildConfig.Valid {
 		return response.processErrors()
 	}
 
-	Logger.Infoln("Config is valid")
+	Logger.Infof("Config file at %s is valid", configPath)
 	return nil
 }
 
 func expandConfig(cmd *cobra.Command, args []string) error {
-	query := `
-		query ExpandConfig($config: String!) {
-			buildConfig(configYaml: $config) {
-				outputYaml
-				valid
-				errors { message }
-			}
-		}
-	`
+	ctx := context.Background()
+	response, err := configQuery(ctx)
 
-	config, err := loadYaml(configPath)
 	if err != nil {
 		return err
-	}
-
-	variables := map[string]string{
-		"config": config,
-	}
-
-	var response buildConfigResponse
-	err = queryAPI(query, variables, &response)
-	if err != nil {
-		return errors.New("Unable to expand config")
 	}
 
 	if !response.BuildConfig.Valid {

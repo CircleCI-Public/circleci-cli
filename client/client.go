@@ -22,9 +22,9 @@ func NewClient(endpoint string, logger *logger.Logger) *graphql.Client {
 
 }
 
-// newAuthorizedRequest returns a new GraphQL request with the
+// NewAuthorizedRequest returns a new GraphQL request with the
 // authorization headers set for CircleCI auth.
-func newAuthorizedRequest(token, query string) *graphql.Request {
+func NewAuthorizedRequest(token, query string) *graphql.Request {
 	req := graphql.NewRequest(query)
 	req.Header.Set("Authorization", token)
 	return req
@@ -34,7 +34,7 @@ func newAuthorizedRequest(token, query string) *graphql.Request {
 // Then it will execute the given query using graphql.Client.Run.
 // This function will return the unmarshalled response as JSON.
 func Run(client *graphql.Client, token, query string) (map[string]interface{}, error) {
-	req := newAuthorizedRequest(token, query)
+	req := NewAuthorizedRequest(token, query)
 	ctx := context.Background()
 	var resp map[string]interface{}
 	err := client.Run(ctx, req, &resp)

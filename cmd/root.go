@@ -11,6 +11,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+var defaultEndpoint = "https://circleci.com/graphql-unstable"
+
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
@@ -76,7 +78,7 @@ func init() {
 	}
 
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
-	rootCmd.PersistentFlags().StringP("endpoint", "e", "https://circleci.com/graphql-unstable", "the endpoint of your CircleCI GraphQL API")
+	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
 
 	for _, flag := range []string{"endpoint", "token", "verbose"} {

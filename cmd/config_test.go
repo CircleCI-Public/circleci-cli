@@ -131,18 +131,18 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-						"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml\n\t\t\t}\n\t\t}",
-						"variables": {
-							"config": "some config"
-						}
-					}`
+					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "config": "some config"
+					}
+				  }`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Config is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Config file at .*circleci/config.yaml is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -161,11 +161,11 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-						"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml\n\t\t\t}\n\t\t}",
-						"variables": {
-							"config": "some config"
-						}
-					}`
+					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "config": "some config"
+					}
+				  }`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
@@ -208,11 +208,11 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-						"query": "\n\t\tquery ExpandConfig($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\toutputYaml\n\t\t\t\tvalid\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-						"variables": {
-							"config": "some config"
-						}
-					}`
+					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "config": "some config"
+					}
+				  }`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
@@ -239,11 +239,11 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-						"query": "\n\t\tquery ExpandConfig($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\toutputYaml\n\t\t\t\tvalid\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-						"variables": {
-							"config": "some config"
-						}
-					}`
+					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "config": "some config"
+					}
+				  }`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
