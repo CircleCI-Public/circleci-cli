@@ -1,0 +1,7 @@
+description: "a command inside a folder in an orb"
+parameters:
+  tm:
+    description: "Tell me something."
+    type: string
+steps:
+  - run: echo "You don't say... << parameters.saywhat >>"

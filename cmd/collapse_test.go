@@ -86,4 +86,22 @@ var _ = Describe("collapse with testdata", func() {
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
+
+	Describe("an orb containing local executors and commands in folder", func() {
+		BeforeEach(func() {
+			var err error
+			command = exec.Command(pathCLI, "collapse", "-r", "testdata/myorb/test")
+			results, err = ioutil.ReadFile("testdata/myorb/result.yml")
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+
+		It("collapse all YAML contents as expected", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			session.Wait()
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err.Contents()).Should(BeEmpty())
+			Eventually(session.Out.Contents()).Should(MatchYAML(results))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+	})
 })
