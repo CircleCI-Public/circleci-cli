@@ -20,14 +20,14 @@ jobs:
   test:
     docker:
       - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/circleci/circleci-cli
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
       - run: make test
   coverage:
     docker:
       - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/circleci/circleci-cli
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
       - run: make cover
@@ -52,7 +52,7 @@ jobs:
   lint:
     docker:
       - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/circleci/circleci-cli
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
       - restore_cache:
@@ -74,7 +74,7 @@ jobs:
     environment:
       GORELEASER_URL:  https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
 
-    working_directory: /go/src/github.com/circleci/circleci-cli
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
       - restore_cache:

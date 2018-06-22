@@ -1,0 +1,8 @@
+version: 2
+orbs:
+  hugo: circleci/hugo@latest
+
+workflows:
+  build-hugo:
+    jobs:
+      - hugo/build

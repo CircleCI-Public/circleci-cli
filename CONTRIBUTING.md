@@ -9,6 +9,37 @@ Second, it's written in Go. If you are new to Go, we recommend the following res
 * [A Tour of Go](https://tour.golang.org/welcome/1)
 * [The Go documentation](https://golang.org/doc/)
 
+## Requirements
+
+* Go 1.10+
+* Make
+* ...
+
+## Getting setup
+
+You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
+
+This includes setting a valid `$GOPATH`.
+
+### 1. Get the repo
+
+```
+$ go get -u github.com/CircleCI-Public/circleci-cli
+$ cd $GOPATH/src/github.com/CircleCI-Public/circleci-cli
+```
+
+### 2. Build the binary
+
+```
+$ make
+```
+
+### 3. Run tests
+
+```
+$ make test
+```
+
 ## Managing Dependencies
 
 We use `dep` for vendoring our depencencies:
@@ -80,4 +111,4 @@ You can view the documentation for this project in your browser using `godoc`.
 After installing it via `make dev`.
 
 1. Run `make doc`.
-2. Access http://localhost:6060/pkg/github.com/circleci/circleci-cli/
+2. Access http://localhost:6060/pkg/github.com/CircleCI-Public/circleci-cli/

@@ -1,0 +1,10 @@
+description: "A simple encapsulation of common tasks in Hugo"
+
+executors:
+  default:
+    parameters:
+      tag:
+        description: "The tag to use on the image"
+        type: string
+    docker:
+      - image: cibuilds/hugo:<< parameters.image >>

@@ -1,0 +1,112 @@
+commands:
+  foo:
+    parameters:
+      mybool:
+        default: true
+        type: boolean
+    steps:
+    - run: echo in foo
+    - when:
+        condition: << parameters.mybool >>
+        steps:
+        - run: echo bool is true
+    - unless:
+        condition: << parameters.mybool >>
+        steps:
+        - run: echo bool is false
+  say:
+    description: A simple command that echoes whatever is passed
+    parameters:
+      saywhat:
+        description: What shall we say?
+        type: string
+    steps:
+    - run: echo << parameters.saywhat >>
+executors:
+  parallel:
+    parallelism: 4
+jobs:
+  bar:
+    machine:
+      docker_layer_caching: << parameters.mybool >>
+      enabled: << parameters.mybool >>
+    parameters:
+      mybool:
+        default: false
+        type: boolean
+      myotherbool:
+        default: false
+        type: boolean
+      mysteps:
+        default: []
+        type: steps
+    steps:
+    - checkout
+    - when:
+        condition: << parameters.mybool >>
+        steps:
+        - << parameters.mysteps >>
+    - when:
+        condition: << parameters.mybool >>
+        steps:
+        - foo:
+            mybool: << parameters.myotherbool >>
+  build-false:
+    machine: true
+    steps:
+    - foo:
+        mybool: false
+  build-true:
+    machine: true
+    steps:
+    - foo
+  sayhello:
+    description: A job that does very little other than demonstrate what a parameterized
+      job looks like
+    machine: true
+    parameters:
+      saywhat:
+        default: World
+        description: To whom shall we say hello?
+        type: string
+    steps:
+    - say:
+        saywhat: Hello << parameters.saywhat >>
+orbs:
+  foo:
+    commands:
+      zomg:
+        description: a command inside a folder in an orb
+        parameters:
+          tm:
+            description: Tell me something.
+            type: string
+        steps:
+        - run: echo "You don't say... << parameters.saywhat >>"
+    description: A simple encapsulation of common tasks in Hugo
+    executors:
+      default:
+        docker:
+        - image: cibuilds/hugo:<< parameters.image >>
+        parameters:
+          tag:
+            description: The tag to use on the image
+            type: string
+version: 2
+workflows:
+  version: 2
+  workflow:
+    jobs:
+    - build-true
+    - build-false
+    - bar:
+        mybool: true
+        myotherbool: false
+    - bar:
+        mybool: false
+        myotherbool: true
+    - bar:
+        mybool: true
+        mysteps:
+        - run: echo i am a steps param, hear me shout
+

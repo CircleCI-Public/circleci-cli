@@ -2,42 +2,24 @@
 
 This project is the seed for CircleCI's new command-line application.
 
-## Requirements
-
-* Go 1.10+
-* Make
-* ...
-
 ## Getting Started
 
-You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
 
-This includes setting a valid `$GOPATH`.
+### 1. Get the latest binary
 
-### 1. Get the repo
+Download the [latest release](https://github.com/CircleCI-Public/circleci-cli/releases/latest) from GitHub for your operating system. If you're on a Mac, this would be `circleci-cli_0.1.X_darwin_amd64.tar.gz`.
 
-TODO: make this easier once repo is public
-
-```
-# Setup circleci source in your $GOPATH
-$ mkdir -p $GOPATH/src/github.com/circleci
-$ cd $GOPATH/src/github.com/circleci
-
-# Clone the repo
-$ git clone git@github.com/circleci/circleci-cli
-$ cd circleci-cli
-```
-
-### 2. Build the binary
+### 2. Put the binary in your $PATH
 
 ```
-$ make
+$ tar -xvzf circleci-cli_0.1.X_darwin_amd64.tar.gz
+$ mv circleci-beta /usr/local/bin
 ```
 
-### 3. Run Diagnostic check
+### 3. Run a Diagnostic check
 
 ```
-$ ./build/target/darwin/amd64/circleci-cli diagnostic
+$ circleci-beta diagnostic
 
 Please enter your CircleCI API token:
 OK.
@@ -88,7 +70,7 @@ fragment FullType on __Type {
 You can now pipe that file to the `query` command to send it.
 
 ```
-$ cat query.gql | ./build/target/darwin/amd64/circleci-cli query
+$ cat query.gql | circleci-beta query
 ```
 
 This should pretty-print back a JSON response from the server:

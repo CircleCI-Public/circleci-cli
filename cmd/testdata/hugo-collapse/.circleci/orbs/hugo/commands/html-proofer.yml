@@ -1,0 +1,8 @@
+parameters:
+  path:
+    type: string
+    description: "Path to the directory containing the published site, relative to the execution environment root."
+steps:
+  - run:
+      name: "Run HTML Proofer to check for good html and such"
+      command: htmlproofer << parameters.path>> --allow-hash-href --check-html --empty-alt-ignore --disable-external

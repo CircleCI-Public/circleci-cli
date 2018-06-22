@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	"github.com/circleci/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/machinebox/graphql"
 )
 

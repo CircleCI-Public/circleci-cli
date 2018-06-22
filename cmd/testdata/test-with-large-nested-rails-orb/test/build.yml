@@ -1,0 +1,71 @@
+version: 2
+
+commands:
+  foo:
+    parameters:
+      mybool:
+        type: boolean
+        default: true
+    steps:
+      - run: "echo in foo"
+      - when:
+          condition: << parameters.mybool >>
+          steps:
+            - run: echo bool is true
+      - unless:
+          condition: << parameters.mybool >>
+          steps:
+            - run: echo bool is false
+
+jobs:
+  build-true:
+    machine: true
+    steps:
+      - foo
+  build-false:
+    machine: true
+    steps:
+      - foo:
+          mybool: false
+  bar:
+    parameters:
+      mybool:
+        type: boolean
+        default: false
+      myotherbool:
+        type: boolean
+        default: false
+      mysteps:
+        type: steps
+        default: []
+    machine:
+      docker_layer_caching: << parameters.mybool >>
+      enabled: << parameters.mybool >>
+    steps:
+      - checkout
+      - when:
+          condition: << parameters.mybool >>
+          steps:
+            - << parameters.mysteps >>
+      - when:
+          condition: << parameters.mybool >>
+          steps:
+            - foo:
+                mybool: << parameters.myotherbool >>
+
+workflows:
+  version: 2
+  workflow:
+    jobs:
+      - build-true
+      - build-false
+      - bar:
+          mybool: true
+          myotherbool: false
+      - bar:
+          mybool: false
+          myotherbool: true
+      - bar:
+          mybool: true
+          mysteps:
+            - run: echo i am a steps param, hear me shout

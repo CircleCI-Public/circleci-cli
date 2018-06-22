@@ -1,0 +1,108 @@
+orbs:
+  hugo:
+    commands:
+      build-hugo:
+        description: 'Runs the `hugo` CLI against a given source (default: current
+          path) in a given env (default: production)'
+        parameters:
+          env:
+            default: production
+            description: Passed in as the value of HUGO_ENV prior to running the hugo
+              command
+            type: string
+          source:
+            default: .
+            description: a file path, relative to the root of your working directory,
+              where your hugo root is. (passed as the value of the `-s` flag to hugo)
+            type: string
+          update-submodules:
+            default: false
+            description: Boolean for whether to update git submodules.
+            type: boolean
+        steps:
+        - when:
+            condition: << parameters.update-submodules >>
+            steps:
+            - run:
+                command: git submodule update --init --recursive
+                name: Get submodules to refresh themes
+        - run:
+            command: HUGO_ENV=<< parameters.env >> hugo -v -s << parameters.source
+              >>
+            name: Build site with hugo
+      html-proofer:
+        parameters:
+          path:
+            description: Path to the directory containing the published site, relative
+              to the execution environment root.
+            type: string
+        steps:
+        - run:
+            command: htmlproofer << parameters.path>> --allow-hash-href --check-html
+              --empty-alt-ignore --disable-external
+            name: Run HTML Proofer to check for good html and such
+    description: A simple encapsulation of common tasks in Hugo
+    executors:
+      default:
+        docker:
+        - image: cibuilds/hugo:<< parameters.image >>
+        parameters:
+          tag:
+            description: The tag to use on the image
+            type: string
+    jobs:
+      build:
+        executor: default
+        parameters:
+          html-proofer:
+            default: true
+            description: Boolean value for whether to run the HTML Proofer. Set to
+              `false` to stop the default behavior of running the proofer.
+            type: boolean
+          persist_to_workspace:
+            default: true
+            description: Boolean value for whether to persist to a workspace drawing
+              from the `parameters.source` as root and `parameters.publishdir` as
+              the path.
+            type: boolean
+          publishdir:
+            default: public
+            description: Hugo sets the name of your publish Dir inside the site config,
+              not as a CLI argument. Most people leave this to the default value of
+              `public`, so that's what we do here. In most case you don't need to
+              change this value.
+            type: string
+          source:
+            default: .
+            description: a file path, relative to the root of your working directory,
+              where your hugo root is. (passed as the value of the `-s` flag to hugo)
+            type: string
+        steps:
+        - checkout
+        - build-hugo:
+            source: << parameters.source >>
+        - when:
+            condition: << parameters.html-proofer >>
+            steps:
+            - html-proofer: null
+            - path: << parameters.source >>/<< parameters.publishdir >>
+        - when:
+            condition: << parameters.persist_to_workspace >>
+            steps:
+            - persist_to_workspace:
+                paths:
+                - << parameters.publishdir >>
+                root: << parameters.source >>
+    usage:
+      build:
+        orbs:
+          hugo: circleci/hugo@latest
+        version: 2
+        workflows:
+          build-hugo:
+            jobs:
+            - hugo/build
+workflows:
+  foo:
+    jobs:
+    - hugo/build

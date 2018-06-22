@@ -1,0 +1,310 @@
+commands:
+  foo:
+    parameters:
+      mybool:
+        default: true
+        type: boolean
+    steps:
+    - run: echo in foo
+    - when:
+        condition: << parameters.mybool >>
+        steps:
+        - run: echo bool is true
+    - unless:
+        condition: << parameters.mybool >>
+        steps:
+        - run: echo bool is false
+  say:
+    description: A simple command that echoes whatever is passed
+    parameters:
+      saywhat:
+        description: What shall we say?
+        type: string
+    steps:
+    - run: echo << parameters.saywhat >>
+executors:
+  parallel:
+    parallelism: 4
+jobs:
+  bar:
+    machine:
+      docker_layer_caching: << parameters.mybool >>
+      enabled: << parameters.mybool >>
+    parameters:
+      mybool:
+        default: false
+        type: boolean
+      myotherbool:
+        default: false
+        type: boolean
+      mysteps:
+        default: []
+        type: steps
+    steps:
+    - checkout
+    - when:
+        condition: << parameters.mybool >>
+        steps:
+        - << parameters.mysteps >>
+    - when:
+        condition: << parameters.mybool >>
+        steps:
+        - foo:
+            mybool: << parameters.myotherbool >>
+  build-false:
+    machine: true
+    steps:
+    - foo:
+        mybool: false
+  build-true:
+    machine: true
+    steps:
+    - foo
+  sayhello:
+    description: A job that does very little other than demonstrate what a parameterized
+      job looks like
+    machine: true
+    parameters:
+      saywhat:
+        default: World
+        description: To whom shall we say hello?
+        type: string
+    steps:
+    - say:
+        saywhat: Hello << parameters.saywhat >>
+orbs:
+  foo:
+    commands:
+      zomg:
+        description: a command inside a folder in an orb
+        parameters:
+          tm:
+            description: Tell me something.
+            type: string
+        steps:
+        - run: echo "You don't say... << parameters.saywhat >>"
+    description: A simple encapsulation of common tasks in Hugo
+    executors:
+      default:
+        docker:
+        - image: cibuilds/hugo:<< parameters.image >>
+        parameters:
+          tag:
+            description: The tag to use on the image
+            type: string
+  rails:
+    commands:
+      bundle_install:
+        parameters:
+          bundle_jobs:
+            default: "3"
+            type: string
+          bundle_path:
+            default: vendor/bundle
+            type: string
+          bundle_retry:
+            default: "3"
+            type: string
+        steps:
+        - run:
+            command: |
+              bundle config jobs << parameters.bundle_jobs >>
+              bundle config path << parameters.bundle_path >>
+              bundle config retry << parameters.bundle_retry >>
+            name: Configure bundler
+        - run:
+            command: |
+              gem --version
+              bundle --version
+            name: Log versions for debugging
+        - restore_cache:
+            keys:
+            - rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock"
+              }}
+            - rails-demo-bundle-{{ arch }}-{{ .Branch }}-
+            - rails-demo-bundle-{{ arch }}-{{ Environment.DEFAULT_BRANCH }}-
+            name: Restore bundler cache
+        - run:
+            command: bundle check || bundle install
+            name: Bundle Install
+        - run:
+            command: bundle clean --force
+            name: Clear unused bundle gems before saving cache
+        - save_cache:
+            key: rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock"
+              }}
+            paths:
+            - << parameters.bundle_path >>
+      load_db:
+        steps:
+        - run:
+            command: dockerize -wait tcp://localhost:5432 -timeout 1m
+            name: Wait for DB to initialize
+        - run:
+            command: bin/rails db:schema:load --trace
+            name: Database setup
+      run_rspec:
+        parameters:
+          rspec_glob:
+            default: spec/**/*_spec.rb
+            type: string
+        steps:
+        - run:
+            command: |
+              # Determine test subset to run on each container and print diagnostics
+              TEST_FILES=$(circleci tests glob << parameters.rspec_glob >> | \
+                              circleci tests split)
+              echo "running " $(echo $TEST_FILES | wc -w) " tests files on this container:"
+              echo "$TEST_FILES"
+
+              bundle exec rspec --profile 10 \
+                                --format RspecJunitFormatter \
+                                --out CIRCLE_TEST_REPORTS/rspec.xml \
+                                --format documentation \
+                                $TEST_FILES
+            name: Run rspec in parallel
+        - store_test_results:
+            path: $CIRCLE_TEST_REPORTS
+        - store_artifacts:
+            path: $CIRCLE_ARTIFACTS
+    jobs:
+      build_postgres:
+        docker:
+        - image: circleci/ruby:<< parameters.ruby >>-node
+        - environment:
+          - POSTGRES_USER: << parameters.database_user >>
+          - POSTGRES_DB: << parameters.database_name >>
+          - POSTGRES_PASSWORD: << parameters.database_password >>
+          image: circleci/postgres:<< parameters.postgres >>-alpine-ram
+        environment:
+        - CIRCLE_TEST_REPORTS: test_results
+        - CIRCLE_ARTIFACTS: test_results
+        - DATABASE_URL: postgres://<< parameters.database_user >>:<< parameters.database_password
+            >>@127.0.0.1:5432/<< parameters.database_name >>
+        - RAILS_ENV: test
+        parameters:
+          database_name:
+            default: rails_blog
+            type: string
+          database_password:
+            default: ""
+            type: string
+          database_user:
+            default: circleci-demo-ruby
+            type: string
+          postgres:
+            type: string
+          rspec_glob:
+            default: spec/**/*_spec.rb
+            type: string
+          ruby:
+            type: string
+        steps:
+        - checkout
+        - bundle_install
+        - load_db
+        - run_rspec
+    usage:
+      build:
+        version: 2
+        workflows:
+          build-test-deploy:
+            jobs:
+            - rails/build_postgres:
+                postgres: 9.6.8
+                ruby: 2.5.1
+          version: 2
+      generated_config:
+        jobs:
+          build_postgres:
+            docker:
+            - image: circleci/ruby:2.5.1-node
+            - environment:
+              - POSTGRES_USER: circleci-demo-ruby
+              - POSTGRES_DB: rails_blog
+              - POSTGRES_PASSWORD: ""
+              image: circleci/postgres:9.6.8-alpine-ram
+            environment:
+            - CIRCLE_TEST_REPORTS: test_results
+            - CIRCLE_ARTIFACTS: test_results
+            - DATABASE_URL: postgres://circleci-demo-ruby:@127.0.0.1:5432/rails_blog
+            - RAILS_ENV: test
+            steps:
+            - checkout
+            - run:
+                command: |
+                  bundle config jobs 3
+                  bundle config path vendor/bundle
+                  bundle config retry 3
+                name: Configure bundler
+            - run:
+                command: |
+                  gem --version
+                  bundle --version
+                name: Log versions for debugging
+            - restore_cache:
+                keys:
+                - rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock"
+                  }}
+                - rails-demo-bundle-{{ arch }}-{{ .Branch }}-
+                - rails-demo-bundle-{{ arch }}-{{ Environment.DEFAULT_BRANCH }}-
+                name: Restore bundler cache
+            - run:
+                command: bundle check || bundle install
+                name: Bundle Install
+            - run:
+                command: bundle clean --force
+                name: Clear unused bundle gems before saving cache
+            - save_cache:
+                key: rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock"
+                  }}
+                paths:
+                - vendor/bundle
+            - run:
+                command: dockerize -wait tcp://localhost:5432 -timeout 1m
+                name: Wait for DB to initialize
+            - run:
+                command: bin/rails db:schema:load --trace
+                name: Database setup
+            - run:
+                command: |
+                  # Determine test subset to run on each container and print diagnostics
+                  TEST_FILES=$(circleci tests glob spec/**/*_spec.rb | \
+                                  circleci tests split)
+                  echo "running " $(echo $TEST_FILES | wc -w) " tests files on this container:"
+                  echo "$TEST_FILES"
+
+                  bundle exec rspec --profile 10 \
+                                    --format RspecJunitFormatter \
+                                    --out CIRCLE_TEST_REPORTS/rspec.xml \
+                                    --format documentation \
+                                    $TEST_FILES
+                name: Run rspec in parallel
+            - store_test_results:
+                path: $CIRCLE_TEST_REPORTS
+            - store_artifacts:
+                path: $CIRCLE_ARTIFACTS
+        version: 2
+        workflows:
+          build-test-deploy:
+            jobs:
+            - build_postgres: {}
+          version: 2
+version: 2
+workflows:
+  version: 2
+  workflow:
+    jobs:
+    - build-true
+    - build-false
+    - bar:
+        mybool: true
+        myotherbool: false
+    - bar:
+        mybool: false
+        myotherbool: true
+    - bar:
+        mybool: true
+        mysteps:
+        - run: echo i am a steps param, hear me shout
+

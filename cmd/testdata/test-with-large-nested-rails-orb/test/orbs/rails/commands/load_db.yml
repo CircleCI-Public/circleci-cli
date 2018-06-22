@@ -1,0 +1,10 @@
+steps:
+  # Dockerize is this pre-installed on all CircleCI images
+  - run:
+      name: Wait for DB to initialize
+      command: dockerize -wait tcp://localhost:5432 -timeout 1m
+
+  - run:
+      name: Database setup
+      command: bin/rails db:schema:load --trace
+

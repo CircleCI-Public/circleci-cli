@@ -3,7 +3,7 @@ package cmd
 import (
 	"regexp"
 
-	"github.com/circleci/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
 )

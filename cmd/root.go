@@ -4,8 +4,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/circleci/circleci-cli/logger"
-	"github.com/circleci/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

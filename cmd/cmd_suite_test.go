@@ -12,7 +12,7 @@ var pathCLI string
 
 var _ = BeforeSuite(func() {
 	var err error
-	pathCLI, err = gexec.Build("github.com/circleci/circleci-cli")
+	pathCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 	Ω(err).ShouldNot(HaveOccurred())
 })
 

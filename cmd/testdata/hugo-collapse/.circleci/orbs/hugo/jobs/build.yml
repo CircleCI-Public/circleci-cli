@@ -1,0 +1,34 @@
+parameters:
+  source:
+    description: "a file path, relative to the root of your working directory, where your hugo root is. (passed as the value of the `-s` flag to hugo)"
+    default: "."
+    type: string
+  publishdir:
+    description: "Hugo sets the name of your publish Dir inside the site config, not as a CLI argument. Most people leave this to the default value of `public`, so that's what we do here. In most case you don't need to change this value."
+    default: "public"
+    type: string
+  html-proofer:
+    description: "Boolean value for whether to run the HTML Proofer. Set to `false` to stop the default behavior of running the proofer."
+    type: boolean
+    default: true
+  persist_to_workspace:
+    description: "Boolean value for whether to persist to a workspace drawing from the `parameters.source` as root and `parameters.publishdir` as the path."
+    type: boolean
+    default: true
+executor: default
+steps:
+  - checkout
+  - build-hugo:
+      source: "<< parameters.source >>"
+  - when:
+      condition: << parameters.html-proofer >>
+      steps:
+        - html-proofer:
+        - path: "<< parameters.source >>/<< parameters.publishdir >>"
+  - when:
+      condition: << parameters.persist_to_workspace >>
+      steps:
+        - persist_to_workspace:
+            root: "<< parameters.source >>"
+            paths:
+              - "<< parameters.publishdir >>"

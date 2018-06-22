@@ -1,0 +1,24 @@
+description: "Runs the `hugo` CLI against a given source (default: current path) in a given env (default: production)"
+parameters:
+  env:
+    description: "Passed in as the value of HUGO_ENV prior to running the hugo command"
+    type: string
+    default: "production"
+  source:
+    description: "a file path, relative to the root of your working directory, where your hugo root is. (passed as the value of the `-s` flag to hugo)"
+    type: string
+    default: "."
+  update-submodules:
+    description: "Boolean for whether to update git submodules."
+    type: boolean
+    default: false
+steps:
+  - when:
+      condition: << parameters.update-submodules >>
+      steps:
+        - run:
+            name: "Get submodules to refresh themes"
+            command: git submodule update --init --recursive
+  - run:
+      name: "Build site with hugo"
+      command: HUGO_ENV=<< parameters.env >> hugo -v -s << parameters.source >>

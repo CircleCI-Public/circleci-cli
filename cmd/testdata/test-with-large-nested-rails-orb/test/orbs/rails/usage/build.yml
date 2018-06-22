@@ -1,0 +1,9 @@
+version: 2
+
+workflows:
+  version: 2
+  build-test-deploy:
+    jobs:
+      - rails/build_postgres:
+          ruby: "2.5.1"
+          postgres: "9.6.8"

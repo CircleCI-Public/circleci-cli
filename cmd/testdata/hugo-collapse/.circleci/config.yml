@@ -1,0 +1,4 @@
+workflows:
+  foo:
+    jobs:
+      - hugo/build
