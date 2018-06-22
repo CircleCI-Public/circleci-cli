@@ -60,7 +60,7 @@ func (n Node) rootFile() bool {
 }
 
 func (n Node) specialCase() bool {
-	re := regexp.MustCompile(`orb\.(yml|yaml)$`)
+	re := regexp.MustCompile(`^@.*\.(yml|yaml)$`)
 	return re.MatchString(n.basename())
 }
 
