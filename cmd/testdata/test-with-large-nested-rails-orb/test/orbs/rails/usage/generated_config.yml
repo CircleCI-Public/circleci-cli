@@ -1,0 +1,73 @@
+version: 2
+workflows:
+  version: 2
+  build-test-deploy:
+    jobs:
+    - build_postgres: {}
+jobs:
+  build_postgres:
+    environment:
+    - CIRCLE_TEST_REPORTS: test_results
+    - CIRCLE_ARTIFACTS: test_results
+    - DATABASE_URL: postgres://circleci-demo-ruby:@127.0.0.1:5432/rails_blog
+    - RAILS_ENV: test
+    docker:
+    - image: circleci/ruby:2.5.1-node
+    - image: circleci/postgres:9.6.8-alpine-ram
+      environment:
+      - POSTGRES_USER: circleci-demo-ruby
+      - POSTGRES_DB: rails_blog
+      - POSTGRES_PASSWORD: ''
+    steps:
+    - checkout
+    - run:
+        name: Configure bundler
+        command: |
+          bundle config jobs 3
+          bundle config path vendor/bundle
+          bundle config retry 3
+    - run:
+        name: Log versions for debugging
+        command: |
+          gem --version
+          bundle --version
+    - restore_cache:
+        name: Restore bundler cache
+        keys:
+        - rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+        - rails-demo-bundle-{{ arch }}-{{ .Branch }}-
+        - rails-demo-bundle-{{ arch }}-{{ Environment.DEFAULT_BRANCH }}-
+    - run:
+        name: Bundle Install
+        command: bundle check || bundle install
+    - run:
+        name: Clear unused bundle gems before saving cache
+        command: bundle clean --force
+    - save_cache:
+        key: rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+        paths:
+        - vendor/bundle
+    - run:
+        name: Wait for DB to initialize
+        command: dockerize -wait tcp://localhost:5432 -timeout 1m
+    - run:
+        name: Database setup
+        command: bin/rails db:schema:load --trace
+    - run:
+        name: Run rspec in parallel
+        command: |
+          # Determine test subset to run on each container and print diagnostics
+          TEST_FILES=$(circleci tests glob spec/**/*_spec.rb | \
+                          circleci tests split)
+          echo "running " $(echo $TEST_FILES | wc -w) " tests files on this container:"
+          echo "$TEST_FILES"
+
+          bundle exec rspec --profile 10 \
+                            --format RspecJunitFormatter \
+                            --out CIRCLE_TEST_REPORTS/rspec.xml \
+                            --format documentation \
+                            $TEST_FILES
+    - store_test_results:
+        path: $CIRCLE_TEST_REPORTS
+    - store_artifacts:
+        path: $CIRCLE_ARTIFACTS

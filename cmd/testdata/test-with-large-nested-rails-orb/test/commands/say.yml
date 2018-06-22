@@ -1,0 +1,8 @@
+description: "A simple command that echoes whatever is passed"
+parameters:
+  saywhat:
+    description: "What shall we say?"
+    type: string
+steps:
+  # note: the interpolation syntax is subject to change
+  - run: echo << parameters.saywhat >>

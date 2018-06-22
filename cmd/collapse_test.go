@@ -104,4 +104,23 @@ var _ = Describe("collapse with testdata", func() {
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
+
+	Describe("with a large nested config including rails orb", func() {
+		BeforeEach(func() {
+			var err error
+			var path string = "test-with-large-nested-rails-orb"
+			command = exec.Command(pathCLI, "collapse", "-r", filepath.Join("testdata", path, "test"))
+			results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+
+		It("collapse all YAML contents as expected", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			session.Wait()
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err.Contents()).Should(BeEmpty())
+			Eventually(session.Out.Contents()).Should(MatchYAML(results))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+	})
 })

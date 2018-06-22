@@ -1,0 +1,44 @@
+parameters:
+  bundle_jobs:
+    type: string
+    default: "3"
+  bundle_retry:
+    type: string
+    default: "3"
+  bundle_path:
+    type: string
+    default: vendor/bundle
+steps:
+  - run:
+      name: Configure bundler
+      command: |
+        bundle config jobs << parameters.bundle_jobs >>
+        bundle config path << parameters.bundle_path >>
+        bundle config retry << parameters.bundle_retry >>
+
+  - run:
+      name: Log versions for debugging
+      command: |
+        gem --version
+        bundle --version
+
+  - restore_cache:
+      name: Restore bundler cache
+      keys:
+        - rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+        - rails-demo-bundle-{{ arch }}-{{ .Branch }}-
+        - rails-demo-bundle-{{ arch }}-{{ Environment.DEFAULT_BRANCH }}-
+
+  - run:
+      name: Bundle Install
+      command: bundle check || bundle install
+
+  - run:
+      name: Clear unused bundle gems before saving cache
+      command: bundle clean --force
+
+  - save_cache:
+      key: rails-demo-bundle-{{ arch }}-{{ .Branch }}-{{ checksum "Gemfile.lock" }}
+      paths:
+        - "<< parameters.bundle_path >>"
+
