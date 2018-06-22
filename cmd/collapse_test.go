@@ -41,26 +41,29 @@ var _ = Describe("collapse", func() {
 				).To(Succeed())
 			}
 		})
+	})
+})
 
-		It("collapse all YAML contents using directory structure as keys", func() {
+var _ = Describe("collapse with testdata", func() {
+	var (
+		command *exec.Cmd
+		results []byte
+	)
+
+	Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
+		BeforeEach(func() {
+			var err error
+			command = exec.Command(pathCLI, "collapse", "-r", "testdata/hugo-collapse/.circleci")
+			results, err = ioutil.ReadFile("testdata/hugo-collapse/out.yml")
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+
+		It("collapse all YAML contents as expected", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			session.Wait()
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session.Err.Contents()).Should(BeEmpty())
-
-			Eventually(session.Out.Contents()).Should(MatchYAML(`
-orbs:
-  one:
-    commands:
-      file:
-        contents_one: 1
-        contents_two: 2
-  two:
-    commands:
-      file:
-        contents_one: 1
-        contents_two: 2
-`))
+			Eventually(session.Out.Contents()).Should(MatchYAML(results))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
