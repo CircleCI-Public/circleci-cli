@@ -68,7 +68,19 @@ jobs:
           key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
           paths: [/go/bin/*]
 
+  # Build a docker image
+  docker:
+    docker:
+      - image: circleci/golang:1.10.3
+   steps:
+     - checkout
+     - setup_remote_docker
+     - run: make
+     - run:
+
+
   deploy:
+    working_directory: /go/src/github.com/circleci/circleci-cli
     docker:
       - image: circleci/golang:1.10
     environment:
