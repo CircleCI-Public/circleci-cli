@@ -69,15 +69,13 @@ jobs:
           paths: [/go/bin/*]
 
   # Build a docker image
-  docker:
+  build-docker:
     docker:
       - image: circleci/golang:1.10.3
-   steps:
+    steps:
      - checkout
      - setup_remote_docker
      - run: make
-     - run:
-
 
   deploy:
     working_directory: /go/src/github.com/circleci/circleci-cli
