@@ -21,19 +21,25 @@ func UserHomeDir() string {
 // EnsureSettingsFileExists does just that.
 func EnsureSettingsFileExists(filepath, filename string) error {
 	// TODO - handle invalid YAML config files.
-	_, err := os.Stat(filepath)
 
-	if !os.IsNotExist(err) {
+	fullPath := path.Join(filepath, filename)
+
+	_, err := os.Stat(fullPath)
+
+	if err == nil {
 		return nil
 	}
 
+	if !os.IsNotExist(err) {
+		// Filesystem error
+		return err
+	}
+
+	// Create folder
 	if err = os.MkdirAll(filepath, 0700); err != nil {
 		return err
 	}
 
-	if _, err = os.Create(path.Join(filepath, filename)); err != nil {
-		return err
-	}
-
-	return nil
+	_, err = os.Create(fullPath)
+	return err
 }

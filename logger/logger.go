@@ -20,12 +20,14 @@ type Logger struct {
 // Later we pass this to client.NewClient so it can also log.
 // By default debug and error go to os.Stderr, and info goes to os.Stdout
 func NewLogger(verbose bool) *Logger {
-	return &Logger{
+	result := &Logger{
 		log.New(os.Stderr, "", 0),
 		log.New(os.Stdout, "", 0),
 		log.New(os.Stderr, "", 0),
 		verbose,
 	}
+	result.Debug("Verbose Logging: %t", verbose)
+	return result
 }
 
 // Debug prints a formatted message to stderr only if verbose is set.
@@ -75,7 +77,7 @@ func (l *Logger) FatalOnError(msg string, err error) {
 
 // Prettyify accepts a map of data and pretty prints it.
 // It's using json.MarshalIndent and printing with log.Logger.Infoln
-func (l *Logger) Prettyify(data map[string]interface{}) {
+func (l *Logger) Prettyify(data interface{}) {
 	bytes, err := json.MarshalIndent(data, "", "  ")
 	if err != nil {
 		l.error.Fatalln(err)

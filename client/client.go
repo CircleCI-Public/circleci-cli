@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/machinebox/graphql"
@@ -15,7 +16,7 @@ func NewClient(endpoint string, logger *logger.Logger) *graphql.Client {
 	client := graphql.NewClient(endpoint)
 
 	client.Log = func(s string) {
-		logger.Debug(s)
+		logger.Debug(fmt.Sprintf("[machinebox/graphql] %s", s))
 	}
 
 	return client
