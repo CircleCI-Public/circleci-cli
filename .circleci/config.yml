@@ -7,7 +7,15 @@ workflows:
       - test
       - coverage
       - lint
-      - deploy:
+      - deploy_github_release:
+          requires:
+            - test
+            - coverage
+            - lint
+          filters:
+            branches:
+              only: master
+      - deploy_docker:
           requires:
             - test
             - coverage
@@ -68,16 +76,7 @@ jobs:
           key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
           paths: [/go/bin/*]
 
-  # Build a docker image
-  build-docker:
-    docker:
-      - image: circleci/golang:1.10.3
-    steps:
-     - checkout
-     - setup_remote_docker
-     - run: make
-
-  deploy:
+  deploy_github_release:
     working_directory: /go/src/github.com/circleci/circleci-cli
     docker:
       - image: circleci/golang:1.10
@@ -107,3 +106,28 @@ jobs:
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
+
+  deploy_docker:
+    docker:
+      - image: circleci/command-convenience:0.1.392-2e3ae33
+        environment:
+          NAME: circleci-cli
+          CONTAINER_ORG: circlecidx
+          DOCKERFILE_PATH: Dockerfile
+          DOCKER_REGISTRY: dockerhub
+    working_directory: /go/src/github.com/circleci/circleci-cli
+    steps:
+      - setup_docker_engine:
+          docker_layer_caching: true
+      - checkout
+      - run:
+          name: Build the binary
+          command: make
+      - run:
+          name: Build and push circleci-cli image
+          command: publish
+      - run:
+          name: Update the "latest" tag
+          command: publish
+          environment:
+            CONTAINER_VERSION: latest
