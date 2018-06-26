@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
@@ -82,9 +81,8 @@ query ListOrbs ($after: String!) {
 			return errors.Wrap(err, "GraphQL query failed")
 		}
 
-		Logger.Prettyify(result)
-
-		fmt.Printf("Total Number Of Orbs: %d\n", result.Orbs.TotalCount)
+		// Debug logging of result fields.
+		// Logger.Prettyify(result)
 
 		for i := range result.Orbs.Edges {
 			edge := result.Orbs.Edges[i]
