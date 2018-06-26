@@ -2,7 +2,7 @@ VERSION=0.1
 
 GOFILES = $(shell find . -name '*.go' -not -path './vendor/*')
 
-OS = $(shell uname)
+OS ?= $(shell uname)
 
 CLIPATH=github.com/CircleCI-Public/circleci-cli
 

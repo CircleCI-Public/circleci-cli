@@ -123,6 +123,7 @@ func configQuery(ctx context.Context) (*buildConfigResponse, error) {
 }
 
 func validateConfig(cmd *cobra.Command, args []string) error {
+
 	ctx := context.Background()
 	response, err := configQuery(ctx)
 
@@ -140,6 +141,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 
 func expandConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+
 	response, err := configQuery(ctx)
 
 	if err != nil {
