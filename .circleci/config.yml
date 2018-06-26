@@ -17,9 +17,7 @@ workflows:
               only: master
       - deploy_docker:
           requires:
-            - test
-            - coverage
-            - lint
+            - deploy_github_release
           filters:
             branches:
               only: master
@@ -103,6 +101,10 @@ jobs:
       - run:
           name: Release
           command: goreleaser
+      - persist_to_workspace:
+          root: .
+          paths:
+            - dist
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
@@ -115,14 +117,11 @@ jobs:
           CONTAINER_ORG: circlecidx
           DOCKERFILE_PATH: Dockerfile
           DOCKER_REGISTRY: dockerhub
-    working_directory: /go/src/github.com/circleci/circleci-cli
     steps:
       - setup_docker_engine:
           docker_layer_caching: true
-      - checkout
-      - run:
-          name: Build the binary
-          command: make
+      - attach_workspace:
+          at: ~/workspace
       - run:
           name: Build and push circleci-cli image
           command: publish
