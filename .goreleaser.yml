@@ -1,10 +1,12 @@
+project_name: circleci-cli
+
 archive:
   format_overrides:
     - goos: windows
       format: zip
-    
+
 builds:
-  - binary: circleci-beta
+  - binary: circleci
     goos:
       - windows
       - darwin
