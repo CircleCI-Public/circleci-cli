@@ -7,17 +7,11 @@ workflows:
       - test
       - coverage
       - lint
-      - deploy_github_release:
+      - deploy:
           requires:
             - test
             - coverage
             - lint
-          filters:
-            branches:
-              only: master
-      - deploy_docker:
-          requires:
-            - deploy_github_release
           filters:
             branches:
               only: master
@@ -103,6 +97,11 @@ jobs:
       - run:
           name: Release
           command: goreleaser
+      - run:
+          name: Build Docker Image
+          command: |
+            docker build -t circlecidx/circleci-cli:$0.1.$CIRCLE_BUILD_NUM .
+            docker push company/app:$CIRCLE_BRANCH
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]

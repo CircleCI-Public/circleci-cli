@@ -13,6 +13,3 @@ builds:
       - linux
     goarch:
       - amd64
-
-dockers:
-  - image: user/repo
