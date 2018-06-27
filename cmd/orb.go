@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
@@ -11,6 +14,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+var orbPath string
+
+type orbConfigResponse struct {
+	OrbConfig struct {
+		Valid      bool
+		SourceYaml string
+		OutputYaml string
+
+		Errors []struct {
+			Message string
+		}
+	}
+}
+
 func newOrbCommand() *cobra.Command {
 
 	orbListCommand := &cobra.Command{
@@ -19,12 +36,20 @@ func newOrbCommand() *cobra.Command {
 		RunE:  listOrbs,
 	}
 
+	orbValidateCommand := &cobra.Command{
+		Use:   "validate",
+		Short: "validate an orb.yml",
+		RunE:  validateOrb,
+	}
+
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
 	}
 
+	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb config")
 	orbCommand.AddCommand(orbListCommand)
+	orbCommand.AddCommand(orbValidateCommand)
 
 	return orbCommand
 }
@@ -96,4 +121,67 @@ query ListOrbs ($after: String!) {
 	}
 	return nil
 
+}
+
+func loadOrbYaml(path string) (string, error) {
+
+	config, err := ioutil.ReadFile(path)
+
+	fmt.Fprintln(os.Stderr, "******************** orb.go")
+	fmt.Fprintln(os.Stderr, path)
+	fmt.Fprintln(os.Stderr, err)
+	if err != nil {
+		return "", errors.Wrapf(err, "Could not load orb file at %s", path)
+	}
+
+	return string(config), nil
+}
+
+func orbValidateQuery(ctx context.Context) (*orbConfigResponse, error) {
+
+	query := `
+		query ValidateOrb ($orb: String!) {
+			orbConfig(configYaml: $orb) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`
+
+	fmt.Fprintln(os.Stderr, "********************asdfasdfasdfsa")
+	fmt.Fprintln(os.Stderr, orbPath)
+
+	config, err := loadOrbYaml(orbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	variables := map[string]string{
+		"config": config,
+	}
+
+	var response orbConfigResponse
+	err = queryAPI(ctx, query, variables, &response)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to validate config")
+	}
+
+	return &response, nil
+}
+
+func validateOrb(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	response, err := configQuery(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	if !response.BuildConfig.Valid {
+		return response.processErrors()
+	}
+
+	Logger.Infof("Orb at %s is valid", orbPath)
+	return nil
 }
