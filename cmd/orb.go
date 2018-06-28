@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io/ioutil"
@@ -47,7 +48,7 @@ func newOrbCommand() *cobra.Command {
 		Short: "Operate on orbs",
 	}
 
-	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb config")
+	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbListCommand)
 	orbCommand.AddCommand(orbValidateCommand)
 
@@ -125,7 +126,7 @@ query ListOrbs ($after: String!) {
 
 func loadOrbYaml(path string) (string, error) {
 
-	config, err := ioutil.ReadFile(path)
+	orb, err := ioutil.ReadFile(path)
 
 	fmt.Fprintln(os.Stderr, "******************** orb.go")
 	fmt.Fprintln(os.Stderr, path)
@@ -134,14 +135,28 @@ func loadOrbYaml(path string) (string, error) {
 		return "", errors.Wrapf(err, "Could not load orb file at %s", path)
 	}
 
-	return string(config), nil
+	return string(orb), nil
+}
+
+
+func (response orbConfigResponse) processErrors() error {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("\n")
+	for i := range response.OrbConfig.Errors {
+		buffer.WriteString("-- ")
+		buffer.WriteString(response.OrbConfig.Errors[i].Message)
+		buffer.WriteString(",\n")
+	}
+
+	return errors.New(buffer.String())
 }
 
 func orbValidateQuery(ctx context.Context) (*orbConfigResponse, error) {
 
 	query := `
 		query ValidateOrb ($orb: String!) {
-			orbConfig(configYaml: $orb) {
+			orbConfig(orbYaml: $orb) {
 				valid,
 				errors { message },
 				sourceYaml,
@@ -149,22 +164,19 @@ func orbValidateQuery(ctx context.Context) (*orbConfigResponse, error) {
 			}
 		}`
 
-	fmt.Fprintln(os.Stderr, "********************asdfasdfasdfsa")
-	fmt.Fprintln(os.Stderr, orbPath)
-
-	config, err := loadOrbYaml(orbPath)
+	orb, err := loadOrbYaml(orbPath)
 	if err != nil {
 		return nil, err
 	}
 
 	variables := map[string]string{
-		"config": config,
+		"orb": orb,
 	}
 
 	var response orbConfigResponse
 	err = queryAPI(ctx, query, variables, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
+		return nil, errors.Wrap(err, "Unable to validate orb")
 	}
 
 	return &response, nil
@@ -172,13 +184,13 @@ func orbValidateQuery(ctx context.Context) (*orbConfigResponse, error) {
 
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := configQuery(ctx)
+	response, err := orbValidateQuery(ctx)
 
 	if err != nil {
 		return err
 	}
 
-	if !response.BuildConfig.Valid {
+	if !response.OrbConfig.Valid {
 		return response.processErrors()
 	}
 

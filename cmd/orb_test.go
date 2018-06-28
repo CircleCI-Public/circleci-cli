@@ -148,7 +148,8 @@ var _ = Describe("Orb", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb at myorb/orb.yml is valid"))
+                                // the .* is because the full path with temp dir is printed
+				Eventually(session.Out).Should(gbytes.Say("Orb at .*myorb/orb.yml is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
