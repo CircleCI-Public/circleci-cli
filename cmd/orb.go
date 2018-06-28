@@ -43,14 +43,24 @@ func newOrbCommand() *cobra.Command {
 		RunE:  validateOrb,
 	}
 
+	orbExpandCommand := &cobra.Command{
+		Use:   "expand",
+		Short: "expand an orb.yml",
+		RunE:  expandOrb,
+	}
+
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
 	}
 
-	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbListCommand)
+
+	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbValidateCommand)
+
+	orbExpandCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+	orbCommand.AddCommand(orbExpandCommand)
 
 	return orbCommand
 }
@@ -195,5 +205,22 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Infof("Orb at %s is valid", orbPath)
+	return nil
+}
+
+func expandOrb(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	response, err := orbValidateQuery(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	if !response.OrbConfig.Valid {
+		return response.processErrors()
+	}
+
+	Logger.Info(response.OrbConfig.OutputYaml)
 	return nil
 }

@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -111,11 +110,6 @@ var _ = Describe("Orb", func() {
 
 			BeforeEach(func() {
 				token = "testtoken"
-				fmt.Fprintln(os.Stderr, "******************** Path CLI")
-				fmt.Fprintln(os.Stderr, pathCLI)
-				fmt.Fprintln(os.Stderr, token)
-				fmt.Fprintln(os.Stderr, testServer.URL())
-				fmt.Fprintln(os.Stderr, orb.Path)
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"-t", token,
@@ -124,7 +118,8 @@ var _ = Describe("Orb", func() {
 				)
 			})
 
-			FIt("works", func() {
+			It("works", func() {
+				By("setting up a mock server")
 				_, err := orb.YamlFile.Write([]byte(`{}`))
 				Expect(err).ToNot(HaveOccurred())
 
@@ -145,123 +140,130 @@ var _ = Describe("Orb", func() {
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
+				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-                                // the .* is because the full path with temp dir is printed
+				// the .* is because the full path with temp dir is printed
 				Eventually(session.Out).Should(gbytes.Say("Orb at .*myorb/orb.yml is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
-			// It("prints errors if invalid", func() {
-			// 	_, err := orb.YamlFile.Write([]byte(`some orb`))
-			// 	Expect(err).ToNot(HaveOccurred())
+			It("prints errors if invalid", func() {
+				By("setting up a mock server")
+				_, err := orb.YamlFile.Write([]byte(`some orb`))
+				Expect(err).ToNot(HaveOccurred())
 
-			// 	gqlResponse := `{
-			// 				"buildConfig": {
-			// 					"sourceYaml": "hello world",
-			// 					"valid": false,
-			// 					"errors": [
-			// 						{"message": "invalid_orb"}
-			// 					]
-			// 				}
-			// 			}`
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "hello world",
+								"valid": false,
+								"errors": [
+									{"message": "invalid_orb"}
+								]
+							}
+						}`
 
-			// 	expectedRequestJson := ` {
-			// 		"query": "\n\t\tquery ValidateConfig ($orb: String!) {\n\t\t\tbuildConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-			// 		"variables": {
-			// 		  "orb": "some orb"
-			// 		}
-			// 	  }`
-			// 	appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				expectedRequestJson := ` {
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "orb": "some orb"
+					}
+				  }`
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
-			// 	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
-			// 	Expect(err).ShouldNot(HaveOccurred())
-			// 	Eventually(session.Err).Should(gbytes.Say("Error:"))
-			// 	Eventually(session.Err).Should(gbytes.Say("-- invalid_orb"))
-			// 	Eventually(session).Should(gexec.Exit(255))
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error:"))
+				Eventually(session.Err).Should(gbytes.Say("-- invalid_orb"))
+				Eventually(session).Should(gexec.Exit(255))
 
-			// })
+			})
 		})
 
-		// Describe("when expanding orb", func() {
-		// 	var (
-		// 		token   string
-		// 		command *exec.Cmd
-		// 	)
+		Describe("when expanding orb", func() {
+			var (
+				token   string
+				command *exec.Cmd
+			)
 
-		// 	BeforeEach(func() {
-		// 		token = "testtoken"
-		// 		command = exec.Command(pathCLI,
-		// 			"orb", "expand",
-		// 			"-t", token,
-		// 			"-e", testServer.URL(),
-		// 			"-p", orb.Path,
-		// 		)
-		// 	})
+			BeforeEach(func() {
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "expand",
+					"-t", token,
+					"-e", testServer.URL(),
+					"-p", orb.Path,
+				)
+			})
 
-		// 	It("works", func() {
-		// 		_, err := orb.YamlFile.Write([]byte(`some orb`))
-		// 		Expect(err).ToNot(HaveOccurred())
+			It("works", func() {
+				By("setting up a mock server")
+				_, err := orb.YamlFile.Write([]byte(`some orb`))
+				Expect(err).ToNot(HaveOccurred())
 
-		// 		gqlResponse := `{
-		// 					"buildConfig": {
-		// 						"outputYaml": "hello world",
-		// 						"valid": true,
-		// 						"errors": []
-		// 					}
-		// 				}`
+				gqlResponse := `{
+							"orbConfig": {
+								"outputYaml": "hello world",
+								"valid": true,
+								"errors": []
+							}
+						}`
 
-		// 		expectedRequestJson := ` {
-		// 			"query": "\n\t\tquery ValidateConfig ($orb: String!) {\n\t\t\tbuildConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-		// 			"variables": {
-		// 			  "orb": "some orb"
-		// 			}
-		// 		  }`
+				expectedRequestJson := ` {
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "orb": "some orb"
+					}
+				  }`
 
-		// 		appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
-		// 		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
-		// 		Expect(err).ShouldNot(HaveOccurred())
-		// 		Eventually(session.Out).Should(gbytes.Say("hello world"))
-		// 		Eventually(session).Should(gexec.Exit(0))
-		// 	})
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("hello world"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
 
-		// 	It("prints errors if invalid", func() {
-		// 		_, err := orb.YamlFile.Write([]byte(`some orb`))
-		// 		Expect(err).ToNot(HaveOccurred())
+			It("prints errors if invalid", func() {
+				By("setting up a mock server")
+				_, err := orb.YamlFile.Write([]byte(`some orb`))
+				Expect(err).ToNot(HaveOccurred())
 
-		// 		gqlResponse := `{
-		// 					"buildConfig": {
-		// 						"outputYaml": "hello world",
-		// 						"valid": false,
-		// 						"errors": [
-		// 							{"message": "error1"},
-		// 							{"message": "error2"}
-		// 						]
-		// 					}
-		// 				}`
+				gqlResponse := `{
+							"orbConfig": {
+								"outputYaml": "hello world",
+								"valid": false,
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								]
+							}
+						}`
 
-		// 		expectedRequestJson := ` {
-		// 			"query": "\n\t\tquery ValidateConfig ($orb: String!) {\n\t\t\tbuildConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-		// 			"variables": {
-		// 			  "orb": "some orb"
-		// 			}
-		// 		  }`
+				expectedRequestJson := ` {
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "orb": "some orb"
+					}
+				  }`
 
-		// 		appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
-		// 		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
-		// 		Expect(err).ShouldNot(HaveOccurred())
-		// 		Eventually(session.Err).Should(gbytes.Say("Error:"))
-		// 		Eventually(session.Err).Should(gbytes.Say("-- error1,"))
-		// 		Eventually(session.Err).Should(gbytes.Say("-- error2,"))
-		// 		Eventually(session).Should(gexec.Exit(255))
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error:"))
+				Eventually(session.Err).Should(gbytes.Say("-- error1,"))
+				Eventually(session.Err).Should(gbytes.Say("-- error2,"))
+				Eventually(session).Should(gexec.Exit(255))
 
-		// 	})
-		// })
+			})
+		})
 	})
 })
