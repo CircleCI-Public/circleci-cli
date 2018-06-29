@@ -1,9 +1,7 @@
 package cmd_test
 
 import (
-	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -14,69 +12,23 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-type orbYaml struct {
-	TempHome string
-	Path     string
-	YamlFile *os.File
-}
-
-func openOrbYaml() (orbYaml, error) {
-	var (
-		orb orbYaml = orbYaml{}
-		err error
-	)
-
-	const (
-		orbDir  = "myorb"
-		orbFile = "orb.yml"
-	)
-
-	tempHome, err := ioutil.TempDir("", "circleci-cli-test-")
-	if err != nil {
-		return orb, err
-	}
-
-	err = os.Mkdir(filepath.Join(tempHome, orbDir), 0700)
-	if err != nil {
-		return orb, err
-	}
-
-	orb.Path = filepath.Join(tempHome, orbDir, orbFile)
-
-	var file *os.File
-	file, err = os.OpenFile(
-		orb.Path,
-		os.O_RDWR|os.O_CREATE,
-		0600,
-	)
-	if err != nil {
-		return orb, err
-	}
-
-	orb.YamlFile = file
-
-	return orb, nil
-}
-
 var _ = Describe("Orb", func() {
 	Describe("with an api and orb.yml", func() {
 		var (
 			testServer *ghttp.Server
-			orb        orbYaml
+			orb        tmpFile
 		)
 
 		BeforeEach(func() {
 			var err error
-			orb, err = openOrbYaml()
+			orb, err = openTmpFile(filepath.Join("myorb", "orb.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
 			testServer = ghttp.NewServer()
 		})
 
 		AfterEach(func() {
-			orb.YamlFile.Close()
-			os.RemoveAll(orb.TempHome)
-
+			orb.close()
 			testServer.Close()
 		})
 
@@ -98,7 +50,7 @@ var _ = Describe("Orb", func() {
 
 			It("works", func() {
 				By("setting up a mock server")
-				_, err := orb.YamlFile.Write([]byte(`{}`))
+				err := orb.write(`{}`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
@@ -129,7 +81,7 @@ var _ = Describe("Orb", func() {
 
 			It("prints errors if invalid", func() {
 				By("setting up a mock server")
-				_, err := orb.YamlFile.Write([]byte(`some orb`))
+				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
@@ -178,7 +130,7 @@ var _ = Describe("Orb", func() {
 
 			It("works", func() {
 				By("setting up a mock server")
-				_, err := orb.YamlFile.Write([]byte(`some orb`))
+				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
@@ -208,7 +160,7 @@ var _ = Describe("Orb", func() {
 
 			It("prints errors if invalid", func() {
 				By("setting up a mock server")
-				_, err := orb.YamlFile.Write([]byte(`some orb`))
+				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{

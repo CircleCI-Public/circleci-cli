@@ -3,6 +3,8 @@ package cmd_test
 import (
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -50,4 +52,55 @@ func appendPostHandler(server *ghttp.Server, authToken string, statusCode int, e
 			ghttp.RespondWith(statusCode, `{ "data": `+responseBody+`}`),
 		),
 	)
+}
+
+type tmpFile struct {
+	RootDir string
+	Path    string
+	File    *os.File
+}
+
+func (f tmpFile) close() {
+	f.File.Close()
+	os.RemoveAll(f.RootDir)
+}
+
+func (f tmpFile) write(fileContent string) error {
+	_, err := f.File.Write([]byte(fileContent))
+
+	return err
+}
+
+func openTmpFile(path string) (tmpFile, error) {
+	var (
+		config tmpFile = tmpFile{}
+		err    error
+	)
+
+	tmpDir, err := ioutil.TempDir("", "circleci-cli-test-")
+	if err != nil {
+		return config, err
+	}
+
+	config.RootDir = tmpDir
+	config.Path = filepath.Join(tmpDir, path)
+
+	err = os.MkdirAll(filepath.Dir(config.Path), 0700)
+	if err != nil {
+		return config, err
+	}
+
+	var file *os.File
+	file, err = os.OpenFile(
+		config.Path,
+		os.O_RDWR|os.O_CREATE,
+		0600,
+	)
+	if err != nil {
+		return config, err
+	}
+
+	config.File = file
+
+	return config, nil
 }

@@ -1,9 +1,7 @@
 package cmd_test
 
 import (
-	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -14,69 +12,23 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-type configYaml struct {
-	TempHome string
-	Path     string
-	YamlFile *os.File
-}
-
-func openConfigYaml() (configYaml, error) {
-	var (
-		config configYaml = configYaml{}
-		err    error
-	)
-
-	const (
-		configDir  = ".circleci"
-		configFile = "config.yaml"
-	)
-
-	tempHome, err := ioutil.TempDir("", "circleci-cli-test-")
-	if err != nil {
-		return config, err
-	}
-
-	err = os.Mkdir(filepath.Join(tempHome, configDir), 0700)
-	if err != nil {
-		return config, err
-	}
-
-	config.Path = filepath.Join(tempHome, configDir, configFile)
-
-	var file *os.File
-	file, err = os.OpenFile(
-		config.Path,
-		os.O_RDWR|os.O_CREATE,
-		0600,
-	)
-	if err != nil {
-		return config, err
-	}
-
-	config.YamlFile = file
-
-	return config, nil
-}
-
 var _ = Describe("Config", func() {
 	Describe("with an api and config.yml", func() {
 		var (
 			testServer *ghttp.Server
-			config     configYaml
+			config     tmpFile
 		)
 
 		BeforeEach(func() {
 			var err error
-			config, err = openConfigYaml()
+			config, err = openTmpFile(filepath.Join(".circleci", "config.yaml"))
 			Expect(err).ToNot(HaveOccurred())
 
 			testServer = ghttp.NewServer()
 		})
 
 		AfterEach(func() {
-			config.YamlFile.Close()
-			os.RemoveAll(config.TempHome)
-
+			config.close()
 			testServer.Close()
 		})
 
@@ -97,7 +49,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("works", func() {
-				_, err := config.YamlFile.Write([]byte(`some config`))
+				err := config.write(`some config`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
@@ -125,7 +77,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				_, err := config.YamlFile.Write([]byte(`some config`))
+				err := config.write(`some config`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
@@ -173,7 +125,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("works", func() {
-				_, err := config.YamlFile.Write([]byte(`some config`))
+				err := config.write(`some config`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
@@ -201,7 +153,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				_, err := config.YamlFile.Write([]byte(`some config`))
+				err := config.write(`some config`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
