@@ -3,9 +3,7 @@ package cmd
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
-	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
@@ -138,16 +136,12 @@ func loadOrbYaml(path string) (string, error) {
 
 	orb, err := ioutil.ReadFile(path)
 
-	fmt.Fprintln(os.Stderr, "******************** orb.go")
-	fmt.Fprintln(os.Stderr, path)
-	fmt.Fprintln(os.Stderr, err)
 	if err != nil {
 		return "", errors.Wrapf(err, "Could not load orb file at %s", path)
 	}
 
 	return string(orb), nil
 }
-
 
 func (response orbConfigResponse) processErrors() error {
 	var buffer bytes.Buffer
