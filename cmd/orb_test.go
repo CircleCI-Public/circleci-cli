@@ -156,8 +156,7 @@ var _ = Describe("Orb", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error:"))
 				Eventually(session.Err).Should(gbytes.Say("-- invalid_orb"))
-				Eventually(session).Should(gexec.Exit(255))
-
+				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
 
@@ -239,7 +238,7 @@ var _ = Describe("Orb", func() {
 				Eventually(session.Err).Should(gbytes.Say("Error:"))
 				Eventually(session.Err).Should(gbytes.Say("-- error1,"))
 				Eventually(session.Err).Should(gbytes.Say("-- error2,"))
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
 		})
