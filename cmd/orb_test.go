@@ -12,27 +12,27 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-var _ = Describe("Config", func() {
-	Describe("with an api and config.yml", func() {
+var _ = Describe("Orb", func() {
+	Describe("with an api and orb.yml", func() {
 		var (
 			testServer *ghttp.Server
-			config     tmpFile
+			orb        tmpFile
 		)
 
 		BeforeEach(func() {
 			var err error
-			config, err = openTmpFile(filepath.Join(".circleci", "config.yaml"))
+			orb, err = openTmpFile(filepath.Join("myorb", "orb.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
 			testServer = ghttp.NewServer()
 		})
 
 		AfterEach(func() {
-			config.close()
+			orb.close()
 			testServer.Close()
 		})
 
-		Describe("when validating config", func() {
+		Describe("when validating orb", func() {
 			var (
 				token   string
 				command *exec.Cmd
@@ -41,74 +41,78 @@ var _ = Describe("Config", func() {
 			BeforeEach(func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
-					"config", "validate",
+					"orb", "validate",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", config.Path,
+					"-p", orb.Path,
 				)
 			})
 
 			It("works", func() {
-				err := config.write(`some config`)
+				By("setting up a mock server")
+				err := orb.write(`{}`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
-							"buildConfig": {
-								"sourceYaml": "hello world",
+							"orbConfig": {
+								"sourceYaml": "{}",
 								"valid": true,
 								"errors": []
 							}
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "config": "some config"
+						"orb": "{}"
 					}
-				  }`
+				}`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
+				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Config file at .*circleci/config.yaml is valid"))
+				// the .* is because the full path with temp dir is printed
+				Eventually(session.Out).Should(gbytes.Say("Orb at .*myorb/orb.yml is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
 			It("prints errors if invalid", func() {
-				err := config.write(`some config`)
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
-							"buildConfig": {
+							"orbConfig": {
 								"sourceYaml": "hello world",
 								"valid": false,
 								"errors": [
-									{"message": "invalid_config"}
+									{"message": "invalid_orb"}
 								]
 							}
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "config": "some config"
+					  "orb": "some orb"
 					}
 				  }`
-
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
+				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error:"))
-				Eventually(session.Err).Should(gbytes.Say("-- invalid_config"))
+				Eventually(session.Err).Should(gbytes.Say("-- invalid_orb"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
 
-		Describe("when expanding config", func() {
+		Describe("when expanding orb", func() {
 			var (
 				token   string
 				command *exec.Cmd
@@ -117,19 +121,20 @@ var _ = Describe("Config", func() {
 			BeforeEach(func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
-					"config", "expand",
+					"orb", "expand",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", config.Path,
+					"-p", orb.Path,
 				)
 			})
 
 			It("works", func() {
-				err := config.write(`some config`)
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
-							"buildConfig": {
+							"orbConfig": {
 								"outputYaml": "hello world",
 								"valid": true,
 								"errors": []
@@ -137,14 +142,15 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "config": "some config"
+					  "orb": "some orb"
 					}
 				  }`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
+				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
@@ -153,11 +159,12 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				err := config.write(`some config`)
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
-							"buildConfig": {
+							"orbConfig": {
 								"outputYaml": "hello world",
 								"valid": false,
 								"errors": [
@@ -168,14 +175,15 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "config": "some config"
+					  "orb": "some orb"
 					}
 				  }`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
+				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
@@ -183,6 +191,7 @@ var _ = Describe("Config", func() {
 				Eventually(session.Err).Should(gbytes.Say("-- error1,"))
 				Eventually(session.Err).Should(gbytes.Say("-- error2,"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
+
 			})
 		})
 	})

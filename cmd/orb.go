@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"io/ioutil"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
@@ -11,6 +13,20 @@ import (
 	"github.com/spf13/viper"
 )
 
+var orbPath string
+
+type orbConfigResponse struct {
+	OrbConfig struct {
+		Valid      bool
+		SourceYaml string
+		OutputYaml string
+
+		Errors []struct {
+			Message string
+		}
+	}
+}
+
 func newOrbCommand() *cobra.Command {
 
 	orbListCommand := &cobra.Command{
@@ -19,12 +35,30 @@ func newOrbCommand() *cobra.Command {
 		RunE:  listOrbs,
 	}
 
+	orbValidateCommand := &cobra.Command{
+		Use:   "validate",
+		Short: "validate an orb.yml",
+		RunE:  validateOrb,
+	}
+
+	orbExpandCommand := &cobra.Command{
+		Use:   "expand",
+		Short: "expand an orb.yml",
+		RunE:  expandOrb,
+	}
+
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
 	}
 
 	orbCommand.AddCommand(orbListCommand)
+
+	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+	orbCommand.AddCommand(orbValidateCommand)
+
+	orbExpandCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+	orbCommand.AddCommand(orbExpandCommand)
 
 	return orbCommand
 }
@@ -96,4 +130,91 @@ query ListOrbs ($after: String!) {
 	}
 	return nil
 
+}
+
+func loadOrbYaml(path string) (string, error) {
+
+	orb, err := ioutil.ReadFile(path)
+
+	if err != nil {
+		return "", errors.Wrapf(err, "Could not load orb file at %s", path)
+	}
+
+	return string(orb), nil
+}
+
+func (response orbConfigResponse) processErrors() error {
+	var buffer bytes.Buffer
+
+	buffer.WriteString("\n")
+	for i := range response.OrbConfig.Errors {
+		buffer.WriteString("-- ")
+		buffer.WriteString(response.OrbConfig.Errors[i].Message)
+		buffer.WriteString(",\n")
+	}
+
+	return errors.New(buffer.String())
+}
+
+func orbValidateQuery(ctx context.Context) (*orbConfigResponse, error) {
+
+	query := `
+		query ValidateOrb ($orb: String!) {
+			orbConfig(orbYaml: $orb) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`
+
+	orb, err := loadOrbYaml(orbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	variables := map[string]string{
+		"orb": orb,
+	}
+
+	var response orbConfigResponse
+	err = queryAPI(ctx, query, variables, &response)
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to validate orb")
+	}
+
+	return &response, nil
+}
+
+func validateOrb(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+	response, err := orbValidateQuery(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	if !response.OrbConfig.Valid {
+		return response.processErrors()
+	}
+
+	Logger.Infof("Orb at %s is valid", orbPath)
+	return nil
+}
+
+func expandOrb(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	response, err := orbValidateQuery(ctx)
+
+	if err != nil {
+		return err
+	}
+
+	if !response.OrbConfig.Valid {
+		return response.processErrors()
+	}
+
+	Logger.Info(response.OrbConfig.OutputYaml)
+	return nil
 }
