@@ -1,108 +1,110 @@
 version: 2
-
+jobs:
+  test:
+    docker:
+    - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    steps:
+    - checkout
+    - run:
+        command: make test
+  coverage:
+    docker:
+    - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    steps:
+    - checkout
+    - run:
+        command: make cover
+    - store_artifacts:
+        path: ./coverage.txt
+        destination: coverage.txt
+    - run:
+        name: Upload code coverage report to codecov.io
+        command: |
+          curl -ivX POST -H 'Accept: text/plain' \
+          --data-binary @coverage.txt \
+          "https://codecov.io/upload/v2\
+          ?service=circleci\
+          &token=$CODECOV_TOKEN\
+          &commit=$CIRCLE_SHA1\
+          &branch=$CIRCLE_BRANCH\
+          &build=$CIRCLE_BUILD_NUM\
+          &job=$CIRCLE_NODE_INDEX\
+          &build_url=$CIRCLE_BUILD_URL\
+          &slug=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME\
+          &pr=$CIRCLE_PR_NUMBER"
+  lint:
+    docker:
+    - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v1-gometalinter-
+    - run:
+        name: Install
+        command: |
+          [[ -e /go/bin/gometalinter ]] && exit
+          go get -u github.com/alecthomas/gometalinter
+          gometalinter --install
+    - run:
+        command: make lint
+    - save_cache:
+        key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
+        paths:
+        - /go/bin/*
+  deploy:
+    docker:
+    - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    environment:
+      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v2-goreleaser-
+    - run:
+        name: Install GoReleaser
+        command: |
+          [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
+          sudo apt install ~/goreleaser_amd64.deb
+    - run:
+        name: Tag Repo
+        command: |
+          git config --global user.email "marc@circleci.com"
+          git config --global user.name "Marc O'Morain"
+          git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
+          git push origin "v0.1.$CIRCLE_BUILD_NUM"
+    - run:
+        name: Release
+        command: goreleaser
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run:
+        name: Build Docker Image
+        command: |
+          docker build -t circlecidx/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
+          docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+          docker push     circlecidx/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+    - save_cache:
+        key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+        paths:
+        - ~/goreleaser_amd64.deb
 workflows:
   version: 2
   ci:
     jobs:
-      - test
-      - coverage
-      - lint
-      - deploy:
-          requires:
-            - test
-            - coverage
-            - lint
-          filters:
-            branches:
-              only: master
-
-jobs:
-  test:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
-    steps:
-      - checkout
-      - run: make test
-  coverage:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
-    steps:
-      - checkout
-      - run: make cover
-      - store_artifacts:
-          path: ./coverage.txt
-          destination: coverage.txt
-      - run:
-          name: Upload code coverage report to codecov.io
-          command: |
-            curl -ivX POST -H 'Accept: text/plain' \
-            --data-binary @coverage.txt \
-            "https://codecov.io/upload/v2\
-            ?service=circleci\
-            &token=$CODECOV_TOKEN\
-            &commit=$CIRCLE_SHA1\
-            &branch=$CIRCLE_BRANCH\
-            &build=$CIRCLE_BUILD_NUM\
-            &job=$CIRCLE_NODE_INDEX\
-            &build_url=$CIRCLE_BUILD_URL\
-            &slug=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME\
-            &pr=$CIRCLE_PR_NUMBER"
-  lint:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [v1-gometalinter-]
-      - run:
-          name: Install
-          command: |
-            [[ -e /go/bin/gometalinter ]] && exit
-            go get -u github.com/alecthomas/gometalinter
-            gometalinter --install
-      - run: make lint
-      - save_cache:
-          key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
-          paths: [/go/bin/*]
-
-  deploy:
-    working_directory: /go/src/github.com/circleci/circleci-cli
-    docker:
-      - image: circleci/golang:1.10
-    environment:
-      GORELEASER_URL:  https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
-
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
-    steps:
-      - checkout
-      - restore_cache:
-          keys: [v2-goreleaser-]
-      - run:
-          name: Install GoReleaser
-          command: |
-            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
-            sudo apt install ~/goreleaser_amd64.deb
-      - run:
-          name: Tag Repo
-          command: |
-            git config --global user.email "marc@circleci.com"
-            git config --global user.name "Marc O'Morain"
-            git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
-            git push origin "v0.1.$CIRCLE_BUILD_NUM"
-      - run:
-          name: Release
-          command: goreleaser
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - run:
-          name: Build Docker Image
-          command: |
-            docker build -t circlecidx/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
-            docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
-            docker push     circlecidx/circleci-cli:0.1.$CIRCLE_BUILD_NUM
-      - save_cache:
-          key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
-          paths: [~/goreleaser_amd64.deb]
+    - test
+    - coverage
+    - lint
+    - deploy:
+        filters:
+          branches:
+            only: master
+        requires:
+        - test
+        - coverage
+        - lint
