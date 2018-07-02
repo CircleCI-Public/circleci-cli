@@ -103,7 +103,7 @@ var _ = Describe("Config", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error:"))
-				Eventually(session.Err).Should(gbytes.Say("-- invalid_config"))
+				Eventually(session.Err).Should(gbytes.Say("invalid_config"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
@@ -179,9 +179,7 @@ var _ = Describe("Config", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error:"))
-				Eventually(session.Err).Should(gbytes.Say("-- error1,"))
-				Eventually(session.Err).Should(gbytes.Say("-- error2,"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
