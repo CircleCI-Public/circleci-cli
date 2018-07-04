@@ -4,25 +4,29 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 
 	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
-var configureCommand = &cobra.Command{
-	Use:   "configure",
-	Short: "Configure the tool with your credentials",
-	Run:   configure,
-}
-
 var testing = false
 
-func init() {
+func newConfigureCommand() *cobra.Command {
+
+	configureCommand := &cobra.Command{
+		Use:   "configure",
+		Short: "Configure the tool with your credentials",
+		RunE:  configure,
+	}
+
 	configureCommand.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
 	if err := configureCommand.Flags().MarkHidden("testing"); err != nil {
 		panic(err)
 	}
+
+	return configureCommand
 }
 
 // We can't properly run integration tests on code that calls PromptUI.
@@ -90,7 +94,7 @@ func shouldAskForToken(token string, ui userInterface) bool {
 	return ui.askUserToConfirm("A CircleCI token is already set. Do you want to change it")
 }
 
-func configure(cmd *cobra.Command, args []string) {
+func configure(cmd *cobra.Command, args []string) error {
 	token := viper.GetString("token")
 
 	var ui userInterface = interactiveUI{}
@@ -115,7 +119,9 @@ func configure(cmd *cobra.Command, args []string) {
 	viper.Set("verbose", false)
 
 	if err := viper.WriteConfig(); err != nil {
-		panic(err)
+		return errors.Wrap(err, "Failed to save config file")
 	}
+
 	fmt.Println("Configuration has been saved.")
+	return nil
 }

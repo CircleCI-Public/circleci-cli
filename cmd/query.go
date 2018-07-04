@@ -10,10 +10,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var queryCmd = &cobra.Command{
-	Use:   "query",
-	Short: "Query the CircleCI GraphQL API.",
-	RunE:  query,
+func newQueryCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "query",
+		Short: "Query the CircleCI GraphQL API.",
+		RunE:  query,
+	}
 }
 
 func query(cmd *cobra.Command, args []string) error {

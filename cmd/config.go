@@ -10,28 +10,30 @@ import (
 // Path to the config.yml file to operate on.
 var configPath string
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Operate on build config files",
-}
+func newConfigCommand() *cobra.Command {
+	configCmd := &cobra.Command{
+		Use:   "config",
+		Short: "Operate on build config files",
+	}
 
-var validateCommand = &cobra.Command{
-	Use:     "validate",
-	Aliases: []string{"check"},
-	Short:   "Check that the config file is well formed.",
-	RunE:    validateConfig,
-}
+	validateCommand := &cobra.Command{
+		Use:     "validate",
+		Aliases: []string{"check"},
+		Short:   "Check that the config file is well formed.",
+		RunE:    validateConfig,
+	}
 
-var expandCommand = &cobra.Command{
-	Use:   "expand",
-	Short: "Expand the config.",
-	RunE:  expandConfig,
-}
+	expandCommand := &cobra.Command{
+		Use:   "expand",
+		Short: "Expand the config.",
+		RunE:  expandConfig,
+	}
 
-func init() {
 	configCmd.PersistentFlags().StringVarP(&configPath, "path", "p", ".circleci/config.yml", "path to build config")
 	configCmd.AddCommand(validateCommand)
 	configCmd.AddCommand(expandCommand)
+
+	return configCmd
 }
 
 func validateConfig(cmd *cobra.Command, args []string) error {
