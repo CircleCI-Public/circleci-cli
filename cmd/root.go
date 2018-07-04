@@ -21,7 +21,7 @@ var configPath = ".circleci/config.yml"
 // by main.main(). It only needs to happen once to
 // the RootCmd.
 func Execute() {
-	command := makeCommands()
+	command := MakeCommands()
 	if err := command.Execute(); err != nil {
 		os.Exit(-1)
 	}
@@ -31,7 +31,8 @@ func Execute() {
 // This allows us to print to the log at anytime from within the `cmd` package.
 var Logger *logger.Logger
 
-func makeCommands() *cobra.Command {
+// MakeCommands creates the top level commands
+func MakeCommands() *cobra.Command {
 
 	rootCmd := &cobra.Command{
 		Use:   "cli",
