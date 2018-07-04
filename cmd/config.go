@@ -7,9 +7,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// Path to the config.yml file to operate on.
-var configPath string
-
 func newConfigCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -29,7 +26,6 @@ func newConfigCommand() *cobra.Command {
 		RunE:  expandConfig,
 	}
 
-	configCmd.PersistentFlags().StringVarP(&configPath, "path", "p", ".circleci/config.yml", "path to build config")
 	configCmd.AddCommand(validateCommand)
 	configCmd.AddCommand(expandCommand)
 

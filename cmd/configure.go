@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/pkg/errors"
@@ -76,12 +75,12 @@ type testingUI struct {
 }
 
 func (ui testingUI) readStringFromUser(message string, defaultValue string) string {
-	fmt.Println(message)
+	Logger.Info(message)
 	return ui.input
 }
 
 func (ui testingUI) askUserToConfirm(message string) bool {
-	fmt.Println(message)
+	Logger.Info(message)
 	return ui.confirm
 }
 
@@ -108,10 +107,10 @@ func configure(cmd *cobra.Command, args []string) error {
 
 	if shouldAskForToken(token, ui) {
 		viper.Set("token", ui.readStringFromUser("CircleCI API Token", ""))
-		fmt.Println("API token has been set.")
+		Logger.Info("API token has been set.")
 	}
 	viper.Set("endpoint", ui.readStringFromUser("CircleCI API End Point", viper.GetString("endpoint")))
-	fmt.Println("API endpoint has been set.")
+	Logger.Info("API endpoint has been set.")
 
 	// Marc: I can't find a way to prevent the verbose flag from
 	// being written to the config file, so set it to false in
@@ -122,6 +121,6 @@ func configure(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to save config file")
 	}
 
-	fmt.Println("Configuration has been saved.")
+	Logger.Info("Configuration has been saved.")
 	return nil
 }
