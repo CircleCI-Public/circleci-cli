@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
-	"strconv"
 	"strings"
 	"syscall"
 
@@ -16,39 +15,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var dockerAPIVersion = "1.23"
-
-var job = "build"
-var nodeTotal = 1
-var checkoutKey = "~/.ssh/id_rsa"
-var skipCheckout = true
-
 func newBuildCommand() *cobra.Command {
 
-	command := &cobra.Command{
-		Use:   "build",
-		Short: "Run a build",
-		RunE:  runBuild,
+	return &cobra.Command{
+		Use:                "build",
+		Short:              "Run a build",
+		RunE:               runBuild,
+		DisableFlagParsing: true,
 	}
-
-	/*
-		TODO: Support these flags:
-				--branch string         Git branch
-			-e, --env -e VAR=VAL        Set environment variables, e.g. -e VAR=VAL
-				--index int             node index of parallelism
-				--repo-url string       Git Url
-				--revision string       Git Revision
-			-v, --volume stringSlice    Volume bind-mounting
-	*/
-
-	flags := command.Flags()
-	flags.StringVarP(&dockerAPIVersion, "docker-api-version", "d", dockerAPIVersion, "The Docker API version to use")
-	flags.StringVar(&checkoutKey, "checkout-key", checkoutKey, "Git Checkout key")
-	flags.StringVar(&job, "job", job, "job to be executed")
-	flags.BoolVar(&skipCheckout, "skip-checkout", skipCheckout, "use local path as-is")
-	flags.IntVar(&nodeTotal, "node-total", nodeTotal, "total number of parallel nodes")
-
-	return command
 }
 
 var picardRepo = "circleci/picard"
@@ -149,22 +123,16 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	}
 
 	// TODO: marc:
-	// I can't find a way to pass `-it` and have carriage return
-	// characters work correctly.
-	arguments := []string{"docker", "run", "--rm",
-		"-e", fmt.Sprintf("DOCKER_API_VERSION=%s", dockerAPIVersion),
-		"-v", "/var/run/docker.sock:/var/run/docker.sock",
-		"-v", fmt.Sprintf("%s:%s", pwd, pwd),
-		"-v", fmt.Sprintf("%s:/root/.circleci", circleCiDir),
+	// We are passing the current environment to picard,
+	// so DOCKER_API_VERSION is only passed when it is set
+	// explicitly. The old bash script sets this to `1.23`
+	// when not explicitly set. Is this OK?
+	arguments := []string{"docker", "run", "--interactive", "--tty", "--rm",
+		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
+		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
+		"--volume", fmt.Sprintf("%s:/root/.circleci", circleCiDir),
 		"--workdir", pwd,
-		image, "circleci", "build",
-
-		// Proxied arguments
-		"--config", configPath,
-		"--skip-checkout", strconv.FormatBool(skipCheckout),
-		"--node-total", strconv.Itoa(nodeTotal),
-		"--checkout-key", checkoutKey,
-		"--job", job}
+		image, "circleci", "build"}
 
 	arguments = append(arguments, args...)
 
