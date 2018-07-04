@@ -56,11 +56,7 @@ func storeBuildAgentSha(sha256 string) error {
 
 	err = ioutil.WriteFile(buildAgentSettingsPath, settingsJSON, 0644)
 
-	if err != nil {
-		return errors.Wrap(err, "Failed to write build agent settings file")
-	}
-
-	return nil
+	return errors.Wrap(err, "Failed to write build agent settings file")
 }
 
 func updateBuildAgentToLatest(cmd *cobra.Command, args []string) error {
@@ -78,7 +74,7 @@ func updateBuildAgentToLatest(cmd *cobra.Command, args []string) error {
 
 func findLatestPicardSha() (string, error) {
 
-	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput()
+	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput() // #nosec
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to pull latest docker image")
@@ -183,9 +179,6 @@ func runBuild(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Could not find a `docker` executable on $PATH; please ensure that docker installed")
 	}
 
-	if err = syscall.Exec(dockerPath, arguments, os.Environ()); err != nil {
-		return errors.Wrap(err, "failed to execute docker")
-	}
-
-	return nil
+	err = syscall.Exec(dockerPath, arguments, os.Environ()) // #nosec
+	return errors.Wrap(err, "failed to execute docker")
 }
