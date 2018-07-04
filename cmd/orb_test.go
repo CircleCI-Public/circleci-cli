@@ -62,9 +62,9 @@ var _ = Describe("Orb", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-						"orb": "{}"
+						"config": "{}"
 					}
 				}`
 
@@ -95,9 +95,9 @@ var _ = Describe("Orb", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "orb": "some orb"
+					  "config": "some orb"
 					}
 				  }`
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
@@ -106,8 +106,7 @@ var _ = Describe("Orb", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error:"))
-				Eventually(session.Err).Should(gbytes.Say("-- invalid_orb"))
+				Eventually(session.Err).Should(gbytes.Say("Error: invalid_orb"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
@@ -142,9 +141,9 @@ var _ = Describe("Orb", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "orb": "some orb"
+					  "config": "some orb"
 					}
 				  }`
 
@@ -175,9 +174,9 @@ var _ = Describe("Orb", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($orb: String!) {\n\t\t\torbConfig(orbYaml: $orb) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
-					  "orb": "some orb"
+					  "config": "some orb"
 					}
 				  }`
 
@@ -187,9 +186,7 @@ var _ = Describe("Orb", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error:"))
-				Eventually(session.Err).Should(gbytes.Say("-- error1,"))
-				Eventually(session.Err).Should(gbytes.Say("-- error2,"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})

@@ -18,7 +18,8 @@ var defaultEndpoint = "https://circleci.com/graphql-unstable"
 // by main.main(). It only needs to happen once to
 // the RootCmd.
 func Execute() {
-	if err := rootCmd.Execute(); err != nil {
+	command := makeCommands()
+	if err := command.Execute(); err != nil {
 		os.Exit(-1)
 	}
 }
@@ -27,19 +28,28 @@ func Execute() {
 // This allows us to print to the log at anytime from within the `cmd` package.
 var Logger *logger.Logger
 
-var rootCmd = &cobra.Command{
-	Use:   "cli",
-	Short: "Use CircleCI from the command line.",
-	Long:  `Use CircleCI from the command line.`,
-}
+func makeCommands() *cobra.Command {
 
-func addCommands() {
-	rootCmd.AddCommand(diagnosticCmd)
-	rootCmd.AddCommand(queryCmd)
-	rootCmd.AddCommand(collapseCommand)
-	rootCmd.AddCommand(configureCommand)
-	rootCmd.AddCommand(configCmd)
+	rootCmd := &cobra.Command{
+		Use:   "cli",
+		Short: "Use CircleCI from the command line.",
+		Long:  `Use CircleCI from the command line.`,
+	}
+
+	rootCmd.AddCommand(newDiagnosticCommand())
+	rootCmd.AddCommand(newQueryCommand())
+	rootCmd.AddCommand(newCollapseCommand())
+	rootCmd.AddCommand(newConfigureCommand())
+	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newOrbCommand())
+
+	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
+	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
+	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
+
+	for _, flag := range []string{"endpoint", "token", "verbose"} {
+		bindCobraFlagToViper(rootCmd, flag)
+	}
 
 	// Cobra has a peculiar default behaviour:
 	// https://github.com/spf13/cobra/issues/340
@@ -51,19 +61,21 @@ func addCommands() {
 	// This flag disables that behaviour, so that if a comment fails, it prints
 	// just the error message.
 	rootCmd.SilenceUsage = true
+
+	return rootCmd
 }
 
-func bindCobraFlagToViper(flag string) {
-	if err := viper.BindPFlag(flag, rootCmd.PersistentFlags().Lookup(flag)); err != nil {
+func bindCobraFlagToViper(command *cobra.Command, flag string) {
+	if err := viper.BindPFlag(flag, command.PersistentFlags().Lookup(flag)); err != nil {
 		panic(errors.Wrapf(err, "internal error binding cobra flag '%s' to viper", flag))
 	}
 }
 
 func init() {
 
-	configDir := path.Join(settings.UserHomeDir(), ".circleci")
-
 	cobra.OnInitialize(setup)
+
+	configDir := path.Join(settings.UserHomeDir(), ".circleci")
 
 	viper.SetConfigName("cli")
 	viper.AddConfigPath(configDir)
@@ -78,14 +90,6 @@ func init() {
 		panic(err)
 	}
 
-	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
-	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
-	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
-
-	for _, flag := range []string{"endpoint", "token", "verbose"} {
-		bindCobraFlagToViper(flag)
-	}
-	addCommands()
 }
 
 func setup() {

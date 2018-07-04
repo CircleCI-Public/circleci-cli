@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
 
+	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 
@@ -14,18 +13,6 @@ import (
 )
 
 var orbPath string
-
-type orbConfigResponse struct {
-	OrbConfig struct {
-		Valid      bool
-		SourceYaml string
-		OutputYaml string
-
-		Errors []struct {
-			Message string
-		}
-	}
-}
 
 func newOrbCommand() *cobra.Command {
 
@@ -129,73 +116,18 @@ query ListOrbs ($after: String!) {
 		}
 	}
 	return nil
-
-}
-
-func loadOrbYaml(path string) (string, error) {
-
-	orb, err := ioutil.ReadFile(path)
-
-	if err != nil {
-		return "", errors.Wrapf(err, "Could not load orb file at %s", path)
-	}
-
-	return string(orb), nil
-}
-
-func (response orbConfigResponse) processErrors() error {
-	var buffer bytes.Buffer
-
-	buffer.WriteString("\n")
-	for i := range response.OrbConfig.Errors {
-		buffer.WriteString("-- ")
-		buffer.WriteString(response.OrbConfig.Errors[i].Message)
-		buffer.WriteString(",\n")
-	}
-
-	return errors.New(buffer.String())
-}
-
-func orbValidateQuery(ctx context.Context) (*orbConfigResponse, error) {
-
-	query := `
-		query ValidateOrb ($orb: String!) {
-			orbConfig(orbYaml: $orb) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
-
-	orb, err := loadOrbYaml(orbPath)
-	if err != nil {
-		return nil, err
-	}
-
-	variables := map[string]string{
-		"orb": orb,
-	}
-
-	var response orbConfigResponse
-	err = queryAPI(ctx, query, variables, &response)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate orb")
-	}
-
-	return &response, nil
 }
 
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := orbValidateQuery(ctx)
+	response, err := api.OrbQuery(ctx, Logger, orbPath)
 
 	if err != nil {
 		return err
 	}
 
-	if !response.OrbConfig.Valid {
-		return response.processErrors()
+	if !response.Valid {
+		return response.ToError()
 	}
 
 	Logger.Infof("Orb at %s is valid", orbPath)
@@ -205,16 +137,16 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 func expandOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	response, err := orbValidateQuery(ctx)
+	response, err := api.OrbQuery(ctx, Logger, orbPath)
 
 	if err != nil {
 		return err
 	}
 
-	if !response.OrbConfig.Valid {
-		return response.processErrors()
+	if !response.Valid {
+		return response.ToError()
 	}
 
-	Logger.Info(response.OrbConfig.OutputYaml)
+	Logger.Info(response.OutputYaml)
 	return nil
 }

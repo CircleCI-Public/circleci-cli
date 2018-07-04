@@ -7,10 +7,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-var diagnosticCmd = &cobra.Command{
-	Use:   "diagnostic",
-	Short: "Check the status of your CircleCI CLI.",
-	RunE:  diagnostic,
+func newDiagnosticCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "diagnostic",
+		Short: "Check the status of your CircleCI CLI.",
+		RunE:  diagnostic,
+	}
 }
 
 func diagnostic(cmd *cobra.Command, args []string) error {
