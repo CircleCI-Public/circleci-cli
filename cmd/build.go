@@ -1,13 +1,13 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"regexp"
-	"strings"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -17,92 +17,131 @@ import (
 
 func newBuildCommand() *cobra.Command {
 
-	return &cobra.Command{
+	updateCommand := &cobra.Command{
+		Use:   "update",
+		Short: "Update the build agent to the latest version",
+		RunE:  updateBuildAgentToLatest,
+	}
+
+	buildCommand := &cobra.Command{
 		Use:                "build",
 		Short:              "Run a build",
 		RunE:               runBuild,
 		DisableFlagParsing: true,
 	}
+
+	buildCommand.AddCommand(updateCommand)
+
+	return buildCommand
 }
 
 var picardRepo = "circleci/picard"
 var circleCiDir = path.Join(settings.UserHomeDir(), ".circleci")
-var currentDigestFile = path.Join(circleCiDir, "current_picard_digest")
-var latestDigestFile = path.Join(circleCiDir, "latest_picard_digest")
+var buildAgentSettingsPath = path.Join(circleCiDir, "build_agent_settings.json")
 
-func getDigest(file string) string {
+type buildAgentSettings struct {
+	LatestSha256 string
+}
 
-	if _, err := os.Stat(file); !os.IsNotExist(err) {
-		digest, err := ioutil.ReadFile(file)
-
-		if err != nil {
-			Logger.Error("Could not load digest file", err)
-		} else {
-			return strings.TrimSpace(string(digest))
-		}
+func storeBuildAgentSha(sha256 string) error {
+	settings := buildAgentSettings{
+		LatestSha256: sha256,
 	}
 
-	return "" // Unknown digest
-}
-
-func newPullLatestImageCommand() *exec.Cmd {
-	return exec.Command("docker", "pull", picardRepo)
-}
-
-func getLatestImageSha() (string, error) {
-
-	cmd := newPullLatestImageCommand()
-	Logger.Info("Pulling latest build image")
-	bytes, err := cmd.CombinedOutput()
+	settingsJSON, err := json.Marshal(settings)
 
 	if err != nil {
-		return "", errors.Wrap(err, "failed to pull latest image")
+		return errors.Wrap(err, "Failed to serialize build agent settings")
 	}
 
-	output := string(bytes)
+	err = ioutil.WriteFile(buildAgentSettingsPath, settingsJSON, 0644)
 
+	if err != nil {
+		return errors.Wrap(err, "Failed to write build agent settings file")
+	}
+
+	return nil
+}
+
+func updateBuildAgentToLatest(cmd *cobra.Command, args []string) error {
+
+	latestSha256, err := findLatestPicardSha()
+
+	if err != nil {
+		return err
+	}
+
+	Logger.Infof("Latest build agent is version %s", latestSha256)
+
+	return nil
+}
+
+func findLatestPicardSha() (string, error) {
+
+	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput()
+
+	if err != nil {
+		return "", errors.Wrap(err, "failed to pull latest docker image")
+	}
+
+	output := string(outputBytes)
 	sha256 := regexp.MustCompile("(?m)sha256.*$")
-
-	//latest_image=$(docker pull picardRepo | grep -o "sha256.*$")
-	//echo $latest_image > $LATEST_DIGEST_FILE
 	latest := sha256.FindString(output)
 
 	if latest == "" {
-		return latest, errors.New("Failed to find latest image")
+		return "", errors.New("failed to parse sha256 from docker pull output")
 	}
 
-	return latest, nil
-}
-
-func picardImageSha1() (string, error) {
-	currentDigest := getDigest(currentDigestFile)
-
-	if currentDigest == "" {
-		Logger.Debug("no current digest stored - downloading latest image of picard")
-		Logger.Info("Downloading latest CircleCI build agent...")
-
-		// TODO - write the digest to a file so that we can
-		// use it again.
-		return getLatestImageSha()
-	}
-
-	// TODO - this should write to a file to record
-	// the fact that we have the latest image.
-	Logger.Debug("Pulling latest picard image in background")
-	// We don't wait for this command, we just `Start` it and run in the background.
-	if err := newPullLatestImageCommand().Start(); err != nil {
-		return "", errors.Wrap(err, "Fails to start background update of build image")
-	}
-
-	return currentDigest, nil
-
-}
-
-func picardImage() (string, error) {
-	sha, err := picardImageSha1()
+	err = storeBuildAgentSha(latest)
 
 	if err != nil {
 		return "", err
+	}
+
+	return latest, nil
+
+}
+
+func loadCurrentBuildAgentSha() string {
+	if _, err := os.Stat(buildAgentSettingsPath); os.IsNotExist(err) {
+		return ""
+	}
+
+	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath)
+
+	if err != nil {
+		Logger.Error("Faild to load build agent settings JSON", err)
+		return ""
+	}
+
+	var settings buildAgentSettings
+
+	err = json.Unmarshal(settingsJSON, &settings)
+
+	if err != nil {
+		Logger.Error("Faild to parse build agent settings JSON", err)
+		return ""
+	}
+
+	return settings.LatestSha256
+}
+
+func picardImage() (string, error) {
+
+	sha := loadCurrentBuildAgentSha()
+
+	if sha == "" {
+
+		Logger.Info("Downloading latest CircleCI build agent...")
+
+		var err error
+
+		sha, err = findLatestPicardSha()
+
+		if err != nil {
+			return "", err
+		}
+
 	}
 	Logger.Infof("Docker image digest: %s", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
