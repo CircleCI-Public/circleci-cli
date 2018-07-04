@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"bufio"
-	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -12,6 +9,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -136,18 +134,7 @@ func picardImage() (string, error) {
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
-func streamOutout(stream io.Reader) {
-	scanner := bufio.NewScanner(stream)
-	go func() {
-		for scanner.Scan() {
-			Logger.Info(scanner.Text())
-		}
-	}()
-}
-
 func runBuild(cmd *cobra.Command, args []string) error {
-
-	ctx := context.Background()
 
 	pwd, err := os.Getwd()
 
@@ -164,7 +151,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	// TODO: marc:
 	// I can't find a way to pass `-it` and have carriage return
 	// characters work correctly.
-	arguments := []string{"run", "--rm",
+	arguments := []string{"docker", "run", "--rm",
 		"-e", fmt.Sprintf("DOCKER_API_VERSION=%s", dockerAPIVersion),
 		"-v", "/var/run/docker.sock:/var/run/docker.sock",
 		"-v", fmt.Sprintf("%s:%s", pwd, pwd),
@@ -183,24 +170,15 @@ func runBuild(cmd *cobra.Command, args []string) error {
 
 	Logger.Debug(fmt.Sprintf("Starting docker with args: %s", arguments))
 
-	build := exec.CommandContext(ctx, "docker", arguments...)
-
-	build.Stdin = os.Stdin
-
-	stdout, err := build.StdoutPipe()
+	dockerPath, err := exec.LookPath("docker")
 
 	if err != nil {
-		return errors.Wrap(err, "Failed to connect to stdout")
+		return errors.Wrap(err, "Could not find a `docker` executable on $PATH; please ensure that docker installed")
 	}
 
-	stderr, err := build.StderrPipe()
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to connect to stderr")
+	if err = syscall.Exec(dockerPath, arguments, os.Environ()); err != nil {
+		return errors.Wrap(err, "failed to execute docker")
 	}
 
-	streamOutout(stdout)
-	streamOutout(stderr)
-
-	return build.Run()
+	return nil
 }
