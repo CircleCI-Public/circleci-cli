@@ -36,8 +36,14 @@ func newBuildCommand() *cobra.Command {
 }
 
 var picardRepo = "circleci/picard"
-var circleCiDir = path.Join(settings.UserHomeDir(), ".circleci")
-var buildAgentSettingsPath = path.Join(circleCiDir, "build_agent_settings.json")
+
+func circleCiDir() string {
+	return path.Join(settings.UserHomeDir(), ".circleci")
+}
+
+func buildAgentSettingsPath() string {
+	return path.Join(circleCiDir(), "build_agent_settings.json")
+}
 
 type buildAgentSettings struct {
 	LatestSha256 string
@@ -54,7 +60,11 @@ func storeBuildAgentSha(sha256 string) error {
 		return errors.Wrap(err, "Failed to serialize build agent settings")
 	}
 
-	err = ioutil.WriteFile(buildAgentSettingsPath, settingsJSON, 0644)
+	if err = os.MkdirAll(circleCiDir(), 0700); err != nil {
+		return errors.Wrap(err, "Could not create settings directory")
+	}
+
+	err = ioutil.WriteFile(buildAgentSettingsPath(), settingsJSON, 0644)
 
 	return errors.Wrap(err, "Failed to write build agent settings file")
 }
@@ -99,11 +109,11 @@ func findLatestPicardSha() (string, error) {
 }
 
 func loadCurrentBuildAgentSha() string {
-	if _, err := os.Stat(buildAgentSettingsPath); os.IsNotExist(err) {
+	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
 		return ""
 	}
 
-	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath)
+	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
 
 	if err != nil {
 		Logger.Error("Faild to load build agent settings JSON", err)
@@ -165,7 +175,7 @@ func runBuild(cmd *cobra.Command, args []string) error {
 	arguments := []string{"docker", "run", "--interactive", "--tty", "--rm",
 		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
-		"--volume", fmt.Sprintf("%s:/root/.circleci", circleCiDir),
+		"--volume", fmt.Sprintf("%s:/root/.circleci", circleCiDir()),
 		"--workdir", pwd,
 		image, "circleci", "build"}
 
