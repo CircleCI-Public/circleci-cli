@@ -54,9 +54,9 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("config", config)
-	client := client.NewClient(viper.GetString("endpoint"), logger)
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
 
-	err = client.Run(ctx, request, response)
+	err = graphQLclient.Run(ctx, request, response)
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to validate config")

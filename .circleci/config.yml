@@ -34,25 +34,14 @@ jobs:
           &pr=$CIRCLE_PR_NUMBER"
   lint:
     docker:
-    - image: circleci/golang:1.10
+    - image: supinf/gometalinter:latest
+      environment:
+        CGO_ENABLED: 0
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
     - checkout
-    - restore_cache:
-        keys:
-        - v1-gometalinter-
     - run:
-        name: Install
-        command: |
-          [[ -e /go/bin/gometalinter ]] && exit
-          go get -u github.com/alecthomas/gometalinter
-          gometalinter --install
-    - run:
-        command: make lint
-    - save_cache:
-        key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
-        paths:
-        - /go/bin/*
+        command: gometalinter --deadline 60s --vendor ./...
   deploy:
     docker:
     - image: circleci/golang:1.10
