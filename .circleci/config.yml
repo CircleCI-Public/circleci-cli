@@ -30,9 +30,11 @@ jobs:
     docker:
       - image: supinf/gometalinter:latest
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    environment:
+      CGO_ENABLED: 0
     steps:
       - checkout
-      - run: gometalinter --deadline 60s --exclude=/usr/local/go/ --exclude ^vendor ./...
+      - run: gometalinter ./...
 
   deploy:
     executor: go
