@@ -1,9 +1,11 @@
 project_name: circleci-cli
 
 archive:
+  wrap_in_directory: true
   format_overrides:
     - goos: windows
       format: zip
+
 
 builds:
   - binary: circleci
