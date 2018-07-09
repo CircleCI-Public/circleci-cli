@@ -60,7 +60,7 @@ func MakeCommands() *cobra.Command {
 	// https://github.com/spf13/cobra/issues/340
 	// If you expose a command with `RunE`, and return an error from your
 	// command, then Cobra will print the error message, followed by the usage
-	// infomation for the command. This makes it really difficult to see what's
+	// information for the command. This makes it really difficult to see what's
 	// gone wrong. It usually prints a one line error message followed by 15
 	// lines of usage information.
 	// This flag disables that behaviour, so that if a comment fails, it prints
