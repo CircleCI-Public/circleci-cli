@@ -34,7 +34,7 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - checkout
-      - run: gometalinter ./...
+      - run: make lint
 
   deploy:
     executor: go
