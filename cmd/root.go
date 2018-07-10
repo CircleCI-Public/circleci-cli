@@ -35,7 +35,7 @@ var Logger *logger.Logger
 func MakeCommands() *cobra.Command {
 
 	rootCmd := &cobra.Command{
-		Use:   "cli",
+		Use:   "circleci",
 		Short: "Use CircleCI from the command line.",
 		Long:  `Use CircleCI from the command line.`,
 	}
