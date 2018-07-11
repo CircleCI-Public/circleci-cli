@@ -191,5 +191,65 @@ var _ = Describe("Orb", func() {
 
 			})
 		})
+
+		Describe("when publishing an orb version", func() {
+			It("works", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlResponse := `{
+							"orbConfig": {
+								"orb": {
+									id:
+									orb:
+									version:
+									source:
+									notes:
+									createdAt:
+								}
+								"errors": []
+							}
+						}`
+				// 	:PublishOrbPayload
+				// 	{:description "Payload sent after publishing an orb"
+				// 	 :fields {:errors {:type (non-null (list (non-null :ConfigError)))}
+				// :orb {:type :OrbVersion}}}
+
+				// :OrbVersion
+				// {:description "A specific version of an orb and its source"
+				//  :fields {:id  {:type (non-null :UUID)}
+				// 					:orb {:type (non-null :Orb)
+				// 								:resolve :version-orb}
+				// 					:version {:type (non-null String)}
+				// 					:source {:type (non-null String)}
+				// 					:notes {:type String}
+				// 					:createdAt {:type (non-null :Date)}}}}
+
+				expectedRequestJson := ` {
+					"query": "\n\t\tmutation PublishOrbVersion ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+					  "config": "some orb"
+					}
+					}`
+				// :publishOrb {:type (non-null :PublishOrbPayload)
+				// 	:args {:orbId {:type (non-null :UUID)}
+				// 				 :version {:type (non-null String)}
+				// 				 :orbYaml {:type (non-null String)}}
+				// 	:resolve :publish-orb}}
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("hello world"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints errors if invalid", func() {
+			})
+		})
 	})
 })
