@@ -16,7 +16,7 @@ func newCollapseCommand() *cobra.Command {
 		Short: "Collapse your CircleCI configuration to a single file",
 		RunE:  collapse,
 	}
-	collapseCommand.Flags().StringVarP(&root, "root", "r", ".circleci", "path to your configuration (default is .circleci)")
+	collapseCommand.Flags().StringVarP(&root, "root", "r", ".", "path to your configuration (default is current path)")
 
 	return collapseCommand
 }
