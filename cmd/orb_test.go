@@ -17,6 +17,8 @@ var _ = Describe("Orb", func() {
 		var (
 			testServer *ghttp.Server
 			orb        tmpFile
+			token      string
+			command    *exec.Cmd
 		)
 
 		BeforeEach(func() {
@@ -33,11 +35,6 @@ var _ = Describe("Orb", func() {
 		})
 
 		Describe("when validating orb", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
 			BeforeEach(func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
@@ -193,50 +190,49 @@ var _ = Describe("Orb", func() {
 		})
 
 		Describe("when publishing an orb version", func() {
-			It("works", func() {
+			JustBeforeEach(func() {
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "publish",
+					"-t", token,
+					"-e", testServer.URL(),
+					"-p", orb.Path,
+					"--verbose", "",
+				)
+			})
+
+			FIt("works", func() {
+
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
+				// write to test file
 				err := orb.write(`some orb`)
+				// assert write to test file successful
 				Expect(err).ToNot(HaveOccurred())
 
 				gqlResponse := `{
-							"orbConfig": {
-								"orb": {
-									id:
-									orb:
-									version:
-									source:
-									notes:
-									createdAt:
-								}
-								"errors": []
-							}
-						}`
-				// 	:PublishOrbPayload
-				// 	{:description "Payload sent after publishing an orb"
-				// 	 :fields {:errors {:type (non-null (list (non-null :ConfigError)))}
-				// :orb {:type :OrbVersion}}}
-
-				// :OrbVersion
-				// {:description "A specific version of an orb and its source"
-				//  :fields {:id  {:type (non-null :UUID)}
-				// 					:orb {:type (non-null :Orb)
-				// 								:resolve :version-orb}
-				// 					:version {:type (non-null String)}
-				// 					:source {:type (non-null String)}
-				// 					:notes {:type String}
-				// 					:createdAt {:type (non-null :Date)}}}}
-
-				expectedRequestJson := ` {
-					"query": "\n\t\tmutation PublishOrbVersion ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-					"variables": {
-					  "config": "some orb"
+					"publishOrb": {
+						"errors": [],
+						"valid": true,
+						"orb": {
+							"createdAt": "2018-07-16T18:03:18.961Z",
+							"version": "0.0.1"
+						}
 					}
-					}`
-				// :publishOrb {:type (non-null :PublishOrbPayload)
-				// 	:args {:orbId {:type (non-null :UUID)}
-				// 				 :version {:type (non-null String)}
-				// 				 :orbYaml {:type (non-null String)}}
-				// 	:resolve :publish-orb}}
+				}`
+
+				// expectedRequestJson := `{
+				// 	"query": '{}", version: "0.0.1") { orb { version createdAt } errors { message } } } '
+				// 	}`
+
+				expectedRequestJson := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: $String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: \"\"\n\t\t\t)\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+					}
+				}`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 
@@ -244,7 +240,7 @@ var _ = Describe("Orb", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("hello world"))
+				Eventually(session.Out).Should(gbytes.Say("response invalid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 

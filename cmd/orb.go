@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -34,6 +35,13 @@ func newOrbCommand() *cobra.Command {
 		RunE:  expandOrb,
 	}
 
+	orbPublishCommand := &cobra.Command{
+		Use:   "publish",
+		Short: "publish a version of an orb",
+		RunE:  publishOrb,
+	}
+	orbPublishCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
@@ -46,6 +54,8 @@ func newOrbCommand() *cobra.Command {
 
 	orbExpandCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbExpandCommand)
+
+	orbCommand.AddCommand(orbPublishCommand)
 
 	return orbCommand
 }
@@ -148,5 +158,27 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Info(response.OutputYaml)
+	return nil
+}
+
+func publishOrb(cmd *cobra.Command, args []string) error {
+	ctx := context.Background()
+
+	response, err := api.OrbPublish(ctx, Logger, orbPath)
+
+	if err != nil {
+		return err
+	}
+
+	if !response.Valid {
+		// fmt.Print("response invalid")
+		// print("response invalid")
+		// fmt.Println(">>>>>>>>>>>>>>>>>>>> response invalid >>>>>>>>>>>>>>>>>>>>", response.ToError())
+		fmt.Println(">>>>>>>>>>>>>>>>>>>> response invalid >>>>>>>>>>>>>>>>>>>>", response.ToError().Error())
+		return response.ToError()
+	}
+
+	// Logger.Info(response.OutputYaml)
+	Logger.Info("Orb published")
 	return nil
 }

@@ -101,3 +101,45 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 			}
 		}`)
 }
+
+func publishOrbQuery(ctx context.Context, logger *logger.Logger, configPath string, response interface{}, query string) error {
+	config, err := loadYaml(configPath)
+	if err != nil {
+		return err
+	}
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("config", config)
+
+	request.Var("orbId", "bb604b45-b6b0-4b81-ad80-796f15eddf87")
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err = graphQLclient.Run(ctx, request, response)
+
+	if err != nil {
+		return errors.Wrap(err, "Unable to validate config")
+	}
+
+	return nil
+}
+
+// OrbPublish publishes a new version of an orb
+func OrbPublish(ctx context.Context, logger *logger.Logger,
+	configPath string) (*ConfigResponse, error) {
+	var response struct {
+		OrbConfig struct {
+			ConfigResponse
+		}
+	}
+
+	return &response.OrbConfig.ConfigResponse, publishOrbQuery(ctx, logger, configPath, &response, `
+		mutation($config: String!, $orbId: $String!) {
+			publishOrb(
+				orbId: $orbId,
+				orbYaml: $config,
+				version: ""
+			)
+		}
+	`)
+
+}
