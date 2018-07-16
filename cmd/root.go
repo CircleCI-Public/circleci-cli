@@ -51,7 +51,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
-	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", configPath, "path to build config")
+	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", configPath, "path to build config. '-' reads from STDIN")
 
 	for _, flag := range []string{"endpoint", "token", "verbose"} {
 		bindCobraFlagToViper(rootCmd, flag)

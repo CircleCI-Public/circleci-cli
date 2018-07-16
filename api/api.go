@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"io/ioutil"
+	"os"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -54,8 +55,13 @@ func (response GQLResponseErrors) ToError() error {
 }
 
 func loadYaml(path string) (string, error) {
-
-	config, err := ioutil.ReadFile(path)
+	var err error
+	var config []byte
+	if path == "-" {
+		config, err = ioutil.ReadAll(os.Stdin)
+	} else {
+		config, err = ioutil.ReadFile(path)
+	}
 
 	if err != nil {
 		return "", errors.Wrapf(err, "Could not load config file at %s", path)

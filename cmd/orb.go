@@ -55,10 +55,10 @@ func newOrbCommand() *cobra.Command {
 
 	orbCommand.AddCommand(orbListCommand)
 
-	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file ('-' for STDIN)")
 	orbCommand.AddCommand(orbValidateCommand)
 
-	orbExpandCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+	orbExpandCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file ('-' for STDIN)")
 	orbCommand.AddCommand(orbExpandCommand)
 
 	orbCommand.AddCommand(orbPublishCommand)
