@@ -44,7 +44,7 @@ var _ = Describe("Config", func() {
 					"config", "validate",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-c", config.Path,
+					config.Path,
 				)
 			})
 
@@ -120,7 +120,7 @@ var _ = Describe("Config", func() {
 					"config", "expand",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-c", config.Path,
+					config.Path,
 				)
 			})
 

@@ -40,7 +40,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "validate",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", orb.Path,
+					orb.Path,
 				)
 			})
 
@@ -113,7 +113,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "expand",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", orb.Path,
+					orb.Path,
 				)
 			})
 

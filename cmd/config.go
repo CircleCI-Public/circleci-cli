@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const defaultConfigPath = ".circleci/config.yml"
+
 func newConfigCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -34,6 +36,10 @@ func newConfigCommand() *cobra.Command {
 
 func validateConfig(cmd *cobra.Command, args []string) error {
 
+	configPath := defaultConfigPath
+	if len(args) == 1 {
+		configPath = args[0]
+	}
 	ctx := context.Background()
 	response, err := api.ConfigQuery(ctx, Logger, configPath)
 
@@ -51,7 +57,10 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 
 func expandConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-
+	configPath := defaultConfigPath
+	if len(args) == 1 {
+		configPath = args[0]
+	}
 	response, err := api.ConfigQuery(ctx, Logger, configPath)
 
 	if err != nil {
