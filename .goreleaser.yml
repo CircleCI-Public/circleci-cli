@@ -1,5 +1,8 @@
 project_name: circleci-cli
 
+git:
+  short_hash: true
+
 archive:
   wrap_in_directory: true
   format_overrides:
@@ -20,4 +23,4 @@ builds:
       # -w Omit the DWARF symbol table.
       # These are the defaults specified by goreleaser:
       # https://github.com/goreleaser/goreleaser/blob/682c811106f56ffe06c4212de546aec62161fb9d/internal/builders/golang/build.go#L46
-      - -s -w -X version.Version={{.Version}} -X version.Commit={{.Commit}}
+      - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.Commit}}
