@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -10,6 +12,7 @@ import (
 	"github.com/machinebox/graphql"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"gopkg.in/yaml.v2"
 )
 
 var orbPath string
@@ -50,6 +53,29 @@ func newOrbCommand() *cobra.Command {
 	return orbCommand
 }
 
+type orb struct {
+	Commands  map[string]struct{}
+	Jobs      map[string]struct{}
+	Executors map[string]struct{}
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+	if len(elems) > 0 {
+		buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for key := range elems {
+			buf.WriteString(fmt.Sprintf("    - %s\n", key))
+		}
+	}
+}
+
+func (orb orb) String() string {
+	var buffer bytes.Buffer
+	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
+	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
+	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+	return buffer.String()
+}
+
 func listOrbs(cmd *cobra.Command, args []string) error {
 
 	ctx := context.Background()
@@ -63,7 +89,11 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 			Edges      []struct {
 				Cursor string
 				Node   struct {
-					Name string
+					Name     string
+					Versions []struct {
+						Version string
+						Source  string
+					}
 				}
 			}
 			PageInfo struct {
@@ -77,11 +107,14 @@ query ListOrbs ($after: String!) {
   orbs(first: 20, after: $after) {
 	totalCount,
     edges {
-      cursor,
-      node {
-        name
-      }
-    }
+	  node {
+	    name
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
     pageInfo {
       hasNextPage
     }
@@ -104,11 +137,27 @@ query ListOrbs ($after: String!) {
 
 		// Debug logging of result fields.
 		// Logger.Prettyify(result)
-
+	Orbs:
 		for i := range result.Orbs.Edges {
 			edge := result.Orbs.Edges[i]
 			currentCursor = edge.Cursor
-			Logger.Infof("Orb: %s\n", edge.Node.Name)
+			if len(edge.Node.Versions) > 0 {
+				v := edge.Node.Versions[0]
+
+				Logger.Infof("%s (%s)", edge.Node.Name, v.Version)
+
+				var o orb
+
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+
+				if err != nil {
+					Logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					continue Orbs
+				}
+
+				Logger.Info(o.String())
+
+			}
 		}
 
 		if !result.Orbs.PageInfo.HasNextPage {
