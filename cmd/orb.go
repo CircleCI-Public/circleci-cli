@@ -14,6 +14,8 @@ import (
 )
 
 var orbPath string
+var orbVersion string
+var orbId string
 
 func newOrbCommand() *cobra.Command {
 
@@ -41,6 +43,8 @@ func newOrbCommand() *cobra.Command {
 		RunE:  publishOrb,
 	}
 	orbPublishCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
+	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
+	orbPublishCommand.PersistentFlags().StringVarP(&orbId, "orb-id", "i", "", "version of orb to publish")
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -164,21 +168,17 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	response, err := api.OrbPublish(ctx, Logger, orbPath)
+	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbId)
 
 	if err != nil {
+		fmt.Println("response error")
 		return err
 	}
 
-	if !response.Valid {
-		// fmt.Print("response invalid")
-		// print("response invalid")
-		// fmt.Println(">>>>>>>>>>>>>>>>>>>> response invalid >>>>>>>>>>>>>>>>>>>>", response.ToError())
-		fmt.Println(">>>>>>>>>>>>>>>>>>>> response invalid >>>>>>>>>>>>>>>>>>>>", response.ToError().Error())
+	if len(response.Errors) > 0 {
 		return response.ToError()
 	}
 
-	// Logger.Info(response.OutputYaml)
 	Logger.Info("Orb published")
 	return nil
 }

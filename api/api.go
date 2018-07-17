@@ -24,8 +24,33 @@ type ConfigResponse struct {
 	}
 }
 
+// The PublishOrbResponse type matches the data shape of the GQL response for
+// publishing an orb.
+type PublishOrbResponse struct {
+	Orb struct {
+		CreatedAt string
+		Version   string
+	}
+
+	Errors []struct {
+		Message string
+	}
+}
+
 // ToError returns an error created from any error messages, or nil.
 func (response ConfigResponse) ToError() error {
+	messages := []string{}
+
+	for i := range response.Errors {
+		messages = append(messages, response.Errors[i].Message)
+	}
+
+	return errors.New(strings.Join(messages, ": "))
+}
+
+// ToError (PublishOrbResponse) returns all errors that the GraphQL API returns
+// as part of a publish orb request.
+func (response PublishOrbResponse) ToError() error {
 	messages := []string{}
 
 	for i := range response.Errors {
@@ -102,7 +127,8 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 		}`)
 }
 
-func publishOrbQuery(ctx context.Context, logger *logger.Logger, configPath string, response interface{}, query string) error {
+func publishOrbQuery(ctx context.Context, logger *logger.Logger, configPath string,
+	orbVersion string, orbID string, response interface{}, query string) error {
 	config, err := loadYaml(configPath)
 	if err != nil {
 		return err
@@ -110,8 +136,9 @@ func publishOrbQuery(ctx context.Context, logger *logger.Logger, configPath stri
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("config", config)
+	request.Var("orbId", orbID)
+	request.Var("version", orbVersion)
 
-	request.Var("orbId", "bb604b45-b6b0-4b81-ad80-796f15eddf87")
 	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
 
 	err = graphQLclient.Run(ctx, request, response)
@@ -125,19 +152,20 @@ func publishOrbQuery(ctx context.Context, logger *logger.Logger, configPath stri
 
 // OrbPublish publishes a new version of an orb
 func OrbPublish(ctx context.Context, logger *logger.Logger,
-	configPath string) (*ConfigResponse, error) {
+	configPath string, orbVersion string, orbID string) (*PublishOrbResponse, error) {
 	var response struct {
-		OrbConfig struct {
-			ConfigResponse
+		PublishOrb struct {
+			PublishOrbResponse
 		}
 	}
 
-	return &response.OrbConfig.ConfigResponse, publishOrbQuery(ctx, logger, configPath, &response, `
-		mutation($config: String!, $orbId: $String!) {
+	return &response.PublishOrb.PublishOrbResponse, publishOrbQuery(ctx, logger,
+		configPath, orbVersion, orbID, &response, `
+		mutation($config: String!, $orbId: $String!, $version: $String!) {
 			publishOrb(
 				orbId: $orbId,
 				orbYaml: $config,
-				version: ""
+				version: $version
 			)
 		}
 	`)

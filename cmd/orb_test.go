@@ -190,18 +190,19 @@ var _ = Describe("Orb", func() {
 		})
 
 		Describe("when publishing an orb version", func() {
-			JustBeforeEach(func() {
+			BeforeEach(func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "publish",
 					"-t", token,
 					"-e", testServer.URL(),
 					"-p", orb.Path,
-					"--verbose", "",
+					"--orb-version", "0.0.1",
+					"--orb-id", "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 				)
 			})
 
-			FIt("works", func() {
+			It("works", func() {
 
 				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
 				// on BeforeEach in each block to specify server mocking.
@@ -214,7 +215,6 @@ var _ = Describe("Orb", func() {
 				gqlResponse := `{
 					"publishOrb": {
 						"errors": [],
-						"valid": true,
 						"orb": {
 							"createdAt": "2018-07-16T18:03:18.961Z",
 							"version": "0.0.1"
@@ -227,10 +227,11 @@ var _ = Describe("Orb", func() {
 				// 	}`
 
 				expectedRequestJson := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: $String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: \"\"\n\t\t\t)\n\t\t}\n\t",
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version) {orb {\n\t\t\tversion\n\t\t\tcreatedAt\n\t\t}\n\t\t}\n\t\terrors { message }\n\t",
 					"variables": {
 						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.0.1"
 					}
 				}`
 
@@ -240,7 +241,7 @@ var _ = Describe("Orb", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("response invalid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb published"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
