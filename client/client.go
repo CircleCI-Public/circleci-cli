@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/machinebox/graphql"
 )
 
@@ -20,7 +21,6 @@ func NewClient(endpoint string, logger *logger.Logger) *graphql.Client {
 	}
 
 	return client
-
 }
 
 // NewAuthorizedRequest returns a new GraphQL request with the
@@ -28,6 +28,7 @@ func NewClient(endpoint string, logger *logger.Logger) *graphql.Client {
 func NewAuthorizedRequest(token, query string) *graphql.Request {
 	req := graphql.NewRequest(query)
 	req.Header.Set("Authorization", token)
+	req.Header.Set("User-Agent", fmt.Sprintf("circleci-cli/%s-%s", version.Version, version.Commit))
 	return req
 }
 
