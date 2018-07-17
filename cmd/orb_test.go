@@ -10,6 +10,7 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
+	"io"
 )
 
 var _ = Describe("Orb integration tests", func() {
@@ -32,6 +33,56 @@ var _ = Describe("Orb integration tests", func() {
 		AfterEach(func() {
 			orb.close()
 			testServer.Close()
+		})
+
+		Describe("when using STDIN", func() {
+			var (
+				token   string
+				command *exec.Cmd
+			)
+
+			BeforeEach(func() {
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"-t", token,
+					"-e", testServer.URL(),
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					io.WriteString(stdin, "{}")
+				}()
+			})
+
+			It("works", func() {
+				By("setting up a mock server")
+
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				expectedRequestJson := ` {
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+						"config": "{}"
+					}
+				}`
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				// the .* is because the full path with temp dir is printed
+				Eventually(session.Out).Should(gbytes.Say("Orb at - is valid"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
 		})
 
 		Describe("when validating orb", func() {
