@@ -13,7 +13,7 @@ import (
 )
 
 var _ = Describe("Orb", func() {
-	Describe("with an api and orb.yml", func() {
+	Describe("behavior with an api and an orb.yml provided", func() {
 		var (
 			testServer *ghttp.Server
 			orb        tmpFile
@@ -222,14 +222,8 @@ var _ = Describe("Orb", func() {
 					}
 				}`
 
-				// expectedRequestJson := `{
-				// 	"query": '{}", version: "0.0.1") { orb { version createdAt } errors { message } } } '
-				// 	}`
-
-				// "query": "mutation($config: String!, $orbId: UUID!, $version: String!) {publishOrb(orbId: $orbId,orbYaml: $config,version: $version)}",
-				// "query": "mutation($config: String!, $orbId: UUID!, $version: String!) {publishOrb(orbId: $orbId,orbYaml: $config,version: $version) {orb {versioncreatedAt}}errors { message }",
 				expectedRequestJson := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version) {orb {\n\t\t\tversion\n\t\t\tcreatedAt\n\t\t}\n\t\t}\n\t\terrors { message }\n\t",
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tcreatedAt\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
@@ -247,7 +241,39 @@ var _ = Describe("Orb", func() {
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
-			It("prints errors if invalid", func() {
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlResponse := `{
+							"publishOrb": {
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								],
+								"orb": null
+							}
+						}`
+
+				expectedRequestJson := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tcreatedAt\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.0.1"
+					}
+				}`
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+
 			})
 		})
 	})

@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -44,7 +43,7 @@ func newOrbCommand() *cobra.Command {
 	}
 	orbPublishCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
-	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "version of orb to publish")
+	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -171,7 +170,6 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbID)
 
 	if err != nil {
-		fmt.Println("response error")
 		return err
 	}
 
