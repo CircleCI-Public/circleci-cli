@@ -15,7 +15,7 @@ import (
 
 var orbPath string
 var orbVersion string
-var orbId string
+var orbID string
 
 func newOrbCommand() *cobra.Command {
 
@@ -44,7 +44,7 @@ func newOrbCommand() *cobra.Command {
 	}
 	orbPublishCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
-	orbPublishCommand.PersistentFlags().StringVarP(&orbId, "orb-id", "i", "", "version of orb to publish")
+	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "version of orb to publish")
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -168,7 +168,7 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbId)
+	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbID)
 
 	if err != nil {
 		fmt.Println("response error")

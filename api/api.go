@@ -161,12 +161,18 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 
 	return &response.PublishOrb.PublishOrbResponse, publishOrbQuery(ctx, logger,
 		configPath, orbVersion, orbID, &response, `
-		mutation($config: String!, $orbId: $String!, $version: $String!) {
+		mutation($config: String!, $orbId: UUID!, $version: String!) {
 			publishOrb(
 				orbId: $orbId,
 				orbYaml: $config,
 				version: $version
-			)
+			) {
+				orb {
+					version
+					createdAt
+				}
+				errors { message }
+			}
 		}
 	`)
 

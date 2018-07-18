@@ -226,6 +226,8 @@ var _ = Describe("Orb", func() {
 				// 	"query": '{}", version: "0.0.1") { orb { version createdAt } errors { message } } } '
 				// 	}`
 
+				// "query": "mutation($config: String!, $orbId: UUID!, $version: String!) {publishOrb(orbId: $orbId,orbYaml: $config,version: $version)}",
+				// "query": "mutation($config: String!, $orbId: UUID!, $version: String!) {publishOrb(orbId: $orbId,orbYaml: $config,version: $version) {orb {versioncreatedAt}}errors { message }",
 				expectedRequestJson := `{
 					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version) {orb {\n\t\t\tversion\n\t\t\tcreatedAt\n\t\t}\n\t\t}\n\t\terrors { message }\n\t",
 					"variables": {
