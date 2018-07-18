@@ -28,7 +28,7 @@ func NewClient(endpoint string, logger *logger.Logger) *graphql.Client {
 func NewAuthorizedRequest(token, query string) *graphql.Request {
 	req := graphql.NewRequest(query)
 	req.Header.Set("Authorization", token)
-	req.Header.Set("User-Agent", fmt.Sprintf("circleci-cli/%s-%s", version.Version, version.Commit))
+	req.Header.Set("User-Agent", version.UserAgent())
 	return req
 }
 
