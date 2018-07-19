@@ -12,12 +12,12 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-var _ = Describe("Orb", func() {
-	Describe("behavior with an api and an orb.yml provided", func() {
+var _ = Describe("Orb integration tests", func() {
+	Describe("CLI behavior with a stubbed api and an orb.yml provided", func() {
 		var (
 			testServer *ghttp.Server
 			orb        tmpFile
-			token      string
+			token      string = "testtoken"
 			command    *exec.Cmd
 		)
 
@@ -36,7 +36,6 @@ var _ = Describe("Orb", func() {
 
 		Describe("when validating orb", func() {
 			BeforeEach(func() {
-				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"-t", token,
@@ -109,13 +108,7 @@ var _ = Describe("Orb", func() {
 		})
 
 		Describe("when expanding orb", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
 			BeforeEach(func() {
-				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "expand",
 					"-t", token,
@@ -191,7 +184,6 @@ var _ = Describe("Orb", func() {
 
 		Describe("when publishing an orb version", func() {
 			BeforeEach(func() {
-				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "publish",
 					"-t", token,
