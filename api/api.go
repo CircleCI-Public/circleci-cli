@@ -11,6 +11,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GQLResponseErrors is a slice of errors returned by the GraphQL server. Each
+// error message is a key-value pair with the structure "Message: string"
+type GQLResponseErrors struct {
+	Errors []struct {
+		Message string
+	}
+}
+
 // ConfigResponse is a structure that matches the result of the GQL
 // query, so that we can use mapstructure to convert from
 // nested maps to a strongly typed struct.
@@ -19,9 +27,7 @@ type ConfigResponse struct {
 	SourceYaml string
 	OutputYaml string
 
-	Errors []struct {
-		Message string
-	}
+	GQLResponseErrors
 }
 
 // The PublishOrbResponse type matches the data shape of the GQL response for
@@ -32,25 +38,12 @@ type PublishOrbResponse struct {
 		Version   string
 	}
 
-	Errors []struct {
-		Message string
-	}
+	GQLResponseErrors
 }
 
-// ToError returns an error created from any error messages, or nil.
-func (response ConfigResponse) ToError() error {
-	messages := []string{}
-
-	for i := range response.Errors {
-		messages = append(messages, response.Errors[i].Message)
-	}
-
-	return errors.New(strings.Join(messages, ": "))
-}
-
-// ToError (PublishOrbResponse) returns all errors that the GraphQL API returns
-// as part of a publish orb request.
-func (response PublishOrbResponse) ToError() error {
+// ToError returns all GraphQL errors for a single response concatenated, or
+// nil.
+func (response GQLResponseErrors) ToError() error {
 	messages := []string{}
 
 	for i := range response.Errors {
