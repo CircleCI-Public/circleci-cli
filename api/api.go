@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"strings"
 
+	"fmt"
+
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/pkg/errors"
@@ -36,6 +38,17 @@ type PublishOrbResponse struct {
 	Orb struct {
 		CreatedAt string
 		Version   string
+	}
+
+	GQLResponseErrors
+}
+
+// CreateNamespaceResponse type matches the data shape of the GQL response for
+// creating a namespace
+type CreateNamespaceResponse struct {
+	Namespace struct {
+		CreatedAt string
+		ID        string
 	}
 
 	GQLResponseErrors
@@ -163,4 +176,91 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 		err = errors.Wrap(err, "Unable to publish orb")
 	}
 	return &response.PublishOrb.PublishOrbResponse, err
+}
+
+func createNamespaceByID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
+	var response struct {
+		CreateNamespace struct {
+			CreateNamespaceResponse
+		}
+	}
+
+	query := `
+			mutation($name: String!, $organizationId: UUID!) {
+				createNamespace(
+					name: $name,
+					organizationId: $organizationId
+				) {
+					namespace {
+						createdAt
+						id
+					}
+					errors {
+						message
+						type
+					}
+				}
+			}`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+	request.Var("organizationId", ownerID)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err := graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		err = errors.Wrap(err, fmt.Sprintf("Unable to create namespace %s for ownerId %s", name, ownerID))
+	}
+
+	return &response.CreateNamespace.CreateNamespaceResponse, err
+}
+
+func getOrganization(ctx context.Context, logger *logger.Logger, organizationName string, organizationVcs string) (string, error) {
+	var response struct {
+		Organization struct {
+			ID string
+		}
+	}
+
+	query := `
+			query($organizationName: String!, $organizationVcs: VCSType!) {
+				organization(
+					name: $organizationName
+					vcsType: $organizationVcs
+				) {
+					id
+				}
+			}`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("organizationName", organizationName)
+	request.Var("organizationVcs", organizationVcs)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err := graphQLclient.Run(ctx, request, &response)
+
+	if err != nil || response.Organization.ID == "" {
+		err = errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
+	}
+
+	return response.Organization.ID, err
+}
+
+// CreateNamespace creates (reserves) a namespace for an organization
+func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
+	organizationID, err := getOrganization(ctx, logger, organizationName, organizationVcs)
+	if err != nil {
+		return nil, err
+	}
+
+	namespace, err := createNamespaceByID(ctx, logger, name, organizationID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return namespace, err
 }

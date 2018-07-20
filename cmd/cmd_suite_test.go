@@ -30,28 +30,36 @@ func TestCmd(t *testing.T) {
 	RunSpecs(t, "Cmd Suite")
 }
 
+type MockRequestResponse struct {
+	Request  string
+	Status   int
+	Response string
+}
+
 // Test helpers
 
-func appendPostHandler(server *ghttp.Server, authToken string, statusCode int, expectedRequestJson string, responseBody string) {
-	server.AppendHandlers(
-		ghttp.CombineHandlers(
-			ghttp.VerifyRequest("POST", "/"),
-			ghttp.VerifyHeader(http.Header{
-				"Authorization": []string{authToken},
-			}),
-			ghttp.VerifyContentType("application/json; charset=utf-8"),
-			// From Gomegas ghttp.VerifyJson to avoid the
-			// VerifyContentType("application/json") check
-			// that fails with "application/json; charset=utf-8"
-			func(w http.ResponseWriter, req *http.Request) {
-				body, err := ioutil.ReadAll(req.Body)
-				req.Body.Close()
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(body).Should(MatchJSON(expectedRequestJson), "JSON Mismatch")
-			},
-			ghttp.RespondWith(statusCode, `{ "data": `+responseBody+`}`),
-		),
-	)
+func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers ...MockRequestResponse) {
+	for _, handler := range combineHandlers {
+		server.AppendHandlers(
+			ghttp.CombineHandlers(
+				ghttp.VerifyRequest("POST", "/"),
+				ghttp.VerifyHeader(http.Header{
+					"Authorization": []string{authToken},
+				}),
+				ghttp.VerifyContentType("application/json; charset=utf-8"),
+				// From Gomegas ghttp.VerifyJson to avoid the
+				// VerifyContentType("application/json") check
+				// that fails with "application/json; charset=utf-8"
+				func(w http.ResponseWriter, req *http.Request) {
+					body, err := ioutil.ReadAll(req.Body)
+					req.Body.Close()
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(body).Should(MatchJSON(handler.Request), "JSON Mismatch")
+				},
+				ghttp.RespondWith(handler.Status, `{ "data": `+handler.Response+`}`),
+			),
+		)
+	}
 }
 
 type tmpFile struct {

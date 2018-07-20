@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -18,6 +19,8 @@ import (
 var orbPath string
 var orbVersion string
 var orbID string
+var organizationName string
+var organizationVcs string
 
 func newOrbCommand() *cobra.Command {
 
@@ -48,6 +51,17 @@ func newOrbCommand() *cobra.Command {
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
+	orbCreateNamespace := &cobra.Command{
+		Use:   "create",
+		Short: "create an orb namespace",
+		RunE:  createOrbNamespace,
+		Args:  cobra.ExactArgs(1),
+	}
+
+	namespaceCommand := &cobra.Command{
+		Use: "ns",
+	}
+
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
@@ -62,6 +76,11 @@ func newOrbCommand() *cobra.Command {
 	orbCommand.AddCommand(orbExpandCommand)
 
 	orbCommand.AddCommand(orbPublishCommand)
+
+	orbCreateNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name")
+	orbCreateNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
+	namespaceCommand.AddCommand(orbCreateNamespace)
+	orbCommand.AddCommand(namespaceCommand)
 
 	return orbCommand
 }
@@ -227,5 +246,23 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Info("Orb published")
+	return nil
+}
+
+func createOrbNamespace(cmd *cobra.Command, args []string) error {
+	var err error
+	ctx := context.Background()
+
+	response, err := api.CreateNamespace(ctx, Logger, args[0], organizationName, strings.ToUpper(organizationVcs))
+
+	if err != nil {
+		return err
+	}
+
+	if len(response.Errors) > 0 {
+		return response.ToError()
+	}
+
+	Logger.Info("Namespace created")
 	return nil
 }
