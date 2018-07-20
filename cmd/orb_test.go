@@ -12,11 +12,13 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-var _ = Describe("Orb", func() {
-	Describe("with an api and orb.yml", func() {
+var _ = Describe("Orb integration tests", func() {
+	Describe("CLI behavior with a stubbed api and an orb.yml provided", func() {
 		var (
 			testServer *ghttp.Server
 			orb        tmpFile
+			token      string = "testtoken"
+			command    *exec.Cmd
 		)
 
 		BeforeEach(func() {
@@ -33,13 +35,7 @@ var _ = Describe("Orb", func() {
 		})
 
 		Describe("when validating orb", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
 			BeforeEach(func() {
-				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"-t", token,
@@ -112,13 +108,7 @@ var _ = Describe("Orb", func() {
 		})
 
 		Describe("when expanding orb", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
 			BeforeEach(func() {
-				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "expand",
 					"-t", token,
@@ -179,6 +169,93 @@ var _ = Describe("Orb", func() {
 					  "config": "some orb"
 					}
 				  }`
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+
+			})
+		})
+
+		Describe("when publishing an orb version", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "publish",
+					"-t", token,
+					"-e", testServer.URL(),
+					"-p", orb.Path,
+					"--orb-version", "0.0.1",
+					"--orb-id", "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+				)
+			})
+
+			It("works", func() {
+
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+				// write to test file
+				err := orb.write(`some orb`)
+				// assert write to test file successful
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlResponse := `{
+					"publishOrb": {
+						"errors": [],
+						"orb": {
+							"createdAt": "2018-07-16T18:03:18.961Z",
+							"version": "0.0.1"
+						}
+					}
+				}`
+
+				expectedRequestJson := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tcreatedAt\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.0.1"
+					}
+				}`
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb published"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlResponse := `{
+							"publishOrb": {
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								],
+								"orb": null
+							}
+						}`
+
+				expectedRequestJson := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tcreatedAt\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.0.1"
+					}
+				}`
 
 				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
 

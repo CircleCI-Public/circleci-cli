@@ -11,6 +11,14 @@ import (
 	"github.com/spf13/viper"
 )
 
+// GQLResponseErrors is a slice of errors returned by the GraphQL server. Each
+// error message is a key-value pair with the structure "Message: string"
+type GQLResponseErrors struct {
+	Errors []struct {
+		Message string
+	}
+}
+
 // ConfigResponse is a structure that matches the result of the GQL
 // query, so that we can use mapstructure to convert from
 // nested maps to a strongly typed struct.
@@ -19,13 +27,23 @@ type ConfigResponse struct {
 	SourceYaml string
 	OutputYaml string
 
-	Errors []struct {
-		Message string
-	}
+	GQLResponseErrors
 }
 
-// ToError returns an error created from any error messages, or nil.
-func (response ConfigResponse) ToError() error {
+// The PublishOrbResponse type matches the data shape of the GQL response for
+// publishing an orb.
+type PublishOrbResponse struct {
+	Orb struct {
+		CreatedAt string
+		Version   string
+	}
+
+	GQLResponseErrors
+}
+
+// ToError returns all GraphQL errors for a single response concatenated, or
+// nil.
+func (response GQLResponseErrors) ToError() error {
 	messages := []string{}
 
 	for i := range response.Errors {
@@ -100,4 +118,49 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 				outputYaml
 			}
 		}`)
+}
+
+// OrbPublish publishes a new version of an orb
+func OrbPublish(ctx context.Context, logger *logger.Logger,
+	configPath string, orbVersion string, orbID string) (*PublishOrbResponse, error) {
+	var response struct {
+		PublishOrb struct {
+			PublishOrbResponse
+		}
+	}
+
+	config, err := loadYaml(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		mutation($config: String!, $orbId: UUID!, $version: String!) {
+			publishOrb(
+				orbId: $orbId,
+				orbYaml: $config,
+				version: $version
+			) {
+				orb {
+					version
+					createdAt
+				}
+				errors { message }
+			}
+		}
+	`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("config", config)
+	request.Var("orbId", orbID)
+	request.Var("version", orbVersion)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		err = errors.Wrap(err, "Unable to publish orb")
+	}
+	return &response.PublishOrb.PublishOrbResponse, err
 }
