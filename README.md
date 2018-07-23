@@ -34,3 +34,11 @@ To ensure that the tool is installed, you can use it to validate a build config 
 $ circleci config validate
 Config file at .circleci/config.yml is valid
 ```
+
+## Checking for updates
+
+For now, install updates manually.  You can check if there's a new version available from the terminal with the following:
+
+```
+curl --silent "https://api.github.com/repos/circleci-public/circleci-cli/releases/latest" | jq -r .tag_name
+```
