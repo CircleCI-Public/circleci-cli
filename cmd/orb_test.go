@@ -70,14 +70,12 @@ var _ = Describe("Orb integration tests", func() {
 							}
 						}`
 
-				type requestJson struct {
+				response := struct {
 					Query     string `json:"query"`
 					Variables struct {
 						Config string `json:"config"`
 					} `json:"variables"`
-				}
-
-				response := requestJson{
+				}{
 					Query: `
 		query ValidateOrb ($config: String!) {
 			orbConfig(orbYaml: $config) {
