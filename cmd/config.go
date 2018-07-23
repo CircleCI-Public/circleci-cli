@@ -16,16 +16,18 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:     "validate",
+		Use:     "validate [config.yml]",
 		Aliases: []string{"check"},
 		Short:   "Check that the config file is well formed.",
 		RunE:    validateConfig,
+		Args:    cobra.MaximumNArgs(1),
 	}
 
 	expandCommand := &cobra.Command{
-		Use:   "expand",
+		Use:   "expand [config.yml]",
 		Short: "Expand the config.",
 		RunE:  expandConfig,
+		Args:  cobra.MaximumNArgs(1),
 	}
 
 	configCmd.AddCommand(validateCommand)
