@@ -1,16 +1,18 @@
 package cmd_test
 
 import (
+	"encoding/json"
 	"net/http"
 	"os/exec"
 	"path/filepath"
+
+	"io"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
-	"io"
 )
 
 var _ = Describe("Orb integration tests", func() {
@@ -68,14 +70,33 @@ var _ = Describe("Orb integration tests", func() {
 							}
 						}`
 
-				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-					"variables": {
-						"config": "{}"
-					}
-				}`
+				type requestJson struct {
+					Query     string `json:"query"`
+					Variables struct {
+						Config string `json:"config"`
+					} `json:"variables"`
+				}
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				response := requestJson{
+					Query: `
+		query ValidateOrb ($config: String!) {
+			orbConfig(orbYaml: $config) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`,
+					Variables: struct {
+						Config string `json:"config"`
+					}{
+						Config: "{}",
+					},
+				}
+				expected, err := json.Marshal(response)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				appendPostHandler(testServer, token, http.StatusOK, string(expected), gqlResponse)
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
