@@ -13,7 +13,6 @@ import (
 
 var defaultEndpoint = "https://circleci.com/graphql-unstable"
 
-// Path to the config.yml file to operate on.
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
