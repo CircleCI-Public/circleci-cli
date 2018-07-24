@@ -131,6 +131,7 @@ var _ = Describe("Orb integration tests", func() {
 
 			AfterEach(func() {
 				orb.close()
+				os.Remove(orb.Path)
 			})
 
 			It("works", func() {
