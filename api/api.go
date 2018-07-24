@@ -74,7 +74,7 @@ func (response GQLResponseErrors) ToError() error {
 		messages = append(messages, response.Errors[i].Message)
 	}
 
-	return errors.New(strings.Join(messages, ": "))
+	return fmt.Errorf(strings.Join(messages, ": "))
 }
 
 func loadYaml(path string) (string, error) {
@@ -254,7 +254,7 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 	err := graphQLclient.Run(ctx, request, &response)
 
 	if err != nil || response.Organization.ID == "" {
-		err = errors.New(fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
+		err = fmt.Errorf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
 	return response.Organization.ID, err
@@ -299,7 +299,7 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 	err := graphQLclient.Run(ctx, request, &response)
 
 	if err != nil || response.RegistryNamespace.ID == "" {
-		err = errors.New(fmt.Sprintf("Unable to find namespace %s", name))
+		err = fmt.Errorf("Unable to find namespace %s", name)
 	}
 
 	return response.RegistryNamespace.ID, err

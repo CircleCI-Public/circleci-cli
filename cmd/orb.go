@@ -264,7 +264,7 @@ func createOrb(cmd *cobra.Command, args []string) error {
 	arr := strings.Split(args[0], "/")
 
 	if len(arr) != 2 {
-		return errors.New(fmt.Sprintf("Invalid orb name: %s", args[0]))
+		return fmt.Errorf("Invalid orb name: %s", args[0])
 	}
 
 	response, err := api.CreateOrb(ctx, Logger, arr[1], arr[0])
