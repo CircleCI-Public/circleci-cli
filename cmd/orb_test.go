@@ -44,11 +44,6 @@ var _ = Describe("Orb integration tests", func() {
 		})
 
 		Describe("when using STDIN", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
 			BeforeEach(func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
@@ -111,11 +106,6 @@ var _ = Describe("Orb integration tests", func() {
 		})
 
 		Describe("when using default path", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
 			BeforeEach(func() {
 				var err error
 				token = "testtoken"
@@ -320,7 +310,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "publish",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", orb.Path,
+					orb.Path,
 					"--orb-version", "0.0.1",
 					"--orb-id", "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 				)

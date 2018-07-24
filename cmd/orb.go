@@ -15,7 +15,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var orbPath string
 var orbVersion string
 var orbID string
 
@@ -42,11 +41,11 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	orbPublishCommand := &cobra.Command{
-		Use:   "publish",
+		Use:   "publish [orb.yml]",
 		Short: "publish a version of an orb",
 		RunE:  publishOrb,
+		Args:  cobra.MaximumNArgs(1),
 	}
-	orbPublishCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
@@ -224,6 +223,10 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 
 func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+	orbPath := defaultOrbPath
+	if len(args) == 1 {
+		orbPath = args[0]
+	}
 
 	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbID)
 
