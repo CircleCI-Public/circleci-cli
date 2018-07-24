@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -72,20 +71,25 @@ func (f tmpFile) write(fileContent string) error {
 	return err
 }
 
-func openTmpFile(path string) (tmpFile, error) {
+func openTmpDir(prefix string) (string, error) {
+	var dir string
+	if prefix == "" {
+		dir = "circleci-cli-test-"
+	} else {
+		dir = prefix
+	}
+	tmpDir, err := ioutil.TempDir("", dir)
+	return tmpDir, err
+}
+
+func openTmpFile(directory string, path string) (tmpFile, error) {
 	var (
 		config tmpFile = tmpFile{}
 		err    error
 	)
 
-	tmpDir, err := ioutil.TempDir("", "circleci-cli-test-")
-	if err != nil {
-		return config, err
-	}
-	defer os.RemoveAll(tmpDir)
-
-	config.RootDir = tmpDir
-	config.Path = filepath.Join(tmpDir, path)
+	config.RootDir = directory
+	config.Path = filepath.Join(directory, path)
 
 	err = os.MkdirAll(filepath.Dir(config.Path), 0700)
 	if err != nil {
@@ -101,14 +105,8 @@ func openTmpFile(path string) (tmpFile, error) {
 	if err != nil {
 		return config, err
 	}
-	defer deferClose(file)
 
 	config.File = file
 
 	return config, nil
-}
-
-func deferClose(closer io.Closer) {
-	err := closer.Close()
-	Expect(err).NotTo(HaveOccurred())
 }

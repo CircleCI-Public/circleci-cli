@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -22,11 +23,15 @@ var _ = Describe("Orb integration tests", func() {
 			orb        tmpFile
 			token      string = "testtoken"
 			command    *exec.Cmd
+			tmpDir     string
 		)
 
 		BeforeEach(func() {
 			var err error
-			orb, err = openTmpFile(filepath.Join("myorb", "orb.yml"))
+			tmpDir, err = openTmpDir("")
+			Expect(err).ToNot(HaveOccurred())
+
+			orb, err = openTmpFile(tmpDir, filepath.Join("myorb", "orb.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
 			testServer = ghttp.NewServer()
@@ -34,6 +39,7 @@ var _ = Describe("Orb integration tests", func() {
 
 		AfterEach(func() {
 			orb.close()
+			os.RemoveAll(tmpDir)
 			testServer.Close()
 		})
 
@@ -100,6 +106,61 @@ var _ = Describe("Orb integration tests", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
 				Eventually(session.Out).Should(gbytes.Say("Orb at - is valid"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("when using default path", func() {
+			var (
+				token   string
+				command *exec.Cmd
+			)
+
+			BeforeEach(func() {
+				var err error
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"-t", token,
+					"-e", testServer.URL(),
+				)
+
+				orb, err = openTmpFile(command.Dir, "orb.yml")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				orb.close()
+			})
+
+			It("works", func() {
+				By("setting up a mock server")
+				err := orb.write(`{}`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				expectedRequestJson := ` {
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+						"config": "{}"
+					}
+				}`
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				// the .* is because the full path with temp dir is printed
+				Eventually(session.Out).Should(gbytes.Say("Orb at .*orb.yml is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})

@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -17,11 +18,15 @@ var _ = Describe("Config", func() {
 		var (
 			testServer *ghttp.Server
 			config     tmpFile
+			tmpDir     string
 		)
 
 		BeforeEach(func() {
 			var err error
-			config, err = openTmpFile(filepath.Join(".circleci", "config.yaml"))
+			tmpDir, err = openTmpDir("")
+			Expect(err).ToNot(HaveOccurred())
+
+			config, err = openTmpFile(tmpDir, filepath.Join(".circleci", "config.yaml"))
 			Expect(err).ToNot(HaveOccurred())
 
 			testServer = ghttp.NewServer()
@@ -29,6 +34,7 @@ var _ = Describe("Config", func() {
 
 		AfterEach(func() {
 			config.close()
+			os.RemoveAll(tmpDir)
 			testServer.Close()
 		})
 
