@@ -345,7 +345,6 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespace string) (*CreateOrbResponse, error) {
-	fmt.Println("---- here we go")
 	namespaceID, err := getNamespace(ctx, logger, namespace)
 
 	if err != nil {
@@ -353,7 +352,6 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespac
 	}
 
 	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
-	fmt.Println("---- in theory, orb is:", orb)
 
 	if err != nil {
 		return nil, err

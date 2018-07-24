@@ -423,8 +423,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "create",
 					"-t", token,
 					"-e", testServer.URL(),
-					"foo-orb",
-					"bar-ns",
+					"bar-ns/foo-orb",
 				)
 			})
 
