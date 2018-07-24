@@ -416,5 +416,109 @@ var _ = Describe("Orb integration tests", func() {
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
+
+		Describe("when creating / reserving an orb", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "create",
+					"-t", token,
+					"-e", testServer.URL(),
+					"foo-orb",
+					"bar-ns",
+				)
+			})
+
+			It("works", func() {
+				By("setting up a mock server")
+
+				gqlNamespaceResponse := `{
+											"namespace": {
+      											"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    										}
+  										 }`
+
+				expectedNamespaceRequest := ``
+
+				gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [],
+										 "orb": {
+											"createdAt": "2018-07-16T18:03:18.961Z",
+											"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										 }
+									 }
+								   }`
+
+				expectedOrbRequest := `{
+
+          		}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+						Status: http.StatusOK,
+						Request:  expectedNamespaceRequest,
+						Response: gqlNamespaceResponse})
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbRequest,
+					Response: gqlOrbResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb created"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			//It("prints all errors returned by the GraphQL API", func() {
+			//	By("setting up a mock server")
+			//
+			//	gqlNamespaceResponse := `{
+			//								"namespace": {
+      		//									"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    			//							}
+  			//	}`
+			//
+			//	expectedNamespaceRequest := `{
+			//
+		     //   }`
+			//
+			//	gqlOrbResponse := `{
+			//						 "createOrb": {
+			//							 "errors": [
+			//										{"message": "error1"},
+			//										{"message": "error2"}
+			//									   ],
+			//							 "orb": null
+			//						}
+			//	}`
+			//
+			//	expectedOrbRequest := `{
+			//
+          	//	}`
+			//
+			//	appendPostHandler(testServer, token,
+			//		MockRequestResponse{
+			//			Status:   http.StatusOK,
+			//			Request:  expectedNamespaceRequest,
+			//			Response: gqlNamespaceResponse,
+			//		})
+			//	appendPostHandler(testServer, token,
+			//		MockRequestResponse{
+			//			Status:   http.StatusOK,
+			//			Request:  expectedOrbRequest,
+			//			Response: gqlOrbResponse,
+			//		})
+			//
+			//	By("running the command")
+			//	session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			//
+			//	Expect(err).ShouldNot(HaveOccurred())
+			//	Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+			//	Eventually(session).ShouldNot(gexec.Exit(0))
+			//})
+		})
+
 	})
 })
