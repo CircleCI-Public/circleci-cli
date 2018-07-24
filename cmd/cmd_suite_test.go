@@ -112,18 +112,3 @@ func deferClose(closer io.Closer) {
 	err := closer.Close()
 	Expect(err).NotTo(HaveOccurred())
 }
-
-func copyTo(source tmpFile, destination string) error {
-	in, err := os.Open(source.Path)
-	Expect(err).NotTo(HaveOccurred())
-	defer deferClose(in)
-
-	dst := filepath.Join(destination, filepath.Base(source.File.Name()))
-	out, err := os.OpenFile(dst, os.O_RDWR|os.O_CREATE, 0600)
-	Expect(err).NotTo(HaveOccurred())
-	defer deferClose(out)
-
-	_, err = io.Copy(out, in)
-	Expect(err).NotTo(HaveOccurred())
-	return out.Close()
-}

@@ -104,67 +104,6 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when using default path", func() {
-			var (
-				token   string
-				command *exec.Cmd
-			)
-
-			BeforeEach(func() {
-				var err error
-				orb, err = openTmpFile("orb.yml")
-				Expect(err).ToNot(HaveOccurred())
-
-				orbCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
-				Expect(err).ToNot(HaveOccurred())
-
-				err = copyTo(orb, filepath.Dir(orbCLI))
-				Expect(err).ToNot(HaveOccurred())
-
-				token = "testtoken"
-				command = exec.Command(pathCLI,
-					"orb", "validate",
-					"-t", token,
-					"-e", testServer.URL(),
-				)
-			})
-
-			AfterEach(func() {
-				orb.close()
-			})
-
-			FIt("works", func() {
-				By("setting up a mock server")
-				err := orb.write(`{}`)
-				Expect(err).ToNot(HaveOccurred())
-
-				gqlResponse := `{
-							"orbConfig": {
-								"sourceYaml": "{}",
-								"valid": true,
-								"errors": []
-							}
-						}`
-
-				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-					"variables": {
-						"config": "{}"
-					}
-				}`
-
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
-
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-				Expect(err).ShouldNot(HaveOccurred())
-				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb at .*orb.yml is valid"))
-				Eventually(session).Should(gexec.Exit(0))
-			})
-		})
-
 		Describe("when validating orb", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
