@@ -198,7 +198,7 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb at %s is valid", args[0])
+	Logger.Infof("Orb at %s is valid", orbPath)
 	return nil
 }
 
