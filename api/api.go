@@ -276,10 +276,9 @@ func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, or
 	return namespace, err
 }
 
-
-func getNamespace(ctx context.Context, logger *logger.Logger, name string) (string, error){
+func getNamespace(ctx context.Context, logger *logger.Logger, name string) (string, error) {
 	var response struct {
-		Namespace struct {
+		RegistryNamespace struct {
 			ID string
 		}
 	}
@@ -297,14 +296,13 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 
 	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
 
-	err := graphQLclient.Run(ctx, request, & response)
-fmt.Println("response is: ", response)
+	err := graphQLclient.Run(ctx, request, &response)
 
-	if err != nil || response.Namespace.ID == "" {
+	if err != nil || response.RegistryNamespace.ID == "" {
 		err = errors.New(fmt.Sprintf("Unable to find namespace %s", name))
 	}
 
-	return response.Namespace.ID, err
+	return response.RegistryNamespace.ID, err
 }
 
 func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, namespaceID string) (*CreateOrbResponse, error) {
@@ -319,14 +317,16 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 					name: $name,
 					registryNamespaceId: $registryNamespaceId
 				){
-					createdAt
-					id
+				    orb {
+				      createdAt
+				      id
+				    }
+				    errors {
+				      message
+				      type
+				    }
 				}
-					errors {
-						message
-						type
-					}
-				}`
+}`
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
@@ -342,7 +342,6 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 
 	return &response.CreateOrb.CreateOrbResponse, err
 }
-
 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespace string) (*CreateOrbResponse, error) {
