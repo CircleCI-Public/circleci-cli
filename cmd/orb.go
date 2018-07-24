@@ -15,7 +15,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var orbPath string
 var orbVersion string
 var orbID string
 
@@ -28,23 +27,25 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	orbValidateCommand := &cobra.Command{
-		Use:   "validate",
+		Use:   "validate [orb.yml]",
 		Short: "validate an orb.yml",
 		RunE:  validateOrb,
+		Args:  cobra.MaximumNArgs(1),
 	}
 
 	orbExpandCommand := &cobra.Command{
-		Use:   "expand",
+		Use:   "expand [orb.yml]",
 		Short: "expand an orb.yml",
 		RunE:  expandOrb,
+		Args:  cobra.MaximumNArgs(1),
 	}
 
 	orbPublishCommand := &cobra.Command{
-		Use:   "publish",
+		Use:   "publish [orb.yml]",
 		Short: "publish a version of an orb",
 		RunE:  publishOrb,
+		Args:  cobra.MaximumNArgs(1),
 	}
-	orbPublishCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
@@ -55,10 +56,8 @@ func newOrbCommand() *cobra.Command {
 
 	orbCommand.AddCommand(orbListCommand)
 
-	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbValidateCommand)
 
-	orbExpandCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbExpandCommand)
 
 	orbCommand.AddCommand(orbPublishCommand)
@@ -180,8 +179,14 @@ query ListOrbs ($after: String!) {
 	return nil
 }
 
+const defaultOrbPath = "orb.yml"
+
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+	orbPath := defaultOrbPath
+	if len(args) == 1 {
+		orbPath = args[0]
+	}
 	response, err := api.OrbQuery(ctx, Logger, orbPath)
 
 	if err != nil {
@@ -198,7 +203,10 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 
 func expandOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-
+	orbPath := defaultOrbPath
+	if len(args) == 1 {
+		orbPath = args[0]
+	}
 	response, err := api.OrbQuery(ctx, Logger, orbPath)
 
 	if err != nil {
@@ -215,6 +223,10 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 
 func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
+	orbPath := defaultOrbPath
+	if len(args) == 1 {
+		orbPath = args[0]
+	}
 
 	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbID)
 

@@ -13,9 +13,6 @@ import (
 
 var defaultEndpoint = "https://circleci.com/graphql-unstable"
 
-// Path to the config.yml file to operate on.
-var configPath = ".circleci/config.yml"
-
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
@@ -51,7 +48,6 @@ func MakeCommands() *cobra.Command {
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
-	rootCmd.PersistentFlags().StringVarP(&configPath, "config", "c", configPath, "path to build config")
 
 	for _, flag := range []string{"endpoint", "token", "verbose"} {
 		bindCobraFlagToViper(rootCmd, flag)
