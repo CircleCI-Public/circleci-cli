@@ -52,8 +52,15 @@ func newOrbCommand() *cobra.Command {
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
+	orbCreate := &cobra.Command{
+		Use:   "create <namespace>/<name>",
+		Short: "create an orb",
+		RunE:  createOrb,
+		Args:  cobra.ExactArgs(1),
+	}
+
 	orbCreateNamespace := &cobra.Command{
-		Use:   "create",
+		Use:   "create <name>",
 		Short: "create an orb namespace",
 		RunE:  createOrbNamespace,
 		Args:  cobra.ExactArgs(1),
@@ -69,6 +76,7 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	orbCommand.AddCommand(orbListCommand)
+	orbCommand.AddCommand(orbCreate)
 
 	orbCommand.AddCommand(orbValidateCommand)
 
@@ -90,20 +98,41 @@ type orb struct {
 	Executors map[string]struct{}
 }
 
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) error {
+	var err error
+
 	if len(elems) > 0 {
-		buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		if err != nil {
+			return err
+		}
 		for key := range elems {
-			buf.WriteString(fmt.Sprintf("    - %s\n", key))
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return err
 }
 
 func (orb orb) String() string {
 	var buffer bytes.Buffer
-	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
-	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
-	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+
+	err := addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
+	// FIXME: refactor this to handle the error
+	if err != nil {
+		panic(err)
+	}
+	err = addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
+	if err != nil {
+		panic(err)
+	}
+	err = addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+	if err != nil {
+		panic(err)
+	}
 	return buffer.String()
 }
 
@@ -258,6 +287,30 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Info("Orb published")
+	return nil
+}
+
+func createOrb(cmd *cobra.Command, args []string) error {
+	var err error
+	ctx := context.Background()
+
+	arr := strings.Split(args[0], "/")
+
+	if len(arr) != 2 {
+		return fmt.Errorf("Invalid orb name: %s", args[0])
+	}
+
+	response, err := api.CreateOrb(ctx, Logger, arr[1], arr[0])
+
+	if err != nil {
+		return err
+	}
+
+	if len(response.Errors) > 0 {
+		return response.ToError()
+	}
+
+	Logger.Info("Orb created")
 	return nil
 }
 

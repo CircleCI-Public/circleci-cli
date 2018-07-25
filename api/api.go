@@ -55,6 +55,16 @@ type CreateNamespaceResponse struct {
 	GQLResponseErrors
 }
 
+// CreateOrbResponse type matches the data shape of the GQL response for
+// creating an orb
+type CreateOrbResponse struct {
+	Orb struct {
+		ID string
+	}
+
+	GQLResponseErrors
+}
+
 // ToError returns all GraphQL errors for a single response concatenated, or
 // nil.
 func (response GQLResponseErrors) ToError() error {
@@ -67,6 +77,7 @@ func (response GQLResponseErrors) ToError() error {
 	return errors.New(strings.Join(messages, ": "))
 }
 
+// nolint: gosec
 func loadYaml(path string) (string, error) {
 	var err error
 	var config []byte
@@ -162,7 +173,6 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 			) {
 				orb {
 					version
-					createdAt
 				}
 				errors { message }
 			}
@@ -184,7 +194,7 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 	return &response.PublishOrb.PublishOrbResponse, err
 }
 
-func createNamespaceByID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
+func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
 	var response struct {
 		CreateNamespace struct {
 			CreateNamespaceResponse
@@ -198,7 +208,6 @@ func createNamespaceByID(ctx context.Context, logger *logger.Logger, name string
 					organizationId: $organizationId
 				) {
 					namespace {
-						createdAt
 						id
 					}
 					errors {
@@ -248,8 +257,10 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 
 	err := graphQLclient.Run(ctx, request, &response)
 
-	if err != nil || response.Organization.ID == "" {
-		err = errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
+	if err != nil {
+		err = errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
+	} else if response.Organization.ID == "" {
+		err = fmt.Errorf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
 	return response.Organization.ID, err
@@ -262,11 +273,91 @@ func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, or
 		return nil, err
 	}
 
-	namespace, err := createNamespaceByID(ctx, logger, name, organizationID)
+	namespace, err := createNamespaceWithOwnerID(ctx, logger, name, organizationID)
 
 	if err != nil {
 		return nil, err
 	}
 
 	return namespace, err
+}
+
+func getNamespace(ctx context.Context, logger *logger.Logger, name string) (string, error) {
+	var response struct {
+		RegistryNamespace struct {
+			ID string
+		}
+	}
+
+	query := `
+				query($name: String!) {
+					registryNamespace(
+						name: $name
+					){
+						id
+					}
+			 }`
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err := graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		err = errors.Wrapf(err, "Unable to find namespace %s", name)
+	} else if response.RegistryNamespace.ID == "" {
+		err = fmt.Errorf("Unable to find namespace %s", name)
+	}
+
+	return response.RegistryNamespace.ID, err
+}
+
+func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, namespaceID string) (*CreateOrbResponse, error) {
+	var response struct {
+		CreateOrb struct {
+			CreateOrbResponse
+		}
+	}
+
+	query := `mutation($name: String!, $registryNamespaceId: UUID!){
+				createOrb(
+					name: $name,
+					registryNamespaceId: $registryNamespaceId
+				){
+				    orb {
+				      id
+				    }
+				    errors {
+				      message
+				      type
+				    }
+				}
+}`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+	request.Var("registryNamespaceId", namespaceID)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err := graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		err = errors.Wrapf(err, "Unable to create orb %s for namespaceID %s", name, namespaceID)
+	}
+
+	return &response.CreateOrb.CreateOrbResponse, err
+}
+
+// CreateOrb creates (reserves) an orb within a namespace
+func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespace string) (*CreateOrbResponse, error) {
+	namespaceID, err := getNamespace(ctx, logger, namespace)
+
+	if err != nil {
+		return nil, err
+	}
+
+	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
+	return orb, err
 }

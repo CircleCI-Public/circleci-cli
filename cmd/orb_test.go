@@ -95,7 +95,10 @@ var _ = Describe("Orb integration tests", func() {
 				expected, err := json.Marshal(response)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				appendPostHandler(testServer, token, http.StatusOK, string(expected), gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  string(expected),
+					Response: gqlResponse})
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
@@ -144,7 +147,10 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				}`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -346,14 +352,13 @@ var _ = Describe("Orb integration tests", func() {
 					"publishOrb": {
 						"errors": [],
 						"orb": {
-							"createdAt": "2018-07-16T18:03:18.961Z",
 							"version": "0.0.1"
 						}
 					}
 				}`
 
 				expectedRequestJson := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tcreatedAt\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
@@ -391,7 +396,7 @@ var _ = Describe("Orb integration tests", func() {
 						}`
 
 				expectedRequestJson := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tcreatedAt\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
@@ -449,25 +454,23 @@ var _ = Describe("Orb integration tests", func() {
 									"createNamespace": {
 										"errors": [],
 										"namespace": {
-														"createdAt": "2018-07-16T18:03:18.961Z",
 														"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
 										}
 									}
 				}`
 
 				expectedNsRequest := `{
-            "query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tcreatedAt\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+            "query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
             "variables": {
               "name": "foo-ns",
               "organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
           }`
 
-				appendPostHandler(testServer, token,
-					MockRequestResponse{Status: http.StatusOK,
-						Request:  expectedOrganizationRequest,
-						Response: gqlOrganizationResponse})
-
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrganizationRequest,
+					Response: gqlOrganizationResponse})
 				appendPostHandler(testServer, token, MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedNsRequest,
@@ -510,7 +513,7 @@ var _ = Describe("Orb integration tests", func() {
 								}`
 
 				expectedRequestJson := `{
-            			"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tcreatedAt\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+            			"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
             			"variables": {
               			"name": "foo-ns",
 						"organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
@@ -538,5 +541,123 @@ var _ = Describe("Orb integration tests", func() {
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
+
+		Describe("when creating / reserving an orb", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "create",
+					"-t", token,
+					"-e", testServer.URL(),
+					"bar-ns/foo-orb",
+				)
+			})
+
+			It("works", func() {
+				By("setting up a mock server")
+
+				gqlNamespaceResponse := `{
+    											"registryNamespace": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedNamespaceRequest := `{
+            "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+            "variables": {
+              "name": "bar-ns"
+            }
+          }`
+
+				gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [],
+										 "orb": {
+											"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										 }
+									 }
+								   }`
+
+				expectedOrbRequest := `{
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "variables": {
+              "name": "foo-orb",
+              "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedNamespaceRequest,
+					Response: gqlNamespaceResponse})
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbRequest,
+					Response: gqlOrbResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb created"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+
+				gqlNamespaceResponse := `{
+											"registryNamespace": {
+												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										}
+				}`
+
+				expectedNamespaceRequest := `{
+            "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+            "variables": {
+              "name": "bar-ns"
+            }
+          }`
+
+				gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [
+													{"message": "error1"},
+													{"message": "error2"}
+												   ],
+										 "orb": null
+									}
+				}`
+
+				expectedOrbRequest := `{
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "variables": {
+              "name": "foo-orb",
+              "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+				appendPostHandler(testServer, token,
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedNamespaceRequest,
+						Response: gqlNamespaceResponse,
+					})
+				appendPostHandler(testServer, token,
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbRequest,
+						Response: gqlOrbResponse,
+					})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+			})
+		})
+
 	})
 })
