@@ -359,10 +359,5 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespac
 	}
 
 	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
-
-	if err != nil {
-		return nil, err
-	}
-
 	return orb, err
 }
