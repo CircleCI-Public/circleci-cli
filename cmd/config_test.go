@@ -73,7 +73,11 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -103,7 +107,11 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -149,7 +157,11 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -180,7 +192,11 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 

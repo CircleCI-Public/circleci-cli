@@ -186,7 +186,11 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				}`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -218,7 +222,11 @@ var _ = Describe("Orb integration tests", func() {
 					  "config": "some orb"
 					}
 				  }`
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -259,7 +267,11 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -292,7 +304,11 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -345,7 +361,11 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				}`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -379,7 +399,11 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				}`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -388,6 +412,130 @@ var _ = Describe("Orb integration tests", func() {
 				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
+			})
+		})
+
+		Describe("when creating / reserving a namespace", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "ns", "create",
+					"-t", token,
+					"-e", testServer.URL(),
+					"foo-ns",
+					"--org-name", "test-org",
+					"--vcs", "BITBUCKET",
+				)
+			})
+
+			It("works with organizationName and organizationVcs", func() {
+				By("setting up a mock server")
+
+				gqlOrganizationResponse := `{
+    											"organization": {
+      												"name": "test-org",
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrganizationRequest := `{
+            "query": "\n\t\t\tquery($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
+            "variables": {
+              "organizationName": "test-org",
+              "organizationVcs": "BITBUCKET"
+            }
+          }`
+
+				gqlNsResponse := `{
+									"createNamespace": {
+										"errors": [],
+										"namespace": {
+														"createdAt": "2018-07-16T18:03:18.961Z",
+														"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										}
+									}
+				}`
+
+				expectedNsRequest := `{
+            "query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tcreatedAt\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+            "variables": {
+              "name": "foo-ns",
+              "organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+				appendPostHandler(testServer, token,
+					MockRequestResponse{Status: http.StatusOK,
+						Request:  expectedOrganizationRequest,
+						Response: gqlOrganizationResponse})
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedNsRequest,
+					Response: gqlNsResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Namespace created"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+
+				gqlOrganizationResponse := `{
+    											"organization": {
+      												"name": "test-org",
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrganizationRequest := `{
+            "query": "\n\t\t\tquery($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
+            "variables": {
+              "organizationName": "test-org",
+              "organizationVcs": "BITBUCKET"
+            }
+          }`
+
+				gqlResponse := `{
+									"createNamespace": {
+										"errors": [
+													{"message": "error1"},
+													{"message": "error2"}
+								  					],
+										"namespace": null
+									}
+								}`
+
+				expectedRequestJson := `{
+            			"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tcreatedAt\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+            			"variables": {
+              			"name": "foo-ns",
+						"organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            			}
+          		}`
+
+				appendPostHandler(testServer, token,
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrganizationRequest,
+						Response: gqlOrganizationResponse,
+					})
+				appendPostHandler(testServer, token,
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedRequestJson,
+						Response: gqlResponse,
+					})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
 	})
