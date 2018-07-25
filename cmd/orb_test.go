@@ -95,7 +95,10 @@ var _ = Describe("Orb integration tests", func() {
 				expected, err := json.Marshal(response)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				appendPostHandler(testServer, token, http.StatusOK, string(expected), gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  string(expected),
+					Response: gqlResponse})
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
@@ -144,7 +147,10 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				}`
 
-				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedRequestJson,
+					Response: gqlResponse})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -461,11 +467,10 @@ var _ = Describe("Orb integration tests", func() {
             }
           }`
 
-				appendPostHandler(testServer, token,
-					MockRequestResponse{Status: http.StatusOK,
-						Request:  expectedOrganizationRequest,
-						Response: gqlOrganizationResponse})
-
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrganizationRequest,
+					Response: gqlOrganizationResponse})
 				appendPostHandler(testServer, token, MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedNsRequest,
