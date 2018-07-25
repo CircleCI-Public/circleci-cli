@@ -99,20 +99,41 @@ type orb struct {
 	Executors map[string]struct{}
 }
 
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) error {
+	var err error
+
 	if len(elems) > 0 {
-		buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		if err != nil {
+			return err
+		}
 		for key := range elems {
-			buf.WriteString(fmt.Sprintf("    - %s\n", key))
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+			if err != nil {
+				return err
+			}
 		}
 	}
+
+	return err
 }
 
 func (orb orb) String() string {
 	var buffer bytes.Buffer
-	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
-	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
-	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+
+	err := addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
+	// FIXME: refactor this to handle the error
+	if err != nil {
+		panic(err)
+	}
+	err = addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
+	if err != nil {
+		panic(err)
+	}
+	err = addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+	if err != nil {
+		panic(err)
+	}
 	return buffer.String()
 }
 

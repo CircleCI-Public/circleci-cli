@@ -78,7 +78,7 @@ func (response GQLResponseErrors) ToError() error {
 }
 
 func loadYaml(path string) (string, error) {
-
+	// nolint: gosec
 	config, err := ioutil.ReadFile(path)
 
 	if err != nil {
