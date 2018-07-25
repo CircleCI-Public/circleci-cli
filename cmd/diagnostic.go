@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"errors"
+	"fmt"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -25,7 +25,7 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
 
 	if token == "token" || token == "" {
-		return errors.New("please set a token")
+		return fmt.Errorf("please set a token")
 	}
 	Logger.Infoln("OK, got a token.")
 	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))

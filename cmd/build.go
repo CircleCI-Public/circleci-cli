@@ -95,7 +95,7 @@ func findLatestPicardSha() (string, error) {
 	latest := sha256.FindString(output)
 
 	if latest == "" {
-		return "", errors.New("failed to parse sha256 from docker pull output")
+		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
 	}
 
 	err = storeBuildAgentSha(latest)

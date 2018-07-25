@@ -51,8 +51,15 @@ func newOrbCommand() *cobra.Command {
 	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
 	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
+	orbCreate := &cobra.Command{
+		Use:   "create <namespace>/<name>",
+		Short: "create an orb",
+		RunE:  createOrb,
+		Args:  cobra.ExactArgs(1),
+	}
+
 	orbCreateNamespace := &cobra.Command{
-		Use:   "create",
+		Use:   "create <name>",
 		Short: "create an orb namespace",
 		RunE:  createOrbNamespace,
 		Args:  cobra.ExactArgs(1),
@@ -68,6 +75,7 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	orbCommand.AddCommand(orbListCommand)
+	orbCommand.AddCommand(orbCreate)
 
 	orbValidateCommand.PersistentFlags().StringVarP(&orbPath, "path", "p", "orb.yml", "path to orb file")
 	orbCommand.AddCommand(orbValidateCommand)
@@ -246,6 +254,30 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Info("Orb published")
+	return nil
+}
+
+func createOrb(cmd *cobra.Command, args []string) error {
+	var err error
+	ctx := context.Background()
+
+	arr := strings.Split(args[0], "/")
+
+	if len(arr) != 2 {
+		return fmt.Errorf("Invalid orb name: %s", args[0])
+	}
+
+	response, err := api.CreateOrb(ctx, Logger, arr[1], arr[0])
+
+	if err != nil {
+		return err
+	}
+
+	if len(response.Errors) > 0 {
+		return response.ToError()
+	}
+
+	Logger.Info("Orb created")
 	return nil
 }
 
