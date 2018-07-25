@@ -10,12 +10,12 @@
   "Enable": [
     "deadcode",
     "errcheck",
-    "gas",
     "goconst",
     "gocyclo",
     "gofmt",
     "goimports",
     "golint",
+    "gosec",
     "gosimple",
     "gotype",
     "gotypex",
