@@ -1,9 +1,13 @@
 package cmd_test
 
 import (
+	"encoding/json"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
+
+	"io"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,11 +23,15 @@ var _ = Describe("Orb integration tests", func() {
 			orb        tmpFile
 			token      string = "testtoken"
 			command    *exec.Cmd
+			tmpDir     string
 		)
 
 		BeforeEach(func() {
 			var err error
-			orb, err = openTmpFile(filepath.Join("myorb", "orb.yml"))
+			tmpDir, err = openTmpDir("")
+			Expect(err).ToNot(HaveOccurred())
+
+			orb, err = openTmpFile(tmpDir, filepath.Join("myorb", "orb.yml"))
 			Expect(err).ToNot(HaveOccurred())
 
 			testServer = ghttp.NewServer()
@@ -31,7 +39,121 @@ var _ = Describe("Orb integration tests", func() {
 
 		AfterEach(func() {
 			orb.close()
+			os.RemoveAll(tmpDir)
 			testServer.Close()
+		})
+
+		Describe("when using STDIN", func() {
+			BeforeEach(func() {
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"-t", token,
+					"-e", testServer.URL(),
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					io.WriteString(stdin, "{}")
+				}()
+			})
+
+			It("works", func() {
+				By("setting up a mock server")
+
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				response := struct {
+					Query     string `json:"query"`
+					Variables struct {
+						Config string `json:"config"`
+					} `json:"variables"`
+				}{
+					Query: `
+		query ValidateOrb ($config: String!) {
+			orbConfig(orbYaml: $config) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`,
+					Variables: struct {
+						Config string `json:"config"`
+					}{
+						Config: "{}",
+					},
+				}
+				expected, err := json.Marshal(response)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				appendPostHandler(testServer, token, http.StatusOK, string(expected), gqlResponse)
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				// the .* is because the full path with temp dir is printed
+				Eventually(session.Out).Should(gbytes.Say("Orb at - is valid"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("when using default path", func() {
+			BeforeEach(func() {
+				var err error
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"-t", token,
+					"-e", testServer.URL(),
+				)
+
+				orb, err = openTmpFile(command.Dir, "orb.yml")
+				Expect(err).ToNot(HaveOccurred())
+			})
+
+			AfterEach(func() {
+				orb.close()
+				os.Remove(orb.Path)
+			})
+
+			It("works", func() {
+				By("setting up a mock server")
+				err := orb.write(`{}`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				expectedRequestJson := ` {
+					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"variables": {
+						"config": "{}"
+					}
+				}`
+
+				appendPostHandler(testServer, token, http.StatusOK, expectedRequestJson, gqlResponse)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				// the .* is because the full path with temp dir is printed
+				Eventually(session.Out).Should(gbytes.Say("Orb at .*orb.yml is valid"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
 		})
 
 		Describe("when validating orb", func() {
@@ -40,7 +162,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "validate",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", orb.Path,
+					orb.Path,
 				)
 			})
 
@@ -121,7 +243,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "expand",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", orb.Path,
+					orb.Path,
 				)
 			})
 
@@ -204,7 +326,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "publish",
 					"-t", token,
 					"-e", testServer.URL(),
-					"-p", orb.Path,
+					orb.Path,
 					"--orb-version", "0.0.1",
 					"--orb-id", "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 				)

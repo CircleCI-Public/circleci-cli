@@ -7,6 +7,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+const defaultConfigPath = ".circleci/config.yml"
+
 func newConfigCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -14,16 +16,18 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:     "validate",
+		Use:     "validate [config.yml]",
 		Aliases: []string{"check"},
 		Short:   "Check that the config file is well formed.",
 		RunE:    validateConfig,
+		Args:    cobra.MaximumNArgs(1),
 	}
 
 	expandCommand := &cobra.Command{
-		Use:   "expand",
+		Use:   "expand [config.yml]",
 		Short: "Expand the config.",
 		RunE:  expandConfig,
+		Args:  cobra.MaximumNArgs(1),
 	}
 
 	configCmd.AddCommand(validateCommand)
@@ -34,6 +38,10 @@ func newConfigCommand() *cobra.Command {
 
 func validateConfig(cmd *cobra.Command, args []string) error {
 
+	configPath := defaultConfigPath
+	if len(args) == 1 {
+		configPath = args[0]
+	}
 	ctx := context.Background()
 	response, err := api.ConfigQuery(ctx, Logger, configPath)
 
@@ -51,7 +59,10 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 
 func expandConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-
+	configPath := defaultConfigPath
+	if len(args) == 1 {
+		configPath = args[0]
+	}
 	response, err := api.ConfigQuery(ctx, Logger, configPath)
 
 	if err != nil {
