@@ -58,8 +58,7 @@ type CreateNamespaceResponse struct {
 // creating an orb
 type CreateOrbResponse struct {
 	Orb struct {
-		CreatedAt string
-		ID        string
+		ID string
 	}
 
 	GQLResponseErrors
@@ -74,7 +73,7 @@ func (response GQLResponseErrors) ToError() error {
 		messages = append(messages, response.Errors[i].Message)
 	}
 
-	return fmt.Errorf(strings.Join(messages, ": "))
+	return errors.New(strings.Join(messages, ": "))
 }
 
 func loadYaml(path string) (string, error) {
@@ -167,7 +166,6 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 			) {
 				orb {
 					version
-					createdAt
 				}
 				errors { message }
 			}
@@ -203,7 +201,6 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 					organizationId: $organizationId
 				) {
 					namespace {
-						createdAt
 						id
 					}
 					errors {
@@ -253,7 +250,9 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 
 	err := graphQLclient.Run(ctx, request, &response)
 
-	if err != nil || response.Organization.ID == "" {
+	if err != nil {
+		err = errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
+	} else if response.Organization.ID == "" {
 		err = fmt.Errorf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
@@ -298,7 +297,9 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 
 	err := graphQLclient.Run(ctx, request, &response)
 
-	if err != nil || response.RegistryNamespace.ID == "" {
+	if err != nil {
+		err = errors.Wrapf(err, "Unable to find namespace %s", name)
+	} else if response.RegistryNamespace.ID == "" {
 		err = fmt.Errorf("Unable to find namespace %s", name)
 	}
 
@@ -318,7 +319,6 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 					registryNamespaceId: $registryNamespaceId
 				){
 				    orb {
-				      createdAt
 				      id
 				    }
 				    errors {
@@ -337,7 +337,7 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 	err := graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrap(err, fmt.Sprintf("Unable to create orb %s for namespaceID %s", name, namespaceID))
+		err = errors.Wrapf(err, "Unable to create orb %s for namespaceID %s", name, namespaceID)
 	}
 
 	return &response.CreateOrb.CreateOrbResponse, err
