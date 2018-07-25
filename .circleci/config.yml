@@ -34,6 +34,9 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - checkout
+      - run: |
+          go get -u github.com/alecthomas/gometalinter
+          gometalinter --install
       - run: gometalinter ./...
 
   deploy:
