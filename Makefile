@@ -13,7 +13,7 @@ build/%/amd64/circleci: always
 
 .PHONY: clean
 clean:
-	go clean
+	go clean -i
 	rm -rf build
 
 .PHONY: test

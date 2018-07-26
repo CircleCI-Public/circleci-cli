@@ -20,9 +20,9 @@ $ circleci help
 You may first need to generate a CircleCI API Token from the [Personal API Token tab](https://circleci.com/account/api).
 
 ```
-$ circleci configure 
+$ circleci configure
 ```
- 
+
 If you are using this tool on `.com`. accept the provided default `CircleCI API End Point`. If you are using it on Server, change the value to your Server address (i.e. `circleci.my-org.com`).
 
 
@@ -37,12 +37,12 @@ Config file at .circleci/config.yml is valid
 
 ## Development
 
-If developed on this project and run `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `go clean -i`.
+If you developed on this project and ran `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `make clean`.
 
 ```bash
 $ which circleci-cli
 /Users/erichu/go/bin/circleci-cli
-$ go clean -i
+$ make clean
 $ which circleci-cli
 $
 ```
