@@ -13,5 +13,4 @@ func newVersionCommand() *cobra.Command {
 			Logger.Infof("%s (%s)", version.Version, version.Commit)
 		},
 	}
-
 }
