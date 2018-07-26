@@ -13,7 +13,7 @@ import (
 func newQueryCommand() *cobra.Command {
 	return &cobra.Command{
 		Use:   "query",
-		Short: "Query the CircleCI GraphQL API.",
+		Short: "Query the CircleCI GraphQL API using input from stdin.",
 		RunE:  query,
 	}
 }
