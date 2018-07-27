@@ -361,3 +361,40 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespac
 	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
 	return orb, err
 }
+
+// OrbSource gets the source or an orb
+func OrbSource(ctx context.Context, logger *logger.Logger, name string) (string, error) {
+
+	var response struct {
+		Orb struct {
+			Versions []struct {
+				Source string
+			}
+		}
+	}
+
+	query := `query($name: String!) {
+			    orb(name: $name) {
+			      versions(count: 1) {
+				    source
+			      }
+			    }
+		      }`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err := graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(response.Orb.Versions) != 1 {
+		return "", fmt.Errorf("the %s orb has never published a revision", name)
+	}
+
+	return response.Orb.Versions[0].Source, nil
+}
