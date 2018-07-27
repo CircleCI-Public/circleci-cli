@@ -3,7 +3,7 @@ default: build
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
-build:
+build: always
 	go build -o build/$(GOOS)/$(GOARCH)/circleci
 
 build-all: build/linux/amd64/circleci build/darwin/amd64/circleci

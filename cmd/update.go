@@ -56,8 +56,9 @@ func checkForUpdates(cmd *cobra.Command, args []string) error {
 		// There are other fields in this response that we could use to download the
 		// binaries on behalf of the user.
 		// https://developer.github.com/v3/repos/releases/#get-the-latest-release
-		HTML string `json:"html_url"`
-		Tag  string `json:"tag_name"`
+		HTML      string `json:"html_url"`
+		Tag       string `json:"tag_name"`
+		Published string `json:"published_at"`
 	}
 
 	if err := json.Unmarshal(body, &release); err != nil {
@@ -67,6 +68,7 @@ func checkForUpdates(cmd *cobra.Command, args []string) error {
 	latest := trimFirstRune(release.Tag)
 
 	Logger.Debug("Latest version: %s", latest)
+	Logger.Debug("Published: %s", release.Published)
 	Logger.Debug("Current Version: %s", version.Version)
 
 	if latest == version.Version {
