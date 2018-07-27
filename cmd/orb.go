@@ -23,39 +23,46 @@ var organizationVcs string
 
 func newOrbCommand() *cobra.Command {
 
-	orbListCommand := &cobra.Command{
+	listCommand := &cobra.Command{
 		Use:   "list",
 		Short: "List orbs",
 		RunE:  listOrbs,
 	}
 
-	orbValidateCommand := &cobra.Command{
+	validateCommand := &cobra.Command{
 		Use:   "validate [orb.yml]",
 		Short: "validate an orb.yml",
 		RunE:  validateOrb,
 		Args:  cobra.MaximumNArgs(1),
 	}
 
-	orbExpandCommand := &cobra.Command{
+	expandCommand := &cobra.Command{
 		Use:   "expand [orb.yml]",
 		Short: "expand an orb.yml",
 		RunE:  expandOrb,
 		Args:  cobra.MaximumNArgs(1),
 	}
 
-	orbPublishCommand := &cobra.Command{
+	publishCommand := &cobra.Command{
 		Use:   "publish [orb.yml]",
 		Short: "publish a version of an orb",
 		RunE:  publishOrb,
 		Args:  cobra.MaximumNArgs(1),
 	}
-	orbPublishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
-	orbPublishCommand.Flags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
+	publishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
+	publishCommand.Flags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
 
 	for _, flag := range [2]string{"orb-version", "orb-id"} {
-		if err := orbPublishCommand.MarkFlagRequired(flag); err != nil {
+		if err := publishCommand.MarkFlagRequired(flag); err != nil {
 			panic(err)
 		}
+	}
+
+	sourceCommand := &cobra.Command{
+		Use:   "source <namespace>/<name>",
+		Short: "Show the source of an orb",
+		RunE:  showSource,
+		Args:  cobra.ExactArgs(1),
 	}
 
 	orbCreate := &cobra.Command{
@@ -65,35 +72,32 @@ func newOrbCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 
-	orbCreateNamespace := &cobra.Command{
+	createNamespace := &cobra.Command{
 		Use:   "create <name>",
 		Short: "create an orb namespace",
 		RunE:  createOrbNamespace,
 		Args:  cobra.ExactArgs(1),
 	}
+	createNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name")
+	createNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
 
 	namespaceCommand := &cobra.Command{
 		Use: "ns",
 	}
+	namespaceCommand.AddCommand(createNamespace)
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
 	}
 
-	orbCommand.AddCommand(orbListCommand)
+	orbCommand.AddCommand(listCommand)
 	orbCommand.AddCommand(orbCreate)
-
-	orbCommand.AddCommand(orbValidateCommand)
-
-	orbCommand.AddCommand(orbExpandCommand)
-
-	orbCommand.AddCommand(orbPublishCommand)
-
-	orbCreateNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name")
-	orbCreateNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
-	namespaceCommand.AddCommand(orbCreateNamespace)
+	orbCommand.AddCommand(validateCommand)
+	orbCommand.AddCommand(expandCommand)
+	orbCommand.AddCommand(publishCommand)
 	orbCommand.AddCommand(namespaceCommand)
+	orbCommand.AddCommand(sourceCommand)
 
 	return orbCommand
 }
@@ -335,5 +339,15 @@ func createOrbNamespace(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Info("Namespace created")
+	return nil
+}
+
+func showSource(cmd *cobra.Command, args []string) error {
+	orb := args[0]
+	source, err := api.OrbSource(context.Background(), Logger, orb)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get source for '%s'", orb)
+	}
+	Logger.Info(source)
 	return nil
 }
