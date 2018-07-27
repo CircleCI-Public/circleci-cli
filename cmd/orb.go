@@ -49,8 +49,14 @@ func newOrbCommand() *cobra.Command {
 		RunE:  publishOrb,
 		Args:  cobra.MaximumNArgs(1),
 	}
-	orbPublishCommand.PersistentFlags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
-	orbPublishCommand.PersistentFlags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
+	orbPublishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
+	orbPublishCommand.Flags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
+
+	for _, flag := range [2]string{"orb-version", "orb-id"} {
+		if err := orbPublishCommand.MarkFlagRequired(flag); err != nil {
+			panic(err)
+		}
+	}
 
 	orbCreate := &cobra.Command{
 		Use:   "create <namespace>/<name>",
