@@ -40,6 +40,18 @@ $ make
 $ make test
 ```
 
+### 4. Cleaning up installed binary
+
+If you ran `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `make clean`.
+
+```bash
+$ which circleci-cli
+/Users/erichu/go/bin/circleci-cli
+$ make clean
+$ which circleci-cli
+$
+```
+
 ## Managing Dependencies
 
 We use `dep` for vendoring our depencencies:

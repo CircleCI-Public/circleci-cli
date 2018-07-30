@@ -34,15 +34,3 @@ To ensure that the tool is installed, you can use it to validate a build config 
 $ circleci config validate
 Config file at .circleci/config.yml is valid
 ```
-
-## Development
-
-If you developed on this project and ran `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `make clean`.
-
-```bash
-$ which circleci-cli
-/Users/erichu/go/bin/circleci-cli
-$ make clean
-$ which circleci-cli
-$
-```
