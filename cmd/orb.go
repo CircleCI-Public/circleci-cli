@@ -107,7 +107,7 @@ func newOrbCommand() *cobra.Command {
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(expandCommand)
 	orbCommand.AddCommand(publishCommand)
-
+	
 	orbCommand.AddCommand(namespaceCommand)
 	orbCommand.AddCommand(sourceCommand)
 
@@ -298,10 +298,6 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 		orbPath = args[0]
 	}
 
-	if orbPath == "" || orbID == "" {
-		return fmt.Errorf("Must include orb-path and orb-id flags")
-	}
-
 	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbID)
 
 	if err != nil {
@@ -343,10 +339,6 @@ func createOrb(cmd *cobra.Command, args []string) error {
 func createOrbNamespace(cmd *cobra.Command, args []string) error {
 	var err error
 	ctx := context.Background()
-
-	if organizationName == "" {
-		return fmt.Errorf("Must include org-name flag")
-	}
 
 	response, err := api.CreateNamespace(ctx, Logger, args[0], organizationName, strings.ToUpper(organizationVcs))
 
