@@ -81,20 +81,16 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	createNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name (required)")
-	createNamespace.MarkFlagRequired("org-name")
+	if err := createNamespace.MarkPersistentFlagRequired("org-name"); err != nil {
+		panic(err)
+	}
 	createNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
 
 	namespaceCommand := &cobra.Command{
-		Use: "ns",
+		Use:   "ns",
 		Short: "Operate on orb namespaces (create, etc.)",
 	}
 	namespaceCommand.AddCommand(createNamespace)
-
-	for _, flag := range [1]string{"org-name"} {
-		if err := namespaceCommand.MarkFlagRequired(flag); err != nil {
-			panic(err)
-		}
-	}
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -107,7 +103,7 @@ func newOrbCommand() *cobra.Command {
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(expandCommand)
 	orbCommand.AddCommand(publishCommand)
-	
+
 	orbCommand.AddCommand(namespaceCommand)
 	orbCommand.AddCommand(sourceCommand)
 
