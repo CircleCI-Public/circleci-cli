@@ -49,8 +49,9 @@ func newOrbCommand() *cobra.Command {
 		RunE:  publishOrb,
 		Args:  cobra.MaximumNArgs(1),
 	}
-	publishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish")
-	publishCommand.Flags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish")
+
+	publishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish (required)")
+	publishCommand.Flags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish (required)")
 
 	for _, flag := range [2]string{"orb-version", "orb-id"} {
 		if err := publishCommand.MarkFlagRequired(flag); err != nil {
@@ -78,11 +79,16 @@ func newOrbCommand() *cobra.Command {
 		RunE:  createOrbNamespace,
 		Args:  cobra.ExactArgs(1),
 	}
-	createNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name")
+
+	createNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name (required)")
+	if err := createNamespace.MarkPersistentFlagRequired("org-name"); err != nil {
+		panic(err)
+	}
 	createNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
 
 	namespaceCommand := &cobra.Command{
-		Use: "ns",
+		Use:   "ns",
+		Short: "Operate on orb namespaces (create, etc.)",
 	}
 	namespaceCommand.AddCommand(createNamespace)
 
@@ -93,9 +99,11 @@ func newOrbCommand() *cobra.Command {
 
 	orbCommand.AddCommand(listCommand)
 	orbCommand.AddCommand(orbCreate)
+
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(expandCommand)
 	orbCommand.AddCommand(publishCommand)
+
 	orbCommand.AddCommand(namespaceCommand)
 	orbCommand.AddCommand(sourceCommand)
 
