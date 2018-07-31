@@ -87,10 +87,16 @@ func newOrbCommand() *cobra.Command {
 	createNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
 
 	namespaceCommand := &cobra.Command{
-		Use:   "ns",
+		Use:   "namespace",
 		Short: "Operate on orb namespaces (create, etc.)",
 	}
 	namespaceCommand.AddCommand(createNamespace)
+	nsCommand := &cobra.Command{
+		Use:    "ns",
+		Short:  "Operate on orb namespaces (create, etc.)",
+		Hidden: true,
+	}
+	nsCommand.AddCommand(createNamespace)
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -105,6 +111,7 @@ func newOrbCommand() *cobra.Command {
 	orbCommand.AddCommand(publishCommand)
 
 	orbCommand.AddCommand(namespaceCommand)
+	orbCommand.AddCommand(nsCommand)
 	orbCommand.AddCommand(sourceCommand)
 
 	return orbCommand
