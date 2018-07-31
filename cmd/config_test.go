@@ -217,7 +217,7 @@ var _ = Describe("Config", func() {
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
 			BeforeEach(func() {
 				var err error
-				command = exec.Command(pathCLI, "config", "collapse", "-r", "testdata/hugo-collapse/.circleci")
+				command = exec.Command(pathCLI, "config", "collapse", "testdata/hugo-collapse/.circleci")
 				results, err = ioutil.ReadFile("testdata/hugo-collapse/result.yml")
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -236,7 +236,7 @@ var _ = Describe("Config", func() {
 			BeforeEach(func() {
 				var err error
 				var path string = "nested-orbs-and-local-commands-etc"
-				command = exec.Command(pathCLI, "config", "collapse", "-r", filepath.Join("testdata", path, "test"))
+				command = exec.Command(pathCLI, "config", "collapse", filepath.Join("testdata", path, "test"))
 				results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -254,7 +254,7 @@ var _ = Describe("Config", func() {
 		Describe("an orb containing local executors and commands in folder", func() {
 			BeforeEach(func() {
 				var err error
-				command = exec.Command(pathCLI, "config", "collapse", "-r", "testdata/myorb/test")
+				command = exec.Command(pathCLI, "config", "collapse", "testdata/myorb/test")
 				results, err = ioutil.ReadFile("testdata/myorb/result.yml")
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -273,7 +273,7 @@ var _ = Describe("Config", func() {
 			BeforeEach(func() {
 				var err error
 				var path string = "test-with-large-nested-rails-orb"
-				command = exec.Command(pathCLI, "config", "collapse", "-r", filepath.Join("testdata", path, "test"))
+				command = exec.Command(pathCLI, "config", "collapse", filepath.Join("testdata", path, "test"))
 				results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
 				Expect(err).ShouldNot(HaveOccurred())
 			})

@@ -12,8 +12,6 @@ import (
 
 const defaultConfigPath = ".circleci/config.yml"
 
-var root string
-
 func newConfigCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -21,11 +19,11 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	collapseCommand := &cobra.Command{
-		Use:   "collapse",
+		Use:   "collapse [path]",
 		Short: "Collapse your CircleCI configuration to a single file",
 		RunE:  collapseConfig,
+		Args:  cobra.MaximumNArgs(1),
 	}
-	collapseCommand.Flags().StringVarP(&root, "root", "r", ".", "path to your configuration (default is current path)")
 
 	validateCommand := &cobra.Command{
 		Use:     "validate [config.yml]",
@@ -50,7 +48,6 @@ func newConfigCommand() *cobra.Command {
 }
 
 func validateConfig(cmd *cobra.Command, args []string) error {
-
 	configPath := defaultConfigPath
 	if len(args) == 1 {
 		configPath = args[0]
@@ -91,6 +88,10 @@ func expandConfig(cmd *cobra.Command, args []string) error {
 }
 
 func collapseConfig(cmd *cobra.Command, args []string) error {
+	root := "."
+	if len(args) > 0 {
+		root = args[0]
+	}
 	tree, err := filetree.NewTree(root)
 	if err != nil {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
