@@ -18,8 +18,6 @@ import (
 
 var orbVersion string
 var orbID string
-var organizationName string
-var organizationVcs string
 
 func newOrbCommand() *cobra.Command {
 
@@ -74,17 +72,14 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	createNamespace := &cobra.Command{
-		Use:   "create <name>",
+		Use:   "create [name] [vcs] [org-name]",
 		Short: "create an orb namespace",
 		RunE:  createOrbNamespace,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(3),
 	}
 
-	createNamespace.PersistentFlags().StringVar(&organizationName, "org-name", "", "organization name (required)")
-	if err := createNamespace.MarkPersistentFlagRequired("org-name"); err != nil {
-		panic(err)
-	}
-	createNamespace.PersistentFlags().StringVar(&organizationVcs, "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'")
+	// "org-name", "", "organization name (required)"
+	// "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'"
 
 	namespaceCommand := &cobra.Command{
 		Use:   "namespace",
@@ -343,7 +338,7 @@ func createOrbNamespace(cmd *cobra.Command, args []string) error {
 	var err error
 	ctx := context.Background()
 
-	response, err := api.CreateNamespace(ctx, Logger, args[0], organizationName, strings.ToUpper(organizationVcs))
+	response, err := api.CreateNamespace(ctx, Logger, args[0], args[2], strings.ToUpper(args[1]))
 
 	if err != nil {
 		return err

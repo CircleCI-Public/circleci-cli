@@ -427,8 +427,8 @@ var _ = Describe("Orb integration tests", func() {
 					"-t", token,
 					"-e", testServer.URL(),
 					"foo-ns",
-					"--org-name", "test-org",
-					"--vcs", "BITBUCKET",
+					"BITBUCKET",
+					"test-org",
 				)
 			})
 
@@ -492,8 +492,8 @@ var _ = Describe("Orb integration tests", func() {
 					"-t", token,
 					"-e", testServer.URL(),
 					"foo-ns",
-					"--org-name", "test-org",
-					"--vcs", "BITBUCKET",
+					"BITBUCKET",
+					"test-org",
 				)
 			})
 
