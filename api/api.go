@@ -152,7 +152,12 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 
 // OrbPublish publishes a new version of an orb
 func OrbPublish(ctx context.Context, logger *logger.Logger,
-	configPath string, orbVersion string, orbID string) (*PublishOrbResponse, error) {
+	name string, configPath string, orbVersion string) (*PublishOrbResponse, error) {
+	orbID, err := getOrbID(ctx, logger, name)
+	if err != nil {
+		return nil, err
+	}
+
 	var response struct {
 		PublishOrb struct {
 			PublishOrbResponse
@@ -192,6 +197,37 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 		err = errors.Wrap(err, "Unable to publish orb")
 	}
 	return &response.PublishOrb.PublishOrbResponse, err
+}
+
+func getOrbID(ctx context.Context, logger *logger.Logger, name string) (string, error) {
+	var response struct {
+		Orb struct {
+			ID string
+		}
+	}
+
+	query := `query($name: String!) {
+			    orb(name: $name) {
+			      id
+			    }
+		      }`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+
+	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+
+	err := graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		return "", err
+	}
+
+	if response.Orb.ID == "" {
+		return "", fmt.Errorf("the %s orb could not be found", name)
+	}
+
+	return response.Orb.ID, nil
 }
 
 func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {

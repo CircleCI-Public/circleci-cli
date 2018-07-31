@@ -17,7 +17,6 @@ import (
 )
 
 var orbVersion string
-var orbID string
 
 func newOrbCommand() *cobra.Command {
 
@@ -42,19 +41,15 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	publishCommand := &cobra.Command{
-		Use:   "publish [orb.yml]",
+		Use:   "publish <namespace>/<orb> <orb.yml>",
 		Short: "publish a version of an orb",
 		RunE:  publishOrb,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(2),
 	}
 
 	publishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish (required)")
-	publishCommand.Flags().StringVarP(&orbID, "orb-id", "i", "", "id of orb to publish (required)")
-
-	for _, flag := range [2]string{"orb-version", "orb-id"} {
-		if err := publishCommand.MarkFlagRequired(flag); err != nil {
-			panic(err)
-		}
+	if err := publishCommand.MarkFlagRequired("orb-version"); err != nil {
+		panic(err)
 	}
 
 	sourceCommand := &cobra.Command{
@@ -291,12 +286,8 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 
 func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	orbPath := defaultOrbPath
-	if len(args) == 1 {
-		orbPath = args[0]
-	}
 
-	response, err := api.OrbPublish(ctx, Logger, orbPath, orbVersion, orbID)
+	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], orbVersion)
 
 	if err != nil {
 		return err

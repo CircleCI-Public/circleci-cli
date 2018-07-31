@@ -332,9 +332,9 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "publish",
 					"-t", token,
 					"-e", testServer.URL(),
+					"my/orb",
 					orb.Path,
 					"--orb-version", "0.0.1",
-					"--orb-id", "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 				)
 			})
 
@@ -348,7 +348,20 @@ var _ = Describe("Orb integration tests", func() {
 				// assert write to test file successful
 				Expect(err).ToNot(HaveOccurred())
 
-				gqlResponse := `{
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlPublishResponse := `{
 					"publishOrb": {
 						"errors": [],
 						"orb": {
@@ -357,7 +370,7 @@ var _ = Describe("Orb integration tests", func() {
 					}
 				}`
 
-				expectedRequestJson := `{
+				expectedPublishRequest := `{
 					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"config": "some orb",
@@ -368,9 +381,12 @@ var _ = Describe("Orb integration tests", func() {
 
 				appendPostHandler(testServer, token, MockRequestResponse{
 					Status:   http.StatusOK,
-					Request:  expectedRequestJson,
-					Response: gqlResponse,
-				})
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -385,17 +401,30 @@ var _ = Describe("Orb integration tests", func() {
 				err := orb.write(`some orb`)
 				Expect(err).ToNot(HaveOccurred())
 
-				gqlResponse := `{
-							"publishOrb": {
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
 								"errors": [
 									{"message": "error1"},
 									{"message": "error2"}
 								],
 								"orb": null
-							}
-						}`
+					}
+				}`
 
-				expectedRequestJson := `{
+				expectedPublishRequest := `{
 					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"config": "some orb",
@@ -406,9 +435,12 @@ var _ = Describe("Orb integration tests", func() {
 
 				appendPostHandler(testServer, token, MockRequestResponse{
 					Status:   http.StatusOK,
-					Request:  expectedRequestJson,
-					Response: gqlResponse,
-				})
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
