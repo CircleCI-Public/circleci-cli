@@ -46,10 +46,6 @@
   version = "0.3.0"
 
 [[constraint]]
-  name = "github.com/tj/go-update"
-  version = "2.2.1"
-
-[[constraint]]
   name = "github.com/blang/semver"
   version = "3.5.1"
 
