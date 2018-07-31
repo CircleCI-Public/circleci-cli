@@ -13,7 +13,7 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("Configure", func() {
+var _ = Describe("Setup", func() {
 	var (
 		tempHome string
 		command  *exec.Cmd
@@ -24,7 +24,7 @@ var _ = Describe("Configure", func() {
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 
-		command = exec.Command(pathCLI, "configure", "--testing")
+		command = exec.Command(pathCLI, "setup", "--testing")
 		command.Env = append(os.Environ(),
 			fmt.Sprintf("HOME=%s", tempHome),
 			fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
@@ -66,7 +66,7 @@ var _ = Describe("Configure", func() {
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI API End Point"))
 				Eventually(session.Out).Should(gbytes.Say("API endpoint has been set."))
-				Eventually(session.Out).Should(gbytes.Say("Configuration has been saved."))
+				Eventually(session.Out).Should(gbytes.Say("Setup complete. Your configuration has been saved."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -89,7 +89,7 @@ token: fooBarBaz
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI API End Point"))
 				Eventually(session.Out).Should(gbytes.Say("API endpoint has been set."))
-				Eventually(session.Out).Should(gbytes.Say("Configuration has been saved."))
+				Eventually(session.Out).Should(gbytes.Say("Setup complete. Your configuration has been saved."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})

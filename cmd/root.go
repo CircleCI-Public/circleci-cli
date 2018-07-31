@@ -39,7 +39,7 @@ func MakeCommands() *cobra.Command {
 
 	rootCmd.AddCommand(newDiagnosticCommand())
 	rootCmd.AddCommand(newQueryCommand())
-	rootCmd.AddCommand(newConfigureCommand())
+	rootCmd.AddCommand(newSetupCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newOrbCommand())
 	rootCmd.AddCommand(newBuildCommand())
@@ -74,8 +74,7 @@ func bindCobraFlagToViper(command *cobra.Command, flag string) {
 }
 
 func init() {
-
-	cobra.OnInitialize(setup)
+	cobra.OnInitialize(prepare)
 
 	configDir := path.Join(settings.UserHomeDir(), ".circleci")
 
@@ -91,9 +90,8 @@ func init() {
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
-
 }
 
-func setup() {
+func prepare() {
 	Logger = logger.NewLogger(viper.GetBool("verbose"))
 }

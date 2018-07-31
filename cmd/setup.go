@@ -12,20 +12,19 @@ import (
 
 var testing = false
 
-func newConfigureCommand() *cobra.Command {
-
-	configureCommand := &cobra.Command{
-		Use:   "configure",
-		Short: "Configure the tool with your credentials",
-		RunE:  configure,
+func newSetupCommand() *cobra.Command {
+	setupCommand := &cobra.Command{
+		Use:   "setup",
+		Short: "Setup the CLI with your credentials",
+		RunE:  setup,
 	}
 
-	configureCommand.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
-	if err := configureCommand.Flags().MarkHidden("testing"); err != nil {
+	setupCommand.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
+	if err := setupCommand.Flags().MarkHidden("testing"); err != nil {
 		panic(err)
 	}
 
-	return configureCommand
+	return setupCommand
 }
 
 // We can't properly run integration tests on code that calls PromptUI.
@@ -93,7 +92,7 @@ func shouldAskForToken(token string, ui userInterface) bool {
 	return ui.askUserToConfirm("A CircleCI token is already set. Do you want to change it")
 }
 
-func configure(cmd *cobra.Command, args []string) error {
+func setup(cmd *cobra.Command, args []string) error {
 	token := viper.GetString("token")
 
 	var ui userInterface = interactiveUI{}
@@ -121,6 +120,6 @@ func configure(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Failed to save config file")
 	}
 
-	Logger.Info("Configuration has been saved.")
+	Logger.Info("Setup complete. Your configuration has been saved.")
 	return nil
 }
