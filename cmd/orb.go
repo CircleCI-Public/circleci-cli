@@ -66,28 +66,6 @@ func newOrbCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 
-	createNamespace := &cobra.Command{
-		Use:   "create [name] [vcs] [org-name]",
-		Short: "create an orb namespace",
-		RunE:  createOrbNamespace,
-		Args:  cobra.ExactArgs(3),
-	}
-
-	// "org-name", "", "organization name (required)"
-	// "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'"
-
-	namespaceCommand := &cobra.Command{
-		Use:   "namespace",
-		Short: "Operate on orb namespaces (create, etc.)",
-	}
-	namespaceCommand.AddCommand(createNamespace)
-	nsCommand := &cobra.Command{
-		Use:    "ns",
-		Short:  "Operate on orb namespaces (create, etc.)",
-		Hidden: true,
-	}
-	nsCommand.AddCommand(createNamespace)
-
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
@@ -95,13 +73,9 @@ func newOrbCommand() *cobra.Command {
 
 	orbCommand.AddCommand(listCommand)
 	orbCommand.AddCommand(orbCreate)
-
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(expandCommand)
 	orbCommand.AddCommand(publishCommand)
-
-	orbCommand.AddCommand(namespaceCommand)
-	orbCommand.AddCommand(nsCommand)
 	orbCommand.AddCommand(sourceCommand)
 
 	return orbCommand
@@ -322,24 +296,6 @@ func createOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Info("Orb created")
-	return nil
-}
-
-func createOrbNamespace(cmd *cobra.Command, args []string) error {
-	var err error
-	ctx := context.Background()
-
-	response, err := api.CreateNamespace(ctx, Logger, args[0], args[2], strings.ToUpper(args[1]))
-
-	if err != nil {
-		return err
-	}
-
-	if len(response.Errors) > 0 {
-		return response.ToError()
-	}
-
-	Logger.Info("Namespace created")
 	return nil
 }
 
