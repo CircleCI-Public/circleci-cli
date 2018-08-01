@@ -37,14 +37,12 @@ func MakeCommands() *cobra.Command {
 		Long:  `Use CircleCI from the command line.`,
 	}
 
-	rootCmd.AddCommand(newDiagnosticCommand())
 	rootCmd.AddCommand(newQueryCommand())
-	rootCmd.AddCommand(newSetupCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newOrbCommand())
 	rootCmd.AddCommand(newBuildCommand())
 	rootCmd.AddCommand(newVersionCommand())
-	rootCmd.AddCommand(newUpdateCommand())
+	rootCmd.AddCommand(newLocalCommand())
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
