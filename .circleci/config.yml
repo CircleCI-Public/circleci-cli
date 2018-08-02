@@ -25,6 +25,14 @@ jobs:
           destination: coverage.txt
       - codecov/upload:
           path: coverage.txt
+  docs:
+    executor: go
+    steps:
+      - checkout
+      - run: sudo apt-get install pandoc
+      - run: go run main.go usage
+      - store_artifacts:
+          path: ./docs
 
   lint:
     docker:
@@ -81,6 +89,7 @@ workflows:
       - test
       - coverage
       - lint
+      - docs
       - deploy:
           requires:
             - test
