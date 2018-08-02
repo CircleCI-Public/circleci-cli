@@ -37,15 +37,15 @@ func MakeCommands() *cobra.Command {
 		Long:  `Use CircleCI from the command line.`,
 	}
 
-	rootCmd.AddCommand(newDiagnosticCommand())
 	rootCmd.AddCommand(newQueryCommand())
-	rootCmd.AddCommand(newCollapseCommand())
-	rootCmd.AddCommand(newConfigureCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newOrbCommand())
 	rootCmd.AddCommand(newBuildCommand())
 	rootCmd.AddCommand(newVersionCommand())
+	rootCmd.AddCommand(newDiagnosticCommand())
+	rootCmd.AddCommand(newSetupCommand())
 	rootCmd.AddCommand(newUpdateCommand())
+	rootCmd.AddCommand(newNamespaceCommand())
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")
@@ -75,8 +75,7 @@ func bindCobraFlagToViper(command *cobra.Command, flag string) {
 }
 
 func init() {
-
-	cobra.OnInitialize(setup)
+	cobra.OnInitialize(prepare)
 
 	configDir := path.Join(settings.UserHomeDir(), ".circleci")
 
@@ -92,9 +91,8 @@ func init() {
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
-
 }
 
-func setup() {
+func prepare() {
 	Logger = logger.NewLogger(viper.GetBool("verbose"))
 }

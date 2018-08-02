@@ -7,11 +7,13 @@ import (
 )
 
 func newDiagnosticCommand() *cobra.Command {
-	return &cobra.Command{
+	diagnosticCommand := &cobra.Command{
 		Use:   "diagnostic",
 		Short: "Check the status of your CircleCI CLI.",
 		RunE:  diagnostic,
 	}
+
+	return diagnosticCommand
 }
 
 func diagnostic(cmd *cobra.Command, args []string) error {
