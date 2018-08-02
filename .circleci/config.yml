@@ -33,6 +33,7 @@ jobs:
       - run: go run main.go usage
       - store_artifacts:
           path: ./docs
+          destination: docs
 
   lint:
     docker:
