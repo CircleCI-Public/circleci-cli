@@ -11,7 +11,7 @@ import (
 	"github.com/onsi/gomega/ghttp"
 )
 
-var _ = Describe("Registry integration tests", func() {
+var _ = Describe("Namespace integration tests", func() {
 	var (
 		testServer *ghttp.Server
 		token      string = "testtoken"
@@ -29,7 +29,7 @@ var _ = Describe("Registry integration tests", func() {
 	Describe("registering a namespace", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
-				"registry", "namespace", "create",
+				"namespace", "create",
 				"-t", token,
 				"-e", testServer.URL(),
 				"foo-ns",
@@ -94,7 +94,7 @@ var _ = Describe("Registry integration tests", func() {
 	Describe("when creating / reserving a namespace", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
-				"registry", "namespace", "create",
+				"namespace", "create",
 				"-t", token,
 				"-e", testServer.URL(),
 				"foo-ns",

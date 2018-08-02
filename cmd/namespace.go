@@ -8,18 +8,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newRegistryCommand() *cobra.Command {
-	registryCmd := &cobra.Command{
-		Use:   "registry",
-		Short: "Operate on the registry",
-	}
-
-	namespaceCommand := &cobra.Command{
+func newNamespaceCommand() *cobra.Command {
+	namespaceCmd := &cobra.Command{
 		Use:   "namespace",
-		Short: "Operate on orb namespaces (create, etc.)",
+		Short: "Operate on namespaces",
 	}
 
-	createNamespaceCommand := &cobra.Command{
+	createCmd := &cobra.Command{
 		Use:   "create [name] [vcs] [org-name]",
 		Short: "create an namespace",
 		RunE:  createNamespace,
@@ -29,11 +24,9 @@ func newRegistryCommand() *cobra.Command {
 	// "org-name", "", "organization name (required)"
 	// "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'"
 
-	namespaceCommand.AddCommand(createNamespaceCommand)
+	namespaceCmd.AddCommand(createCmd)
 
-	registryCmd.AddCommand(namespaceCommand)
-
-	return registryCmd
+	return namespaceCmd
 }
 
 func createNamespace(cmd *cobra.Command, args []string) error {
