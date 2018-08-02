@@ -1,12 +1,11 @@
 package cmd
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
-	"unicode/utf8"
-
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/pkg/errors"
+	"github.com/rhysd/go-github-selfupdate/selfupdate"
+
+	"github.com/blang/semver"
 	"github.com/spf13/cobra"
 )
 
@@ -22,62 +21,64 @@ func newUpdateCommand() *cobra.Command {
 		RunE:  checkForUpdates,
 	})
 
+	update.AddCommand(&cobra.Command{
+		Use:   "install",
+		Short: "Update the tool to the latest version",
+		RunE:  installUpdate,
+	})
+
 	return update
 }
 
-func trimFirstRune(s string) string {
-	_, i := utf8.DecodeRuneInString(s)
-	return s[i:]
+func checkForUpdates(cmd *cobra.Command, args []string) error {
+	return update(true)
+
 }
 
-func checkForUpdates(cmd *cobra.Command, args []string) error {
+func installUpdate(cmd *cobra.Command, args []string) error {
+	return update(false)
 
-	url := "https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
+}
 
-	req, err := http.NewRequest(http.MethodGet, url, nil)
+func update(dryRun bool) error {
+	updater := selfupdate.DefaultUpdater()
+
+	slug := "CircleCI-Public/circleci-cli"
+
+	latest, found, err := updater.DetectLatest(slug)
+
 	if err != nil {
-		return err
+		return errors.Wrap(err, "error finding latest release")
 	}
 
-	req.Header.Set("User-Agent", version.UserAgent())
-
-	client := http.Client{}
-	res, err := client.Do(req)
-	if err != nil {
-		return err
+	if !found {
+		return errors.New("no updates were found")
 	}
 
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
+	current := semver.MustParse(version.Version)
 
-	var release struct {
-		// There are other fields in this response that we could use to download the
-		// binaries on behalf of the user.
-		// https://developer.github.com/v3/repos/releases/#get-the-latest-release
-		HTML      string `json:"html_url"`
-		Tag       string `json:"tag_name"`
-		Published string `json:"published_at"`
-	}
+	Logger.Debug("Latest version: %s", latest.Version)
+	Logger.Debug("Published: %s", latest.PublishedAt)
+	Logger.Debug("Current Version: %s", current)
 
-	if err := json.Unmarshal(body, &release); err != nil {
-		return err
-	}
-
-	latest := trimFirstRune(release.Tag)
-
-	Logger.Debug("Latest version: %s", latest)
-	Logger.Debug("Published: %s", release.Published)
-	Logger.Debug("Current Version: %s", version.Version)
-
-	if latest == version.Version {
+	if latest.Version.Equals(current) {
 		Logger.Info("Already up-to-date.")
-	} else {
-		Logger.Infof("A new release is available (%s)", release.Tag)
-		Logger.Infof("You are running %s", version.Version)
-		Logger.Infof("You can download it from %s", release.HTML)
+		return nil
 	}
 
+	if dryRun {
+		Logger.Infof("A new release is available (%s)", latest.Version)
+		Logger.Infof("You are running %s", current)
+		Logger.Infof("You can update with `circleci update install`")
+		return nil
+	}
+
+	release, err := updater.UpdateSelf(current, slug)
+
+	if err != nil {
+		return errors.Wrap(err, "failed to install update")
+	}
+
+	Logger.Infof("Updated to %s", release.Version)
 	return nil
 }
