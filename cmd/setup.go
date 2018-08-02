@@ -1,13 +1,8 @@
 package cmd
 
 import (
-	"encoding/json"
-	"io/ioutil"
-	"net/http"
 	"strings"
-	"unicode/utf8"
 
-	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -16,12 +11,7 @@ import (
 
 var testing = false
 
-func newLocalCommand() *cobra.Command {
-	localCommand := &cobra.Command{
-		Use:   "local",
-		Short: "Operate on your local CircleCI CLI",
-	}
-
+func newSetupCommand() *cobra.Command {
 	setupCommand := &cobra.Command{
 		Use:   "setup",
 		Short: "Setup the CLI with your credentials",
@@ -33,98 +23,7 @@ func newLocalCommand() *cobra.Command {
 		panic(err)
 	}
 
-	updateCommand := &cobra.Command{
-		Use:   "update",
-		Short: "Update the tool",
-		RunE:  update,
-	}
-
-	checkCommand := &cobra.Command{
-		Use:   "check",
-		Short: "Check the status of your CircleCI CLI.",
-		RunE:  check,
-	}
-
-	localCommand.AddCommand(setupCommand)
-	localCommand.AddCommand(updateCommand)
-	localCommand.AddCommand(checkCommand)
-
-	return localCommand
-}
-
-func check(cmd *cobra.Command, args []string) error {
-	endpoint := viper.GetString("endpoint")
-	token := viper.GetString("token")
-
-	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---\n")
-	Logger.Infof("Config found: %v\n", viper.ConfigFileUsed())
-
-	Logger.Infof("GraphQL API endpoint: %s\n", endpoint)
-
-	if token == "token" || token == "" {
-		return errors.New("please set a token")
-	}
-	Logger.Infoln("OK, got a token.")
-	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
-
-	return nil
-}
-
-func trimFirstRune(s string) string {
-	_, i := utf8.DecodeRuneInString(s)
-	return s[i:]
-}
-
-func update(cmd *cobra.Command, args []string) error {
-
-	url := "https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
-
-	req, err := http.NewRequest(http.MethodGet, url, nil)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("User-Agent", version.UserAgent())
-
-	client := http.Client{}
-	res, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	body, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		return err
-	}
-
-	var release struct {
-		// There are other fields in this response that we could use to download the
-		// binaries on behalf of the user.
-		// https://developer.github.com/v3/repos/releases/#get-the-latest-release
-		HTML      string `json:"html_url"`
-		Tag       string `json:"tag_name"`
-		Published string `json:"published_at"`
-	}
-
-	if err := json.Unmarshal(body, &release); err != nil {
-		return err
-	}
-
-	latest := trimFirstRune(release.Tag)
-
-	Logger.Debug("Latest version: %s", latest)
-	Logger.Debug("Published: %s", release.Published)
-	Logger.Debug("Current Version: %s", version.Version)
-
-	if latest == version.Version {
-		Logger.Info("Already up-to-date.")
-	} else {
-		Logger.Infof("A new release is available (%s)", release.Tag)
-		Logger.Infof("You are running %s", version.Version)
-		Logger.Infof("You can download it from %s", release.HTML)
-	}
-
-	return nil
+	return setupCommand
 }
 
 // We can't properly run integration tests on code that calls PromptUI.
