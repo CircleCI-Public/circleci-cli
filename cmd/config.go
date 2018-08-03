@@ -23,7 +23,7 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	collapseCommand := &cobra.Command{
-		Use:   "collapse [PATH] (default is \".\")",
+		Use:   "collapse PATH",
 		Short: "Collapse your CircleCI configuration to a single file",
 		RunE:  collapseConfig,
 		Args:  cobra.MaximumNArgs(1),
@@ -101,11 +101,7 @@ func expandConfig(cmd *cobra.Command, args []string) error {
 }
 
 func collapseConfig(cmd *cobra.Command, args []string) error {
-	root := "."
-	if len(args) > 0 {
-		root = args[0]
-	}
-	tree, err := filetree.NewTree(root)
+	tree, err := filetree.NewTree(args[0])
 	if err != nil {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
 	}
