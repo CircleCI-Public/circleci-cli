@@ -46,7 +46,7 @@ func newConfigCommand() *cobra.Command {
 		Use:   "expand PATH (use \"-\" for STDIN)",
 		Short: "Expand the config.",
 		RunE:  expandConfig,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 	}
 
 	configCmd.AddCommand(collapseCommand)
