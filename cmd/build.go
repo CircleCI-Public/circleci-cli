@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -16,13 +15,6 @@ import (
 )
 
 func newBuildCommand() *cobra.Command {
-
-	updateCommand := &cobra.Command{
-		Use:   "update",
-		Short: "Update the build agent to the latest version",
-		RunE:  updateBuildAgentToLatest,
-	}
-
 	buildCommand := &cobra.Command{
 		Use:                "build",
 		Short:              "Run a build",
@@ -30,12 +22,8 @@ func newBuildCommand() *cobra.Command {
 		DisableFlagParsing: true,
 	}
 
-	buildCommand.AddCommand(updateCommand)
-
 	return buildCommand
 }
-
-var picardRepo = "circleci/picard"
 
 func circleCiDir() string {
 	return path.Join(settings.UserHomeDir(), ".circleci")
@@ -67,45 +55,6 @@ func storeBuildAgentSha(sha256 string) error {
 	err = ioutil.WriteFile(buildAgentSettingsPath(), settingsJSON, 0644)
 
 	return errors.Wrap(err, "Failed to write build agent settings file")
-}
-
-func updateBuildAgentToLatest(cmd *cobra.Command, args []string) error {
-
-	latestSha256, err := findLatestPicardSha()
-
-	if err != nil {
-		return err
-	}
-
-	Logger.Infof("Latest build agent is version %s", latestSha256)
-
-	return nil
-}
-
-func findLatestPicardSha() (string, error) {
-
-	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput() // #nosec
-
-	if err != nil {
-		return "", errors.Wrap(err, "failed to pull latest docker image")
-	}
-
-	output := string(outputBytes)
-	sha256 := regexp.MustCompile("(?m)sha256.*$")
-	latest := sha256.FindString(output)
-
-	if latest == "" {
-		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
-	}
-
-	err = storeBuildAgentSha(latest)
-
-	if err != nil {
-		return "", err
-	}
-
-	return latest, nil
-
 }
 
 func loadCurrentBuildAgentSha() string {
