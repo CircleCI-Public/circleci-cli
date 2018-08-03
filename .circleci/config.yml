@@ -91,7 +91,9 @@ workflows:
       - test
       - coverage
       - lint
-      - docs
+      - docs:
+          requires:
+            - deploy
       - deploy:
           requires:
             - test
