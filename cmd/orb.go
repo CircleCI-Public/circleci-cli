@@ -27,17 +27,17 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:   "validate [orb.yml]",
+		Use:   "validate PATH (use \"-\" for STDIN)",
 		Short: "validate an orb.yml",
 		RunE:  validateOrb,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 	}
 
 	expandCommand := &cobra.Command{
-		Use:   "expand [orb.yml]",
+		Use:   "expand PATH (use \"-\" for STDIN)",
 		Short: "expand an orb.yml",
 		RunE:  expandOrb,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 	}
 
 	publishCommand := &cobra.Command{
@@ -216,15 +216,10 @@ query ListOrbs ($after: String!) {
 	return nil
 }
 
-const defaultOrbPath = "orb.yml"
-
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	orbPath := defaultOrbPath
-	if len(args) == 1 {
-		orbPath = args[0]
-	}
-	response, err := api.OrbQuery(ctx, Logger, orbPath)
+
+	response, err := api.OrbQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
@@ -240,11 +235,7 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 
 func expandOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	orbPath := defaultOrbPath
-	if len(args) == 1 {
-		orbPath = args[0]
-	}
-	response, err := api.OrbQuery(ctx, Logger, orbPath)
+	response, err := api.OrbQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
@@ -260,7 +251,6 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 
 func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-
 	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], orbVersion)
 
 	if err != nil {
