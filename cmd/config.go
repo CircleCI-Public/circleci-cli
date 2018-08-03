@@ -86,11 +86,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 
 func expandConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	path := defaultConfigPath
-	if len(args) == 1 {
-		path = args[0]
-	}
-	response, err := api.ConfigQuery(ctx, Logger, path)
+	response, err := api.ConfigQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
