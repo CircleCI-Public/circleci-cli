@@ -15,7 +15,7 @@ func newNamespaceCommand() *cobra.Command {
 	}
 
 	createCmd := &cobra.Command{
-		Use:   "create [name] [vcs] [org-name]",
+		Use:   "create NAME github|bitbucket ORG-NAME",
 		Short: "create an namespace",
 		RunE:  createNamespace,
 		Args:  cobra.ExactArgs(3),
