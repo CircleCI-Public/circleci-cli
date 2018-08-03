@@ -152,7 +152,8 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 
 // OrbPublish publishes a new version of an orb
 func OrbPublish(ctx context.Context, logger *logger.Logger,
-	name string, configPath string, orbVersion string) (*PublishOrbResponse, error) {
+	configPath string, namespace string, orb string, orbVersion string) (*PublishOrbResponse, error) {
+	name := namespace + "/" + orb
 	orbID, err := getOrbID(ctx, logger, name)
 	if err != nil {
 		return nil, err

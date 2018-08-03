@@ -111,15 +111,15 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when using default path", func() {
 			BeforeEach(func() {
 				var err error
+				orb, err = openTmpFile(command.Dir, "orb.yml")
+				Expect(err).ToNot(HaveOccurred())
+
 				token = "testtoken"
 				command = exec.Command(pathCLI,
-					"orb", "validate",
+					"orb", "validate", orb.Path,
 					"-t", token,
 					"-e", testServer.URL(),
 				)
-
-				orb, err = openTmpFile(command.Dir, "orb.yml")
-				Expect(err).ToNot(HaveOccurred())
 			})
 
 			AfterEach(func() {
@@ -165,10 +165,9 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when validating orb", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "validate",
+					"orb", "validate", orb.Path,
 					"-t", token,
 					"-e", testServer.URL(),
-					orb.Path,
 				)
 			})
 
@@ -326,15 +325,16 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when publishing an orb version", func() {
+		Describe("when releasing an semantic version", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "publish",
+					"orb", "publish", "release",
 					"-t", token,
 					"-e", testServer.URL(),
-					"my/orb",
 					orb.Path,
-					"--orb-version", "0.0.1",
+					"my",
+					"orb",
+					"0.0.1",
 				)
 			})
 
