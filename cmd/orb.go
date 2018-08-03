@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -51,17 +50,17 @@ func newOrbCommand() *cobra.Command {
 	})
 
 	sourceCommand := &cobra.Command{
-		Use:   "source <namespace>/<name>",
+		Use:   "source NAMESPACE ORB",
 		Short: "Show the source of an orb",
 		RunE:  showSource,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 	}
 
 	orbCreate := &cobra.Command{
-		Use:   "create <namespace>/<name>",
+		Use:   "create NAMESPACE ORB",
 		Short: "create an orb",
 		RunE:  createOrb,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 	}
 
 	orbCommand := &cobra.Command{
@@ -267,13 +266,7 @@ func createOrb(cmd *cobra.Command, args []string) error {
 	var err error
 	ctx := context.Background()
 
-	arr := strings.Split(args[0], "/")
-
-	if len(arr) != 2 {
-		return fmt.Errorf("Invalid orb name: %s", args[0])
-	}
-
-	response, err := api.CreateOrb(ctx, Logger, arr[1], arr[0])
+	response, err := api.CreateOrb(ctx, Logger, args[0], args[1])
 
 	if err != nil {
 		return err
@@ -288,9 +281,9 @@ func createOrb(cmd *cobra.Command, args []string) error {
 }
 
 func showSource(cmd *cobra.Command, args []string) error {
-	source, err := api.OrbSource(context.Background(), Logger, args[0])
+	source, err := api.OrbSource(context.Background(), Logger, args[0], args[1])
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s'", args[0])
+		return errors.Wrapf(err, "Failed to get source for '%s' in %s", args[1], args[0])
 	}
 	Logger.Info(source)
 	return nil

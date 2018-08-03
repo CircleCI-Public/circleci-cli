@@ -388,7 +388,7 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 }
 
 // CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespace string) (*CreateOrbResponse, error) {
+func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, name string) (*CreateOrbResponse, error) {
 	namespaceID, err := getNamespace(ctx, logger, namespace)
 
 	if err != nil {
@@ -400,7 +400,8 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, name string, namespac
 }
 
 // OrbSource gets the source or an orb
-func OrbSource(ctx context.Context, logger *logger.Logger, name string) (string, error) {
+func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+	name := namespace + "/" + orb
 
 	var response struct {
 		Orb struct {
