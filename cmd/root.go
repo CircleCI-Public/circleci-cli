@@ -13,12 +13,15 @@ import (
 
 var defaultEndpoint = "https://circleci.com/graphql-unstable"
 
+// rootCmd is used internally and global to the package but not exported
+// therefore we can use it in other commands, like `usage`
+// it should be set once when Execute is first called
 var rootCmd *cobra.Command
 
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
-// the RootCmd.
+// the rootCmd.
 func Execute() {
 	command := MakeCommands()
 	if err := command.Execute(); err != nil {

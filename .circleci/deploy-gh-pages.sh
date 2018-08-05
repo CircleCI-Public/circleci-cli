@@ -32,11 +32,7 @@ else
 fi
 
 # copy over or recompile the new site
-cp -a "../docs/." .
-
-# move index and update links
-mv circleci.html index.html
-sed -i -- 's#<a href="circleci.html">#<a href="index.html">#g' *.html
+cp -a "../out/." .
 
 # stage any changes and new files
 git add -A
