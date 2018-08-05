@@ -36,8 +36,8 @@ func newConfigCommand() *cobra.Command {
 		RunE:    validateConfig,
 		Args:    cobra.MaximumNArgs(1),
 	}
-	validateCommand.PersistentFlags().StringVarP(&configPath, "path", "p", ".circleci/config.yml", "path to build config")
-	err := validateCommand.PersistentFlags().MarkHidden("path")
+	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
+	err := validateCommand.PersistentFlags().MarkHidden("config")
 	if err != nil {
 		panic(err)
 	}
