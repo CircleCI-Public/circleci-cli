@@ -4,19 +4,34 @@ This project is the seed for CircleCI's new command-line application.
 
 ## Getting Started
 
-### 1. Get the latest binary
+### From Scratch
 
-Download the [latest release](https://github.com/CircleCI-Public/circleci-cli/releases/latest) from GitHub for your operating system. If you're on a Mac, this would be `circleci-cli_0.1.XXX_darwin_amd64.tar.gz`.
-
-### 2. Put the binary in your $PATH
+If you haven't already installed `circleci` on your machine, run the following command:
 
 ```
-$ tar -xvzf circleci-cli_0.1.XXX_darwin_amd64.tar.gz
-$ mv circleci /usr/local/bin
-$ circleci help
+curl -o /usr/local/bin/circleci \
+  https://raw.githubusercontent.com/zzak/local-cli/switch/circleci.sh && \
+  chmod +x /usr/local/bin/circleci
 ```
 
-### 3. Add a Token
+The CLI, `circleci`, is downloaded to the `/usr/local/bin` directory.
+
+If you do not have write permissions for `/usr/local/bin`, you might need to run the above commands with `sudo`.
+
+### Upgrade from existing CLI
+
+If you already have installed the `circleci` CLI previously, run the following commands:
+
+```
+circleci update
+circleci switch
+```
+
+This command may prompt you for `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`.
+
+
+## Configure the CLI
+
 You may first need to generate a CircleCI API Token from the [Personal API Token tab](https://circleci.com/account/api).
 
 ```
