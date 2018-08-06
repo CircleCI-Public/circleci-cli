@@ -13,10 +13,15 @@ import (
 
 var defaultEndpoint = "https://circleci.com/graphql-unstable"
 
+// rootCmd is used internally and global to the package but not exported
+// therefore we can use it in other commands, like `usage`
+// it should be set once when Execute is first called
+var rootCmd *cobra.Command
+
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
-// the RootCmd.
+// the rootCmd.
 func Execute() {
 	command := MakeCommands()
 	if err := command.Execute(); err != nil {
@@ -30,8 +35,7 @@ var Logger *logger.Logger
 
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
-
-	rootCmd := &cobra.Command{
+	rootCmd = &cobra.Command{
 		Use:   "circleci",
 		Short: "Use CircleCI from the command line.",
 		Long:  `Use CircleCI from the command line.`,
@@ -46,6 +50,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newSetupCommand())
 	rootCmd.AddCommand(newUpdateCommand())
 	rootCmd.AddCommand(newNamespaceCommand())
+	rootCmd.AddCommand(newUsageCommand())
 	rootCmd.PersistentFlags().BoolP("verbose", "v", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().StringP("endpoint", "e", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().StringP("token", "t", "", "your token for using CircleCI")

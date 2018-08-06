@@ -25,6 +25,16 @@ jobs:
           destination: coverage.txt
       - codecov/upload:
           path: coverage.txt
+  docs:
+    executor: go
+    steps:
+      - checkout
+      - run: sudo apt-get install pandoc
+      - run: go run main.go usage
+      - store_artifacts:
+          path: ./docs
+          destination: docs
+      - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
     docker:
@@ -55,8 +65,8 @@ jobs:
       - run:
           name: Tag Repo
           command: |
-            git config --global user.email "marc@circleci.com"
-            git config --global user.name "Marc O'Morain"
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
       - run:
@@ -93,6 +103,9 @@ workflows:
       - test
       - coverage
       - lint
+      - docs:
+          requires:
+            - deploy
       - deploy:
           requires:
             - test
