@@ -14,6 +14,24 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// These options are purely here to retain a mock of the structure of the flags used by `build`.
+// They don't reflect the entire structure or available flags, only those which are public in the original command.
+type proxyBuildArgs struct {
+	configFilename string
+	taskInfo       struct {
+		NodeTotal     int
+		NodeIndex     int
+		Job           string
+		SkipCheckout  bool
+		Volumes       []string
+		Revision      string
+		Branch        string
+		RepositoryURI string
+	}
+	checkoutKey string
+	envVarArgs  []string
+}
+
 func newBuildCommand() *cobra.Command {
 	buildCommand := &cobra.Command{
 		Use:                "build",
@@ -21,6 +39,24 @@ func newBuildCommand() *cobra.Command {
 		RunE:               runBuild,
 		DisableFlagParsing: true,
 	}
+
+	opts := proxyBuildArgs{}
+	flags := buildCommand.Flags()
+
+	flags.StringVarP(&opts.configFilename, "config", "c", defaultConfigPath, "config file")
+	flags.StringVar(&opts.taskInfo.Job, "job", "build", "job to be executed")
+	flags.IntVar(&opts.taskInfo.NodeTotal, "node-total", 1, "total number of parallel nodes")
+	flags.IntVar(&opts.taskInfo.NodeIndex, "index", 0, "node index of parallelism")
+
+	flags.BoolVar(&opts.taskInfo.SkipCheckout, "skip-checkout", true, "use local path as-is")
+	flags.StringSliceVarP(&opts.taskInfo.Volumes, "volume", "v", nil, "Volume bind-mounting")
+
+	flags.StringVar(&opts.checkoutKey, "checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
+	flags.StringVar(&opts.taskInfo.Revision, "revision", "", "Git Revision")
+	flags.StringVar(&opts.taskInfo.Branch, "branch", "", "Git branch")
+	flags.StringVar(&opts.taskInfo.RepositoryURI, "repo-url", "", "Git Url")
+
+	flags.StringArrayVarP(&opts.envVarArgs, "env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 
 	return buildCommand
 }
