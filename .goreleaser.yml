@@ -18,7 +18,6 @@ snapcraft:
   confinement: strict
   apps:
     circleci:
-      command: circleci
       plugs: [docker]
 
 builds:
