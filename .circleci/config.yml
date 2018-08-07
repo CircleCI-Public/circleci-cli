@@ -34,6 +34,7 @@ jobs:
       - store_artifacts:
           path: ./docs
           destination: docs
+      - run: ./.circleci/generate-docs.sh
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
