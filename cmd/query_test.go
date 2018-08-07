@@ -32,8 +32,8 @@ var _ = Describe("Query", func() {
 
 		token = "mytoken"
 		command = exec.Command(pathCLI, "query", "-",
-			"-t", token,
-			"-e", server.URL(),
+			"--token", token,
+			"--endpoint", server.URL(),
 		)
 		command.Stdin = &stdin
 		command.Env = append(os.Environ(),
