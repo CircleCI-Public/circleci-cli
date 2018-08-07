@@ -10,6 +10,14 @@
   version = "v3.5.1"
 
 [[projects]]
+  digest = "1:5702fe0fef33e81d351e37d3cfb9e88fe16bc68c821d973c439c63112899384b"
+  name = "github.com/bmatcuk/doublestar"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "b3608229437ba4dc33dae64d56a79a2a73f1f6b2"
+  version = "v1.0.9"
+
+[[projects]]
   branch = "master"
   digest = "1:454adc7f974228ff789428b6dc098638c57a64aa0718f0bd61e53d3cd39d7a75"
   name = "github.com/chzyer/readline"
@@ -416,6 +424,7 @@
   analyzer-version = 1
   input-imports = [
     "github.com/blang/semver",
+    "github.com/bmatcuk/doublestar",
     "github.com/machinebox/graphql",
     "github.com/manifoldco/promptui",
     "github.com/mitchellh/mapstructure",
