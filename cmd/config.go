@@ -12,6 +12,10 @@ import (
 
 const defaultConfigPath = ".circleci/config.yml"
 
+// Path to the config.yml file to operate on.
+// Used to for compatibility with `circleci config validate --path`
+var configPath string
+
 func newConfigCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -19,25 +23,30 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	collapseCommand := &cobra.Command{
-		Use:   "collapse [path]",
+		Use:   "collapse PATH",
 		Short: "Collapse your CircleCI configuration to a single file",
 		RunE:  collapseConfig,
 		Args:  cobra.MaximumNArgs(1),
 	}
 
 	validateCommand := &cobra.Command{
-		Use:     "validate [config.yml]",
+		Use:     "validate PATH (use \"-\" for STDIN)",
 		Aliases: []string{"check"},
 		Short:   "Check that the config file is well formed.",
 		RunE:    validateConfig,
 		Args:    cobra.MaximumNArgs(1),
 	}
+	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
+	err := validateCommand.PersistentFlags().MarkHidden("config")
+	if err != nil {
+		panic(err)
+	}
 
 	expandCommand := &cobra.Command{
-		Use:   "expand [config.yml]",
+		Use:   "expand PATH (use \"-\" for STDIN)",
 		Short: "Expand the config.",
 		RunE:  expandConfig,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 	}
 
 	configCmd.AddCommand(collapseCommand)
@@ -47,13 +56,21 @@ func newConfigCommand() *cobra.Command {
 	return configCmd
 }
 
+// The PATH arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(cmd *cobra.Command, args []string) error {
-	configPath := defaultConfigPath
-	if len(args) == 1 {
-		configPath = args[0]
+	path := defaultConfigPath
+	// First, set the path to configPath set by --path flag for compatibility
+	if configPath != "" {
+		path = configPath
 	}
+
+	// Then, if an arg is passed in, choose that instead
+	if len(args) == 1 {
+		path = args[0]
+	}
+
 	ctx := context.Background()
-	response, err := api.ConfigQuery(ctx, Logger, configPath)
+	response, err := api.ConfigQuery(ctx, Logger, path)
 
 	if err != nil {
 		return err
@@ -63,17 +80,13 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Config file at %s is valid", configPath)
+	Logger.Infof("Config file at %s is valid", path)
 	return nil
 }
 
 func expandConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	configPath := defaultConfigPath
-	if len(args) == 1 {
-		configPath = args[0]
-	}
-	response, err := api.ConfigQuery(ctx, Logger, configPath)
+	response, err := api.ConfigQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
@@ -88,11 +101,7 @@ func expandConfig(cmd *cobra.Command, args []string) error {
 }
 
 func collapseConfig(cmd *cobra.Command, args []string) error {
-	root := "."
-	if len(args) > 0 {
-		root = args[0]
-	}
-	tree, err := filetree.NewTree(root)
+	tree, err := filetree.NewTree(args[0])
 	if err != nil {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
 	}

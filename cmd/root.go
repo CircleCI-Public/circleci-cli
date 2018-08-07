@@ -33,6 +33,35 @@ func Execute() {
 // This allows us to print to the log at anytime from within the `cmd` package.
 var Logger *logger.Logger
 
+func hasAnnotations(cmd *cobra.Command) bool {
+	return len(cmd.Annotations) > 0
+}
+
+var usageTemplate = `
+Usage:{{if .Runnable}}
+  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
+  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
+Aliases:
+  {{.NameAndAliases}}{{end}}{{if .HasExample}}
+
+Examples:
+{{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+
+Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if (HasAnnotations .)}}
+
+Args:{{range $arg, $desc := .Annotations}}
+  {{rpad $arg 11}} {{$desc}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+Flags:
+{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
+
+Global Flags:
+{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
+Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}`
+
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
 	rootCmd = &cobra.Command{
@@ -40,6 +69,10 @@ func MakeCommands() *cobra.Command {
 		Short: "Use CircleCI from the command line.",
 		Long:  `Use CircleCI from the command line.`,
 	}
+
+	// For supporting "Args" in command usage help
+	cobra.AddTemplateFunc("HasAnnotations", hasAnnotations)
+	rootCmd.SetUsageTemplate(usageTemplate)
 
 	rootCmd.AddCommand(newQueryCommand())
 	rootCmd.AddCommand(newConfigCommand())

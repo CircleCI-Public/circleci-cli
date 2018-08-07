@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -16,8 +15,6 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var orbVersion string
-
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
@@ -27,43 +24,43 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:   "validate [orb.yml]",
+		Use:   "validate PATH (use \"-\" for STDIN)",
 		Short: "validate an orb.yml",
 		RunE:  validateOrb,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 	}
 
 	expandCommand := &cobra.Command{
-		Use:   "expand [orb.yml]",
+		Use:   "expand PATH (use \"-\" for STDIN)",
 		Short: "expand an orb.yml",
 		RunE:  expandOrb,
-		Args:  cobra.MaximumNArgs(1),
+		Args:  cobra.ExactArgs(1),
 	}
 
 	publishCommand := &cobra.Command{
-		Use:   "publish <namespace>/<orb> <orb.yml>",
+		Use:   "publish",
 		Short: "publish a version of an orb",
-		RunE:  publishOrb,
+	}
+
+	publishCommand.AddCommand(&cobra.Command{
+		Use:   "release PATH NAMESPACE ORB SEMVER",
+		Short: "release a semantic version of an orb",
+		RunE:  releaseOrb,
+		Args:  cobra.ExactArgs(4),
+	})
+
+	sourceCommand := &cobra.Command{
+		Use:   "source NAMESPACE ORB",
+		Short: "Show the source of an orb",
+		RunE:  showSource,
 		Args:  cobra.ExactArgs(2),
 	}
 
-	publishCommand.Flags().StringVarP(&orbVersion, "orb-version", "o", "", "version of orb to publish (required)")
-	if err := publishCommand.MarkFlagRequired("orb-version"); err != nil {
-		panic(err)
-	}
-
-	sourceCommand := &cobra.Command{
-		Use:   "source <namespace>/<name>",
-		Short: "Show the source of an orb",
-		RunE:  showSource,
-		Args:  cobra.ExactArgs(1),
-	}
-
 	orbCreate := &cobra.Command{
-		Use:   "create <namespace>/<name>",
+		Use:   "create NAMESPACE ORB",
 		Short: "create an orb",
 		RunE:  createOrb,
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.ExactArgs(2),
 	}
 
 	orbCommand := &cobra.Command{
@@ -216,15 +213,10 @@ query ListOrbs ($after: String!) {
 	return nil
 }
 
-const defaultOrbPath = "orb.yml"
-
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	orbPath := defaultOrbPath
-	if len(args) == 1 {
-		orbPath = args[0]
-	}
-	response, err := api.OrbQuery(ctx, Logger, orbPath)
+
+	response, err := api.OrbQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
@@ -234,17 +226,13 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb at %s is valid", orbPath)
+	Logger.Infof("Orb at %s is valid", args[0])
 	return nil
 }
 
 func expandOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	orbPath := defaultOrbPath
-	if len(args) == 1 {
-		orbPath = args[0]
-	}
-	response, err := api.OrbQuery(ctx, Logger, orbPath)
+	response, err := api.OrbQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
@@ -258,10 +246,9 @@ func expandOrb(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func publishOrb(cmd *cobra.Command, args []string) error {
+func releaseOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-
-	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], orbVersion)
+	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], args[2], args[3])
 
 	if err != nil {
 		return err
@@ -279,13 +266,7 @@ func createOrb(cmd *cobra.Command, args []string) error {
 	var err error
 	ctx := context.Background()
 
-	arr := strings.Split(args[0], "/")
-
-	if len(arr) != 2 {
-		return fmt.Errorf("Invalid orb name: %s", args[0])
-	}
-
-	response, err := api.CreateOrb(ctx, Logger, arr[1], arr[0])
+	response, err := api.CreateOrb(ctx, Logger, args[0], args[1])
 
 	if err != nil {
 		return err
@@ -300,10 +281,9 @@ func createOrb(cmd *cobra.Command, args []string) error {
 }
 
 func showSource(cmd *cobra.Command, args []string) error {
-	orb := args[0]
-	source, err := api.OrbSource(context.Background(), Logger, orb)
+	source, err := api.OrbSource(context.Background(), Logger, args[0], args[1])
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s'", orb)
+		return errors.Wrapf(err, "Failed to get source for '%s' in %s", args[1], args[0])
 	}
 	Logger.Info(source)
 	return nil

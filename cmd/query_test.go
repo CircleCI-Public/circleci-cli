@@ -31,7 +31,7 @@ var _ = Describe("Query", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		token = "mytoken"
-		command = exec.Command(pathCLI, "query",
+		command = exec.Command(pathCLI, "query", "-",
 			"-t", token,
 			"-e", server.URL(),
 		)
