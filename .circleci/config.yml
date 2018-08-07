@@ -127,9 +127,9 @@ workflows:
       - docs:
           requires:
             - deploy
-      - snap:
-          requires:
-            - deploy
+      #- snap:
+      #    requires:
+      #      - deploy
       - deploy:
           requires:
             - test
