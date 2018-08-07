@@ -325,7 +325,7 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when releasing an semantic version", func() {
+		Describe("when releasing a semantic version", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "publish", "release",
