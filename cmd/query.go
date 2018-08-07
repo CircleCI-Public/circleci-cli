@@ -21,6 +21,7 @@ func newQueryCommand() *cobra.Command {
 
 func query(cmd *cobra.Command, args []string) error {
 	var err error
+	// This local is named "q" to avoid confusion with the function name.
 	var q []byte
 	c := client.NewClient(viper.GetString("endpoint"), Logger)
 
