@@ -83,6 +83,27 @@ jobs:
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "dist"
+      - store_artifacts:
+          path: ./dist
+          destination: dist
+  snap:
+    docker:
+      - image: cibuilds/snapcraft:stable
+    steps:
+      - checkout
+      - attach_workspace:
+          at: dist
+      - run: snapcraft
+      - run:
+          name: Publish to store
+          command: |
+            mkdir .snapcraft
+            echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
+            snapcraft push dist/*.snap --release stable
   shellcheck:
     docker:
       - image: nlknguyen/alpine-shellcheck:v0.4.6
@@ -104,6 +125,9 @@ workflows:
       - coverage
       - lint
       - docs:
+          requires:
+            - deploy
+      - snap:
           requires:
             - deploy
       - deploy:
