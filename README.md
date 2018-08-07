@@ -4,20 +4,6 @@ This project is the seed for CircleCI's new command-line application.
 
 ## Getting Started
 
-### From Scratch
-
-If you haven't already installed `circleci` on your machine, run the following command:
-
-```
-curl -o /usr/local/bin/circleci \
-  https://raw.githubusercontent.com/zzak/local-cli/switch/circleci.sh && \
-  chmod +x /usr/local/bin/circleci
-```
-
-The CLI, `circleci`, is downloaded to the `/usr/local/bin` directory.
-
-If you do not have write permissions for `/usr/local/bin`, you might need to run the above commands with `sudo`.
-
 ### Upgrade from existing CLI
 
 If you already have installed the `circleci` CLI previously, run the following commands:
@@ -29,6 +15,18 @@ circleci switch
 
 This command may prompt you for `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`.
 
+### From Scratch
+
+If you haven't already installed `circleci` on your machine, run the following command:
+
+```
+curl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh \
+	--fail --show-error | bash
+```
+
+The CLI, `circleci`, is downloaded to the `/usr/local/bin` directory.
+
+If you do not have write permissions for `/usr/local/bin`, you might need to run the above commands with `sudo`.
 
 ## Configure the CLI
 
