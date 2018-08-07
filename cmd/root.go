@@ -74,6 +74,7 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("HasAnnotations", hasAnnotations)
 	rootCmd.SetUsageTemplate(usageTemplate)
 
+	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newQueryCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newOrbCommand())
