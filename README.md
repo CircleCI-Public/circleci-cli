@@ -33,7 +33,7 @@ If you do not have write permissions for `/usr/local/bin`, you might need to run
 You may first need to generate a CircleCI API Token from the [Personal API Token tab](https://circleci.com/account/api).
 
 ```
-$ circleci configure
+$ circleci setup
 ```
 
 If you are using this tool on `.com`. accept the provided default `CircleCI API End Point`. If you are using it on Server, change the value to your Server address (i.e. `circleci.my-org.com`).
