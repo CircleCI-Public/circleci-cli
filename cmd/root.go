@@ -85,6 +85,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newUpdateCommand())
 	rootCmd.AddCommand(newNamespaceCommand())
 	rootCmd.AddCommand(newUsageCommand())
+	rootCmd.AddCommand(newStepCommand())
 	rootCmd.PersistentFlags().Bool("verbose", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().String("token", "", "your token for using CircleCI")

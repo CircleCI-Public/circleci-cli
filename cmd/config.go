@@ -5,6 +5,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
@@ -49,9 +50,19 @@ func newConfigCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 
+	migrateCommand := &cobra.Command{
+		Use:    "migrate",
+		Short:  "migrate configuration file to new format",
+		RunE:   migrateConfig,
+		Hidden: true,
+	}
+	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
+	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
+
 	configCmd.AddCommand(collapseCommand)
 	configCmd.AddCommand(validateCommand)
 	configCmd.AddCommand(expandCommand)
+	configCmd.AddCommand(migrateCommand)
 
 	return configCmd
 }
@@ -112,4 +123,8 @@ func collapseConfig(cmd *cobra.Command, args []string) error {
 	}
 	Logger.Infof("%s\n", string(y))
 	return nil
+}
+
+func migrateConfig(cmd *cobra.Command, args []string) error {
+	return proxy.Exec("config migrate", args)
 }
