@@ -7,16 +7,18 @@ import (
 
 func newStepCommand() *cobra.Command {
 	stepCmd := &cobra.Command{
-		Use:    "step",
-		Short:  "Execute steps",
-		Hidden: true,
+		Use:                "step",
+		Short:              "Execute steps",
+		Hidden:             true,
+		DisableFlagParsing: true,
 	}
 
 	haltCmd := &cobra.Command{
-		Use:    "halt",
-		Short:  "halt current task and treat as a successful",
-		RunE:   haltRunE,
-		Hidden: true,
+		Use:                "halt",
+		Short:              "Halt the current job and treat it as successful",
+		RunE:               haltRunE,
+		Hidden:             true,
+		DisableFlagParsing: true,
 	}
 
 	stepCmd.AddCommand(haltCmd)
@@ -25,5 +27,5 @@ func newStepCommand() *cobra.Command {
 }
 
 func haltRunE(cmd *cobra.Command, args []string) error {
-	return proxy.Exec("step halt", args)
+	return proxy.Exec([]string{"step", "halt"}, args)
 }

@@ -51,11 +51,13 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	migrateCommand := &cobra.Command{
-		Use:    "migrate",
-		Short:  "migrate configuration file to new format",
-		RunE:   migrateConfig,
-		Hidden: true,
+		Use:                "migrate",
+		Short:              "migrate a pre-release 2.0 config to the official release version",
+		RunE:               migrateConfig,
+		Hidden:             true,
+		DisableFlagParsing: true,
 	}
+	// These flags are for documentation and not actually parsed
 	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
 	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
 
@@ -126,5 +128,5 @@ func collapseConfig(cmd *cobra.Command, args []string) error {
 }
 
 func migrateConfig(cmd *cobra.Command, args []string) error {
-	return proxy.Exec("config migrate", args)
+	return proxy.Exec([]string{"config", "migrate"}, args)
 }

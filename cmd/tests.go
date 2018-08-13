@@ -71,5 +71,5 @@ func globRun(cmd *cobra.Command, args []string) {
 }
 
 func splitRunE(cmd *cobra.Command, args []string) error {
-	return proxy.Exec("tests split", args)
+	return proxy.Exec([]string{"tests", "split"}, args)
 }

@@ -8,12 +8,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-func Exec(command string, args []string) error {
+// Exec will invoke the given command and proxy any arguments for backwards compatibility.
+func Exec(command []string, args []string) error {
 	agent, err := exec.LookPath("picard")
 	if err != nil {
 		return errors.Wrap(err, "Could not find `picard` executable on $PATH; please ensure that build-agent is installed")
 	}
 
-	err = syscall.Exec(agent, args, os.Environ()) // #nosec
-	return errors.Wrap(err, "failed to execute picard command")
+	arguments := append([]string{agent}, command...)
+	arguments = append(arguments, args...)
+
+	err = syscall.Exec(agent, arguments, os.Environ()) // #nosec
+	return errors.Wrapf(err, "failed to proxy command %s, expected this to be called inside a job", command)
 }
