@@ -10,7 +10,7 @@ import (
 
 // Exec will invoke the given command and proxy any arguments for backwards compatibility.
 func Exec(command []string, args []string) error {
-	agent, err := exec.LookPath("picard")
+	agent, err := exec.LookPath("circleci-agent")
 	if err != nil {
 		return errors.Wrap(err, "Could not find `picard` executable on $PATH; please ensure that build-agent is installed")
 	}
