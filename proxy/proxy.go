@@ -12,7 +12,7 @@ import (
 func Exec(command []string, args []string) error {
 	agent, err := exec.LookPath("circleci-agent")
 	if err != nil {
-		return errors.Wrap(err, "Could not find `picard` executable on $PATH; please ensure that build-agent is installed")
+		return errors.Wrap(err, "Please ensure that circleci-agent is installed, expected this to be called inside a job")
 	}
 
 	arguments := append([]string{agent}, command...)
