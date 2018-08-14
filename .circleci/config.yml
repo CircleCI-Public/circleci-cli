@@ -98,7 +98,7 @@ jobs:
     steps:
       - checkout
       - attach_workspace:
-          at: dist
+          at: .
       - run: |
           export TAG=$(./dist/linux_amd64/circleci version)
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snapcraft.yaml
