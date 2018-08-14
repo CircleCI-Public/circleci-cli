@@ -103,9 +103,6 @@ jobs:
           export TAG=$(./dist/linux_amd64/circleci version)
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snapcraft.yaml
       - run: snapcraft
-      - store_artifacts:
-          path: .
-          destination: snap
       - run:
           name: Publish to store
           command: |
