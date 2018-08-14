@@ -1,0 +1,17 @@
+name: circleci
+version: "%CLI_VERSION_PLACEHOLDER%"
+summary: "Run local CI builds and validate configuration."
+description: |
+  The CircleCI Local CLI allows you to run builds on your local machine as if they were running within CircleCI. This allows quick interation over small changes and easier debugging of issues. The Local CLI can also validate your CircleCI configuration file.
+grade: stable
+confinement: strict
+parts:
+  circleci:
+    plugin: nil
+    install: |
+      cp dist/linux_amd64/circleci $SNAPCRAFT_PART_INSTALL
+    stage-packages: [docker.io]
+apps:
+  circleci:
+    plugs: [docker]
+    command: circleci
