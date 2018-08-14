@@ -37,7 +37,7 @@ func newConfigCommand() *cobra.Command {
 		RunE:    validateConfig,
 		Args:    cobra.MaximumNArgs(1),
 	}
-	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
+	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	err := validateCommand.PersistentFlags().MarkHidden("config")
 	if err != nil {
 		panic(err)
@@ -58,7 +58,7 @@ func newConfigCommand() *cobra.Command {
 		DisableFlagParsing: true,
 	}
 	// These flags are for documentation and not actually parsed
-	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
+	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file")
 	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
 
 	configCmd.AddCommand(collapseCommand)
