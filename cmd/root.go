@@ -78,6 +78,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newQueryCommand())
 	rootCmd.AddCommand(newConfigCommand())
 	rootCmd.AddCommand(newOrbCommand())
+	rootCmd.AddCommand(newLocalCommand())
 	rootCmd.AddCommand(newBuildCommand())
 	rootCmd.AddCommand(newVersionCommand())
 	rootCmd.AddCommand(newDiagnosticCommand())

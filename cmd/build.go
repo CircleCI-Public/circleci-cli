@@ -32,11 +32,11 @@ type proxyBuildArgs struct {
 	envVarArgs  []string
 }
 
-func newBuildCommand() *cobra.Command {
+func newLocalExecuteCommand() *cobra.Command {
 	buildCommand := &cobra.Command{
-		Use:                "build",
-		Short:              "Run a build",
-		RunE:               runBuild,
+		Use:                "execute",
+		Short:              "Run a job in a container on the local machine",
+		RunE:               runExecute,
 		DisableFlagParsing: true,
 	}
 
@@ -59,6 +59,22 @@ func newBuildCommand() *cobra.Command {
 	flags.StringArrayVarP(&opts.envVarArgs, "env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 
 	return buildCommand
+}
+
+func newBuildCommand() *cobra.Command {
+	cmd := newLocalExecuteCommand()
+	cmd.Hidden = true
+	cmd.Use = "build"
+	return cmd
+}
+
+func newLocalCommand() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "local",
+		Short: "Debug jobs on the local machine",
+	}
+	cmd.AddCommand(newLocalExecuteCommand())
+	return cmd
 }
 
 func circleCiDir() string {
@@ -138,7 +154,7 @@ func picardImage() (string, error) {
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
-func runBuild(cmd *cobra.Command, args []string) error {
+func runExecute(cmd *cobra.Command, args []string) error {
 
 	pwd, err := os.Getwd()
 
