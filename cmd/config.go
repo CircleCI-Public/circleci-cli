@@ -5,6 +5,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	yaml "gopkg.in/yaml.v2"
@@ -36,7 +37,7 @@ func newConfigCommand() *cobra.Command {
 		RunE:    validateConfig,
 		Args:    cobra.MaximumNArgs(1),
 	}
-	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file (default \".circleci/config.yml\")")
+	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	err := validateCommand.PersistentFlags().MarkHidden("config")
 	if err != nil {
 		panic(err)
@@ -49,9 +50,21 @@ func newConfigCommand() *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 	}
 
+	migrateCommand := &cobra.Command{
+		Use:                "migrate",
+		Short:              "migrate a pre-release 2.0 config to the official release version",
+		RunE:               migrateConfig,
+		Hidden:             true,
+		DisableFlagParsing: true,
+	}
+	// These flags are for documentation and not actually parsed
+	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file")
+	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
+
 	configCmd.AddCommand(collapseCommand)
 	configCmd.AddCommand(validateCommand)
 	configCmd.AddCommand(expandCommand)
+	configCmd.AddCommand(migrateCommand)
 
 	return configCmd
 }
@@ -112,4 +125,8 @@ func collapseConfig(cmd *cobra.Command, args []string) error {
 	}
 	Logger.Infof("%s\n", string(y))
 	return nil
+}
+
+func migrateConfig(cmd *cobra.Command, args []string) error {
+	return proxy.Exec([]string{"config", "migrate"}, args)
 }
