@@ -51,18 +51,10 @@ jobs:
       - run: gometalinter ./...
 
   deploy:
-    executor: go
-    environment:
-      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
+    docker:
+      - image: goreleaser/goreleaser:latest
     steps:
       - checkout
-      - restore_cache:
-          keys: [v2-goreleaser-]
-      - run:
-          name: Install GoReleaser
-          command: |
-            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
-            sudo apt install ~/goreleaser_amd64.deb
       - run:
           name: Tag Repo
           command: |
@@ -81,9 +73,6 @@ jobs:
             docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
-      - save_cache:
-          key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
-          paths: [~/goreleaser_amd64.deb]
       - persist_to_workspace:
           root: .
           paths:
@@ -91,6 +80,7 @@ jobs:
       - store_artifacts:
           path: ./dist
           destination: dist
+
   snap:
     docker:
       - image: cibuilds/snapcraft:stable
@@ -98,13 +88,20 @@ jobs:
       - checkout
       - attach_workspace:
           at: dist
+      - run: |
+          export TAG=$(./dist/linux_amd64/circleci version)
+          sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snapcraft.yaml
       - run: snapcraft
+      - store_artifacts:
+          path: .
+          destination: snap
       - run:
           name: Publish to store
           command: |
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push dist/*.snap --release stable
+
   shellcheck:
     docker:
       - image: nlknguyen/alpine-shellcheck:v0.4.6
@@ -128,9 +125,9 @@ workflows:
       - docs:
           requires:
             - deploy
-      #- snap:
-      #    requires:
-      #      - deploy
+      - snap:
+          requires:
+            - deploy
       - deploy:
           requires:
             - test
