@@ -39,15 +39,12 @@ jobs:
 
   lint:
     docker:
-      # TODO: use this image once it updates latest gometalinter
-      #- image: supinf/gometalinter:latest
-      - image: circleci/golang:1.10
+      - image: supinf/gometalinter:latest
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     environment:
       CGO_ENABLED: 0
     steps:
       - checkout
-      - run: make dev
       - run: gometalinter ./...
 
   deploy:
