@@ -51,10 +51,18 @@ jobs:
       - run: gometalinter ./...
 
   deploy:
-    docker:
-      - image: goreleaser/goreleaser:latest
+    executor: go
+    environment:
+      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
     steps:
       - checkout
+      - restore_cache:
+          keys: [v2-goreleaser-]
+      - run:
+          name: Install GoReleaser
+          command: |
+            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
+            sudo apt install ~/goreleaser_amd64.deb
       - run:
           name: Tag Repo
           command: |
@@ -73,6 +81,9 @@ jobs:
             docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+      - save_cache:
+          key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          paths: [~/goreleaser_amd64.deb]
       - persist_to_workspace:
           root: .
           paths:
