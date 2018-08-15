@@ -23,32 +23,36 @@ func newConfigCommand() *cobra.Command {
 		Short: "Operate on build config files",
 	}
 
-	collapseCommand := &cobra.Command{
-		Use:   "collapse PATH",
-		Short: "Collapse your CircleCI configuration to a single file",
-		RunE:  collapseConfig,
+	packCommand := &cobra.Command{
+		Use:   "pack PATH",
+		Short: "Pack up your CircleCI configuration into a single file.",
+		RunE:  packConfig,
 		Args:  cobra.MaximumNArgs(1),
 	}
 
 	validateCommand := &cobra.Command{
-		Use:     "validate PATH (use \"-\" for STDIN)",
-		Aliases: []string{"check"},
-		Short:   "Check that the config file is well formed.",
-		RunE:    validateConfig,
-		Args:    cobra.MaximumNArgs(1),
+		Use:         "validate PATH",
+		Aliases:     []string{"check"},
+		Short:       "Check that the config file is well formed.",
+		RunE:        validateConfig,
+		Args:        cobra.MaximumNArgs(1),
+		Annotations: make(map[string]string),
 	}
+	validateCommand.Annotations["PATH"] = "The path to your config (use \"-\" for STDIN)"
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	err := validateCommand.PersistentFlags().MarkHidden("config")
 	if err != nil {
 		panic(err)
 	}
 
-	expandCommand := &cobra.Command{
-		Use:   "expand PATH (use \"-\" for STDIN)",
-		Short: "Expand the config.",
-		RunE:  expandConfig,
-		Args:  cobra.ExactArgs(1),
+	processCommand := &cobra.Command{
+		Use:         "process PATH",
+		Short:       "Process the config.",
+		RunE:        processConfig,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
 	}
+	processCommand.Annotations["PATH"] = "The path to your config (use \"-\" for STDIN)"
 
 	migrateCommand := &cobra.Command{
 		Use:                "migrate",
@@ -61,9 +65,9 @@ func newConfigCommand() *cobra.Command {
 	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file")
 	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
 
-	configCmd.AddCommand(collapseCommand)
+	configCmd.AddCommand(packCommand)
 	configCmd.AddCommand(validateCommand)
-	configCmd.AddCommand(expandCommand)
+	configCmd.AddCommand(processCommand)
 	configCmd.AddCommand(migrateCommand)
 
 	return configCmd
@@ -97,7 +101,7 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func expandConfig(cmd *cobra.Command, args []string) error {
+func processConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	response, err := api.ConfigQuery(ctx, Logger, args[0])
 
@@ -113,7 +117,7 @@ func expandConfig(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func collapseConfig(cmd *cobra.Command, args []string) error {
+func packConfig(cmd *cobra.Command, args []string) error {
 	tree, err := filetree.NewTree(args[0])
 	if err != nil {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
