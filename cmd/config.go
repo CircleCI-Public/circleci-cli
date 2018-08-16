@@ -31,7 +31,7 @@ func newConfigCommand() *cobra.Command {
 		Use:         "pack PATH",
 		Short:       "Pack up your CircleCI configuration into a single file.",
 		RunE:        packConfig,
-		Args:        cobra.MaximumNArgs(1),
+		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
 	packCommand.Annotations["PATH"] = configAnnotations["PATH"]
