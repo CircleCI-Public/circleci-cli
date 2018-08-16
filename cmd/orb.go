@@ -15,6 +15,12 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+var annotations = map[string]string{
+	"PATH":      "The path to your orb (use \"-\" for STDIN)",
+	"NAMESPACE": "The namespace used for the orb (i.e. circleci)",
+	"ORB":       "The name of your orb (i.e. rails)",
+}
+
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
@@ -24,44 +30,60 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:   "validate PATH (use \"-\" for STDIN)",
-		Short: "validate an orb.yml",
-		RunE:  validateOrb,
-		Args:  cobra.ExactArgs(1),
+		Use:         "validate PATH",
+		Short:       "validate an orb.yml",
+		RunE:        validateOrb,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
 	}
+	validateCommand.Annotations["PATH"] = annotations["PATH"]
 
 	expandCommand := &cobra.Command{
-		Use:   "expand PATH (use \"-\" for STDIN)",
-		Short: "expand an orb.yml",
-		RunE:  expandOrb,
-		Args:  cobra.ExactArgs(1),
+		Use:         "expand PATH",
+		Short:       "expand an orb.yml",
+		RunE:        expandOrb,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
 	}
+	expandCommand.Annotations["PATH"] = annotations["PATH"]
 
 	publishCommand := &cobra.Command{
 		Use:   "publish",
 		Short: "publish a version of an orb",
 	}
 
-	publishCommand.AddCommand(&cobra.Command{
-		Use:   "release PATH NAMESPACE ORB SEMVER",
-		Short: "release a semantic version of an orb",
-		RunE:  releaseOrb,
-		Args:  cobra.ExactArgs(4),
-	})
+	releaseCommand := &cobra.Command{
+		Use:         "release PATH NAMESPACE ORB SEMVER",
+		Short:       "release a semantic version of an orb",
+		RunE:        releaseOrb,
+		Args:        cobra.ExactArgs(4),
+		Annotations: make(map[string]string),
+	}
+	releaseCommand.Annotations["PATH"] = annotations["PATH"]
+	releaseCommand.Annotations["NAMESPACE"] = annotations["NAMESPACE"]
+	releaseCommand.Annotations["ORB"] = annotations["ORB"]
+	releaseCommand.Annotations["SEMVER"] = "The semantic version used for this release (i.e. 0.3.6)"
+	publishCommand.AddCommand(releaseCommand)
 
 	sourceCommand := &cobra.Command{
-		Use:   "source NAMESPACE ORB",
-		Short: "Show the source of an orb",
-		RunE:  showSource,
-		Args:  cobra.ExactArgs(2),
+		Use:         "source NAMESPACE ORB",
+		Short:       "Show the source of an orb",
+		RunE:        showSource,
+		Args:        cobra.ExactArgs(2),
+		Annotations: make(map[string]string),
 	}
+	sourceCommand.Annotations["NAMESPACE"] = annotations["NAMESPACE"]
+	sourceCommand.Annotations["ORB"] = annotations["ORB"]
 
 	orbCreate := &cobra.Command{
-		Use:   "create NAMESPACE ORB",
-		Short: "create an orb",
-		RunE:  createOrb,
-		Args:  cobra.ExactArgs(2),
+		Use:         "create NAMESPACE ORB",
+		Short:       "create an orb",
+		RunE:        createOrb,
+		Args:        cobra.ExactArgs(2),
+		Annotations: make(map[string]string),
 	}
+	orbCreate.Annotations["NAMESPACE"] = annotations["NAMESPACE"]
+	orbCreate.Annotations["ORB"] = annotations["ORB"]
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",

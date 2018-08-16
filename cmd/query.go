@@ -11,12 +11,16 @@ import (
 )
 
 func newQueryCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "query PATH (use \"-\" for STDIN)",
-		Short: "Query the CircleCI GraphQL API.",
-		RunE:  query,
-		Args:  cobra.ExactArgs(1),
+	queryCommand := &cobra.Command{
+		Use:         "query PATH",
+		Short:       "Query the CircleCI GraphQL API.",
+		RunE:        query,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
 	}
+	queryCommand.Annotations["PATH"] = "The path to your query (use \"-\" for STDIN)"
+
+	return queryCommand
 }
 
 func query(cmd *cobra.Command, args []string) error {

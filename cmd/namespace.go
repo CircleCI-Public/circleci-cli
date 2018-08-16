@@ -22,11 +22,9 @@ func newNamespaceCommand() *cobra.Command {
 		Annotations: make(map[string]string),
 	}
 
+	createCmd.Annotations["NAME"] = "The name to give your new namespace"
 	createCmd.Annotations["VCS-TYPE"] = `Your VCS provider, can be either "github" or "bitbucket"`
 	createCmd.Annotations["ORG-NAME"] = `The name used for your organization`
-
-	// "org-name", "", "organization name (required)"
-	// "vcs", "github", "organization vcs, e.g. 'github', 'bitbucket'"
 
 	namespaceCmd.AddCommand(createCmd)
 
