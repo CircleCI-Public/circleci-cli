@@ -15,7 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
-var annotations = map[string]string{
+var orbAnnotations = map[string]string{
 	"PATH":      "The path to your orb (use \"-\" for STDIN)",
 	"NAMESPACE": "The namespace used for the orb (i.e. circleci)",
 	"ORB":       "The name of your orb (i.e. rails)",
@@ -36,7 +36,7 @@ func newOrbCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	validateCommand.Annotations["PATH"] = annotations["PATH"]
+	validateCommand.Annotations["PATH"] = orbAnnotations["PATH"]
 
 	processCommand := &cobra.Command{
 		Use:         "process PATH",
@@ -45,7 +45,7 @@ func newOrbCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	processCommand.Annotations["PATH"] = annotations["PATH"]
+	processCommand.Annotations["PATH"] = orbAnnotations["PATH"]
 
 	publishCommand := &cobra.Command{
 		Use:   "publish",
@@ -59,9 +59,9 @@ func newOrbCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(4),
 		Annotations: make(map[string]string),
 	}
-	releaseCommand.Annotations["PATH"] = annotations["PATH"]
-	releaseCommand.Annotations["NAMESPACE"] = annotations["NAMESPACE"]
-	releaseCommand.Annotations["ORB"] = annotations["ORB"]
+	releaseCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	releaseCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
+	releaseCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 	releaseCommand.Annotations["SEMVER"] = "The semantic version used for this release (i.e. 0.3.6)"
 	publishCommand.AddCommand(releaseCommand)
 
@@ -72,8 +72,8 @@ func newOrbCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
 	}
-	sourceCommand.Annotations["NAMESPACE"] = annotations["NAMESPACE"]
-	sourceCommand.Annotations["ORB"] = annotations["ORB"]
+	sourceCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
+	sourceCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 
 	orbCreate := &cobra.Command{
 		Use:         "create NAMESPACE ORB",
@@ -82,8 +82,8 @@ func newOrbCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
 	}
-	orbCreate.Annotations["NAMESPACE"] = annotations["NAMESPACE"]
-	orbCreate.Annotations["ORB"] = annotations["ORB"]
+	orbCreate.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
+	orbCreate.Annotations["ORB"] = orbAnnotations["ORB"]
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
