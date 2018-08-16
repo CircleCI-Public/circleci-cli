@@ -38,14 +38,14 @@ func newOrbCommand() *cobra.Command {
 	}
 	validateCommand.Annotations["PATH"] = annotations["PATH"]
 
-	expandCommand := &cobra.Command{
-		Use:         "expand PATH",
-		Short:       "expand an orb.yml",
-		RunE:        expandOrb,
+	processCommand := &cobra.Command{
+		Use:         "process PATH",
+		Short:       "process an orb",
+		RunE:        processOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	expandCommand.Annotations["PATH"] = annotations["PATH"]
+	processCommand.Annotations["PATH"] = annotations["PATH"]
 
 	publishCommand := &cobra.Command{
 		Use:   "publish",
@@ -93,7 +93,7 @@ func newOrbCommand() *cobra.Command {
 	orbCommand.AddCommand(listCommand)
 	orbCommand.AddCommand(orbCreate)
 	orbCommand.AddCommand(validateCommand)
-	orbCommand.AddCommand(expandCommand)
+	orbCommand.AddCommand(processCommand)
 	orbCommand.AddCommand(publishCommand)
 	orbCommand.AddCommand(sourceCommand)
 
@@ -252,7 +252,7 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func expandOrb(cmd *cobra.Command, args []string) error {
+func processOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	response, err := api.OrbQuery(ctx, Logger, args[0])
 

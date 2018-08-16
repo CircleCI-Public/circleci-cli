@@ -113,7 +113,7 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 	return nil
 }
 
-// ConfigQuery calls the GQL API to validate and expand config
+// ConfigQuery calls the GQL API to validate and process config
 func ConfigQuery(ctx context.Context, logger *logger.Logger, configPath string) (*ConfigResponse, error) {
 	var response struct {
 		BuildConfig struct {
@@ -131,7 +131,7 @@ func ConfigQuery(ctx context.Context, logger *logger.Logger, configPath string) 
 		}`)
 }
 
-// OrbQuery validated and expands an orb.
+// OrbQuery validated and processes an orb.
 func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*ConfigResponse, error) {
 	var response struct {
 		OrbConfig struct {
