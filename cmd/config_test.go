@@ -217,8 +217,8 @@ var _ = Describe("Config", func() {
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
 			BeforeEach(func() {
 				var err error
-				command = exec.Command(pathCLI, "config", "pack", "testdata/hugo-collapse/.circleci")
-				results, err = ioutil.ReadFile("testdata/hugo-collapse/result.yml")
+				command = exec.Command(pathCLI, "config", "pack", "testdata/hugo-pack/.circleci")
+				results, err = ioutil.ReadFile("testdata/hugo-pack/result.yml")
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 
