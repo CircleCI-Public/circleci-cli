@@ -46,8 +46,7 @@ func newConfigCommand() *cobra.Command {
 	}
 	validateCommand.Annotations["PATH"] = configAnnotations["PATH"]
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
-	err := validateCommand.PersistentFlags().MarkHidden("config")
-	if err != nil {
+	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
 		panic(err)
 	}
 

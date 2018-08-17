@@ -107,8 +107,8 @@ func setup(cmd *cobra.Command, args []string) error {
 		viper.Set("token", ui.readStringFromUser("CircleCI API Token", ""))
 		Logger.Info("API token has been set.")
 	}
-	viper.Set("endpoint", ui.readStringFromUser("CircleCI API End Point", viper.GetString("endpoint")))
-	Logger.Info("API endpoint has been set.")
+	viper.Set("host", ui.readStringFromUser("CircleCI Host", defaultHost))
+	Logger.Info("CircleCI host has been set.")
 
 	// Marc: I can't find a way to prevent the verbose flag from
 	// being written to the config file, so set it to false in

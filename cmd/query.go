@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -27,7 +28,11 @@ func query(cmd *cobra.Command, args []string) error {
 	var err error
 	// This local is named "q" to avoid confusion with the function name.
 	var q []byte
-	c := client.NewClient(viper.GetString("endpoint"), Logger)
+	address, err := api.GraphQLServerAddress()
+	if err != nil {
+		return err
+	}
+	c := client.NewClient(address, Logger)
 
 	if args[0] == "-" {
 		q, err = ioutil.ReadAll(os.Stdin)

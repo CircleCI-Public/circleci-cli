@@ -49,7 +49,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 					"-",
 				)
 				stdin, err := command.StdinPipe()
@@ -118,7 +118,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate", orb.Path,
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 				)
 			})
 
@@ -167,7 +167,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate", orb.Path,
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 				)
 			})
 
@@ -247,7 +247,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "process",
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 					orb.Path,
 				)
 			})
@@ -330,7 +330,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "publish", "release",
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 					orb.Path,
 					"my",
 					"orb",
@@ -457,7 +457,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "create",
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 					"bar-ns", "foo-orb",
 				)
 			})

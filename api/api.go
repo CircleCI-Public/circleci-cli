@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"io/ioutil"
+	"net/url"
 	"os"
 	"strings"
 
@@ -77,6 +78,31 @@ func (response GQLResponseErrors) ToError() error {
 	return errors.New(strings.Join(messages, ": "))
 }
 
+// GraphQLServerAddress returns the full address to CircleCI GraphQL API server
+func GraphQLServerAddress() (string, error) {
+	// 1. Parse the endpoint
+	endpoint, err := url.Parse(viper.GetString("endpoint"))
+	if err != nil {
+		return endpoint.String(), errors.Wrapf(err, "Parsing endpoint '%s'", viper.GetString("endpoint"))
+	}
+
+	// 2. Parse the host
+	host, err := url.Parse(viper.GetString("host"))
+	if err != nil {
+		return host.String(), errors.Wrapf(err, "Parsing host '%s'", viper.GetString("host"))
+	}
+
+	// 3. Resolve the two URLs using host as the base
+	// We use ResolveReference which has specific behavior we can rely for
+	// older configurations which included the absolute path for the endpoint flag.
+	//
+	// https://golang.org/pkg/net/url/#URL.ResolveReference
+	//
+	// Specifically this function always returns the reference (endpoint) if provided an absolute URL.
+	// This way we can safely introduce --host and merge the two.
+	return host.ResolveReference(endpoint).String(), err
+}
+
 // nolint: gosec
 func loadYaml(path string) (string, error) {
 	var err error
@@ -102,7 +128,11 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("config", config)
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
 	err = graphQLclient.Run(ctx, request, response)
 
@@ -190,7 +220,11 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
 	err = graphQLclient.Run(ctx, request, &response)
 
@@ -216,9 +250,13 @@ func getOrbID(ctx context.Context, logger *logger.Logger, name string) (string, 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return "", err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
-	err := graphQLclient.Run(ctx, request, &response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err
@@ -258,9 +296,13 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
-	err := graphQLclient.Run(ctx, request, &response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		err = errors.Wrap(err, fmt.Sprintf("Unable to create namespace %s for ownerId %s", name, ownerID))
@@ -290,9 +332,13 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return "", err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
-	err := graphQLclient.Run(ctx, request, &response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		err = errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
@@ -337,9 +383,13 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return "", err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
-	err := graphQLclient.Run(ctx, request, &response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		err = errors.Wrapf(err, "Unable to find namespace %s", name)
@@ -376,9 +426,13 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
-	err := graphQLclient.Run(ctx, request, &response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		err = errors.Wrapf(err, "Unable to create orb %s for namespaceID %s", name, namespaceID)
@@ -422,9 +476,13 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
 
-	graphQLclient := client.NewClient(viper.GetString("endpoint"), logger)
+	address, err := GraphQLServerAddress()
+	if err != nil {
+		return "", err
+	}
+	graphQLclient := client.NewClient(address, logger)
 
-	err := graphQLclient.Run(ctx, request, &response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err

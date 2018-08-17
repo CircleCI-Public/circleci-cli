@@ -11,7 +11,6 @@ import (
 
 	"github.com/machinebox/graphql"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"gopkg.in/yaml.v2"
 )
 
@@ -190,7 +189,11 @@ query ListOrbs ($after: String!) {
 }
 	`)
 
-	client := client.NewClient(viper.GetString("endpoint"), Logger)
+	address, err := api.GraphQLServerAddress()
+	if err != nil {
+		return err
+	}
+	client := client.NewClient(address, Logger)
 
 	var result orbList
 	currentCursor := ""

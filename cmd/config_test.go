@@ -50,7 +50,7 @@ var _ = Describe("Config", func() {
 				command = exec.Command(pathCLI,
 					"config", "validate",
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 					config.Path,
 				)
 			})
@@ -134,7 +134,7 @@ var _ = Describe("Config", func() {
 				command = exec.Command(pathCLI,
 					"config", "process",
 					"--token", token,
-					"--endpoint", testServer.URL(),
+					"--host", testServer.URL(),
 					config.Path,
 				)
 			})
