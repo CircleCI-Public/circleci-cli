@@ -242,10 +242,10 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when expanding orb", func() {
+		Describe("when processing orb", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "expand",
+					"orb", "process",
 					"--token", token,
 					"--endpoint", testServer.URL(),
 					orb.Path,

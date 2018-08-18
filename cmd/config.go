@@ -17,6 +17,10 @@ const defaultConfigPath = ".circleci/config.yml"
 // Used to for compatibility with `circleci config validate --path`
 var configPath string
 
+var configAnnotations = map[string]string{
+	"PATH": "The path to your config (use \"-\" for STDIN)",
+}
+
 func newConfigCommand() *cobra.Command {
 	configCmd := &cobra.Command{
 		Use:   "config",
@@ -24,11 +28,13 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	packCommand := &cobra.Command{
-		Use:   "pack PATH",
-		Short: "Pack up your CircleCI configuration into a single file.",
-		RunE:  packConfig,
-		Args:  cobra.MaximumNArgs(1),
+		Use:         "pack PATH",
+		Short:       "Pack up your CircleCI configuration into a single file.",
+		RunE:        packConfig,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
 	}
+	packCommand.Annotations["PATH"] = configAnnotations["PATH"]
 
 	validateCommand := &cobra.Command{
 		Use:         "validate PATH",
@@ -38,7 +44,7 @@ func newConfigCommand() *cobra.Command {
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: make(map[string]string),
 	}
-	validateCommand.Annotations["PATH"] = "The path to your config (use \"-\" for STDIN)"
+	validateCommand.Annotations["PATH"] = configAnnotations["PATH"]
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	err := validateCommand.PersistentFlags().MarkHidden("config")
 	if err != nil {
@@ -52,7 +58,7 @@ func newConfigCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	processCommand.Annotations["PATH"] = "The path to your config (use \"-\" for STDIN)"
+	processCommand.Annotations["PATH"] = configAnnotations["PATH"]
 
 	migrateCommand := &cobra.Command{
 		Use:                "migrate",
