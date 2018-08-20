@@ -42,7 +42,7 @@ func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers .
 	for _, handler := range combineHandlers {
 		server.AppendHandlers(
 			ghttp.CombineHandlers(
-				ghttp.VerifyRequest("POST", "/"),
+				ghttp.VerifyRequest("POST", "/graphql-unstable"),
 				ghttp.VerifyHeader(http.Header{
 					"Authorization": []string{authToken},
 				}),

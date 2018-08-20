@@ -11,7 +11,8 @@ import (
 	"github.com/spf13/viper"
 )
 
-var defaultEndpoint = "https://circleci.com/graphql-unstable"
+var defaultEndpoint = "graphql-unstable"
+var defaultHost = "https://circleci.com"
 
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
@@ -89,10 +90,14 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newUsageCommand())
 	rootCmd.AddCommand(newStepCommand())
 	rootCmd.PersistentFlags().Bool("verbose", false, "Enable verbose logging.")
-	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().String("token", "", "your token for using CircleCI")
+	rootCmd.PersistentFlags().String("host", defaultHost, "URL to your CircleCI host")
+	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "URI to your CircleCI GraphQL API endpoint")
+	if err := rootCmd.PersistentFlags().MarkHidden("endpoint"); err != nil {
+		panic(err)
+	}
 
-	for _, flag := range []string{"endpoint", "token", "verbose"} {
+	for _, flag := range []string{"endpoint", "host", "token", "verbose"} {
 		bindCobraFlagToViper(rootCmd, flag)
 	}
 
