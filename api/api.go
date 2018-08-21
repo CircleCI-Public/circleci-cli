@@ -78,18 +78,23 @@ func (response GQLResponseErrors) ToError() error {
 	return errors.New(strings.Join(messages, ": "))
 }
 
+// EnvEndpointHost pulls the endpoint and host values from viper
+func EnvEndpointHost() (string, string) {
+	return viper.GetString("endpoint"), viper.GetString("host")
+}
+
 // GraphQLServerAddress returns the full address to CircleCI GraphQL API server
-func GraphQLServerAddress() (string, error) {
+func GraphQLServerAddress(endpoint string, host string) (string, error) {
 	// 1. Parse the endpoint
-	endpoint, err := url.Parse(viper.GetString("endpoint"))
+	e, err := url.Parse(endpoint)
 	if err != nil {
-		return endpoint.String(), errors.Wrapf(err, "Parsing endpoint '%s'", viper.GetString("endpoint"))
+		return e.String(), errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
 	}
 
 	// 2. Parse the host
-	host, err := url.Parse(viper.GetString("host"))
+	h, err := url.Parse(host)
 	if err != nil {
-		return host.String(), errors.Wrapf(err, "Parsing host '%s'", viper.GetString("host"))
+		return h.String(), errors.Wrapf(err, "Parsing host '%s'", host)
 	}
 
 	// 3. Resolve the two URLs using host as the base
@@ -100,7 +105,7 @@ func GraphQLServerAddress() (string, error) {
 	//
 	// Specifically this function always returns the reference (endpoint) if provided an absolute URL.
 	// This way we can safely introduce --host and merge the two.
-	return host.ResolveReference(endpoint).String(), err
+	return h.ResolveReference(e).String(), err
 }
 
 // nolint: gosec
@@ -128,7 +133,7 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("config", config)
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return err
 	}
@@ -220,7 +225,7 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +255,7 @@ func getOrbID(ctx context.Context, logger *logger.Logger, name string) (string, 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return "", err
 	}
@@ -296,7 +301,7 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return nil, err
 	}
@@ -332,7 +337,7 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return "", err
 	}
@@ -383,7 +388,7 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return "", err
 	}
@@ -426,7 +431,7 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return nil, err
 	}
@@ -476,7 +481,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
 
-	address, err := GraphQLServerAddress()
+	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return "", err
 	}
