@@ -189,7 +189,7 @@ query ListOrbs ($after: String!) {
 }
 	`)
 
-	address, err := api.GraphQLServerAddress()
+	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
 	if err != nil {
 		return err
 	}

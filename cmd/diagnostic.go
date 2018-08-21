@@ -18,7 +18,7 @@ func newDiagnosticCommand() *cobra.Command {
 }
 
 func diagnostic(cmd *cobra.Command, args []string) error {
-	address, err := api.GraphQLServerAddress()
+	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
 	if err != nil {
 		return err
 	}

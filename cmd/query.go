@@ -28,7 +28,7 @@ func query(cmd *cobra.Command, args []string) error {
 	var err error
 	// This local is named "q" to avoid confusion with the function name.
 	var q []byte
-	address, err := api.GraphQLServerAddress()
+	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
 	if err != nil {
 		return err
 	}
