@@ -570,7 +570,7 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		FDescribe("when listing orbs", func() {
+		Describe("when listing orbs", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", orb.Path,
@@ -579,7 +579,7 @@ var _ = Describe("Orb integration tests", func() {
 				)
 			})
 
-			It("works", func() {
+			It("sends multiple requests when there are more than 1 page of orbs", func() {
 				By("setting up a mock server")
 
 				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "first_response.json"))
@@ -590,10 +590,6 @@ var _ = Describe("Orb integration tests", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				secondGqlResponse := string(tmpBytes)
 
-				// tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "first_request.graphql"))
-				// Expect(err).ShouldNot(HaveOccurred())
-				// expectedRequestJson := string(tmpBytes)
-
 				// Use Gomega's default matcher instead of our custom appendPostHandler
 				// since this query doesn't pass in a token.
 				// Skip checking the content type field to make this test simpler.
@@ -601,6 +597,9 @@ var _ = Describe("Orb integration tests", func() {
 					ghttp.CombineHandlers(
 						ghttp.VerifyRequest("POST", "/graphql-unstable"),
 						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
 						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
 					),
 				)
@@ -609,43 +608,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				// Eventually(session.Out).Should(gbytes.Say("Orb at .*myorb/orb.yml is valid"))
 				Eventually(session).Should(gexec.Exit(0))
-			})
-
-			XIt("prints errors if invalid", func() {
-				By("setting up a mock server")
-				err := orb.write(`some orb`)
-				Expect(err).ToNot(HaveOccurred())
-
-				gqlResponse := `{
-							"orbConfig": {
-								"sourceYaml": "hello world",
-								"valid": false,
-								"errors": [
-									{"message": "invalid_orb"}
-								]
-							}
-						}`
-
-				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-					"variables": {
-					  "config": "some orb"
-					}
-				  }`
-				appendPostHandler(testServer, token, MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedRequestJson,
-					Response: gqlResponse,
-				})
-
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: invalid_orb"))
-				Eventually(session).ShouldNot(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 		})
 	})
