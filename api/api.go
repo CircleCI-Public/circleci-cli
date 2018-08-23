@@ -96,6 +96,9 @@ func GraphQLServerAddress(endpoint string, host string) (string, error) {
 	if err != nil {
 		return h.String(), errors.Wrapf(err, "Parsing host '%s'", host)
 	}
+	if !h.IsAbs() {
+		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
+	}
 
 	// 3. Resolve the two URLs using host as the base
 	// We use ResolveReference which has specific behavior we can rely for
