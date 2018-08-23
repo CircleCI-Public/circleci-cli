@@ -10,8 +10,10 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v2"
 )
 
 // These options are purely here to retain a mock of the structure of the flags used by `build`.
@@ -36,6 +38,7 @@ func newLocalExecuteCommand() *cobra.Command {
 	buildCommand := &cobra.Command{
 		Use:                "execute",
 		Short:              "Run a job in a container on the local machine",
+		Args:               validateArgs,
 		RunE:               runExecute,
 		DisableFlagParsing: true,
 	}
@@ -75,6 +78,41 @@ func newLocalCommand() *cobra.Command {
 	}
 	cmd.AddCommand(newLocalExecuteCommand())
 	return cmd
+}
+
+func configVersion(configBytes []byte) (string, bool) {
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(configBytes, &raw); err != nil {
+		return "", false
+	}
+
+	var configWithVersion struct {
+		Version string "yaml:version"
+	}
+	if err := mapstructure.WeakDecode(raw, &configWithVersion); err != nil {
+		return "", false
+	}
+	return configWithVersion.Version, true
+}
+
+func validateArgs(cmd *cobra.Command, args []string) error {
+	opts := proxyBuildArgs{}
+
+	configBytes, err := ioutil.ReadFile(opts.configFilename)
+	if err != nil {
+		return errors.Wrapf(err, "Unable to read config file")
+	}
+
+	version, isVersion := configVersion(configBytes)
+	if !isVersion {
+		return errors.New("Unable to identify config version")
+	}
+
+	if version != "2.0" && version != "2" {
+		return fmt.Errorf("You attempted to run a local build with version '%s' of configuration. Local builds do not support that version at this time. You can use `circleci config process` to pre-process your config into a version that local builds can run (see `circleci help config process` for more information).", version)
+	}
+
+	return nil
 }
 
 func circleCiDir() string {
@@ -117,7 +155,7 @@ func loadCurrentBuildAgentSha() string {
 	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
 
 	if err != nil {
-		Logger.Error("Faild to load build agent settings JSON", err)
+		Logger.Error("Failed to load build agent settings JSON", err)
 		return ""
 	}
 
@@ -126,7 +164,7 @@ func loadCurrentBuildAgentSha() string {
 	err = json.Unmarshal(settingsJSON, &settings)
 
 	if err != nil {
-		Logger.Error("Faild to parse build agent settings JSON", err)
+		Logger.Error("Failed to parse build agent settings JSON", err)
 		return ""
 	}
 
@@ -155,7 +193,6 @@ func picardImage() (string, error) {
 }
 
 func runExecute(cmd *cobra.Command, args []string) error {
-
 	pwd, err := os.Getwd()
 
 	if err != nil {
