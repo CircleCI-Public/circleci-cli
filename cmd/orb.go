@@ -174,6 +174,7 @@ query ListOrbs ($after: String!) {
   orbs(first: 20, after: $after) {
 	totalCount,
     edges {
+		cursor
 	  node {
 	    name
 		  versions(count: 1) {

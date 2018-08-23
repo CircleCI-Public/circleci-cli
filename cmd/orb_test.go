@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"encoding/json"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -569,5 +570,47 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
+		Describe("when listing orbs", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", orb.Path,
+					"--host", testServer.URL(),
+					"--verbose",
+				)
+			})
+
+			It("sends multiple requests when there are more than 1 page of orbs", func() {
+				By("setting up a mock server")
+
+				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "first_response.json"))
+				Expect(err).ShouldNot(HaveOccurred())
+				firstGqlResponse := string(tmpBytes)
+
+				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "second_response.json"))
+				Expect(err).ShouldNot(HaveOccurred())
+				secondGqlResponse := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
+			})
+		})
 	})
 })
