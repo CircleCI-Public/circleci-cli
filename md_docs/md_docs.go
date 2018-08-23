@@ -26,6 +26,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// Print the arguments with 11 characters of padding
+func printArguments(buf *bytes.Buffer, cmd *cobra.Command, name string) error {
+	if len(cmd.Annotations) > 0 {
+		buf.WriteString("### Arguments\n\n```\n")
+		for k, v := range cmd.Annotations {
+			buf.WriteString(fmt.Sprintf("%-11v %s\n", k, v))
+		}
+		buf.WriteString("```\n\n")
+	}
+
+	return nil
+}
+
 func printOptions(buf *bytes.Buffer, cmd *cobra.Command, name string) error {
 	flags := cmd.NonInheritedFlags()
 	flags.SetOutput(buf)
@@ -76,6 +89,10 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 	if len(cmd.Example) > 0 {
 		buf.WriteString("### Examples\n\n")
 		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.Example))
+	}
+
+	if err := printArguments(buf, cmd, name); err != nil {
+		return err
 	}
 
 	if err := printOptions(buf, cmd, name); err != nil {
