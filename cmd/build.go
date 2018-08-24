@@ -34,16 +34,17 @@ type proxyBuildArgs struct {
 	envVarArgs  []string
 }
 
+var opts proxyBuildArgs
+
 func newLocalExecuteCommand() *cobra.Command {
 	buildCommand := &cobra.Command{
 		Use:                "execute",
 		Short:              "Run a job in a container on the local machine",
-		Args:               validateArgs,
 		RunE:               runExecute,
 		DisableFlagParsing: true,
 	}
 
-	opts := proxyBuildArgs{}
+	opts = proxyBuildArgs{}
 	flags := buildCommand.Flags()
 
 	flags.StringVarP(&opts.configFilename, "config", "c", defaultConfigPath, "config file")
@@ -78,41 +79,6 @@ func newLocalCommand() *cobra.Command {
 	}
 	cmd.AddCommand(newLocalExecuteCommand())
 	return cmd
-}
-
-func configVersion(configBytes []byte) (string, bool) {
-	var raw map[string]interface{}
-	if err := yaml.Unmarshal(configBytes, &raw); err != nil {
-		return "", false
-	}
-
-	var configWithVersion struct {
-		Version string "yaml:version"
-	}
-	if err := mapstructure.WeakDecode(raw, &configWithVersion); err != nil {
-		return "", false
-	}
-	return configWithVersion.Version, true
-}
-
-func validateArgs(cmd *cobra.Command, args []string) error {
-	opts := proxyBuildArgs{}
-
-	configBytes, err := ioutil.ReadFile(opts.configFilename)
-	if err != nil {
-		return errors.Wrapf(err, "Unable to read config file")
-	}
-
-	version, isVersion := configVersion(configBytes)
-	if !isVersion {
-		return errors.New("Unable to identify config version")
-	}
-
-	if version != "2.0" && version != "2" {
-		return fmt.Errorf("You attempted to run a local build with version '%s' of configuration. Local builds do not support that version at this time. You can use `circleci config process` to pre-process your config into a version that local builds can run (see `circleci help config process` for more information).", version)
-	}
-
-	return nil
 }
 
 func circleCiDir() string {
@@ -192,7 +158,70 @@ func picardImage() (string, error) {
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
+func configVersion(configBytes []byte) (string, bool) {
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(configBytes, &raw); err != nil {
+		return "", false
+	}
+
+	var configWithVersion struct {
+		Version string `yaml:"version"`
+	}
+	if err := mapstructure.WeakDecode(raw, &configWithVersion); err != nil {
+		return "", false
+	}
+	return configWithVersion.Version, true
+}
+
+func validateConfigVersionHelper(configFilename string) error {
+	invalidConfigError := "\nYou attempted to run a local build with version '%s' of configuration.\nLocal builds do not support that version at this time.\nYou can use 'circleci config process' to pre-process your config into a version that local builds can run (see 'circleci help config process' for more information)"
+
+	configBytes, err := ioutil.ReadFile(configFilename)
+	if err != nil {
+		return errors.Wrapf(err, "Unable to read config file")
+	}
+
+	version, isVersion := configVersion(configBytes)
+	if !isVersion || version == "" {
+		return errors.New("Unable to identify config version")
+	}
+
+	if version != "2.0" && version != "2" {
+		return fmt.Errorf(invalidConfigError, version)
+	}
+
+	return nil
+}
+
+func containsIdx(list []string, v1 string, v2 string) int {
+	for i, v := range list {
+		if v == v1 || v == v2 {
+			return i
+		}
+	}
+	return -1
+}
+
+func validateConfigVersion(args []string) error {
+	indexConfigFlag := containsIdx(args, "--config", "--c")
+	configPath := opts.configFilename
+
+	if indexConfigFlag > -1 && indexConfigFlag+1 < len(args) {
+		configPath = args[indexConfigFlag+1]
+	}
+
+	if indexConfigFlag+1 >= len(args) {
+		return errors.New("No config value provided")
+	}
+	return validateConfigVersionHelper(configPath)
+}
+
 func runExecute(cmd *cobra.Command, args []string) error {
+	err := validateConfigVersion(args)
+	if err != nil {
+		return err
+	}
+
 	pwd, err := os.Getwd()
 
 	if err != nil {
