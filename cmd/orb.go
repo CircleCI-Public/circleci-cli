@@ -78,6 +78,20 @@ func newOrbCommand() *cobra.Command {
 	devCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
 	publishCommand.AddCommand(devCommand)
 
+	promoteCommand := &cobra.Command{
+		Use:         "promote PATH NAMESPACE ORB LABEL SEMVER",
+		Short:       "promote a development version of an orb to a semantic release",
+		RunE:        promoteOrb,
+		Args:        cobra.ExactArgs(4),
+		Annotations: make(map[string]string),
+	}
+	promoteCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	promoteCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
+	promoteCommand.Annotations["ORB"] = orbAnnotations["ORB"]
+	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
+	promoteCommand.Annotations["SEMVER"] = "The semantic version used for this release (i.e. 0.3.6)"
+	publishCommand.AddCommand(promoteCommand)
+
 	incCommand := &cobra.Command{
 		Use:         "inc PATH NAMESPACE ORB SEGMENT",
 		Short:       "increment a released version of an orb",
