@@ -78,6 +78,7 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
+	rootCmd.DisableAutoGenTag = true
 
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newQueryCommand())
