@@ -69,8 +69,8 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 func MakeCommands() *cobra.Command {
 	rootCmd = &cobra.Command{
 		Use:   "circleci",
-		Short: "Use CircleCI from the command line.",
-		Long:  `Use CircleCI from the command line.`,
+		Short: `Use CircleCI from the command line.`,
+		Long:  `This project is the seed for CircleCI's new command-line application.`,
 	}
 
 	// For supporting "Args" in command usage help

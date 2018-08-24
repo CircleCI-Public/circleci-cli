@@ -27,6 +27,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var introHeader = `
+[Readme](https://github.com/CircleCI-Public/circleci-cli#readme) |
+[Code of Conduct](https://github.com/CircleCI-Public/circleci-cli/blob/master/CODE_OF_CONDUCT.md) |
+[Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/master/CONTRIBUTING.md) |
+[Hacking](https://github.com/CircleCI-Public/circleci-cli/blob/master/HACKING.md)
+
+[![CircleCI](https://circleci.com/gh/CircleCI-Public/circleci-cli.svg?style=svg)](https://circleci.com/gh/CircleCI-Public/circleci-cli)
+[![GitHub release](https://img.shields.io/github/tag/CircleCI-Public/circleci-cli.svg?label=latest)](https://github.com/CircleCI-Public/circleci-cli/releases)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
+[![Codecov](https://codecov.io/gh/CircleCI-Public/circleci-cli/branch/master/graph/badge.svg)](https://codecov.io/gh/CircleCI-Public/circleci-cli)
+[![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
+`
+
 // PositionalArgs returns a slice of the given command's positional arguments
 func PositionalArgs(cmd *cobra.Command) []string {
 	args := strings.Split(cmd.Use, " ")
@@ -98,6 +111,10 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 
 	buf.WriteString("## " + name + "\n\n")
 	buf.WriteString(short + "\n\n")
+
+	if name == "circleci" {
+		buf.WriteString(introHeader + "\n\n")
+	}
 	buf.WriteString("### Synopsis\n\n")
 	buf.WriteString(long + "\n\n")
 

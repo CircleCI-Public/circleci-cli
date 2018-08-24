@@ -2,6 +2,7 @@
 
 This project is the seed for CircleCI's new command-line application.
 
+[Documentation](https://circleci-public.github.io/circleci-cli) |
 [Code of Conduct](./CODE_OF_CONDUCT.md) |
 [Contribution Guidelines](./CONTRIBUTING.md) |
 [Hacking](./HACKING.md)
