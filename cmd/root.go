@@ -5,6 +5,7 @@ import (
 	"path"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -50,9 +51,9 @@ Examples:
 
 Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if (HasAnnotations .)}}
-
-Args:{{range $arg, $desc := .Annotations}}
-  {{rpad $arg 11}} {{$desc}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+{{$cmd := .}}
+Args:
+{{range (PositionalArgs .)}}  {{(FormatPositionalArg $cmd .)}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
@@ -68,13 +69,16 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 func MakeCommands() *cobra.Command {
 	rootCmd = &cobra.Command{
 		Use:   "circleci",
-		Short: "Use CircleCI from the command line.",
-		Long:  `Use CircleCI from the command line.`,
+		Short: `Use CircleCI from the command line.`,
+		Long:  `This project is the seed for CircleCI's new command-line application.`,
 	}
 
 	// For supporting "Args" in command usage help
 	cobra.AddTemplateFunc("HasAnnotations", hasAnnotations)
+	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
+	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
+	rootCmd.DisableAutoGenTag = true
 
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newQueryCommand())
