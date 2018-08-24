@@ -27,12 +27,30 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// PositionalArgs returns a slice of the given command's positional arguments
+func PositionalArgs(cmd *cobra.Command) []string {
+	args := strings.Split(cmd.Use, " ")
+	if len(args) <= 1 {
+		return nil
+	}
+	return args[1:]
+}
+
+// FormatPositionalArg will format the positional arguments of a command from it's annotations.
+func FormatPositionalArg(cmd *cobra.Command, arg string) string {
+	description, ok := cmd.Annotations[arg]
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("%-11v %s\n", arg, description)
+}
+
 // Print the arguments with 11 characters of padding
-func printArguments(buf *bytes.Buffer, cmd *cobra.Command, name string) error {
-	if len(cmd.Annotations) > 0 {
+func printArguments(buf *bytes.Buffer, command *cobra.Command, name string) error {
+	if len(command.Annotations) > 0 {
 		buf.WriteString("### Arguments\n\n```\n")
-		for k, v := range cmd.Annotations {
-			buf.WriteString(fmt.Sprintf("%-11v %s\n", k, v))
+		for _, arg := range PositionalArgs(command) {
+			buf.WriteString(FormatPositionalArg(command, arg))
 		}
 		buf.WriteString("```\n\n")
 	}
