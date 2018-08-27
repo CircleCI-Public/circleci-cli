@@ -13,6 +13,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
 )
 
@@ -34,7 +35,9 @@ type proxyBuildArgs struct {
 	envVarArgs  []string
 }
 
-var opts proxyBuildArgs
+func addConfigFlag(filename *string, flagset *pflag.FlagSet) {
+	flagset.StringVarP(filename, "config", "c", defaultConfigPath, "config file")
+}
 
 func newLocalExecuteCommand() *cobra.Command {
 	buildCommand := &cobra.Command{
@@ -44,10 +47,12 @@ func newLocalExecuteCommand() *cobra.Command {
 		DisableFlagParsing: true,
 	}
 
-	opts = proxyBuildArgs{}
+	// Used as a convenience work-around when DisableFlagParsing is enabled
+	// Allows help command to access the combined rollup of flags
+	opts := proxyBuildArgs{}
 	flags := buildCommand.Flags()
 
-	flags.StringVarP(&opts.configFilename, "config", "c", defaultConfigPath, "config file")
+	addConfigFlag(&opts.configFilename, flags)
 	flags.StringVar(&opts.taskInfo.Job, "job", "build", "job to be executed")
 	flags.IntVar(&opts.taskInfo.NodeTotal, "node-total", 1, "total number of parallel nodes")
 	flags.IntVar(&opts.taskInfo.NodeIndex, "index", 0, "node index of parallelism")
@@ -173,10 +178,19 @@ func configVersion(configBytes []byte) (string, bool) {
 	return configWithVersion.Version, true
 }
 
-func validateConfigVersionHelper(configFilename string) error {
+func validateConfigVersion(args []string) error {
 	invalidConfigError := "\nYou attempted to run a local build with version '%s' of configuration.\nLocal builds do not support that version at this time.\nYou can use 'circleci config process' to pre-process your config into a version that local builds can run (see 'circleci help config process' for more information)"
+	configFlags := pflag.NewFlagSet("configFlags", pflag.ContinueOnError)
+	configFlags.ParseErrorsWhitelist.UnknownFlags = true
+	var filename string
+	addConfigFlag(&filename, configFlags)
 
-	configBytes, err := ioutil.ReadFile(configFilename)
+	err := configFlags.Parse(args)
+	if err != nil {
+		return errors.New("Unable to parse flags")
+	}
+
+	configBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to read config file")
 	}
@@ -191,29 +205,6 @@ func validateConfigVersionHelper(configFilename string) error {
 	}
 
 	return nil
-}
-
-func containsIdx(list []string, v1 string, v2 string) int {
-	for i, v := range list {
-		if v == v1 || v == v2 {
-			return i
-		}
-	}
-	return -1
-}
-
-func validateConfigVersion(args []string) error {
-	indexConfigFlag := containsIdx(args, "--config", "--c")
-	configPath := opts.configFilename
-
-	if indexConfigFlag > -1 && indexConfigFlag+1 < len(args) {
-		configPath = args[indexConfigFlag+1]
-	}
-
-	if indexConfigFlag+1 >= len(args) {
-		return errors.New("No config value provided")
-	}
-	return validateConfigVersionHelper(configPath)
 }
 
 func runExecute(cmd *cobra.Command, args []string) error {
