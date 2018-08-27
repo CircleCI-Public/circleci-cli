@@ -179,7 +179,10 @@ func configVersion(configBytes []byte) (string, bool) {
 }
 
 func validateConfigVersion(args []string) error {
-	invalidConfigError := "\nYou attempted to run a local build with version '%s' of configuration.\nLocal builds do not support that version at this time.\nYou can use 'circleci config process' to pre-process your config into a version that local builds can run (see 'circleci help config process' for more information)"
+	invalidConfigError := `
+You attempted to run a local build with version '%s' of configuration.
+Local builds do not support that version at this time.
+You can use 'circleci config process' to pre-process your config into a version that local builds can run (see 'circleci help config process' for more information)`
 	configFlags := pflag.NewFlagSet("configFlags", pflag.ContinueOnError)
 	configFlags.ParseErrorsWhitelist.UnknownFlags = true
 	var filename string
