@@ -190,6 +190,7 @@ func validateConfigVersion(args []string) error {
 		return errors.New("Unable to parse flags")
 	}
 
+	// nolint: gosec
 	configBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to read config file")
