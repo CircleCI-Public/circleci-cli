@@ -1082,13 +1082,23 @@ var _ = Describe("Orb integration tests", func() {
 			It("makes a namespace query and requests all orbs on that namespace", func() {
 				By("setting up a mock server")
 
-				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "request.json"))
+				// These requests and responses are generated from production data,
+				// but using a 5-per-page limit instead of the 20 requested.
+				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "first_request.json"))
 				Expect(err).ShouldNot(HaveOccurred())
-				gqlRequest := string(tmpBytes)
+				firstGqlRequest := string(tmpBytes)
 
-				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "response.json"))
+				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "second_request.json"))
 				Expect(err).ShouldNot(HaveOccurred())
-				gqlResponse := string(tmpBytes)
+				secondGqlRequest := string(tmpBytes)
+
+				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "first_response.json"))
+				Expect(err).ShouldNot(HaveOccurred())
+				firstGqlResponse := string(tmpBytes)
+
+				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "second_response.json"))
+				Expect(err).ShouldNot(HaveOccurred())
+				secondGqlResponse := string(tmpBytes)
 
 				// Use Gomega's default matcher instead of our custom appendPostHandler
 				// since this query doesn't pass in a token.
@@ -1106,9 +1116,25 @@ var _ = Describe("Orb integration tests", func() {
 							body, err := ioutil.ReadAll(req.Body)
 							req.Body.Close()
 							Expect(err).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(gqlRequest), "JSON Mismatch")
+							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
 						},
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
+						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, err := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(err).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
 					),
 				)
 
@@ -1118,7 +1144,7 @@ var _ = Describe("Orb integration tests", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Out).Should(gbytes.Say("circleci/rollbar"))
 				Eventually(session).Should(gexec.Exit(0))
-				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 		})
 	})

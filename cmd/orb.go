@@ -315,12 +315,12 @@ func listNamespaceOrbs(namespace string) error {
 			}
 		}
 	}
-	// TODO: update graphql request with "after" cursor
+
 	request := graphql.NewRequest(`
-query namespaceOrbs ($namespace: String) {
+query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
 		name
-		orbs {
+		orbs(first: 20, after: $after) {
 			edges {
 				cursor
 				node {
