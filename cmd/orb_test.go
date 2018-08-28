@@ -1113,9 +1113,9 @@ var _ = Describe("Orb integration tests", func() {
 						// VerifyContentType("application/json") check
 						// that fails with "application/json; charset=utf-8"
 						func(w http.ResponseWriter, req *http.Request) {
-							body, err := ioutil.ReadAll(req.Body)
+							body, error := ioutil.ReadAll(req.Body)
 							req.Body.Close()
-							Expect(err).ShouldNot(HaveOccurred())
+							Expect(error).ShouldNot(HaveOccurred())
 							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
 						},
 						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
@@ -1129,9 +1129,9 @@ var _ = Describe("Orb integration tests", func() {
 						// VerifyContentType("application/json") check
 						// that fails with "application/json; charset=utf-8"
 						func(w http.ResponseWriter, req *http.Request) {
-							body, err := ioutil.ReadAll(req.Body)
+							body, error := ioutil.ReadAll(req.Body)
 							req.Body.Close()
-							Expect(err).ShouldNot(HaveOccurred())
+							Expect(error).ShouldNot(HaveOccurred())
 							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
 						},
 						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
