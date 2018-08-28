@@ -1026,7 +1026,7 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when listing orbs", func() {
+		Describe("when listing all orbs", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
@@ -1066,6 +1066,58 @@ var _ = Describe("Orb integration tests", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
+			})
+
+		})
+
+		Describe("when listing orbs with a namespace argument", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", "circleci",
+					"--host", testServer.URL(),
+				)
+			})
+
+			It("makes a namespace query and requests all orbs on that namespace", func() {
+				By("setting up a mock server")
+
+				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "request.json"))
+				Expect(err).ShouldNot(HaveOccurred())
+				gqlRequest := string(tmpBytes)
+
+				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list_with_namespace", "response.json"))
+				Expect(err).ShouldNot(HaveOccurred())
+				gqlResponse := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, err := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(err).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(gqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, gqlResponse),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("circleci/rollbar"))
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
 			})
 		})
 	})

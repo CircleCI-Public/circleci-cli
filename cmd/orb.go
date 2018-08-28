@@ -24,10 +24,14 @@ var orbAnnotations = map[string]string{
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
-		Use:   "list",
-		Short: "List orbs",
-		RunE:  listOrbs,
+		Use:         "list NAMESPACE",
+		Short:       "List orbs",
+		Args:        cobra.MaximumNArgs(1),
+		RunE:        listOrbs,
+		Annotations: make(map[string]string),
 	}
+	optionalOrbs := []string{orbAnnotations["NAMESPACE"], "(Optional)"}
+	listCommand.Annotations["NAMESPACE"] = strings.Join(optionalOrbs, " ")
 
 	validateCommand := &cobra.Command{
 		Use:         "validate PATH",
@@ -186,6 +190,9 @@ func (orb orb) String() string {
 }
 
 func listOrbs(cmd *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return listNamespaceOrbs(args[0])
+	}
 
 	ctx := context.Background()
 
@@ -275,6 +282,104 @@ query ListOrbs ($after: String!) {
 		}
 
 		if !result.Orbs.PageInfo.HasNextPage {
+			break
+		}
+	}
+	return nil
+}
+
+func listNamespaceOrbs(namespace string) error {
+	ctx := context.Background()
+
+	// Define a structure that matches the result of the GQL
+	// query, so that we can use mapstructure to convert from
+	// nested maps to a strongly typed struct.
+	type namespaceOrbResponse struct {
+		RegistryNamespace struct {
+			Name string
+			Orbs struct {
+				Edges []struct {
+					Cursor string
+					Node   struct {
+						Name     string
+						Versions []struct {
+							Version string
+							Source  string
+						}
+					}
+				}
+				TotalCount int
+				PageInfo   struct {
+					HasNextPage bool
+				}
+			}
+		}
+	}
+	// TODO: update graphql request with "after" cursor
+	request := graphql.NewRequest(`
+query namespaceOrbs ($namespace: String) {
+	registryNamespace(name: $namespace) {
+		name
+		orbs {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`)
+
+	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
+	if err != nil {
+		return err
+	}
+	client := client.NewClient(address, Logger)
+
+	var result namespaceOrbResponse
+	currentCursor := ""
+
+	for {
+		request.Var("after", currentCursor)
+		request.Var("namespace", namespace)
+		err := client.Run(ctx, request, &result)
+
+		if err != nil {
+			return errors.Wrap(err, "GraphQL query failed")
+		}
+
+	NamespaceOrbs:
+		for i := range result.RegistryNamespace.Orbs.Edges {
+			edge := result.RegistryNamespace.Orbs.Edges[i]
+			currentCursor = edge.Cursor
+			if len(edge.Node.Versions) > 0 {
+				v := edge.Node.Versions[0]
+
+				Logger.Infof("%s (%s)", edge.Node.Name, v.Version)
+
+				var o orb
+
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+
+				if err != nil {
+					Logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					continue NamespaceOrbs
+				}
+				Logger.Info(o.String())
+			}
+		}
+
+		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
 			break
 		}
 	}
