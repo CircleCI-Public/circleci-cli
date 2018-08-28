@@ -63,7 +63,6 @@ func newOrbCommand() *cobra.Command {
 	releaseCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	releaseCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 	releaseCommand.Annotations["SEMVER"] = "The semantic version used for this release (i.e. 0.3.6)"
-	publishCommand.AddCommand(releaseCommand)
 
 	devCommand := &cobra.Command{
 		Use:         "dev PATH NAMESPACE ORB LABEL",
@@ -76,10 +75,9 @@ func newOrbCommand() *cobra.Command {
 	devCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	devCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 	devCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
-	publishCommand.AddCommand(devCommand)
 
 	promoteCommand := &cobra.Command{
-		Use:         "promote PATH NAMESPACE ORB LABEL SEMVER",
+		Use:         "promote PATH NAMESPACE ORB LABEL SEGMENT",
 		Short:       "promote a development version of an orb to a semantic release",
 		RunE:        promoteOrb,
 		Args:        cobra.ExactArgs(4),
@@ -89,8 +87,7 @@ func newOrbCommand() *cobra.Command {
 	promoteCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	promoteCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
-	promoteCommand.Annotations["SEMVER"] = "The semantic version used for this release (i.e. 0.3.6)"
-	publishCommand.AddCommand(promoteCommand)
+	promoteCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
 
 	incCommand := &cobra.Command{
 		Use:         "inc PATH NAMESPACE ORB SEGMENT",
@@ -103,6 +100,10 @@ func newOrbCommand() *cobra.Command {
 	incCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	incCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 	incCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
+
+	publishCommand.AddCommand(releaseCommand)
+	publishCommand.AddCommand(promoteCommand)
+	publishCommand.AddCommand(devCommand)
 	publishCommand.AddCommand(incCommand)
 
 	sourceCommand := &cobra.Command{
