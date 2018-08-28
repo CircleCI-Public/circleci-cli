@@ -335,7 +335,7 @@ func devOrb(cmd *cobra.Command, args []string) error {
 	label := fmt.Sprintf("dev:%s", strings.TrimPrefix(args[3], "dev:"))
 
 	ctx := context.Background()
-	response, err = api.OrbPublish(ctx, Logger, args[0], args[1], args[2], label)
+	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], args[2], label)
 
 	if err != nil {
 		return err
@@ -365,6 +365,12 @@ func incOrb(cmd *cobra.Command, args []string) error {
 	if err := validateSegmentArg(args); err != nil {
 		return err
 	}
+
+	return nil
+}
+
+func promoteOrb(cmd *cobra.Command, args []string) error {
+	return nil
 }
 
 func createOrb(cmd *cobra.Command, args []string) error {
