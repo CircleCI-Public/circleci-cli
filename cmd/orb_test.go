@@ -1029,7 +1029,7 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when listing orbs", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "list", orb.Path,
+					"orb", "list",
 					"--host", testServer.URL(),
 					"--verbose",
 				)
