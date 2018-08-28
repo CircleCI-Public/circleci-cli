@@ -1075,6 +1075,7 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
 					"--host", testServer.URL(),
+					"--verbose",
 				)
 			})
 
