@@ -93,6 +93,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newNamespaceCommand())
 	rootCmd.AddCommand(newUsageCommand())
 	rootCmd.AddCommand(newStepCommand())
+	rootCmd.AddCommand(newSwitchCommand())
 	rootCmd.PersistentFlags().Bool("verbose", false, "Enable verbose logging.")
 	rootCmd.PersistentFlags().String("token", "", "your token for using CircleCI")
 	rootCmd.PersistentFlags().String("host", defaultHost, "URL to your CircleCI host")
