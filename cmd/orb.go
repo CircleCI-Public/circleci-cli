@@ -245,7 +245,7 @@ func listNamespaceOrbs(namespace string) error {
 	ctx := context.Background()
 	err := api.ListNamespaceOrbs(ctx, Logger, namespace)
 	if err != nil {
-		errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
+		return errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
 	}
 	return nil
 }
