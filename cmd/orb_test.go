@@ -580,6 +580,170 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
+		Describe("when incrementing a released version", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "publish", "increment",
+					"--token", token,
+					"--host", testServer.URL(),
+					orb.Path,
+					"my",
+					"orb",
+					"minor",
+				)
+			})
+
+			It("works", func() {
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+				// write to test file
+				err := orb.write(`some orb`)
+				// assert write to test file successful
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+				expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
+						"errors": [],
+						"orb": {
+							"version": "0.1.0"
+						}
+					}
+				}`
+
+				expectedPublishRequest := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.1.0"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedVersionRequest,
+					Response: gqlVersionResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb my/orb bumped to 0.1.0"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+				expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								],
+								"orb": null
+					}
+				}`
+
+				expectedPublishRequest := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.1.0"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedVersionRequest,
+					Response: gqlVersionResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+
+			})
+		})
+
 		Describe("when creating / reserving an orb", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,

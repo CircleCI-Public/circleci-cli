@@ -367,9 +367,13 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	err := api.IncrementOrb(context.Background(), Logger, args[1], args[2], args[3])
+	v2, err := api.IncrementOrb(context.Background(), Logger, args[0], args[1], args[2], args[3])
+	if err != nil {
+		return err
+	}
 
-	return err
+	Logger.Infof("Orb %s bumped to %s\n", args[1]+"/"+args[2], v2)
+	return nil
 }
 
 func promoteOrb(cmd *cobra.Command, args []string) error {

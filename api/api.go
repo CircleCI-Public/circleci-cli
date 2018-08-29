@@ -243,6 +243,55 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 	return &response.PublishOrb.PublishOrbResponse, err
 }
 
+// OrbPublishID publishes a new version of an orb by id
+func OrbPublishID(ctx context.Context, logger *logger.Logger,
+	configPath string, orbID string, orbVersion string) (*PublishOrbResponse, error) {
+
+	var response struct {
+		PublishOrb struct {
+			PublishOrbResponse
+		}
+	}
+
+	config, err := loadYaml(configPath)
+	if err != nil {
+		return nil, err
+	}
+
+	query := `
+		mutation($config: String!, $orbId: UUID!, $version: String!) {
+			publishOrb(
+				orbId: $orbId,
+				orbYaml: $config,
+				version: $version
+			) {
+				orb {
+					version
+				}
+				errors { message }
+			}
+		}
+	`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("config", config)
+	request.Var("orbId", orbID)
+	request.Var("version", orbVersion)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		err = errors.Wrap(err, "Unable to publish orb")
+	}
+	return &response.PublishOrb.PublishOrbResponse, err
+}
+
 func getOrbID(ctx context.Context, logger *logger.Logger, name string) (string, error) {
 	var response struct {
 		Orb struct {
@@ -463,21 +512,21 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, nam
 }
 
 // IncrementOrb accepts an orb and segment to increment the orb.
-func IncrementOrb(ctx context.Context, logger *logger.Logger, namespace string, orb string, segment string) error {
+func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (string, error) {
 	name := namespace + "/" + orb
 	id, err := getOrbID(ctx, logger, name)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	ov, err := OrbVersion(ctx, logger, namespace, orb)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	v, err := semver.NewVersion(ov)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	var v2 semver.Version
@@ -490,9 +539,18 @@ func IncrementOrb(ctx context.Context, logger *logger.Logger, namespace string, 
 		v2 = v.IncPatch()
 	}
 
-	logger.Debug("Bumping %s#%s from %s by %s to %s\n.", name, id, ov, segment, v2.String())
+	response, err := OrbPublishID(ctx, logger, configPath, id, v2.String())
+	if err != nil {
+		return "", err
+	}
 
-	return nil
+	if len(response.Errors) > 0 {
+		return "", response.ToError()
+	}
+
+	logger.Debug("Bumped %s#%s from %s by %s to %s\n.", name, id, ov, segment, v2.String())
+
+	return v2.String(), nil
 }
 
 // OrbVersion finds the latest published version of an orb and returns it.
