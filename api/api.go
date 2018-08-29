@@ -11,6 +11,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 )
@@ -459,6 +460,81 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, nam
 
 	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
 	return orb, err
+}
+
+// IncrementOrb accepts an orb and segment to increment the orb.
+func IncrementOrb(ctx context.Context, logger *logger.Logger, namespace string, orb string, segment string) error {
+	name := namespace + "/" + orb
+	id, err := getOrbID(ctx, logger, name)
+	if err != nil {
+		return err
+	}
+
+	ov, err := OrbVersion(ctx, logger, namespace, orb)
+	if err != nil {
+		return err
+	}
+
+	v, err := semver.NewVersion(ov)
+	if err != nil {
+		return err
+	}
+
+	var v2 semver.Version
+	switch segment {
+	case "major":
+		v2 = v.IncMajor()
+	case "minor":
+		v2 = v.IncMinor()
+	case "patch":
+		v2 = v.IncPatch()
+	}
+
+	logger.Debug("Bumping %s#%s from %s by %s to %s\n.", name, id, ov, segment, v2.String())
+
+	return nil
+}
+
+// OrbVersion finds the latest published version of an orb and returns it.
+func OrbVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+	name := namespace + "/" + orb
+
+	var response struct {
+		Orb struct {
+			Versions []struct {
+				Version string
+			}
+		}
+	}
+
+	query := `query($name: String!) {
+			    orb(name: $name) {
+			      versions(count: 1) {
+				    version
+			      }
+			    }
+		      }`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return "", err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(response.Orb.Versions) != 1 {
+		return "", fmt.Errorf("the %s orb has never published a revision", name)
+	}
+
+	return response.Orb.Versions[0].Version, nil
 }
 
 // OrbSource gets the source or an orb
