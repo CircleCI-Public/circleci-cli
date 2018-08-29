@@ -77,13 +77,12 @@ func newOrbCommand() *cobra.Command {
 	devCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
 
 	promoteCommand := &cobra.Command{
-		Use:         "promote PATH NAMESPACE ORB LABEL SEGMENT",
+		Use:         "promote NAMESPACE ORB LABEL SEGMENT",
 		Short:       "promote a development version of an orb to a semantic release",
 		RunE:        promoteOrb,
 		Args:        cobra.ExactArgs(4),
 		Annotations: make(map[string]string),
 	}
-	promoteCommand.Annotations["PATH"] = orbAnnotations["PATH"]
 	promoteCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	promoteCommand.Annotations["ORB"] = orbAnnotations["ORB"]
 	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
@@ -331,12 +330,14 @@ func releaseOrb(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func devOrb(cmd *cobra.Command, args []string) error {
+func devLabel(label string) string {
 	// Ensure the `dev:` tag is prefixed to the label, no matter what
-	label := fmt.Sprintf("dev:%s", strings.TrimPrefix(args[3], "dev:"))
+	return fmt.Sprintf("dev:%s", strings.TrimPrefix(label, "dev:"))
+}
 
+func devOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], args[2], label)
+	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], args[2], devLabel(args[3]))
 
 	if err != nil {
 		return err
@@ -352,8 +353,7 @@ func devOrb(cmd *cobra.Command, args []string) error {
 
 var validSegments = []string{"major", "minor", "patch"}
 
-func validateSegmentArg(args []string) error {
-	label := args[3]
+func validateSegmentArg(label string) error {
 	for _, segment := range validSegments {
 		if label == segment {
 			return nil
@@ -363,7 +363,7 @@ func validateSegmentArg(args []string) error {
 }
 
 func incrementOrb(cmd *cobra.Command, args []string) error {
-	if err := validateSegmentArg(args); err != nil {
+	if err := validateSegmentArg(args[3]); err != nil {
 		return err
 	}
 
@@ -377,6 +377,20 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 }
 
 func promoteOrb(cmd *cobra.Command, args []string) error {
+	if err := validateSegmentArg(args[3]); err != nil {
+		return err
+	}
+
+	response, err := api.PromoteOrb(context.Background(), Logger, args[0], args[1], devLabel(args[2]), args[3])
+	if err != nil {
+		return err
+	}
+
+	if len(response.Errors) > 0 {
+		return response.ToError()
+	}
+
+	Logger.Info("Orb promoted")
 	return nil
 }
 

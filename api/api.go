@@ -46,6 +46,18 @@ type PublishOrbResponse struct {
 	GQLResponseErrors
 }
 
+// The PromoteOrbResponse type matches the data shape of the GQL response for
+// promoting an orb.
+type PromoteOrbResponse struct {
+	Orb struct {
+		CreatedAt string
+		Version   string
+		Source    string
+	}
+
+	GQLResponseErrors
+}
+
 // CreateNamespaceResponse type matches the data shape of the GQL response for
 // creating a namespace
 type CreateNamespaceResponse struct {
@@ -602,6 +614,66 @@ func OrbVersion(ctx context.Context, logger *logger.Logger, namespace string, or
 	}
 
 	return response.Orb.Versions[0].Version, nil
+}
+
+// PromoteOrb takes an orb and a development version and increments a semantic release with the given segment.
+func PromoteOrb(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*PromoteOrbResponse, error) {
+	name := namespace + "/" + orb
+	id, err := getOrbID(ctx, logger, name)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := OrbVersion(ctx, logger, namespace, orb)
+	if err != nil {
+		return nil, err
+	}
+
+	v2, err := incOrbVersion(v, segment)
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		PromoteOrb struct {
+			PromoteOrbResponse
+		}
+	}
+
+	query := `
+		mutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {
+			promoteOrb(
+				orbId: $orbId,
+				devVersion: $devVersion,
+				semanticVersion: $semanticVersion
+			) {
+				orb {
+					version
+					source
+				}
+				errors { message }
+			}
+		}
+	`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("orbId", id)
+	request.Var("devVersion", label)
+	request.Var("semanticVersion", v2)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		err = errors.Wrap(err, "Unable to promote orb")
+	}
+
+	return &response.PromoteOrb.PromoteOrbResponse, err
 }
 
 // OrbSource gets the source or an orb
