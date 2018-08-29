@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -29,8 +28,7 @@ func newOrbCommand() *cobra.Command {
 		RunE:        listOrbs,
 		Annotations: make(map[string]string),
 	}
-	optionalOrbs := []string{orbAnnotations["NAMESPACE"], "(Optional)"}
-	listCommand.Annotations["NAMESPACE"] = strings.Join(optionalOrbs, " ")
+	listCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"] + " (Optional)"
 
 	validateCommand := &cobra.Command{
 		Use:         "validate PATH",
