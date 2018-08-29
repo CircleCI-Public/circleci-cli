@@ -511,20 +511,8 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, nam
 	return orb, err
 }
 
-// IncrementOrb accepts an orb and segment to increment the orb.
-func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (string, error) {
-	name := namespace + "/" + orb
-	id, err := getOrbID(ctx, logger, name)
-	if err != nil {
-		return "", err
-	}
-
-	ov, err := OrbVersion(ctx, logger, namespace, orb)
-	if err != nil {
-		return "", err
-	}
-
-	v, err := semver.NewVersion(ov)
+func incOrbVersion(orbVersion string, segment string) (string, error) {
+	v, err := semver.NewVersion(orbVersion)
 	if err != nil {
 		return "", err
 	}
@@ -539,7 +527,28 @@ func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string,
 		v2 = v.IncPatch()
 	}
 
-	response, err := OrbPublishID(ctx, logger, configPath, id, v2.String())
+	return v2.String(), nil
+}
+
+// IncrementOrb accepts an orb and segment to increment the orb.
+func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (string, error) {
+	name := namespace + "/" + orb
+	id, err := getOrbID(ctx, logger, name)
+	if err != nil {
+		return "", err
+	}
+
+	v, err := OrbVersion(ctx, logger, namespace, orb)
+	if err != nil {
+		return "", err
+	}
+
+	v2, err := incOrbVersion(v, segment)
+	if err != nil {
+		return "", err
+	}
+
+	response, err := OrbPublishID(ctx, logger, configPath, id, v2)
 	if err != nil {
 		return "", err
 	}
@@ -548,9 +557,9 @@ func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string,
 		return "", response.ToError()
 	}
 
-	logger.Debug("Bumped %s#%s from %s by %s to %s\n.", name, id, ov, segment, v2.String())
+	logger.Debug("Bumped %s#%s from %s by %s to %s\n.", name, id, v, segment, v2)
 
-	return v2.String(), nil
+	return v2, nil
 }
 
 // OrbVersion finds the latest published version of an orb and returns it.

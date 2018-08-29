@@ -372,7 +372,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb %s bumped to %s\n", args[1]+"/"+args[2], v2)
+	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], v2)
 	return nil
 }
 
