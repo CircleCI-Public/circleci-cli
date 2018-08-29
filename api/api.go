@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"net/url"
@@ -12,8 +13,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/Masterminds/semver"
+	"github.com/machinebox/graphql"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // GQLResponseErrors is a slice of errors returned by the GraphQL server. Each
@@ -77,6 +80,51 @@ type CreateOrbResponse struct {
 	}
 
 	GQLResponseErrors
+}
+
+// Orb is a struct for containing the yaml-unmarshaled contents of an orb
+type Orb struct {
+	Commands  map[string]struct{}
+	Jobs      map[string]struct{}
+	Executors map[string]struct{}
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) error {
+	var err error
+
+	if len(elems) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		if err != nil {
+			return err
+		}
+		for key := range elems {
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return err
+}
+
+func (orb Orb) String() string {
+	var buffer bytes.Buffer
+
+	err := addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
+	// FIXME: refactor this to handle the error
+	if err != nil {
+		panic(err)
+	}
+	err = addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
+	if err != nil {
+		panic(err)
+	}
+	err = addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+	if err != nil {
+		panic(err)
+	}
+	return buffer.String()
 }
 
 // ToError returns all GraphQL errors for a single response concatenated, or
@@ -674,4 +722,103 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 	}
 
 	return response.Orb.Versions[0].Source, nil
+}
+
+// ListNamespaceOrbs queries the API to find all orbs belonging to the given
+// namespace. Prints the orbs and their jobs and commands to the supplied
+// logger.
+func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) error {
+	// Define a structure that matches the result of the GQL
+	// query, so that we can use mapstructure to convert from
+	// nested maps to a strongly typed struct.
+	type namespaceOrbResponse struct {
+		RegistryNamespace struct {
+			Name string
+			Orbs struct {
+				Edges []struct {
+					Cursor string
+					Node   struct {
+						Name     string
+						Versions []struct {
+							Version string
+							Source  string
+						}
+					}
+				}
+				TotalCount int
+				PageInfo   struct {
+					HasNextPage bool
+				}
+			}
+		}
+	}
+
+	request := graphql.NewRequest(`
+query namespaceOrbs ($namespace: String, $after: String!) {
+	registryNamespace(name: $namespace) {
+		name
+		orbs(first: 20, after: $after) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return err
+	}
+	client := client.NewClient(address, logger)
+
+	var result namespaceOrbResponse
+	currentCursor := ""
+
+	for {
+		request.Var("after", currentCursor)
+		request.Var("namespace", namespace)
+		err := client.Run(ctx, request, &result)
+
+		if err != nil {
+			return errors.Wrap(err, "GraphQL query failed")
+		}
+
+	NamespaceOrbs:
+		for i := range result.RegistryNamespace.Orbs.Edges {
+			edge := result.RegistryNamespace.Orbs.Edges[i]
+			currentCursor = edge.Cursor
+			if len(edge.Node.Versions) > 0 {
+				v := edge.Node.Versions[0]
+
+				// Print the orb name and first version returned by the API
+				logger.Infof("%s (%s)", edge.Node.Name, v.Version)
+
+				// Parse the orb source to print its commands, executors and jobs
+				var o Orb
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					continue NamespaceOrbs
+				}
+				logger.Info(o.String())
+			}
+		}
+
+		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
+			break
+		}
+	}
+	return nil
 }

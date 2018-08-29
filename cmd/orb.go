@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -145,50 +144,6 @@ func newOrbCommand() *cobra.Command {
 	return orbCommand
 }
 
-type orb struct {
-	Commands  map[string]struct{}
-	Jobs      map[string]struct{}
-	Executors map[string]struct{}
-}
-
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) error {
-	var err error
-
-	if len(elems) > 0 {
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		if err != nil {
-			return err
-		}
-		for key := range elems {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return err
-}
-
-func (orb orb) String() string {
-	var buffer bytes.Buffer
-
-	err := addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
-	// FIXME: refactor this to handle the error
-	if err != nil {
-		panic(err)
-	}
-	err = addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
-	if err != nil {
-		panic(err)
-	}
-	err = addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
-	if err != nil {
-		panic(err)
-	}
-	return buffer.String()
-}
-
 func listOrbs(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return listNamespaceOrbs(args[0])
@@ -267,7 +222,7 @@ query ListOrbs ($after: String!) {
 
 				Logger.Infof("%s (%s)", edge.Node.Name, v.Version)
 
-				var o orb
+				var o api.Orb
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 
@@ -290,98 +245,9 @@ query ListOrbs ($after: String!) {
 
 func listNamespaceOrbs(namespace string) error {
 	ctx := context.Background()
-
-	// Define a structure that matches the result of the GQL
-	// query, so that we can use mapstructure to convert from
-	// nested maps to a strongly typed struct.
-	type namespaceOrbResponse struct {
-		RegistryNamespace struct {
-			Name string
-			Orbs struct {
-				Edges []struct {
-					Cursor string
-					Node   struct {
-						Name     string
-						Versions []struct {
-							Version string
-							Source  string
-						}
-					}
-				}
-				TotalCount int
-				PageInfo   struct {
-					HasNextPage bool
-				}
-			}
-		}
-	}
-
-	request := graphql.NewRequest(`
-query namespaceOrbs ($namespace: String, $after: String!) {
-	registryNamespace(name: $namespace) {
-		name
-		orbs(first: 20, after: $after) {
-			edges {
-				cursor
-				node {
-					versions {
-						source
-						version
-					}
-					name
-				}
-			}
-			totalCount
-			pageInfo {
-				hasNextPage
-			}
-		}
-	}
-}
-`)
-
-	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
+	err := api.ListNamespaceOrbs(ctx, Logger, namespace)
 	if err != nil {
-		return err
-	}
-	client := client.NewClient(address, Logger)
-
-	var result namespaceOrbResponse
-	currentCursor := ""
-
-	for {
-		request.Var("after", currentCursor)
-		request.Var("namespace", namespace)
-		err := client.Run(ctx, request, &result)
-
-		if err != nil {
-			return errors.Wrap(err, "GraphQL query failed")
-		}
-
-	NamespaceOrbs:
-		for i := range result.RegistryNamespace.Orbs.Edges {
-			edge := result.RegistryNamespace.Orbs.Edges[i]
-			currentCursor = edge.Cursor
-			if len(edge.Node.Versions) > 0 {
-				v := edge.Node.Versions[0]
-
-				Logger.Infof("%s (%s)", edge.Node.Name, v.Version)
-
-				var o orb
-
-				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
-
-				if err != nil {
-					Logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
-					continue NamespaceOrbs
-				}
-				Logger.Info(o.String())
-			}
-		}
-
-		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
-			break
-		}
+		errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
 	}
 	return nil
 }
