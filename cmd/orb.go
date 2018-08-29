@@ -89,22 +89,23 @@ func newOrbCommand() *cobra.Command {
 	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
 	promoteCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
 
-	incCommand := &cobra.Command{
-		Use:         "inc PATH NAMESPACE ORB SEGMENT",
+	incrementCommand := &cobra.Command{
+		Use:         "increment PATH NAMESPACE ORB SEGMENT",
 		Short:       "increment a released version of an orb",
-		RunE:        incOrb,
+		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(4),
 		Annotations: make(map[string]string),
+		Aliases:     []string{"inc"},
 	}
-	incCommand.Annotations["PATH"] = orbAnnotations["PATH"]
-	incCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	incCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	incCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
+	incrementCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	incrementCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
+	incrementCommand.Annotations["ORB"] = orbAnnotations["ORB"]
+	incrementCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
 
 	publishCommand.AddCommand(releaseCommand)
 	publishCommand.AddCommand(promoteCommand)
 	publishCommand.AddCommand(devCommand)
-	publishCommand.AddCommand(incCommand)
+	publishCommand.AddCommand(incrementCommand)
 
 	sourceCommand := &cobra.Command{
 		Use:         "source NAMESPACE ORB",
@@ -361,7 +362,7 @@ func validateSegmentArg(args []string) error {
 	return fmt.Errorf(`expected %s to be one of "major", "minor", or "patch"`, label)
 }
 
-func incOrb(cmd *cobra.Command, args []string) error {
+func incrementOrb(cmd *cobra.Command, args []string) error {
 	if err := validateSegmentArg(args); err != nil {
 		return err
 	}
