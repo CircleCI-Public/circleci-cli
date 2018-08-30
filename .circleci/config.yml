@@ -96,9 +96,11 @@ jobs:
       - run:
           name: Build Docker Image
           command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
+            docker push     circleci/circleci-cli:latest
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
