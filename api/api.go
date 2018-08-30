@@ -201,62 +201,8 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 		}`)
 }
 
-// OrbPublish publishes a new version of an orb
-func OrbPublish(ctx context.Context, logger *logger.Logger,
-	configPath string, namespace string, orb string, orbVersion string) (*PublishOrbResponse, error) {
-	name := namespace + "/" + orb
-	orbID, err := getOrbID(ctx, logger, name)
-	if err != nil {
-		return nil, err
-	}
-
-	var response struct {
-		PublishOrb struct {
-			PublishOrbResponse
-		}
-	}
-
-	config, err := loadYaml(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	query := `
-		mutation($config: String!, $orbId: UUID!, $version: String!) {
-			publishOrb(
-				orbId: $orbId,
-				orbYaml: $config,
-				version: $version
-			) {
-				orb {
-					version
-				}
-				errors { message }
-			}
-		}
-	`
-
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
-	request.Var("config", config)
-	request.Var("orbId", orbID)
-	request.Var("version", orbVersion)
-
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
-
-	if err != nil {
-		err = errors.Wrap(err, "Unable to publish orb")
-	}
-	return &response.PublishOrb.PublishOrbResponse, err
-}
-
-// OrbPublishID publishes a new version of an orb by id
-func OrbPublishID(ctx context.Context, logger *logger.Logger,
+// OrbPublishByID publishes a new version of an orb by id
+func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 	configPath string, orbID string, orbVersion string) (*PublishOrbResponse, error) {
 
 	var response struct {
@@ -304,7 +250,10 @@ func OrbPublishID(ctx context.Context, logger *logger.Logger,
 	return &response.PublishOrb.PublishOrbResponse, err
 }
 
-func getOrbID(ctx context.Context, logger *logger.Logger, name string) (string, error) {
+// OrbID fetches an orb returning the ID
+func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+	name := namespace + "/" + orb
+
 	var response struct {
 		Orb struct {
 			ID string
@@ -544,8 +493,7 @@ func incOrbVersion(orbVersion string, segment string) (string, error) {
 
 // IncrementOrb accepts an orb and segment to increment the orb.
 func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (string, error) {
-	name := namespace + "/" + orb
-	id, err := getOrbID(ctx, logger, name)
+	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return "", err
 	}
@@ -560,7 +508,7 @@ func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string,
 		return "", err
 	}
 
-	response, err := OrbPublishID(ctx, logger, configPath, id, v2)
+	response, err := OrbPublishByID(ctx, logger, configPath, id, v2)
 	if err != nil {
 		return "", err
 	}
@@ -569,7 +517,7 @@ func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string,
 		return "", response.ToError()
 	}
 
-	logger.Debug("Bumped %s#%s from %s by %s to %s\n.", name, id, v, segment, v2)
+	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id, v, segment, v2)
 
 	return v2, nil
 }
@@ -618,8 +566,7 @@ func OrbVersion(ctx context.Context, logger *logger.Logger, namespace string, or
 
 // PromoteOrb takes an orb and a development version and increments a semantic release with the given segment.
 func PromoteOrb(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*PromoteOrbResponse, error) {
-	name := namespace + "/" + orb
-	id, err := getOrbID(ctx, logger, name)
+	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}

@@ -316,8 +316,13 @@ func processOrb(cmd *cobra.Command, args []string) error {
 
 func releaseOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], args[2], args[3])
 
+	id, err := api.OrbID(ctx, Logger, args[1], args[2])
+	if err != nil {
+		return err
+	}
+
+	response, err := api.OrbPublishByID(ctx, Logger, args[0], id, args[3])
 	if err != nil {
 		return err
 	}
@@ -337,8 +342,13 @@ func devLabel(label string) string {
 
 func devOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := api.OrbPublish(ctx, Logger, args[0], args[1], args[2], devLabel(args[3]))
 
+	id, err := api.OrbID(ctx, Logger, args[1], args[2])
+	if err != nil {
+		return err
+	}
+
+	response, err := api.OrbPublishByID(ctx, Logger, args[0], id, devLabel(args[3]))
 	if err != nil {
 		return err
 	}
