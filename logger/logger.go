@@ -66,15 +66,6 @@ func (l *Logger) Error(msg string, err error) {
 	}
 }
 
-// FatalOnError prints a message and error's message to os.Stderr then QUITS!
-// Please be aware this method will exit the program via os.Exit(1).
-// This method wraps log.Logger.Fatalln
-func (l *Logger) FatalOnError(msg string, err error) {
-	if err != nil {
-		l.error.Fatalln(msg, err.Error())
-	}
-}
-
 // Prettyify accepts a map of data and pretty prints it.
 // It's using json.MarshalIndent and printing with log.Logger.Infoln
 func (l *Logger) Prettyify(data interface{}) {

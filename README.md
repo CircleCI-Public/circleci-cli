@@ -2,83 +2,66 @@
 
 This project is the seed for CircleCI's new command-line application.
 
+[Documentation](https://circleci-public.github.io/circleci-cli) |
+[Code of Conduct](./CODE_OF_CONDUCT.md) |
+[Contribution Guidelines](./CONTRIBUTING.md) |
+[Hacking](./HACKING.md)
+
+[![CircleCI](https://circleci.com/gh/CircleCI-Public/circleci-cli.svg?style=svg)](https://circleci.com/gh/CircleCI-Public/circleci-cli)
+[![GitHub release](https://img.shields.io/github/tag/CircleCI-Public/circleci-cli.svg?label=latest)](https://github.com/CircleCI-Public/circleci-cli/releases)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
+[![Codecov](https://codecov.io/gh/CircleCI-Public/circleci-cli/branch/master/graph/badge.svg)](https://codecov.io/gh/CircleCI-Public/circleci-cli)
+[![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
+
 ## Getting Started
 
+### Upgrade from existing CLI
 
-### 1. Get the latest binary
-
-Download the [latest release](https://github.com/CircleCI-Public/circleci-cli/releases/latest) from GitHub for your operating system. If you're on a Mac, this would be `circleci-cli_0.1.X_darwin_amd64.tar.gz`.
-
-### 2. Put the binary in your $PATH
+If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
 
 ```
-$ tar -xvzf circleci-cli_0.1.X_darwin_amd64.tar.gz
-$ mv circleci-beta /usr/local/bin
+circleci update
+circleci switch
 ```
 
-### 3. Run a Diagnostic check
+This command may prompt you for `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`.
+
+### From Scratch
+
+If you're installing the new `circleci` CLI for the first time, run the following command:
 
 ```
-$ circleci-beta diagnostic
-
-Please enter your CircleCI API token:
-OK.
-Your configuration has been created in `/home/zzak/.circleci/cli.yml`.
-It can edited manually for advanced settings.
-
----
-CircleCI CLI Diagnostics
----
-
-Config found: `/home/zzak/.circleci/cli.yml`
-Host is: https://circleci.com
-OK, got a token.
+bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
 ```
 
-## Running a query
+This will install the CLI into the `/usr/local/bin` directory.
 
-After you've setup the CLI, you can try executing a GraphQL query against the client.
+If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
 
-Given we've written the following query in a file called `query.gql`:
+## Configure the CLI
 
-``` graphql
-query IntrospectionQuery {
-	__schema {
-		queryType { name }
-		mutationType { name }
-		subscriptionType { name }
-		types {
-			...FullType
-		}
-		directives {
-			name
-			description
-		}
-	}
-}
-
-fragment FullType on __Type {
-	kind
-	name
-	description
-	fields(includeDeprecated: true) {
-		name
-	}
-}
-```
-
-You can now pipe that file to the `query` command to send it.
+You may first need to generate a CircleCI API Token from the [Personal API Token tab](https://circleci.com/account/api).
 
 ```
-$ cat query.gql | circleci-beta query
+$ circleci setup
 ```
 
-This should pretty-print back a JSON response from the server:
+If you are using this tool on `circleci.com`. accept the provided default `CircleCI Host`.
+
+Server users will have to change the default value to your custom address (i.e. `circleci.my-org.com`).
+
+**Note**: Server does not yet support config processing and orbs, you will only be able to use `circleci local execute` (previously `circleci build`) for now.
+
+
+## Validate A Build Config
+
+To ensure that the tool is installed, you can use it to validate a build config file.
 
 ```
-{
-	"__schema": {
-		# ...Tons O' Schema
-	}
-}
+$ circleci config validate
+Config file at .circleci/config.yml is valid
 ```
+
+## More
+
+Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.

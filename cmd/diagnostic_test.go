@@ -68,7 +68,69 @@ token: mytoken
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API endpoint: https://example.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://example.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("token, host, and old endpoint set in config file", func() {
+			BeforeEach(func() {
+				_, err := config.Write([]byte(`
+endpoint: https://example.com/graphql
+host: https://circleci.com/
+token: mytoken
+`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			It("print success", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err.Contents()).Should(BeEmpty())
+				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://example.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("token, host, and new endpoint set in config file", func() {
+			BeforeEach(func() {
+				_, err := config.Write([]byte(`
+endpoint: graphql
+host: https://circleci.com/
+token: mytoken
+`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			It("print success", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err.Contents()).Should(BeEmpty())
+				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://circleci.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("token, host, and missing endpoint set in config file", func() {
+			BeforeEach(func() {
+				_, err := config.Write([]byte(`
+host: https://circleci.com/
+token: mytoken
+`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			It("print success", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err.Contents()).Should(BeEmpty())
+				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://circleci.com/graphql-unstable"))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
@@ -88,7 +150,7 @@ token:
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error: please set a token"))
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API endpoint: https://example.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://example.com/graphql"))
 				Eventually(session).Should(gexec.Exit(255))
 			})
 		})

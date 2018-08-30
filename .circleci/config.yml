@@ -1,81 +1,59 @@
-version: 2
+version: 2.1
 
-workflows:
-  version: 2
-  ci:
-    jobs:
-      - test
-      - coverage
-      - lint
-      - deploy:
-          requires:
-            - test
-            - coverage
-            - lint
-          filters:
-            branches:
-              only: master
+orbs:
+  codecov: circleci/codecov-clojure@0.0.4
 
-jobs:
-  test:
+executors:
+  go:
     docker:
       - image: circleci/golang:1.10
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+
+jobs:
+  test:
+    executor: go
     steps:
       - checkout
       - run: make test
   coverage:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    executor: go
     steps:
       - checkout
       - run: make cover
       - store_artifacts:
           path: ./coverage.txt
           destination: coverage.txt
-      - run:
-          name: Upload code coverage report to codecov.io
-          command: |
-            curl -ivX POST -H 'Accept: text/plain' \
-            --data-binary @coverage.txt \
-            "https://codecov.io/upload/v2\
-            ?service=circleci\
-            &token=$CODECOV_TOKEN\
-            &commit=$CIRCLE_SHA1\
-            &branch=$CIRCLE_BRANCH\
-            &build=$CIRCLE_BUILD_NUM\
-            &job=$CIRCLE_NODE_INDEX\
-            &build_url=$CIRCLE_BUILD_URL\
-            &slug=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME\
-            &pr=$CIRCLE_PR_NUMBER"
-  lint:
-    docker:
-      - image: circleci/golang:1.10
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+      - codecov/upload:
+          path: coverage.txt
+  docs:
+    executor: go
     steps:
       - checkout
-      - restore_cache:
-          keys: [v1-gometalinter-]
-      - run:
-          name: Install
-          command: |
-            [[ -e /go/bin/gometalinter ]] && exit
-            go get -u github.com/alecthomas/gometalinter
-            gometalinter --install
-      - run: make lint
-      - save_cache:
-          key: v1-gometalinter-{{ checksum "/go/bin/gometalinter" }}
-          paths: [/go/bin/*]
+      - run: sudo apt-get install pandoc
+      - run: go run main.go usage
+      - store_artifacts:
+          path: ./docs
+          destination: docs
+      - run: ./.circleci/generate-docs.sh
+      - run: ./.circleci/deploy-gh-pages.sh
+
+  lint:
+    docker:
+      # TODO: use this image once it updates latest gometalinter
+      #- image: supinf/gometalinter:latest
+      - image: circleci/golang:1.10
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    environment:
+      CGO_ENABLED: 0
+    steps:
+      - checkout
+      - run: make dev
+      - run: gometalinter ./...
 
   deploy:
-    working_directory: /go/src/github.com/circleci/circleci-cli
-    docker:
-      - image: circleci/golang:1.10
+    executor: go
     environment:
-      GORELEASER_URL:  https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
-
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
     steps:
       - checkout
       - restore_cache:
@@ -88,8 +66,8 @@ jobs:
       - run:
           name: Tag Repo
           command: |
-            git config --global user.email "marc@circleci.com"
-            git config --global user.name "Marc O'Morain"
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
       - run:
@@ -100,9 +78,72 @@ jobs:
       - run:
           name: Build Docker Image
           command: |
-            docker build -t circlecidx/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
-            docker push     circlecidx/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
+            docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
+            docker push     circleci/circleci-cli:latest
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "dist"
+      - store_artifacts:
+          path: ./dist
+          destination: dist
+
+  snap:
+    docker:
+      - image: cibuilds/snapcraft:stable
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run: |
+          export TAG=$(./dist/linux_amd64/circleci version)
+          sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snapcraft.yaml
+      - run: snapcraft
+      - run:
+          name: Publish to store
+          command: |
+            mkdir .snapcraft
+            echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
+            snapcraft push *.snap --release stable
+
+  shellcheck:
+    docker:
+      - image: nlknguyen/alpine-shellcheck:v0.4.6
+    steps:
+      - checkout
+      - run:
+          name: Check Scripts
+          command: |
+            find . -type f -name '*.sh' -not -path './vendor/*' > /tmp/files.txt
+            echo "Checking $(cat /tmp/files.txt | wc -l ) files"
+            cat /tmp/files.txt | xargs -t shellcheck --external-sources
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - shellcheck
+      - test
+      - coverage
+      - lint
+      - docs:
+          requires:
+            - deploy
+      - snap:
+          requires:
+            - deploy
+      - deploy:
+          requires:
+            - test
+            - coverage
+            - lint
+            - shellcheck
+          filters:
+            branches:
+              only: master

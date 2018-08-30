@@ -1,157 +1,141 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/pkg/errors"
-
-	"github.com/machinebox/graphql"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
+	yaml "gopkg.in/yaml.v2"
 )
 
+const defaultConfigPath = ".circleci/config.yml"
+
 // Path to the config.yml file to operate on.
+// Used to for compatibility with `circleci config validate --path`
 var configPath string
 
-var configCmd = &cobra.Command{
-	Use:   "config",
-	Short: "Operate on build config files",
+var configAnnotations = map[string]string{
+	"PATH": "The path to your config (use \"-\" for STDIN)",
 }
 
-var validateCommand = &cobra.Command{
-	Use:     "validate",
-	Aliases: []string{"check"},
-	Short:   "Check that the config file is well formed.",
-	RunE:    validateConfig,
-}
+func newConfigCommand() *cobra.Command {
+	configCmd := &cobra.Command{
+		Use:   "config",
+		Short: "Operate on build config files",
+	}
 
-var expandCommand = &cobra.Command{
-	Use:   "expand",
-	Short: "Expand the config.",
-	RunE:  expandConfig,
-}
+	packCommand := &cobra.Command{
+		Use:         "pack PATH",
+		Short:       "Pack up your CircleCI configuration into a single file.",
+		RunE:        packConfig,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
+	}
+	packCommand.Annotations["PATH"] = configAnnotations["PATH"]
 
-func init() {
-	configCmd.PersistentFlags().StringVarP(&configPath, "path", "p", ".circleci/config.yml", "path to build config")
+	validateCommand := &cobra.Command{
+		Use:         "validate PATH",
+		Aliases:     []string{"check"},
+		Short:       "Check that the config file is well formed.",
+		RunE:        validateConfig,
+		Args:        cobra.MaximumNArgs(1),
+		Annotations: make(map[string]string),
+	}
+	validateCommand.Annotations["PATH"] = configAnnotations["PATH"]
+	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
+	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
+		panic(err)
+	}
+
+	processCommand := &cobra.Command{
+		Use:         "process PATH",
+		Short:       "Process the config.",
+		RunE:        processConfig,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
+	}
+	processCommand.Annotations["PATH"] = configAnnotations["PATH"]
+
+	migrateCommand := &cobra.Command{
+		Use:                "migrate",
+		Short:              "migrate a pre-release 2.0 config to the official release version",
+		RunE:               migrateConfig,
+		Hidden:             true,
+		DisableFlagParsing: true,
+	}
+	// These flags are for documentation and not actually parsed
+	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file")
+	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
+
+	configCmd.AddCommand(packCommand)
 	configCmd.AddCommand(validateCommand)
-	configCmd.AddCommand(expandCommand)
+	configCmd.AddCommand(processCommand)
+	configCmd.AddCommand(migrateCommand)
+
+	return configCmd
 }
 
-// Define a structure that matches the result of the GQL
-// query, so that we can use mapstructure to convert from
-// nested maps to a strongly typed struct.
-type buildConfigResponse struct {
-	BuildConfig struct {
-		Valid      bool
-		SourceYaml string
-		OutputYaml string
-
-		Errors []struct {
-			Message string
-		}
-	}
-}
-
-func queryAPI(ctx context.Context, query string, variables map[string]string, response interface{}) error {
-
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
-
-	for varName, varValue := range variables {
-		request.Var(varName, varValue)
-	}
-
-	client := graphql.NewClient(viper.GetString("endpoint"))
-
-	return client.Run(ctx, request, response)
-}
-
-func loadYaml(path string) (string, error) {
-
-	config, err := ioutil.ReadFile(path)
-
-	if err != nil {
-		return "", errors.Wrapf(err, "Could not load config file at %s", path)
-	}
-
-	return string(config), nil
-}
-
-func (response buildConfigResponse) processErrors() error {
-	var buffer bytes.Buffer
-
-	buffer.WriteString("\n")
-	for i := range response.BuildConfig.Errors {
-		buffer.WriteString("-- ")
-		buffer.WriteString(response.BuildConfig.Errors[i].Message)
-		buffer.WriteString(",\n")
-	}
-
-	return errors.New(buffer.String())
-}
-
-func configQuery(ctx context.Context) (*buildConfigResponse, error) {
-
-	query := `
-		query ValidateConfig ($config: String!) {
-			buildConfig(configYaml: $config) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
-
-	config, err := loadYaml(configPath)
-	if err != nil {
-		return nil, err
-	}
-
-	variables := map[string]string{
-		"config": config,
-	}
-
-	var response buildConfigResponse
-	err = queryAPI(ctx, query, variables, &response)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
-	}
-
-	return &response, nil
-}
-
+// The PATH arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(cmd *cobra.Command, args []string) error {
+	path := defaultConfigPath
+	// First, set the path to configPath set by --path flag for compatibility
+	if configPath != "" {
+		path = configPath
+	}
+
+	// Then, if an arg is passed in, choose that instead
+	if len(args) == 1 {
+		path = args[0]
+	}
 
 	ctx := context.Background()
-	response, err := configQuery(ctx)
+	response, err := api.ConfigQuery(ctx, Logger, path)
 
 	if err != nil {
 		return err
 	}
 
-	if !response.BuildConfig.Valid {
-		return response.processErrors()
+	if !response.Valid {
+		return response.ToError()
 	}
 
-	Logger.Infof("Config file at %s is valid", configPath)
+	Logger.Infof("Config file at %s is valid", path)
 	return nil
 }
 
-func expandConfig(cmd *cobra.Command, args []string) error {
+func processConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-
-	response, err := configQuery(ctx)
+	response, err := api.ConfigQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
 	}
 
-	if !response.BuildConfig.Valid {
-		return response.processErrors()
+	if !response.Valid {
+		return response.ToError()
 	}
 
-	Logger.Info(response.BuildConfig.OutputYaml)
+	Logger.Info(response.OutputYaml)
 	return nil
+}
+
+func packConfig(cmd *cobra.Command, args []string) error {
+	tree, err := filetree.NewTree(args[0])
+	if err != nil {
+		return errors.Wrap(err, "An error occurred trying to build the tree")
+	}
+
+	y, err := yaml.Marshal(&tree)
+	if err != nil {
+		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
+	}
+	Logger.Infof("%s\n", string(y))
+	return nil
+}
+
+func migrateConfig(cmd *cobra.Command, args []string) error {
+	return proxy.Exec([]string{"config", "migrate"}, args)
 }

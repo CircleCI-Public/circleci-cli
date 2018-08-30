@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"os/exec"
 
+	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -10,6 +11,16 @@ import (
 )
 
 var _ = Describe("Root", func() {
+
+	Describe("subcommands", func() {
+
+		It("can create commands", func() {
+			commands := cmd.MakeCommands()
+			Expect(len(commands.Commands())).To(Equal(14))
+		})
+
+	})
+
 	Describe("when run with --help", func() {
 		It("return exit code 0 with help message", func() {
 			command := exec.Command(pathCLI, "--help")
