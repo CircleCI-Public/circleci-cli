@@ -25,6 +25,7 @@ trap error ERR
 
 echo "Finding latest release."
 curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL" 
+echo "$(python -m json.tool release.json)" > release.json
 
 STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
 
