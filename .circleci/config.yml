@@ -1,25 +1,7 @@
 version: 2.1
 
-commands:
-  upload:
-    parameters:
-      path:
-        description: Path to the code coverage data file to upload.
-        type: string
-    steps:
-    - run:
-        name: Upload Coverage Results
-        command: |
-          curl --request POST --retry 3 --silent --show-error --fail --data-binary @<< parameters.path >> \
-          "https://codecov.io/upload/v2?service=circleci\
-          &token=$CODECOV_TOKEN\
-          &commit=$CIRCLE_SHA1\
-          &branch=$CIRCLE_BRANCH\
-          &build=$CIRCLE_BUILD_NUM\
-          &job=$CIRCLE_NODE_INDEX\
-          &build_url=$CIRCLE_BUILD_URL\
-          &slug=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME\
-          &pr=$CIRCLE_PR_NUMBER"
+orbs:
+  codecov: circleci/codecov-clojure@0.0.4
 
 executors:
   go:
@@ -41,7 +23,7 @@ jobs:
       - store_artifacts:
           path: ./coverage.txt
           destination: coverage.txt
-      - upload:
+      - codecov/upload:
           path: coverage.txt
   docs:
     executor: go
