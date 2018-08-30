@@ -327,11 +327,7 @@ func releaseOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(response.Errors) > 0 {
-		return response.ToError()
-	}
-
-	Logger.Info("Orb published")
+	Logger.Infof("Orb published %s", response.Orb.Version)
 	return nil
 }
 
@@ -353,11 +349,7 @@ func devOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if len(response.Errors) > 0 {
-		return response.ToError()
-	}
-
-	Logger.Info("Orb published")
+	Logger.Infof("Orb published %s", response.Orb.Version)
 	return nil
 }
 
@@ -377,12 +369,12 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	v2, err := api.IncrementOrb(context.Background(), Logger, args[0], args[1], args[2], args[3])
+	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], args[1], args[2], args[3])
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], v2)
+	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.Orb.Version)
 	return nil
 }
 
@@ -391,16 +383,12 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response, err := api.PromoteOrb(context.Background(), Logger, args[0], args[1], devLabel(args[2]), args[3])
+	response, err := api.OrbPromote(context.Background(), Logger, args[0], args[1], devLabel(args[2]), args[3])
 	if err != nil {
 		return err
 	}
 
-	if len(response.Errors) > 0 {
-		return response.ToError()
-	}
-
-	Logger.Info("Orb promoted")
+	Logger.Infof("Orb promoted to %s", response.Orb.Version)
 	return nil
 }
 

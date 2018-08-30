@@ -393,7 +393,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published"))
+				Eventually(session.Out).Should(gbytes.Say("Orb published 0.0.1"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -520,7 +520,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published"))
+				Eventually(session.Out).Should(gbytes.Say("Orb published dev:volatile"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -830,7 +830,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb promoted"))
+				Eventually(session.Out).Should(gbytes.Say("Orb promoted to 0.1.0"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 

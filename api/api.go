@@ -35,9 +35,9 @@ type ConfigResponse struct {
 	GQLResponseErrors
 }
 
-// The PublishOrbResponse type matches the data shape of the GQL response for
+// The OrbPublishResponse type matches the data shape of the GQL response for
 // publishing an orb.
-type PublishOrbResponse struct {
+type OrbPublishResponse struct {
 	Orb struct {
 		CreatedAt string
 		Version   string
@@ -46,9 +46,9 @@ type PublishOrbResponse struct {
 	GQLResponseErrors
 }
 
-// The PromoteOrbResponse type matches the data shape of the GQL response for
+// The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
-type PromoteOrbResponse struct {
+type OrbPromoteResponse struct {
 	Orb struct {
 		CreatedAt string
 		Version   string
@@ -203,11 +203,11 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 
 // OrbPublishByID publishes a new version of an orb by id
 func OrbPublishByID(ctx context.Context, logger *logger.Logger,
-	configPath string, orbID string, orbVersion string) (*PublishOrbResponse, error) {
+	configPath string, orbID string, orbVersion string) (*OrbPublishResponse, error) {
 
 	var response struct {
 		PublishOrb struct {
-			PublishOrbResponse
+			OrbPublishResponse
 		}
 	}
 
@@ -245,9 +245,14 @@ func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrap(err, "Unable to publish orb")
+		return nil, errors.Wrap(err, "Unable to publish orb")
 	}
-	return &response.PublishOrb.PublishOrbResponse, err
+
+	if len(response.PublishOrb.OrbPublishResponse.Errors) > 0 {
+		return nil, response.PublishOrb.OrbPublishResponse.ToError()
+	}
+
+	return &response.PublishOrb.OrbPublishResponse, nil
 }
 
 // OrbID fetches an orb returning the ID
@@ -472,8 +477,9 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, nam
 	return orb, err
 }
 
-func incOrbVersion(orbVersion string, segment string) (string, error) {
-	v, err := semver.NewVersion(orbVersion)
+// TODO(zzak): this function is not really related to the API. Move it to another package?
+func incrementVersion(version string, segment string) (string, error) {
+	v, err := semver.NewVersion(version)
 	if err != nil {
 		return "", err
 	}
@@ -491,39 +497,39 @@ func incOrbVersion(orbVersion string, segment string) (string, error) {
 	return v2.String(), nil
 }
 
-// IncrementOrb accepts an orb and segment to increment the orb.
-func IncrementOrb(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (string, error) {
+// OrbIncrementVersion accepts an orb and segment to increment the orb.
+func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*OrbPublishResponse, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	v, err := OrbVersion(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	v2, err := incOrbVersion(v, segment)
+	v2, err := incrementVersion(v, segment)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	response, err := OrbPublishByID(ctx, logger, configPath, id, v2)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	if len(response.Errors) > 0 {
-		return "", response.ToError()
+		return nil, response.ToError()
 	}
 
 	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id, v, segment, v2)
 
-	return v2, nil
+	return response, nil
 }
 
-// OrbVersion finds the latest published version of an orb and returns it.
-func OrbVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+// OrbLatestVersion finds the latest published version of an orb and returns it.
+func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
 	var response struct {
@@ -534,6 +540,7 @@ func OrbVersion(ctx context.Context, logger *logger.Logger, namespace string, or
 		}
 	}
 
+	// This query returns versions sorted by semantic version
 	query := `query($name: String!) {
 			    orb(name: $name) {
 			      versions(count: 1) {
@@ -564,26 +571,26 @@ func OrbVersion(ctx context.Context, logger *logger.Logger, namespace string, or
 	return response.Orb.Versions[0].Version, nil
 }
 
-// PromoteOrb takes an orb and a development version and increments a semantic release with the given segment.
-func PromoteOrb(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*PromoteOrbResponse, error) {
+// OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
+func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*OrbPromoteResponse, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := OrbVersion(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
 
-	v2, err := incOrbVersion(v, segment)
+	v2, err := incrementVersion(v, segment)
 	if err != nil {
 		return nil, err
 	}
 
 	var response struct {
 		PromoteOrb struct {
-			PromoteOrbResponse
+			OrbPromoteResponse
 		}
 	}
 
@@ -617,10 +624,14 @@ func PromoteOrb(ctx context.Context, logger *logger.Logger, namespace string, or
 	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrap(err, "Unable to promote orb")
+		return nil, errors.Wrap(err, "Unable to promote orb")
 	}
 
-	return &response.PromoteOrb.PromoteOrbResponse, err
+	if len(response.PromoteOrb.OrbPromoteResponse.Errors) > 0 {
+		return nil, response.PromoteOrb.OrbPromoteResponse.ToError()
+	}
+
+	return &response.PromoteOrb.OrbPromoteResponse, nil
 }
 
 // OrbSource gets the source or an orb
