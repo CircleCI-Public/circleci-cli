@@ -752,7 +752,7 @@ var _ = Describe("Orb integration tests", func() {
 					"--host", testServer.URL(),
 					"my",
 					"orb",
-					"latest",
+					"volatile",
 					"minor",
 				)
 			})
@@ -808,7 +808,7 @@ var _ = Describe("Orb integration tests", func() {
                                         "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:latest",
+						"devVersion": "dev:volatile",
 						"semanticVersion": "0.1.0"
 					}
 				}`
@@ -881,7 +881,7 @@ var _ = Describe("Orb integration tests", func() {
                                         "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:latest",
+						"devVersion": "dev:volatile",
 						"semanticVersion": "0.1.0"
 					}
 				}`

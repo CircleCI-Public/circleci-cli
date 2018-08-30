@@ -74,7 +74,7 @@ func newOrbCommand() *cobra.Command {
 	devCommand.Annotations["PATH"] = orbAnnotations["PATH"]
 	devCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	devCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	devCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
+	devCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "volatile")`
 
 	promoteCommand := &cobra.Command{
 		Use:         "promote NAMESPACE ORB LABEL SEGMENT",
@@ -85,7 +85,7 @@ func newOrbCommand() *cobra.Command {
 	}
 	promoteCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
 	promoteCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "latest")`
+	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "volatile")`
 	promoteCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
 
 	incrementCommand := &cobra.Command{
