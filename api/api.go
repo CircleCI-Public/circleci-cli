@@ -726,7 +726,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
 // namespace. Prints the orbs and their jobs and commands to the supplied
 // logger.
-func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) error {
+func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) ([]Orb, error) {
 	// Define a structure that matches the result of the GQL
 	// query, so that we can use mapstructure to convert from
 	// nested maps to a strongly typed struct.
@@ -775,10 +775,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
+	var orbs []Orb
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
-		return err
+		return orbs, err
 	}
 	graphQLclient := client.NewClient(address, logger)
 
@@ -792,7 +793,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 		err := graphQLclient.Run(ctx, request, &result)
 		if err != nil {
-			return errors.Wrap(err, "GraphQL query failed")
+			return orbs, errors.Wrap(err, "GraphQL query failed")
 		}
 
 	NamespaceOrbs:
@@ -812,7 +813,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue NamespaceOrbs
 				}
-				logger.Info(o.String())
+				orbs = append(orbs, o)
 			}
 		}
 
@@ -820,5 +821,6 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			break
 		}
 	}
-	return nil
+
+	return orbs, nil
 }

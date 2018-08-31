@@ -244,9 +244,12 @@ query ListOrbs ($after: String!) {
 
 func listNamespaceOrbs(namespace string) error {
 	ctx := context.Background()
-	err := api.ListNamespaceOrbs(ctx, Logger, namespace)
+	orbs, err := api.ListNamespaceOrbs(ctx, Logger, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
+	}
+	for _, o := range orbs {
+		Logger.Info(o.String())
 	}
 	return nil
 }
