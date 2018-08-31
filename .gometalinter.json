@@ -7,6 +7,10 @@
     "goimports": {"Command": "goimports -l -w"}
   },
 
+    "Exclude": [
+	"md_docs/*"
+    ],
+
   "Enable": [
     "deadcode",
     "errcheck",

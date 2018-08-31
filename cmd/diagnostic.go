@@ -25,7 +25,7 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 
 	token := viper.GetString("token")
 
-	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---\n")
+	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
 	Logger.Infof("Config found: %v\n", viper.ConfigFileUsed())
 
 	Logger.Infof("GraphQL API address: %s\n", address)

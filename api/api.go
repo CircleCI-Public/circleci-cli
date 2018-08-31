@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // GQLResponseErrors is a slice of errors returned by the GraphQL server. Each
@@ -77,6 +79,37 @@ type CreateOrbResponse struct {
 	}
 
 	GQLResponseErrors
+}
+
+// Orb is a struct for containing the yaml-unmarshaled contents of an orb
+type Orb struct {
+	Commands  map[string]struct{}
+	Jobs      map[string]struct{}
+	Executors map[string]struct{}
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+	var err error
+	if len(elems) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for key := range elems {
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+		}
+	}
+	// This should never occur, but the linter made me do it :shrug:
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (orb Orb) String() string {
+	var buffer bytes.Buffer
+
+	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
+	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
+	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+
+	return buffer.String()
 }
 
 // ToError returns all GraphQL errors for a single response concatenated, or
@@ -674,4 +707,106 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 	}
 
 	return response.Orb.Versions[0].Source, nil
+}
+
+// ListNamespaceOrbs queries the API to find all orbs belonging to the given
+// namespace. Prints the orbs and their jobs and commands to the supplied
+// logger.
+func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) ([]Orb, error) {
+	// Define a structure that matches the result of the GQL
+	// query, so that we can use mapstructure to convert from
+	// nested maps to a strongly typed struct.
+	type namespaceOrbResponse struct {
+		RegistryNamespace struct {
+			Name string
+			Orbs struct {
+				Edges []struct {
+					Cursor string
+					Node   struct {
+						Name     string
+						Versions []struct {
+							Version string
+							Source  string
+						}
+					}
+				}
+				TotalCount int
+				PageInfo   struct {
+					HasNextPage bool
+				}
+			}
+		}
+	}
+
+	query := `
+query namespaceOrbs ($namespace: String, $after: String!) {
+	registryNamespace(name: $namespace) {
+		name
+		orbs(first: 20, after: $after) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+	var orbs []Orb
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return orbs, err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	var result namespaceOrbResponse
+	currentCursor := ""
+
+	for {
+		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+		request.Var("after", currentCursor)
+		request.Var("namespace", namespace)
+
+		err := graphQLclient.Run(ctx, request, &result)
+		if err != nil {
+			return orbs, errors.Wrap(err, "GraphQL query failed")
+		}
+
+	NamespaceOrbs:
+		for i := range result.RegistryNamespace.Orbs.Edges {
+			edge := result.RegistryNamespace.Orbs.Edges[i]
+			currentCursor = edge.Cursor
+			if len(edge.Node.Versions) > 0 {
+				v := edge.Node.Versions[0]
+
+				// Print the orb name and first version returned by the API
+				logger.Infof("%s (%s)", edge.Node.Name, v.Version)
+
+				// Parse the orb source to print its commands, executors and jobs
+				var o Orb
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					continue NamespaceOrbs
+				}
+				orbs = append(orbs, o)
+			}
+		}
+
+		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
+			break
+		}
+	}
+
+	return orbs, nil
 }
