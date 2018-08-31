@@ -8,23 +8,25 @@
   <style type="text/css">code{white-space: pre;}</style>
 </head>
 <body>
-<h2 id="circleci-orb-publish">circleci orb publish</h2>
-<p>publish a version of an orb</p>
+<h2 id="circleci-orb-publish-promote">circleci orb publish promote</h2>
+<p>promote a development version of an orb to a semantic release</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>publish a version of an orb</p>
+<p>promote a development version of an orb to a semantic release</p>
+<pre><code>circleci orb publish promote NAMESPACE ORB LABEL SEGMENT [flags]</code></pre>
+<h3 id="arguments">Arguments</h3>
+<pre><code>NAMESPACE   The namespace used for the orb (i.e. circleci)
+ORB         The name of your orb (i.e. rails)
+LABEL       Tag to use for this development version (i.e. &quot;volatile&quot;)
+SEGMENT     &quot;major&quot;|&quot;minor&quot;|&quot;patch&quot;</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help   help for publish</code></pre>
+<pre><code>  -h, --help   help for promote</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string    URL to your CircleCI host (default &quot;https://circleci.com&quot;)
       --token string   your token for using CircleCI
       --verbose        Enable verbose logging.</code></pre>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
-<li><a href="circleci_orb.html">circleci orb</a> - Operate on orbs</li>
-<li><a href="circleci_orb_publish_dev.html">circleci orb publish dev</a> - release a development version of an orb</li>
-<li><a href="circleci_orb_publish_increment.html">circleci orb publish increment</a> - increment a released version of an orb</li>
-<li><a href="circleci_orb_publish_promote.html">circleci orb publish promote</a> - promote a development version of an orb to a semantic release</li>
-<li><a href="circleci_orb_publish_release.html">circleci orb publish release</a> - release a semantic version of an orb</li>
+<li><a href="circleci_orb_publish.html">circleci orb publish</a> - publish a version of an orb</li>
 </ul>
 </body>
 </html>
