@@ -26,6 +26,26 @@ type GQLResponseErrors struct {
 	}
 }
 
+// IntrospectionResponse matches the result from making an introspection query
+type IntrospectionResponse struct {
+	Schema struct {
+		MutationType struct {
+			Name string
+		}
+		QueryType struct {
+			Name string
+		}
+		Types []struct {
+			Description string
+			Fields      []struct {
+				Name string
+			}
+			Kind string
+			Name string
+		}
+	} `json:"__schema"`
+}
+
 // ConfigResponse is a structure that matches the result of the GQL
 // query, so that we can use mapstructure to convert from
 // nested maps to a strongly typed struct.
@@ -809,4 +829,43 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 
 	return orbs, nil
+}
+
+// IntrospectionQuery makes a query on the API asking for bits of the schema
+// This query isn't intended to get the entire schema, there are better tools for that.
+func IntrospectionQuery(ctx context.Context, logger *logger.Logger) (*IntrospectionResponse, error) {
+	var response struct {
+		IntrospectionResponse
+	}
+
+	query := `query IntrospectionQuery {
+		    __schema {
+		      queryType { name }
+		      mutationType { name }
+		      types {
+		        ...FullType
+		      }
+		    }
+		  }
+
+		  fragment FullType on __Type {
+		    kind
+		    name
+		    description
+		    fields(includeDeprecated: true) {
+		      name
+		    }
+		  }`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	return &response.IntrospectionResponse, err
 }

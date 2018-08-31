@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"context"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -36,5 +38,17 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	Logger.Infoln("OK, got a token.")
 	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
 
+	Logger.Infoln("Trying an introspection query on API... ")
+	response, err := api.IntrospectionQuery(context.Background(), Logger)
+	if response.Schema.QueryType.Name == "" {
+		Logger.Infoln("Unable to make a query against the GraphQL API, please check your settings")
+		if err != nil {
+			return err
+		}
+	}
+
+	Logger.Infoln("Ok.")
+
+	Logger.Debug("Introspection query result with Schema.QueryType of %s", response.Schema.QueryType.Name)
 	return nil
 }

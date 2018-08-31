@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,12 +12,14 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("Diagnostic", func() {
 	var (
-		tempHome string
-		command  *exec.Cmd
+		tempHome   string
+		command    *exec.Cmd
+		testServer *ghttp.Server
 	)
 
 	BeforeEach(func() {
@@ -24,13 +27,32 @@ var _ = Describe("Diagnostic", func() {
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 
-		command = exec.Command(pathCLI, "diagnostic")
+		testServer = ghttp.NewServer()
+
+		command = exec.Command(pathCLI,
+			"diagnostic",
+			"--host", testServer.URL())
+
 		command.Env = append(os.Environ(),
 			fmt.Sprintf("HOME=%s", tempHome),
 		)
+
+		tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/diagnostic", "query.gql"))
+		Expect(err).ShouldNot(HaveOccurred())
+		query := string(tmpBytes)
+
+		tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/diagnostic", "response.json"))
+		Expect(err).ShouldNot(HaveOccurred())
+		mockResponse := string(tmpBytes)
+
+		appendPostHandler(testServer, "test", MockRequestResponse{
+			Status:   http.StatusOK,
+			Request:  query,
+			Response: mockResponse})
 	})
 
 	AfterEach(func() {
+		testServer.Close()
 		Expect(os.RemoveAll(tempHome)).To(Succeed())
 	})
 
