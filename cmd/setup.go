@@ -44,7 +44,7 @@ type interactiveUI struct {
 }
 
 func (interactiveUI) readSecretStringFromUser(message string) (string, error) {
-	token, err := terminal.ReadPassword(int(syscall.Stdin))
+	token, err := terminal.ReadPassword(syscall.Stdin)
 	if err != nil {
 		return "", err
 	}
