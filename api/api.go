@@ -13,7 +13,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/Masterminds/semver"
-	"github.com/machinebox/graphql"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	yaml "gopkg.in/yaml.v2"
@@ -753,7 +752,7 @@ func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace str
 		}
 	}
 
-	request := graphql.NewRequest(`
+	query := `
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
 		name
@@ -775,22 +774,23 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		}
 	}
 }
-`)
+`
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
 		return err
 	}
-	client := client.NewClient(address, logger)
+	graphQLclient := client.NewClient(address, logger)
 
 	var result namespaceOrbResponse
 	currentCursor := ""
 
 	for {
+		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
-		err := client.Run(ctx, request, &result)
 
+		err := graphQLclient.Run(ctx, request, &result)
 		if err != nil {
 			return errors.Wrap(err, "GraphQL query failed")
 		}
