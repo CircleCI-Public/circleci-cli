@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"net/http"
 	"os/exec"
 	"regexp"
 
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 
@@ -98,6 +100,10 @@ func update(dryRun bool) error {
 	latest, found, err := updater.DetectLatest(slug)
 
 	if err != nil {
+		if errResponse, ok := err.(*github.ErrorResponse); ok && errResponse.Response.StatusCode == http.StatusUnauthorized {
+			return errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
+		}
+
 		return errors.Wrap(err, "error finding latest release")
 	}
 
