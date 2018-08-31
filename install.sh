@@ -25,14 +25,14 @@ trap error ERR
 
 echo "Finding latest release."
 curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL" 
-echo "$(python -m json.tool release.json)" > release.json
+python -m json.tool release.json > formatted_release.json
 
 STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
 
 echo -n 'Downloading CircleCI '
-grep tag_name release.json | sed -E "$STRIP_JSON_STRING"
+grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
 
-grep browser_download_url release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
+grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
 grep -i "$(uname)" tarball_urls.txt | xargs curl --retry 3 --fail --location --output circleci.tgz
 
 tar zxvf circleci.tgz --strip 1
