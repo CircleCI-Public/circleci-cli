@@ -37,6 +37,10 @@
   name = "github.com/spf13/viper"
   version = "1.0.2"
 
+[[constraint]]
+  name = "github.com/Masterminds/semver"
+  version = "1.4.2"
+
 [prune]
   go-tests = true
   unused-packages = true
