@@ -10,6 +10,8 @@ import (
 
 	"io"
 
+	"gotest.tools/golden"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -1026,10 +1028,10 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when listing orbs", func() {
+		Describe("when listing all orbs", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "list", orb.Path,
+					"orb", "list",
 					"--host", testServer.URL(),
 					"--verbose",
 				)
@@ -1064,6 +1066,80 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
+			})
+
+		})
+
+		Describe("when listing orbs with a namespace argument", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", "circleci",
+					"--host", testServer.URL(),
+					"--verbose",
+				)
+			})
+
+			It("makes a namespace query and requests all orbs on that namespace", func() {
+				By("setting up a mock server")
+				// These requests and responses are generated from production data,
+				// but using a 5-per-page limit instead of the 20 requested.
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_request.json"))
+				firstGqlRequest := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_request.json"))
+				secondGqlRequest := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_response.json"))
+				firstGqlResponse := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_response.json"))
+				secondGqlResponse := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("circleci/rollbar"))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})

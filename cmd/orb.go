@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -24,10 +23,13 @@ var orbAnnotations = map[string]string{
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
-		Use:   "list",
-		Short: "List orbs",
-		RunE:  listOrbs,
+		Use:         "list NAMESPACE",
+		Short:       "List orbs",
+		Args:        cobra.MaximumNArgs(1),
+		RunE:        listOrbs,
+		Annotations: make(map[string]string),
 	}
+	listCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"] + " (Optional)"
 
 	validateCommand := &cobra.Command{
 		Use:         "validate PATH",
@@ -141,51 +143,10 @@ func newOrbCommand() *cobra.Command {
 	return orbCommand
 }
 
-type orb struct {
-	Commands  map[string]struct{}
-	Jobs      map[string]struct{}
-	Executors map[string]struct{}
-}
-
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) error {
-	var err error
-
-	if len(elems) > 0 {
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		if err != nil {
-			return err
-		}
-		for key := range elems {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
-			if err != nil {
-				return err
-			}
-		}
-	}
-
-	return err
-}
-
-func (orb orb) String() string {
-	var buffer bytes.Buffer
-
-	err := addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
-	// FIXME: refactor this to handle the error
-	if err != nil {
-		panic(err)
-	}
-	err = addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
-	if err != nil {
-		panic(err)
-	}
-	err = addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
-	if err != nil {
-		panic(err)
-	}
-	return buffer.String()
-}
-
 func listOrbs(cmd *cobra.Command, args []string) error {
+	if len(args) != 0 {
+		return listNamespaceOrbs(args[0])
+	}
 
 	ctx := context.Background()
 
@@ -260,7 +221,7 @@ query ListOrbs ($after: String!) {
 
 				Logger.Infof("%s (%s)", edge.Node.Name, v.Version)
 
-				var o orb
+				var o api.Orb
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 
@@ -277,6 +238,18 @@ query ListOrbs ($after: String!) {
 		if !result.Orbs.PageInfo.HasNextPage {
 			break
 		}
+	}
+	return nil
+}
+
+func listNamespaceOrbs(namespace string) error {
+	ctx := context.Background()
+	orbs, err := api.ListNamespaceOrbs(ctx, Logger, namespace)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
+	}
+	for _, o := range orbs {
+		Logger.Info(o.String())
 	}
 	return nil
 }
