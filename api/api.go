@@ -1,6 +1,7 @@
 package api
 
 import (
+	"bytes"
 	"context"
 	"io/ioutil"
 	"net/url"
@@ -11,8 +12,10 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
+	yaml "gopkg.in/yaml.v2"
 )
 
 // GQLResponseErrors is a slice of errors returned by the GraphQL server. Each
@@ -34,12 +37,24 @@ type ConfigResponse struct {
 	GQLResponseErrors
 }
 
-// The PublishOrbResponse type matches the data shape of the GQL response for
+// The OrbPublishResponse type matches the data shape of the GQL response for
 // publishing an orb.
-type PublishOrbResponse struct {
+type OrbPublishResponse struct {
 	Orb struct {
 		CreatedAt string
 		Version   string
+	}
+
+	GQLResponseErrors
+}
+
+// The OrbPromoteResponse type matches the data shape of the GQL response for
+// promoting an orb.
+type OrbPromoteResponse struct {
+	Orb struct {
+		CreatedAt string
+		Version   string
+		Source    string
 	}
 
 	GQLResponseErrors
@@ -64,6 +79,37 @@ type CreateOrbResponse struct {
 	}
 
 	GQLResponseErrors
+}
+
+// Orb is a struct for containing the yaml-unmarshaled contents of an orb
+type Orb struct {
+	Commands  map[string]struct{}
+	Jobs      map[string]struct{}
+	Executors map[string]struct{}
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+	var err error
+	if len(elems) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for key := range elems {
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+		}
+	}
+	// This should never occur, but the linter made me do it :shrug:
+	if err != nil {
+		panic(err)
+	}
+}
+
+func (orb Orb) String() string {
+	var buffer bytes.Buffer
+
+	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
+	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
+	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
+
+	return buffer.String()
 }
 
 // ToError returns all GraphQL errors for a single response concatenated, or
@@ -188,18 +234,13 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 		}`)
 }
 
-// OrbPublish publishes a new version of an orb
-func OrbPublish(ctx context.Context, logger *logger.Logger,
-	configPath string, namespace string, orb string, orbVersion string) (*PublishOrbResponse, error) {
-	name := namespace + "/" + orb
-	orbID, err := getOrbID(ctx, logger, name)
-	if err != nil {
-		return nil, err
-	}
+// OrbPublishByID publishes a new version of an orb by id
+func OrbPublishByID(ctx context.Context, logger *logger.Logger,
+	configPath string, orbID string, orbVersion string) (*OrbPublishResponse, error) {
 
 	var response struct {
 		PublishOrb struct {
-			PublishOrbResponse
+			OrbPublishResponse
 		}
 	}
 
@@ -237,12 +278,20 @@ func OrbPublish(ctx context.Context, logger *logger.Logger,
 	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrap(err, "Unable to publish orb")
+		return nil, errors.Wrap(err, "Unable to publish orb")
 	}
-	return &response.PublishOrb.PublishOrbResponse, err
+
+	if len(response.PublishOrb.OrbPublishResponse.Errors) > 0 {
+		return nil, response.PublishOrb.OrbPublishResponse.ToError()
+	}
+
+	return &response.PublishOrb.OrbPublishResponse, nil
 }
 
-func getOrbID(ctx context.Context, logger *logger.Logger, name string) (string, error) {
+// OrbID fetches an orb returning the ID
+func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+	name := namespace + "/" + orb
+
 	var response struct {
 		Orb struct {
 			ID string
@@ -461,6 +510,163 @@ func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, nam
 	return orb, err
 }
 
+// TODO(zzak): this function is not really related to the API. Move it to another package?
+func incrementVersion(version string, segment string) (string, error) {
+	v, err := semver.NewVersion(version)
+	if err != nil {
+		return "", err
+	}
+
+	var v2 semver.Version
+	switch segment {
+	case "major":
+		v2 = v.IncMajor()
+	case "minor":
+		v2 = v.IncMinor()
+	case "patch":
+		v2 = v.IncPatch()
+	}
+
+	return v2.String(), nil
+}
+
+// OrbIncrementVersion accepts an orb and segment to increment the orb.
+func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*OrbPublishResponse, error) {
+	id, err := OrbID(ctx, logger, namespace, orb)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	if err != nil {
+		return nil, err
+	}
+
+	v2, err := incrementVersion(v, segment)
+	if err != nil {
+		return nil, err
+	}
+
+	response, err := OrbPublishByID(ctx, logger, configPath, id, v2)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Errors) > 0 {
+		return nil, response.ToError()
+	}
+
+	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id, v, segment, v2)
+
+	return response, nil
+}
+
+// OrbLatestVersion finds the latest published version of an orb and returns it.
+func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+	name := namespace + "/" + orb
+
+	var response struct {
+		Orb struct {
+			Versions []struct {
+				Version string
+			}
+		}
+	}
+
+	// This query returns versions sorted by semantic version
+	query := `query($name: String!) {
+			    orb(name: $name) {
+			      versions(count: 1) {
+				    version
+			      }
+			    }
+		      }`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("name", name)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return "", err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		return "", err
+	}
+
+	if len(response.Orb.Versions) != 1 {
+		return "", fmt.Errorf("the %s orb has never published a revision", name)
+	}
+
+	return response.Orb.Versions[0].Version, nil
+}
+
+// OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
+func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*OrbPromoteResponse, error) {
+	id, err := OrbID(ctx, logger, namespace, orb)
+	if err != nil {
+		return nil, err
+	}
+
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	if err != nil {
+		return nil, err
+	}
+
+	v2, err := incrementVersion(v, segment)
+	if err != nil {
+		return nil, err
+	}
+
+	var response struct {
+		PromoteOrb struct {
+			OrbPromoteResponse
+		}
+	}
+
+	query := `
+		mutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {
+			promoteOrb(
+				orbId: $orbId,
+				devVersion: $devVersion,
+				semanticVersion: $semanticVersion
+			) {
+				orb {
+					version
+					source
+				}
+				errors { message }
+			}
+		}
+	`
+
+	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request.Var("orbId", id)
+	request.Var("devVersion", label)
+	request.Var("semanticVersion", v2)
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return nil, err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	err = graphQLclient.Run(ctx, request, &response)
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to promote orb")
+	}
+
+	if len(response.PromoteOrb.OrbPromoteResponse.Errors) > 0 {
+		return nil, response.PromoteOrb.OrbPromoteResponse.ToError()
+	}
+
+	return &response.PromoteOrb.OrbPromoteResponse, nil
+}
+
 // OrbSource gets the source or an orb
 func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
@@ -501,4 +707,106 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 	}
 
 	return response.Orb.Versions[0].Source, nil
+}
+
+// ListNamespaceOrbs queries the API to find all orbs belonging to the given
+// namespace. Prints the orbs and their jobs and commands to the supplied
+// logger.
+func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) ([]Orb, error) {
+	// Define a structure that matches the result of the GQL
+	// query, so that we can use mapstructure to convert from
+	// nested maps to a strongly typed struct.
+	type namespaceOrbResponse struct {
+		RegistryNamespace struct {
+			Name string
+			Orbs struct {
+				Edges []struct {
+					Cursor string
+					Node   struct {
+						Name     string
+						Versions []struct {
+							Version string
+							Source  string
+						}
+					}
+				}
+				TotalCount int
+				PageInfo   struct {
+					HasNextPage bool
+				}
+			}
+		}
+	}
+
+	query := `
+query namespaceOrbs ($namespace: String, $after: String!) {
+	registryNamespace(name: $namespace) {
+		name
+		orbs(first: 20, after: $after) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+	var orbs []Orb
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return orbs, err
+	}
+	graphQLclient := client.NewClient(address, logger)
+
+	var result namespaceOrbResponse
+	currentCursor := ""
+
+	for {
+		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+		request.Var("after", currentCursor)
+		request.Var("namespace", namespace)
+
+		err := graphQLclient.Run(ctx, request, &result)
+		if err != nil {
+			return orbs, errors.Wrap(err, "GraphQL query failed")
+		}
+
+	NamespaceOrbs:
+		for i := range result.RegistryNamespace.Orbs.Edges {
+			edge := result.RegistryNamespace.Orbs.Edges[i]
+			currentCursor = edge.Cursor
+			if len(edge.Node.Versions) > 0 {
+				v := edge.Node.Versions[0]
+
+				// Print the orb name and first version returned by the API
+				logger.Infof("%s (%s)", edge.Node.Name, v.Version)
+
+				// Parse the orb source to print its commands, executors and jobs
+				var o Orb
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				if err != nil {
+					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					continue NamespaceOrbs
+				}
+				orbs = append(orbs, o)
+			}
+		}
+
+		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
+			break
+		}
+	}
+
+	return orbs, nil
 }

@@ -10,6 +10,8 @@ import (
 
 	"io"
 
+	"gotest.tools/golden"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -393,7 +395,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published"))
+				Eventually(session.Out).Should(gbytes.Say("Orb published 0.0.1"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -442,6 +444,462 @@ var _ = Describe("Orb integration tests", func() {
 					Status:   http.StatusOK,
 					Request:  expectedPublishRequest,
 					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+
+			})
+		})
+
+		Describe("when releasing a development version", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "publish", "dev",
+					"--token", token,
+					"--host", testServer.URL(),
+					orb.Path,
+					"my",
+					"orb",
+					"volatile",
+				)
+			})
+
+			It("works", func() {
+
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+				// write to test file
+				err := orb.write(`some orb`)
+				// assert write to test file successful
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
+						"errors": [],
+						"orb": {
+							"version": "dev:volatile"
+						}
+					}
+				}`
+
+				expectedPublishRequest := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "dev:volatile"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb published dev:volatile"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								],
+								"orb": null
+					}
+				}`
+
+				expectedPublishRequest := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "dev:volatile"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+
+			})
+		})
+
+		Describe("when incrementing a released version", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "publish", "increment",
+					"--token", token,
+					"--host", testServer.URL(),
+					orb.Path,
+					"my",
+					"orb",
+					"minor",
+				)
+			})
+
+			It("works", func() {
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+				// write to test file
+				err := orb.write(`some orb`)
+				// assert write to test file successful
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+				expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
+						"errors": [],
+						"orb": {
+							"version": "0.1.0"
+						}
+					}
+				}`
+
+				expectedPublishRequest := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.1.0"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedVersionRequest,
+					Response: gqlVersionResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb my/orb bumped to 0.1.0"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+				expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+				gqlPublishResponse := `{
+					"publishOrb": {
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								],
+								"orb": null
+					}
+				}`
+
+				expectedPublishRequest := `{
+					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"config": "some orb",
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"version": "0.1.0"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedVersionRequest,
+					Response: gqlVersionResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPublishRequest,
+					Response: gqlPublishResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session).ShouldNot(gexec.Exit(0))
+
+			})
+		})
+
+		Describe("when promoting a development version", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "publish", "promote",
+					"--token", token,
+					"--host", testServer.URL(),
+					"my",
+					"orb",
+					"volatile",
+					"minor",
+				)
+			})
+
+			It("works", func() {
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+				// write to test file
+				err := orb.write(`some orb`)
+				// assert write to test file successful
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+				expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+				gqlPromoteResponse := `{
+					"promoteOrb": {
+						"errors": [],
+						"orb": {
+							"version": "0.1.0",
+                                                        "source": "some orb"
+						}
+					}
+				}`
+
+				expectedPromoteRequest := `{
+                                        "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"devVersion": "dev:volatile",
+						"semanticVersion": "0.1.0"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedVersionRequest,
+					Response: gqlVersionResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPromoteRequest,
+					Response: gqlPromoteResponse})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb promoted to 0.1.0"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("prints all errors returned by the GraphQL API", func() {
+				By("setting up a mock server")
+				err := orb.write(`some orb`)
+				Expect(err).ToNot(HaveOccurred())
+
+				gqlOrbIDResponse := `{
+    											"orb": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+				expectedOrbIDRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+          }`
+
+				gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+				expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+				gqlPromoteResponse := `{
+					"promoteOrb": {
+								"errors": [
+									{"message": "error1"},
+									{"message": "error2"}
+								],
+								"orb": null
+					}
+				}`
+
+				expectedPromoteRequest := `{
+                                        "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+					"variables": {
+						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+						"devVersion": "dev:volatile",
+						"semanticVersion": "0.1.0"
+					}
+				}`
+
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedOrbIDRequest,
+					Response: gqlOrbIDResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedVersionRequest,
+					Response: gqlVersionResponse})
+				appendPostHandler(testServer, token, MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedPromoteRequest,
+					Response: gqlPromoteResponse})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -570,10 +1028,10 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when listing orbs", func() {
+		Describe("when listing all orbs", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "list", orb.Path,
+					"orb", "list",
 					"--host", testServer.URL(),
 					"--verbose",
 				)
@@ -608,6 +1066,80 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
+			})
+
+		})
+
+		Describe("when listing orbs with a namespace argument", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", "circleci",
+					"--host", testServer.URL(),
+					"--verbose",
+				)
+			})
+
+			It("makes a namespace query and requests all orbs on that namespace", func() {
+				By("setting up a mock server")
+				// These requests and responses are generated from production data,
+				// but using a 5-per-page limit instead of the 20 requested.
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_request.json"))
+				firstGqlRequest := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_request.json"))
+				secondGqlRequest := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_response.json"))
+				firstGqlResponse := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_response.json"))
+				secondGqlResponse := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("circleci/rollbar"))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
