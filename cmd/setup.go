@@ -3,11 +3,13 @@ package cmd
 import (
 	"fmt"
 	"strings"
+	"syscall"
 
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 var testing = false
@@ -33,11 +35,20 @@ func newSetupCommand() *cobra.Command {
 // The `userInterface` is created here to allow us to pass a mock user
 // interface for testing.
 type userInterface interface {
+	readSecretStringFromUser(message string) (string, error)
 	readStringFromUser(message string, defaultValue string) string
 	askUserToConfirm(message string) bool
 }
 
 type interactiveUI struct {
+}
+
+func (interactiveUI) readSecretStringFromUser(message string) (string, error) {
+	token, err := terminal.ReadPassword(syscall.Stdin)
+	if err != nil {
+		return "", err
+	}
+	return string(token), nil
 }
 
 func (interactiveUI) readStringFromUser(message string, defaultValue string) string {
@@ -71,6 +82,11 @@ func (interactiveUI) askUserToConfirm(message string) bool {
 type testingUI struct {
 	input   string
 	confirm bool
+}
+
+func (ui testingUI) readSecretStringFromUser(message string) (string, error) {
+	Logger.Info(message)
+	return ui.input, nil
 }
 
 func (ui testingUI) readStringFromUser(message string, defaultValue string) string {
@@ -112,7 +128,11 @@ func setup(cmd *cobra.Command, args []string) error {
 	}
 
 	if shouldAskForToken(token, ui) {
-		viper.Set("token", ui.readStringFromUser("CircleCI API Token", ""))
+		token, err := ui.readSecretStringFromUser("CircleCI API Token")
+		if err != nil {
+			return errors.Wrap(err, "Error reading token from stdin")
+		}
+		viper.Set("token", token)
 		Logger.Info("API token has been set.")
 	}
 	viper.Set("host", ui.readStringFromUser("CircleCI Host", defaultHost))
