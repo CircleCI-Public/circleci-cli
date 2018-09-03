@@ -6,3 +6,10 @@ dist/
 docs/
 out/
 .vscode
+
+# Snapcraft Related
+parts/
+prime/
+snap/.snapcraft/
+stage/
+*.snap

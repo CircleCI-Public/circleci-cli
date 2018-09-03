@@ -8,10 +8,15 @@ confinement: strict
 parts:
   circleci:
     plugin: nil
-    install: |
+    override-build: |
+      snapcraftctl build
       cp dist/linux_amd64/circleci $SNAPCRAFT_PART_INSTALL
+      chmod +x $SNAPCRAFT_PART_INSTALL/circleci
     stage-packages: [docker.io]
 apps:
   circleci:
-    plugs: [docker]
+    plugs:
+      - docker
+      - home
+      - network
     command: circleci
