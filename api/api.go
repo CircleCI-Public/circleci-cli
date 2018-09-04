@@ -154,13 +154,13 @@ func GraphQLServerAddress(endpoint string, host string) (string, error) {
 	// 1. Parse the endpoint
 	e, err := url.Parse(endpoint)
 	if err != nil {
-		return e.String(), errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
+		return "", errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
 	}
 
 	// 2. Parse the host
 	h, err := url.Parse(host)
 	if err != nil {
-		return h.String(), errors.Wrapf(err, "Parsing host '%s'", host)
+		return "", errors.Wrapf(err, "Parsing host '%s'", host)
 	}
 	if !h.IsAbs() {
 		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
