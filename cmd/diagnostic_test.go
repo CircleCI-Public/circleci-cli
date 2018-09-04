@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -11,12 +12,14 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("Diagnostic", func() {
 	var (
-		tempHome string
-		command  *exec.Cmd
+		tempHome   string
+		command    *exec.Cmd
+		testServer *ghttp.Server
 	)
 
 	BeforeEach(func() {
@@ -24,13 +27,31 @@ var _ = Describe("Diagnostic", func() {
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 
-		command = exec.Command(pathCLI, "diagnostic")
+		testServer = ghttp.NewServer()
+
+		command = exec.Command(pathCLI,
+			"diagnostic",
+			"--endpoint", testServer.URL())
+
 		command.Env = append(os.Environ(),
 			fmt.Sprintf("HOME=%s", tempHome),
+		)
+
+		tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/diagnostic", "response.json"))
+		Expect(err).ShouldNot(HaveOccurred())
+		mockResponse := string(tmpBytes)
+
+		testServer.AppendHandlers(
+			ghttp.CombineHandlers(
+				ghttp.VerifyRequest("POST", "/"),
+				ghttp.VerifyContentType("application/json; charset=utf-8"),
+				ghttp.RespondWith(http.StatusOK, `{ "data": `+mockResponse+`}`),
+			),
 		)
 	})
 
 	AfterEach(func() {
+		testServer.Close()
 		Expect(os.RemoveAll(tempHome)).To(Succeed())
 	})
 
@@ -54,12 +75,9 @@ var _ = Describe("Diagnostic", func() {
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		Describe("token and endpoint set in config file", func() {
+		Describe("token set in config file", func() {
 			BeforeEach(func() {
-				_, err := config.Write([]byte(`
-endpoint: https://example.com/graphql
-token: mytoken
-`))
+				_, err := config.Write([]byte(`token: mytoken`))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(config.Close()).To(Succeed())
 			})
@@ -68,55 +86,14 @@ token: mytoken
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://example.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 
-		Describe("token, host, and old endpoint set in config file", func() {
-			BeforeEach(func() {
-				_, err := config.Write([]byte(`
-endpoint: https://example.com/graphql
-host: https://circleci.com/
-token: mytoken
-`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
-			})
-
-			It("print success", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err.Contents()).Should(BeEmpty())
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://example.com/graphql"))
-				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
-				Eventually(session).Should(gexec.Exit(0))
-			})
-		})
-
-		Describe("token, host, and new endpoint set in config file", func() {
-			BeforeEach(func() {
-				_, err := config.Write([]byte(`
-endpoint: graphql
-host: https://circleci.com/
-token: mytoken
-`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
-			})
-
-			It("print success", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err.Contents()).Should(BeEmpty())
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://circleci.com/graphql"))
-				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
-				Eventually(session).Should(gexec.Exit(0))
-			})
-		})
-
-		Describe("token, host, and missing endpoint set in config file", func() {
+		Describe("fully-qualified address from --endpoint preferred over host in config ", func() {
 			BeforeEach(func() {
 				_, err := config.Write([]byte(`
 host: https://circleci.com/
@@ -130,18 +107,16 @@ token: mytoken
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://circleci.com/graphql-unstable"))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 
-		Context("token set to empty string in config file", func() {
+		Context("empty token in config file", func() {
 			BeforeEach(func() {
-				_, err := config.Write([]byte(`
-endpoint: https://example.com/graphql
-token: 
-`))
+				_, err := config.Write([]byte(`token: `))
 				Expect(err).ToNot(HaveOccurred())
 				Expect(config.Close()).To(Succeed())
 			})
@@ -150,8 +125,34 @@ token:
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error: please set a token"))
-				Eventually(session.Out).Should(gbytes.Say("GraphQL API address: https://example.com/graphql"))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
 				Eventually(session).Should(gexec.Exit(255))
+			})
+		})
+
+		Context("debug outputs introspection query results", func() {
+			BeforeEach(func() {
+				_, err := config.Write([]byte(`token: zomg`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+
+				command = exec.Command(pathCLI,
+					"diagnostic",
+					"--endpoint", testServer.URL(),
+					"--verbose",
+				)
+
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+				)
+			})
+			It("print success", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Trying an introspection query on API..."))
+				Eventually(session.Err).Should(gbytes.Say("Introspection query result with Schema.QueryType of QueryRoot"))
+				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 	})
