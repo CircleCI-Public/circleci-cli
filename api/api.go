@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"fmt"
@@ -557,7 +558,7 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 		return nil, err
 	}
 
-	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersionOrNew(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
@@ -624,6 +625,26 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 	return response.Orb.Versions[0].Version, nil
 }
 
+// OrbLatestVersionOrNew wraps OrbLatestVersion and returns "0.0.0" if no version is found
+func OrbLatestVersionOrNew(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	if err != nil {
+		matched, er := regexp.MatchString("has never published a revision", err.Error())
+		if er != nil {
+			return "", er
+		}
+
+		if !matched {
+			return "", err
+		} else {
+			return "0.0.0", nil
+
+		}
+	}
+
+	return v, nil
+}
+
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
 func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*OrbPromoteResponse, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
@@ -631,7 +652,7 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 		return nil, err
 	}
 
-	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersionOrNew(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
