@@ -93,7 +93,7 @@ var _ = Describe("Diagnostic", func() {
 			})
 		})
 
-		Describe("old endpoint set in config file", func() {
+		Describe("fully-qualified address from --endpoint preferred over host in config ", func() {
 			BeforeEach(func() {
 				_, err := config.Write([]byte(`
 host: https://circleci.com/
