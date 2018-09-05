@@ -9,7 +9,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 
-	"github.com/machinebox/graphql"
+	"github.com/circleci/graphql"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 )

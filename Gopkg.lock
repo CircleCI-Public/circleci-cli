@@ -34,6 +34,14 @@
   revision = "2972be24d48e78746da79ba8e24e8b488c9880de"
 
 [[projects]]
+  branch = "master"
+  digest = "1:fd169df0ba88cf72d43b8d1ad19832a793381768ed32d23fedb1f90741e90bbd"
+  name = "github.com/circleci/graphql"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "17afb3013572077401fab8d2f868c4b042f49f23"
+
+[[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
@@ -135,14 +143,6 @@
   packages = ["."]
   pruneopts = "UT"
   revision = "d14193dfc626125c831501c1c42340b4248e1f5a"
-
-[[projects]]
-  branch = "master"
-  digest = "1:d86c8eb7189141c0e902fd8dcf6e79b8feea523978018e20f2ac794626ad0f63"
-  name = "github.com/machinebox/graphql"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "05b17f3157491bbfa5d6fc2006443a272d960d15"
 
 [[projects]]
   digest = "1:c568d7727aa262c32bdf8a3f7db83614f7af0ed661474b24588de635c20024c7"
@@ -443,7 +443,8 @@
     "github.com/Masterminds/semver",
     "github.com/blang/semver",
     "github.com/bmatcuk/doublestar",
-    "github.com/machinebox/graphql",
+    "github.com/circleci/graphql",
+    "github.com/google/go-github/github",
     "github.com/manifoldco/promptui",
     "github.com/mitchellh/mapstructure",
     "github.com/onsi/ginkgo",
