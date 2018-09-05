@@ -62,6 +62,10 @@ $ circleci config validate
 Config file at .circleci/config.yml is valid
 ```
 
+## Contributing
+
+Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKING.md).
+
 ## More
 
 Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
