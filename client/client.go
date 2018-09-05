@@ -6,7 +6,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/machinebox/graphql"
+	"github.com/circleci/graphql"
 )
 
 // NewClient returns a reference to a Client.
