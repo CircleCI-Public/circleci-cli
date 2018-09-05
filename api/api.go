@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
-	"regexp"
 	"strings"
 
 	"fmt"
@@ -558,7 +557,7 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 		return nil, err
 	}
 
-	v, err := OrbLatestVersionOrNew(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
@@ -583,6 +582,7 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 }
 
 // OrbLatestVersion finds the latest published version of an orb and returns it.
+// If it doesn't find a version, it will return 0.0.0 for the orb's version
 func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
@@ -619,30 +619,10 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 	}
 
 	if len(response.Orb.Versions) != 1 {
-		return "", fmt.Errorf("the %s orb has never published a revision", name)
+		return "0.0.0", nil
 	}
 
 	return response.Orb.Versions[0].Version, nil
-}
-
-// OrbLatestVersionOrNew wraps OrbLatestVersion and returns "0.0.0" if no version is found
-func OrbLatestVersionOrNew(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
-	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
-	if err != nil {
-		matched, er := regexp.MatchString("has never published a revision", err.Error())
-		if er != nil {
-			return "", er
-		}
-
-		if !matched {
-			return "", err
-		} else {
-			return "0.0.0", nil
-
-		}
-	}
-
-	return v, nil
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
@@ -652,7 +632,7 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 		return nil, err
 	}
 
-	v, err := OrbLatestVersionOrNew(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
