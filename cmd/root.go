@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path"
 
@@ -117,7 +118,41 @@ func MakeCommands() *cobra.Command {
 	// just the error message.
 	rootCmd.SilenceUsage = true
 
+	setFlagErrorFuncAndValidateArgs(rootCmd)
+
 	return rootCmd
+}
+
+func setFlagErrorFunc(cmd *cobra.Command, err error) error {
+	if e := cmd.Help(); e != nil {
+		return e
+	}
+	fmt.Println("")
+	return err
+}
+
+func setFlagErrorFuncAndValidateArgs(command *cobra.Command) {
+	visitAll(command, func(cmd *cobra.Command) {
+		cmd.SetFlagErrorFunc(setFlagErrorFunc)
+
+		if cmd.Args == nil {
+			return
+		}
+
+		cmdArgs := cmd.Args
+		cmd.Args = func(cccmd *cobra.Command, args []string) error {
+			if err := cmdArgs(cccmd, args); err != nil {
+				if e := cccmd.Help(); e != nil {
+					return e
+				}
+
+				fmt.Println("")
+				return err
+			}
+
+			return nil
+		}
+	})
 }
 
 func bindCobraFlagToViper(command *cobra.Command, flag string) {
@@ -147,4 +182,11 @@ func init() {
 
 func prepare() {
 	Logger = logger.NewLogger(viper.GetBool("verbose"))
+}
+
+func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
+	for _, cmd := range root.Commands() {
+		visitAll(cmd, fn)
+	}
+	fn(root)
 }
