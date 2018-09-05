@@ -582,6 +582,7 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 }
 
 // OrbLatestVersion finds the latest published version of an orb and returns it.
+// If it doesn't find a version, it will return 0.0.0 for the orb's version
 func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
@@ -618,7 +619,7 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 	}
 
 	if len(response.Orb.Versions) != 1 {
-		return "", fmt.Errorf("the %s orb has never published a revision", name)
+		return "0.0.0", nil
 	}
 
 	return response.Orb.Versions[0].Version, nil
