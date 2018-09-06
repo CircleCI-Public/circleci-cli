@@ -6,12 +6,9 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 
-	"github.com/circleci/graphql"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v2"
 )
 
 var orbAnnotations = map[string]string{
@@ -149,95 +146,12 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-
-	// Define a structure that matches the result of the GQL
-	// query, so that we can use mapstructure to convert from
-	// nested maps to a strongly typed struct.
-	type orbList struct {
-		Orbs struct {
-			TotalCount int
-			Edges      []struct {
-				Cursor string
-				Node   struct {
-					Name     string
-					Versions []struct {
-						Version string
-						Source  string
-					}
-				}
-			}
-			PageInfo struct {
-				HasNextPage bool
-			}
-		}
-	}
-
-	request := graphql.NewRequest(`
-query ListOrbs ($after: String!) {
-  orbs(first: 20, after: $after) {
-	totalCount,
-    edges {
-		cursor
-	  node {
-	    name
-		  versions(count: 1) {
-			version,
-			source
-		  }
-		}
-	}
-    pageInfo {
-      hasNextPage
-    }
-  }
-}
-	`)
-
-	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
+	orbs, err := api.ListOrbs(ctx, Logger)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "Failed to list orbs")
 	}
-	client := client.NewClient(address, Logger)
-
-	var result orbList
-	currentCursor := ""
-
-	for {
-		request.Var("after", currentCursor)
-		err := client.Run(ctx, request, &result)
-
-		if err != nil {
-			return errors.Wrap(err, "GraphQL query failed")
-		}
-
-		// Debug logging of result fields.
-		// Logger.Prettyify(result)
-	Orbs:
-		for i := range result.Orbs.Edges {
-			edge := result.Orbs.Edges[i]
-			currentCursor = edge.Cursor
-			if len(edge.Node.Versions) > 0 {
-				v := edge.Node.Versions[0]
-
-				Logger.Infof("%s (%s)", edge.Node.Name, v.Version)
-
-				var o api.Orb
-
-				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
-
-				if err != nil {
-					Logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
-					continue Orbs
-				}
-
-				Logger.Info(o.String())
-
-			}
-		}
-
-		if !result.Orbs.PageInfo.HasNextPage {
-			break
-		}
+	for _, o := range orbs {
+		Logger.Info(o.String())
 	}
 	return nil
 }

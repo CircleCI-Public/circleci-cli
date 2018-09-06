@@ -1139,7 +1139,12 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("circleci/gradle"))
+				Eventually(session.Out).Should(gbytes.Say("Jobs"))
+				Eventually(session.Out).Should(gbytes.Say("- test"))
 				Eventually(session.Out).Should(gbytes.Say("circleci/rollbar"))
+				Eventually(session.Out).Should(gbytes.Say("Commands"))
+				Eventually(session.Out).Should(gbytes.Say("- notify_deploy"))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})

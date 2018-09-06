@@ -13,6 +13,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/Masterminds/semver"
+	"github.com/circleci/graphql"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	yaml "gopkg.in/yaml.v2"
@@ -103,9 +104,12 @@ type CreateOrbResponse struct {
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
 type Orb struct {
-	Commands  map[string]struct{}
-	Jobs      map[string]struct{}
-	Executors map[string]struct{}
+	Name string
+	// Avoid "Version" since this is a key in the orb source referring to the orb schema version
+	HighestVersion string
+	Commands       map[string]struct{}
+	Jobs           map[string]struct{}
+	Executors      map[string]struct{}
 }
 
 func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
@@ -125,6 +129,11 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]str
 func (orb Orb) String() string {
 	var buffer bytes.Buffer
 
+	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
+	if err != nil {
+		// The WriteString docstring says that it will never return an error
+		panic(err)
+	}
 	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
 	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
 	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
@@ -730,9 +739,104 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 	return response.Orb.Versions[0].Source, nil
 }
 
+// ListOrbs queries the API to find all orbs.
+// Returns a collection of Orb objects containing their relevant data. Logs
+// request and parse errors to the supplied logger.
+func ListOrbs(ctx context.Context, logger *logger.Logger) ([]Orb, error) {
+	// Define a structure that matches the result of the GQL
+	// query, so that we can use mapstructure to convert from
+	// nested maps to a strongly typed struct.
+	type orbList struct {
+		Orbs struct {
+			TotalCount int
+			Edges      []struct {
+				Cursor string
+				Node   struct {
+					Name     string
+					Versions []struct {
+						Version string
+						Source  string
+					}
+				}
+			}
+			PageInfo struct {
+				HasNextPage bool
+			}
+		}
+	}
+
+	request := graphql.NewRequest(`
+query ListOrbs ($after: String!) {
+  orbs(first: 20, after: $after) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+	`)
+
+	var orbs []Orb
+
+	address, err := GraphQLServerAddress(EnvEndpointHost())
+	if err != nil {
+		return nil, err
+	}
+	client := client.NewClient(address, logger)
+
+	var result orbList
+	currentCursor := ""
+
+	for {
+		request.Var("after", currentCursor)
+		err := client.Run(ctx, request, &result)
+
+		if err != nil {
+			return nil, errors.Wrap(err, "GraphQL query failed")
+		}
+
+	Orbs:
+		for i := range result.Orbs.Edges {
+			edge := result.Orbs.Edges[i]
+			currentCursor = edge.Cursor
+			if len(edge.Node.Versions) > 0 {
+				v := edge.Node.Versions[0]
+
+				var o Orb
+
+				o.Name = edge.Node.Name
+				o.HighestVersion = v.Version
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+
+				if err != nil {
+					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					continue Orbs
+				}
+				orbs = append(orbs, o)
+			}
+		}
+
+		if !result.Orbs.PageInfo.HasNextPage {
+			break
+		}
+	}
+	return orbs, nil
+}
+
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
-// namespace. Prints the orbs and their jobs and commands to the supplied
-// logger.
+// namespace.
+// Returns a collection of Orb objects containing their relevant data. Logs
+// request and parse errors to the supplied logger.
 func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) ([]Orb, error) {
 	// Define a structure that matches the result of the GQL
 	// query, so that we can use mapstructure to convert from
@@ -810,11 +914,10 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			if len(edge.Node.Versions) > 0 {
 				v := edge.Node.Versions[0]
 
-				// Print the orb name and first version returned by the API
-				logger.Infof("%s (%s)", edge.Node.Name, v.Version)
-
 				// Parse the orb source to print its commands, executors and jobs
 				var o Orb
+				o.Name = edge.Node.Name
+				o.HighestVersion = v.Version
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 				if err != nil {
 					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
