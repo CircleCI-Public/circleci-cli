@@ -13,7 +13,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/Masterminds/semver"
-	"github.com/circleci/graphql"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
 	yaml "gopkg.in/yaml.v2"
@@ -765,7 +764,7 @@ func ListOrbs(ctx context.Context, logger *logger.Logger) ([]Orb, error) {
 		}
 	}
 
-	request := graphql.NewRequest(`
+	query := `
 query ListOrbs ($after: String!) {
   orbs(first: 20, after: $after) {
 	totalCount,
@@ -784,7 +783,7 @@ query ListOrbs ($after: String!) {
     }
   }
 }
-	`)
+	`
 
 	var orbs []Orb
 
@@ -792,15 +791,16 @@ query ListOrbs ($after: String!) {
 	if err != nil {
 		return nil, err
 	}
-	client := client.NewClient(address, logger)
+	graphQLclient := client.NewClient(address, logger)
 
 	var result orbList
 	currentCursor := ""
 
 	for {
+		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 		request.Var("after", currentCursor)
-		err := client.Run(ctx, request, &result)
 
+		err := graphQLclient.Run(ctx, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
