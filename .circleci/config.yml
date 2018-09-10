@@ -124,6 +124,29 @@ jobs:
             echo "Checking $(cat /tmp/files.txt | wc -l ) files"
             cat /tmp/files.txt | xargs -t shellcheck --external-sources
 
+  homebrew:
+    machine: true
+    environment:
+      - USER: circleci
+      - TRAVIS: circleci
+    steps:
+      - checkout
+      - run: |
+          sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
+      - run: |
+          docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
+            -w /go/src/github.com/CircleCI-Public/circleci-cli \
+            -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
+      - run: |
+          export VERSION=$(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
+          export REVISION=$(git rev-parse $(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
+          echo "Bumping circleci to $VERSION+$REVISION"
+          /home/linuxbrew/.linuxbrew/bin/brew bump-formula-pr --strict \
+            --dryrun \
+            --tag=$VERSION \
+            --revision=$CIRCLE_SHA1 \
+            circleci
+
 workflows:
   version: 2
   ci:
@@ -147,3 +170,14 @@ workflows:
           filters:
             branches:
               only: master
+  weekly:
+    triggers:
+      - schedule:
+          cron: "0 8 * * 0"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - homebrew:
+          type: approval
