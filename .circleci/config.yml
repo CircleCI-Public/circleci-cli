@@ -179,5 +179,8 @@ workflows:
               only:
                 - master
     jobs:
-      - homebrew:
+      - run-brew-deploy-gate:
           type: approval
+      - homebrew:
+          requires:
+            - run-brew-deploy-gate
