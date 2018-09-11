@@ -1040,12 +1040,10 @@ var _ = Describe("Orb integration tests", func() {
 			It("sends multiple requests when there are more than 1 page of orbs", func() {
 				By("setting up a mock server")
 
-				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "first_response.json"))
-				Expect(err).ShouldNot(HaveOccurred())
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/first_response.json"))
 				firstGqlResponse := string(tmpBytes)
 
-				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "second_response.json"))
-				Expect(err).ShouldNot(HaveOccurred())
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/second_response.json"))
 				secondGqlResponse := string(tmpBytes)
 
 				// Use Gomega's default matcher instead of our custom appendPostHandler
