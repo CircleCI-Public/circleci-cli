@@ -741,7 +741,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListOrbs(ctx context.Context, logger *logger.Logger) ([]Orb, error) {
+func ListOrbs(ctx context.Context, logger *logger.Logger, uncertified bool) ([]Orb, error) {
 	// Define a structure that matches the result of the GQL
 	// query, so that we can use mapstructure to convert from
 	// nested maps to a strongly typed struct.
@@ -765,8 +765,8 @@ func ListOrbs(ctx context.Context, logger *logger.Logger) ([]Orb, error) {
 	}
 
 	query := `
-query ListOrbs ($after: String!) {
-  orbs(first: 20, after: $after) {
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
 	totalCount,
     edges {
 		cursor
@@ -799,6 +799,7 @@ query ListOrbs ($after: String!) {
 	for {
 		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 		request.Var("after", currentCursor)
+		request.Var("certifiedOnly", !uncertified)
 
 		err := graphQLclient.Run(ctx, request, &result)
 		if err != nil {

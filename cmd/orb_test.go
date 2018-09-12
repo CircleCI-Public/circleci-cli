@@ -1040,12 +1040,10 @@ var _ = Describe("Orb integration tests", func() {
 			It("sends multiple requests when there are more than 1 page of orbs", func() {
 				By("setting up a mock server")
 
-				tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "first_response.json"))
-				Expect(err).ShouldNot(HaveOccurred())
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/first_response.json"))
 				firstGqlResponse := string(tmpBytes)
 
-				tmpBytes, err = ioutil.ReadFile(filepath.Join("testdata/gql_orb_list", "second_response.json"))
-				Expect(err).ShouldNot(HaveOccurred())
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/second_response.json"))
 				secondGqlResponse := string(tmpBytes)
 
 				// Use Gomega's default matcher instead of our custom appendPostHandler
@@ -1068,6 +1066,51 @@ var _ = Describe("Orb integration tests", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
+			})
+
+		})
+
+		Describe("when listing all orbs with --uncertified", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--uncertified",
+					"--host", testServer.URL(),
+					"--verbose",
+				)
+			})
+
+			It("sends a GraphQL request with 'uncertifiedOnly: false'", func() {
+				By("setting up a mock server")
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/request.json"))
+				gqlRequest := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/response.json"))
+				response := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(gqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, response),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
 			})
 
 		})

@@ -17,6 +17,8 @@ var orbAnnotations = map[string]string{
 	"ORB":       "The name of your orb (i.e. rails)",
 }
 
+var orbListUncertified bool
+
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
@@ -27,6 +29,7 @@ func newOrbCommand() *cobra.Command {
 		Annotations: make(map[string]string),
 	}
 	listCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"] + " (Optional)"
+	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
 
 	validateCommand := &cobra.Command{
 		Use:         "validate PATH",
@@ -146,7 +149,7 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	orbs, err := api.ListOrbs(ctx, Logger)
+	orbs, err := api.ListOrbs(ctx, Logger, orbListUncertified)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
