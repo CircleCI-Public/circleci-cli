@@ -137,8 +137,7 @@ func (c *Client) runWithJSON(ctx context.Context, req *Request, resp interface{}
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
+		return gr.SelectError()
 	}
 	return nil
 }
@@ -204,8 +203,7 @@ func (c *Client) runWithPostFields(ctx context.Context, req *Request, resp inter
 		return errors.Wrap(err, "decoding response")
 	}
 	if len(gr.Errors) > 0 {
-		// return first error
-		return gr.Errors[0]
+		return gr.SelectError()
 	}
 	return nil
 }
@@ -233,15 +231,39 @@ type ClientOption func(*Client)
 
 type graphErr struct {
 	Message string
+	Type    string
 }
 
 func (e graphErr) Error() string {
-	return "graphql: " + e.Message
+	if e.Type != "" {
+		return e.Message
+	}
+
+	return "An unknown error occurred"
 }
 
 type graphResponse struct {
 	Data   interface{}
 	Errors []graphErr
+}
+
+// Select the last non-blank error type from graphql.
+// 90% of the time you'll get 2 errors with the first
+// error being the least useful.
+func (resp graphResponse) SelectError() graphErr {
+	if len(resp.Errors) > 0 {
+		selectedError := resp.Errors[0]
+
+		for _, err := range resp.Errors {
+			if err.Type != "" {
+				selectedError = err
+			}
+		}
+
+		return selectedError
+	}
+
+	return graphErr{}
 }
 
 // Request is a GraphQL request.
