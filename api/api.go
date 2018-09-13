@@ -425,9 +425,7 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil {
-		err = errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
-	} else if response.Organization.ID == "" {
+	if err == nil && response.Organization.ID == "" {
 		err = fmt.Errorf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
