@@ -517,10 +517,6 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil {
-		err = errors.Wrapf(err, "Unable to create orb %s for namespaceID %s", name, namespaceID)
-	}
-
 	return &response.CreateOrb.CreateOrbResponse, err
 }
 
