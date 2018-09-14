@@ -35,11 +35,11 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:fd169df0ba88cf72d43b8d1ad19832a793381768ed32d23fedb1f90741e90bbd"
+  digest = "1:4e9a35b534508c14cf12d4561de5113053b691414be2af2398dec82ca772d021"
   name = "github.com/circleci/graphql"
   packages = ["."]
   pruneopts = "UT"
-  revision = "17afb3013572077401fab8d2f868c4b042f49f23"
+  revision = "de90fa2cb395022e047fe1419b27343d7a134d4e"
 
 [[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
