@@ -1,0 +1,103 @@
+{
+  "orbs": [
+    {
+      "name": "circleci/codecov-clojure",
+      "versions": [
+        {
+          "version": "0.0.4",
+          "source": "version: 2.1\n\ndescription: provides a job for reporting code coverage of clojure projects to codecov\n\ncommands:\n  upload:\n    parameters:\n      path:\n        description: Path to the code coverage data file to upload.\n        type: string\n    steps:\n      - run:\n          name: Upload Coverage Results\n          command: |\n            curl --request POST --retry 3 --silent --show-error --fail --data-binary @<< parameters.path >> \\\n            \"https://codecov.io/upload/v2?service=circleci\\\n            &token=$CODECOV_TOKEN\\\n            &commit=$CIRCLE_SHA1\\\n            &branch=$CIRCLE_BRANCH\\\n            &build=$CIRCLE_BUILD_NUM\\\n            &job=$CIRCLE_NODE_INDEX\\\n            &build_url=$CIRCLE_BUILD_URL\\\n            &slug=$CIRCLE_PROJECT_USERNAME/$CIRCLE_PROJECT_REPONAME\\\n            &pr=$CIRCLE_PR_NUMBER\"\n\njobs:\n  code-coverage:\n    parameters:\n      coverage-file:\n        description: the path to coverage.json\n        type: string\n        default: target/coverage/codecov.json\n      cache-key:\n        description: cache key to use, if this is likely to share cache with another job. currently only supports one key.\n        type: string\n        default: code-coverage-{{ checksum \"project.clj\" }}\n      circlecitest:\n        description: tests are run with the circleci.test test runner instead of clojure.test\n        type: boolean\n        default: false\n    docker:\n      - image: circleci/clojure\n    steps:\n      - checkout\n      - restore_cache:\n          keys:\n            - << parameters.cache-key >>\n      - run: lein cloverage --codecov <<# parameters.circlecitest >> --runner circleci.test <</ parameters.circlecitest >>\n      - save_cache:\n          paths:\n            - ~/.m2\n            - ~/.lein\n          key: << parameters.cache-key >>\n      - store_artifacts:\n          path: target/coverage\n      - upload:\n          path: << parameters.coverage-file >>\n"
+        }
+      ]
+    },
+    {
+      "name": "circleci/gradle",
+      "versions": [
+        {
+          "version": "0.0.1",
+          "source": "executor:\n  gradle:\n    description: The docker container to use when running Gradle builds\n    docker:\n      - image: circleci/openjdk:8-jdk-node\n    environment:\n      # Disable fancy terminal updates\n      TERM: dumb\n\ncommands:\n  with_cache:\n    description: |\n      Run a set of steps with gradle dependencies cached.\n\n      This command will first restore a cache of gradle dependencies, if one was\n      saved by a previous build. The provided `steps` will then be executed, and\n      if successful, then a fresh cache will be saved, if required.\n\n      The contents of the `~/.gradle` directory is cached, which will substantially\n      improve build times for projects with many dependencies.\n\n      The cache-key is generated from any files named `build.gradle` that are\n      present in the `working_directory`.\n    parameters:\n      steps:\n        type: steps\n    steps:\n      - run:\n          name: Generate Cache Checksum\n          command: find . -name 'build.gradle' -exec cat {} + | shasum | awk '{print $1}' > /tmp/gradle_cache_seed\n      - restore_cache:\n          key: gradle-{{ checksum \"/tmp/gradle_cache_seed\" }}\n      - << parameters.steps >>\n      - save_cache:\n          paths:\n            - ~/.gradle\n          key: gradle-{{ checksum \"/tmp/gradle_cache_seed\" }}\n\njobs:\n  test:\n    description: |\n      Checkout, build and test a gradle project.\n    executor: gradle\n    parameters:\n      test_command:\n        type: string\n        default: test\n    steps:\n      - checkout\n      - with_cache:\n          steps:\n            - run:\n                name: Run Tests\n                command: ./gradlew << parameters.test_command >>\n"
+        }
+      ]
+    },
+    {
+      "name": "circleci/rollbar",
+      "versions": [
+        {
+          "version": "0.0.1",
+          "source": "version: 2.1\n\ndescription: Commands for calling the Rollbar API\n\ncommands:\n  notify_deploy:\n    description: |\n      A step to notify Rollbar the project has been deployed.\n      A Rollbar access token is required to be set in the\n      environment with the name `ROLLBAR_ACCESS_TOKEN`.\n      Add this as the last step of your the job that you\n      use to deploy.\n    parameters:\n      environment:\n        type: string\n        default: production\n        description: The Rollbar environment. Defaults to production.\n    steps:\n      - run:\n          name: Notify Rollbar\n          command: |\n            curl https://api.rollbar.com/api/1/deploy/ \\\n              --form access_token=$ROLLBAR_ACCESS_TOKEN \\\n              --form environment=<< paramters.environment >> \\\n              --form revision=$CIRCLE_SHA1 \\\n              --form local_username=$CIRCLE_USERNAME\n\njobs:\n  notify_deploy:\n    description: |\n      A job to notify Rollbar the project has been deployed.\n      A Rollbar access token is required to be set in the\n      environment with the name `ROLLBAR_ACCESS_TOKEN`.\n    parameters:\n      environment:\n        type: string\n        default: production\n        description: The Rollbar environment. Defaults to production.\n    docker:\n      - image: circleci/buildpack-deps:18.04-scm\n    steps:\n      - notify_deploy\n"
+        }
+      ]
+    },
+    {
+      "name": "eric-hu/delivery-test",
+      "versions": [
+        {
+          "version": "1.0.4",
+          "source": "{}\n"
+        }
+      ]
+    },
+    {
+      "name": "hannah/foo",
+      "versions": [
+        {
+          "version": "0.0.0",
+          "source": "version: \"2.1\"\n\nexecutors:\n  python:\n    docker:\n      - image: circleci/python:3\n      - image: rabbitmq:3.6-management-alpine\n    environment:\n      ENV: ci\n      TESTS: all\n    shell: /bin/bash\n    working_directory: ~/project\n\njobs:\n  build:\n    docker:\n      - image: circleci/python:2\n      - image: postgres:9.6\n    executor: python\n    environment:\n      TESTS: unit\n    steps:\n      - run: echo required\n    working_directory: ~/tests\n"
+        }
+      ]
+    },
+    {
+      "name": "hannah/new-orb",
+      "versions": [
+        {
+          "version": "0.0.1",
+          "source": "{}"
+        }
+      ]
+    },
+    {
+      "name": "hannah/so-fly",
+      "versions": [
+        {
+          "version": "0.0.0",
+          "source": "{}"
+        }
+      ]
+    },
+    {
+      "name": "ndintenfass/build-utils",
+      "versions": [
+        {
+          "version": "0.0.2",
+          "source": "version: 2\ncommands:\n  install-circleci-cli:\n    parameters:\n      root-url:\n        description: the root URL used to generate the download link. You almost certainly can rely on the default value.\n        type: string\n        default: \"https://github.com/CircleCI-Public/circleci-cli/releases/download/\"\n      install-dir:\n        description: the directory into which the binary will be installed. The default of /usr/local/bin should work in most cases.\n        type: string\n        default: \"/usr/local/bin\"\n      tag:\n        description: When not empty string, get the specific tag release. When empty (default), retrieve latest.\n        type: string\n        default: \"\"\n    steps:\n      - run:\n          name: \"Install `circleci` CLI\"\n          command: |\n            echoerr ()\n            {\n                echo \"$@\" >&2\n            }\n            if [ $(uname) == \"Darwin\" ]; then\n              OS=darwin\n            elif [ $(expr substr $(uname -s) 1 5) == \"Linux\" ]; then\n              OS=linux\n            else\n              echoerr \"This installer is only supported on Linux and MacOS\"\n              exit 1\n            fi\n            ARCH=\"$(uname -m)\"\n            if [ $ARCH == \"x86_64\" ]; then\n              ARCH=amd64\n            # we are not currently publishing an arm release anyway.\n            # elif [[ $ARCH == arm* ]]; then\n            #   ARCH=arm\n            else\n              echoerr \"This installer does not support your architecture: $ARCH\"\n              exit 1\n            fi\n            CIRCLECI_CLI_RELEASE_API_ROOT=\"https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/\"\n            if [ \"<< parameters.tag >>\" == \"\" ]; then\n              CIRCLECI_CLI_APPEND_VERSION=\"latest\"\n            else\n              CIRCLECI_CLI_APPEND_VERSION=\"tags/<< parameters.tag >>\"\n            fi\n            CIRCLECI_CLI_RELEASE_API_ENDPOINT=${CIRCLECI_CLI_RELEASE_API_ROOT}${CIRCLECI_CLI_APPEND_VERSION}\n            echo \"Retrieve the latest version by looking for tag_name in ${CIRCLECI_CLI_RELEASE_API_ENDPOINT} \"\n            CIRCLECI_CLI_INSTALL_VERSION=`curl --silent \"${CIRCLECI_CLI_RELEASE_API_ENDPOINT}\" | grep '\"tag_name\":' | sed -E 's/.*\"([^\"]+)\".*/\\1/'`\n            if [ ! $CIRCLECI_CLI_INSTALL_VERSION ]; then\n              echoerr \"The tag requested does not appear to be valid for the circleci CLI\"\n              exit 1\n            fi\n            CIRCLECI_CLI_RELEASE_NAME=\"circleci-cli_${CIRCLECI_CLI_INSTALL_VERSION#v}_${OS}_${ARCH}\"\n            download_url=<< parameters.root-url >>${CIRCLECI_CLI_INSTALL_VERSION}/${CIRCLECI_CLI_RELEASE_NAME}.tar.gz\n            echo \"Download ${download_url}, untar it, then move it to << parameters.install-dir >>\"\n            curl -L ${download_url} | tar -xvzf -\n            mv ${CIRCLECI_CLI_RELEASE_NAME}/circleci << parameters.install-dir >>\n            echo \"Make sure the CLI is now installed and is ready for use.\"\n            if [ ! type circleci &>/dev/null ]; then\n              echoerr \"Something went wrong installing the circleci CLI\"\n              exit 1\n            fi\n            echo \"Run circleci help\"\n            circleci help\n"
+        }
+      ]
+    },
+    {
+      "name": "test/test",
+      "versions": [
+        {
+          "version": "0.0.3",
+          "source": "{}\n"
+        }
+      ]
+    },
+    {
+      "name": "zzak/test4",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "source": "{version: 2.1}\n"
+        }
+      ]
+    },
+    {
+      "name": "zzak/testing",
+      "versions": [
+        {
+          "version": "0.2.0",
+          "source": "{version: 2.1}\n"
+        }
+      ]
+    }
+  ]
+}
