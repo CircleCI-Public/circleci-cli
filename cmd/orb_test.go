@@ -1083,11 +1083,17 @@ var _ = Describe("Orb integration tests", func() {
 			It("sends a GraphQL request with 'uncertifiedOnly: false'", func() {
 				By("setting up a mock server")
 
-				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/request.json"))
-				gqlRequest := string(tmpBytes)
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_request.json"))
+				firstGqlRequest := string(tmpBytes)
 
-				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/response.json"))
-				response := string(tmpBytes)
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_response.json"))
+				firstResponse := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_request.json"))
+				secondGqlRequest := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_response.json"))
+				secondResponse := string(tmpBytes)
 
 				// Use Gomega's default matcher instead of our custom appendPostHandler
 				// since this query doesn't pass in a token.
@@ -1099,9 +1105,19 @@ var _ = Describe("Orb integration tests", func() {
 							body, error := ioutil.ReadAll(req.Body)
 							req.Body.Close()
 							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(gqlRequest), "JSON Mismatch")
+							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
 						},
-						ghttp.RespondWith(http.StatusOK, response),
+						ghttp.RespondWith(http.StatusOK, firstResponse),
+					),
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, secondResponse),
 					),
 				)
 
@@ -1110,7 +1126,11 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
-				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+				// Include an orb with content from the first mocked response
+				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure"))
+				// Include an orb with contents from the second mocked response
+				Eventually(session.Out).Should(gbytes.Say("zzak/test4"))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
 		})
