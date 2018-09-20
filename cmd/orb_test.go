@@ -395,7 +395,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published 0.0.1"))
+				Eventually(session.Out).Should(gbytes.Say("Orb published my/orb@0.0.1"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -522,7 +522,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published dev:volatile"))
+				Eventually(session.Out).Should(gbytes.Say("Orb published my/orb@dev:volatile"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -832,7 +832,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb promoted to 0.1.0"))
+				Eventually(session.Out).Should(gbytes.Say("Orb my/orb@dev:volatile promoted to 0.1.0"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -968,7 +968,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb created"))
+				Eventually(session.Out).Should(gbytes.Say("Orb bar-ns/foo-orb created"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 

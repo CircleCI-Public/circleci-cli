@@ -60,23 +60,14 @@ type ConfigResponse struct {
 // The OrbPublishResponse type matches the data shape of the GQL response for
 // publishing an orb.
 type OrbPublishResponse struct {
-	Orb struct {
-		CreatedAt string
-		Version   string
-	}
-
+	Orb Orb
 	GQLResponseErrors
 }
 
 // The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
 type OrbPromoteResponse struct {
-	Orb struct {
-		CreatedAt string
-		Version   string
-		Source    string
-	}
-
+	Orb Orb
 	GQLResponseErrors
 }
 
@@ -103,10 +94,7 @@ type WhoamiResponse struct {
 // CreateOrbResponse type matches the data shape of the GQL response for
 // creating an orb
 type CreateOrbResponse struct {
-	Orb struct {
-		ID string
-	}
-
+	Orb Orb
 	GQLResponseErrors
 }
 
@@ -135,7 +123,12 @@ type OrbVersion struct {
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
 type Orb struct {
-	Name string `json:"name"`
+	ID        string     `json:"-"`
+	Name      string     `json:"name"`
+	Namespace string     `json:"-"`
+	CreatedAt string     `json:"-"`
+	Version   OrbVersion `json:"-"`
+	Source    string     `json:"-"`
 	// Avoid "Version" since there is a "version" key in the orb source referring
 	// to the orb schema version
 	HighestVersion string              `json:"-"`
@@ -158,6 +151,11 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]str
 	if err != nil {
 		panic(err)
 	}
+}
+
+// Ref returns a formatted string used to reference an orb
+func (orb Orb) Ref() string {
+	return fmt.Sprintf("%s/%s@%s", orb.Namespace, orb.Name, orb.Version)
 }
 
 // String returns a text representation of the Orb contents, intended for
