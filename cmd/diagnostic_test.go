@@ -48,6 +48,13 @@ var _ = Describe("Diagnostic", func() {
 				ghttp.RespondWith(http.StatusOK, `{ "data": `+mockResponse+`}`),
 			),
 		)
+		testServer.AppendHandlers(
+			ghttp.CombineHandlers(
+				ghttp.VerifyRequest("POST", "/"),
+				ghttp.VerifyContentType("application/json; charset=utf-8"),
+				ghttp.RespondWith(http.StatusOK, `{ "data": { "me": { "name": "zzak" } } }`),
+			),
+		)
 	})
 
 	AfterEach(func() {
@@ -152,6 +159,25 @@ token: mytoken
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Out).Should(gbytes.Say("Trying an introspection query on API..."))
 				Eventually(session.Err).Should(gbytes.Say("Introspection query result with Schema.QueryType of QueryRoot"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("whoami returns a user", func() {
+			BeforeEach(func() {
+				_, err := config.Write([]byte(`token: mytoken`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			It("print success", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err.Contents()).Should(BeEmpty())
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
+				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
+				Eventually(session.Out).Should(gbytes.Say("Hello, zzak."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})

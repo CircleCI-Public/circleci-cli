@@ -1,0 +1,13 @@
+query {
+        me {
+            name
+            avatarURL
+            accounts {
+                edges {
+                    node {
+                        id
+                    }
+                }
+            }
+        }
+    }

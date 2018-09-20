@@ -28,6 +28,8 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	token := viper.GetString("token")
 
 	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
+	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
+
 	Logger.Infof("Config found: %v\n", viper.ConfigFileUsed())
 
 	Logger.Infof("GraphQL API address: %s\n", address)
@@ -36,7 +38,6 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 		return errors.New("please set a token")
 	}
 	Logger.Infoln("OK, got a token.")
-	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
 
 	Logger.Infoln("Trying an introspection query on API... ")
 	response, err := api.IntrospectionQuery(context.Background(), Logger)
@@ -50,5 +51,11 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	Logger.Infoln("Ok.")
 
 	Logger.Debug("Introspection query result with Schema.QueryType of %s", response.Schema.QueryType.Name)
+
+	who, err := api.WhoamiQuery(context.Background(), Logger)
+	if err == nil && who != nil && who.Me.Name != "" {
+		Logger.Infof("Hello, %s.\n", who.Me.Name)
+	}
+
 	return nil
 }
