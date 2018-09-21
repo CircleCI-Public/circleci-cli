@@ -53,5 +53,11 @@ func EnsureSettingsFileExists(filepath, filename string) error {
 	}
 
 	_, err = os.Create(fullPath)
+	if err != nil {
+		return err
+	}
+
+	err = os.Chmod(fullPath, 0600)
+
 	return err
 }
