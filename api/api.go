@@ -110,14 +110,39 @@ type CreateOrbResponse struct {
 	GQLResponseErrors
 }
 
+// OrbCollection is a container type for multiple orbs to share formatting
+// functions on them.
+type OrbCollection struct {
+	Orbs      []Orb  `json:"orbs"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
+// String returns a text representation of all Orbs, intended for
+// direct human use rather than machine use.
+func (orbCollection OrbCollection) String() string {
+	var result string
+	for _, o := range orbCollection.Orbs {
+		result += (o.String())
+	}
+	return result
+}
+
+// OrbVersion represents a single orb version and its source
+type OrbVersion struct {
+	Version string `json:"version"`
+	Source  string `json:"source"`
+}
+
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
 type Orb struct {
-	Name string
-	// Avoid "Version" since this is a key in the orb source referring to the orb schema version
-	HighestVersion string
-	Commands       map[string]struct{}
-	Jobs           map[string]struct{}
-	Executors      map[string]struct{}
+	Name string `json:"name"`
+	// Avoid "Version" since there is a "version" key in the orb source referring
+	// to the orb schema version
+	HighestVersion string              `json:"-"`
+	Commands       map[string]struct{} `json:"-"`
+	Jobs           map[string]struct{} `json:"-"`
+	Executors      map[string]struct{} `json:"-"`
+	Versions       []OrbVersion        `json:"versions"`
 }
 
 func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
@@ -128,12 +153,16 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]str
 			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
 		}
 	}
-	// This should never occur, but the linter made me do it :shrug:
+	// This will never occur. The docs for bytes.Buffer.WriteString says err
+	// will always be nil. The linter still expects this error to be checked.
 	if err != nil {
 		panic(err)
 	}
 }
 
+// String returns a text representation of the Orb contents, intended for
+// direct human use rather than machine use. This function will exclude orb
+// source and orbs without any versions in its returned string.
 func (orb Orb) String() string {
 	var buffer bytes.Buffer
 
@@ -766,7 +795,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListOrbs(ctx context.Context, logger *logger.Logger, uncertified bool) ([]Orb, error) {
+func ListOrbs(ctx context.Context, logger *logger.Logger, uncertified bool) (*OrbCollection, error) {
 	// Define a structure that matches the result of the GQL
 	// query, so that we can use mapstructure to convert from
 	// nested maps to a strongly typed struct.
@@ -810,7 +839,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 	`
 
-	var orbs []Orb
+	var orbs OrbCollection
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
@@ -842,13 +871,17 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				o.Name = edge.Node.Name
 				o.HighestVersion = v.Version
+
+				for _, v := range edge.Node.Versions {
+					o.Versions = append(o.Versions, OrbVersion(v))
+				}
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 
 				if err != nil {
 					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue Orbs
 				}
-				orbs = append(orbs, o)
+				orbs.Orbs = append(orbs.Orbs, o)
 			}
 		}
 
@@ -856,14 +889,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 			break
 		}
 	}
-	return orbs, nil
+	return &orbs, nil
 }
 
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
 // namespace.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) ([]Orb, error) {
+func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) (*OrbCollection, error) {
 	// Define a structure that matches the result of the GQL
 	// query, so that we can use mapstructure to convert from
 	// nested maps to a strongly typed struct.
@@ -912,11 +945,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
-	var orbs []Orb
+	var orbs OrbCollection
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
-		return orbs, err
+		return nil, err
 	}
 	graphQLclient := client.NewClient(address, logger)
 
@@ -927,10 +960,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
+		orbs.Namespace = namespace
 
 		err := graphQLclient.Run(ctx, request, &result)
 		if err != nil {
-			return orbs, errors.Wrap(err, "GraphQL query failed")
+			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
 
 	NamespaceOrbs:
@@ -944,12 +978,15 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				var o Orb
 				o.Name = edge.Node.Name
 				o.HighestVersion = v.Version
+				for _, v := range edge.Node.Versions {
+					o.Versions = append(o.Versions, OrbVersion(v))
+				}
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 				if err != nil {
 					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue NamespaceOrbs
 				}
-				orbs = append(orbs, o)
+				orbs.Orbs = append(orbs.Orbs, o)
 			}
 		}
 
@@ -958,7 +995,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		}
 	}
 
-	return orbs, nil
+	return &orbs, nil
 }
 
 // IntrospectionQuery makes a query on the API asking for bits of the schema

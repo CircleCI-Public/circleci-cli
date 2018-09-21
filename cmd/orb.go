@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -18,6 +19,7 @@ var orbAnnotations = map[string]string{
 }
 
 var orbListUncertified bool
+var orbListJSON bool
 
 func newOrbCommand() *cobra.Command {
 
@@ -30,6 +32,10 @@ func newOrbCommand() *cobra.Command {
 	}
 	listCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"] + " (Optional)"
 	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
+	listCommand.PersistentFlags().BoolVar(&orbListJSON, "json", false, "print output as json instead of human-readable")
+	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
+		panic(err)
+	}
 
 	validateCommand := &cobra.Command{
 		Use:         "validate PATH",
@@ -153,8 +159,15 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
-	for _, o := range orbs {
-		Logger.Info(o.String())
+	if orbListJSON {
+		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to convert to convert to JSON")
+		}
+		Logger.Info(string(orbJSON))
+
+	} else {
+		Logger.Info(orbs.String())
 	}
 	return nil
 }
@@ -165,8 +178,14 @@ func listNamespaceOrbs(namespace string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
 	}
-	for _, o := range orbs {
-		Logger.Info(o.String())
+	if orbListJSON {
+		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
+		if err != nil {
+			return errors.Wrapf(err, "Failed to convert to convert to JSON")
+		}
+		Logger.Info(string(orbJSON))
+	} else {
+		Logger.Info(orbs.String())
 	}
 	return nil
 }
