@@ -522,9 +522,7 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil {
-		err = errors.Wrapf(err, "Unable to find namespace %s", name)
-	} else if response.RegistryNamespace.ID == "" {
+	if err != nil || response.RegistryNamespace.ID == "" {
 		err = fmt.Errorf("Unable to find namespace %s", name)
 	}
 
@@ -571,13 +569,11 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, name string) (*CreateOrbResponse, error) {
 	namespaceID, err := getNamespace(ctx, logger, namespace)
-
 	if err != nil {
 		return nil, err
 	}
 
-	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
-	return orb, err
+	return createOrbWithNsID(ctx, logger, name, namespaceID)
 }
 
 // TODO(zzak): this function is not really related to the API. Move it to another package?
