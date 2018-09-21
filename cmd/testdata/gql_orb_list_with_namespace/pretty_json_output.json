@@ -2,6 +2,7 @@
   "namespace": "circleci",
   "orbs": [
     {
+      "version": "0.0.3",
       "versions": [
         {
           "source": "{}",
@@ -21,6 +22,7 @@
           "version": "0.0.1"
         }
       ],
+      "version": "0.0.1",
       "name": "circleci/gradle"
     },
     {
@@ -30,6 +32,7 @@
           "version": "0.0.1"
         }
       ],
+      "version": "0.0.1",
       "name": "circleci/rollbar"
     }
   ]

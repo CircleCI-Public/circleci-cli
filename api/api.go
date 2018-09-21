@@ -60,23 +60,14 @@ type ConfigResponse struct {
 // The OrbPublishResponse type matches the data shape of the GQL response for
 // publishing an orb.
 type OrbPublishResponse struct {
-	Orb struct {
-		CreatedAt string
-		Version   string
-	}
-
+	Orb Orb
 	GQLResponseErrors
 }
 
 // The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
 type OrbPromoteResponse struct {
-	Orb struct {
-		CreatedAt string
-		Version   string
-		Source    string
-	}
-
+	Orb Orb
 	GQLResponseErrors
 }
 
@@ -103,10 +94,7 @@ type WhoamiResponse struct {
 // CreateOrbResponse type matches the data shape of the GQL response for
 // creating an orb
 type CreateOrbResponse struct {
-	Orb struct {
-		ID string
-	}
-
+	Orb Orb
 	GQLResponseErrors
 }
 
@@ -135,10 +123,16 @@ type OrbVersion struct {
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
 type Orb struct {
-	Name string `json:"name"`
+	ID        string `json:"-"`
+	Name      string `json:"name"`
+	Namespace string `json:"-"`
+	CreatedAt string `json:"-"`
+
+	Source string `json:"-"`
 	// Avoid "Version" since there is a "version" key in the orb source referring
 	// to the orb schema version
-	HighestVersion string              `json:"-"`
+	HighestVersion string              `json:"version"`
+	Version        string              `json:"-"`
 	Commands       map[string]struct{} `json:"-"`
 	Jobs           map[string]struct{} `json:"-"`
 	Executors      map[string]struct{} `json:"-"`
@@ -324,7 +318,7 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 
 // OrbPublishByID publishes a new version of an orb by id
 func OrbPublishByID(ctx context.Context, logger *logger.Logger,
-	configPath string, orbID string, orbVersion string) (*OrbPublishResponse, error) {
+	configPath string, orbID string, orbVersion string) (*Orb, error) {
 
 	var response struct {
 		PublishOrb struct {
@@ -373,7 +367,7 @@ func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 		return nil, response.PublishOrb.OrbPublishResponse.ToError()
 	}
 
-	return &response.PublishOrb.OrbPublishResponse, nil
+	return &response.PublishOrb.OrbPublishResponse.Orb, err
 }
 
 // OrbID fetches an orb returning the ID
@@ -613,7 +607,7 @@ func incrementVersion(version string, segment string) (string, error) {
 }
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
-func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*OrbPublishResponse, error) {
+func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*Orb, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -632,10 +626,6 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 	response, err := OrbPublishByID(ctx, logger, configPath, id, v2)
 	if err != nil {
 		return nil, err
-	}
-
-	if len(response.Errors) > 0 {
-		return nil, response.ToError()
 	}
 
 	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id, v, segment, v2)
@@ -688,7 +678,7 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*OrbPromoteResponse, error) {
+func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*Orb, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -747,7 +737,7 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 		return nil, response.PromoteOrb.OrbPromoteResponse.ToError()
 	}
 
-	return &response.PromoteOrb.OrbPromoteResponse, nil
+	return &response.PromoteOrb.OrbPromoteResponse.Orb, err
 }
 
 // OrbSource gets the source or an orb

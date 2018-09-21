@@ -236,7 +236,10 @@ func releaseOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb published %s", response.Orb.Version)
+	response.Namespace = args[1]
+	response.Name = args[2]
+
+	Logger.Infof("Orb published %s/%s@%s", args[1], args[2], response.HighestVersion)
 	return nil
 }
 
@@ -258,7 +261,7 @@ func devOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb published %s", response.Orb.Version)
+	Logger.Infof("Orb published %s/%s@%s", args[1], args[2], response.HighestVersion)
 	return nil
 }
 
@@ -283,7 +286,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.Orb.Version)
+	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.HighestVersion)
 	return nil
 }
 
@@ -297,7 +300,7 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb promoted to %s", response.Orb.Version)
+	Logger.Infof("Orb %s/%s@%s promoted to %s", args[0], args[1], devLabel(args[2]), response.HighestVersion)
 	return nil
 }
 
@@ -315,14 +318,15 @@ func createOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Info("Orb created")
+	Logger.Infof("Orb %s/%s created", args[0], args[1])
+	Logger.Infof("You can now register versions of %s/%s using `circleci orb publish`", args[0], args[1])
 	return nil
 }
 
 func showSource(cmd *cobra.Command, args []string) error {
 	source, err := api.OrbSource(context.Background(), Logger, args[0], args[1])
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s' in %s", args[1], args[0])
+		return errors.Wrapf(err, "Failed to get source for '%s/%s'", args[1], args[0])
 	}
 	Logger.Info(source)
 	return nil
