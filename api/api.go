@@ -632,10 +632,6 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 		return nil, err
 	}
 
-	if len(response.Errors) > 0 {
-		return nil, response.ToError()
-	}
-
 	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id, v, segment, v2)
 
 	return response, nil
