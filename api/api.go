@@ -493,13 +493,7 @@ func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, or
 		return nil, err
 	}
 
-	namespace, err := createNamespaceWithOwnerID(ctx, logger, name, organizationID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return namespace, err
+	return createNamespaceWithOwnerID(ctx, logger, name, organizationID)
 }
 
 func getNamespace(ctx context.Context, logger *logger.Logger, name string) (string, error) {
