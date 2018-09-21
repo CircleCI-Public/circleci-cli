@@ -322,7 +322,7 @@ func createOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Infof("Orb `%s/%s` created.", args[0], args[1])
-	Logger.Info("Please not that any versions you publish of this orb are open orb and are world-readable.")
+	Logger.Info("Please note that any versions you publish of this orb are world-readable.")
 	Logger.Infof("You can now register versions of `%s/%s` using `circleci orb publish`", args[0], args[1])
 	return nil
 }

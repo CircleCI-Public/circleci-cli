@@ -971,7 +971,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Out).Should(gbytes.Say("Orb `bar-ns/foo-orb` created."))
-				Eventually(session.Out).Should(gbytes.Say("Please not that any versions you publish of this orb are open orb and are world-readable."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that any versions you publish of this orb are world-readable."))
 				Eventually(session.Out).Should(gbytes.Say("You can now register versions of `bar-ns/foo-orb` using `circleci orb publish`"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
