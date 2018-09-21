@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/manifoldco/promptui"
@@ -32,11 +33,27 @@ func newSetupCommand() *cobra.Command {
 // The `userInterface` is created here to allow us to pass a mock user
 // interface for testing.
 type userInterface interface {
+	readSecretStringFromUser(message string) (string, error)
 	readStringFromUser(message string, defaultValue string) string
 	askUserToConfirm(message string) bool
 }
 
 type interactiveUI struct {
+}
+
+func (interactiveUI) readSecretStringFromUser(message string) (string, error) {
+	prompt := promptui.Prompt{
+		Label: message,
+		Mask:  '*',
+	}
+
+	token, err := prompt.Run()
+
+	if err != nil {
+		return "", err
+	}
+
+	return token, nil
 }
 
 func (interactiveUI) readStringFromUser(message string, defaultValue string) string {
@@ -72,6 +89,11 @@ type testingUI struct {
 	confirm bool
 }
 
+func (ui testingUI) readSecretStringFromUser(message string) (string, error) {
+	Logger.Info(message)
+	return ui.input, nil
+}
+
 func (ui testingUI) readStringFromUser(message string, defaultValue string) string {
 	Logger.Info(message)
 	return ui.input
@@ -83,12 +105,19 @@ func (ui testingUI) askUserToConfirm(message string) bool {
 }
 
 func shouldAskForToken(token string, ui userInterface) bool {
-
 	if token == "" {
 		return true
 	}
 
 	return ui.askUserToConfirm("A CircleCI token is already set. Do you want to change it")
+}
+
+func shouldAskForEndpoint(endpoint string, ui userInterface) bool {
+	if endpoint == defaultEndpoint {
+		return true
+	}
+
+	return ui.askUserToConfirm(fmt.Sprintf("Do you want to reset the endpoint? (default: %s)", defaultEndpoint))
 }
 
 func setup(cmd *cobra.Command, args []string) error {
@@ -104,11 +133,22 @@ func setup(cmd *cobra.Command, args []string) error {
 	}
 
 	if shouldAskForToken(token, ui) {
-		viper.Set("token", ui.readStringFromUser("CircleCI API Token", ""))
+		token, err := ui.readSecretStringFromUser("CircleCI API Token")
+		if err != nil {
+			return errors.Wrap(err, "Error reading token")
+		}
+		viper.Set("token", token)
 		Logger.Info("API token has been set.")
 	}
-	viper.Set("endpoint", ui.readStringFromUser("CircleCI API End Point", viper.GetString("endpoint")))
-	Logger.Info("API endpoint has been set.")
+	viper.Set("host", ui.readStringFromUser("CircleCI Host", defaultHost))
+	Logger.Info("CircleCI host has been set.")
+
+	// Reset endpoint to default when running setup
+	// This ensures any accidental changes to this field can be fixed simply by rerunning this command.
+	endpoint := viper.GetString("endpoint")
+	if shouldAskForEndpoint(endpoint, ui) {
+		viper.Set("endpoint", defaultEndpoint)
+	}
 
 	// Marc: I can't find a way to prevent the verbose flag from
 	// being written to the config file, so set it to false in

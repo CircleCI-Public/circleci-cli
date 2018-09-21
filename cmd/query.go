@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -11,19 +12,27 @@ import (
 )
 
 func newQueryCommand() *cobra.Command {
-	return &cobra.Command{
-		Use:   "query PATH (use \"-\" for STDIN)",
-		Short: "Query the CircleCI GraphQL API.",
-		RunE:  query,
-		Args:  cobra.ExactArgs(1),
+	queryCommand := &cobra.Command{
+		Use:         "query PATH",
+		Short:       "Query the CircleCI GraphQL API.",
+		RunE:        query,
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
 	}
+	queryCommand.Annotations["PATH"] = "The path to your query (use \"-\" for STDIN)"
+
+	return queryCommand
 }
 
 func query(cmd *cobra.Command, args []string) error {
 	var err error
 	// This local is named "q" to avoid confusion with the function name.
 	var q []byte
-	c := client.NewClient(viper.GetString("endpoint"), Logger)
+	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
+	if err != nil {
+		return err
+	}
+	c := client.NewClient(address, Logger)
 
 	if args[0] == "-" {
 		q, err = ioutil.ReadAll(os.Stdin)

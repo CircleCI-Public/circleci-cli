@@ -33,7 +33,7 @@ var _ = Describe("Query", func() {
 		token = "mytoken"
 		command = exec.Command(pathCLI, "query", "-",
 			"--token", token,
-			"--endpoint", server.URL(),
+			"--host", server.URL(),
 		)
 		command.Stdin = &stdin
 		command.Env = append(os.Environ(),
@@ -80,7 +80,7 @@ var _ = Describe("Query", func() {
 
 			server.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/"),
+					ghttp.VerifyRequest("POST", "/graphql-unstable"),
 					ghttp.VerifyHeader(http.Header{
 						"Authorization": []string{token},
 					}),

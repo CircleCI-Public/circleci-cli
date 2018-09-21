@@ -11,6 +11,8 @@ archive:
 
 builds:
   - binary: circleci
+    env:
+      - CGO_ENABLED=0
     goos:
       - windows
       - darwin

@@ -10,8 +10,11 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v2"
 )
 
 // These options are purely here to retain a mock of the structure of the flags used by `build`.
@@ -32,6 +35,10 @@ type proxyBuildArgs struct {
 	envVarArgs  []string
 }
 
+func addConfigFlag(filename *string, flagset *pflag.FlagSet) {
+	flagset.StringVarP(filename, "config", "c", defaultConfigPath, "config file")
+}
+
 func newLocalExecuteCommand() *cobra.Command {
 	buildCommand := &cobra.Command{
 		Use:                "execute",
@@ -40,10 +47,12 @@ func newLocalExecuteCommand() *cobra.Command {
 		DisableFlagParsing: true,
 	}
 
+	// Used as a convenience work-around when DisableFlagParsing is enabled
+	// Allows help command to access the combined rollup of flags
 	opts := proxyBuildArgs{}
 	flags := buildCommand.Flags()
 
-	flags.StringVarP(&opts.configFilename, "config", "c", defaultConfigPath, "config file")
+	addConfigFlag(&opts.configFilename, flags)
 	flags.StringVar(&opts.taskInfo.Job, "job", "build", "job to be executed")
 	flags.IntVar(&opts.taskInfo.NodeTotal, "node-total", 1, "total number of parallel nodes")
 	flags.IntVar(&opts.taskInfo.NodeIndex, "index", 0, "node index of parallelism")
@@ -117,7 +126,7 @@ func loadCurrentBuildAgentSha() string {
 	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
 
 	if err != nil {
-		Logger.Error("Faild to load build agent settings JSON", err)
+		Logger.Error("Failed to load build agent settings JSON", err)
 		return ""
 	}
 
@@ -126,7 +135,7 @@ func loadCurrentBuildAgentSha() string {
 	err = json.Unmarshal(settingsJSON, &settings)
 
 	if err != nil {
-		Logger.Error("Faild to parse build agent settings JSON", err)
+		Logger.Error("Failed to parse build agent settings JSON", err)
 		return ""
 	}
 
@@ -154,7 +163,59 @@ func picardImage() (string, error) {
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
+func configVersion(configBytes []byte) (string, bool) {
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal(configBytes, &raw); err != nil {
+		return "", false
+	}
+
+	var configWithVersion struct {
+		Version string `yaml:"version"`
+	}
+	if err := mapstructure.WeakDecode(raw, &configWithVersion); err != nil {
+		return "", false
+	}
+	return configWithVersion.Version, true
+}
+
+func validateConfigVersion(args []string) error {
+	invalidConfigError := `
+You attempted to run a local build with version '%s' of configuration.
+Local builds do not support that version at this time.
+You can use 'circleci config process' to pre-process your config into a version that local builds can run (see 'circleci help config process' for more information)`
+	configFlags := pflag.NewFlagSet("configFlags", pflag.ContinueOnError)
+	configFlags.ParseErrorsWhitelist.UnknownFlags = true
+	var filename string
+	addConfigFlag(&filename, configFlags)
+
+	err := configFlags.Parse(args)
+	if err != nil {
+		return errors.New("Unable to parse flags")
+	}
+
+	// nolint: gosec
+	configBytes, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return errors.Wrapf(err, "Unable to read config file")
+	}
+
+	version, isVersion := configVersion(configBytes)
+	if !isVersion || version == "" {
+		return errors.New("Unable to identify config version")
+	}
+
+	if version != "2.0" && version != "2" {
+		return fmt.Errorf(invalidConfigError, version)
+	}
+
+	return nil
+}
+
 func runExecute(cmd *cobra.Command, args []string) error {
+	err := validateConfigVersion(args)
+	if err != nil {
+		return err
+	}
 
 	pwd, err := os.Getwd()
 

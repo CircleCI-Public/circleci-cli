@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  codecov: circleci/codecov-clojure@0.0.2
+  codecov: circleci/codecov-clojure@0.0.4
 
 executors:
   go:
@@ -75,9 +75,11 @@ jobs:
       - run:
           name: Build Docker Image
           command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
+            docker push     circleci/circleci-cli:latest
       - save_cache:
           key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
@@ -98,7 +100,7 @@ jobs:
           at: .
       - run: |
           export TAG=$(./dist/linux_amd64/circleci version)
-          sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snapcraft.yaml
+          sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
       - run: snapcraft
       - run:
           name: Publish to store
@@ -118,6 +120,29 @@ jobs:
             find . -type f -name '*.sh' -not -path './vendor/*' > /tmp/files.txt
             echo "Checking $(cat /tmp/files.txt | wc -l ) files"
             cat /tmp/files.txt | xargs -t shellcheck --external-sources
+
+  homebrew:
+    machine: true
+    environment:
+      - USER: circleci
+      - TRAVIS: circleci
+    steps:
+      - checkout
+      - run: |
+          sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
+      - run: |
+          docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
+            -w /go/src/github.com/CircleCI-Public/circleci-cli \
+            -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
+      - run: |
+          export VERSION=$(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
+          export REVISION=$(git rev-parse $(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
+          echo "Bumping circleci to $VERSION+$REVISION"
+          /home/linuxbrew/.linuxbrew/bin/brew bump-formula-pr --strict \
+            --dry-run \
+            --tag=$VERSION \
+            --revision=$CIRCLE_SHA1 \
+            circleci
 
 workflows:
   version: 2
@@ -142,3 +167,17 @@ workflows:
           filters:
             branches:
               only: master
+  weekly:
+    triggers:
+      - schedule:
+          cron: "45 2 * * 2"
+          filters:
+            branches:
+              only:
+                - master
+    jobs:
+      - run-brew-deploy-gate:
+          type: approval
+      - homebrew:
+          requires:
+            - run-brew-deploy-gate

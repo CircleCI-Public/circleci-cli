@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/cobra/doc"
 )
 
 func newUsageCommand() *cobra.Command {
@@ -40,7 +40,7 @@ func usage(cmd *cobra.Command, args []string) error {
 
 	// generate markdown to out
 	emptyStr := func(s string) string { return "" }
-	return doc.GenMarkdownTreeCustom(rootCmd, out, emptyStr, func(name string) string {
+	return md_docs.GenMarkdownTreeCustom(rootCmd, out, emptyStr, func(name string) string {
 		base := strings.TrimSuffix(name, path.Ext(name))
 		return base + ".html"
 	})

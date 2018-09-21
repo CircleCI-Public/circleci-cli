@@ -1,17 +1,20 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
-var defaultEndpoint = "https://circleci.com/graphql-unstable"
+var defaultEndpoint = "graphql-unstable"
+var defaultHost = "https://circleci.com"
 
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
@@ -49,9 +52,9 @@ Examples:
 
 Available Commands:{{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if (HasAnnotations .)}}
-
-Args:{{range $arg, $desc := .Annotations}}
-  {{rpad $arg 11}} {{$desc}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+{{$cmd := .}}
+Args:
+{{range (PositionalArgs .)}}  {{(FormatPositionalArg $cmd .)}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
 
 Flags:
 {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
@@ -67,13 +70,16 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 func MakeCommands() *cobra.Command {
 	rootCmd = &cobra.Command{
 		Use:   "circleci",
-		Short: "Use CircleCI from the command line.",
-		Long:  `Use CircleCI from the command line.`,
+		Short: `Use CircleCI from the command line.`,
+		Long:  `This project is the seed for CircleCI's new command-line application.`,
 	}
 
 	// For supporting "Args" in command usage help
 	cobra.AddTemplateFunc("HasAnnotations", hasAnnotations)
+	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
+	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
+	rootCmd.DisableAutoGenTag = true
 
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newQueryCommand())
@@ -88,11 +94,16 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newNamespaceCommand())
 	rootCmd.AddCommand(newUsageCommand())
 	rootCmd.AddCommand(newStepCommand())
+	rootCmd.AddCommand(newSwitchCommand())
 	rootCmd.PersistentFlags().Bool("verbose", false, "Enable verbose logging.")
-	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "the endpoint of your CircleCI GraphQL API")
 	rootCmd.PersistentFlags().String("token", "", "your token for using CircleCI")
+	rootCmd.PersistentFlags().String("host", defaultHost, "URL to your CircleCI host")
+	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "URI to your CircleCI GraphQL API endpoint")
+	if err := rootCmd.PersistentFlags().MarkHidden("endpoint"); err != nil {
+		panic(err)
+	}
 
-	for _, flag := range []string{"endpoint", "token", "verbose"} {
+	for _, flag := range []string{"endpoint", "host", "token", "verbose"} {
 		bindCobraFlagToViper(rootCmd, flag)
 	}
 
@@ -107,7 +118,41 @@ func MakeCommands() *cobra.Command {
 	// just the error message.
 	rootCmd.SilenceUsage = true
 
+	setFlagErrorFuncAndValidateArgs(rootCmd)
+
 	return rootCmd
+}
+
+func setFlagErrorFunc(cmd *cobra.Command, err error) error {
+	if e := cmd.Help(); e != nil {
+		return e
+	}
+	fmt.Println("")
+	return err
+}
+
+func setFlagErrorFuncAndValidateArgs(command *cobra.Command) {
+	visitAll(command, func(cmd *cobra.Command) {
+		cmd.SetFlagErrorFunc(setFlagErrorFunc)
+
+		if cmd.Args == nil {
+			return
+		}
+
+		cmdArgs := cmd.Args
+		cmd.Args = func(cccmd *cobra.Command, args []string) error {
+			if err := cmdArgs(cccmd, args); err != nil {
+				if e := cccmd.Help(); e != nil {
+					return e
+				}
+
+				fmt.Println("")
+				return err
+			}
+
+			return nil
+		}
+	})
 }
 
 func bindCobraFlagToViper(command *cobra.Command, flag string) {
@@ -137,4 +182,11 @@ func init() {
 
 func prepare() {
 	Logger = logger.NewLogger(viper.GetBool("verbose"))
+}
+
+func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
+	for _, cmd := range root.Commands() {
+		visitAll(cmd, fn)
+	}
+	fn(root)
 }

@@ -1,126 +1,62 @@
-# Contributing to the CLI
+# Contributing Guidelines
 
-If you're looking to contribute to this project, there's a few things you should know.
+Contributions are always welcome; however, please read this document in its
+entirety before submitting a Pull Request or Reporting a bug.
 
-First, make sure you go through the [README](README.md).
+### Table of Contents
 
-Second, it's written in Go. If you are new to Go, we recommend the following resources:
+- [Reporting a bug](#reporting-a-bug)
+  - [Security disclosure](#security-disclosure)
+- [Creating an issue](#creating-an-issue)
+- [Feature requests](#feature-requests)
+- [Opening a pull request](#opening-a-pull-request)
+- [Code of Conduct](#code-of-conduct)
+- [License](#license)
+- [Contributor license agreement](#contributor-license-agreement)
 
-* [A Tour of Go](https://tour.golang.org/welcome/1)
-* [The Go documentation](https://golang.org/doc/)
+---------------
 
-## Requirements
+# Reporting a Bug
 
-* Go 1.10+
-* Make
-* ...
+Think you've found a bug? Let us know!
 
-## Getting setup
+### Security disclosure
 
-You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
+Security is a top priority for us. If you have encountered a security issue
+please responsibly disclose it by following our [security
+disclosure](https://circleci.com/docs/2.0/security/) document.
 
-This includes setting a valid `$GOPATH`.
+# Creating an Issue
 
-### 1. Get the repo
+Your issue must follow these guidelines for it to be considered:
 
-```
-$ go get -u github.com/CircleCI-Public/circleci-cli
-$ cd $GOPATH/src/github.com/CircleCI-Public/circleci-cli
-```
+#### Before submitting
 
-### 2. Build the binary
+- Check you’re on the latest version, we may have already fixed your bug!
+- [Search our issue
+  tracker](https://github.com/CircleCI-Public/circleci-cli/issues/search&type=issues)
+  for your problem, someone may have already reported it
 
-```
-$ make
-```
+# Opening a Pull Request
 
-### 3. Run tests
+To contribute, [fork](https://help.github.com/articles/fork-a-repo/)
+`circleci`, commit your changes, and [open a pull
+request](https://help.github.com/articles/using-pull-requests/).
 
-```
-$ make test
-```
+Your request will be reviewed as soon as possible. You may be asked to make
+changes to your submission during the review process.
 
-### 4. Cleaning up installed binary
+#### Before submitting
 
-If you ran `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `make clean`.
+- Test your change thoroughly
 
-```bash
-$ which circleci-cli
-/Users/erichu/go/bin/circleci-cli
-$ make clean
-$ which circleci-cli
-$
-```
 
-## Managing Dependencies
+# Code of Conduct
 
-We use `dep` for vendoring our depencencies:
-https://github.com/golang/dep
+All community members are expected to adhere to our [code of
+conduct](./CODE_OF_CONDUCT.md).
 
-If you want to update or modify any dependencies you will need to install it.
 
-You can do so on MacOS:
+# License
 
-```
-$ brew install dep
-$ brew upgrade dep
-```
-
-Or on Linux, etc:
-
-```
-$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-```
-
-To make sure dependencies are installed:
-
-```
-$ dep ensure
-```
-
-## Linting your code
-
-We use [`gometalinter`](github.com/alecthomas/gometalinter) for linting.
-
-You can install it via `$ make dev` or manually with:
-
-```
-$ go get -u github.com/alecthomas/gometalinter
-$ gometalinter --install
-```
-
-Then you can run it with `$ make lint`.
-
-There is also a `coverage` job as part of the build which will lint any code you commit.
-
-## Editor support
-
-Go has great tooling such as [`gofmt`](https://golang.org/cmd/gofmt/) and [`goimports`](https://godoc.org/golang.org/x/tools/cmd/goimports).
-
-In particular, **please be sure to `gofmt` your code before committing**.
-
-You can install `goimport` via:
-
-```
-$ go get golang.org/x/tools/cmd/goimports
-```
-
-The golang blog post ["go fmt your code"](https://blog.golang.org/go-fmt-your-code) has a lot more info `gofmt`. To get it setup with [vim](https://github.com/fatih/vim-go) or [emacs](https://github.com/dominikh/go-mode.el).
-
-For example, I've the following in my `.emacs.d/init.el`:
-
-```
-(setq gofmt-command "goimports")
-(require 'go-mode)
-(add-hook 'before-save-hook 'gofmt-before-save)
-(require 'go-rename)
-```
-
-## Viewing API Documentation
-
-You can view the documentation for this project in your browser using `godoc`.
-
-After installing it via `make dev`.
-
-1. Run `make doc`.
-2. Access http://localhost:6060/pkg/github.com/CircleCI-Public/circleci-cli/
+CircleCI's `circleci` is released under the [MIT License](./LICENSE).
