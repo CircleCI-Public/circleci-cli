@@ -38,7 +38,7 @@ func createNamespace(cmd *cobra.Command, args []string) error {
 	response, err := api.CreateNamespace(ctx, Logger, args[0], args[2], strings.ToUpper(args[1]))
 
 	// Only fall back to native graphql errors if there are no in-band errors.
-	if err != nil && response == nil && len(response.Errors) == 0 {
+	if err != nil && (response == nil || len(response.Errors) == 0) {
 		return err
 	}
 
