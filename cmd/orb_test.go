@@ -395,7 +395,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published my/orb@0.0.1"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.0.1` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -522,7 +523,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published my/orb@dev:volatile"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:volatile` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -968,7 +970,9 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb bar-ns/foo-orb created"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `bar-ns/foo-orb` created."))
+				Eventually(session.Out).Should(gbytes.Say("Please not that any versions you publish of this orb are open orb and are world-readable."))
+				Eventually(session.Out).Should(gbytes.Say("You can now register versions of `bar-ns/foo-orb` using `circleci orb publish`"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 

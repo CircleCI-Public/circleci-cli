@@ -239,7 +239,8 @@ func releaseOrb(cmd *cobra.Command, args []string) error {
 	response.Namespace = args[1]
 	response.Name = args[2]
 
-	Logger.Infof("Orb published %s/%s@%s", args[1], args[2], response.HighestVersion)
+	Logger.Infof("Orb `%s/%s@%s` was published.", args[1], args[2], response.HighestVersion)
+	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -261,7 +262,8 @@ func devOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb published %s/%s@%s", args[1], args[2], response.HighestVersion)
+	Logger.Infof("Orb `%s/%s@%s` was published.", args[1], args[2], response.HighestVersion)
+	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -319,8 +321,9 @@ func createOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb %s/%s created", args[0], args[1])
-	Logger.Infof("You can now register versions of %s/%s using `circleci orb publish`", args[0], args[1])
+	Logger.Infof("Orb `%s/%s` created.", args[0], args[1])
+	Logger.Info("Please not that any versions you publish of this orb are open orb and are world-readable.")
+	Logger.Infof("You can now register versions of `%s/%s` using `circleci orb publish`", args[0], args[1])
 	return nil
 }
 
