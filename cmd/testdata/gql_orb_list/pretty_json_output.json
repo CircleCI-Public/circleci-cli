@@ -2,6 +2,7 @@
   "orbs": [
     {
       "name": "circleci/codecov-clojure",
+      "version": "0.0.3",
       "versions": [
         {
           "version": "0.0.3",
@@ -11,6 +12,7 @@
     },
     {
       "name": "circleci/gradle",
+      "version": "0.0.1",
       "versions": [
         {
           "version": "0.0.1",
@@ -20,6 +22,7 @@
     },
     {
       "name": "eric-hu/delivery-test",
+      "version": "1.0.4",
       "versions": [
         {
           "version": "1.0.4",
@@ -29,6 +32,7 @@
     },
     {
       "name": "ndintenfass/build-utils",
+      "version": "0.0.2",
       "versions": [
         {
           "version": "0.0.2",
@@ -38,6 +42,7 @@
     },
     {
       "name": "test1/foo",
+      "version": "0.0.0",
       "versions": [
         {
           "version": "0.0.0",
@@ -47,6 +52,7 @@
     },
     {
       "name": "test1/new-orb",
+      "version": "0.0.1",
       "versions": [
         {
           "version": "0.0.1",
@@ -56,6 +62,7 @@
     },
     {
       "name": "test1/so-fly",
+      "version": "0.0.0",
       "versions": [
         {
           "version": "0.0.0",
@@ -65,6 +72,7 @@
     },
     {
       "name": "test/test",
+      "version": "0.0.3",
       "versions": [
         {
           "version": "0.0.3",

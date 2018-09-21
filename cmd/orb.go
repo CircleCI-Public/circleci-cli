@@ -236,10 +236,10 @@ func releaseOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response.Orb.Namespace = args[1]
-	response.Orb.Name = args[2]
+	response.Namespace = args[1]
+	response.Name = args[2]
 
-	Logger.Infof("Orb published %s", response.Orb.Ref())
+	Logger.Infof("Orb published %s/%s@%s", args[1], args[2], response.HighestVersion)
 	return nil
 }
 
@@ -261,10 +261,7 @@ func devOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response.Orb.Namespace = args[1]
-	response.Orb.Name = args[2]
-
-	Logger.Infof("Orb published %s", response.Orb.Ref())
+	Logger.Infof("Orb published %s/%s@%s", args[1], args[2], response.HighestVersion)
 	return nil
 }
 
@@ -289,7 +286,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.Orb.Version)
+	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.HighestVersion)
 	return nil
 }
 
@@ -303,7 +300,7 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s@%s promoted to %s", args[0], args[1], devLabel(args[2]), response.Orb.Version)
+	Logger.Infof("Orb %s/%s@%s promoted to %s", args[0], args[1], devLabel(args[2]), response.HighestVersion)
 	return nil
 }
 

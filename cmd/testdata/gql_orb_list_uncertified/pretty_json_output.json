@@ -2,6 +2,7 @@
   "orbs": [
     {
       "name": "circleci/codecov-clojure",
+      "version": "0.0.4",
       "versions": [
         {
           "version": "0.0.4",
@@ -11,6 +12,7 @@
     },
     {
       "name": "circleci/gradle",
+      "version": "0.0.1",
       "versions": [
         {
           "version": "0.0.1",
@@ -20,6 +22,7 @@
     },
     {
       "name": "circleci/rollbar",
+      "version": "0.0.1",
       "versions": [
         {
           "version": "0.0.1",
@@ -29,6 +32,7 @@
     },
     {
       "name": "eric-hu/delivery-test",
+      "version": "1.0.4",
       "versions": [
         {
           "version": "1.0.4",
@@ -38,6 +42,7 @@
     },
     {
       "name": "hannah/foo",
+      "version": "0.0.0",
       "versions": [
         {
           "version": "0.0.0",
@@ -47,6 +52,7 @@
     },
     {
       "name": "hannah/new-orb",
+      "version": "0.0.1",
       "versions": [
         {
           "version": "0.0.1",
@@ -56,6 +62,7 @@
     },
     {
       "name": "hannah/so-fly",
+      "version": "0.0.0",
       "versions": [
         {
           "version": "0.0.0",
@@ -65,6 +72,7 @@
     },
     {
       "name": "ndintenfass/build-utils",
+      "version": "0.0.2",
       "versions": [
         {
           "version": "0.0.2",
@@ -74,6 +82,7 @@
     },
     {
       "name": "test/test",
+      "version": "0.0.3",
       "versions": [
         {
           "version": "0.0.3",
@@ -83,6 +92,7 @@
     },
     {
       "name": "zzak/test4",
+      "version": "0.1.0",
       "versions": [
         {
           "version": "0.1.0",
@@ -92,6 +102,7 @@
     },
     {
       "name": "zzak/testing",
+      "version": "0.2.0",
       "versions": [
         {
           "version": "0.2.0",

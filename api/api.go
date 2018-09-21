@@ -123,15 +123,16 @@ type OrbVersion struct {
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
 type Orb struct {
-	ID        string     `json:"-"`
-	Name      string     `json:"name"`
-	Namespace string     `json:"-"`
-	CreatedAt string     `json:"-"`
-	Version   OrbVersion `json:"-"`
-	Source    string     `json:"-"`
+	ID        string `json:"-"`
+	Name      string `json:"name"`
+	Namespace string `json:"-"`
+	CreatedAt string `json:"-"`
+
+	Source string `json:"-"`
 	// Avoid "Version" since there is a "version" key in the orb source referring
 	// to the orb schema version
-	HighestVersion string              `json:"-"`
+	HighestVersion string              `json:"version"`
+	Version        string              `json:"-"`
 	Commands       map[string]struct{} `json:"-"`
 	Jobs           map[string]struct{} `json:"-"`
 	Executors      map[string]struct{} `json:"-"`
@@ -151,11 +152,6 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]str
 	if err != nil {
 		panic(err)
 	}
-}
-
-// Ref returns a formatted string used to reference an orb
-func (orb Orb) Ref() string {
-	return fmt.Sprintf("%s/%s@%s", orb.Namespace, orb.Name, orb.Version)
 }
 
 // String returns a text representation of the Orb contents, intended for
@@ -322,7 +318,7 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 
 // OrbPublishByID publishes a new version of an orb by id
 func OrbPublishByID(ctx context.Context, logger *logger.Logger,
-	configPath string, orbID string, orbVersion string) (*OrbPublishResponse, error) {
+	configPath string, orbID string, orbVersion string) (*Orb, error) {
 
 	var response struct {
 		PublishOrb struct {
@@ -371,7 +367,7 @@ func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 		return nil, response.PublishOrb.OrbPublishResponse.ToError()
 	}
 
-	return &response.PublishOrb.OrbPublishResponse, nil
+	return &response.PublishOrb.OrbPublishResponse.Orb, err
 }
 
 // OrbID fetches an orb returning the ID
@@ -611,7 +607,7 @@ func incrementVersion(version string, segment string) (string, error) {
 }
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
-func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*OrbPublishResponse, error) {
+func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*Orb, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -682,7 +678,7 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*OrbPromoteResponse, error) {
+func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*Orb, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -741,7 +737,7 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 		return nil, response.PromoteOrb.OrbPromoteResponse.ToError()
 	}
 
-	return &response.PromoteOrb.OrbPromoteResponse, nil
+	return &response.PromoteOrb.OrbPromoteResponse.Orb, err
 }
 
 // OrbSource gets the source or an orb
