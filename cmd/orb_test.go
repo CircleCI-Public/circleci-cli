@@ -972,7 +972,7 @@ var _ = Describe("Orb integration tests", func() {
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
-			It("prints all errors returned by the GraphQL API", func() {
+			It("prints all in-band errors returned by the GraphQL API", func() {
 				By("setting up a mock server")
 
 				gqlNamespaceResponse := `{
@@ -998,6 +998,8 @@ var _ = Describe("Orb integration tests", func() {
 									}
 				}`
 
+				gqlErrors := `[ { "message": "ignored error" } ]`
+
 				expectedOrbRequest := `{
             "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
@@ -1014,9 +1016,10 @@ var _ = Describe("Orb integration tests", func() {
 					})
 				appendPostHandler(testServer, token,
 					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbRequest,
-						Response: gqlOrbResponse,
+						Status:        http.StatusOK,
+						Request:       expectedOrbRequest,
+						Response:      gqlOrbResponse,
+						ErrorResponse: gqlErrors,
 					})
 
 				By("running the command")

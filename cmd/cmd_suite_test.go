@@ -1,6 +1,7 @@
 package cmd_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -31,15 +32,22 @@ func TestCmd(t *testing.T) {
 }
 
 type MockRequestResponse struct {
-	Request  string
-	Status   int
-	Response string
+	Request       string
+	Status        int
+	Response      string
+	ErrorResponse string
 }
 
 // Test helpers
 
 func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers ...MockRequestResponse) {
 	for _, handler := range combineHandlers {
+
+		responseBody := `{ "data": ` + handler.Response + `}`
+		if handler.ErrorResponse != "" {
+			responseBody = fmt.Sprintf("{ \"data\": %s, \"errors\": %s}", handler.Response, handler.ErrorResponse)
+		}
+
 		server.AppendHandlers(
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("POST", "/graphql-unstable"),
@@ -56,7 +64,7 @@ func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers .
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(body).Should(MatchJSON(handler.Request), "JSON Mismatch")
 				},
-				ghttp.RespondWith(handler.Status, `{ "data": `+handler.Response+`}`),
+				ghttp.RespondWith(handler.Status, responseBody),
 			),
 		)
 	}

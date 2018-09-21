@@ -155,7 +155,7 @@ var _ = Describe("Namespace integration tests", func() {
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
-		It("prints all errors returned by the GraphQL API", func() {
+		It("prints all in-band errors returned by the GraphQL API", func() {
 			By("setting up a mock server")
 
 			gqlOrganizationResponse := `{
@@ -183,7 +183,9 @@ var _ = Describe("Namespace integration tests", func() {
 									}
 								}`
 
-			expectedRequestJson := `{
+			gqlNativeErrors := `[ { "message": "ignored error" } ]`
+
+			expectedRequestJSON := `{
             			"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
             			"variables": {
               			"name": "foo-ns",
@@ -199,9 +201,10 @@ var _ = Describe("Namespace integration tests", func() {
 				})
 			appendPostHandler(testServer, token,
 				MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedRequestJson,
-					Response: gqlResponse,
+					Status:        http.StatusOK,
+					Request:       expectedRequestJSON,
+					Response:      gqlResponse,
+					ErrorResponse: gqlNativeErrors,
 				})
 
 			By("running the command")
