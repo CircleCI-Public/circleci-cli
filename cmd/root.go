@@ -3,7 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path"
+	"path/filepath"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
@@ -164,14 +165,15 @@ func bindCobraFlagToViper(command *cobra.Command, flag string) {
 func init() {
 	cobra.OnInitialize(prepare)
 
-	configDir := path.Join(settings.UserHomeDir(), ".circleci")
+	configPath := settings.ConfigPath()
+	configFileName := settings.ConfigFilename()
 
-	viper.SetConfigName("cli")
-	viper.AddConfigPath(configDir)
+	viper.SetConfigName(strings.TrimSuffix(configFileName, filepath.Ext(configFileName)))
+	viper.AddConfigPath(configPath)
 	viper.SetEnvPrefix("circleci_cli")
 	viper.AutomaticEnv()
 
-	if err := settings.EnsureSettingsFileExists(configDir, "cli.yml"); err != nil {
+	if err := settings.EnsureSettingsFileExists(configPath, "cli.yml"); err != nil {
 		panic(err)
 	}
 

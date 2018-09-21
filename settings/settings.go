@@ -18,6 +18,18 @@ func UserHomeDir() string {
 	return os.Getenv("HOME")
 }
 
+// ConfigFilename returns the name of the cli config file
+func ConfigFilename() string {
+	// TODO: Make this configurable
+	return "cli.yml"
+}
+
+// ConfigPath returns the path of the cli config file
+func ConfigPath() string {
+	// TODO: Make this configurable
+	return path.Join(UserHomeDir(), ".circleci")
+}
+
 // EnsureSettingsFileExists does just that.
 func EnsureSettingsFileExists(filepath, filename string) error {
 	// TODO - handle invalid YAML config files.
