@@ -19,6 +19,11 @@ var _ = Describe("Setup", func() {
 		command  *exec.Cmd
 	)
 
+	const (
+		configDir  = ".circleci"
+		configFile = "cli.yml"
+	)
+
 	BeforeEach(func() {
 		var err error
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
@@ -35,24 +40,51 @@ var _ = Describe("Setup", func() {
 		Expect(os.RemoveAll(tempHome)).To(Succeed())
 	})
 
+	Describe("new config file", func() {
+
+		It("should set file permissions to 0600", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
+			Eventually(session.Out).Should(gbytes.Say("API token has been set."))
+			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
+			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
+			Eventually(session.Out).Should(gbytes.Say("Setup complete. Your configuration has been saved."))
+
+			Eventually(session.Err.Contents()).Should(BeEmpty())
+			Eventually(session).Should(gexec.Exit(0))
+
+			fileInfo, err := os.Stat(filepath.Join(tempHome, configDir, configFile))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+		})
+	})
+
 	Describe("existing config file", func() {
 		var config *os.File
 
 		BeforeEach(func() {
-			const (
-				configDir  = ".circleci"
-				configFile = "cli.yml"
-			)
-
 			Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
 
 			var err error
 			config, err = os.OpenFile(
 				filepath.Join(tempHome, configDir, configFile),
 				os.O_RDWR|os.O_CREATE,
-				0600,
+				0644, // Using existing incorrect file permissions
 			)
 			Expect(err).ToNot(HaveOccurred())
+		})
+
+		It("should set file permissions to 0600", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session).Should(gexec.Exit(0))
+
+			fileInfo, err := os.Stat(filepath.Join(tempHome, configDir, configFile))
+			Expect(err).ToNot(HaveOccurred())
+			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
 		})
 
 		Describe("token and endpoint set in config file", func() {
