@@ -142,7 +142,6 @@ jobs:
           export REVISION=$(git rev-parse $(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
           echo "Bumping circleci to $VERSION+$REVISION"
           /home/linuxbrew/.linuxbrew/bin/brew bump-formula-pr --strict \
-            --dry-run \
             --tag=$VERSION \
             --revision=$CIRCLE_SHA1 \
             circleci
@@ -173,7 +172,7 @@ workflows:
   weekly:
     triggers:
       - schedule:
-          cron: "45 2 * * 2"
+          cron: "45 2 * * 6"
           filters:
             branches:
               only:
