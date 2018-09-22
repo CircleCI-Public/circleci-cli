@@ -134,6 +134,9 @@ jobs:
       - run: |
           sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
       - run: |
+          echo 'export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH' >> $BASH_ENV
+      - run: brew --version
+      - run: |
           docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
             -w /go/src/github.com/CircleCI-Public/circleci-cli \
             -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
@@ -141,7 +144,7 @@ jobs:
           export VERSION=$(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
           export REVISION=$(git rev-parse $(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
           echo "Bumping circleci to $VERSION+$REVISION"
-          /home/linuxbrew/.linuxbrew/bin/brew bump-formula-pr --strict \
+          brew bump-formula-pr --strict \
             --tag=$VERSION \
             --revision=$CIRCLE_SHA1 \
             circleci
