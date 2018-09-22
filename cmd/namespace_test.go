@@ -86,7 +86,8 @@ var _ = Describe("Namespace integration tests", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Out).Should(gbytes.Say("Namespace created"))
+			Eventually(session.Out).Should(gbytes.Say("Namespace `foo-ns` created."))
+			Eventually(session.Out).Should(gbytes.Say("Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
@@ -151,7 +152,8 @@ var _ = Describe("Namespace integration tests", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Out).Should(gbytes.Say("Namespace created"))
+			Eventually(session.Out).Should(gbytes.Say("Namespace `foo-ns` created."))
+			Eventually(session.Out).Should(gbytes.Say("Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
