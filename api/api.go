@@ -730,19 +730,22 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 	return &response.PromoteOrb.OrbPromoteResponse.Orb, err
 }
 
+// orbVersionRef is designed to ensure an orb reference fits the orbVersion query where orbVersionRef argument requires a version
 func orbVersionRef(orb string) string {
 	split := strings.Split(orb, "@")
+	// We're expecting the API to tell us the reference is acceptable
+	// Without performing a lot of client-side validation
 	if len(split) > 1 {
-		return strings.Join(split, "@")
+		return orb
 	}
 
-	// If no version was supplied, prepend @volatile to the reference
+	// If no version was supplied, append @volatile to the reference
 	return fmt.Sprintf("%s@%s", split[0], "volatile")
 }
 
 // OrbSource gets the source or an orb
-func OrbSource(ctx context.Context, logger *logger.Logger, orb string) (string, error) {
-	ref := orbVersionRef(orb)
+func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (string, error) {
+	ref := orbVersionRef(orbRef)
 
 	var response struct {
 		OrbVersion struct {
@@ -780,7 +783,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, orb string) (string, 
 	}
 
 	if response.OrbVersion.ID == "" {
-		return "", fmt.Errorf("the %s orb has never published a revision", orb)
+		return "", fmt.Errorf("the %s orb has never published a revision", orbRef)
 	}
 
 	return response.OrbVersion.Source, nil
