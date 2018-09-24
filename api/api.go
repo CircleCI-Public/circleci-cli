@@ -730,28 +730,45 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 	return &response.PromoteOrb.OrbPromoteResponse.Orb, err
 }
 
+// orbVersionRef is designed to ensure an orb reference fits the orbVersion query where orbVersionRef argument requires a version
+func orbVersionRef(orb string) string {
+	split := strings.Split(orb, "@")
+	// We're expecting the API to tell us the reference is acceptable
+	// Without performing a lot of client-side validation
+	if len(split) > 1 {
+		return orb
+	}
+
+	// If no version was supplied, append @volatile to the reference
+	return fmt.Sprintf("%s@%s", split[0], "volatile")
+}
+
 // OrbSource gets the source or an orb
-func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
-	name := namespace + "/" + orb
+func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (string, error) {
+	ref := orbVersionRef(orbRef)
 
 	var response struct {
-		Orb struct {
-			Versions []struct {
-				Source string
+		OrbVersion struct {
+			ID      string
+			Version string
+			Orb     struct {
+				ID string
 			}
+			Source string
 		}
 	}
 
-	query := `query($name: String!) {
-			    orb(name: $name) {
-			      versions(count: 1) {
-				    source
-			      }
+	query := `query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb { id }
+                                source
 			    }
 		      }`
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
-	request.Var("name", name)
+	request.Var("orbVersionRef", ref)
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
@@ -765,11 +782,11 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 		return "", err
 	}
 
-	if len(response.Orb.Versions) != 1 {
-		return "", fmt.Errorf("the %s orb has never published a revision", name)
+	if response.OrbVersion.ID == "" {
+		return "", fmt.Errorf("the %s orb has never published a revision", orbRef)
 	}
 
-	return response.Orb.Versions[0].Source, nil
+	return response.OrbVersion.Source, nil
 }
 
 // ListOrbs queries the API to find all orbs.

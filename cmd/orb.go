@@ -115,14 +115,15 @@ func newOrbCommand() *cobra.Command {
 	publishCommand.AddCommand(incrementCommand)
 
 	sourceCommand := &cobra.Command{
-		Use:         "source NAMESPACE ORB",
+		Use:         "source ORB",
 		Short:       "Show the source of an orb",
 		RunE:        showSource,
-		Args:        cobra.ExactArgs(2),
+		Args:        cobra.MaximumNArgs(2),
 		Annotations: make(map[string]string),
 	}
-	sourceCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	sourceCommand.Annotations["ORB"] = orbAnnotations["ORB"]
+	sourceCommand.Annotations["ORB"] = "The name of your orb, including namespace (i.e. circleci/rails)"
+	sourceCommand.Example = `  circleci orb source circleci/python@0.1.4 # grab the source at version 0.1.4
+  circleci orb source my-ns/foo-orb@dev:latest # grab the source of dev release "latest"`
 
 	orbCreate := &cobra.Command{
 		Use:         "create NAMESPACE ORB",
@@ -328,9 +329,17 @@ func createOrb(cmd *cobra.Command, args []string) error {
 }
 
 func showSource(cmd *cobra.Command, args []string) error {
-	source, err := api.OrbSource(context.Background(), Logger, args[0], args[1])
+	var ref string
+
+	if len(args) > 1 {
+		ref = fmt.Sprintf("%s/%s", args[0], args[1])
+	} else {
+		ref = args[0]
+	}
+
+	source, err := api.OrbSource(context.Background(), Logger, ref)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s/%s'", args[1], args[0])
+		return errors.Wrapf(err, "Failed to get source for '%s'", ref)
 	}
 	Logger.Info(source)
 	return nil
