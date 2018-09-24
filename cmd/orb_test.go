@@ -105,7 +105,6 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				// the .* is because the full path with temp dir is printed
 				Eventually(session.Out).Should(gbytes.Say("Orb at - is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
@@ -331,13 +330,11 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when releasing a semantic version", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "publish", "release",
+					"orb", "publish",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my",
-					"orb",
-					"0.0.1",
+					"my/orb@0.0.1",
 				)
 			})
 
@@ -459,13 +456,11 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when releasing a development version", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "publish", "dev",
+					"orb", "publish",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my",
-					"orb",
-					"volatile",
+					"my/orb@dev:foo",
 				)
 			})
 
@@ -496,7 +491,7 @@ var _ = Describe("Orb integration tests", func() {
 					"publishOrb": {
 						"errors": [],
 						"orb": {
-							"version": "dev:volatile"
+							"version": "dev:foo"
 						}
 					}
 				}`
@@ -506,7 +501,7 @@ var _ = Describe("Orb integration tests", func() {
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:volatile"
+						"version": "dev:foo"
 					}
 				}`
 
@@ -523,7 +518,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:volatile` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was published."))
 				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
@@ -561,7 +556,7 @@ var _ = Describe("Orb integration tests", func() {
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:volatile"
+						"version": "dev:foo"
 					}
 				}`
 
@@ -591,9 +586,7 @@ var _ = Describe("Orb integration tests", func() {
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my",
-					"orb",
-					"minor",
+					"my", "orb", "minor",
 				)
 			})
 
@@ -754,9 +747,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "publish", "promote",
 					"--token", token,
 					"--host", testServer.URL(),
-					"my",
-					"orb",
-					"volatile",
+					"my/orb@dev:foo",
 					"minor",
 				)
 			})
@@ -812,7 +803,7 @@ var _ = Describe("Orb integration tests", func() {
                                         "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:volatile",
+						"devVersion": "dev:foo",
 						"semanticVersion": "0.1.0"
 					}
 				}`
@@ -834,7 +825,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb my/orb@dev:volatile promoted to 0.1.0"))
+				Eventually(session.Out).Should(gbytes.Say("Orb my/orb@dev:foo promoted to 0.1.0"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -885,7 +876,7 @@ var _ = Describe("Orb integration tests", func() {
                                         "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:volatile",
+						"devVersion": "dev:foo",
 						"semanticVersion": "0.1.0"
 					}
 				}`
@@ -919,7 +910,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "create",
 					"--token", token,
 					"--host", testServer.URL(),
-					"bar-ns", "foo-orb",
+					"bar-ns/foo-orb",
 				)
 			})
 
