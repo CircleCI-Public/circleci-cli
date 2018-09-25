@@ -13,10 +13,9 @@ import (
 )
 
 var orbAnnotations = map[string]string{
-	"PATH":      "The path to your orb (use \"-\" for STDIN)",
-	"NAMESPACE": "The namespace used for the orb (i.e. circleci)",
-	"ORB":       "The name of your orb (i.e. rails)",
-	"<orb>":     "A fully-qualified reference to an orb. This takes the form namespace/orb@version",
+	"<path>":      "The path to your orb (use \"-\" for STDIN)",
+	"<namespace>": "The namespace used for the orb (i.e. circleci)",
+	"<orb>":       "A fully-qualified reference to an orb. This takes the form namespace/orb@version",
 }
 
 var orbListUncertified bool
@@ -25,13 +24,13 @@ var orbListJSON bool
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
-		Use:         "list NAMESPACE",
+		Use:         "list <namespace>",
 		Short:       "List orbs",
 		Args:        cobra.MaximumNArgs(1),
 		RunE:        listOrbs,
 		Annotations: make(map[string]string),
 	}
-	listCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"] + " (Optional)"
+	listCommand.Annotations["<namespace>"] = orbAnnotations["<namespace>"] + " (Optional)"
 	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
 	listCommand.PersistentFlags().BoolVar(&orbListJSON, "json", false, "print output as json instead of human-readable")
 	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
@@ -39,22 +38,22 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:         "validate PATH",
+		Use:         "validate <path>",
 		Short:       "validate an orb.yml",
 		RunE:        validateOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	validateCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	validateCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	processCommand := &cobra.Command{
-		Use:         "process PATH",
+		Use:         "process <path>",
 		Short:       "process an orb",
 		RunE:        processOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	processCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	processCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	publishCommand := &cobra.Command{
 		Use:         "publish <path> <orb>",
@@ -64,7 +63,7 @@ func newOrbCommand() *cobra.Command {
 		Annotations: make(map[string]string),
 	}
 	publishCommand.Annotations["<orb>>"] = orbAnnotations["<orb>"]
-	publishCommand.Annotations["<path>"] = orbAnnotations["PATH"]
+	publishCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	promoteCommand := &cobra.Command{
 		Use:         "promote <orb> <segment>",
@@ -77,17 +76,16 @@ func newOrbCommand() *cobra.Command {
 	promoteCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	incrementCommand := &cobra.Command{
-		Use:         "increment PATH <orb> SEGMENT",
+		Use:         "increment <path> <orb> <segment>",
 		Short:       "increment a released version of an orb",
 		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
 		Aliases:     []string{"inc"},
 	}
-	incrementCommand.Annotations["PATH"] = orbAnnotations["PATH"]
-	incrementCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
+	incrementCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 	incrementCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
-	incrementCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
+	incrementCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	publishCommand.AddCommand(promoteCommand)
 	publishCommand.AddCommand(incrementCommand)
