@@ -77,16 +77,16 @@ func newOrbCommand() *cobra.Command {
 	promoteCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	incrementCommand := &cobra.Command{
-		Use:         "increment PATH NAMESPACE ORB SEGMENT",
+		Use:         "increment PATH <orb> SEGMENT",
 		Short:       "increment a released version of an orb",
 		RunE:        incrementOrb,
-		Args:        cobra.ExactArgs(4),
+		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
 		Aliases:     []string{"inc"},
 	}
 	incrementCommand.Annotations["PATH"] = orbAnnotations["PATH"]
 	incrementCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	incrementCommand.Annotations["ORB"] = orbAnnotations["ORB"]
+	incrementCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
 	incrementCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
 
 	publishCommand.AddCommand(promoteCommand)
@@ -238,21 +238,28 @@ func validateSegmentArg(label string) error {
 }
 
 func incrementOrb(cmd *cobra.Command, args []string) error {
-	if err := validateSegmentArg(args[3]); err != nil {
+	ref := args[1]
+	segment := args[2]
+
+	if err := validateSegmentArg(segment); err != nil {
 		return err
 	}
 
-	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], args[1], args[2], args[3])
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(ref)
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.HighestVersion)
+	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], namespace, orb, segment)
+	if err != nil {
+		return err
+	}
+
+	Logger.Infof("Orb %s bumped to %s\n", ref, response.HighestVersion)
 	return nil
 }
 
 func promoteOrb(cmd *cobra.Command, args []string) error {
-
 	ref := args[0]
 	segment := args[1]
 
@@ -261,7 +268,6 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion(ref)
-
 	if err != nil {
 		return err
 	}

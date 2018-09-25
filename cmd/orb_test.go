@@ -586,7 +586,7 @@ var _ = Describe("Orb integration tests", func() {
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my", "orb", "minor",
+					"my/orb", "minor",
 				)
 			})
 
