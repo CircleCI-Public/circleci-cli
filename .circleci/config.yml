@@ -137,8 +137,6 @@ jobs:
           echo 'export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH' >> $BASH_ENV
       - run: brew --version
       - run: |
-          echo 'export HOMEBREW_GITHUB_API_TOKEN=$GITHUB_TOKEN' >> $BASH_ENV
-      - run: |
           docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
             -w /go/src/github.com/CircleCI-Public/circleci-cli \
             -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
@@ -177,7 +175,7 @@ workflows:
   weekly:
     triggers:
       - schedule:
-          cron: "15 3 * * 6"
+          cron: "15 1 * * 2"
           filters:
             branches:
               only:
