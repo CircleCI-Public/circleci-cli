@@ -4,18 +4,18 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
 )
 
 var orbAnnotations = map[string]string{
-	"PATH":      "The path to your orb (use \"-\" for STDIN)",
-	"NAMESPACE": "The namespace used for the orb (i.e. circleci)",
-	"ORB":       "The name of your orb (i.e. rails)",
+	"<path>":      "The path to your orb (use \"-\" for STDIN)",
+	"<namespace>": "The namespace used for the orb (i.e. circleci)",
+	"<orb>":       "A fully-qualified reference to an orb. This takes the form namespace/orb@version",
 }
 
 var orbListUncertified bool
@@ -24,13 +24,13 @@ var orbListJSON bool
 func newOrbCommand() *cobra.Command {
 
 	listCommand := &cobra.Command{
-		Use:         "list NAMESPACE",
+		Use:         "list <namespace>",
 		Short:       "List orbs",
 		Args:        cobra.MaximumNArgs(1),
 		RunE:        listOrbs,
 		Annotations: make(map[string]string),
 	}
-	listCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"] + " (Optional)"
+	listCommand.Annotations["<namespace>"] = orbAnnotations["<namespace>"] + " (Optional)"
 	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
 	listCommand.PersistentFlags().BoolVar(&orbListJSON, "json", false, "print output as json instead of human-readable")
 	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
@@ -38,102 +38,74 @@ func newOrbCommand() *cobra.Command {
 	}
 
 	validateCommand := &cobra.Command{
-		Use:         "validate PATH",
+		Use:         "validate <path>",
 		Short:       "validate an orb.yml",
 		RunE:        validateOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	validateCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	validateCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	processCommand := &cobra.Command{
-		Use:         "process PATH",
+		Use:         "process <path>",
 		Short:       "process an orb",
 		RunE:        processOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	processCommand.Annotations["PATH"] = orbAnnotations["PATH"]
+	processCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	publishCommand := &cobra.Command{
-		Use:   "publish",
-		Short: "publish a version of an orb",
-	}
-
-	releaseCommand := &cobra.Command{
-		Use:         "release PATH NAMESPACE ORB SEMVER",
-		Short:       "release a semantic version of an orb",
-		RunE:        releaseOrb,
-		Args:        cobra.ExactArgs(4),
+		Use:         "publish <path> <orb>",
+		Short:       "publish an orb to the registry",
+		RunE:        publishOrb,
+		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
 	}
-	releaseCommand.Annotations["PATH"] = orbAnnotations["PATH"]
-	releaseCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	releaseCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	releaseCommand.Annotations["SEMVER"] = "The semantic version used for this release (i.e. 0.3.6)"
-
-	devCommand := &cobra.Command{
-		Use:         "dev PATH NAMESPACE ORB LABEL",
-		Short:       "release a development version of an orb",
-		RunE:        devOrb,
-		Args:        cobra.ExactArgs(4),
-		Annotations: make(map[string]string),
-	}
-	devCommand.Annotations["PATH"] = orbAnnotations["PATH"]
-	devCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	devCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	devCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "volatile")`
+	publishCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
+	publishCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	promoteCommand := &cobra.Command{
-		Use:         "promote NAMESPACE ORB LABEL SEGMENT",
+		Use:         "promote <orb> <segment>",
 		Short:       "promote a development version of an orb to a semantic release",
 		RunE:        promoteOrb,
-		Args:        cobra.ExactArgs(4),
+		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
 	}
-	promoteCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	promoteCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	promoteCommand.Annotations["LABEL"] = `Tag to use for this development version (i.e. "volatile")`
-	promoteCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
+	promoteCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
+	promoteCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	incrementCommand := &cobra.Command{
-		Use:         "increment PATH NAMESPACE ORB SEGMENT",
+		Use:         "increment <path> <namespace>/<orb> <segment>",
 		Short:       "increment a released version of an orb",
 		RunE:        incrementOrb,
-		Args:        cobra.ExactArgs(4),
+		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
 		Aliases:     []string{"inc"},
 	}
-	incrementCommand.Annotations["PATH"] = orbAnnotations["PATH"]
-	incrementCommand.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	incrementCommand.Annotations["ORB"] = orbAnnotations["ORB"]
-	incrementCommand.Annotations["SEGMENT"] = `"major"|"minor"|"patch"`
+	incrementCommand.Annotations["<path>"] = orbAnnotations["<path>"]
+	incrementCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
-	publishCommand.AddCommand(releaseCommand)
 	publishCommand.AddCommand(promoteCommand)
-	publishCommand.AddCommand(devCommand)
 	publishCommand.AddCommand(incrementCommand)
 
 	sourceCommand := &cobra.Command{
-		Use:         "source ORB",
+		Use:         "source <orb>",
 		Short:       "Show the source of an orb",
 		RunE:        showSource,
-		Args:        cobra.MaximumNArgs(2),
+		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	sourceCommand.Annotations["ORB"] = "The name of your orb, including namespace (i.e. circleci/rails)"
+	sourceCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
 	sourceCommand.Example = `  circleci orb source circleci/python@0.1.4 # grab the source at version 0.1.4
   circleci orb source my-ns/foo-orb@dev:latest # grab the source of dev release "latest"`
 
 	orbCreate := &cobra.Command{
-		Use:         "create NAMESPACE ORB",
-		Short:       "create an orb",
-		RunE:        createOrb,
-		Args:        cobra.ExactArgs(2),
-		Annotations: make(map[string]string),
+		Use:   "create <namespace>/<orb>",
+		Short: "create an orb in the specified namespace",
+		RunE:  createOrb,
+		Args:  cobra.ExactArgs(1),
 	}
-	orbCreate.Annotations["NAMESPACE"] = orbAnnotations["NAMESPACE"]
-	orbCreate.Annotations["ORB"] = orbAnnotations["ORB"]
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -177,7 +149,7 @@ func listNamespaceOrbs(namespace string) error {
 	ctx := context.Background()
 	orbs, err := api.ListNamespaceOrbs(ctx, Logger, namespace)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
+		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
 	if orbListJSON {
 		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
@@ -204,7 +176,7 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb at %s is valid", args[0])
+	Logger.Infof("Orb at `%s` is valid.", args[0])
 	return nil
 }
 
@@ -224,86 +196,89 @@ func processOrb(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func releaseOrb(cmd *cobra.Command, args []string) error {
+func publishOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	id, err := api.OrbID(ctx, Logger, args[1], args[2])
+	path := args[0]
+	ref := args[1]
+	namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion(ref)
+
 	if err != nil {
 		return err
 	}
 
-	response, err := api.OrbPublishByID(ctx, Logger, args[0], id, args[3])
+	id, err := api.OrbID(ctx, Logger, namespace, orb)
 	if err != nil {
 		return err
 	}
 
-	response.Namespace = args[1]
-	response.Name = args[2]
+	_, err = api.OrbPublishByID(ctx, Logger, path, id, version)
+	if err != nil {
+		return err
+	}
 
-	Logger.Infof("Orb `%s/%s@%s` was published.", args[1], args[2], response.HighestVersion)
+	Logger.Infof("Orb `%s` was published.", ref)
 	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
-func devLabel(label string) string {
-	// Ensure the `dev:` tag is prefixed to the label, no matter what
-	return fmt.Sprintf("dev:%s", strings.TrimPrefix(label, "dev:"))
-}
-
-func devOrb(cmd *cobra.Command, args []string) error {
-	ctx := context.Background()
-
-	id, err := api.OrbID(ctx, Logger, args[1], args[2])
-	if err != nil {
-		return err
-	}
-
-	response, err := api.OrbPublishByID(ctx, Logger, args[0], id, devLabel(args[3]))
-	if err != nil {
-		return err
-	}
-
-	Logger.Infof("Orb `%s/%s@%s` was published.", args[1], args[2], response.HighestVersion)
-	Logger.Info("Please note that this is an open orb and is world-readable.")
-	return nil
-}
-
-var validSegments = []string{"major", "minor", "patch"}
+var validSegments = map[string]bool{
+	"major": true,
+	"minor": true,
+	"patch": true}
 
 func validateSegmentArg(label string) error {
-	for _, segment := range validSegments {
-		if label == segment {
-			return nil
-		}
+	if _, valid := validSegments[label]; valid {
+		return nil
 	}
-	return fmt.Errorf(`expected %s to be one of "major", "minor", or "patch"`, label)
+	return fmt.Errorf("expected `%s` to be one of \"major\", \"minor\", or \"patch\"", label)
 }
 
 func incrementOrb(cmd *cobra.Command, args []string) error {
-	if err := validateSegmentArg(args[3]); err != nil {
+	ref := args[1]
+	segment := args[2]
+
+	if err := validateSegmentArg(segment); err != nil {
 		return err
 	}
 
-	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], args[1], args[2], args[3])
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(ref)
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s bumped to %s\n", args[1], args[2], response.HighestVersion)
+	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], namespace, orb, segment)
+	if err != nil {
+		return err
+	}
+
+	Logger.Infof("Orb `%s` bumped to '%s'.\n", ref, response.HighestVersion)
 	return nil
 }
 
 func promoteOrb(cmd *cobra.Command, args []string) error {
-	if err := validateSegmentArg(args[3]); err != nil {
+	ref := args[0]
+	segment := args[1]
+
+	if err := validateSegmentArg(segment); err != nil {
 		return err
 	}
 
-	response, err := api.OrbPromote(context.Background(), Logger, args[0], args[1], devLabel(args[2]), args[3])
+	namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion(ref)
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb %s/%s@%s promoted to %s", args[0], args[1], devLabel(args[2]), response.HighestVersion)
+	if !references.IsDevVersion(version) {
+		return fmt.Errorf("The version '%s' must be a dev version (the string should begin `dev:`)", version)
+	}
+
+	response, err := api.OrbPromote(context.Background(), Logger, namespace, orb, version, segment)
+	if err != nil {
+		return err
+	}
+
+	Logger.Infof("Orb `%s` promoted to '%s'.\n", ref, response.HighestVersion)
 	return nil
 }
 
@@ -311,7 +286,13 @@ func createOrb(cmd *cobra.Command, args []string) error {
 	var err error
 	ctx := context.Background()
 
-	response, err := api.CreateOrb(ctx, Logger, args[0], args[1])
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(args[0])
+
+	if err != nil {
+		return err
+	}
+
+	response, err := api.CreateOrb(ctx, Logger, namespace, orb)
 
 	// Only fall back to native graphql errors if there are no in-band errors.
 	if err != nil && (response == nil || len(response.Errors) == 0) {
@@ -322,20 +303,15 @@ func createOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb `%s/%s` created.", args[0], args[1])
-	Logger.Info("Please note that any versions you publish of this orb are world-readable.")
-	Logger.Infof("You can now register versions of `%s/%s` using `circleci orb publish`", args[0], args[1])
+	Logger.Infof("Orb `%s` created.\n", args[0])
+	Logger.Info("Please note that any versions you publish of this orb are world-readable.\n")
+	Logger.Infof("You can now register versions of `%s` using `circleci orb publish`.\n", args[0])
 	return nil
 }
 
 func showSource(cmd *cobra.Command, args []string) error {
-	var ref string
 
-	if len(args) > 1 {
-		ref = fmt.Sprintf("%s/%s", args[0], args[1])
-	} else {
-		ref = args[0]
-	}
+	ref := args[0]
 
 	source, err := api.OrbSource(context.Background(), Logger, ref)
 	if err != nil {

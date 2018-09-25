@@ -18,7 +18,7 @@ const defaultConfigPath = ".circleci/config.yml"
 var configPath string
 
 var configAnnotations = map[string]string{
-	"PATH": "The path to your config (use \"-\" for STDIN)",
+	"<path>": "The path to your config (use \"-\" for STDIN)",
 }
 
 func newConfigCommand() *cobra.Command {
@@ -28,36 +28,36 @@ func newConfigCommand() *cobra.Command {
 	}
 
 	packCommand := &cobra.Command{
-		Use:         "pack PATH",
+		Use:         "pack <path>",
 		Short:       "Pack up your CircleCI configuration into a single file.",
 		RunE:        packConfig,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	packCommand.Annotations["PATH"] = configAnnotations["PATH"]
+	packCommand.Annotations["<path>"] = configAnnotations["<path>"]
 
 	validateCommand := &cobra.Command{
-		Use:         "validate PATH",
+		Use:         "validate <path>",
 		Aliases:     []string{"check"},
 		Short:       "Check that the config file is well formed.",
 		RunE:        validateConfig,
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: make(map[string]string),
 	}
-	validateCommand.Annotations["PATH"] = configAnnotations["PATH"]
+	validateCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
 		panic(err)
 	}
 
 	processCommand := &cobra.Command{
-		Use:         "process PATH",
+		Use:         "process <path>",
 		Short:       "Process the config.",
 		RunE:        processConfig,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	processCommand.Annotations["PATH"] = configAnnotations["PATH"]
+	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 
 	migrateCommand := &cobra.Command{
 		Use:                "migrate",
@@ -78,7 +78,7 @@ func newConfigCommand() *cobra.Command {
 	return configCmd
 }
 
-// The PATH arg is actually optional, in order to support compatibility with the --path flag.
+// The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(cmd *cobra.Command, args []string) error {
 	path := defaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
