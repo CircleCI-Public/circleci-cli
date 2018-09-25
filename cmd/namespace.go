@@ -15,16 +15,16 @@ func newNamespaceCommand() *cobra.Command {
 	}
 
 	createCmd := &cobra.Command{
-		Use:         "create NAME VCS-TYPE ORG-NAME",
+		Use:         "create <name> <vcs-type> <org-name>",
 		Short:       "create a namespace",
 		RunE:        createNamespace,
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
 	}
 
-	createCmd.Annotations["NAME"] = "The name to give your new namespace"
-	createCmd.Annotations["VCS-TYPE"] = `Your VCS provider, can be either "github" or "bitbucket"`
-	createCmd.Annotations["ORG-NAME"] = `The name used for your organization`
+	createCmd.Annotations["<name>"] = "The name to give your new namespace"
+	createCmd.Annotations["<vcs-type>"] = `Your VCS provider, can be either "github" or "bitbucket"`
+	createCmd.Annotations["<org-name>"] = `The name used for your organization`
 
 	namespaceCmd.AddCommand(createCmd)
 

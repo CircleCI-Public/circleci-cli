@@ -13,7 +13,7 @@ import (
 
 func newUsageCommand() *cobra.Command {
 	return &cobra.Command{
-		Use:    "usage [PATH] (default is \"docs\")",
+		Use:    "usage <path> (default is \"docs\")",
 		Short:  "Generate usage documentation in markdown for the CLI.",
 		Hidden: true,
 		RunE:   usage,

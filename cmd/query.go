@@ -13,13 +13,13 @@ import (
 
 func newQueryCommand() *cobra.Command {
 	queryCommand := &cobra.Command{
-		Use:         "query PATH",
+		Use:         "query <path>",
 		Short:       "Query the CircleCI GraphQL API.",
 		RunE:        query,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
-	queryCommand.Annotations["PATH"] = "The path to your query (use \"-\" for STDIN)"
+	queryCommand.Annotations["<path>"] = "The path to your query (use \"-\" for STDIN)"
 
 	return queryCommand
 }
