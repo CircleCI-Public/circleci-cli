@@ -48,7 +48,7 @@ func newOrbCommand() *cobra.Command {
 
 	processCommand := &cobra.Command{
 		Use:         "process <path>",
-		Short:       "process an orb",
+		Short:       "Validates orb, then inlines other orb dependencies",
 		RunE:        processOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
