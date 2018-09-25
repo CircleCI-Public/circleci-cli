@@ -62,7 +62,7 @@ func newOrbCommand() *cobra.Command {
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
 	}
-	publishCommand.Annotations["<orb>>"] = orbAnnotations["<orb>"]
+	publishCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
 	publishCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	promoteCommand := &cobra.Command{
