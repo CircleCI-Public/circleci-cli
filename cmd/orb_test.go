@@ -105,7 +105,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb at - is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `-` is valid."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -159,7 +159,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb at .*orb.yml is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `.*orb.yml` is valid."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -204,7 +204,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb at .*myorb/orb.yml is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `.*myorb/orb.yml` is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -662,7 +662,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb my/orb bumped to 0.1.0"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb` bumped to '0.1.0'."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -825,7 +825,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb my/orb@dev:foo promoted to 0.1.0"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` promoted to '0.1.0'."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 

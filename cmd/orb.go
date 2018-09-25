@@ -76,7 +76,7 @@ func newOrbCommand() *cobra.Command {
 	promoteCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	incrementCommand := &cobra.Command{
-		Use:         "increment <path> <orb> <segment>",
+		Use:         "increment <path> <namespace>/<orb> <segment>",
 		Short:       "increment a released version of an orb",
 		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(3),
@@ -84,7 +84,6 @@ func newOrbCommand() *cobra.Command {
 		Aliases:     []string{"inc"},
 	}
 	incrementCommand.Annotations["<path>"] = orbAnnotations["<path>"]
-	incrementCommand.Annotations["<orb>"] = orbAnnotations["<orb>"]
 	incrementCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	publishCommand.AddCommand(promoteCommand)
@@ -150,7 +149,7 @@ func listNamespaceOrbs(namespace string) error {
 	ctx := context.Background()
 	orbs, err := api.ListNamespaceOrbs(ctx, Logger, namespace)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orbs in namespace %s", namespace)
+		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
 	if orbListJSON {
 		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
@@ -177,7 +176,7 @@ func validateOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb at %s is valid", args[0])
+	Logger.Infof("Orb at `%s` is valid.", args[0])
 	return nil
 }
 
@@ -232,7 +231,7 @@ func validateSegmentArg(label string) error {
 	if _, valid := validSegments[label]; valid {
 		return nil
 	}
-	return fmt.Errorf(`expected %s to be one of "major", "minor", or "patch"`, label)
+	return fmt.Errorf("expected `%s` to be one of \"major\", \"minor\", or \"patch\"", label)
 }
 
 func incrementOrb(cmd *cobra.Command, args []string) error {
@@ -253,7 +252,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb %s bumped to %s\n", ref, response.HighestVersion)
+	Logger.Infof("Orb `%s` bumped to '%s'.\n", ref, response.HighestVersion)
 	return nil
 }
 
@@ -279,7 +278,7 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb %s promoted to %s", ref, response.HighestVersion)
+	Logger.Infof("Orb `%s` promoted to '%s'.\n", ref, response.HighestVersion)
 	return nil
 }
 
@@ -304,9 +303,9 @@ func createOrb(cmd *cobra.Command, args []string) error {
 		return response.ToError()
 	}
 
-	Logger.Infof("Orb `%s` created.", args[0])
-	Logger.Info("Please note that any versions you publish of this orb are world-readable.")
-	Logger.Infof("You can now register versions of `%s` using `circleci orb publish`", args[0])
+	Logger.Infof("Orb `%s` created.\n", args[0])
+	Logger.Info("Please note that any versions you publish of this orb are world-readable.\n")
+	Logger.Infof("You can now register versions of `%s` using `circleci orb publish`.\n", args[0])
 	return nil
 }
 
