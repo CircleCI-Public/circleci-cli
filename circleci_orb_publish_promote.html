@@ -12,12 +12,10 @@
 <p>promote a development version of an orb to a semantic release</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>promote a development version of an orb to a semantic release</p>
-<pre><code>circleci orb publish promote NAMESPACE ORB LABEL SEGMENT [flags]</code></pre>
+<pre><code>circleci orb publish promote &lt;orb&gt; &lt;segment&gt; [flags]</code></pre>
 <h3 id="arguments">Arguments</h3>
-<pre><code>NAMESPACE   The namespace used for the orb (i.e. circleci)
-ORB         The name of your orb (i.e. rails)
-LABEL       Tag to use for this development version (i.e. &quot;volatile&quot;)
-SEGMENT     &quot;major&quot;|&quot;minor&quot;|&quot;patch&quot;</code></pre>
+<pre><code>&lt;orb&gt;       A fully-qualified reference to an orb. This takes the form namespace/orb@version
+&lt;segment&gt;   &quot;major&quot;|&quot;minor&quot;|&quot;patch&quot;</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>  -h, --help   help for promote</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
@@ -26,7 +24,7 @@ SEGMENT     &quot;major&quot;|&quot;minor&quot;|&quot;patch&quot;</code></pre>
       --verbose        Enable verbose logging.</code></pre>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
-<li><a href="circleci_orb_publish.html">circleci orb publish</a> - publish a version of an orb</li>
+<li><a href="circleci_orb_publish.html">circleci orb publish</a> - publish an orb to the registry</li>
 </ul>
 </body>
 </html>

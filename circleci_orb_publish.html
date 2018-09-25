@@ -9,9 +9,13 @@
 </head>
 <body>
 <h2 id="circleci-orb-publish">circleci orb publish</h2>
-<p>publish a version of an orb</p>
+<p>publish an orb to the registry</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>publish a version of an orb</p>
+<p>publish an orb to the registry</p>
+<pre><code>circleci orb publish &lt;path&gt; &lt;orb&gt; [flags]</code></pre>
+<h3 id="arguments">Arguments</h3>
+<pre><code>&lt;path&gt;      The path to your orb (use &quot;-&quot; for STDIN)
+&lt;orb&gt;       A fully-qualified reference to an orb. This takes the form namespace/orb@version</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>  -h, --help   help for publish</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
@@ -21,10 +25,8 @@
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
 <li><a href="circleci_orb.html">circleci orb</a> - Operate on orbs</li>
-<li><a href="circleci_orb_publish_dev.html">circleci orb publish dev</a> - release a development version of an orb</li>
 <li><a href="circleci_orb_publish_increment.html">circleci orb publish increment</a> - increment a released version of an orb</li>
 <li><a href="circleci_orb_publish_promote.html">circleci orb publish promote</a> - promote a development version of an orb to a semantic release</li>
-<li><a href="circleci_orb_publish_release.html">circleci orb publish release</a> - release a semantic version of an orb</li>
 </ul>
 </body>
 </html>
