@@ -152,11 +152,12 @@ jobs:
           git config --global user.name "$GH_NAME" > /dev/null 2>&1
       - run: brew --version
       - run: |
-          export VERSION=v$(./dist/darwin_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
-          export REVISION=$(git rev-parse $(./dist/darwin_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
-          echo "Bumping circleci to $VERSION+$REVISION"
+          export VERSION=$(./dist/darwin_amd64/circleci version)
+          export TAG=v$(ruby -e "puts '$VERSION'.split('+')[0]")
+          export REVISION=$(git rev-parse $(ruby -e "puts '$VERSION'.split('+')[1]"))
+          echo "Bumping circleci to $TAG+$REVISION"
           brew bump-formula-pr --strict \
-            --tag=$VERSION \
+            --tag=$TAG \
             --revision=$CIRCLE_SHA1 \
             circleci
 
