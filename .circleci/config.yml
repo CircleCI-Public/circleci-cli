@@ -127,6 +127,7 @@ jobs:
   brew-prepare:
     machine: true
     steps:
+      - checkout
       - run: |
           docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
             -w /go/src/github.com/CircleCI-Public/circleci-cli \
