@@ -144,7 +144,7 @@ jobs:
             -w /go/src/github.com/CircleCI-Public/circleci-cli \
             -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
       - run: |
-          export VERSION=$(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
+          export VERSION=v$(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
           export REVISION=$(git rev-parse $(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
           echo "Bumping circleci to $VERSION+$REVISION"
           brew bump-formula-pr --strict \
