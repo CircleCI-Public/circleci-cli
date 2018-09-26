@@ -183,13 +183,13 @@ workflows:
             branches:
               only: master
   weekly:
-    triggers:
-      - schedule:
-          cron: "0 3 * * 3"
-          filters:
-            branches:
-              only:
-                - master
+    #triggers:
+    #  - schedule:
+    #      cron: "0 3 * * 3"
+    #      filters:
+    #        branches:
+    #          only:
+    #            - master
     jobs:
       - run-brew-deploy-gate:
           type: approval
