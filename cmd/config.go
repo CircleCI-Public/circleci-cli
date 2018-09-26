@@ -61,7 +61,7 @@ func newConfigCommand() *cobra.Command {
 
 	migrateCommand := &cobra.Command{
 		Use:                "migrate",
-		Short:              "migrate a pre-release 2.0 config to the official release version",
+		Short:              "Migrate a pre-release 2.0 config to the official release version",
 		RunE:               migrateConfig,
 		Hidden:             true,
 		DisableFlagParsing: true,
