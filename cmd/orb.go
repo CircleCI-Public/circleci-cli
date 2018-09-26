@@ -39,7 +39,7 @@ func newOrbCommand() *cobra.Command {
 
 	validateCommand := &cobra.Command{
 		Use:         "validate <path>",
-		Short:       "validate an orb.yml",
+		Short:       "Validate an orb.yml",
 		RunE:        validateOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
@@ -48,7 +48,7 @@ func newOrbCommand() *cobra.Command {
 
 	processCommand := &cobra.Command{
 		Use:         "process <path>",
-		Short:       "Validates orb, then inlines other orb dependencies",
+		Short:       "Validate an orb and print its form after all pre-registration processing",
 		RunE:        processOrb,
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
@@ -57,7 +57,7 @@ func newOrbCommand() *cobra.Command {
 
 	publishCommand := &cobra.Command{
 		Use:         "publish <path> <orb>",
-		Short:       "publish an orb to the registry",
+		Short:       "Publish an orb to the registry",
 		RunE:        publishOrb,
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -67,7 +67,7 @@ func newOrbCommand() *cobra.Command {
 
 	promoteCommand := &cobra.Command{
 		Use:         "promote <orb> <segment>",
-		Short:       "promote a development version of an orb to a semantic release",
+		Short:       "Promote a development version of an orb to a semantic release",
 		RunE:        promoteOrb,
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -77,7 +77,7 @@ func newOrbCommand() *cobra.Command {
 
 	incrementCommand := &cobra.Command{
 		Use:         "increment <path> <namespace>/<orb> <segment>",
-		Short:       "increment a released version of an orb",
+		Short:       "Increment a released version of an orb",
 		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
@@ -102,7 +102,7 @@ func newOrbCommand() *cobra.Command {
 
 	orbCreate := &cobra.Command{
 		Use:   "create <namespace>/<orb>",
-		Short: "create an orb in the specified namespace",
+		Short: "Create an orb in the specified namespace",
 		RunE:  createOrb,
 		Args:  cobra.ExactArgs(1),
 	}
