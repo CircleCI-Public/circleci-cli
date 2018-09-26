@@ -444,7 +444,7 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrap(err, fmt.Sprintf("Unable to create namespace %s for ownerId %s", name, ownerID))
+		err = errors.Wrapf(err, "Unable to create namespace %s for ownerId %s", name, ownerID)
 	}
 
 	return &response.CreateNamespace.CreateNamespaceResponse, err
