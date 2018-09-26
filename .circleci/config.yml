@@ -124,28 +124,35 @@ jobs:
             echo "Checking $(cat /tmp/files.txt | wc -l ) files"
             cat /tmp/files.txt | xargs -t shellcheck --external-sources
 
-  homebrew:
+  brew-prepare:
     machine: true
+    steps:
+      - run: |
+          docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
+            -w /go/src/github.com/CircleCI-Public/circleci-cli \
+            -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "dist"
+
+  brew-deploy:
+    macos:
+      xcode: "10.0.0"
     environment:
       - USER: circleci
       - TRAVIS: circleci
     steps:
       - checkout
+      - attach_workspace:
+          at: .
       - run: |
           git config --global user.email "$GH_EMAIL" > /dev/null 2>&1
           git config --global user.name "$GH_NAME" > /dev/null 2>&1
-      - run: |
-          sh -c "$(curl -fsSL https://raw.githubusercontent.com/Linuxbrew/install/master/install.sh)"
-      - run: |
-          echo 'export PATH=/home/linuxbrew/.linuxbrew/bin:$PATH' >> $BASH_ENV
       - run: brew --version
       - run: |
-          docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
-            -w /go/src/github.com/CircleCI-Public/circleci-cli \
-            -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
-      - run: |
-          export VERSION=v$(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
-          export REVISION=$(git rev-parse $(./dist/linux_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
+          export VERSION=v$(./dist/darwin_amd64/circleci version | sed s/\+/\\n/g | head -n 1)
+          export REVISION=$(git rev-parse $(./dist/darwin_amd64/circleci version | sed s/\+/\\n/g | head -2 | tail -1))
           echo "Bumping circleci to $VERSION+$REVISION"
           brew bump-formula-pr --strict \
             --tag=$VERSION \
@@ -186,6 +193,9 @@ workflows:
     jobs:
       - run-brew-deploy-gate:
           type: approval
-      - homebrew:
+      - brew-prepare:
           requires:
             - run-brew-deploy-gate
+      - brew-deploy:
+          requires:
+            - brew-prepare
