@@ -56,8 +56,10 @@ func newOrbCommand() *cobra.Command {
 	processCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	publishCommand := &cobra.Command{
-		Use:         "publish <path> <orb>",
-		Short:       "Publish an orb to the registry",
+		Use:   "publish <path> <orb>",
+		Short: "Publish an orb to the registry",
+		Long: `Publish an orb to the registry.
+Please note that at this time all orbs published to the registry are world-readable.`,
 		RunE:        publishOrb,
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -66,8 +68,10 @@ func newOrbCommand() *cobra.Command {
 	publishCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	promoteCommand := &cobra.Command{
-		Use:         "promote <orb> <segment>",
-		Short:       "Promote a development version of an orb to a semantic release",
+		Use:   "promote <orb> <segment>",
+		Short: "Promote a development version of an orb to a semantic release",
+		Long: `Promote a development version of an orb to a semantic release.
+Please note that at this time all orbs promoted within the registry are world-readable.`,
 		RunE:        promoteOrb,
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -76,8 +80,10 @@ func newOrbCommand() *cobra.Command {
 	promoteCommand.Annotations["<segment>"] = `"major"|"minor"|"patch"`
 
 	incrementCommand := &cobra.Command{
-		Use:         "increment <path> <namespace>/<orb> <segment>",
-		Short:       "Increment a released version of an orb",
+		Use:   "increment <path> <namespace>/<orb> <segment>",
+		Short: "Increment a released version of an orb",
+		Long: `Increment a released version of an orb.
+Please note that at this time all orbs incremented within the registry are world-readable.`,
 		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
@@ -103,8 +109,10 @@ func newOrbCommand() *cobra.Command {
 	orbCreate := &cobra.Command{
 		Use:   "create <namespace>/<orb>",
 		Short: "Create an orb in the specified namespace",
-		RunE:  createOrb,
-		Args:  cobra.ExactArgs(1),
+		Long: `Create an orb in the specified namespace
+Please note that at this time all orbs created in the registry are world-readable.`,
+		RunE: createOrb,
+		Args: cobra.ExactArgs(1),
 	}
 
 	orbCommand := &cobra.Command{
