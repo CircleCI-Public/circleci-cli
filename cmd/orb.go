@@ -253,6 +253,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Infof("Orb `%s` bumped to '%s'.\n", ref, response.HighestVersion)
+	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -279,6 +280,7 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	Logger.Infof("Orb `%s` promoted to '%s'.\n", ref, response.HighestVersion)
+	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
