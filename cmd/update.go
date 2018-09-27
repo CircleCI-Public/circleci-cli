@@ -58,6 +58,11 @@ func updateBuildAgent(cmd *cobra.Command, args []string) error {
 
 // Still depends on a function in cmd/build.go
 func findLatestPicardSha() (string, error) {
+
+	if err := ensureDockerIsAvailable(); err != nil {
+		return "", err
+	}
+
 	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput() // #nosec
 
 	if err != nil {
