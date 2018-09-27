@@ -59,7 +59,7 @@ func updateBuildAgent(cmd *cobra.Command, args []string) error {
 // Still depends on a function in cmd/build.go
 func findLatestPicardSha() (string, error) {
 
-	if err := ensureDockerIsRunning(); err != nil {
+	if err := ensureDockerIsAvailable(); err != nil {
 		return "", err
 	}
 

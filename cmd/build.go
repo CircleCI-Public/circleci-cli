@@ -211,25 +211,22 @@ You can use 'circleci config process' to pre-process your config into a version 
 	return nil
 }
 
-func ensureDockerIsRunning() error {
-	dockerOnPath := exec.Command("command", "-v", "docker").Run() == nil
-
-	if !dockerOnPath {
+func ensureDockerIsAvailable() error {
+	if _, err := exec.LookPath("docker"); err != nil {
 		return errors.New("could not find `docker` on the PATH; please ensure than docker is installed")
 	}
 
-	dockerRunning := exec.Command("docker", "ps").Run() == nil
+	dockerRunning := exec.Command("docker", "version").Run() == nil // #nosec
 
 	if !dockerRunning {
-		return errors.New("docker is not running; please ensure that docker is running, and that `docker ps` succeeds")
+		return errors.New("failed to connect to docker; please ensure that docker is running, and that `docker version` succeeds")
 	}
 
 	return nil
 }
 
 func runExecute(cmd *cobra.Command, args []string) error {
-	err := validateConfigVersion(args)
-	if err != nil {
+	if err := validateConfigVersion(args); err != nil {
 		return err
 	}
 
@@ -239,7 +236,7 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Could not find pwd")
 	}
 
-	if err = ensureDockerIsRunning(); err != nil {
+	if err = ensureDockerIsAvailable(); err != nil {
 		return err
 	}
 
