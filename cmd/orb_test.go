@@ -355,9 +355,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -409,9 +410,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -481,9 +483,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -535,9 +538,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -606,9 +610,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -679,9 +684,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -769,9 +775,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -843,9 +850,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
