@@ -378,16 +378,25 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 		Orb struct {
 			ID string
 		}
+		RegistryNamespace struct {
+			ID string
+		}
 	}
 
-	query := `query($name: String!) {
-			    orb(name: $name) {
-			      id
-			    }
-		      }`
+	query := `
+	query ($name: String!, $namespace: String) {
+		orb(name: $name) {
+		  id
+		}
+		registryNamespace(name: $namespace) {
+		  id
+		}
+	  }
+	  `
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
+	request.Var("namespace", namespace)
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
@@ -397,15 +406,18 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil {
-		return "", err
+	// If there is an error, or the request was successful, return now.
+	if err != nil || response.Orb.ID != "" {
+		return response.Orb.ID, err
 	}
 
-	if response.Orb.ID == "" {
-		return "", fmt.Errorf("the %s orb could not be found", name)
+	// Otherwise, we want to generate a nice error message for the user.
+	namespaceExists := response.RegistryNamespace.ID != ""
+	if !namespaceExists {
+		return "", namespaceNotFound(namespace)
 	}
 
-	return response.Orb.ID, nil
+	return "", fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
 func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
@@ -486,6 +498,10 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 	return response.Organization.ID, err
 }
 
+func namespaceNotFound(name string) error {
+	return fmt.Errorf("the namespace '%s' does not exist. Did you misspell the namespace, or maybe you meant to create the namespace first?", name)
+}
+
 // CreateNamespace creates (reserves) a namespace for an organization
 func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
 	organizationID, err := getOrganization(ctx, logger, organizationName, organizationVcs)
@@ -520,13 +536,15 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 	}
 	graphQLclient := client.NewClient(address, logger)
 
-	err = graphQLclient.Run(ctx, request, &response)
-
-	if err != nil || response.RegistryNamespace.ID == "" {
-		err = fmt.Errorf("Unable to find namespace %s", name)
+	if err = graphQLclient.Run(ctx, request, &response); err != nil {
+		return "", errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
-	return response.RegistryNamespace.ID, err
+	if response.RegistryNamespace.ID == "" {
+		return "", namespaceNotFound(name)
+	}
+
+	return response.RegistryNamespace.ID, nil
 }
 
 func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, namespaceID string) (*CreateOrbResponse, error) {
