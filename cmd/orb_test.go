@@ -833,7 +833,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.1.0` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was promoted to `my/orb@0.1.0`."))
 				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
