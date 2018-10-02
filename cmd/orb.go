@@ -85,7 +85,9 @@ Example: 'circleci orb publish promote foo/bar@dev:master major' => foo/bar@1.0.
 		Use:   "increment <path> <namespace>/<orb> <segment>",
 		Short: "Increment a released version of an orb",
 		Long: `Increment a released version of an orb.
-Please note that at this time all orbs incremented within the registry are world-readable.`,
+Please note that at this time all orbs incremented within the registry are world-readable.
+
+Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1.1.0`,
 		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
