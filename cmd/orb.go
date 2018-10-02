@@ -71,7 +71,9 @@ Please note that at this time all orbs published to the registry are world-reada
 		Use:   "promote <orb> <segment>",
 		Short: "Promote a development version of an orb to a semantic release",
 		Long: `Promote a development version of an orb to a semantic release.
-Please note that at this time all orbs promoted within the registry are world-readable.`,
+Please note that at this time all orbs promoted within the registry are world-readable.
+
+Example: 'circleci orb publish promote foo/bar@dev:master major' => foo/bar@1.0.0`,
 		RunE:        promoteOrb,
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
