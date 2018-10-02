@@ -264,7 +264,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb `%s/%s@%s` was published.\n", namespace, orb, response.HighestVersion)
+	Logger.Infof("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
 	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
