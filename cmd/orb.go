@@ -71,7 +71,9 @@ Please note that at this time all orbs published to the registry are world-reada
 		Use:   "promote <orb> <segment>",
 		Short: "Promote a development version of an orb to a semantic release",
 		Long: `Promote a development version of an orb to a semantic release.
-Please note that at this time all orbs promoted within the registry are world-readable.`,
+Please note that at this time all orbs promoted within the registry are world-readable.
+
+Example: 'circleci orb publish promote foo/bar@dev:master major' => foo/bar@1.0.0`,
 		RunE:        promoteOrb,
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -83,7 +85,9 @@ Please note that at this time all orbs promoted within the registry are world-re
 		Use:   "increment <path> <namespace>/<orb> <segment>",
 		Short: "Increment a released version of an orb",
 		Long: `Increment a released version of an orb.
-Please note that at this time all orbs incremented within the registry are world-readable.`,
+Please note that at this time all orbs incremented within the registry are world-readable.
+
+Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1.1.0`,
 		RunE:        incrementOrb,
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
@@ -260,7 +264,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb `%s/%s@%s` was published.\n", namespace, orb, response.HighestVersion)
+	Logger.Infof("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
 	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
@@ -287,7 +291,7 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Orb `%s/%s@%s` was published.\n", namespace, orb, response.HighestVersion)
+	Logger.Infof("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
 	Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }

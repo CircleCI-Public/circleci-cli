@@ -986,12 +986,12 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		for i := range result.RegistryNamespace.Orbs.Edges {
 			edge := result.RegistryNamespace.Orbs.Edges[i]
 			currentCursor = edge.Cursor
+			var o Orb
+			o.Name = edge.Node.Name
 			if len(edge.Node.Versions) > 0 {
 				v := edge.Node.Versions[0]
 
 				// Parse the orb source to print its commands, executors and jobs
-				var o Orb
-				o.Name = edge.Node.Name
 				o.HighestVersion = v.Version
 				for _, v := range edge.Node.Versions {
 					o.Versions = append(o.Versions, OrbVersion(v))
@@ -1001,8 +1001,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue NamespaceOrbs
 				}
-				orbs.Orbs = append(orbs.Orbs, o)
+			} else {
+				o.HighestVersion = "Not published"
+				o.Versions = []OrbVersion{}
 			}
+			orbs.Orbs = append(orbs.Orbs, o)
 		}
 
 		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {

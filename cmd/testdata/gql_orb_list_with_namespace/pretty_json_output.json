@@ -1,6 +1,26 @@
 {
   "namespace": "circleci",
   "orbs": [
+	{
+		"name": "circleci/aws-cli",
+		"version": "Not published",
+		"versions": []
+	},
+	{
+		"name": "circleci/aws-code-deploy",
+		"version": "Not published",
+		"versions": []
+	},
+	{
+		"name": "circleci/aws-s3",
+		"version": "Not published",
+		"versions": []
+	},
+	{
+		"name": "circleci/circleci-cli",
+		"version": "Not published",
+		"versions": []
+	},
     {
       "version": "0.0.3",
       "versions": [
@@ -14,7 +34,17 @@
         }
       ],
       "name": "circleci/codecov-clojure"
-    },
+	},
+	{
+		"name": "circleci/delete-me",
+		"version": "Not published",
+		"versions": []
+	},
+	{
+		"name": "circleci/delete-me-too",
+		"version": "Not published",
+		"versions": []
+	},
     {
       "versions": [
         {
@@ -23,8 +53,13 @@
         }
       ],
       "version": "0.0.1",
-      "name": "circleci/gradle"
-    },
+	  "name": "circleci/gradle"
+	},
+	{
+		"name": "circleci/heroku",
+		"version": "Not published",
+		"versions": []
+	},
     {
       "versions": [
         {
