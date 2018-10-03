@@ -1002,7 +1002,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					continue NamespaceOrbs
 				}
 			} else {
-				o.HighestVersion = "Unpublish"
+				o.HighestVersion = "Not published"
 				o.Versions = []OrbVersion{}
 			}
 			orbs.Orbs = append(orbs.Orbs, o)

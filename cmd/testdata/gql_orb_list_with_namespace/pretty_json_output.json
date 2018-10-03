@@ -3,22 +3,22 @@
   "orbs": [
 	{
 		"name": "circleci/aws-cli",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
 	{
 		"name": "circleci/aws-code-deploy",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
 	{
 		"name": "circleci/aws-s3",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
 	{
 		"name": "circleci/circleci-cli",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
     {
@@ -37,12 +37,12 @@
 	},
 	{
 		"name": "circleci/delete-me",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
 	{
 		"name": "circleci/delete-me-too",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
     {
@@ -57,7 +57,7 @@
 	},
 	{
 		"name": "circleci/heroku",
-		"version": "Unpublish",
+		"version": "Not published",
 		"versions": []
 	},
     {
