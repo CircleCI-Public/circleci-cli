@@ -18,14 +18,14 @@ func newTestsCommand() *cobra.Command {
 
 	globCmd := &cobra.Command{
 		Use:    "glob",
-		Short:  "glob files using pattern",
+		Short:  "Glob files using pattern",
 		Run:    globRun,
 		Hidden: true,
 	}
 
 	splitCmd := &cobra.Command{
 		Use:    "split",
-		Short:  "return a split batch of provided files",
+		Short:  "Return a split batch of provided files",
 		RunE:   splitRunE,
 		Hidden: true,
 	}

@@ -105,8 +105,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb at - is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `-` is valid."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -160,7 +159,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb at .*orb.yml is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `.*orb.yml` is valid."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -205,7 +204,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb at .*myorb/orb.yml is valid"))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `.*myorb/orb.yml` is valid"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -331,13 +330,11 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when releasing a semantic version", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "publish", "release",
+					"orb", "publish",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my",
-					"orb",
-					"0.0.1",
+					"my/orb@0.0.1",
 				)
 			})
 
@@ -358,9 +355,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -395,7 +393,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published my/orb@0.0.1"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.0.1` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -411,9 +410,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -458,13 +458,11 @@ var _ = Describe("Orb integration tests", func() {
 		Describe("when releasing a development version", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "publish", "dev",
+					"orb", "publish",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my",
-					"orb",
-					"volatile",
+					"my/orb@dev:foo",
 				)
 			})
 
@@ -485,9 +483,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -495,7 +494,7 @@ var _ = Describe("Orb integration tests", func() {
 					"publishOrb": {
 						"errors": [],
 						"orb": {
-							"version": "dev:volatile"
+							"version": "dev:foo"
 						}
 					}
 				}`
@@ -505,7 +504,7 @@ var _ = Describe("Orb integration tests", func() {
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:volatile"
+						"version": "dev:foo"
 					}
 				}`
 
@@ -522,7 +521,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb published my/orb@dev:volatile"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -538,9 +538,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -559,7 +560,7 @@ var _ = Describe("Orb integration tests", func() {
 					"variables": {
 						"config": "some orb",
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:volatile"
+						"version": "dev:foo"
 					}
 				}`
 
@@ -589,9 +590,7 @@ var _ = Describe("Orb integration tests", func() {
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
-					"my",
-					"orb",
-					"minor",
+					"my/orb", "minor",
 				)
 			})
 
@@ -611,9 +610,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -667,7 +667,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb my/orb bumped to 0.1.0"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.1.0` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -683,9 +684,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -752,9 +754,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "publish", "promote",
 					"--token", token,
 					"--host", testServer.URL(),
-					"my",
-					"orb",
-					"volatile",
+					"my/orb@dev:foo",
 					"minor",
 				)
 			})
@@ -775,9 +775,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -810,7 +811,7 @@ var _ = Describe("Orb integration tests", func() {
                                         "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:volatile",
+						"devVersion": "dev:foo",
 						"semanticVersion": "0.1.0"
 					}
 				}`
@@ -832,7 +833,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb my/orb@dev:volatile promoted to 0.1.0"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.1.0` was published."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
@@ -848,9 +850,10 @@ var _ = Describe("Orb integration tests", func() {
   				}`
 
 				expectedOrbIDRequest := `{
-            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      id\n\t\t\t    }\n\t\t      }",
+            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
             "variables": {
-              "name": "my/orb"
+              "name": "my/orb",
+              "namespace": "my"
             }
           }`
 
@@ -883,7 +886,7 @@ var _ = Describe("Orb integration tests", func() {
                                         "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
 					"variables": {
 						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:volatile",
+						"devVersion": "dev:foo",
 						"semanticVersion": "0.1.0"
 					}
 				}`
@@ -917,7 +920,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "create",
 					"--token", token,
 					"--host", testServer.URL(),
-					"bar-ns", "foo-orb",
+					"bar-ns/foo-orb",
 				)
 			})
 
@@ -968,11 +971,13 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb bar-ns/foo-orb created"))
+				Eventually(session.Out).Should(gbytes.Say("Orb `bar-ns/foo-orb` created."))
+				Eventually(session.Out).Should(gbytes.Say("Please note that any versions you publish of this orb are world-readable."))
+				Eventually(session.Out).Should(gbytes.Say("You can now register versions of `bar-ns/foo-orb` using `circleci orb publish`"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
-			It("prints all errors returned by the GraphQL API", func() {
+			It("prints all in-band errors returned by the GraphQL API", func() {
 				By("setting up a mock server")
 
 				gqlNamespaceResponse := `{
@@ -998,6 +1003,8 @@ var _ = Describe("Orb integration tests", func() {
 									}
 				}`
 
+				gqlErrors := `[ { "message": "ignored error" } ]`
+
 				expectedOrbRequest := `{
             "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
@@ -1014,9 +1021,10 @@ var _ = Describe("Orb integration tests", func() {
 					})
 				appendPostHandler(testServer, token,
 					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbRequest,
-						Response: gqlOrbResponse,
+						Status:        http.StatusOK,
+						Request:       expectedOrbRequest,
+						Response:      gqlOrbResponse,
+						ErrorResponse: gqlErrors,
 					})
 
 				By("running the command")

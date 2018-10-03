@@ -2,8 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+	"path"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -157,6 +160,13 @@ func setup(cmd *cobra.Command, args []string) error {
 
 	if err := viper.WriteConfig(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")
+	}
+
+	// Since we store api tokens in the config and viper writes config files
+	// with 0644 permissions we need to set the permissions to 0600 afterwards
+	configFile := path.Join(settings.ConfigPath(), settings.ConfigFilename())
+	if err := os.Chmod(configFile, 0600); err != nil {
+		return errors.Wrap(err, "Failed to update permissions for config file")
 	}
 
 	Logger.Info("Setup complete. Your configuration has been saved.")

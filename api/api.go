@@ -378,16 +378,25 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 		Orb struct {
 			ID string
 		}
+		RegistryNamespace struct {
+			ID string
+		}
 	}
 
-	query := `query($name: String!) {
-			    orb(name: $name) {
-			      id
-			    }
-		      }`
+	query := `
+	query ($name: String!, $namespace: String) {
+		orb(name: $name) {
+		  id
+		}
+		registryNamespace(name: $namespace) {
+		  id
+		}
+	  }
+	  `
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
 	request.Var("name", name)
+	request.Var("namespace", namespace)
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
@@ -397,15 +406,18 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil {
-		return "", err
+	// If there is an error, or the request was successful, return now.
+	if err != nil || response.Orb.ID != "" {
+		return response.Orb.ID, err
 	}
 
-	if response.Orb.ID == "" {
-		return "", fmt.Errorf("the %s orb could not be found", name)
+	// Otherwise, we want to generate a nice error message for the user.
+	namespaceExists := response.RegistryNamespace.ID != ""
+	if !namespaceExists {
+		return "", namespaceNotFound(namespace)
 	}
 
-	return response.Orb.ID, nil
+	return "", fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
 func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
@@ -444,7 +456,7 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrap(err, fmt.Sprintf("Unable to create namespace %s for ownerId %s", name, ownerID))
+		err = errors.Wrapf(err, "Unable to create namespace %s for ownerId %s", name, ownerID)
 	}
 
 	return &response.CreateNamespace.CreateNamespaceResponse, err
@@ -479,11 +491,15 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err == nil && response.Organization.ID == "" {
-		err = fmt.Errorf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
+	if err != nil || response.Organization.ID == "" {
+		err = errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
 	}
 
 	return response.Organization.ID, err
+}
+
+func namespaceNotFound(name string) error {
+	return fmt.Errorf("the namespace '%s' does not exist. Did you misspell the namespace, or maybe you meant to create the namespace first?", name)
 }
 
 // CreateNamespace creates (reserves) a namespace for an organization
@@ -493,13 +509,7 @@ func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, or
 		return nil, err
 	}
 
-	namespace, err := createNamespaceWithOwnerID(ctx, logger, name, organizationID)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return namespace, err
+	return createNamespaceWithOwnerID(ctx, logger, name, organizationID)
 }
 
 func getNamespace(ctx context.Context, logger *logger.Logger, name string) (string, error) {
@@ -526,15 +536,15 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 	}
 	graphQLclient := client.NewClient(address, logger)
 
-	err = graphQLclient.Run(ctx, request, &response)
-
-	if err != nil {
-		err = errors.Wrapf(err, "Unable to find namespace %s", name)
-	} else if response.RegistryNamespace.ID == "" {
-		err = fmt.Errorf("Unable to find namespace %s", name)
+	if err = graphQLclient.Run(ctx, request, &response); err != nil {
+		return "", errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
-	return response.RegistryNamespace.ID, err
+	if response.RegistryNamespace.ID == "" {
+		return "", namespaceNotFound(name)
+	}
+
+	return response.RegistryNamespace.ID, nil
 }
 
 func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, namespaceID string) (*CreateOrbResponse, error) {
@@ -577,13 +587,11 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, name string) (*CreateOrbResponse, error) {
 	namespaceID, err := getNamespace(ctx, logger, namespace)
-
 	if err != nil {
 		return nil, err
 	}
 
-	orb, err := createOrbWithNsID(ctx, logger, name, namespaceID)
-	return orb, err
+	return createOrbWithNsID(ctx, logger, name, namespaceID)
 }
 
 // TODO(zzak): this function is not really related to the API. Move it to another package?
@@ -740,28 +748,45 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 	return &response.PromoteOrb.OrbPromoteResponse.Orb, err
 }
 
+// orbVersionRef is designed to ensure an orb reference fits the orbVersion query where orbVersionRef argument requires a version
+func orbVersionRef(orb string) string {
+	split := strings.Split(orb, "@")
+	// We're expecting the API to tell us the reference is acceptable
+	// Without performing a lot of client-side validation
+	if len(split) > 1 {
+		return orb
+	}
+
+	// If no version was supplied, append @volatile to the reference
+	return fmt.Sprintf("%s@%s", split[0], "volatile")
+}
+
 // OrbSource gets the source or an orb
-func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
-	name := namespace + "/" + orb
+func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (string, error) {
+	ref := orbVersionRef(orbRef)
 
 	var response struct {
-		Orb struct {
-			Versions []struct {
-				Source string
+		OrbVersion struct {
+			ID      string
+			Version string
+			Orb     struct {
+				ID string
 			}
+			Source string
 		}
 	}
 
-	query := `query($name: String!) {
-			    orb(name: $name) {
-			      versions(count: 1) {
-				    source
-			      }
+	query := `query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb { id }
+                                source
 			    }
 		      }`
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
-	request.Var("name", name)
+	request.Var("orbVersionRef", ref)
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
@@ -775,11 +800,11 @@ func OrbSource(ctx context.Context, logger *logger.Logger, namespace string, orb
 		return "", err
 	}
 
-	if len(response.Orb.Versions) != 1 {
-		return "", fmt.Errorf("the %s orb has never published a revision", name)
+	if response.OrbVersion.ID == "" {
+		return "", fmt.Errorf("the %s orb has never published a revision", orbRef)
 	}
 
-	return response.Orb.Versions[0].Source, nil
+	return response.OrbVersion.Source, nil
 }
 
 // ListOrbs queries the API to find all orbs.

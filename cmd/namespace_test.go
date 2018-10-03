@@ -86,7 +86,8 @@ var _ = Describe("Namespace integration tests", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Out).Should(gbytes.Say("Namespace created"))
+			Eventually(session.Out).Should(gbytes.Say("Namespace `foo-ns` created."))
+			Eventually(session.Out).Should(gbytes.Say("Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
@@ -151,11 +152,12 @@ var _ = Describe("Namespace integration tests", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Out).Should(gbytes.Say("Namespace created"))
+			Eventually(session.Out).Should(gbytes.Say("Namespace `foo-ns` created."))
+			Eventually(session.Out).Should(gbytes.Say("Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
-		It("prints all errors returned by the GraphQL API", func() {
+		It("prints all in-band errors returned by the GraphQL API", func() {
 			By("setting up a mock server")
 
 			gqlOrganizationResponse := `{
@@ -183,7 +185,9 @@ var _ = Describe("Namespace integration tests", func() {
 									}
 								}`
 
-			expectedRequestJson := `{
+			gqlNativeErrors := `[ { "message": "ignored error" } ]`
+
+			expectedRequestJSON := `{
             			"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
             			"variables": {
               			"name": "foo-ns",
@@ -199,9 +203,10 @@ var _ = Describe("Namespace integration tests", func() {
 				})
 			appendPostHandler(testServer, token,
 				MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedRequestJson,
-					Response: gqlResponse,
+					Status:        http.StatusOK,
+					Request:       expectedRequestJSON,
+					Response:      gqlResponse,
+					ErrorResponse: gqlNativeErrors,
 				})
 
 			By("running the command")
