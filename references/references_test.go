@@ -9,9 +9,9 @@ import (
 var _ = Describe("Parsing Orbs", func() {
 
 	It("Should parse dev versions", func() {
-		Expect(references.IsDevVersion("dev:master")).Should(BeTrue())
-		Expect(references.IsDevVersion("1.2.1")).Should(BeFalse())
-		Expect(references.IsDevVersion("")).Should(BeFalse())
+		Expect(references.IsDevVersion("dev:master")).ToNot(HaveOccurred())
+		Expect(references.IsDevVersion("1.2.1")).To(HaveOccurred())
+		Expect(references.IsDevVersion("")).To(HaveOccurred())
 	})
 
 	It("Should parse full references", func() {

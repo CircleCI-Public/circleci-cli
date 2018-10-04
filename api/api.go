@@ -12,6 +12,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"github.com/spf13/viper"
@@ -763,6 +764,11 @@ func orbVersionRef(orb string) string {
 
 // OrbSource gets the source or an orb
 func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (string, error) {
+
+	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
+		return "", err
+	}
+
 	ref := orbVersionRef(orbRef)
 
 	var response struct {
@@ -792,16 +798,15 @@ func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (strin
 	if err != nil {
 		return "", err
 	}
-	graphQLclient := client.NewClient(address, logger)
 
-	err = graphQLclient.Run(ctx, request, &response)
+	err = client.NewClient(address, logger).Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err
 	}
 
 	if response.OrbVersion.ID == "" {
-		return "", fmt.Errorf("the %s orb has never published a revision", orbRef)
+		return "", fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
 	}
 
 	return response.OrbVersion.Source, nil

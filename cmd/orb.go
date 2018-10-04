@@ -282,8 +282,8 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	if !references.IsDevVersion(version) {
-		return fmt.Errorf("The version '%s' must be a dev version (the string should begin `dev:`)", version)
+	if err = references.IsDevVersion(version); err != nil {
+		return err
 	}
 
 	response, err := api.OrbPromote(context.Background(), Logger, namespace, orb, version, segment)
