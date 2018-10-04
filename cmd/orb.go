@@ -178,14 +178,10 @@ func listNamespaceOrbs(namespace string) error {
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	response, err := api.OrbQuery(ctx, Logger, args[0])
+	_, err := api.OrbQuery(ctx, Logger, args[0])
 
 	if err != nil {
 		return err
-	}
-
-	if !response.Valid {
-		return response.ToError()
 	}
 
 	Logger.Infof("Orb at `%s` is valid.", args[0])
@@ -198,10 +194,6 @@ func processOrb(cmd *cobra.Command, args []string) error {
 
 	if err != nil {
 		return err
-	}
-
-	if !response.Valid {
-		return response.ToError()
 	}
 
 	Logger.Info(response.OutputYaml)
@@ -224,7 +216,7 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, err = api.OrbPublishByID(ctx, Logger, path, id, version)
+	_, err = api.OrbPublishByID(ctx, Logger, path, id.Data.Orb.ID, version)
 	if err != nil {
 		return err
 	}
@@ -260,6 +252,7 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 	}
 
 	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], namespace, orb, segment)
+
 	if err != nil {
 		return err
 	}
@@ -306,15 +299,10 @@ func createOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response, err := api.CreateOrb(ctx, Logger, namespace, orb)
+	_, err = api.CreateOrb(ctx, Logger, namespace, orb)
 
-	// Only fall back to native graphql errors if there are no in-band errors.
-	if err != nil && (response == nil || len(response.Errors) == 0) {
+	if err != nil {
 		return err
-	}
-
-	if len(response.Errors) > 0 {
-		return response.ToError()
 	}
 
 	Logger.Infof("Orb `%s` created.\n", args[0])

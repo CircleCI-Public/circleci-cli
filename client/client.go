@@ -44,102 +44,6 @@ func NewAuthorizedRequest(token, query string) *Request {
 	return req
 }
 
-func (c *Client) prepareRequest(ctx context.Context, req *Request, resp interface{}) (*http.Request, *ResponseBody, error) {
-	var requestBody bytes.Buffer
-	requestBodyObj := RequestBody{
-		Query:     req.q,
-		Variables: req.vars,
-	}
-	if err := json.NewEncoder(&requestBody).Encode(requestBodyObj); err != nil {
-		return nil, nil, errors.Wrap(err, "encode body")
-	}
-	c.logger.Debug(">> variables: %v", req.vars)
-	c.logger.Debug(">> query: %s", req.q)
-	body := &ResponseBody{
-		Data: resp,
-	}
-	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
-	if err != nil {
-		return nil, nil, err
-	}
-	r.Header.Set("Content-Type", "application/json; charset=utf-8")
-	r.Header.Set("Accept", "application/json; charset=utf-8")
-	for key, values := range req.Header {
-		for _, value := range values {
-			r.Header.Add(key, value)
-		}
-	}
-
-	r = r.WithContext(ctx)
-	return r, body, nil
-}
-
-// Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
-func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
-	select {
-	case <-ctx.Done():
-		return ctx.Err()
-	default:
-	}
-
-	r, body, err := c.prepareRequest(ctx, req, resp)
-	if err != nil {
-		return err
-	}
-
-	res, err := c.httpClient.Do(r)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err := res.Body.Close()
-		if err != nil {
-			log.Fatal(err)
-		}
-	}()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, res.Body); err != nil {
-		return errors.Wrap(err, "reading body")
-	}
-	c.logger.Debug("<< %s", buf.String())
-	if err := json.NewDecoder(&buf).Decode(&body); err != nil {
-		return errors.Wrap(err, "decoding response")
-	}
-	if len(body.Errors) > 0 {
-		return body.bundleErrors()
-	}
-	return nil
-}
-
-// ResponseError wraps the error type returned from the GraphQL server.
-type ResponseError struct {
-	Message string
-}
-
-// Error returns the messages of a response error.
-func (e ResponseError) Error() string {
-	return "graphql: " + e.Message
-}
-
-// ResponseBody maps the data returned from the GraphQL server.
-type ResponseBody struct {
-	Data   interface{}
-	Errors []ResponseError
-}
-
-func (resp ResponseBody) bundleErrors() error {
-	var err error
-
-	for _, e := range resp.Errors {
-		if err != nil {
-			err = errors.Wrap(err, e.Message)
-		} else {
-			err = errors.New(e.Message)
-		}
-	}
-	return err
-}
-
 // Request is a GraphQL request.
 type Request struct {
 	q    string
@@ -165,4 +69,67 @@ func (req *Request) Var(key string, value interface{}) {
 		req.vars = make(map[string]interface{})
 	}
 	req.vars[key] = value
+}
+
+func (c *Client) prepareRequest(ctx context.Context, req *Request) (*http.Request, error) {
+	var requestBody bytes.Buffer
+	requestBodyObj := RequestBody{
+		Query:     req.q,
+		Variables: req.vars,
+	}
+	if err := json.NewEncoder(&requestBody).Encode(requestBodyObj); err != nil {
+		return nil, errors.Wrap(err, "encode body")
+	}
+	c.logger.Debug(">> variables: %v", req.vars)
+	c.logger.Debug(">> query: %s", req.q)
+	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+	if err != nil {
+		return nil, err
+	}
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+	for key, values := range req.Header {
+		for _, value := range values {
+			r.Header.Add(key, value)
+		}
+	}
+
+	r = r.WithContext(ctx)
+	return r, nil
+}
+
+// Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
+func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	r, err := c.prepareRequest(ctx, req)
+	if err != nil {
+		return err
+	}
+
+	res, err := c.httpClient.Do(r)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		err := res.Body.Close()
+		if err != nil {
+			log.Fatal(err)
+		}
+	}()
+	var buf bytes.Buffer
+	if _, err := io.Copy(&buf, res.Body); err != nil {
+		return errors.Wrap(err, "reading body")
+	}
+
+	c.logger.Debug("<< %s", buf.String())
+	if err := json.NewDecoder(&buf).Decode(&resp); err != nil {
+		return errors.Wrap(err, "decoding response")
+	}
+
+	return nil
 }

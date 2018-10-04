@@ -40,8 +40,8 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	Logger.Infoln("OK, got a token.")
 
 	Logger.Infoln("Trying an introspection query on API... ")
-	response, err := api.IntrospectionQuery(context.Background(), Logger)
-	if response.Schema.QueryType.Name == "" {
+	responseIntro, err := api.IntrospectionQuery(context.Background(), Logger)
+	if responseIntro.Data.Schema.QueryType.Name == "" {
 		Logger.Infoln("Unable to make a query against the GraphQL API, please check your settings")
 		if err != nil {
 			return err
@@ -50,11 +50,16 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 
 	Logger.Infoln("Ok.")
 
-	Logger.Debug("Introspection query result with Schema.QueryType of %s", response.Schema.QueryType.Name)
+	Logger.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Data.Schema.QueryType.Name)
 
-	who, err := api.WhoamiQuery(context.Background(), Logger)
-	if err == nil && who != nil && who.Me.Name != "" {
-		Logger.Infof("Hello, %s.\n", who.Me.Name)
+	responseWho, err := api.WhoamiQuery(context.Background(), Logger)
+
+	if err != nil {
+		return err
+	}
+
+	if responseWho.Data.Me.Name != "" {
+		Logger.Infof("Hello, %s.\n", responseWho.Data.Me.Name)
 	}
 
 	return nil

@@ -92,14 +92,10 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	response, err := api.ConfigQuery(ctx, Logger, path)
+	_, err := api.ConfigQuery(ctx, Logger, path)
 
 	if err != nil {
 		return err
-	}
-
-	if !response.Valid {
-		return response.ToError()
 	}
 
 	Logger.Infof("Config file at %s is valid", path)
@@ -112,10 +108,6 @@ func processConfig(cmd *cobra.Command, args []string) error {
 
 	if err != nil {
 		return err
-	}
-
-	if !response.Valid {
-		return response.ToError()
 	}
 
 	Logger.Info(response.OutputYaml)

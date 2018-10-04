@@ -39,8 +39,12 @@ func TestDoJSON(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
-	var responseData map[string]interface{}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	var resp struct {
+		Data struct {
+			Something string
+		}
+	}
+	err := client.Run(ctx, &Request{q: "query {}"}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -49,8 +53,8 @@ func TestDoJSON(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if responseData["something"] != "yes" {
-		t.Errorf("expected %s", responseData["something"])
+	if resp.Data.Something != "yes" {
+		t.Errorf("expected %+v", resp)
 	}
 }
 
@@ -89,7 +93,9 @@ func TestQueryJSON(t *testing.T) {
 	}
 
 	var resp struct {
-		Value string
+		Data struct {
+			Value string
+		}
 	}
 	err := client.Run(ctx, req, &resp)
 	if err != nil {
@@ -100,8 +106,8 @@ func TestQueryJSON(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Value != "some data" {
-		t.Errorf("expected %s", resp.Value)
+	if resp.Data.Value != "some data" {
+		t.Errorf("expected %+v", resp)
 	}
 }
 
@@ -140,15 +146,23 @@ func TestDoJSONErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	var responseData map[string]interface{}
+	var responseData struct {
+		Data   map[string]interface{}
+		Errors []struct {
+			Message string
+		}
+	}
 	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
-
-	if err == nil {
+	if err != nil {
 		t.Errorf(err.Error())
 	}
 
-	if err.Error() != "Something else went wrong: Something went wrong" {
-		t.Errorf("expected %s", err.Error())
+	if len(responseData.Errors) < 1 {
+		t.Errorf("expected errors in %+v", responseData)
+	}
+
+	if responseData.Errors[0].Message != "Something went wrong" {
+		t.Errorf("expected %+v", responseData)
 	}
 }
 
@@ -175,7 +189,9 @@ func TestHeader(t *testing.T) {
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {
-		Value string
+		Data struct {
+			Value string
+		}
 	}
 	err := client.Run(ctx, req, &resp)
 	if err != nil {
@@ -186,7 +202,7 @@ func TestHeader(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Value != "some data" {
-		t.Errorf("expected %s", resp.Value)
+	if resp.Data.Value != "some data" {
+		t.Errorf("expected %+v", resp)
 	}
 }
