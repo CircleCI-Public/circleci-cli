@@ -84,7 +84,7 @@ var _ = Describe("Query", func() {
 					ghttp.VerifyHeader(http.Header{
 						"Authorization": []string{token},
 					}),
-					ghttp.RespondWith(http.StatusOK, `{"data": `+responseData+`}`),
+					ghttp.RespondWith(http.StatusOK, responseData),
 				),
 			)
 

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 
@@ -28,11 +29,7 @@ func query(cmd *cobra.Command, args []string) error {
 	var err error
 	// This local is named "q" to avoid confusion with the function name.
 	var q []byte
-	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
-	if err != nil {
-		return err
-	}
-	c := client.NewClient(address, Logger)
+	var resp map[string]interface{}
 
 	if args[0] == "-" {
 		q, err = ioutil.ReadAll(os.Stdin)
@@ -44,7 +41,14 @@ func query(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Unable to read query from stdin")
 	}
 
-	resp, err := client.Run(c, viper.GetString("token"), string(q))
+	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
+	if err != nil {
+		return err
+	}
+	c := client.NewClient(address, Logger)
+
+	req := client.NewAuthorizedRequest(viper.GetString("token"), string(q))
+	err = c.Run(context.Background(), req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")
 	}

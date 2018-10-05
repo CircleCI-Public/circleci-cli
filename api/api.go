@@ -19,32 +19,51 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-// GQLResponseErrors is a slice of errors returned by the GraphQL server. Each
-// error message is a key-value pair with the structure "Message: string"
-type GQLResponseErrors struct {
-	Errors []struct {
-		Message string
+// GQLErrorsCollection is a slice of errors returned by the GraphQL server.
+// Each error is made up of a GQLResponseError type.
+type GQLErrorsCollection []GQLResponseError
+
+// Error turns a GQLErrorsCollection into an acceptable error string that can be printed to the user.
+func (errs GQLErrorsCollection) Error() string {
+	messages := []string{}
+
+	for i := range errs {
+		messages = append(messages, errs[i].Message)
 	}
+
+	return strings.Join(messages, ": ")
+}
+
+// GQLResponseError is a mapping of the data returned by the GraphQL server of key-value pairs.
+// Typically used with the structure "Message: string", but other response errors provide additional fields.
+type GQLResponseError struct {
+	Message       string
+	Value         string
+	AllowedValues []string
+	EnumType      string
+	Type          string
 }
 
 // IntrospectionResponse matches the result from making an introspection query
 type IntrospectionResponse struct {
-	Schema struct {
-		MutationType struct {
-			Name string
-		}
-		QueryType struct {
-			Name string
-		}
-		Types []struct {
-			Description string
-			Fields      []struct {
+	Data struct {
+		Schema struct {
+			MutationType struct {
 				Name string
 			}
-			Kind string
-			Name string
-		}
-	} `json:"__schema"`
+			QueryType struct {
+				Name string
+			}
+			Types []struct {
+				Description string
+				Fields      []struct {
+					Name string
+				}
+				Kind string
+				Name string
+			}
+		} `json:"__schema"`
+	}
 }
 
 // ConfigResponse is a structure that matches the result of the GQL
@@ -55,48 +74,198 @@ type ConfigResponse struct {
 	SourceYaml string
 	OutputYaml string
 
-	GQLResponseErrors
+	Errors GQLErrorsCollection
+}
+
+// BuildConfigResponse wraps the GQL result of the ConfigQuery
+type BuildConfigResponse struct {
+	Data struct {
+		BuildConfig struct {
+			ConfigResponse
+		}
+	}
 }
 
 // The OrbPublishResponse type matches the data shape of the GQL response for
 // publishing an orb.
 type OrbPublishResponse struct {
-	Orb Orb
-	GQLResponseErrors
+	Data struct {
+		PublishOrb struct {
+			Orb Orb
+
+			Errors GQLErrorsCollection
+		}
+	}
 }
 
 // The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
 type OrbPromoteResponse struct {
-	Orb Orb
-	GQLResponseErrors
+	Data struct {
+		PromoteOrb struct {
+			Orb Orb
+
+			Errors GQLErrorsCollection
+		}
+	}
+}
+
+// OrbLatestVersionResponse wraps the GQL result of fetching an Orb and latest version
+type OrbLatestVersionResponse struct {
+	Data struct {
+		Orb struct {
+			Versions []struct {
+				Version string
+			}
+		}
+	}
+}
+
+// OrbIDResponse matches the GQL response for fetching an Orb and ID
+type OrbIDResponse struct {
+	Data struct {
+		Orb struct {
+			ID string
+		}
+		RegistryNamespace struct {
+			ID string
+		}
+	}
 }
 
 // CreateNamespaceResponse type matches the data shape of the GQL response for
 // creating a namespace
 type CreateNamespaceResponse struct {
-	Namespace struct {
-		CreatedAt string
-		ID        string
+	Data struct {
+		CreateNamespace struct {
+			Namespace struct {
+				CreatedAt string
+				ID        string
+			}
+
+			Errors GQLErrorsCollection
+		}
 	}
 
-	GQLResponseErrors
+	Errors GQLErrorsCollection
+}
+
+// GetOrganizationResponse type wraps the GQL response for fetching an organization and ID.
+type GetOrganizationResponse struct {
+	Data struct {
+		Organization struct {
+			ID string
+		}
+	}
+
+	Errors GQLErrorsCollection
 }
 
 // WhoamiResponse type matches the data shape of the GQL response for the current user
 type WhoamiResponse struct {
-	Me struct {
-		Name string
+	Data struct {
+		Me struct {
+			Name string
+		}
 	}
 
-	GQLResponseErrors
+	Errors GQLErrorsCollection
+}
+
+// GetNamespaceResponse type wraps the GQL response for fetching a namespace
+type GetNamespaceResponse struct {
+	Data struct {
+		RegistryNamespace struct {
+			ID string
+		}
+	}
+
+	Errors GQLErrorsCollection
 }
 
 // CreateOrbResponse type matches the data shape of the GQL response for
 // creating an orb
 type CreateOrbResponse struct {
-	Orb Orb
-	GQLResponseErrors
+	Data struct {
+		CreateOrb struct {
+			Orb    Orb
+			Errors GQLErrorsCollection
+		}
+	}
+
+	Errors GQLErrorsCollection
+}
+
+// NamespaceOrbResponse type matches the result from GQL.
+// So that we can use mapstructure to convert from nested maps to a strongly typed struct.
+type NamespaceOrbResponse struct {
+	Data struct {
+		RegistryNamespace struct {
+			Name string
+			Orbs struct {
+				Edges []struct {
+					Cursor string
+					Node   struct {
+						Name     string
+						Versions []struct {
+							Version string
+							Source  string
+						}
+					}
+				}
+				TotalCount int
+				PageInfo   struct {
+					HasNextPage bool
+				}
+			}
+		}
+	}
+}
+
+// OrbListResponse type matches the result from GQL.
+// So that we can use mapstructure to convert from nested maps to a strongly typed struct.
+type OrbListResponse struct {
+	Data struct {
+		Orbs struct {
+			TotalCount int
+			Edges      []struct {
+				Cursor string
+				Node   struct {
+					Name     string
+					Versions []struct {
+						Version string
+						Source  string
+					}
+				}
+			}
+			PageInfo struct {
+				HasNextPage bool
+			}
+		}
+	}
+}
+
+// OrbSourceResponse wraps the GQL result used by OrbSource
+type OrbSourceResponse struct {
+	Data struct {
+		OrbVersion struct {
+			ID      string
+			Version string
+			Orb     struct {
+				ID string
+			}
+			Source string
+		}
+	}
+}
+
+// OrbConfigResponse wraps the GQL result for OrbQuery.
+type OrbConfigResponse struct {
+	Data struct {
+		OrbConfig struct {
+			ConfigResponse
+		}
+	}
 }
 
 // OrbCollection is a container type for multiple orbs to share formatting
@@ -173,18 +342,6 @@ func (orb Orb) String() string {
 	return buffer.String()
 }
 
-// ToError returns all GraphQL errors for a single response concatenated, or
-// nil.
-func (response GQLResponseErrors) ToError() error {
-	messages := []string{}
-
-	for i := range response.Errors {
-		messages = append(messages, response.Errors[i].Message)
-	}
-
-	return errors.New(strings.Join(messages, ": "))
-}
-
 // EnvEndpointHost pulls the endpoint and host values from viper
 func EnvEndpointHost() (string, string) {
 	return viper.GetString("endpoint"), viper.GetString("host")
@@ -254,6 +411,10 @@ func WhoamiQuery(ctx context.Context, logger *logger.Logger) (*WhoamiResponse, e
 		return nil, err
 	}
 
+	if len(response.Errors) > 0 {
+		return nil, response.Errors
+	}
+
 	return &response, nil
 }
 
@@ -271,7 +432,7 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 	}
 	graphQLclient := client.NewClient(address, logger)
 
-	err = graphQLclient.Run(ctx, request, response)
+	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to validate config")
@@ -282,12 +443,9 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 
 // ConfigQuery calls the GQL API to validate and process config
 func ConfigQuery(ctx context.Context, logger *logger.Logger, configPath string) (*ConfigResponse, error) {
-	var response struct {
-		BuildConfig struct {
-			ConfigResponse
-		}
-	}
-	return &response.BuildConfig.ConfigResponse, buildAndOrbQuery(ctx, logger, configPath, &response, `
+	var response BuildConfigResponse
+
+	err := buildAndOrbQuery(ctx, logger, configPath, &response, `
 		query ValidateConfig ($config: String!) {
 			buildConfig(configYaml: $config) {
 				valid,
@@ -296,17 +454,23 @@ func ConfigQuery(ctx context.Context, logger *logger.Logger, configPath string) 
 				outputYaml
 			}
 		}`)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Data.BuildConfig.ConfigResponse.Errors) > 0 {
+		return nil, &response.Data.BuildConfig.ConfigResponse.Errors
+	}
+
+	return &response.Data.BuildConfig.ConfigResponse, nil
 }
 
 // OrbQuery validated and processes an orb.
 func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*ConfigResponse, error) {
-	var response struct {
-		OrbConfig struct {
-			ConfigResponse
-		}
-	}
+	var response OrbConfigResponse
 
-	return &response.OrbConfig.ConfigResponse, buildAndOrbQuery(ctx, logger, configPath, &response, `
+	err := buildAndOrbQuery(ctx, logger, configPath, &response, `
 		query ValidateOrb ($config: String!) {
 			orbConfig(orbYaml: $config) {
 				valid,
@@ -315,17 +479,23 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 				outputYaml
 			}
 		}`)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Data.OrbConfig.ConfigResponse.Errors) > 0 {
+		return nil, response.Data.OrbConfig.ConfigResponse.Errors
+	}
+
+	return &response.Data.OrbConfig.ConfigResponse, nil
 }
 
 // OrbPublishByID publishes a new version of an orb by id
 func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 	configPath string, orbID string, orbVersion string) (*Orb, error) {
 
-	var response struct {
-		PublishOrb struct {
-			OrbPublishResponse
-		}
-	}
+	var response OrbPublishResponse
 
 	config, err := loadYaml(configPath)
 	if err != nil {
@@ -364,25 +534,18 @@ func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 		return nil, errors.Wrap(err, "Unable to publish orb")
 	}
 
-	if len(response.PublishOrb.OrbPublishResponse.Errors) > 0 {
-		return nil, response.PublishOrb.OrbPublishResponse.ToError()
+	if len(response.Data.PublishOrb.Errors) > 0 {
+		return nil, response.Data.PublishOrb.Errors
 	}
 
-	return &response.PublishOrb.OrbPublishResponse.Orb, err
+	return &response.Data.PublishOrb.Orb, nil
 }
 
 // OrbID fetches an orb returning the ID
-func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb string) (*OrbIDResponse, error) {
 	name := namespace + "/" + orb
 
-	var response struct {
-		Orb struct {
-			ID string
-		}
-		RegistryNamespace struct {
-			ID string
-		}
-	}
+	var response OrbIDResponse
 
 	query := `
 	query ($name: String!, $namespace: String) {
@@ -401,32 +564,28 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	graphQLclient := client.NewClient(address, logger)
 
 	err = graphQLclient.Run(ctx, request, &response)
 
 	// If there is an error, or the request was successful, return now.
-	if err != nil || response.Orb.ID != "" {
-		return response.Orb.ID, err
+	if err != nil || response.Data.Orb.ID != "" {
+		return &response, err
 	}
 
 	// Otherwise, we want to generate a nice error message for the user.
-	namespaceExists := response.RegistryNamespace.ID != ""
+	namespaceExists := response.Data.RegistryNamespace.ID != ""
 	if !namespaceExists {
-		return "", namespaceNotFound(namespace)
+		return nil, namespaceNotFound(namespace)
 	}
 
-	return "", fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
+	return nil, fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
 func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
-	var response struct {
-		CreateNamespace struct {
-			CreateNamespaceResponse
-		}
-	}
+	var response CreateNamespaceResponse
 
 	query := `
 			mutation($name: String!, $organizationId: UUID!) {
@@ -457,21 +616,20 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 	err = graphQLclient.Run(ctx, request, &response)
 
 	if err != nil {
-		err = errors.Wrapf(err, "Unable to create namespace %s for ownerId %s", name, ownerID)
+		return nil, errors.Wrapf(err, "Unable to create namespace %s for ownerId %s", name, ownerID)
 	}
 
-	return &response.CreateNamespace.CreateNamespaceResponse, err
+	if len(response.Data.CreateNamespace.Errors) > 0 {
+		return nil, response.Data.CreateNamespace.Errors
+	}
+
+	return &response, nil
 }
 
-func getOrganization(ctx context.Context, logger *logger.Logger, organizationName string, organizationVcs string) (string, error) {
-	var response struct {
-		Organization struct {
-			ID string
-		}
-	}
+func getOrganization(ctx context.Context, logger *logger.Logger, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
+	var response GetOrganizationResponse
 
-	query := `
-			query($organizationName: String!, $organizationVcs: VCSType!) {
+	query := `query($organizationName: String!, $organizationVcs: VCSType!) {
 				organization(
 					name: $organizationName
 					vcsType: $organizationVcs
@@ -486,17 +644,17 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	graphQLclient := client.NewClient(address, logger)
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil || response.Organization.ID == "" {
-		err = errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
+	if err != nil {
+		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
 	}
 
-	return response.Organization.ID, err
+	return &response, nil
 }
 
 func namespaceNotFound(name string) error {
@@ -505,20 +663,17 @@ func namespaceNotFound(name string) error {
 
 // CreateNamespace creates (reserves) a namespace for an organization
 func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
-	organizationID, err := getOrganization(ctx, logger, organizationName, organizationVcs)
+	response, err := getOrganization(ctx, logger, organizationName, organizationVcs)
+
 	if err != nil {
 		return nil, err
 	}
 
-	return createNamespaceWithOwnerID(ctx, logger, name, organizationID)
+	return createNamespaceWithOwnerID(ctx, logger, name, response.Data.Organization.ID)
 }
 
-func getNamespace(ctx context.Context, logger *logger.Logger, name string) (string, error) {
-	var response struct {
-		RegistryNamespace struct {
-			ID string
-		}
-	}
+func getNamespace(ctx context.Context, logger *logger.Logger, name string) (*GetNamespaceResponse, error) {
+	var response GetNamespaceResponse
 
 	query := `
 				query($name: String!) {
@@ -533,27 +688,27 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (stri
 
 	address, err := GraphQLServerAddress(EnvEndpointHost())
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	graphQLclient := client.NewClient(address, logger)
 
 	if err = graphQLclient.Run(ctx, request, &response); err != nil {
-		return "", errors.Wrapf(err, "failed to load namespace '%s'", err)
+		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
-	if response.RegistryNamespace.ID == "" {
-		return "", namespaceNotFound(name)
+	if response.Data.RegistryNamespace.ID == "" {
+		return nil, namespaceNotFound(name)
 	}
 
-	return response.RegistryNamespace.ID, nil
+	if len(response.Errors) > 0 {
+		return nil, response.Errors
+	}
+
+	return &response, err
 }
 
 func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, namespaceID string) (*CreateOrbResponse, error) {
-	var response struct {
-		CreateOrb struct {
-			CreateOrbResponse
-		}
-	}
+	var response CreateOrbResponse
 
 	query := `mutation($name: String!, $registryNamespaceId: UUID!){
 				createOrb(
@@ -582,17 +737,29 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	return &response.CreateOrb.CreateOrbResponse, err
-}
+	if len(response.Data.CreateOrb.Errors) > 0 {
+		return nil, response.Data.CreateOrb.Errors
+	}
 
-// CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, name string) (*CreateOrbResponse, error) {
-	namespaceID, err := getNamespace(ctx, logger, namespace)
+	if len(response.Errors) > 0 {
+		return nil, response.Errors
+	}
+
 	if err != nil {
 		return nil, err
 	}
 
-	return createOrbWithNsID(ctx, logger, name, namespaceID)
+	return &response, nil
+}
+
+// CreateOrb creates (reserves) an orb within a namespace
+func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, name string) (*CreateOrbResponse, error) {
+	response, err := getNamespace(ctx, logger, namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	return createOrbWithNsID(ctx, logger, name, response.Data.RegistryNamespace.ID)
 }
 
 // TODO(zzak): this function is not really related to the API. Move it to another package?
@@ -632,12 +799,12 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(ctx, logger, configPath, id, v2)
+	response, err := OrbPublishByID(ctx, logger, configPath, id.Data.Orb.ID, v2)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id, v, segment, v2)
+	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Data.Orb.ID, v, segment, v2)
 
 	return response, nil
 }
@@ -647,13 +814,7 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
-	var response struct {
-		Orb struct {
-			Versions []struct {
-				Version string
-			}
-		}
-	}
+	var response OrbLatestVersionResponse
 
 	// This query returns versions sorted by semantic version
 	query := `query($name: String!) {
@@ -679,16 +840,17 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 		return "", err
 	}
 
-	if len(response.Orb.Versions) != 1 {
+	if len(response.Data.Orb.Versions) != 1 {
 		return "0.0.0", nil
 	}
 
-	return response.Orb.Versions[0].Version, nil
+	return response.Data.Orb.Versions[0].Version, nil
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
 func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*Orb, error) {
 	id, err := OrbID(ctx, logger, namespace, orb)
+
 	if err != nil {
 		return nil, err
 	}
@@ -703,11 +865,7 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 		return nil, err
 	}
 
-	var response struct {
-		PromoteOrb struct {
-			OrbPromoteResponse
-		}
-	}
+	var response OrbPromoteResponse
 
 	query := `
 		mutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {
@@ -726,7 +884,7 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 	`
 
 	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
-	request.Var("orbId", id)
+	request.Var("orbId", id.Data.Orb.ID)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
@@ -738,15 +896,15 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 
 	err = graphQLclient.Run(ctx, request, &response)
 
+	if len(response.Data.PromoteOrb.Errors) > 0 {
+		return nil, response.Data.PromoteOrb.Errors
+	}
+
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to promote orb")
 	}
 
-	if len(response.PromoteOrb.OrbPromoteResponse.Errors) > 0 {
-		return nil, response.PromoteOrb.OrbPromoteResponse.ToError()
-	}
-
-	return &response.PromoteOrb.OrbPromoteResponse.Orb, err
+	return &response.Data.PromoteOrb.Orb, nil
 }
 
 // orbVersionRef is designed to ensure an orb reference fits the orbVersion query where orbVersionRef argument requires a version
@@ -771,16 +929,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (strin
 
 	ref := orbVersionRef(orbRef)
 
-	var response struct {
-		OrbVersion struct {
-			ID      string
-			Version string
-			Orb     struct {
-				ID string
-			}
-			Source string
-		}
-	}
+	var response OrbSourceResponse
 
 	query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
@@ -805,39 +954,17 @@ func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (strin
 		return "", err
 	}
 
-	if response.OrbVersion.ID == "" {
+	if response.Data.OrbVersion.ID == "" {
 		return "", fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
 	}
 
-	return response.OrbVersion.Source, nil
+	return response.Data.OrbVersion.Source, nil
 }
 
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
 func ListOrbs(ctx context.Context, logger *logger.Logger, uncertified bool) (*OrbCollection, error) {
-	// Define a structure that matches the result of the GQL
-	// query, so that we can use mapstructure to convert from
-	// nested maps to a strongly typed struct.
-	type orbList struct {
-		Orbs struct {
-			TotalCount int
-			Edges      []struct {
-				Cursor string
-				Node   struct {
-					Name     string
-					Versions []struct {
-						Version string
-						Source  string
-					}
-				}
-			}
-			PageInfo struct {
-				HasNextPage bool
-			}
-		}
-	}
-
 	query := `
 query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
   orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
@@ -867,7 +994,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 	}
 	graphQLclient := client.NewClient(address, logger)
 
-	var result orbList
+	var result OrbListResponse
 	currentCursor := ""
 
 	for {
@@ -881,8 +1008,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		}
 
 	Orbs:
-		for i := range result.Orbs.Edges {
-			edge := result.Orbs.Edges[i]
+		for i := range result.Data.Orbs.Edges {
+			edge := result.Data.Orbs.Edges[i]
 			currentCursor = edge.Cursor
 			if len(edge.Node.Versions) > 0 {
 				v := edge.Node.Versions[0]
@@ -905,7 +1032,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 			}
 		}
 
-		if !result.Orbs.PageInfo.HasNextPage {
+		if !result.Data.Orbs.PageInfo.HasNextPage {
 			break
 		}
 	}
@@ -917,31 +1044,6 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
 func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) (*OrbCollection, error) {
-	// Define a structure that matches the result of the GQL
-	// query, so that we can use mapstructure to convert from
-	// nested maps to a strongly typed struct.
-	type namespaceOrbResponse struct {
-		RegistryNamespace struct {
-			Name string
-			Orbs struct {
-				Edges []struct {
-					Cursor string
-					Node   struct {
-						Name     string
-						Versions []struct {
-							Version string
-							Source  string
-						}
-					}
-				}
-				TotalCount int
-				PageInfo   struct {
-					HasNextPage bool
-				}
-			}
-		}
-	}
-
 	query := `
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
@@ -973,7 +1075,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 	graphQLclient := client.NewClient(address, logger)
 
-	var result namespaceOrbResponse
+	var result NamespaceOrbResponse
 	currentCursor := ""
 
 	for {
@@ -988,8 +1090,8 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		}
 
 	NamespaceOrbs:
-		for i := range result.RegistryNamespace.Orbs.Edges {
-			edge := result.RegistryNamespace.Orbs.Edges[i]
+		for i := range result.Data.RegistryNamespace.Orbs.Edges {
+			edge := result.Data.RegistryNamespace.Orbs.Edges[i]
 			currentCursor = edge.Cursor
 			var o Orb
 			o.Name = edge.Node.Name
@@ -1013,7 +1115,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			orbs.Orbs = append(orbs.Orbs, o)
 		}
 
-		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
+		if !result.Data.RegistryNamespace.Orbs.PageInfo.HasNextPage {
 			break
 		}
 	}
@@ -1024,9 +1126,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 // IntrospectionQuery makes a query on the API asking for bits of the schema
 // This query isn't intended to get the entire schema, there are better tools for that.
 func IntrospectionQuery(ctx context.Context, logger *logger.Logger) (*IntrospectionResponse, error) {
-	var response struct {
-		IntrospectionResponse
-	}
+	var response IntrospectionResponse
 
 	query := `query IntrospectionQuery {
 		    __schema {
@@ -1057,5 +1157,5 @@ func IntrospectionQuery(ctx context.Context, logger *logger.Logger) (*Introspect
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	return &response.IntrospectionResponse, err
+	return &response, err
 }

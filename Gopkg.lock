@@ -34,14 +34,6 @@
   revision = "2972be24d48e78746da79ba8e24e8b488c9880de"
 
 [[projects]]
-  branch = "master"
-  digest = "1:4e9a35b534508c14cf12d4561de5113053b691414be2af2398dec82ca772d021"
-  name = "github.com/circleci/graphql"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "de90fa2cb395022e047fe1419b27343d7a134d4e"
-
-[[projects]]
   digest = "1:abeb38ade3f32a92943e5be54f55ed6d6e3b6602761d74b4aab4c9dd45c18abd"
   name = "github.com/fsnotify/fsnotify"
   packages = ["."]
@@ -443,7 +435,6 @@
     "github.com/Masterminds/semver",
     "github.com/blang/semver",
     "github.com/bmatcuk/doublestar",
-    "github.com/circleci/graphql",
     "github.com/google/go-github/github",
     "github.com/manifoldco/promptui",
     "github.com/mitchellh/mapstructure",
