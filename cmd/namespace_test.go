@@ -49,12 +49,7 @@ var _ = Describe("Namespace integration tests", func() {
   				}`
 
 			expectedOrganizationRequest := `{
-            "query": "\n\t\t\tquery($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
-            "variables": {
-              "organizationName": "test-org",
-              "organizationVcs": "BITBUCKET"
-            }
-          }`
+            "query": "query($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}","variables":{"organizationName":"test-org","organizationVcs":"BITBUCKET"}}`
 
 			gqlNsResponse := `{
 									"createNamespace": {
@@ -115,7 +110,7 @@ var _ = Describe("Namespace integration tests", func() {
   				}`
 
 			expectedOrganizationRequest := `{
-            "query": "\n\t\t\tquery($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
+            "query": "query($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
             "variables": {
               "organizationName": "test-org",
               "organizationVcs": "BITBUCKET"
@@ -168,7 +163,7 @@ var _ = Describe("Namespace integration tests", func() {
   				}`
 
 			expectedOrganizationRequest := `{
-            "query": "\n\t\t\tquery($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
+            "query": "query($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
             "variables": {
               "organizationName": "test-org",
               "organizationVcs": "BITBUCKET"

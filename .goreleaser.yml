@@ -8,6 +8,9 @@ archive:
   format_overrides:
     - goos: windows
       format: zip
+  files:
+    - client/LICENSE
+    - md_docs/LICENSE
 
 builds:
   - binary: circleci

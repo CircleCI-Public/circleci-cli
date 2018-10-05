@@ -24,11 +24,6 @@
 #   go-tests = true
 #   unused-packages = true
 
-
-[[constraint]]
-  name = "github.com/circleci/graphql"
-  branch = "master"
-
 [[constraint]]
   name = "github.com/spf13/cobra"
   version = "0.0.3"
