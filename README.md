@@ -15,6 +15,32 @@ This project is the seed for CircleCI's new command-line application.
 
 ## Getting Started
 
+### From Scratch
+
+#### Install script
+
+If you're installing the new `circleci` CLI for the first time, run the following command:
+
+```
+bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+```
+
+This will install the CLI into the `/usr/local/bin` directory.
+
+If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
+
+#### Homebrew
+
+```
+brew install circleci
+```
+
+#### Snapcraft
+
+```
+sudo snap install circleci
+```
+
 ### Upgrade from existing CLI
 
 If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
@@ -26,17 +52,13 @@ circleci switch
 
 This command may prompt you for `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`.
 
-### From Scratch
+### Updating after install
 
-If you're installing the new `circleci` CLI for the first time, run the following command:
-
+The CLI comes with a built in version managment system. You can check if there any updates pending and update if so using the following commands:
 ```
-bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+circleci update check
+circleci update install
 ```
-
-This will install the CLI into the `/usr/local/bin` directory.
-
-If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
 
 ## Configure the CLI
 
