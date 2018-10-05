@@ -35,7 +35,7 @@ If you do not have write permissions to `/usr/local/bin`, you may need to run th
 brew install circleci
 ```
 
-### Snapcraft
+#### Snapcraft
 
 ```
 sudo snap install circleci
@@ -51,6 +51,14 @@ circleci switch
 ```
 
 This command may prompt you for `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`.
+
+### Updating after install
+
+The CLI comes with a built in version managment system. You can check if there any updates pending and update if so using the following commands:
+```
+circleci update check
+circleci update install
+```
 
 ## Configure the CLI
 
