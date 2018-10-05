@@ -20,12 +20,6 @@ type Client struct {
 	logger     *logger.Logger
 }
 
-// RequestBody is used for serializing a request made up of a query and key/value pair of variables to send to the GraphQL server.
-type RequestBody struct {
-	Query     string                 `json:"query"`
-	Variables map[string]interface{} `json:"variables"`
-}
-
 // NewClient returns a reference to a Client.
 func NewClient(endpoint string, logger *logger.Logger) *Client {
 	return &Client{
@@ -46,49 +40,43 @@ func NewAuthorizedRequest(token, query string) *Request {
 
 // Request is a GraphQL request.
 type Request struct {
-	q    string
-	vars map[string]interface{}
+	Query     string                 `json:"query"`
+	Variables map[string]interface{} `json:"variables"`
 
 	// Header represent any request headers that will be set
 	// when the request is made.
-	Header http.Header
+	Header http.Header `json:"-"`
 }
 
-// NewRequest makes a new Request with the specified string.
-func NewRequest(q string) *Request {
-	req := &Request{
-		q:      q,
-		Header: make(map[string][]string),
+// NewRequest makes a new Request with the specified query string.
+func NewRequest(query string) *Request {
+	request := &Request{
+		Query:     query,
+		Variables: make(map[string]interface{}),
+		Header:    make(map[string][]string),
 	}
-	return req
+	return request
 }
 
 // Var sets a variable.
-func (req *Request) Var(key string, value interface{}) {
-	if req.vars == nil {
-		req.vars = make(map[string]interface{})
-	}
-	req.vars[key] = value
+func (request *Request) Var(key string, value interface{}) {
+	request.Variables[key] = value
 }
 
-func (c *Client) prepareRequest(ctx context.Context, req *Request) (*http.Request, error) {
+func (c *Client) prepareRequest(ctx context.Context, request *Request) (*http.Request, error) {
 	var requestBody bytes.Buffer
-	requestBodyObj := RequestBody{
-		Query:     req.q,
-		Variables: req.vars,
-	}
-	if err := json.NewEncoder(&requestBody).Encode(requestBodyObj); err != nil {
+	if err := json.NewEncoder(&requestBody).Encode(request); err != nil {
 		return nil, errors.Wrap(err, "encode body")
 	}
-	c.logger.Debug(">> variables: %v", req.vars)
-	c.logger.Debug(">> query: %s", req.q)
+	c.logger.Debug(">> variables: %v", request.Variables)
+	c.logger.Debug(">> query: %s", request.Query)
 	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
 	if err != nil {
 		return nil, err
 	}
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
-	for key, values := range req.Header {
+	for key, values := range request.Header {
 		for _, value := range values {
 			r.Header.Add(key, value)
 		}
@@ -99,19 +87,19 @@ func (c *Client) prepareRequest(ctx context.Context, req *Request) (*http.Reques
 }
 
 // Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
-func (c *Client) Run(ctx context.Context, req *Request, resp interface{}) error {
+func (c *Client) Run(ctx context.Context, request *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
-	r, err := c.prepareRequest(ctx, req)
+	req, err := c.prepareRequest(ctx, request)
 	if err != nil {
 		return err
 	}
 
-	res, err := c.httpClient.Do(r)
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
 	}

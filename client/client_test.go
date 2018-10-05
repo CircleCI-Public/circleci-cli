@@ -44,7 +44,7 @@ func TestDoJSON(t *testing.T) {
 			Something string
 		}
 	}
-	err := client.Run(ctx, &Request{q: "query {}"}, &resp)
+	err := client.Run(ctx, &Request{Query: "query {}"}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -88,8 +88,8 @@ func TestQueryJSON(t *testing.T) {
 		t.Errorf("expected %s", req)
 	}
 
-	if req.vars["username"] != "matryer" {
-		t.Errorf("expcted %s", req.vars["username"])
+	if req.Variables["username"] != "matryer" {
+		t.Errorf("expcted %s", req.Variables["username"])
 	}
 
 	var resp struct {
@@ -152,7 +152,7 @@ func TestDoJSONErr(t *testing.T) {
 			Message string
 		}
 	}
-	err := client.Run(ctx, &Request{q: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{Query: "query {}"}, &responseData)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
