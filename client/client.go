@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
@@ -106,7 +105,7 @@ func (c *Client) Run(ctx context.Context, request *Request, resp interface{}) er
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {
-			log.Fatal(err)
+			c.logger.Debug(err.Error())
 		}
 	}()
 	var buf bytes.Buffer
