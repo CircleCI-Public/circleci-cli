@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"net/http"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
@@ -108,15 +107,11 @@ func (c *Client) Run(ctx context.Context, request *Request, resp interface{}) er
 			c.logger.Debug(err.Error())
 		}
 	}()
-	var buf bytes.Buffer
-	if _, err := io.Copy(&buf, res.Body); err != nil {
-		return errors.Wrap(err, "reading body")
-	}
 
-	c.logger.Debug("<< %s", buf.String())
-	if err := json.NewDecoder(&buf).Decode(&resp); err != nil {
+	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
+	c.logger.Debug("<< %+v", resp)
 
 	return nil
 }
