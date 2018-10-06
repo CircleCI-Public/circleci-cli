@@ -34,19 +34,13 @@ Please note that at this time all namespaces created in the registry are world-r
 }
 
 func createNamespace(cmd *cobra.Command, args []string) error {
-	var err error
 	ctx := context.Background()
 	namespaceName := args[0]
 
-	response, err := api.CreateNamespace(ctx, Logger, namespaceName, args[2], strings.ToUpper(args[1]))
+	_, err := api.CreateNamespace(ctx, Logger, namespaceName, args[2], strings.ToUpper(args[1]))
 
-	// Only fall back to native graphql errors if there are no in-band errors.
-	if err != nil && (response == nil || len(response.Data.CreateNamespace.Errors) == 0) {
+	if err != nil {
 		return err
-	}
-
-	if len(response.Data.CreateNamespace.Errors) > 0 {
-		return response.Data.CreateNamespace.Errors
 	}
 
 	Logger.Infof("Namespace `%s` created.", namespaceName)
