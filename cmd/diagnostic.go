@@ -28,7 +28,7 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	token := viper.GetString("token")
 
 	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
-	Logger.Infof("Verbose mode: %v\n", viper.GetBool("verbose"))
+	Logger.Infof("Debugger mode: %v\n", viper.GetBool("debug"))
 
 	Logger.Infof("Config found: %v\n", viper.ConfigFileUsed())
 

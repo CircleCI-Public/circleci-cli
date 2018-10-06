@@ -147,7 +147,7 @@ token: mytoken
 				command = exec.Command(pathCLI,
 					"diagnostic",
 					"--endpoint", testServer.URL(),
-					"--verbose",
+					"--debug",
 				)
 
 				command.Env = append(os.Environ(),
