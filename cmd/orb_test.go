@@ -1041,7 +1041,6 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--host", testServer.URL(),
-					"--debug",
 				)
 			})
 
@@ -1083,7 +1082,6 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--host", testServer.URL(),
-					"--debug",
 					"--json",
 				)
 			})
@@ -1135,7 +1133,6 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "list",
 					"--uncertified",
 					"--host", testServer.URL(),
-					"--debug",
 				)
 				By("setting up a mock server")
 
@@ -1197,7 +1194,6 @@ var _ = Describe("Orb integration tests", func() {
 						"orb", "list",
 						"--uncertified",
 						"--host", testServer.URL(),
-						"--debug",
 						"--json",
 					)
 				})
@@ -1223,7 +1219,6 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
 					"--host", testServer.URL(),
-					"--debug",
 				)
 				By("setting up a mock server")
 				// These requests and responses are generated from production data,
@@ -1299,7 +1294,6 @@ var _ = Describe("Orb integration tests", func() {
 					command = exec.Command(pathCLI,
 						"orb", "list", "circleci",
 						"--host", testServer.URL(),
-						"--debug",
 						"--json",
 					)
 				})
