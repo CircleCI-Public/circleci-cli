@@ -321,7 +321,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -449,7 +449,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -577,7 +577,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -742,7 +742,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -908,7 +908,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -1031,7 +1031,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})

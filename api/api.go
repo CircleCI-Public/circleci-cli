@@ -31,7 +31,7 @@ func (errs GQLErrorsCollection) Error() string {
 		messages = append(messages, errs[i].Message)
 	}
 
-	return strings.Join(messages, ": ")
+	return strings.Join(messages, "\n")
 }
 
 // GQLResponseError is a mapping of the data returned by the GraphQL server of key-value pairs.
