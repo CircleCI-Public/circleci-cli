@@ -35,7 +35,7 @@ func diagnostic(cmd *cobra.Command, args []string) error {
 	Logger.Infof("GraphQL API address: %s\n", address)
 
 	if token == "token" || token == "" {
-		return errors.New("please set a token")
+		return errors.New("please set a token with 'circleci setup'")
 	}
 	Logger.Infoln("OK, got a token.")
 

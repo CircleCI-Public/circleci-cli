@@ -131,7 +131,7 @@ token: mytoken
 			It("print error", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: please set a token"))
+				Eventually(session.Err).Should(gbytes.Say("Error: please set a token with 'circleci setup'"))
 				Eventually(session.Out).Should(gbytes.Say(
 					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
 				Eventually(session).Should(gexec.Exit(255))
