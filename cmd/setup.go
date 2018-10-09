@@ -153,10 +153,10 @@ func setup(cmd *cobra.Command, args []string) error {
 		viper.Set("endpoint", defaultEndpoint)
 	}
 
-	// Marc: I can't find a way to prevent the verbose flag from
+	// Marc: I can't find a way to prevent the debug flag from
 	// being written to the config file, so set it to false in
 	// the config file.
-	viper.Set("verbose", false)
+	viper.Set("debug", false)
 
 	if err := viper.WriteConfig(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")

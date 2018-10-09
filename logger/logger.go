@@ -9,32 +9,32 @@ import (
 // Logger wraps a few log.Logger instances in private fields.
 // They are accessible via their respective methods.
 type Logger struct {
-	debug   *log.Logger
-	info    *log.Logger
-	error   *log.Logger
-	verbose bool
+	debug    *log.Logger
+	info     *log.Logger
+	error    *log.Logger
+	debugger bool
 }
 
 // NewLogger returns a reference to a Logger.
 // We usually call this when initializing cmd.Logger.
 // Later we pass this to client.NewClient so it can also log.
 // By default debug and error go to os.Stderr, and info goes to os.Stdout
-func NewLogger(verbose bool) *Logger {
+func NewLogger(debugger bool) *Logger {
 	result := &Logger{
 		log.New(os.Stderr, "", 0),
 		log.New(os.Stdout, "", 0),
 		log.New(os.Stderr, "", 0),
-		verbose,
+		debugger,
 	}
-	result.Debug("Verbose Logging: %t", verbose)
+	result.Debug("Debugger Logging: %t", debugger)
 	return result
 }
 
-// Debug prints a formatted message to stderr only if verbose is set.
+// Debug prints a formatted message to stderr only if debug is set.
 // Consider these messages useful for developers of the CLI.
 // This method wraps log.Logger.Printf
 func (l *Logger) Debug(format string, args ...interface{}) {
-	if l.verbose {
+	if l.debugger {
 		l.debug.Printf(format, args...)
 	}
 }

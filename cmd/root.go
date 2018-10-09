@@ -96,15 +96,19 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newUsageCommand())
 	rootCmd.AddCommand(newStepCommand())
 	rootCmd.AddCommand(newSwitchCommand())
-	rootCmd.PersistentFlags().Bool("verbose", false, "Enable verbose logging.")
+	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging.")
 	rootCmd.PersistentFlags().String("token", "", "your token for using CircleCI")
 	rootCmd.PersistentFlags().String("host", defaultHost, "URL to your CircleCI host")
 	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "URI to your CircleCI GraphQL API endpoint")
+	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
+		panic(err)
+	}
+
 	if err := rootCmd.PersistentFlags().MarkHidden("endpoint"); err != nil {
 		panic(err)
 	}
 
-	for _, flag := range []string{"endpoint", "host", "token", "verbose"} {
+	for _, flag := range []string{"endpoint", "host", "token", "debug"} {
 		bindCobraFlagToViper(rootCmd, flag)
 	}
 
@@ -183,7 +187,7 @@ func init() {
 }
 
 func prepare() {
-	Logger = logger.NewLogger(viper.GetBool("verbose"))
+	Logger = logger.NewLogger(viper.GetBool("debug"))
 }
 
 func visitAll(root *cobra.Command, fn func(*cobra.Command)) {

@@ -31,7 +31,7 @@ func (errs GQLErrorsCollection) Error() string {
 		messages = append(messages, errs[i].Message)
 	}
 
-	return strings.Join(messages, ": ")
+	return strings.Join(messages, "\n")
 }
 
 // GQLResponseError is a mapping of the data returned by the GraphQL server of key-value pairs.
@@ -615,12 +615,16 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to create namespace %s for ownerId %s", name, ownerID)
-	}
-
 	if len(response.Data.CreateNamespace.Errors) > 0 {
 		return nil, response.Data.CreateNamespace.Errors
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if len(response.Errors) > 0 {
+		return nil, response.Errors
 	}
 
 	return &response, nil
@@ -654,6 +658,10 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
 	}
 
+	if len(response.Errors) > 0 {
+		return nil, response.Errors
+	}
+
 	return &response, nil
 }
 
@@ -661,15 +669,25 @@ func namespaceNotFound(name string) error {
 	return fmt.Errorf("the namespace '%s' does not exist. Did you misspell the namespace, or maybe you meant to create the namespace first?", name)
 }
 
+func organizationNotFound(name string, vcs string) error {
+	return fmt.Errorf("the organization '%s' under '%s' VCS-type does not exist. Did you misspell the organization or VCS?", name, vcs)
+}
+
 // CreateNamespace creates (reserves) a namespace for an organization
 func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
-	response, err := getOrganization(ctx, logger, organizationName, organizationVcs)
+	getOrgResponse, getOrgError := getOrganization(ctx, logger, organizationName, organizationVcs)
 
-	if err != nil {
-		return nil, err
+	if getOrgError != nil {
+		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
 	}
 
-	return createNamespaceWithOwnerID(ctx, logger, name, response.Data.Organization.ID)
+	createNSResponse, createNSError := createNamespaceWithOwnerID(ctx, logger, name, getOrgResponse.Data.Organization.ID)
+
+	if createNSError != nil {
+		return nil, createNSError
+	}
+
+	return createNSResponse, nil
 }
 
 func getNamespace(ctx context.Context, logger *logger.Logger, name string) (*GetNamespaceResponse, error) {

@@ -321,7 +321,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -449,7 +449,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -577,7 +577,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -742,7 +742,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -908,7 +908,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 
 			})
@@ -1031,7 +1031,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1: error2"))
+				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
 		})
@@ -1041,7 +1041,6 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--host", testServer.URL(),
-					"--verbose",
 				)
 			})
 
@@ -1083,7 +1082,6 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--host", testServer.URL(),
-					"--verbose",
 					"--json",
 				)
 			})
@@ -1135,7 +1133,6 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "list",
 					"--uncertified",
 					"--host", testServer.URL(),
-					"--verbose",
 				)
 				By("setting up a mock server")
 
@@ -1197,7 +1194,6 @@ var _ = Describe("Orb integration tests", func() {
 						"orb", "list",
 						"--uncertified",
 						"--host", testServer.URL(),
-						"--verbose",
 						"--json",
 					)
 				})
@@ -1223,7 +1219,6 @@ var _ = Describe("Orb integration tests", func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
 					"--host", testServer.URL(),
-					"--verbose",
 				)
 				By("setting up a mock server")
 				// These requests and responses are generated from production data,
@@ -1299,7 +1294,6 @@ var _ = Describe("Orb integration tests", func() {
 					command = exec.Command(pathCLI,
 						"orb", "list", "circleci",
 						"--host", testServer.URL(),
-						"--verbose",
 						"--json",
 					)
 				})
