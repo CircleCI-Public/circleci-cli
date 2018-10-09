@@ -615,18 +615,16 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 
 	err = graphQLclient.Run(ctx, request, &response)
 
-	// Only fall back to native graphql errors if there are no in-band errors.
-	if err != nil && len(response.Data.CreateNamespace.Errors) == 0 {
+	if len(response.Data.CreateNamespace.Errors) > 0 {
+		return nil, response.Data.CreateNamespace.Errors
+	}
+
+	if err != nil {
 		return nil, err
 	}
 
-	// Only fall back to out-of-band errors if there are no in-band errors
-	if len(response.Errors) > 0 && len(response.Data.CreateNamespace.Errors) == 0 {
+	if len(response.Errors) > 0 {
 		return nil, response.Errors
-	}
-
-	if len(response.Data.CreateNamespace.Errors) > 0 {
-		return nil, response.Data.CreateNamespace.Errors
 	}
 
 	return &response, nil
