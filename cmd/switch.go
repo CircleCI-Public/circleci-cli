@@ -11,6 +11,6 @@ func newSwitchCommand() *cobra.Command {
 }
 
 func runSwitch(cmd *cobra.Command, args []string) error {
-	Logger.Infoln("You've already updated to the latest CLI. Please see `circleci help` for usage.")
+	Config.Logger.Infoln("You've already updated to the latest CLI. Please see `circleci help` for usage.")
 	return nil
 }

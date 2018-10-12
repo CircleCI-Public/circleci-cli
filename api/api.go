@@ -4,18 +4,15 @@ import (
 	"bytes"
 	"context"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"strings"
 
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/references"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
-	"github.com/spf13/viper"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -342,40 +339,7 @@ func (orb Orb) String() string {
 	return buffer.String()
 }
 
-// EnvEndpointHost pulls the endpoint and host values from viper
-func EnvEndpointHost() (string, string) {
-	return viper.GetString("endpoint"), viper.GetString("host")
-}
-
-// GraphQLServerAddress returns the full address to CircleCI GraphQL API server
-func GraphQLServerAddress(endpoint string, host string) (string, error) {
-	// 1. Parse the endpoint
-	e, err := url.Parse(endpoint)
-	if err != nil {
-		return "", errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
-	}
-
-	// 2. Parse the host
-	h, err := url.Parse(host)
-	if err != nil {
-		return "", errors.Wrapf(err, "Parsing host '%s'", host)
-	}
-	if !h.IsAbs() {
-		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
-	}
-
-	// 3. Resolve the two URLs using host as the base
-	// We use ResolveReference which has specific behavior we can rely for
-	// older configurations which included the absolute path for the endpoint flag.
-	//
-	// https://golang.org/pkg/net/url/#URL.ResolveReference
-	//
-	// Specifically this function always returns the reference (endpoint) if provided an absolute URL.
-	// This way we can safely introduce --host and merge the two.
-	return h.ResolveReference(e).String(), err
-}
-
-// nolint: gosec
+// #nosec
 func loadYaml(path string) (string, error) {
 	var err error
 	var config []byte
@@ -393,19 +357,12 @@ func loadYaml(path string) (string, error) {
 }
 
 // WhoamiQuery returns the result of querying the `/me` endpoint of the API
-func WhoamiQuery(ctx context.Context, logger *logger.Logger) (*WhoamiResponse, error) {
+func WhoamiQuery(ctx context.Context, cfg *settings.Config) (*WhoamiResponse, error) {
 	response := WhoamiResponse{}
 	query := `query { me { name } }`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
-
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	request := cfg.Client.NewAuthorizedRequest(query)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return nil, err
@@ -418,21 +375,16 @@ func WhoamiQuery(ctx context.Context, logger *logger.Logger) (*WhoamiResponse, e
 	return &response, nil
 }
 
-func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath string, response interface{}, query string) error {
+func buildAndOrbQuery(ctx context.Context, cfg *settings.Config, configPath string, response interface{}, query string) error {
 	config, err := loadYaml(configPath)
 	if err != nil {
 		return err
 	}
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("config", config)
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return err
-	}
-	graphQLclient := client.NewClient(address, logger)
 
-	err = graphQLclient.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return errors.Wrap(err, "Unable to validate config")
@@ -442,10 +394,10 @@ func buildAndOrbQuery(ctx context.Context, logger *logger.Logger, configPath str
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(ctx context.Context, logger *logger.Logger, configPath string) (*ConfigResponse, error) {
+func ConfigQuery(ctx context.Context, cfg *settings.Config, configPath string) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 
-	err := buildAndOrbQuery(ctx, logger, configPath, &response, `
+	err := buildAndOrbQuery(ctx, cfg, configPath, &response, `
 		query ValidateConfig ($config: String!) {
 			buildConfig(configYaml: $config) {
 				valid,
@@ -467,10 +419,10 @@ func ConfigQuery(ctx context.Context, logger *logger.Logger, configPath string) 
 }
 
 // OrbQuery validated and processes an orb.
-func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*ConfigResponse, error) {
+func OrbQuery(ctx context.Context, cfg *settings.Config, configPath string) (*ConfigResponse, error) {
 	var response OrbConfigResponse
 
-	err := buildAndOrbQuery(ctx, logger, configPath, &response, `
+	err := buildAndOrbQuery(ctx, cfg, configPath, &response, `
 		query ValidateOrb ($config: String!) {
 			orbConfig(orbYaml: $config) {
 				valid,
@@ -492,7 +444,7 @@ func OrbQuery(ctx context.Context, logger *logger.Logger, configPath string) (*C
 }
 
 // OrbPublishByID publishes a new version of an orb by id
-func OrbPublishByID(ctx context.Context, logger *logger.Logger,
+func OrbPublishByID(ctx context.Context, cfg *settings.Config,
 	configPath string, orbID string, orbVersion string) (*Orb, error) {
 
 	var response OrbPublishResponse
@@ -517,18 +469,12 @@ func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 		}
 	`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("config", config)
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to publish orb")
@@ -542,7 +488,7 @@ func OrbPublishByID(ctx context.Context, logger *logger.Logger,
 }
 
 // OrbID fetches an orb returning the ID
-func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb string) (*OrbIDResponse, error) {
+func OrbID(ctx context.Context, cfg *settings.Config, namespace string, orb string) (*OrbIDResponse, error) {
 	name := namespace + "/" + orb
 
 	var response OrbIDResponse
@@ -558,17 +504,11 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 	  }
 	  `
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	// If there is an error, or the request was successful, return now.
 	if err != nil || response.Data.Orb.ID != "" {
@@ -584,7 +524,7 @@ func OrbID(ctx context.Context, logger *logger.Logger, namespace string, orb str
 	return nil, fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
-func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name string, ownerID string) (*CreateNamespaceResponse, error) {
+func createNamespaceWithOwnerID(ctx context.Context, cfg *settings.Config, name string, ownerID string) (*CreateNamespaceResponse, error) {
 	var response CreateNamespaceResponse
 
 	query := `
@@ -603,17 +543,11 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 				}
 			}`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	if len(response.Data.CreateNamespace.Errors) > 0 {
 		return nil, response.Data.CreateNamespace.Errors
@@ -630,7 +564,7 @@ func createNamespaceWithOwnerID(ctx context.Context, logger *logger.Logger, name
 	return &response, nil
 }
 
-func getOrganization(ctx context.Context, logger *logger.Logger, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
+func getOrganization(ctx context.Context, cfg *settings.Config, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
 	var response GetOrganizationResponse
 
 	query := `query($organizationName: String!, $organizationVcs: VCSType!) {
@@ -642,17 +576,11 @@ func getOrganization(ctx context.Context, logger *logger.Logger, organizationNam
 				}
 			}`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
@@ -674,14 +602,14 @@ func organizationNotFound(name string, vcs string) error {
 }
 
 // CreateNamespace creates (reserves) a namespace for an organization
-func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
-	getOrgResponse, getOrgError := getOrganization(ctx, logger, organizationName, organizationVcs)
+func CreateNamespace(ctx context.Context, cfg *settings.Config, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
+	getOrgResponse, getOrgError := getOrganization(ctx, cfg, organizationName, organizationVcs)
 
 	if getOrgError != nil {
 		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
 	}
 
-	createNSResponse, createNSError := createNamespaceWithOwnerID(ctx, logger, name, getOrgResponse.Data.Organization.ID)
+	createNSResponse, createNSError := createNamespaceWithOwnerID(ctx, cfg, name, getOrgResponse.Data.Organization.ID)
 
 	if createNSError != nil {
 		return nil, createNSError
@@ -690,7 +618,7 @@ func CreateNamespace(ctx context.Context, logger *logger.Logger, name string, or
 	return createNSResponse, nil
 }
 
-func getNamespace(ctx context.Context, logger *logger.Logger, name string) (*GetNamespaceResponse, error) {
+func getNamespace(ctx context.Context, cfg *settings.Config, name string) (*GetNamespaceResponse, error) {
 	var response GetNamespaceResponse
 
 	query := `
@@ -701,16 +629,10 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (*Get
 						id
 					}
 			 }`
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("name", name)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	if err = graphQLclient.Run(ctx, request, &response); err != nil {
+	if err := cfg.Client.Run(ctx, request, &response); err != nil {
 		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
@@ -722,10 +644,10 @@ func getNamespace(ctx context.Context, logger *logger.Logger, name string) (*Get
 		return nil, response.Errors
 	}
 
-	return &response, err
+	return &response, nil
 }
 
-func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, namespaceID string) (*CreateOrbResponse, error) {
+func createOrbWithNsID(ctx context.Context, cfg *settings.Config, name string, namespaceID string) (*CreateOrbResponse, error) {
 	var response CreateOrbResponse
 
 	query := `mutation($name: String!, $registryNamespaceId: UUID!){
@@ -743,17 +665,11 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 				}
 }`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	if len(response.Data.CreateOrb.Errors) > 0 {
 		return nil, response.Data.CreateOrb.Errors
@@ -771,13 +687,13 @@ func createOrbWithNsID(ctx context.Context, logger *logger.Logger, name string, 
 }
 
 // CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(ctx context.Context, logger *logger.Logger, namespace string, name string) (*CreateOrbResponse, error) {
-	response, err := getNamespace(ctx, logger, namespace)
+func CreateOrb(ctx context.Context, cfg *settings.Config, namespace string, name string) (*CreateOrbResponse, error) {
+	response, err := getNamespace(ctx, cfg, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	return createOrbWithNsID(ctx, logger, name, response.Data.RegistryNamespace.ID)
+	return createOrbWithNsID(ctx, cfg, name, response.Data.RegistryNamespace.ID)
 }
 
 // TODO(zzak): this function is not really related to the API. Move it to another package?
@@ -801,13 +717,13 @@ func incrementVersion(version string, segment string) (string, error) {
 }
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
-func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath string, namespace string, orb string, segment string) (*Orb, error) {
-	id, err := OrbID(ctx, logger, namespace, orb)
+func OrbIncrementVersion(ctx context.Context, cfg *settings.Config, configPath string, namespace string, orb string, segment string) (*Orb, error) {
+	id, err := OrbID(ctx, cfg, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersion(ctx, cfg, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
@@ -817,19 +733,19 @@ func OrbIncrementVersion(ctx context.Context, logger *logger.Logger, configPath 
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(ctx, logger, configPath, id.Data.Orb.ID, v2)
+	response, err := OrbPublishByID(ctx, cfg, configPath, id.Data.Orb.ID, v2)
 	if err != nil {
 		return nil, err
 	}
 
-	logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Data.Orb.ID, v, segment, v2)
+	cfg.Logger.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Data.Orb.ID, v, segment, v2)
 
 	return response, nil
 }
 
 // OrbLatestVersion finds the latest published version of an orb and returns it.
 // If it doesn't find a version, it will return 0.0.0 for the orb's version
-func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace string, orb string) (string, error) {
+func OrbLatestVersion(ctx context.Context, cfg *settings.Config, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
 	var response OrbLatestVersionResponse
@@ -843,16 +759,10 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 			    }
 		      }`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("name", name)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return "", err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err
@@ -866,14 +776,14 @@ func OrbLatestVersion(ctx context.Context, logger *logger.Logger, namespace stri
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, orb string, label string, segment string) (*Orb, error) {
-	id, err := OrbID(ctx, logger, namespace, orb)
+func OrbPromote(ctx context.Context, cfg *settings.Config, namespace string, orb string, label string, segment string) (*Orb, error) {
+	id, err := OrbID(ctx, cfg, namespace, orb)
 
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := OrbLatestVersion(ctx, logger, namespace, orb)
+	v, err := OrbLatestVersion(ctx, cfg, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
@@ -901,18 +811,12 @@ func OrbPromote(ctx context.Context, logger *logger.Logger, namespace string, or
 		}
 	`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("orbId", id.Data.Orb.ID)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if len(response.Data.PromoteOrb.Errors) > 0 {
 		return nil, response.Data.PromoteOrb.Errors
@@ -939,7 +843,7 @@ func orbVersionRef(orb string) string {
 }
 
 // OrbSource gets the source or an orb
-func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (string, error) {
+func OrbSource(ctx context.Context, cfg *settings.Config, orbRef string) (string, error) {
 
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return "", err
@@ -958,15 +862,10 @@ func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (strin
 			    }
 		      }`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 	request.Var("orbVersionRef", ref)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return "", err
-	}
-
-	err = client.NewClient(address, logger).Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err
@@ -982,7 +881,7 @@ func OrbSource(ctx context.Context, logger *logger.Logger, orbRef string) (strin
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListOrbs(ctx context.Context, logger *logger.Logger, uncertified bool) (*OrbCollection, error) {
+func ListOrbs(ctx context.Context, cfg *settings.Config, uncertified bool) (*OrbCollection, error) {
 	query := `
 query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
   orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
@@ -1006,21 +905,15 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 	var orbs OrbCollection
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
 	var result OrbListResponse
 	currentCursor := ""
 
 	for {
-		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+		request := cfg.Client.NewAuthorizedRequest(query)
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
-		err := graphQLclient.Run(ctx, request, &result)
+		err := cfg.Client.Run(ctx, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -1043,7 +936,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 
 				if err != nil {
-					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					cfg.Logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue Orbs
 				}
 				orbs.Orbs = append(orbs.Orbs, o)
@@ -1061,7 +954,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 // namespace.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListNamespaceOrbs(ctx context.Context, logger *logger.Logger, namespace string) (*OrbCollection, error) {
+func ListNamespaceOrbs(ctx context.Context, cfg *settings.Config, namespace string) (*OrbCollection, error) {
 	query := `
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
@@ -1086,23 +979,16 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 }
 `
 	var orbs OrbCollection
-
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
 	var result NamespaceOrbResponse
 	currentCursor := ""
 
 	for {
-		request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+		request := cfg.Client.NewAuthorizedRequest(query)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 		orbs.Namespace = namespace
 
-		err := graphQLclient.Run(ctx, request, &result)
+		err := cfg.Client.Run(ctx, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -1123,7 +1009,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				}
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
 				if err != nil {
-					logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					cfg.Logger.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue NamespaceOrbs
 				}
 			} else {
@@ -1143,7 +1029,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 // IntrospectionQuery makes a query on the API asking for bits of the schema
 // This query isn't intended to get the entire schema, there are better tools for that.
-func IntrospectionQuery(ctx context.Context, logger *logger.Logger) (*IntrospectionResponse, error) {
+func IntrospectionQuery(ctx context.Context, cfg *settings.Config) (*IntrospectionResponse, error) {
 	var response IntrospectionResponse
 
 	query := `query IntrospectionQuery {
@@ -1165,15 +1051,9 @@ func IntrospectionQuery(ctx context.Context, logger *logger.Logger) (*Introspect
 		    }
 		  }`
 
-	request := client.NewAuthorizedRequest(viper.GetString("token"), query)
+	request := cfg.Client.NewAuthorizedRequest(query)
 
-	address, err := GraphQLServerAddress(EnvEndpointHost())
-	if err != nil {
-		return nil, err
-	}
-	graphQLclient := client.NewClient(address, logger)
-
-	err = graphQLclient.Run(ctx, request, &response)
+	err := cfg.Client.Run(ctx, request, &response)
 
 	return &response, err
 }

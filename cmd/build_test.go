@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -16,8 +15,8 @@ var _ = Describe("build", func() {
 		var tempHome string
 
 		BeforeEach(func() {
-
-			Logger = logger.NewLogger(false)
+			// TODO(zzak): I'm not exactly sure why we need to override the logger here
+			Config.Logger = Config.NewLogger()
 			var err error
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 

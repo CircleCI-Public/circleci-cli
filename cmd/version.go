@@ -10,7 +10,7 @@ func newVersionCommand() *cobra.Command {
 		Use:   "version",
 		Short: "Display version information",
 		Run: func(cmd *cobra.Command, args []string) {
-			Logger.Infof("%s+%s", version.Version, version.Commit)
+			Config.Logger.Infof("%s+%s", version.Version, version.Commit)
 		},
 	}
 }

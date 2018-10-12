@@ -92,25 +92,25 @@ func validateConfig(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	_, err := api.ConfigQuery(ctx, Logger, path)
+	_, err := api.ConfigQuery(ctx, Config, path)
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Config file at %s is valid", path)
+	Config.Logger.Infof("Config file at %s is valid", path)
 	return nil
 }
 
 func processConfig(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := api.ConfigQuery(ctx, Logger, args[0])
+	response, err := api.ConfigQuery(ctx, Config, args[0])
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Info(response.OutputYaml)
+	Config.Logger.Info(response.OutputYaml)
 	return nil
 }
 
@@ -124,7 +124,7 @@ func packConfig(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
-	Logger.Infof("%s\n", string(y))
+	Config.Logger.Infof("%s\n", string(y))
 	return nil
 }
 

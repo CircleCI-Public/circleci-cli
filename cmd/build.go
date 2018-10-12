@@ -126,7 +126,7 @@ func loadCurrentBuildAgentSha() string {
 	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
 
 	if err != nil {
-		Logger.Error("Failed to load build agent settings JSON", err)
+		Config.Logger.Error("Failed to load build agent settings JSON", err)
 		return ""
 	}
 
@@ -135,7 +135,7 @@ func loadCurrentBuildAgentSha() string {
 	err = json.Unmarshal(settingsJSON, &settings)
 
 	if err != nil {
-		Logger.Error("Failed to parse build agent settings JSON", err)
+		Config.Logger.Error("Failed to parse build agent settings JSON", err)
 		return ""
 	}
 
@@ -148,7 +148,7 @@ func picardImage() (string, error) {
 
 	if sha == "" {
 
-		Logger.Info("Downloading latest CircleCI build agent...")
+		Config.Logger.Info("Downloading latest CircleCI build agent...")
 
 		var err error
 
@@ -159,7 +159,7 @@ func picardImage() (string, error) {
 		}
 
 	}
-	Logger.Infof("Docker image digest: %s", sha)
+	Config.Logger.Infof("Docker image digest: %s", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
@@ -193,7 +193,7 @@ You can use 'circleci config process' to pre-process your config into a version 
 		return errors.New("Unable to parse flags")
 	}
 
-	// nolint: gosec
+	// #nosec
 	configBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to read config file")
@@ -260,7 +260,7 @@ func runExecute(cmd *cobra.Command, args []string) error {
 
 	arguments = append(arguments, args...)
 
-	Logger.Debug(fmt.Sprintf("Starting docker with args: %s", arguments))
+	Config.Logger.Debug(fmt.Sprintf("Starting docker with args: %s", arguments))
 
 	dockerPath, err := exec.LookPath("docker")
 

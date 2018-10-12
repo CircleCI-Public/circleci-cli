@@ -5,11 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 func newQueryCommand() *cobra.Command {
@@ -41,19 +38,13 @@ func query(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Unable to read query from stdin")
 	}
 
-	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
-	if err != nil {
-		return err
-	}
-	c := client.NewClient(address, Logger)
-
-	req := client.NewAuthorizedRequest(viper.GetString("token"), string(q))
-	err = c.Run(context.Background(), req, &resp)
+	req := Config.Client.NewAuthorizedRequest(string(q))
+	err = Config.Client.Run(context.Background(), req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")
 	}
 
-	Logger.Prettyify(resp)
+	Config.Logger.Prettyify(resp)
 
 	return nil
 }

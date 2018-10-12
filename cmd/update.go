@@ -51,7 +51,7 @@ func updateBuildAgent(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	Logger.Infof("Latest build agent is version %s", latestSha256)
+	Config.Logger.Infof("Latest build agent is version %s", latestSha256)
 
 	return nil
 }
@@ -118,19 +118,19 @@ func update(dryRun bool) error {
 
 	current := semver.MustParse(version.Version)
 
-	Logger.Debug("Latest version: %s", latest.Version)
-	Logger.Debug("Published: %s", latest.PublishedAt)
-	Logger.Debug("Current Version: %s", current)
+	Config.Logger.Debug("Latest version: %s", latest.Version)
+	Config.Logger.Debug("Published: %s", latest.PublishedAt)
+	Config.Logger.Debug("Current Version: %s", current)
 
 	if latest.Version.Equals(current) {
-		Logger.Info("Already up-to-date.")
+		Config.Logger.Info("Already up-to-date.")
 		return nil
 	}
 
 	if dryRun {
-		Logger.Infof("A new release is available (%s)", latest.Version)
-		Logger.Infof("You are running %s", current)
-		Logger.Infof("You can update with `circleci update install`")
+		Config.Logger.Infof("A new release is available (%s)", latest.Version)
+		Config.Logger.Infof("You are running %s", current)
+		Config.Logger.Infof("You can update with `circleci update install`")
 		return nil
 	}
 
@@ -140,6 +140,6 @@ func update(dryRun bool) error {
 		return errors.Wrap(err, "failed to install update")
 	}
 
-	Logger.Infof("Updated to %s", release.Version)
+	Config.Logger.Infof("Updated to %s", release.Version)
 	return nil
 }

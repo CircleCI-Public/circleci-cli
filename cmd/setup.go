@@ -2,15 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var testing = false
@@ -93,17 +89,17 @@ type testingUI struct {
 }
 
 func (ui testingUI) readSecretStringFromUser(message string) (string, error) {
-	Logger.Info(message)
+	Config.Logger.Info(message)
 	return ui.input, nil
 }
 
 func (ui testingUI) readStringFromUser(message string, defaultValue string) string {
-	Logger.Info(message)
+	Config.Logger.Info(message)
 	return ui.input
 }
 
 func (ui testingUI) askUserToConfirm(message string) bool {
-	Logger.Info(message)
+	Config.Logger.Info(message)
 	return ui.confirm
 }
 
@@ -124,8 +120,6 @@ func shouldAskForEndpoint(endpoint string, ui userInterface) bool {
 }
 
 func setup(cmd *cobra.Command, args []string) error {
-	token := viper.GetString("token")
-
 	var ui userInterface = interactiveUI{}
 
 	if testing {
@@ -135,40 +129,27 @@ func setup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if shouldAskForToken(token, ui) {
+	if shouldAskForToken(Config.Token, ui) {
 		token, err := ui.readSecretStringFromUser("CircleCI API Token")
 		if err != nil {
 			return errors.Wrap(err, "Error reading token")
 		}
-		viper.Set("token", token)
-		Logger.Info("API token has been set.")
+		Config.Token = token
+		Config.Logger.Info("API token has been set.")
 	}
-	viper.Set("host", ui.readStringFromUser("CircleCI Host", defaultHost))
-	Logger.Info("CircleCI host has been set.")
+	Config.Host = ui.readStringFromUser("CircleCI Host", defaultHost)
+	Config.Logger.Info("CircleCI host has been set.")
 
 	// Reset endpoint to default when running setup
 	// This ensures any accidental changes to this field can be fixed simply by rerunning this command.
-	endpoint := viper.GetString("endpoint")
-	if shouldAskForEndpoint(endpoint, ui) {
-		viper.Set("endpoint", defaultEndpoint)
+	if shouldAskForEndpoint(Config.Endpoint, ui) {
+		Config.Endpoint = defaultEndpoint
 	}
 
-	// Marc: I can't find a way to prevent the debug flag from
-	// being written to the config file, so set it to false in
-	// the config file.
-	viper.Set("debug", false)
-
-	if err := viper.WriteConfig(); err != nil {
+	if err := Config.WriteToDisk(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")
 	}
 
-	// Since we store api tokens in the config and viper writes config files
-	// with 0644 permissions we need to set the permissions to 0600 afterwards
-	configFile := path.Join(settings.ConfigPath(), settings.ConfigFilename())
-	if err := os.Chmod(configFile, 0600); err != nil {
-		return errors.Wrap(err, "Failed to update permissions for config file")
-	}
-
-	Logger.Info("Setup complete. Your configuration has been saved.")
+	Config.Logger.Info("Setup complete. Your configuration has been saved.")
 	return nil
 }

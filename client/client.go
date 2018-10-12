@@ -16,24 +16,43 @@ type Client struct {
 	endpoint   string
 	httpClient *http.Client
 	logger     *logger.Logger
+	token      string
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(endpoint string, logger *logger.Logger) *Client {
+func NewClient(endpoint string, token string, logger *logger.Logger) *Client {
 	return &Client{
 		httpClient: http.DefaultClient,
 		endpoint:   endpoint,
+		token:      token,
 		logger:     logger,
 	}
 }
 
 // NewAuthorizedRequest returns a new GraphQL request with the
 // authorization headers set for CircleCI auth.
-func NewAuthorizedRequest(token, query string) *Request {
-	req := NewRequest(query)
-	req.Header.Set("Authorization", token)
-	req.Header.Set("User-Agent", version.UserAgent())
-	return req
+func (cl *Client) NewAuthorizedRequest(query string) *Request {
+	request := &Request{
+		Query:     query,
+		Variables: make(map[string]interface{}),
+		Header:    make(map[string][]string),
+	}
+
+	request.Header.Set("Authorization", cl.token)
+	request.Header.Set("User-Agent", version.UserAgent())
+	return request
+}
+
+// NewUnauthorizedRequest returns a new GraphQL request without any authorization header.
+func (cl *Client) NewUnauthorizedRequest(query string) *Request {
+	request := &Request{
+		Query:     query,
+		Variables: make(map[string]interface{}),
+		Header:    make(map[string][]string),
+	}
+
+	request.Header.Set("User-Agent", version.UserAgent())
+	return request
 }
 
 // Request is a GraphQL request.
@@ -46,29 +65,19 @@ type Request struct {
 	Header http.Header `json:"-"`
 }
 
-// NewRequest makes a new Request with the specified query string.
-func NewRequest(query string) *Request {
-	request := &Request{
-		Query:     query,
-		Variables: make(map[string]interface{}),
-		Header:    make(map[string][]string),
-	}
-	return request
-}
-
 // Var sets a variable.
 func (request *Request) Var(key string, value interface{}) {
 	request.Variables[key] = value
 }
 
-func (c *Client) prepareRequest(ctx context.Context, request *Request) (*http.Request, error) {
+func (cl *Client) prepareRequest(ctx context.Context, request *Request) (*http.Request, error) {
 	var requestBody bytes.Buffer
 	if err := json.NewEncoder(&requestBody).Encode(request); err != nil {
 		return nil, errors.Wrap(err, "encode body")
 	}
-	c.logger.Debug(">> variables: %v", request.Variables)
-	c.logger.Debug(">> query: %s", request.Query)
-	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+	cl.logger.Debug(">> variables: %v", request.Variables)
+	cl.logger.Debug(">> query: %s", request.Query)
+	r, err := http.NewRequest(http.MethodPost, cl.endpoint, &requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -85,33 +94,33 @@ func (c *Client) prepareRequest(ctx context.Context, request *Request) (*http.Re
 }
 
 // Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
-func (c *Client) Run(ctx context.Context, request *Request, resp interface{}) error {
+func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
-	req, err := c.prepareRequest(ctx, request)
+	req, err := cl.prepareRequest(ctx, request)
 	if err != nil {
 		return err
 	}
 
-	res, err := c.httpClient.Do(req)
+	res, err := cl.httpClient.Do(req)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {
-			c.logger.Debug(err.Error())
+			cl.logger.Debug(err.Error())
 		}
 	}()
 
 	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
-	c.logger.Debug("<< %+v", resp)
+	cl.logger.Debug("<< %+v", resp)
 
 	return nil
 }

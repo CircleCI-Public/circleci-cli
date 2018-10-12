@@ -35,7 +35,7 @@ func TestDoJSON(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "token", logger.NewLogger(false))
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -78,9 +78,9 @@ func TestQueryJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "token", logger.NewLogger(false))
 
-	req := NewRequest("query {}")
+	req := client.NewUnauthorizedRequest("query {}")
 	req.Var("username", "matryer")
 
 	// check variables
@@ -141,7 +141,7 @@ func TestDoJSONErr(t *testing.T) {
 	defer server.Close()
 
 	ctx := context.Background()
-	client := NewClient(server.URL, logger.NewLogger(false))
+	client := NewClient(server.URL, "token", logger.NewLogger(false))
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -183,9 +183,9 @@ func TestHeader(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "token", logger.NewLogger(false))
 
-	req := NewRequest("query {}")
+	req := client.NewUnauthorizedRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {

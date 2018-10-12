@@ -140,7 +140,7 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 	}
 
 	ctx := context.Background()
-	orbs, err := api.ListOrbs(ctx, Logger, orbListUncertified)
+	orbs, err := api.ListOrbs(ctx, Config, orbListUncertified)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
@@ -149,17 +149,17 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
-		Logger.Info(string(orbJSON))
+		Config.Logger.Info(string(orbJSON))
 
 	} else {
-		Logger.Info(orbs.String())
+		Config.Logger.Info(orbs.String())
 	}
 	return nil
 }
 
 func listNamespaceOrbs(namespace string) error {
 	ctx := context.Background()
-	orbs, err := api.ListNamespaceOrbs(ctx, Logger, namespace)
+	orbs, err := api.ListNamespaceOrbs(ctx, Config, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
@@ -168,9 +168,9 @@ func listNamespaceOrbs(namespace string) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
-		Logger.Info(string(orbJSON))
+		Config.Logger.Info(string(orbJSON))
 	} else {
-		Logger.Info(orbs.String())
+		Config.Logger.Info(orbs.String())
 	}
 	return nil
 }
@@ -178,25 +178,25 @@ func listNamespaceOrbs(namespace string) error {
 func validateOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 
-	_, err := api.OrbQuery(ctx, Logger, args[0])
+	_, err := api.OrbQuery(ctx, Config, args[0])
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb at `%s` is valid.", args[0])
+	Config.Logger.Infof("Orb at `%s` is valid.", args[0])
 	return nil
 }
 
 func processOrb(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
-	response, err := api.OrbQuery(ctx, Logger, args[0])
+	response, err := api.OrbQuery(ctx, Config, args[0])
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Info(response.OutputYaml)
+	Config.Logger.Info(response.OutputYaml)
 	return nil
 }
 
@@ -211,18 +211,18 @@ func publishOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	id, err := api.OrbID(ctx, Logger, namespace, orb)
+	id, err := api.OrbID(ctx, Config, namespace, orb)
 	if err != nil {
 		return err
 	}
 
-	_, err = api.OrbPublishByID(ctx, Logger, path, id.Data.Orb.ID, version)
+	_, err = api.OrbPublishByID(ctx, Config, path, id.Data.Orb.ID, version)
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb `%s` was published.", ref)
-	Logger.Info("Please note that this is an open orb and is world-readable.")
+	Config.Logger.Infof("Orb `%s` was published.", ref)
+	Config.Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -251,14 +251,14 @@ func incrementOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response, err := api.OrbIncrementVersion(context.Background(), Logger, args[0], namespace, orb, segment)
+	response, err := api.OrbIncrementVersion(context.Background(), Config, args[0], namespace, orb, segment)
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
-	Logger.Info("Please note that this is an open orb and is world-readable.")
+	Config.Logger.Infof("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+	Config.Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -279,13 +279,13 @@ func promoteOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	response, err := api.OrbPromote(context.Background(), Logger, namespace, orb, version, segment)
+	response, err := api.OrbPromote(context.Background(), Config, namespace, orb, version, segment)
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
-	Logger.Info("Please note that this is an open orb and is world-readable.")
+	Config.Logger.Infof("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+	Config.Logger.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -299,15 +299,15 @@ func createOrb(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	_, err = api.CreateOrb(ctx, Logger, namespace, orb)
+	_, err = api.CreateOrb(ctx, Config, namespace, orb)
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Orb `%s` created.\n", args[0])
-	Logger.Info("Please note that any versions you publish of this orb are world-readable.\n")
-	Logger.Infof("You can now register versions of `%s` using `circleci orb publish`.\n", args[0])
+	Config.Logger.Infof("Orb `%s` created.\n", args[0])
+	Config.Logger.Info("Please note that any versions you publish of this orb are world-readable.\n")
+	Config.Logger.Infof("You can now register versions of `%s` using `circleci orb publish`.\n", args[0])
 	return nil
 }
 
@@ -315,10 +315,10 @@ func showSource(cmd *cobra.Command, args []string) error {
 
 	ref := args[0]
 
-	source, err := api.OrbSource(context.Background(), Logger, ref)
+	source, err := api.OrbSource(context.Background(), Config, ref)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get source for '%s'", ref)
 	}
-	Logger.Info(source)
+	Config.Logger.Info(source)
 	return nil
 }

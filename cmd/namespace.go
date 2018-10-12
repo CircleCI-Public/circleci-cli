@@ -37,13 +37,13 @@ func createNamespace(cmd *cobra.Command, args []string) error {
 	ctx := context.Background()
 	namespaceName := args[0]
 
-	_, err := api.CreateNamespace(ctx, Logger, namespaceName, args[2], strings.ToUpper(args[1]))
+	_, err := api.CreateNamespace(ctx, Config, namespaceName, args[2], strings.ToUpper(args[1]))
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Namespace `%s` created.", namespaceName)
-	Logger.Info("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
+	Config.Logger.Infof("Namespace `%s` created.", namespaceName)
+	Config.Logger.Info("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
 	return nil
 }
