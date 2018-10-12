@@ -20,6 +20,7 @@ var orbAnnotations = map[string]string{
 
 var orbListUncertified bool
 var orbListJSON bool
+var orbListDetails bool
 
 func newOrbCommand() *cobra.Command {
 
@@ -33,6 +34,7 @@ func newOrbCommand() *cobra.Command {
 	listCommand.Annotations["<namespace>"] = orbAnnotations["<namespace>"] + " (Optional)"
 	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
 	listCommand.PersistentFlags().BoolVar(&orbListJSON, "json", false, "print output as json instead of human-readable")
+	listCommand.PersistentFlags().BoolVarP(&orbListDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
 	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
 		panic(err)
 	}
