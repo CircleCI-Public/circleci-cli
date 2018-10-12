@@ -146,16 +146,18 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
+
 	if orbListJSON {
 		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
 		if err != nil {
 			return errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
 		Logger.Info(string(orbJSON))
-
 	} else {
+		orbs.PrintDetailed = orbListDetails
 		Logger.Info(orbs.String())
 	}
+
 	return nil
 }
 
@@ -172,6 +174,7 @@ func listNamespaceOrbs(namespace string) error {
 		}
 		Logger.Info(string(orbJSON))
 	} else {
+		orbs.PrintDetailed = orbListDetails
 		Logger.Info(orbs.String())
 	}
 	return nil

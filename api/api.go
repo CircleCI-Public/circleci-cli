@@ -271,8 +271,9 @@ type OrbConfigResponse struct {
 // OrbCollection is a container type for multiple orbs to share formatting
 // functions on them.
 type OrbCollection struct {
-	Orbs      []Orb  `json:"orbs"`
-	Namespace string `json:"namespace,omitempty"`
+	Orbs          []Orb  `json:"orbs"`
+	Namespace     string `json:"namespace,omitempty"`
+	PrintDetailed bool   `json:"-"`
 }
 
 // String returns a text representation of all Orbs, intended for
@@ -280,7 +281,11 @@ type OrbCollection struct {
 func (orbCollection OrbCollection) String() string {
 	var result string
 	for _, o := range orbCollection.Orbs {
-		result += (o.String())
+		if orbCollection.PrintDetailed {
+			result += (o.String())
+		} else {
+			result += (o.SimplifiedString())
+		}
 	}
 	return result
 }
@@ -327,6 +332,21 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]str
 // String returns a text representation of the Orb contents, intended for
 // direct human use rather than machine use. This function will exclude orb
 // source and orbs without any versions in its returned string.
+func (orb Orb) SimplifiedString() string {
+	var buffer bytes.Buffer
+
+	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
+	if err != nil {
+		// The WriteString docstring says that it will never return an error
+		panic(err)
+	}
+
+	return buffer.String()
+}
+
+// String returns a text representation of the Orb contents, intended for
+// direct human use rather than machine use. This function will exclude orb
+// source and orbs without any versions in its returned string.
 func (orb Orb) String() string {
 	var buffer bytes.Buffer
 
@@ -335,6 +355,7 @@ func (orb Orb) String() string {
 		// The WriteString docstring says that it will never return an error
 		panic(err)
 	}
+
 	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
 	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
 	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)

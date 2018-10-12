@@ -1214,11 +1214,77 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
+		Describe("when listing all orbs with --details", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--host", testServer.URL(),
+					"--details",
+				)
+				By("setting up a mock server")
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/response.json"))
+				gqlResponse := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+						ghttp.RespondWith(http.StatusOK, gqlResponse),
+					),
+				)
+			})
+
+			It("lists detailed orbs", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("foo/test"))
+				Eventually(session.Out).Should(gbytes.Say("Commands:"))
+				Eventually(session.Out).Should(gbytes.Say("- echo"))
+				Eventually(session.Out).Should(gbytes.Say("Jobs:"))
+				Eventually(session.Out).Should(gbytes.Say("- hello-build"))
+				Eventually(session.Out).Should(gbytes.Say("Executors:"))
+				Eventually(session.Out).Should(gbytes.Say("- default"))
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+			})
+
+			Context("with the --json flag", func() {
+				BeforeEach(func() {
+					command = exec.Command(pathCLI,
+						"orb", "list",
+						"--host", testServer.URL(),
+						"--details",
+						"--json",
+					)
+				})
+
+				It("is overridden by the --json flag", func() {
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(0))
+
+					tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/pretty_json_output.json"))
+					expectedOutput := string(tmpBytes)
+					completeOutput := string(session.Wait().Out.Contents())
+					Expect(completeOutput).Should(MatchJSON(expectedOutput))
+					Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+				})
+			})
+		})
+
 		Describe("when listing orbs with a namespace argument", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
 					"--host", testServer.URL(),
+					"--details",
 				)
 				By("setting up a mock server")
 				// These requests and responses are generated from production data,
