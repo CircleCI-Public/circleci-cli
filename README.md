@@ -29,6 +29,12 @@ This will install the CLI into the `/usr/local/bin` directory.
 
 If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
 
+Optionally, you can install in a arbitrary directory by using `DESTDIR` environment variable.
+
+```
+export DESTDIR=/path/to/install/ && bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+```
+
 #### Homebrew
 
 ```
