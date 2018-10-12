@@ -38,6 +38,6 @@ grep -i "$(uname)" tarball_urls.txt | xargs curl --retry 3 --fail --location --o
 tar zxvf circleci.tgz --strip 1
 
 echo "Installing to $DEST"
-mv circleci $DEST
-chmod +x $DEST
+mv circleci "$DEST"
+chmod +x "$DEST"
 command -v circleci
