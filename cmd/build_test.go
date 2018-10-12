@@ -15,8 +15,6 @@ var _ = Describe("build", func() {
 		var tempHome string
 
 		BeforeEach(func() {
-			// TODO(zzak): I'm not exactly sure why we need to override the logger here
-			Config.Logger = Config.NewLogger()
 			var err error
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 

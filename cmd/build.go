@@ -159,7 +159,9 @@ func picardImage() (string, error) {
 		}
 
 	}
-	Config.Logger.Infof("Docker image digest: %s", sha)
+	if Config != nil && Config.Logger != nil {
+		Config.Logger.Infof("Docker image digest: %s", sha)
+	}
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
