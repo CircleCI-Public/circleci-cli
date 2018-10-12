@@ -4,7 +4,7 @@ set -o nounset
 set -o pipefail
 
 RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
-DEST="/usr/local/bin/circleci"
+DEST="${DESTDIR:-/usr/local/bin}/circleci"
 
 # Run the script in a temporary directory that we know is empty.
 SCRATCH=$(mktemp -d)
