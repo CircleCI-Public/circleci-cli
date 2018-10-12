@@ -38,7 +38,10 @@ func query(cmd *cobra.Command, args []string) error {
 		return errors.Wrap(err, "Unable to read query from stdin")
 	}
 
-	req := Config.Client.NewAuthorizedRequest(string(q))
+	req, err := Config.Client.NewAuthorizedRequest(string(q))
+	if err != nil {
+		return err
+	}
 	err = Config.Client.Run(context.Background(), req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")

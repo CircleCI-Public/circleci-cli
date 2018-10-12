@@ -80,7 +80,10 @@ func TestQueryJSON(t *testing.T) {
 
 	client := NewClient(srv.URL, "token", logger.NewLogger(false))
 
-	req := client.NewUnauthorizedRequest("query {}")
+	req, err := client.NewUnauthorizedRequest("query {}")
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 	req.Var("username", "matryer")
 
 	// check variables
@@ -97,7 +100,7 @@ func TestQueryJSON(t *testing.T) {
 			Value string
 		}
 	}
-	err := client.Run(ctx, req, &resp)
+	err = client.Run(ctx, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -185,7 +188,10 @@ func TestHeader(t *testing.T) {
 
 	client := NewClient(srv.URL, "token", logger.NewLogger(false))
 
-	req := client.NewUnauthorizedRequest("query {}")
+	req, err := client.NewUnauthorizedRequest("query {}")
+	if err != nil {
+		t.Errorf(err.Error())
+	}
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {
@@ -193,7 +199,7 @@ func TestHeader(t *testing.T) {
 			Value string
 		}
 	}
-	err := client.Run(ctx, req, &resp)
+	err = client.Run(ctx, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

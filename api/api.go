@@ -361,8 +361,11 @@ func WhoamiQuery(ctx context.Context, cfg *settings.Config) (*WhoamiResponse, er
 	response := WhoamiResponse{}
 	query := `query { me { name } }`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
-	err := cfg.Client.Run(ctx, request, &response)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return nil, err
@@ -381,7 +384,10 @@ func buildAndOrbQuery(ctx context.Context, cfg *settings.Config, configPath stri
 		return err
 	}
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return err
+	}
 	request.Var("config", config)
 
 	err = cfg.Client.Run(ctx, request, &response)
@@ -469,7 +475,10 @@ func OrbPublishByID(ctx context.Context, cfg *settings.Config,
 		}
 	`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("config", config)
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
@@ -504,11 +513,14 @@ func OrbID(ctx context.Context, cfg *settings.Config, namespace string, orb stri
 	  }
 	  `
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	// If there is an error, or the request was successful, return now.
 	if err != nil || response.Data.Orb.ID != "" {
@@ -543,11 +555,14 @@ func createNamespaceWithOwnerID(ctx context.Context, cfg *settings.Config, name 
 				}
 			}`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if len(response.Data.CreateNamespace.Errors) > 0 {
 		return nil, response.Data.CreateNamespace.Errors
@@ -576,11 +591,14 @@ func getOrganization(ctx context.Context, cfg *settings.Config, organizationName
 				}
 			}`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
@@ -629,7 +647,10 @@ func getNamespace(ctx context.Context, cfg *settings.Config, name string) (*GetN
 						id
 					}
 			 }`
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("name", name)
 
 	if err := cfg.Client.Run(ctx, request, &response); err != nil {
@@ -665,11 +686,14 @@ func createOrbWithNsID(ctx context.Context, cfg *settings.Config, name string, n
 				}
 }`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if len(response.Data.CreateOrb.Errors) > 0 {
 		return nil, response.Data.CreateOrb.Errors
@@ -759,10 +783,13 @@ func OrbLatestVersion(ctx context.Context, cfg *settings.Config, namespace strin
 			    }
 		      }`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return "", err
+	}
 	request.Var("name", name)
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err
@@ -811,7 +838,10 @@ func OrbPromote(ctx context.Context, cfg *settings.Config, namespace string, orb
 		}
 	`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 	request.Var("orbId", id.Data.Orb.ID)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
@@ -862,10 +892,13 @@ func OrbSource(ctx context.Context, cfg *settings.Config, orbRef string) (string
 			    }
 		      }`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return "", err
+	}
 	request.Var("orbVersionRef", ref)
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	if err != nil {
 		return "", err
@@ -909,11 +942,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 	currentCursor := ""
 
 	for {
-		request := cfg.Client.NewAuthorizedRequest(query)
+		request, err := cfg.Client.NewAuthorizedRequest(query)
+		if err != nil {
+			return nil, err
+		}
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
-		err := cfg.Client.Run(ctx, request, &result)
+		err = cfg.Client.Run(ctx, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -983,12 +1019,15 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	currentCursor := ""
 
 	for {
-		request := cfg.Client.NewAuthorizedRequest(query)
+		request, err := cfg.Client.NewAuthorizedRequest(query)
+		if err != nil {
+			return nil, err
+		}
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 		orbs.Namespace = namespace
 
-		err := cfg.Client.Run(ctx, request, &result)
+		err = cfg.Client.Run(ctx, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -1051,9 +1090,12 @@ func IntrospectionQuery(ctx context.Context, cfg *settings.Config) (*Introspecti
 		    }
 		  }`
 
-	request := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewAuthorizedRequest(query)
+	if err != nil {
+		return nil, err
+	}
 
-	err := cfg.Client.Run(ctx, request, &response)
+	err = cfg.Client.Run(ctx, request, &response)
 
 	return &response, err
 }

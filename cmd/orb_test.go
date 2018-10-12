@@ -1313,5 +1313,26 @@ var _ = Describe("Orb integration tests", func() {
 				})
 			})
 		})
+
+		Describe("when listing orbs without a token", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--host", testServer.URL(),
+					"--token", "",
+				)
+			})
+
+			It("instructs the user to run 'circleci setup' and create a new token", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say(`Error: Failed to list orbs: please set a token with 'circleci setup'
+You can create a new personal API token here:
+https://circleci.com/account/api`))
+				Eventually(session).Should(gexec.Exit(255))
+			})
+		})
 	})
 })

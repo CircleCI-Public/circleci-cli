@@ -31,7 +31,13 @@ func NewClient(endpoint string, token string, logger *logger.Logger) *Client {
 
 // NewAuthorizedRequest returns a new GraphQL request with the
 // authorization headers set for CircleCI auth.
-func (cl *Client) NewAuthorizedRequest(query string) *Request {
+func (cl *Client) NewAuthorizedRequest(query string) (*Request, error) {
+	if cl.token == "" {
+		return nil, errors.New(`please set a token with 'circleci setup'
+You can create a new personal API token here:
+https://circleci.com/account/api`)
+	}
+
 	request := &Request{
 		Query:     query,
 		Variables: make(map[string]interface{}),
@@ -40,11 +46,11 @@ func (cl *Client) NewAuthorizedRequest(query string) *Request {
 
 	request.Header.Set("Authorization", cl.token)
 	request.Header.Set("User-Agent", version.UserAgent())
-	return request
+	return request, nil
 }
 
 // NewUnauthorizedRequest returns a new GraphQL request without any authorization header.
-func (cl *Client) NewUnauthorizedRequest(query string) *Request {
+func (cl *Client) NewUnauthorizedRequest(query string) (*Request, error) {
 	request := &Request{
 		Query:     query,
 		Variables: make(map[string]interface{}),
@@ -52,7 +58,7 @@ func (cl *Client) NewUnauthorizedRequest(query string) *Request {
 	}
 
 	request.Header.Set("User-Agent", version.UserAgent())
-	return request
+	return request, nil
 }
 
 // Request is a GraphQL request.
