@@ -22,12 +22,14 @@ This project is the seed for CircleCI's new command-line application.
 If you're installing the new `circleci` CLI for the first time, run the following command:
 
 ```
+export CIRCLECI_CLI_DEST=~/bin/circleci  # Optional defaults to /usr/local/bin/circleci
 bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
 ```
 
 This will install the CLI into the `/usr/local/bin` directory.
 
-If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
+If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`
+or define the `CIRCLECI_CLI_DEST` variable to point to a directory you can write into and is in your `PATH`.
 
 #### Homebrew
 
