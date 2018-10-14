@@ -1040,6 +1040,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--token", token,
 					"--host", testServer.URL(),
 				)
 			})
@@ -1081,6 +1082,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--token", token,
 					"--host", testServer.URL(),
 					"--json",
 				)
@@ -1131,6 +1133,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--token", token,
 					"--uncertified",
 					"--host", testServer.URL(),
 				)
@@ -1193,6 +1196,7 @@ var _ = Describe("Orb integration tests", func() {
 					command = exec.Command(pathCLI,
 						"orb", "list",
 						"--uncertified",
+						"--token", token,
 						"--host", testServer.URL(),
 						"--json",
 					)
@@ -1218,6 +1222,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
+					"--token", token,
 					"--host", testServer.URL(),
 				)
 				By("setting up a mock server")
@@ -1293,6 +1298,7 @@ var _ = Describe("Orb integration tests", func() {
 				BeforeEach(func() {
 					command = exec.Command(pathCLI,
 						"orb", "list", "circleci",
+						"--token", token,
 						"--host", testServer.URL(),
 						"--json",
 					)
@@ -1318,6 +1324,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--token", token,
 					"--host", testServer.URL(),
 					"--token", "",
 				)
