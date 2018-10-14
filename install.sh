@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -o errexit
-set -o nounset
 set -o pipefail
 
 RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
-DEST="/usr/local/bin/circleci"
+DEST="${CIRCLECI_CLI_DEST:-/usr/local/bin/circleci}"
+
+set -o nounset
 
 # Run the script in a temporary directory that we know is empty.
 SCRATCH=$(mktemp -d)
@@ -24,7 +25,7 @@ trap finish EXIT
 trap error ERR
 
 echo "Finding latest release."
-curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL" 
+curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL"
 python -m json.tool release.json > formatted_release.json
 
 STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
@@ -38,6 +39,6 @@ grep -i "$(uname)" tarball_urls.txt | xargs curl --retry 3 --fail --location --o
 tar zxvf circleci.tgz --strip 1
 
 echo "Installing to $DEST"
-mv circleci $DEST
-chmod +x $DEST
-command -v circleci
+mv circleci "$DEST"
+chmod +x "$DEST"
+command -v "$(basename "$DEST")"
