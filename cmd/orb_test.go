@@ -1040,7 +1040,6 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
-					"--token", token,
 					"--host", testServer.URL(),
 				)
 			})
@@ -1082,7 +1081,6 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
-					"--token", token,
 					"--host", testServer.URL(),
 					"--json",
 				)
@@ -1133,7 +1131,6 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
-					"--token", token,
 					"--uncertified",
 					"--host", testServer.URL(),
 				)
@@ -1196,7 +1193,6 @@ var _ = Describe("Orb integration tests", func() {
 					command = exec.Command(pathCLI,
 						"orb", "list",
 						"--uncertified",
-						"--token", token,
 						"--host", testServer.URL(),
 						"--json",
 					)
@@ -1222,7 +1218,6 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
-					"--token", token,
 					"--host", testServer.URL(),
 				)
 				By("setting up a mock server")
@@ -1298,7 +1293,6 @@ var _ = Describe("Orb integration tests", func() {
 				BeforeEach(func() {
 					command = exec.Command(pathCLI,
 						"orb", "list", "circleci",
-						"--token", token,
 						"--host", testServer.URL(),
 						"--json",
 					)
@@ -1320,11 +1314,10 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
-		Describe("when listing orbs without a token", func() {
+		Describe("when creating an orb without a token", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
-					"orb", "list",
-					"--token", token,
+					"orb", "create", "bar-ns/foo-orb",
 					"--host", testServer.URL(),
 					"--token", "",
 				)
@@ -1335,7 +1328,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say(`Error: Failed to list orbs: please set a token with 'circleci setup'
+				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
 You can create a new personal API token here:
 https://circleci.com/account/api`))
 				Eventually(session).Should(gexec.Exit(255))

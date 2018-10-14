@@ -942,7 +942,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 	currentCursor := ""
 
 	for {
-		request, err := cfg.Client.NewAuthorizedRequest(query)
+		request, err := cfg.Client.NewUnauthorizedRequest(query)
 		if err != nil {
 			return nil, err
 		}
@@ -1019,7 +1019,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	currentCursor := ""
 
 	for {
-		request, err := cfg.Client.NewAuthorizedRequest(query)
+		request, err := cfg.Client.NewUnauthorizedRequest(query)
 		if err != nil {
 			return nil, err
 		}
