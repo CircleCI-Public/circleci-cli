@@ -1,15 +1,22 @@
 package cmd
 
 import (
-	"fmt"
-	"os"
-
 	"github.com/CircleCI-Public/circleci-cli/proxy"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/bmatcuk/doublestar"
 	"github.com/spf13/cobra"
 )
 
-func newTestsCommand() *cobra.Command {
+type testsOptions struct {
+	*settings.Config
+	args []string
+}
+
+func newTestsCommand(config *settings.Config) *cobra.Command {
+	opts := testsOptions{
+		Config: config,
+	}
+
 	testsCmd := &cobra.Command{
 		Use:    "tests",
 		Short:  "Collect and split files with tests",
@@ -17,16 +24,34 @@ func newTestsCommand() *cobra.Command {
 	}
 
 	globCmd := &cobra.Command{
-		Use:    "glob",
-		Short:  "Glob files using pattern",
-		Run:    globRun,
+		Use:   "glob",
+		Short: "Glob files using pattern",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return globRun(opts)
+		},
 		Hidden: true,
 	}
 
 	splitCmd := &cobra.Command{
-		Use:    "split",
-		Short:  "Return a split batch of provided files",
-		RunE:   splitRunE,
+		Use:   "split",
+		Short: "Return a split batch of provided files",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return splitRunE(opts)
+		},
 		Hidden: true,
 	}
 	splitCmd.Flags().Uint("index", 0, "index of node.")
@@ -42,10 +67,10 @@ func newTestsCommand() *cobra.Command {
 	return testsCmd
 }
 
-func expandGlobs(args []string) ([]string, error) {
+func expandGlobs(opts testsOptions) ([]string, error) {
 	result := []string{}
 
-	for _, arg := range args {
+	for _, arg := range opts.args {
 		matches, err := doublestar.Glob(arg)
 		if err != nil {
 			return nil, err
@@ -57,19 +82,20 @@ func expandGlobs(args []string) ([]string, error) {
 	return result, nil
 }
 
-func globRun(cmd *cobra.Command, args []string) {
-	allfiles, err := expandGlobs(args)
+func globRun(opts testsOptions) error {
+	allfiles, err := expandGlobs(opts)
 
 	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
+		return err
 	}
 
 	for _, filename := range allfiles {
-		fmt.Println(filename)
+		opts.Logger.Infoln(filename)
 	}
+
+	return nil
 }
 
-func splitRunE(cmd *cobra.Command, args []string) error {
-	return proxy.Exec([]string{"tests", "split"}, args)
+func splitRunE(opts testsOptions) error {
+	return proxy.Exec([]string{"tests", "split"}, opts.args)
 }

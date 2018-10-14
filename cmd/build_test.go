@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -12,10 +13,25 @@ var _ = Describe("build", func() {
 
 	Describe("loading settings", func() {
 
-		var tempHome string
+		var (
+			tempHome string
+			opts     buildOptions
+		)
 
 		BeforeEach(func() {
 			var err error
+			opts = buildOptions{
+				Config: &settings.Config{
+					Debug:    false,
+					Token:    "",
+					Host:     defaultHost,
+					Endpoint: defaultEndpoint,
+				},
+			}
+
+			err = opts.Setup()
+			Expect(err).ToNot(HaveOccurred())
+
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 
 			Expect(err).ToNot(HaveOccurred())
@@ -28,10 +44,9 @@ var _ = Describe("build", func() {
 		})
 
 		It("can load settings", func() {
-
 			Expect(storeBuildAgentSha("deipnosophist")).To(Succeed())
-			Expect(loadCurrentBuildAgentSha()).To(Equal("deipnosophist"))
-			image, err := picardImage()
+			Expect(loadCurrentBuildAgentSha(opts)).To(Equal("deipnosophist"))
+			image, err := picardImage(opts)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(image).To(Equal("circleci/picard@deipnosophist"))
 		})

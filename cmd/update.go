@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -15,7 +16,16 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newUpdateCommand() *cobra.Command {
+type updateOptions struct {
+	*settings.Config
+	args []string
+}
+
+func newUpdateCommand(config *settings.Config) *cobra.Command {
+	opts := updateOptions{
+		Config: config,
+	}
+
 	update := &cobra.Command{
 		Use:   "update",
 		Short: "Update the tool",
@@ -24,19 +34,46 @@ func newUpdateCommand() *cobra.Command {
 	update.AddCommand(&cobra.Command{
 		Use:   "check",
 		Short: "Check if there are any updates available",
-		RunE:  checkForUpdates,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return checkForUpdates(opts)
+		},
 	})
 
 	update.AddCommand(&cobra.Command{
 		Use:   "install",
 		Short: "Update the tool to the latest version",
-		RunE:  installUpdate,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return installUpdate(opts)
+		},
 	})
 
 	update.AddCommand(&cobra.Command{
 		Use:   "build-agent",
 		Short: "Update the build agent to the latest version",
-		RunE:  updateBuildAgent,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return updateBuildAgent(opts)
+		},
 	})
 
 	return update
@@ -44,14 +81,14 @@ func newUpdateCommand() *cobra.Command {
 
 var picardRepo = "circleci/picard"
 
-func updateBuildAgent(cmd *cobra.Command, args []string) error {
+func updateBuildAgent(opts updateOptions) error {
 	latestSha256, err := findLatestPicardSha()
 
 	if err != nil {
 		return err
 	}
 
-	Config.Logger.Infof("Latest build agent is version %s", latestSha256)
+	opts.Logger.Infof("Latest build agent is version %s", latestSha256)
 
 	return nil
 }
@@ -87,17 +124,17 @@ func findLatestPicardSha() (string, error) {
 	return latest, nil
 }
 
-func checkForUpdates(cmd *cobra.Command, args []string) error {
-	return update(true)
+func checkForUpdates(opts updateOptions) error {
+	return update(opts, true)
 
 }
 
-func installUpdate(cmd *cobra.Command, args []string) error {
-	return update(false)
+func installUpdate(opts updateOptions) error {
+	return update(opts, false)
 
 }
 
-func update(dryRun bool) error {
+func update(opts updateOptions, dryRun bool) error {
 	updater := selfupdate.DefaultUpdater()
 
 	slug := "CircleCI-Public/circleci-cli"
@@ -118,19 +155,19 @@ func update(dryRun bool) error {
 
 	current := semver.MustParse(version.Version)
 
-	Config.Logger.Debug("Latest version: %s", latest.Version)
-	Config.Logger.Debug("Published: %s", latest.PublishedAt)
-	Config.Logger.Debug("Current Version: %s", current)
+	opts.Logger.Debug("Latest version: %s", latest.Version)
+	opts.Logger.Debug("Published: %s", latest.PublishedAt)
+	opts.Logger.Debug("Current Version: %s", current)
 
 	if latest.Version.Equals(current) {
-		Config.Logger.Info("Already up-to-date.")
+		opts.Logger.Info("Already up-to-date.")
 		return nil
 	}
 
 	if dryRun {
-		Config.Logger.Infof("A new release is available (%s)", latest.Version)
-		Config.Logger.Infof("You are running %s", current)
-		Config.Logger.Infof("You can update with `circleci update install`")
+		opts.Logger.Infof("A new release is available (%s)", latest.Version)
+		opts.Logger.Infof("You are running %s", current)
+		opts.Logger.Infof("You can update with `circleci update install`")
 		return nil
 	}
 
@@ -140,6 +177,6 @@ func update(dryRun bool) error {
 		return errors.Wrap(err, "failed to install update")
 	}
 
-	Config.Logger.Infof("Updated to %s", release.Version)
+	opts.Logger.Infof("Updated to %s", release.Version)
 	return nil
 }

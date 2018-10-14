@@ -7,26 +7,45 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func newUsageCommand() *cobra.Command {
+type usageOptions struct {
+	*settings.Config
+	args []string
+}
+
+func newUsageCommand(config *settings.Config) *cobra.Command {
+	opts := usageOptions{
+		Config: config,
+	}
+
 	return &cobra.Command{
 		Use:    "usage <path> (default is \"docs\")",
 		Short:  "Generate usage documentation in markdown for the CLI.",
 		Hidden: true,
-		RunE:   usage,
-		Args:   cobra.MaximumNArgs(1),
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return usage(opts)
+		},
+		Args: cobra.MaximumNArgs(1),
 	}
 }
 
 var defaultDocsPath = "docs"
 
-func usage(cmd *cobra.Command, args []string) error {
+func usage(opts usageOptions) error {
 	docsPath := defaultDocsPath
-	if len(args) > 0 {
-		docsPath = args[0]
+	if len(opts.args) > 0 {
+		docsPath = opts.args[0]
 	}
 
 	if err := os.MkdirAll(docsPath, 0700); err != nil {

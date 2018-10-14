@@ -2,10 +2,20 @@ package cmd
 
 import (
 	"github.com/CircleCI-Public/circleci-cli/proxy"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
 )
 
-func newStepCommand() *cobra.Command {
+type stepOptions struct {
+	*settings.Config
+	args []string
+}
+
+func newStepCommand(config *settings.Config) *cobra.Command {
+	opts := stepOptions{
+		Config: config,
+	}
+
 	stepCmd := &cobra.Command{
 		Use:                "step",
 		Short:              "Execute steps",
@@ -14,9 +24,18 @@ func newStepCommand() *cobra.Command {
 	}
 
 	haltCmd := &cobra.Command{
-		Use:                "halt",
-		Short:              "Halt the current job and treat it as successful",
-		RunE:               haltRunE,
+		Use:   "halt",
+		Short: "Halt the current job and treat it as successful",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+
+			if err := opts.Setup(); err != nil {
+				panic(err)
+			}
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return haltRunE(opts)
+		},
 		Hidden:             true,
 		DisableFlagParsing: true,
 	}
@@ -26,6 +45,6 @@ func newStepCommand() *cobra.Command {
 	return stepCmd
 }
 
-func haltRunE(cmd *cobra.Command, args []string) error {
-	return proxy.Exec([]string{"step", "halt"}, args)
+func haltRunE(opts stepOptions) error {
+	return proxy.Exec([]string{"step", "halt"}, opts.args)
 }

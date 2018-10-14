@@ -17,10 +17,6 @@ var defaultHost = "https://circleci.com"
 // it should be set once when Execute is first called
 var rootCmd *cobra.Command
 
-// Config is used internally and global to the package as a persistent set of CLI things
-// We use it to pass around the user's token, as well as http client, and logger to sub commands.
-var Config *settings.Config
-
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
@@ -64,14 +60,14 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
-	Config = &settings.Config{
+	config := &settings.Config{
 		Debug:    false,
 		Token:    "",
 		Host:     defaultHost,
 		Endpoint: defaultEndpoint,
 	}
 
-	if err := Config.Load(); err != nil {
+	if err := config.Load(); err != nil {
 		panic(err)
 	}
 
@@ -88,25 +84,25 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newTestsCommand())
-	rootCmd.AddCommand(newQueryCommand())
-	rootCmd.AddCommand(newConfigCommand())
-	rootCmd.AddCommand(newOrbCommand())
-	rootCmd.AddCommand(newLocalCommand())
-	rootCmd.AddCommand(newBuildCommand())
-	rootCmd.AddCommand(newVersionCommand())
-	rootCmd.AddCommand(newDiagnosticCommand())
-	rootCmd.AddCommand(newSetupCommand())
-	rootCmd.AddCommand(newUpdateCommand())
-	rootCmd.AddCommand(newNamespaceCommand())
-	rootCmd.AddCommand(newUsageCommand())
-	rootCmd.AddCommand(newStepCommand())
-	rootCmd.AddCommand(newSwitchCommand())
+	rootCmd.AddCommand(newTestsCommand(config))
+	rootCmd.AddCommand(newQueryCommand(config))
+	rootCmd.AddCommand(newConfigCommand(config))
+	rootCmd.AddCommand(newOrbCommand(config))
+	rootCmd.AddCommand(newLocalCommand(config))
+	rootCmd.AddCommand(newBuildCommand(config))
+	rootCmd.AddCommand(newVersionCommand(config))
+	rootCmd.AddCommand(newDiagnosticCommand(config))
+	rootCmd.AddCommand(newSetupCommand(config))
+	rootCmd.AddCommand(newUpdateCommand(config))
+	rootCmd.AddCommand(newNamespaceCommand(config))
+	rootCmd.AddCommand(newUsageCommand(config))
+	rootCmd.AddCommand(newStepCommand(config))
+	rootCmd.AddCommand(newSwitchCommand(config))
 
-	rootCmd.PersistentFlags().BoolVar(&Config.Debug, "debug", Config.Debug, "Enable debug logging.")
-	rootCmd.PersistentFlags().StringVar(&Config.Token, "token", Config.Token, "your token for using CircleCI")
-	rootCmd.PersistentFlags().StringVar(&Config.Host, "host", Config.Host, "URL to your CircleCI host")
-	rootCmd.PersistentFlags().StringVar(&Config.Endpoint, "endpoint", Config.Endpoint, "URI to your CircleCI GraphQL API endpoint")
+	rootCmd.PersistentFlags().BoolVar(&config.Debug, "debug", config.Debug, "Enable debug logging.")
+	rootCmd.PersistentFlags().StringVar(&config.Token, "token", config.Token, "your token for using CircleCI")
+	rootCmd.PersistentFlags().StringVar(&config.Host, "host", config.Host, "URL to your CircleCI host")
+	rootCmd.PersistentFlags().StringVar(&config.Endpoint, "endpoint", config.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
 		panic(err)
 	}
@@ -129,16 +125,6 @@ func MakeCommands() *cobra.Command {
 	setFlagErrorFuncAndValidateArgs(rootCmd)
 
 	return rootCmd
-}
-
-func init() {
-	cobra.OnInitialize(prepare)
-}
-
-func prepare() {
-	if err := Config.Setup(); err != nil {
-		panic(err)
-	}
 }
 
 func setFlagErrorFunc(cmd *cobra.Command, err error) error {
