@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -o errexit
 set -o nounset
-set -o pipefail
 
 RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
 DEST="/usr/local/bin/circleci"
@@ -10,21 +9,15 @@ DEST="/usr/local/bin/circleci"
 SCRATCH=$(mktemp -d)
 cd "$SCRATCH"
 
-function finish {
-  # Delete the working directory when the install was successful.
-  rm -r "$SCRATCH"
-}
-
 function error {
   echo "An error occured installing the tool."
   echo "The contents of the directory $SCRATCH have been left in place to help to debug the issue."
 }
 
-trap finish EXIT
 trap error ERR
 
 echo "Finding latest release."
-curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL" 
+curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL"
 python -m json.tool release.json > formatted_release.json
 
 STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
@@ -38,6 +31,9 @@ grep -i "$(uname)" tarball_urls.txt | xargs curl --retry 3 --fail --location --o
 tar zxvf circleci.tgz --strip 1
 
 echo "Installing to $DEST"
-mv circleci $DEST
-chmod +x $DEST
+mv circleci "$DEST"
+chmod +x "$DEST"
 command -v circleci
+
+# Delete the working directory when the install was successful.
+rm -r "$SCRATCH"
