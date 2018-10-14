@@ -24,8 +24,8 @@ type Config struct {
 	Host     string
 	Endpoint string
 	Token    string
-	Debug    bool
-	Address  string
+	Debug    bool   `yaml:"-"`
+	Address  string `yaml:"-"`
 	FileUsed string `yaml:"-"`
 }
 
