@@ -874,7 +874,6 @@ func orbVersionRef(orb string) string {
 
 // OrbSource gets the source or an orb
 func OrbSource(ctx context.Context, cfg *settings.Config, orbRef string) (string, error) {
-
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return "", err
 	}
@@ -892,7 +891,8 @@ func OrbSource(ctx context.Context, cfg *settings.Config, orbRef string) (string
 			    }
 		      }`
 
-	request, err := cfg.Client.NewAuthorizedRequest(query)
+	request, err := cfg.Client.NewUnauthorizedRequest(query)
+
 	if err != nil {
 		return "", err
 	}

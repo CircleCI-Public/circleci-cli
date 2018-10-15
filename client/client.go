@@ -76,10 +76,17 @@ func (request *Request) Var(key string, value interface{}) {
 	request.Variables[key] = value
 }
 
+// Encode will return a buffer of the JSON encoded request body
+func (request *Request) Encode() (bytes.Buffer, error) {
+	var body bytes.Buffer
+	err := json.NewEncoder(&body).Encode(request)
+	return body, err
+}
+
 func (cl *Client) prepareRequest(ctx context.Context, request *Request) (*http.Request, error) {
-	var requestBody bytes.Buffer
-	if err := json.NewEncoder(&requestBody).Encode(request); err != nil {
-		return nil, errors.Wrap(err, "encode body")
+	requestBody, err := request.Encode()
+	if err != nil {
+		return nil, err
 	}
 	cl.logger.Debug(">> variables: %v", request.Variables)
 	cl.logger.Debug(">> query: %s", request.Query)
@@ -113,6 +120,7 @@ func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) e
 	}
 
 	res, err := cl.httpClient.Do(req)
+
 	if err != nil {
 		return err
 	}
@@ -126,6 +134,7 @@ func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) e
 	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
+
 	cl.logger.Debug("<< %+v", resp)
 
 	return nil
