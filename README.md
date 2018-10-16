@@ -25,9 +25,12 @@ If you're installing the new `circleci` CLI for the first time, run the followin
 bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
 ```
 
-This will install the CLI into the `/usr/local/bin` directory.
+By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`. Alternatively, you can install to an alternate location by defining the `DEST` environment variable when invoking `bash`:
 
-If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
+```
+DEST=/opt/bin bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+```
+
 
 #### Homebrew
 

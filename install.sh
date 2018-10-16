@@ -3,7 +3,7 @@ set -o errexit
 set -o nounset
 
 RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
-DEST="/usr/local/bin/circleci"
+DEST="${DEST:-/usr/local/bin}"
 
 # Run the script in a temporary directory that we know is empty.
 SCRATCH=$(mktemp -d)
@@ -32,7 +32,8 @@ tar zxvf circleci.tgz --strip 1
 
 echo "Installing to $DEST"
 mv circleci "$DEST"
-chmod +x "$DEST"
+chmod +x "$DEST/circleci"
+
 command -v circleci
 
 # Delete the working directory when the install was successful.
