@@ -1,9 +1,7 @@
 package settings
 
 import (
-	"fmt"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -12,7 +10,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/logger"
-	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -29,46 +26,6 @@ type Config struct {
 	FileUsed string `yaml:"-"`
 }
 
-// NewLogger will initialize a new logger instance for a CLI config to be shared.
-// We're assuming debug has already been parsed before calling this function or will be initialized with the default "false" boolean value.
-func (cfg *Config) NewLogger() *logger.Logger {
-	return logger.NewLogger(cfg.Debug)
-}
-
-// NewClient initializes a new HTTP client to be shared inside the CLI
-// The address, token, and logger must have already been set prior to calling this function.
-func (cfg *Config) NewClient() *client.Client {
-	return client.NewClient(cfg.Address, cfg.Token, cfg.Logger)
-}
-
-// GraphQLServerAddress returns the full address to CircleCI GraphQL API server
-func GraphQLServerAddress(endpoint, host string) (string, error) {
-	// 1. Parse the endpoint
-	e, err := url.Parse(endpoint)
-	if err != nil {
-		return "", errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
-	}
-
-	// 2. Parse the host
-	h, err := url.Parse(host)
-	if err != nil {
-		return "", errors.Wrapf(err, "Parsing host '%s'", host)
-	}
-	if !h.IsAbs() {
-		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
-	}
-
-	// 3. Resolve the two URLs using host as the base
-	// We use ResolveReference which has specific behavior we can rely for
-	// older configurations which included the absolute path for the endpoint flag.
-	//
-	// https://golang.org/pkg/net/url/#URL.ResolveReference
-	//
-	// Specifically this function always returns the reference (endpoint) if provided an absolute URL.
-	// This way we can safely introduce --host and merge the two.
-	return h.ResolveReference(e).String(), err
-}
-
 // Load will read the config from the user's disk and then evaluate possible configuration from the environment.
 func (cfg *Config) Load() error {
 	if err := cfg.LoadFromDisk(); err != nil {
@@ -76,19 +33,6 @@ func (cfg *Config) Load() error {
 	}
 
 	cfg.LoadFromEnv("circleci_cli")
-
-	return nil
-}
-
-// Setup will initialize a logger and http client for the CLI
-func (cfg *Config) Setup() error {
-	cfg.Logger = cfg.NewLogger()
-	address, err := GraphQLServerAddress(cfg.Endpoint, cfg.Host)
-	if err != nil {
-		return err
-	}
-	cfg.Address = address
-	cfg.Client = cfg.NewClient()
 
 	return nil
 }

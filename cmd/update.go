@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"regexp"
 
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/google/go-github/github"
@@ -17,13 +18,14 @@ import (
 )
 
 type updateOptions struct {
-	*settings.Config
+	cfg  *settings.Config
+	log  *logger.Logger
 	args []string
 }
 
 func newUpdateCommand(config *settings.Config) *cobra.Command {
 	opts := updateOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	update := &cobra.Command{
@@ -36,10 +38,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Short: "Check if there are any updates available",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return checkForUpdates(opts)
@@ -51,10 +50,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Short: "Update the tool to the latest version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return installUpdate(opts)
@@ -66,10 +61,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Short: "Update the build agent to the latest version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return updateBuildAgent(opts)
@@ -88,7 +79,7 @@ func updateBuildAgent(opts updateOptions) error {
 		return err
 	}
 
-	opts.Logger.Infof("Latest build agent is version %s", latestSha256)
+	opts.log.Infof("Latest build agent is version %s", latestSha256)
 
 	return nil
 }
@@ -155,19 +146,19 @@ func update(opts updateOptions, dryRun bool) error {
 
 	current := semver.MustParse(version.Version)
 
-	opts.Logger.Debug("Latest version: %s", latest.Version)
-	opts.Logger.Debug("Published: %s", latest.PublishedAt)
-	opts.Logger.Debug("Current Version: %s", current)
+	opts.log.Debug("Latest version: %s", latest.Version)
+	opts.log.Debug("Published: %s", latest.PublishedAt)
+	opts.log.Debug("Current Version: %s", current)
 
 	if latest.Version.Equals(current) {
-		opts.Logger.Info("Already up-to-date.")
+		opts.log.Info("Already up-to-date.")
 		return nil
 	}
 
 	if dryRun {
-		opts.Logger.Infof("A new release is available (%s)", latest.Version)
-		opts.Logger.Infof("You are running %s", current)
-		opts.Logger.Infof("You can update with `circleci update install`")
+		opts.log.Infof("A new release is available (%s)", latest.Version)
+		opts.log.Infof("You are running %s", current)
+		opts.log.Infof("You can update with `circleci update install`")
 		return nil
 	}
 
@@ -177,6 +168,6 @@ func update(opts updateOptions, dryRun bool) error {
 		return errors.Wrap(err, "failed to install update")
 	}
 
-	opts.Logger.Infof("Updated to %s", release.Version)
+	opts.log.Infof("Updated to %s", release.Version)
 	return nil
 }

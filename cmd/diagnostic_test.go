@@ -17,9 +17,10 @@ import (
 
 var _ = Describe("Diagnostic", func() {
 	var (
-		tempHome   string
-		command    *exec.Cmd
-		testServer *ghttp.Server
+		tempHome    string
+		command     *exec.Cmd
+		testServer  *ghttp.Server
+		defaultHost = "https://circleci.com"
 	)
 
 	BeforeEach(func() {
@@ -94,7 +95,9 @@ var _ = Describe("Diagnostic", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", defaultHost)))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("API endpoint: %s", testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
@@ -115,7 +118,9 @@ token: mytoken
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", defaultHost)))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("API endpoint: %s", testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
@@ -133,7 +138,9 @@ token: mytoken
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error: please set a token with 'circleci setup'"))
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", defaultHost)))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("API endpoint: %s", testServer.URL())))
 				Eventually(session).Should(gexec.Exit(255))
 			})
 		})
@@ -175,7 +182,9 @@ token: mytoken
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("GraphQL API address: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", defaultHost)))
+				Eventually(session.Out).Should(gbytes.Say(
+					fmt.Sprintf("API endpoint: %s", testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
 				Eventually(session.Out).Should(gbytes.Say("Hello, zzak."))
 				Eventually(session).Should(gexec.Exit(0))

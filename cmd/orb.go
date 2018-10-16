@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -14,7 +16,9 @@ import (
 )
 
 type orbOptions struct {
-	*settings.Config
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
 	args []string
 }
 
@@ -29,7 +33,7 @@ var orbListJSON bool
 
 func newOrbCommand(config *settings.Config) *cobra.Command {
 	opts := orbOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	listCommand := &cobra.Command{
@@ -38,10 +42,8 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Args:  cobra.MaximumNArgs(1),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return listOrbs(opts)
@@ -60,10 +62,8 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate an orb.yml",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateOrb(opts)
@@ -78,10 +78,8 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate an orb and print its form after all pre-registration processing",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processOrb(opts)
@@ -98,10 +96,8 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 Please note that at this time all orbs published to the registry are world-readable.`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return publishOrb(opts)
@@ -121,10 +117,8 @@ Please note that at this time all orbs promoted within the registry are world-re
 Example: 'circleci orb publish promote foo/bar@dev:master major' => foo/bar@1.0.0`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return promoteOrb(opts)
@@ -144,10 +138,8 @@ Please note that at this time all orbs incremented within the registry are world
 Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1.1.0`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return incrementOrb(opts)
@@ -167,10 +159,8 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 		Short: "Show the source of an orb",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return showSource(opts)
@@ -189,10 +179,8 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 Please note that at this time all orbs created in the registry are world-readable.`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return createOrb(opts)
@@ -221,7 +209,7 @@ func listOrbs(opts orbOptions) error {
 	}
 
 	ctx := context.Background()
-	orbs, err := api.ListOrbs(ctx, opts.Config, orbListUncertified)
+	orbs, err := api.ListOrbs(ctx, opts.log, opts.cl, orbListUncertified)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
@@ -230,10 +218,10 @@ func listOrbs(opts orbOptions) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
-		opts.Logger.Info(string(orbJSON))
+		opts.log.Info(string(orbJSON))
 
 	} else {
-		opts.Logger.Info(orbs.String())
+		opts.log.Info(orbs.String())
 	}
 	return nil
 }
@@ -242,7 +230,7 @@ func listNamespaceOrbs(opts orbOptions) error {
 	namespace := opts.args[0]
 
 	ctx := context.Background()
-	orbs, err := api.ListNamespaceOrbs(ctx, opts.Config, namespace)
+	orbs, err := api.ListNamespaceOrbs(ctx, opts.log, opts.cl, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
@@ -251,9 +239,9 @@ func listNamespaceOrbs(opts orbOptions) error {
 		if err != nil {
 			return errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
-		opts.Logger.Info(string(orbJSON))
+		opts.log.Info(string(orbJSON))
 	} else {
-		opts.Logger.Info(orbs.String())
+		opts.log.Info(orbs.String())
 	}
 	return nil
 }
@@ -261,25 +249,25 @@ func listNamespaceOrbs(opts orbOptions) error {
 func validateOrb(opts orbOptions) error {
 	ctx := context.Background()
 
-	_, err := api.OrbQuery(ctx, opts.Config, opts.args[0])
+	_, err := api.OrbQuery(ctx, opts.log, opts.cl, opts.args[0])
 
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Infof("Orb at `%s` is valid.", opts.args[0])
+	opts.log.Infof("Orb at `%s` is valid.", opts.args[0])
 	return nil
 }
 
 func processOrb(opts orbOptions) error {
 	ctx := context.Background()
-	response, err := api.OrbQuery(ctx, opts.Config, opts.args[0])
+	response, err := api.OrbQuery(ctx, opts.log, opts.cl, opts.args[0])
 
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Info(response.OutputYaml)
+	opts.log.Info(response.OutputYaml)
 	return nil
 }
 
@@ -294,18 +282,18 @@ func publishOrb(opts orbOptions) error {
 		return err
 	}
 
-	id, err := api.OrbID(ctx, opts.Config, namespace, orb)
+	id, err := api.OrbID(ctx, opts.log, opts.cl, namespace, orb)
 	if err != nil {
 		return err
 	}
 
-	_, err = api.OrbPublishByID(ctx, opts.Config, path, id.Data.Orb.ID, version)
+	_, err = api.OrbPublishByID(ctx, opts.log, opts.cl, path, id.Data.Orb.ID, version)
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Infof("Orb `%s` was published.", ref)
-	opts.Logger.Info("Please note that this is an open orb and is world-readable.")
+	opts.log.Infof("Orb `%s` was published.", ref)
+	opts.log.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -334,14 +322,14 @@ func incrementOrb(opts orbOptions) error {
 		return err
 	}
 
-	response, err := api.OrbIncrementVersion(context.Background(), opts.Config, opts.args[0], namespace, orb, segment)
+	response, err := api.OrbIncrementVersion(context.Background(), opts.log, opts.cl, opts.args[0], namespace, orb, segment)
 
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Infof("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
-	opts.Logger.Info("Please note that this is an open orb and is world-readable.")
+	opts.log.Infof("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+	opts.log.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -362,13 +350,13 @@ func promoteOrb(opts orbOptions) error {
 		return err
 	}
 
-	response, err := api.OrbPromote(context.Background(), opts.Config, namespace, orb, version, segment)
+	response, err := api.OrbPromote(context.Background(), opts.log, opts.cl, namespace, orb, version, segment)
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Infof("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
-	opts.Logger.Info("Please note that this is an open orb and is world-readable.")
+	opts.log.Infof("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+	opts.log.Info("Please note that this is an open orb and is world-readable.")
 	return nil
 }
 
@@ -382,25 +370,25 @@ func createOrb(opts orbOptions) error {
 		return err
 	}
 
-	_, err = api.CreateOrb(ctx, opts.Config, namespace, orb)
+	_, err = api.CreateOrb(ctx, opts.log, opts.cl, namespace, orb)
 
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Infof("Orb `%s` created.\n", opts.args[0])
-	opts.Logger.Info("Please note that any versions you publish of this orb are world-readable.\n")
-	opts.Logger.Infof("You can now register versions of `%s` using `circleci orb publish`.\n", opts.args[0])
+	opts.log.Infof("Orb `%s` created.\n", opts.args[0])
+	opts.log.Info("Please note that any versions you publish of this orb are world-readable.\n")
+	opts.log.Infof("You can now register versions of `%s` using `circleci orb publish`.\n", opts.args[0])
 	return nil
 }
 
 func showSource(opts orbOptions) error {
 	ref := opts.args[0]
 
-	source, err := api.OrbSource(context.Background(), opts.Config, ref)
+	source, err := api.OrbSource(context.Background(), opts.log, opts.cl, ref)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get source for '%s'", ref)
 	}
-	opts.Logger.Info(source)
+	opts.log.Info(source)
 	return nil
 }

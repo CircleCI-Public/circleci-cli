@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/bmatcuk/doublestar"
@@ -8,13 +9,14 @@ import (
 )
 
 type testsOptions struct {
-	*settings.Config
+	cfg  *settings.Config
+	log  *logger.Logger
 	args []string
 }
 
 func newTestsCommand(config *settings.Config) *cobra.Command {
 	opts := testsOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	testsCmd := &cobra.Command{
@@ -28,10 +30,7 @@ func newTestsCommand(config *settings.Config) *cobra.Command {
 		Short: "Glob files using pattern",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return globRun(opts)
@@ -45,9 +44,6 @@ func newTestsCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return splitRunE(opts)
@@ -90,7 +86,7 @@ func globRun(opts testsOptions) error {
 	}
 
 	for _, filename := range allfiles {
-		opts.Logger.Infoln(filename)
+		opts.log.Infoln(filename)
 	}
 
 	return nil

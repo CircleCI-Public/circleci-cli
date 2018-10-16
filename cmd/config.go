@@ -4,7 +4,9 @@ import (
 	"context"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -15,7 +17,9 @@ import (
 const defaultConfigPath = ".circleci/config.yml"
 
 type configOptions struct {
-	*settings.Config
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
 	args []string
 }
 
@@ -29,7 +33,7 @@ var configAnnotations = map[string]string{
 
 func newConfigCommand(config *settings.Config) *cobra.Command {
 	opts := configOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	configCmd := &cobra.Command{
@@ -42,10 +46,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Pack up your CircleCI configuration into a single file.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packConfig(opts)
@@ -61,10 +63,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateConfig(opts)
@@ -83,10 +83,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Process the config.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processConfig(opts)
@@ -101,10 +99,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Migrate a pre-release 2.0 config to the official release version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
@@ -138,25 +134,25 @@ func validateConfig(opts configOptions) error {
 	}
 
 	ctx := context.Background()
-	_, err := api.ConfigQuery(ctx, opts.Config, path)
+	_, err := api.ConfigQuery(ctx, opts.log, opts.cl, path)
 
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Infof("Config file at %s is valid", path)
+	opts.log.Infof("Config file at %s is valid", path)
 	return nil
 }
 
 func processConfig(opts configOptions) error {
 	ctx := context.Background()
-	response, err := api.ConfigQuery(ctx, opts.Config, opts.args[0])
+	response, err := api.ConfigQuery(ctx, opts.log, opts.cl, opts.args[0])
 
 	if err != nil {
 		return err
 	}
 
-	opts.Logger.Info(response.OutputYaml)
+	opts.log.Info(response.OutputYaml)
 	return nil
 }
 
@@ -170,7 +166,7 @@ func packConfig(opts configOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
-	opts.Logger.Infof("%s\n", string(y))
+	opts.log.Infof("%s\n", string(y))
 	return nil
 }
 

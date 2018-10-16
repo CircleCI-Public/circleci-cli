@@ -5,19 +5,23 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 type queryOptions struct {
-	*settings.Config
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
 	args []string
 }
 
 func newQueryCommand(config *settings.Config) *cobra.Command {
 	opts := queryOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	queryCommand := &cobra.Command{
@@ -25,10 +29,8 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 		Short: "Query the CircleCI GraphQL API.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return query(opts)
@@ -57,16 +59,16 @@ func query(opts queryOptions) error {
 		return errors.Wrap(err, "Unable to read query from stdin")
 	}
 
-	req, err := opts.Client.NewAuthorizedRequest(string(q))
+	req, err := client.NewAuthorizedRequest(string(q), opts.cfg.Token)
 	if err != nil {
 		return err
 	}
-	err = opts.Client.Run(context.Background(), req, &resp)
+	err = opts.cl.Run(context.Background(), opts.log, req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")
 	}
 
-	opts.Logger.Prettyify(resp)
+	opts.log.Prettyify(resp)
 
 	return nil
 }

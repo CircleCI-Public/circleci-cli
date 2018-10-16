@@ -4,19 +4,23 @@ import (
 	"context"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 type diagnosticOptions struct {
-	*settings.Config
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
 	args []string
 }
 
 func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 	opts := diagnosticOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	diagnosticCommand := &cobra.Command{
@@ -24,10 +28,8 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 		Short: "Check the status of your CircleCI CLI.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return diagnostic(opts)
@@ -38,37 +40,38 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 }
 
 func diagnostic(opts diagnosticOptions) error {
-	opts.Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
-	opts.Logger.Infof("Debugger mode: %v\n", opts.Debug)
-	opts.Logger.Infof("Config found: %v\n", opts.FileUsed)
-	opts.Logger.Infof("GraphQL API address: %s\n", opts.Address)
+	opts.log.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
+	opts.log.Infof("Debugger mode: %v\n", opts.cfg.Debug)
+	opts.log.Infof("Config found: %v\n", opts.cfg.FileUsed)
+	opts.log.Infof("API host: %s\n", opts.cfg.Host)
+	opts.log.Infof("API endpoint: %s\n", opts.cfg.Endpoint)
 
-	if opts.Token == "token" || opts.Token == "" {
+	if opts.cfg.Token == "token" || opts.cfg.Token == "" {
 		return errors.New("please set a token with 'circleci setup'")
 	}
-	opts.Logger.Infoln("OK, got a token.")
+	opts.log.Infoln("OK, got a token.")
 
-	opts.Logger.Infoln("Trying an introspection query on API... ")
-	responseIntro, err := api.IntrospectionQuery(context.Background(), opts.Config)
+	opts.log.Infoln("Trying an introspection query on API... ")
+	responseIntro, err := api.IntrospectionQuery(context.Background(), opts.log, opts.cl)
 	if responseIntro.Data.Schema.QueryType.Name == "" {
-		opts.Logger.Infoln("Unable to make a query against the GraphQL API, please check your settings")
+		opts.log.Infoln("Unable to make a query against the GraphQL API, please check your settings")
 		if err != nil {
 			return err
 		}
 	}
 
-	opts.Logger.Infoln("Ok.")
+	opts.log.Infoln("Ok.")
 
-	opts.Logger.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Data.Schema.QueryType.Name)
+	opts.log.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Data.Schema.QueryType.Name)
 
-	responseWho, err := api.WhoamiQuery(context.Background(), opts.Config)
+	responseWho, err := api.WhoamiQuery(context.Background(), opts.log, opts.cl)
 
 	if err != nil {
 		return err
 	}
 
 	if responseWho.Data.Me.Name != "" {
-		opts.Logger.Infof("Hello, %s.\n", responseWho.Data.Me.Name)
+		opts.log.Infof("Hello, %s.\n", responseWho.Data.Me.Name)
 	}
 
 	return nil

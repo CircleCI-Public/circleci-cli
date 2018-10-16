@@ -13,7 +13,6 @@ import (
 	"gotest.tools/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -25,8 +24,6 @@ var _ = Describe("Orb integration tests", func() {
 	Describe("CLI behavior with a stubbed api and an orb.yml provided", func() {
 		var (
 			testServer *ghttp.Server
-			gqlClient  *client.Client
-			cliLogger  *logger.Logger
 			orb        tmpFile
 			token      string = "testtoken"
 			command    *exec.Cmd
@@ -1341,8 +1338,6 @@ https://circleci.com/account/api`))
 
 		Describe("when fetching an orb's source", func() {
 			BeforeEach(func() {
-				cliLogger = logger.NewLogger(true)
-				gqlClient = client.NewClient(testServer.URL(), "", cliLogger)
 				command = exec.Command(pathCLI,
 					"orb", "source",
 					"--host", testServer.URL(),
@@ -1355,7 +1350,7 @@ https://circleci.com/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request, err := gqlClient.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1363,7 +1358,6 @@ https://circleci.com/account/api`))
                                 source
 			    }
 		      }`)
-				Expect(err).ShouldNot(HaveOccurred())
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1415,7 +1409,7 @@ https://circleci.com/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request, err := gqlClient.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1423,7 +1417,6 @@ https://circleci.com/account/api`))
                                 source
 			    }
 		      }`)
-				Expect(err).ShouldNot(HaveOccurred())
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())

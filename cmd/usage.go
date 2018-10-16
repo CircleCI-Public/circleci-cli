@@ -13,13 +13,13 @@ import (
 )
 
 type usageOptions struct {
-	*settings.Config
+	cfg  *settings.Config
 	args []string
 }
 
 func newUsageCommand(config *settings.Config) *cobra.Command {
 	opts := usageOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	return &cobra.Command{
@@ -28,10 +28,6 @@ func newUsageCommand(config *settings.Config) *cobra.Command {
 		Hidden: true,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return usage(opts)

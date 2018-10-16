@@ -7,13 +7,13 @@ import (
 )
 
 type stepOptions struct {
-	*settings.Config
+	cfg  *settings.Config
 	args []string
 }
 
 func newStepCommand(config *settings.Config) *cobra.Command {
 	opts := stepOptions{
-		Config: config,
+		cfg: config,
 	}
 
 	stepCmd := &cobra.Command{
@@ -28,10 +28,6 @@ func newStepCommand(config *settings.Config) *cobra.Command {
 		Short: "Halt the current job and treat it as successful",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-
-			if err := opts.Setup(); err != nil {
-				panic(err)
-			}
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return haltRunE(opts)
