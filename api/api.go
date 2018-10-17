@@ -44,24 +44,22 @@ type GQLResponseError struct {
 
 // IntrospectionResponse matches the result from making an introspection query
 type IntrospectionResponse struct {
-	Data struct {
-		Schema struct {
-			MutationType struct {
+	Schema struct {
+		MutationType struct {
+			Name string
+		}
+		QueryType struct {
+			Name string
+		}
+		Types []struct {
+			Description string
+			Fields      []struct {
 				Name string
 			}
-			QueryType struct {
-				Name string
-			}
-			Types []struct {
-				Description string
-				Fields      []struct {
-					Name string
-				}
-				Kind string
-				Name string
-			}
-		} `json:"__schema"`
-	}
+			Kind string
+			Name string
+		}
+	} `json:"__schema"`
 }
 
 // ConfigResponse is a structure that matches the result of the GQL
@@ -77,156 +75,100 @@ type ConfigResponse struct {
 
 // BuildConfigResponse wraps the GQL result of the ConfigQuery
 type BuildConfigResponse struct {
-	Data struct {
-		BuildConfig struct {
-			ConfigResponse
-		}
+	BuildConfig struct {
+		ConfigResponse
 	}
 }
 
 // The OrbPublishResponse type matches the data shape of the GQL response for
 // publishing an orb.
 type OrbPublishResponse struct {
-	Data struct {
-		PublishOrb struct {
-			Orb Orb
+	PublishOrb struct {
+		Orb Orb
 
-			Errors GQLErrorsCollection
-		}
+		Errors GQLErrorsCollection
 	}
 }
 
 // The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
 type OrbPromoteResponse struct {
-	Data struct {
-		PromoteOrb struct {
-			Orb Orb
+	PromoteOrb struct {
+		Orb Orb
 
-			Errors GQLErrorsCollection
-		}
+		Errors GQLErrorsCollection
 	}
 }
 
 // OrbLatestVersionResponse wraps the GQL result of fetching an Orb and latest version
 type OrbLatestVersionResponse struct {
-	Data struct {
-		Orb struct {
-			Versions []struct {
-				Version string
-			}
+	Orb struct {
+		Versions []struct {
+			Version string
 		}
 	}
 }
 
 // OrbIDResponse matches the GQL response for fetching an Orb and ID
 type OrbIDResponse struct {
-	Data struct {
-		Orb struct {
-			ID string
-		}
-		RegistryNamespace struct {
-			ID string
-		}
+	Orb struct {
+		ID string
+	}
+	RegistryNamespace struct {
+		ID string
 	}
 }
 
 // CreateNamespaceResponse type matches the data shape of the GQL response for
 // creating a namespace
 type CreateNamespaceResponse struct {
-	Data struct {
-		CreateNamespace struct {
-			Namespace struct {
-				CreatedAt string
-				ID        string
-			}
-
-			Errors GQLErrorsCollection
+	CreateNamespace struct {
+		Namespace struct {
+			CreatedAt string
+			ID        string
 		}
-	}
 
-	Errors GQLErrorsCollection
+		Errors GQLErrorsCollection
+	}
 }
 
 // GetOrganizationResponse type wraps the GQL response for fetching an organization and ID.
 type GetOrganizationResponse struct {
-	Data struct {
-		Organization struct {
-			ID string
-		}
+	Organization struct {
+		ID string
 	}
-
-	Errors GQLErrorsCollection
 }
 
 // WhoamiResponse type matches the data shape of the GQL response for the current user
 type WhoamiResponse struct {
-	Data struct {
-		Me struct {
-			Name string
-		}
+	Me struct {
+		Name string
 	}
-
-	Errors GQLErrorsCollection
 }
 
 // GetNamespaceResponse type wraps the GQL response for fetching a namespace
 type GetNamespaceResponse struct {
-	Data struct {
-		RegistryNamespace struct {
-			ID string
-		}
+	RegistryNamespace struct {
+		ID string
 	}
-
-	Errors GQLErrorsCollection
 }
 
 // CreateOrbResponse type matches the data shape of the GQL response for
 // creating an orb
 type CreateOrbResponse struct {
-	Data struct {
-		CreateOrb struct {
-			Orb    Orb
-			Errors GQLErrorsCollection
-		}
+	CreateOrb struct {
+		Orb    Orb
+		Errors GQLErrorsCollection
 	}
-
-	Errors GQLErrorsCollection
 }
 
 // NamespaceOrbResponse type matches the result from GQL.
 // So that we can use mapstructure to convert from nested maps to a strongly typed struct.
 type NamespaceOrbResponse struct {
-	Data struct {
-		RegistryNamespace struct {
-			Name string
-			Orbs struct {
-				Edges []struct {
-					Cursor string
-					Node   struct {
-						Name     string
-						Versions []struct {
-							Version string
-							Source  string
-						}
-					}
-				}
-				TotalCount int
-				PageInfo   struct {
-					HasNextPage bool
-				}
-			}
-		}
-	}
-}
-
-// OrbListResponse type matches the result from GQL.
-// So that we can use mapstructure to convert from nested maps to a strongly typed struct.
-type OrbListResponse struct {
-	Data struct {
+	RegistryNamespace struct {
+		Name string
 		Orbs struct {
-			TotalCount int
-			Edges      []struct {
+			Edges []struct {
 				Cursor string
 				Node   struct {
 					Name     string
@@ -236,33 +178,51 @@ type OrbListResponse struct {
 					}
 				}
 			}
-			PageInfo struct {
+			TotalCount int
+			PageInfo   struct {
 				HasNextPage bool
 			}
 		}
 	}
 }
 
+// OrbListResponse type matches the result from GQL.
+// So that we can use mapstructure to convert from nested maps to a strongly typed struct.
+type OrbListResponse struct {
+	Orbs struct {
+		TotalCount int
+		Edges      []struct {
+			Cursor string
+			Node   struct {
+				Name     string
+				Versions []struct {
+					Version string
+					Source  string
+				}
+			}
+		}
+		PageInfo struct {
+			HasNextPage bool
+		}
+	}
+}
+
 // OrbSourceResponse wraps the GQL result used by OrbSource
 type OrbSourceResponse struct {
-	Data struct {
-		OrbVersion struct {
-			ID      string
-			Version string
-			Orb     struct {
-				ID string
-			}
-			Source string
+	OrbVersion struct {
+		ID      string
+		Version string
+		Orb     struct {
+			ID string
 		}
+		Source string
 	}
 }
 
 // OrbConfigResponse wraps the GQL result for OrbQuery.
 type OrbConfigResponse struct {
-	Data struct {
-		OrbConfig struct {
-			ConfigResponse
-		}
+	OrbConfig struct {
+		ConfigResponse
 	}
 }
 
@@ -372,10 +332,6 @@ func WhoamiQuery(ctx context.Context, log *logger.Logger, cl *client.Client) (*W
 		return nil, err
 	}
 
-	if len(response.Errors) > 0 {
-		return nil, response.Errors
-	}
-
 	return &response, nil
 }
 
@@ -410,11 +366,11 @@ func ConfigQuery(ctx context.Context, log *logger.Logger, cl *client.Client, con
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
 
-	if len(response.Data.BuildConfig.ConfigResponse.Errors) > 0 {
-		return nil, &response.Data.BuildConfig.ConfigResponse.Errors
+	if len(response.BuildConfig.ConfigResponse.Errors) > 0 {
+		return nil, &response.BuildConfig.ConfigResponse.Errors
 	}
 
-	return &response.Data.BuildConfig.ConfigResponse, nil
+	return &response.BuildConfig.ConfigResponse, nil
 }
 
 // OrbQuery validated and processes an orb.
@@ -448,11 +404,11 @@ func OrbQuery(ctx context.Context, log *logger.Logger, cl *client.Client, config
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
 
-	if len(response.Data.OrbConfig.ConfigResponse.Errors) > 0 {
-		return nil, response.Data.OrbConfig.ConfigResponse.Errors
+	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {
+		return nil, response.OrbConfig.ConfigResponse.Errors
 	}
 
-	return &response.Data.OrbConfig.ConfigResponse, nil
+	return &response.OrbConfig.ConfigResponse, nil
 }
 
 // OrbPublishByID publishes a new version of an orb by id
@@ -495,11 +451,11 @@ func OrbPublishByID(ctx context.Context, log *logger.Logger, cl *client.Client,
 		return nil, errors.Wrap(err, "Unable to publish orb")
 	}
 
-	if len(response.Data.PublishOrb.Errors) > 0 {
-		return nil, response.Data.PublishOrb.Errors
+	if len(response.PublishOrb.Errors) > 0 {
+		return nil, response.PublishOrb.Errors
 	}
 
-	return &response.Data.PublishOrb.Orb, nil
+	return &response.PublishOrb.Orb, nil
 }
 
 // OrbID fetches an orb returning the ID
@@ -529,12 +485,12 @@ func OrbID(ctx context.Context, log *logger.Logger, cl *client.Client, namespace
 	err = cl.Run(ctx, log, request, &response)
 
 	// If there is an error, or the request was successful, return now.
-	if err != nil || response.Data.Orb.ID != "" {
+	if err != nil || response.Orb.ID != "" {
 		return &response, err
 	}
 
 	// Otherwise, we want to generate a nice error message for the user.
-	namespaceExists := response.Data.RegistryNamespace.ID != ""
+	namespaceExists := response.RegistryNamespace.ID != ""
 	if !namespaceExists {
 		return nil, namespaceNotFound(namespace)
 	}
@@ -570,16 +526,12 @@ func createNamespaceWithOwnerID(ctx context.Context, log *logger.Logger, cl *cli
 
 	err = cl.Run(ctx, log, request, &response)
 
-	if len(response.Data.CreateNamespace.Errors) > 0 {
-		return nil, response.Data.CreateNamespace.Errors
+	if len(response.CreateNamespace.Errors) > 0 {
+		return nil, response.CreateNamespace.Errors
 	}
 
 	if err != nil {
 		return nil, err
-	}
-
-	if len(response.Errors) > 0 {
-		return nil, response.Errors
 	}
 
 	return &response, nil
@@ -610,10 +562,6 @@ func getOrganization(ctx context.Context, log *logger.Logger, cl *client.Client,
 		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
 	}
 
-	if len(response.Errors) > 0 {
-		return nil, response.Errors
-	}
-
 	return &response, nil
 }
 
@@ -633,7 +581,7 @@ func CreateNamespace(ctx context.Context, log *logger.Logger, cl *client.Client,
 		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
 	}
 
-	createNSResponse, createNSError := createNamespaceWithOwnerID(ctx, log, cl, name, getOrgResponse.Data.Organization.ID)
+	createNSResponse, createNSError := createNamespaceWithOwnerID(ctx, log, cl, name, getOrgResponse.Organization.ID)
 
 	if createNSError != nil {
 		return nil, createNSError
@@ -664,12 +612,8 @@ func getNamespace(ctx context.Context, log *logger.Logger, cl *client.Client, na
 		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
-	if response.Data.RegistryNamespace.ID == "" {
+	if response.RegistryNamespace.ID == "" {
 		return nil, namespaceNotFound(name)
-	}
-
-	if len(response.Errors) > 0 {
-		return nil, response.Errors
 	}
 
 	return &response, nil
@@ -702,12 +646,8 @@ func createOrbWithNsID(ctx context.Context, log *logger.Logger, cl *client.Clien
 
 	err = cl.Run(ctx, log, request, &response)
 
-	if len(response.Data.CreateOrb.Errors) > 0 {
-		return nil, response.Data.CreateOrb.Errors
-	}
-
-	if len(response.Errors) > 0 {
-		return nil, response.Errors
+	if len(response.CreateOrb.Errors) > 0 {
+		return nil, response.CreateOrb.Errors
 	}
 
 	if err != nil {
@@ -724,7 +664,7 @@ func CreateOrb(ctx context.Context, log *logger.Logger, cl *client.Client, names
 		return nil, err
 	}
 
-	return createOrbWithNsID(ctx, log, cl, name, response.Data.RegistryNamespace.ID)
+	return createOrbWithNsID(ctx, log, cl, name, response.RegistryNamespace.ID)
 }
 
 // TODO(zzak): this function is not really related to the API. Move it to another package?
@@ -764,12 +704,12 @@ func OrbIncrementVersion(ctx context.Context, log *logger.Logger, cl *client.Cli
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(ctx, log, cl, configPath, id.Data.Orb.ID, v2)
+	response, err := OrbPublishByID(ctx, log, cl, configPath, id.Orb.ID, v2)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Data.Orb.ID, v, segment, v2)
+	log.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Orb.ID, v, segment, v2)
 
 	return response, nil
 }
@@ -801,11 +741,11 @@ func OrbLatestVersion(ctx context.Context, log *logger.Logger, cl *client.Client
 		return "", err
 	}
 
-	if len(response.Data.Orb.Versions) != 1 {
+	if len(response.Orb.Versions) != 1 {
 		return "0.0.0", nil
 	}
 
-	return response.Data.Orb.Versions[0].Version, nil
+	return response.Orb.Versions[0].Version, nil
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
@@ -848,21 +788,21 @@ func OrbPromote(ctx context.Context, log *logger.Logger, cl *client.Client, name
 	if err != nil {
 		return nil, err
 	}
-	request.Var("orbId", id.Data.Orb.ID)
+	request.Var("orbId", id.Orb.ID)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
 	err = cl.Run(ctx, log, request, &response)
 
-	if len(response.Data.PromoteOrb.Errors) > 0 {
-		return nil, response.Data.PromoteOrb.Errors
+	if len(response.PromoteOrb.Errors) > 0 {
+		return nil, response.PromoteOrb.Errors
 	}
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to promote orb")
 	}
 
-	return &response.Data.PromoteOrb.Orb, nil
+	return &response.PromoteOrb.Orb, nil
 }
 
 // orbVersionRef is designed to ensure an orb reference fits the orbVersion query where orbVersionRef argument requires a version
@@ -905,11 +845,11 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 		return "", err
 	}
 
-	if response.Data.OrbVersion.ID == "" {
+	if response.OrbVersion.ID == "" {
 		return "", fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
 	}
 
-	return response.Data.OrbVersion.Source, nil
+	return response.OrbVersion.Source, nil
 }
 
 // ListOrbs queries the API to find all orbs.
@@ -953,8 +893,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		}
 
 	Orbs:
-		for i := range result.Data.Orbs.Edges {
-			edge := result.Data.Orbs.Edges[i]
+		for i := range result.Orbs.Edges {
+			edge := result.Orbs.Edges[i]
 			currentCursor = edge.Cursor
 			if len(edge.Node.Versions) > 0 {
 				v := edge.Node.Versions[0]
@@ -977,7 +917,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 			}
 		}
 
-		if !result.Data.Orbs.PageInfo.HasNextPage {
+		if !result.Orbs.PageInfo.HasNextPage {
 			break
 		}
 	}
@@ -1028,8 +968,8 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		}
 
 	NamespaceOrbs:
-		for i := range result.Data.RegistryNamespace.Orbs.Edges {
-			edge := result.Data.RegistryNamespace.Orbs.Edges[i]
+		for i := range result.RegistryNamespace.Orbs.Edges {
+			edge := result.RegistryNamespace.Orbs.Edges[i]
 			currentCursor = edge.Cursor
 			var o Orb
 			o.Name = edge.Node.Name
@@ -1053,7 +993,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			orbs.Orbs = append(orbs.Orbs, o)
 		}
 
-		if !result.Data.RegistryNamespace.Orbs.PageInfo.HasNextPage {
+		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
 			break
 		}
 	}

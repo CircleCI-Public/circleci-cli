@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -83,6 +84,31 @@ func (request *Request) Encode() (bytes.Buffer, error) {
 	var body bytes.Buffer
 	err := json.NewEncoder(&body).Encode(request)
 	return body, err
+}
+
+// Response wraps the result from our GraphQL server response including out-of-band errors and the data itself.
+type Response struct {
+	Data   interface{}
+	Errors ResponseErrorsCollection
+}
+
+// ResponseErrorsCollection represents a slice of errors returned by the GraphQL server out-of-band from the actual data.
+type ResponseErrorsCollection []ResponseError
+
+// ResponseError represents the key-value pair of data returned by the GraphQL server to represent errors.
+type ResponseError struct {
+	Message string
+}
+
+// Error turns a ResponseErrorsCollection into an acceptable error string that can be printed to the user.
+func (errs ResponseErrorsCollection) Error() string {
+	messages := []string{}
+
+	for i := range errs {
+		messages = append(messages, errs[i].Message)
+	}
+
+	return strings.Join(messages, "\n")
 }
 
 // getServerAddress returns the full address to the server
@@ -166,8 +192,16 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 		}
 	}()
 
-	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
+	wrappedResponse := &Response{
+		Data: resp,
+	}
+
+	if err := json.NewDecoder(res.Body).Decode(&wrappedResponse); err != nil {
 		return errors.Wrap(err, "decoding response")
+	}
+
+	if len(wrappedResponse.Errors) > 0 {
+		return wrappedResponse.Errors
 	}
 
 	log.Debug("<< %+v", resp)

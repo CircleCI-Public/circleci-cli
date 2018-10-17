@@ -82,9 +82,7 @@ func TestDoJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var resp struct {
-		Data struct {
-			Something string
-		}
+		Something string
 	}
 	err := client.Run(ctx, log, &Request{Query: "query {}"}, &resp)
 	if err != nil {
@@ -95,7 +93,7 @@ func TestDoJSON(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Data.Something != "yes" {
+	if resp.Something != "yes" {
 		t.Errorf("expected %+v", resp)
 	}
 }
@@ -135,9 +133,7 @@ func TestQueryJSON(t *testing.T) {
 	}
 
 	var resp struct {
-		Data struct {
-			Value string
-		}
+		Value string
 	}
 	err := client.Run(ctx, log, req, &resp)
 	if err != nil {
@@ -148,7 +144,7 @@ func TestQueryJSON(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Data.Value != "some data" {
+	if resp.Value != "some data" {
 		t.Errorf("expected %+v", resp)
 	}
 }
@@ -188,23 +184,11 @@ func TestDoJSONErr(t *testing.T) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	var responseData struct {
-		Data   map[string]interface{}
-		Errors []struct {
-			Message string
-		}
-	}
+	var responseData map[string]interface{}
+
 	err := client.Run(ctx, log, &Request{Query: "query {}"}, &responseData)
-	if err != nil {
+	if err.Error() != "Something went wrong\nSomething else went wrong" {
 		t.Errorf(err.Error())
-	}
-
-	if len(responseData.Errors) < 1 {
-		t.Errorf("expected errors in %+v", responseData)
-	}
-
-	if responseData.Errors[0].Message != "Something went wrong" {
-		t.Errorf("expected %+v", responseData)
 	}
 }
 
@@ -231,9 +215,7 @@ func TestHeader(t *testing.T) {
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {
-		Data struct {
-			Value string
-		}
+		Value string
 	}
 	err := client.Run(ctx, log, req, &resp)
 	if err != nil {
@@ -244,7 +226,7 @@ func TestHeader(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Data.Value != "some data" {
+	if resp.Value != "some data" {
 		t.Errorf("expected %+v", resp)
 	}
 }

@@ -287,7 +287,7 @@ func publishOrb(opts orbOptions) error {
 		return err
 	}
 
-	_, err = api.OrbPublishByID(ctx, opts.log, opts.cl, path, id.Data.Orb.ID, version)
+	_, err = api.OrbPublishByID(ctx, opts.log, opts.cl, path, id.Orb.ID, version)
 	if err != nil {
 		return err
 	}
