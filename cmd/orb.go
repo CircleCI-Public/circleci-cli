@@ -255,7 +255,11 @@ func validateOrb(opts orbOptions) error {
 		return err
 	}
 
-	opts.log.Infof("Orb input is valid.")
+	if opts.args[0] == "-" {
+		opts.log.Infof("Orb input is valid.")
+	} else {
+		opts.log.Infof("Orb at `%s` is valid.", opts.args[0])
+	}
 
 	return nil
 }

@@ -160,7 +160,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb input is valid."))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `.*orb.yml` is valid."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -205,7 +205,7 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				// the .* is because the full path with temp dir is printed
-				Eventually(session.Out).Should(gbytes.Say("Orb input is valid."))
+				Eventually(session.Out).Should(gbytes.Say("Orb at `.*myorb/orb.yml` is valid."))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
