@@ -53,7 +53,7 @@ func diagnostic(opts diagnosticOptions) error {
 
 	opts.log.Infoln("Trying an introspection query on API... ")
 	responseIntro, err := api.IntrospectionQuery(context.Background(), opts.log, opts.cl)
-	if responseIntro.Data.Schema.QueryType.Name == "" {
+	if responseIntro.Schema.QueryType.Name == "" {
 		opts.log.Infoln("Unable to make a query against the GraphQL API, please check your settings")
 		if err != nil {
 			return err
@@ -62,7 +62,7 @@ func diagnostic(opts diagnosticOptions) error {
 
 	opts.log.Infoln("Ok.")
 
-	opts.log.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Data.Schema.QueryType.Name)
+	opts.log.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Schema.QueryType.Name)
 
 	responseWho, err := api.WhoamiQuery(context.Background(), opts.log, opts.cl)
 
@@ -70,8 +70,8 @@ func diagnostic(opts diagnosticOptions) error {
 		return err
 	}
 
-	if responseWho.Data.Me.Name != "" {
-		opts.log.Infof("Hello, %s.\n", responseWho.Data.Me.Name)
+	if responseWho.Me.Name != "" {
+		opts.log.Infof("Hello, %s.\n", responseWho.Me.Name)
 	}
 
 	return nil
