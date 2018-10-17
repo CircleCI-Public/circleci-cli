@@ -86,18 +86,22 @@ func (request *Request) Encode() (bytes.Buffer, error) {
 	return body, err
 }
 
+// Response wraps the result from our GraphQL server response including out-of-band errors and the data itself.
 type Response struct {
 	Data   interface{}
-	Errors ResponseErrors
+	Errors ResponseErrorsCollection
 }
 
-type ResponseErrors []ResponseError
+// ResponseErrorsCollection represents a slice of errors returned by the GraphQL server out-of-band from the actual data.
+type ResponseErrorsCollection []ResponseError
 
+// ResponseError represents the key-value pair of data returned by the GraphQL server to represent errors.
 type ResponseError struct {
 	Message string
 }
 
-func (errs ResponseErrors) Error() string {
+// Error turns a ResponseErrorsCollection into an acceptable error string that can be printed to the user.
+func (errs ResponseErrorsCollection) Error() string {
 	messages := []string{}
 
 	for i := range errs {
