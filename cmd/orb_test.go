@@ -12,6 +12,7 @@ import (
 
 	"gotest.tools/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/client"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -1311,6 +1312,146 @@ var _ = Describe("Orb integration tests", func() {
 					Eventually(session).Should(gexec.Exit(0))
 					Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 				})
+			})
+		})
+
+		Describe("when creating an orb without a token", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "create", "bar-ns/foo-orb",
+					"--host", testServer.URL(),
+					"--token", "",
+				)
+			})
+
+			It("instructs the user to run 'circleci setup' and create a new token", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
+You can create a new personal API token here:
+https://circleci.com/account/api`))
+				Eventually(session).Should(gexec.Exit(255))
+			})
+		})
+
+		Describe("when fetching an orb's source", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "source",
+					"--host", testServer.URL(),
+					"my/orb@dev:foo",
+				)
+			})
+
+			It("works", func() {
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+
+				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb { id }
+                                source
+			    }
+		      }`)
+				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
+				expected, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				gqlResponse := `{"data": {
+							"orbVersion": {
+								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+								"version": "dev:foo",
+								"orb": {
+								        "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+								},
+								"source": "some orb"
+							}
+						}}`
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, gqlResponse),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("some orb"))
+
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("reports when an orb hasn't published a version", func() {
+				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
+				// on BeforeEach in each block to specify server mocking.
+				By("setting up a mock server")
+
+				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb { id }
+                                source
+			    }
+		      }`)
+				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
+				expected, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				gqlResponse := `{"data": { "orbVersion": {} }}`
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+
+						// TODO: Extract this into a verifyJSONUtf8 helper function
+						ghttp.VerifyContentType("application/json; charset=utf-8"),
+						// From Gomegas ghttp.VerifyJson to avoid the
+						// VerifyContentType("application/json") check
+						// that fails with "application/json; charset=utf-8"
+						func(w http.ResponseWriter, req *http.Request) {
+							body, error := ioutil.ReadAll(req.Body)
+							req.Body.Close()
+							Expect(error).ShouldNot(HaveOccurred())
+							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
+						},
+						ghttp.RespondWith(http.StatusOK, gqlResponse),
+					),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("no Orb 'my/orb@dev:foo' was found; please check that the Orb reference is correct"))
+
+				Eventually(session).Should(gexec.Exit(255))
 			})
 		})
 	})

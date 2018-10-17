@@ -6,11 +6,53 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 )
+
+var log = logger.NewLogger(false)
+
+func TestServerAddress(t *testing.T) {
+	var (
+		addr     string
+		expected string
+		err      error
+	)
+
+	addr, _ = getServerAddress("https://example.com/graphql", "")
+
+	expected = "https://example.com/graphql"
+	if addr != expected {
+		t.Errorf("Expected %s, got %s", expected, addr)
+	}
+
+	addr, _ = getServerAddress("https://example.com", "graphql-unstable")
+	expected = "https://example.com/graphql-unstable"
+	if addr != expected {
+		t.Errorf("Expected %s, got %s", expected, addr)
+	}
+
+	addr, _ = getServerAddress("https://example.com/graphql-unstable", "https://circleci.com/graphql")
+	expected = "https://circleci.com/graphql"
+	if addr != expected {
+		t.Errorf("Expected %s, got %s", expected, addr)
+	}
+
+	_, err = getServerAddress("", "")
+	expected = "Host () must be absolute URL, including scheme"
+	if err.Error() != expected {
+		t.Errorf("Expected error without absolute URL")
+	}
+
+	_, err = getServerAddress("", ":foo")
+	matched, _ := regexp.MatchString("Parsing endpoint", err.Error())
+	if !matched {
+		t.Errorf("Expected parsing endpoint error")
+	}
+}
 
 func TestDoJSON(t *testing.T) {
 	var calls int
@@ -35,7 +77,7 @@ func TestDoJSON(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "/", "token")
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -44,7 +86,7 @@ func TestDoJSON(t *testing.T) {
 			Something string
 		}
 	}
-	err := client.Run(ctx, &Request{Query: "query {}"}, &resp)
+	err := client.Run(ctx, log, &Request{Query: "query {}"}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -78,9 +120,9 @@ func TestQueryJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "/", "token")
 
-	req := NewRequest("query {}")
+	req := NewUnauthorizedRequest("query {}")
 	req.Var("username", "matryer")
 
 	// check variables
@@ -97,7 +139,7 @@ func TestQueryJSON(t *testing.T) {
 			Value string
 		}
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(ctx, log, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -141,7 +183,7 @@ func TestDoJSONErr(t *testing.T) {
 	defer server.Close()
 
 	ctx := context.Background()
-	client := NewClient(server.URL, logger.NewLogger(false))
+	client := NewClient(server.URL, "/", "token")
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -152,7 +194,7 @@ func TestDoJSONErr(t *testing.T) {
 			Message string
 		}
 	}
-	err := client.Run(ctx, &Request{Query: "query {}"}, &responseData)
+	err := client.Run(ctx, log, &Request{Query: "query {}"}, &responseData)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -183,9 +225,9 @@ func TestHeader(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "/", "token")
 
-	req := NewRequest("query {}")
+	req := NewUnauthorizedRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {
@@ -193,7 +235,7 @@ func TestHeader(t *testing.T) {
 			Value string
 		}
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(ctx, log, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}

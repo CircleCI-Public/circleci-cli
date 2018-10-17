@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -13,27 +15,52 @@ import (
 
 // A Client is an HTTP client for our GraphQL endpoint.
 type Client struct {
-	endpoint   string
+	Endpoint   string
+	Host       string
+	Token      string
 	httpClient *http.Client
-	logger     *logger.Logger
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(endpoint string, logger *logger.Logger) *Client {
+func NewClient(host, endpoint, token string) *Client {
 	return &Client{
 		httpClient: http.DefaultClient,
-		endpoint:   endpoint,
-		logger:     logger,
+		Endpoint:   endpoint,
+		Host:       host,
+		Token:      token,
 	}
 }
 
 // NewAuthorizedRequest returns a new GraphQL request with the
 // authorization headers set for CircleCI auth.
-func NewAuthorizedRequest(token, query string) *Request {
-	req := NewRequest(query)
-	req.Header.Set("Authorization", token)
-	req.Header.Set("User-Agent", version.UserAgent())
-	return req
+func NewAuthorizedRequest(query string, token string) (*Request, error) {
+	if token == "" {
+		return nil, errors.New(`please set a token with 'circleci setup'
+You can create a new personal API token here:
+https://circleci.com/account/api`)
+	}
+
+	request := &Request{
+		Query:     query,
+		Variables: make(map[string]interface{}),
+		Header:    make(map[string][]string),
+	}
+
+	request.Header.Set("Authorization", token)
+	request.Header.Set("User-Agent", version.UserAgent())
+	return request, nil
+}
+
+// NewUnauthorizedRequest returns a new GraphQL request without any authorization header.
+func NewUnauthorizedRequest(query string) *Request {
+	request := &Request{
+		Query:     query,
+		Variables: make(map[string]interface{}),
+		Header:    make(map[string][]string),
+	}
+
+	request.Header.Set("User-Agent", version.UserAgent())
+	return request
 }
 
 // Request is a GraphQL request.
@@ -46,29 +73,52 @@ type Request struct {
 	Header http.Header `json:"-"`
 }
 
-// NewRequest makes a new Request with the specified query string.
-func NewRequest(query string) *Request {
-	request := &Request{
-		Query:     query,
-		Variables: make(map[string]interface{}),
-		Header:    make(map[string][]string),
-	}
-	return request
-}
-
 // Var sets a variable.
 func (request *Request) Var(key string, value interface{}) {
 	request.Variables[key] = value
 }
 
-func (c *Client) prepareRequest(ctx context.Context, request *Request) (*http.Request, error) {
-	var requestBody bytes.Buffer
-	if err := json.NewEncoder(&requestBody).Encode(request); err != nil {
-		return nil, errors.Wrap(err, "encode body")
+// Encode will return a buffer of the JSON encoded request body
+func (request *Request) Encode() (bytes.Buffer, error) {
+	var body bytes.Buffer
+	err := json.NewEncoder(&body).Encode(request)
+	return body, err
+}
+
+// getServerAddress returns the full address to the server
+func getServerAddress(host, endpoint string) (string, error) {
+	// 1. Parse the endpoint
+	e, err := url.Parse(endpoint)
+	if err != nil {
+		return "", errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
 	}
-	c.logger.Debug(">> variables: %v", request.Variables)
-	c.logger.Debug(">> query: %s", request.Query)
-	r, err := http.NewRequest(http.MethodPost, c.endpoint, &requestBody)
+
+	// 2. Parse the host
+	h, err := url.Parse(host)
+	if err != nil {
+		return "", errors.Wrapf(err, "Parsing host '%s'", host)
+	}
+	if !h.IsAbs() {
+		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
+	}
+
+	// 3. Resolve the two URLs using host as the base
+	// We use ResolveReference which has specific behavior we can rely for
+	// older configurations which included the absolute path for the endpoint flag.
+	//
+	// https://golang.org/pkg/net/url/#URL.ResolveReference
+	//
+	// Specifically this function always returns the reference (endpoint) if provided an absolute URL.
+	// This way we can safely introduce --host and merge the two.
+	return h.ResolveReference(e).String(), err
+}
+
+func prepareRequest(ctx context.Context, address string, request *Request) (*http.Request, error) {
+	requestBody, err := request.Encode()
+	if err != nil {
+		return nil, err
+	}
+	r, err := http.NewRequest(http.MethodPost, address, &requestBody)
 	if err != nil {
 		return nil, err
 	}
@@ -85,33 +135,42 @@ func (c *Client) prepareRequest(ctx context.Context, request *Request) (*http.Re
 }
 
 // Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
-func (c *Client) Run(ctx context.Context, request *Request, resp interface{}) error {
+func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request, resp interface{}) error {
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
-	req, err := c.prepareRequest(ctx, request)
+	address, err := getServerAddress(cl.Host, cl.Endpoint)
 	if err != nil {
 		return err
 	}
 
-	res, err := c.httpClient.Do(req)
+	req, err := prepareRequest(ctx, address, request)
+	if err != nil {
+		return err
+	}
+	log.Debug(">> variables: %v", request.Variables)
+	log.Debug(">> query: %s", request.Query)
+
+	res, err := cl.httpClient.Do(req)
+
 	if err != nil {
 		return err
 	}
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {
-			c.logger.Debug(err.Error())
+			log.Debug(err.Error())
 		}
 	}()
 
 	if err := json.NewDecoder(res.Body).Decode(&resp); err != nil {
 		return errors.Wrap(err, "decoding response")
 	}
-	c.logger.Debug("<< %+v", resp)
+
+	log.Debug("<< %+v", resp)
 
 	return nil
 }
