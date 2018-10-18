@@ -301,7 +301,7 @@ func publishOrb(opts orbOptions) error {
 	opts.log.Info("Please note that this is an open orb and is world-readable.")
 
 	if references.IsDevVersion(version) {
-		opts.log.Infof("Note that the version `%s` can be overwritten by anyone in your organization.", version)
+		opts.log.Infof("Note that your dev label `%s` can be overwritten by anyone in your organization.", version)
 		opts.log.Infof("Your dev orb will expire in 90 days unless a new version is published on the tag `%s`.", version)
 	}
 	return nil
