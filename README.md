@@ -87,6 +87,14 @@ $ circleci config validate
 Config file at .circleci/config.yml is valid
 ```
 
+## Docker
+
+The CLI may also be used without installation by using Docker.
+
+```
+docker run --rm -v $(pwd):/data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
+```
+
 ## Contributing
 
 Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKING.md).
