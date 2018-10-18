@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"io/ioutil"
 	"net/url"
@@ -276,20 +275,6 @@ type OrbCollection struct {
 	PrintDetailed bool   `json:"-"`
 }
 
-// String returns a text representation of all Orbs, intended for
-// direct human use rather than machine use.
-func (orbCollection OrbCollection) String() string {
-	var result string
-	for _, o := range orbCollection.Orbs {
-		if orbCollection.PrintDetailed {
-			result += (o.String())
-		} else {
-			result += (o.SimplifiedString())
-		}
-	}
-	return result
-}
-
 // OrbVersion represents a single orb version and its source
 type OrbVersion struct {
 	Version string `json:"version"`
@@ -312,55 +297,6 @@ type Orb struct {
 	Jobs           map[string]struct{} `json:"-"`
 	Executors      map[string]struct{} `json:"-"`
 	Versions       []OrbVersion        `json:"versions"`
-}
-
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
-	var err error
-	if len(elems) > 0 {
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		for key := range elems {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
-		}
-	}
-	// This will never occur. The docs for bytes.Buffer.WriteString says err
-	// will always be nil. The linter still expects this error to be checked.
-	if err != nil {
-		panic(err)
-	}
-}
-
-// String returns a text representation of the Orb contents, intended for
-// direct human use rather than machine use. This function will exclude orb
-// source and orbs without any versions in its returned string.
-func (orb Orb) SimplifiedString() string {
-	var buffer bytes.Buffer
-
-	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
-	if err != nil {
-		// The WriteString docstring says that it will never return an error
-		panic(err)
-	}
-
-	return buffer.String()
-}
-
-// String returns a text representation of the Orb contents, intended for
-// direct human use rather than machine use. This function will exclude orb
-// source and orbs without any versions in its returned string.
-func (orb Orb) String() string {
-	var buffer bytes.Buffer
-
-	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
-	if err != nil {
-		// The WriteString docstring says that it will never return an error
-		panic(err)
-	}
-
-	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
-	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
-	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
-
-	return buffer.String()
 }
 
 // EnvEndpointHost pulls the endpoint and host values from viper

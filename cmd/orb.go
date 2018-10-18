@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -136,6 +137,54 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
+type orbToStringFunction func(orb api.Orb) string
+
+func orbToDetailedString(orb api.Orb) string {
+	buffer := bytes.NewBufferString(orbToSimpleString(orb))
+
+	// TODO: Add params
+	addOrbElementsToBuffer(buffer, "Commands", orb.Commands)
+	addOrbElementsToBuffer(buffer, "Jobs", orb.Jobs)
+	addOrbElementsToBuffer(buffer, "Executors", orb.Executors)
+
+	return buffer.String()
+}
+
+func orbToSimpleString(orb api.Orb) string {
+	var buffer bytes.Buffer
+
+	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
+	if err != nil {
+		// The WriteString docstring says that it will never return an error
+		panic(err)
+	}
+
+	return buffer.String()
+}
+
+func orbCollectionToString(orbCollection api.OrbCollection, toStringFunc orbToStringFunction) string {
+	var result string
+	for _, orb := range orbCollection.Orbs {
+		result += (toStringFunc(orb))
+	}
+	return result
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+	var err error
+	if len(elems) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for key := range elems {
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+		}
+	}
+	// This will never occur. The docs for bytes.Buffer.WriteString says err
+	// will always be nil. The linter still expects this error to be checked.
+	if err != nil {
+		panic(err)
+	}
+}
+
 func listOrbs(cmd *cobra.Command, args []string) error {
 	if len(args) != 0 {
 		return listNamespaceOrbs(args[0])
@@ -154,8 +203,14 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 		}
 		Logger.Info(string(orbJSON))
 	} else {
-		orbs.PrintDetailed = orbListDetails
-		Logger.Info(orbs.String())
+		var toStringFunc orbToStringFunction
+		if orbListDetails {
+			toStringFunc = orbToDetailedString
+		} else {
+			toStringFunc = orbToSimpleString
+		}
+
+		Logger.Info(orbCollectionToString(*orbs, toStringFunc))
 	}
 
 	return nil
@@ -174,8 +229,14 @@ func listNamespaceOrbs(namespace string) error {
 		}
 		Logger.Info(string(orbJSON))
 	} else {
-		orbs.PrintDetailed = orbListDetails
-		Logger.Info(orbs.String())
+		var toStringFunc orbToStringFunction
+		if orbListDetails {
+			toStringFunc = orbToDetailedString
+		} else {
+			toStringFunc = orbToSimpleString
+		}
+
+		Logger.Info(orbCollectionToString(*orbs, toStringFunc))
 	}
 	return nil
 }
