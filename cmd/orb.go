@@ -299,6 +299,11 @@ func publishOrb(opts orbOptions) error {
 
 	opts.log.Infof("Orb `%s` was published.", ref)
 	opts.log.Info("Please note that this is an open orb and is world-readable.")
+
+	if references.IsDevVersion(version) {
+		opts.log.Infof("Note that the version `%s` can be overwritten by anyone in your organization.", version)
+		opts.log.Infof("Your dev orb will expire in 90 days unless a new version is published on the tag `%s`.", version)
+	}
 	return nil
 }
 
@@ -351,8 +356,8 @@ func promoteOrb(opts orbOptions) error {
 		return err
 	}
 
-	if err = references.IsDevVersion(version); err != nil {
-		return err
+	if !references.IsDevVersion(version) {
+		return fmt.Errorf("The version '%s' must be a dev version (the string should begin `dev:`)", version)
 	}
 
 	response, err := api.OrbPromote(context.Background(), opts.log, opts.cl, namespace, orb, version, segment)

@@ -36,12 +36,9 @@ func SplitIntoOrbNamespaceAndVersion(ref string) (namespace, orb, version string
 	return matches[1], matches[2], matches[3], nil
 }
 
-// IsDevVersion returns a helpful error unless `version` is of the form dev:...
-func IsDevVersion(version string) error {
-	if !strings.HasPrefix(version, "dev:") {
-		return fmt.Errorf("The version '%s' must be a dev version (the string should begin `dev:`)", version)
-	}
-	return nil
+// IsDevVersion returns true or false depending if `version` is of the form dev:...
+func IsDevVersion(version string) bool {
+	return strings.HasPrefix(version, "dev:")
 }
 
 // IsOrbRefWithOptionalVersion returns an error unless ref is a valid orb reference with optional version.
