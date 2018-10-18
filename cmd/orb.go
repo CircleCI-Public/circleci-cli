@@ -137,16 +137,6 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
-type printOptions struct {
-	WithDetails bool
-	AsJSON      bool
-}
-
-type orbsOutputRequest struct {
-	OrbCollection *api.OrbCollection
-	PrintOptions  printOptions
-}
-
 func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
 	var err error
 	if len(elems) > 0 {
@@ -185,21 +175,18 @@ func orbToSimpleString(orb api.Orb) string {
 	return buffer.String()
 }
 
-func (request orbsOutputRequest) handle() (string, error) {
-	orbs := request.OrbCollection.Orbs
-	printOptions := request.PrintOptions
-
+func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
 	var result string
 
-	if printOptions.AsJSON {
-		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
+	if orbListJSON {
+		orbJSON, err := json.MarshalIndent(orbCollection.Orbs, "", "  ")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
 		result = string(orbJSON)
 	} else {
-		for _, orb := range orbs {
-			if printOptions.WithDetails {
+		for _, orb := range orbCollection.Orbs {
+			if orbListDetails {
 				result += (orbToDetailedString(orb))
 			} else {
 				result += (orbToSimpleString(orb))
@@ -210,18 +197,10 @@ func (request orbsOutputRequest) handle() (string, error) {
 	return result, nil
 }
 
-func listOrbsHelper(orbsCollection *api.OrbCollection, asJSON bool, withDetails bool) error {
-	request := orbsOutputRequest{
-		OrbCollection: orbsCollection,
-		PrintOptions: printOptions{
-			AsJSON:      asJSON,
-			WithDetails: withDetails,
-		},
-	}
-
-	result, err := request.handle()
+func logOrbs(orbCollection *api.OrbCollection) error {
+	result, err := orbCollectionToString(orbCollection)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orbs")
+		return err
 	}
 
 	Logger.Info(result)
@@ -240,7 +219,7 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
 
-	return listOrbsHelper(orbs, orbListJSON, orbListDetails)
+	return logOrbs(orbs)
 }
 
 func listNamespaceOrbs(namespace string) error {
@@ -250,7 +229,7 @@ func listNamespaceOrbs(namespace string) error {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
 
-	return listOrbsHelper(orbs, orbListJSON, orbListDetails)
+	return logOrbs(orbs)
 }
 
 func validateOrb(cmd *cobra.Command, args []string) error {
