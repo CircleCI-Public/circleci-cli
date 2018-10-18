@@ -137,7 +137,30 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
-type orbToStringFunction func(orb api.Orb) string
+type printOptions struct {
+	WithDetails bool
+	AsJSON      bool
+}
+
+type orbsOutputRequest struct {
+	OrbCollection *api.OrbCollection
+	PrintOptions  printOptions
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+	var err error
+	if len(elems) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for key := range elems {
+			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+		}
+	}
+	// This will never occur. The docs for bytes.Buffer.WriteString says err
+	// will always be nil. The linter still expects this error to be checked.
+	if err != nil {
+		panic(err)
+	}
+}
 
 func orbToDetailedString(orb api.Orb) string {
 	buffer := bytes.NewBufferString(orbToSimpleString(orb))
@@ -162,27 +185,48 @@ func orbToSimpleString(orb api.Orb) string {
 	return buffer.String()
 }
 
-func orbCollectionToString(orbCollection api.OrbCollection, toStringFunc orbToStringFunction) string {
-	var result string
-	for _, orb := range orbCollection.Orbs {
-		result += (toStringFunc(orb))
-	}
-	return result
-}
+func (request orbsOutputRequest) handle() (string, error) {
+	orbs := request.OrbCollection.Orbs
+	printOptions := request.PrintOptions
 
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
-	var err error
-	if len(elems) > 0 {
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		for key := range elems {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+	var result string
+
+	if printOptions.AsJSON {
+		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
+		}
+		result = string(orbJSON)
+	} else {
+		for _, orb := range orbs {
+			if printOptions.WithDetails {
+				result += (orbToDetailedString(orb))
+			} else {
+				result += (orbToSimpleString(orb))
+			}
 		}
 	}
-	// This will never occur. The docs for bytes.Buffer.WriteString says err
-	// will always be nil. The linter still expects this error to be checked.
-	if err != nil {
-		panic(err)
+
+	return result, nil
+}
+
+func listOrbsHelper(orbsCollection *api.OrbCollection, asJSON bool, withDetails bool) error {
+	request := orbsOutputRequest{
+		OrbCollection: orbsCollection,
+		PrintOptions: printOptions{
+			AsJSON:      asJSON,
+			WithDetails: withDetails,
+		},
 	}
+
+	result, err := request.handle()
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orbs")
+	}
+
+	Logger.Info(result)
+
+	return nil
 }
 
 func listOrbs(cmd *cobra.Command, args []string) error {
@@ -196,24 +240,7 @@ func listOrbs(cmd *cobra.Command, args []string) error {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
 
-	if orbListJSON {
-		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
-		if err != nil {
-			return errors.Wrapf(err, "Failed to convert to convert to JSON")
-		}
-		Logger.Info(string(orbJSON))
-	} else {
-		var toStringFunc orbToStringFunction
-		if orbListDetails {
-			toStringFunc = orbToDetailedString
-		} else {
-			toStringFunc = orbToSimpleString
-		}
-
-		Logger.Info(orbCollectionToString(*orbs, toStringFunc))
-	}
-
-	return nil
+	return listOrbsHelper(orbs, orbListJSON, orbListDetails)
 }
 
 func listNamespaceOrbs(namespace string) error {
@@ -222,23 +249,8 @@ func listNamespaceOrbs(namespace string) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
-	if orbListJSON {
-		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
-		if err != nil {
-			return errors.Wrapf(err, "Failed to convert to convert to JSON")
-		}
-		Logger.Info(string(orbJSON))
-	} else {
-		var toStringFunc orbToStringFunction
-		if orbListDetails {
-			toStringFunc = orbToDetailedString
-		} else {
-			toStringFunc = orbToSimpleString
-		}
 
-		Logger.Info(orbCollectionToString(*orbs, toStringFunc))
-	}
-	return nil
+	return listOrbsHelper(orbs, orbListJSON, orbListDetails)
 }
 
 func validateOrb(cmd *cobra.Command, args []string) error {
