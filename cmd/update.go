@@ -50,6 +50,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Short: "Update the tool to the latest version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return installUpdate(opts)
@@ -61,6 +62,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Short: "Update the build agent to the latest version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return updateBuildAgent(opts)

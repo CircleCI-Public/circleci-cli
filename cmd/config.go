@@ -140,7 +140,12 @@ func validateConfig(opts configOptions) error {
 		return err
 	}
 
-	opts.log.Infof("Config file at %s is valid", path)
+	if path == "-" {
+		opts.log.Infof("Config input is valid.")
+	} else {
+		opts.log.Infof("Config file at %s is valid.", path)
+	}
+
 	return nil
 }
 
