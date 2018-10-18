@@ -354,11 +354,9 @@ func ConfigQuery(ctx context.Context, log *logger.Logger, cl *client.Client, con
 			}
 		}`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewUnauthorizedRequest(query)
 	request.Var("config", config)
+	request.Header.Set("Authorization", cl.Token)
 
 	err = cl.Run(ctx, log, request, &response)
 
@@ -392,11 +390,9 @@ func OrbQuery(ctx context.Context, log *logger.Logger, cl *client.Client, config
 			}
 		}`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewUnauthorizedRequest(query)
 	request.Var("config", config)
+	request.Header.Set("Authorization", cl.Token)
 
 	err = cl.Run(ctx, log, request, &response)
 
