@@ -270,9 +270,8 @@ type OrbConfigResponse struct {
 // OrbCollection is a container type for multiple orbs to share formatting
 // functions on them.
 type OrbCollection struct {
-	Orbs          []Orb  `json:"orbs"`
-	Namespace     string `json:"namespace,omitempty"`
-	PrintDetailed bool   `json:"-"`
+	Orbs      []Orb  `json:"orbs"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
 // OrbVersion represents a single orb version and its source
