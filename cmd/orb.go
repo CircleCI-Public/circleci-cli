@@ -225,13 +225,17 @@ func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElemen
 
 func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map[string]api.OrbElement) {
 	var err error
-	_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
 
-	for elementName, orbElement := range namedOrbElements {
-		_, err = buf.WriteString(fmt.Sprintf("    - %s:\n", elementName))
+	if len(namedOrbElements) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for elementName, orbElement := range namedOrbElements {
+			parameterCount := len(orbElement.Parameters)
 
-		if len(orbElement.Parameters) > 0 {
-			err = addOrbElementParametersToBuffer(buf, orbElement)
+			_, err = buf.WriteString(fmt.Sprintf("    - %s: %d parameter(s)\n", elementName, parameterCount))
+
+			if parameterCount > 0 {
+				err = addOrbElementParametersToBuffer(buf, orbElement)
+			}
 		}
 	}
 
