@@ -179,7 +179,7 @@ func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
 	var result string
 
 	if orbListJSON {
-		orbJSON, err := json.MarshalIndent(orbCollection.Orbs, "", "  ")
+		orbJSON, err := json.MarshalIndent(orbCollection, "", "  ")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
 		}
