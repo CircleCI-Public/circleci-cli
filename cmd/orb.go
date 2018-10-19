@@ -206,26 +206,35 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedSections map[string]api.OrbSectionInfo) {
-	var err error
-	if len(namedSections) > 0 {
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		for key := range namedSections {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s:\n", key))
-			for parameterName := range namedSections[key].Parameters {
-				parameter := namedSections[key].Parameters[parameterName]
+func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) error {
+	for parameterName, parameter := range orbElement.Parameters {
+		var err error
+		if parameter.Default != "" {
+			_, err = buf.WriteString(fmt.Sprintf("       - %s: %s (default: '%s')\n", parameterName, parameter.Type, parameter.Default))
+		} else {
+			_, err = buf.WriteString(fmt.Sprintf("       - %s: %s\n", parameterName, parameter.Type))
+		}
 
-				if parameter.Default != "" {
-					_, err = buf.WriteString(fmt.Sprintf("       - %s: %s (default: '%s')\n",
-						parameterName, parameter.Type, parameter.Default))
-				} else {
-					_, err = buf.WriteString(fmt.Sprintf("       - %s: %s\n",
-						parameterName, parameter.Type))
-
-				}
-			}
+		if err != nil {
+			return err
 		}
 	}
+
+	return nil
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map[string]api.OrbElement) {
+	var err error
+	_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+
+	for elementName, orbElement := range namedOrbElements {
+		_, err = buf.WriteString(fmt.Sprintf("    - %s:\n", elementName))
+
+		if len(orbElement.Parameters) > 0 {
+			err = addOrbElementParametersToBuffer(buf, orbElement)
+		}
+	}
+
 	// This will never occur. The docs for bytes.Buffer.WriteString says err
 	// will always be nil. The linter still expects this error to be checked.
 	if err != nil {

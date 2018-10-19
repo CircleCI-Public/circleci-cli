@@ -238,15 +238,19 @@ type OrbVersion struct {
 	Source  string `json:"source"`
 }
 
-type Parameter struct {
-	Description string
-	Type        string
-	Default     string
+// OrbElementParameter represents the yaml-unmarshled contents of
+// a parameter for a command/job/executor
+type OrbElementParameter struct {
+	Description string `json:"-"`
+	Type        string `json:"-"`
+	Default     string `json:"-"`
 }
 
-type OrbSectionInfo struct {
-	Description string
-	Parameters  map[string]Parameter
+// OrbElement represents the yaml-unmarshled contents of
+// a named element under a command/job/executor
+type OrbElement struct {
+	Description string                         `json:"-"`
+	Parameters  map[string]OrbElementParameter `json:"-"`
 }
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
@@ -259,12 +263,12 @@ type Orb struct {
 	Source string `json:"-"`
 	// Avoid "Version" since there is a "version" key in the orb source referring
 	// to the orb schema version
-	HighestVersion string                    `json:"version"`
-	Version        string                    `json:"-"`
-	Commands       map[string]OrbSectionInfo `json:"-"`
-	Jobs           map[string]OrbSectionInfo `json:"-"`
-	Executors      map[string]OrbSectionInfo `json:"-"`
-	Versions       []OrbVersion              `json:"versions"`
+	HighestVersion string                `json:"version"`
+	Version        string                `json:"-"`
+	Commands       map[string]OrbElement `json:"-"`
+	Jobs           map[string]OrbElement `json:"-"`
+	Executors      map[string]OrbElement `json:"-"`
+	Versions       []OrbVersion          `json:"versions"`
 }
 
 // #nosec
