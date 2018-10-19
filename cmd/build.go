@@ -9,6 +9,8 @@ import (
 	"path"
 	"syscall"
 
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -16,6 +18,13 @@ import (
 	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v2"
 )
+
+type buildOptions struct {
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
+	args []string
+}
 
 // These options are purely here to retain a mock of the structure of the flags used by `build`.
 // They don't reflect the entire structure or available flags, only those which are public in the original command.
@@ -39,50 +48,61 @@ func addConfigFlag(filename *string, flagset *pflag.FlagSet) {
 	flagset.StringVarP(filename, "config", "c", defaultConfigPath, "config file")
 }
 
-func newLocalExecuteCommand() *cobra.Command {
+func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
+	opts := buildOptions{
+		cfg: config,
+	}
+
 	buildCommand := &cobra.Command{
-		Use:                "execute",
-		Short:              "Run a job in a container on the local machine",
-		RunE:               runExecute,
+		Use:   "execute",
+		Short: "Run a job in a container on the local machine",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return runExecute(opts)
+		},
 		DisableFlagParsing: true,
 	}
 
 	// Used as a convenience work-around when DisableFlagParsing is enabled
 	// Allows help command to access the combined rollup of flags
-	opts := proxyBuildArgs{}
+	args := proxyBuildArgs{}
 	flags := buildCommand.Flags()
 
-	addConfigFlag(&opts.configFilename, flags)
-	flags.StringVar(&opts.taskInfo.Job, "job", "build", "job to be executed")
-	flags.IntVar(&opts.taskInfo.NodeTotal, "node-total", 1, "total number of parallel nodes")
-	flags.IntVar(&opts.taskInfo.NodeIndex, "index", 0, "node index of parallelism")
+	addConfigFlag(&args.configFilename, flags)
+	flags.StringVar(&args.taskInfo.Job, "job", "build", "job to be executed")
+	flags.IntVar(&args.taskInfo.NodeTotal, "node-total", 1, "total number of parallel nodes")
+	flags.IntVar(&args.taskInfo.NodeIndex, "index", 0, "node index of parallelism")
 
-	flags.BoolVar(&opts.taskInfo.SkipCheckout, "skip-checkout", true, "use local path as-is")
-	flags.StringSliceVarP(&opts.taskInfo.Volumes, "volume", "v", nil, "Volume bind-mounting")
+	flags.BoolVar(&args.taskInfo.SkipCheckout, "skip-checkout", true, "use local path as-is")
+	flags.StringSliceVarP(&args.taskInfo.Volumes, "volume", "v", nil, "Volume bind-mounting")
 
-	flags.StringVar(&opts.checkoutKey, "checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
-	flags.StringVar(&opts.taskInfo.Revision, "revision", "", "Git Revision")
-	flags.StringVar(&opts.taskInfo.Branch, "branch", "", "Git branch")
-	flags.StringVar(&opts.taskInfo.RepositoryURI, "repo-url", "", "Git Url")
+	flags.StringVar(&args.checkoutKey, "checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
+	flags.StringVar(&args.taskInfo.Revision, "revision", "", "Git Revision")
+	flags.StringVar(&args.taskInfo.Branch, "branch", "", "Git branch")
+	flags.StringVar(&args.taskInfo.RepositoryURI, "repo-url", "", "Git Url")
 
-	flags.StringArrayVarP(&opts.envVarArgs, "env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringArrayVarP(&args.envVarArgs, "env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 
 	return buildCommand
 }
 
-func newBuildCommand() *cobra.Command {
-	cmd := newLocalExecuteCommand()
+func newBuildCommand(config *settings.Config) *cobra.Command {
+	cmd := newLocalExecuteCommand(config)
 	cmd.Hidden = true
 	cmd.Use = "build"
 	return cmd
 }
 
-func newLocalCommand() *cobra.Command {
+func newLocalCommand(config *settings.Config) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "local",
 		Short: "Debug jobs on the local machine",
 	}
-	cmd.AddCommand(newLocalExecuteCommand())
+	cmd.AddCommand(newLocalExecuteCommand(config))
 	return cmd
 }
 
@@ -118,7 +138,7 @@ func storeBuildAgentSha(sha256 string) error {
 	return errors.Wrap(err, "Failed to write build agent settings file")
 }
 
-func loadCurrentBuildAgentSha() string {
+func loadCurrentBuildAgentSha(log *logger.Logger) string {
 	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
 		return ""
 	}
@@ -126,7 +146,7 @@ func loadCurrentBuildAgentSha() string {
 	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
 
 	if err != nil {
-		Logger.Error("Failed to load build agent settings JSON", err)
+		log.Error("Failed to load build agent settings JSON", err)
 		return ""
 	}
 
@@ -135,20 +155,20 @@ func loadCurrentBuildAgentSha() string {
 	err = json.Unmarshal(settingsJSON, &settings)
 
 	if err != nil {
-		Logger.Error("Failed to parse build agent settings JSON", err)
+		log.Error("Failed to parse build agent settings JSON", err)
 		return ""
 	}
 
 	return settings.LatestSha256
 }
 
-func picardImage() (string, error) {
+func picardImage(log *logger.Logger) (string, error) {
 
-	sha := loadCurrentBuildAgentSha()
+	sha := loadCurrentBuildAgentSha(log)
 
 	if sha == "" {
 
-		Logger.Info("Downloading latest CircleCI build agent...")
+		log.Info("Downloading latest CircleCI build agent...")
 
 		var err error
 
@@ -159,7 +179,7 @@ func picardImage() (string, error) {
 		}
 
 	}
-	Logger.Infof("Docker image digest: %s", sha)
+	log.Infof("Docker image digest: %s", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
@@ -193,7 +213,7 @@ You can use 'circleci config process' to pre-process your config into a version 
 		return errors.New("Unable to parse flags")
 	}
 
-	// nolint: gosec
+	// #nosec
 	configBytes, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return errors.Wrapf(err, "Unable to read config file")
@@ -225,8 +245,8 @@ func ensureDockerIsAvailable() error {
 	return nil
 }
 
-func runExecute(cmd *cobra.Command, args []string) error {
-	if err := validateConfigVersion(args); err != nil {
+func runExecute(opts buildOptions) error {
+	if err := validateConfigVersion(opts.args); err != nil {
 		return err
 	}
 
@@ -240,7 +260,7 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	image, err := picardImage()
+	image, err := picardImage(opts.log)
 
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
@@ -258,9 +278,9 @@ func runExecute(cmd *cobra.Command, args []string) error {
 		"--workdir", pwd,
 		image, "circleci", "build"}
 
-	arguments = append(arguments, args...)
+	arguments = append(arguments, opts.args...)
 
-	Logger.Debug(fmt.Sprintf("Starting docker with args: %s", arguments))
+	opts.log.Debug(fmt.Sprintf("Starting docker with args: %s", arguments))
 
 	dockerPath, err := exec.LookPath("docker")
 

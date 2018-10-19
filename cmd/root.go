@@ -3,15 +3,10 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"path/filepath"
-	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var defaultEndpoint = "graphql-unstable"
@@ -32,10 +27,6 @@ func Execute() {
 		os.Exit(-1)
 	}
 }
-
-// Logger is exposed here so we can access it from subcommands.
-// This allows us to print to the log at anytime from within the `cmd` package.
-var Logger *logger.Logger
 
 func hasAnnotations(cmd *cobra.Command) bool {
 	return len(cmd.Annotations) > 0
@@ -69,6 +60,17 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
+	config := &settings.Config{
+		Debug:    false,
+		Token:    "",
+		Host:     defaultHost,
+		Endpoint: defaultEndpoint,
+	}
+
+	if err := config.Load(); err != nil {
+		panic(err)
+	}
+
 	rootCmd = &cobra.Command{
 		Use:   "circleci",
 		Short: `Use CircleCI from the command line.`,
@@ -82,34 +84,31 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newTestsCommand())
-	rootCmd.AddCommand(newQueryCommand())
-	rootCmd.AddCommand(newConfigCommand())
-	rootCmd.AddCommand(newOrbCommand())
-	rootCmd.AddCommand(newLocalCommand())
-	rootCmd.AddCommand(newBuildCommand())
-	rootCmd.AddCommand(newVersionCommand())
-	rootCmd.AddCommand(newDiagnosticCommand())
-	rootCmd.AddCommand(newSetupCommand())
-	rootCmd.AddCommand(newUpdateCommand())
-	rootCmd.AddCommand(newNamespaceCommand())
-	rootCmd.AddCommand(newUsageCommand())
-	rootCmd.AddCommand(newStepCommand())
-	rootCmd.AddCommand(newSwitchCommand())
-	rootCmd.PersistentFlags().Bool("debug", false, "Enable debug logging.")
-	rootCmd.PersistentFlags().String("token", "", "your token for using CircleCI")
-	rootCmd.PersistentFlags().String("host", defaultHost, "URL to your CircleCI host")
-	rootCmd.PersistentFlags().String("endpoint", defaultEndpoint, "URI to your CircleCI GraphQL API endpoint")
+	rootCmd.AddCommand(newTestsCommand(config))
+	rootCmd.AddCommand(newQueryCommand(config))
+	rootCmd.AddCommand(newConfigCommand(config))
+	rootCmd.AddCommand(newOrbCommand(config))
+	rootCmd.AddCommand(newLocalCommand(config))
+	rootCmd.AddCommand(newBuildCommand(config))
+	rootCmd.AddCommand(newVersionCommand(config))
+	rootCmd.AddCommand(newDiagnosticCommand(config))
+	rootCmd.AddCommand(newSetupCommand(config))
+	rootCmd.AddCommand(newUpdateCommand(config))
+	rootCmd.AddCommand(newNamespaceCommand(config))
+	rootCmd.AddCommand(newUsageCommand(config))
+	rootCmd.AddCommand(newStepCommand(config))
+	rootCmd.AddCommand(newSwitchCommand(config))
+
+	rootCmd.PersistentFlags().BoolVar(&config.Debug, "debug", config.Debug, "Enable debug logging.")
+	rootCmd.PersistentFlags().StringVar(&config.Token, "token", config.Token, "your token for using CircleCI")
+	rootCmd.PersistentFlags().StringVar(&config.Host, "host", config.Host, "URL to your CircleCI host")
+	rootCmd.PersistentFlags().StringVar(&config.Endpoint, "endpoint", config.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
 		panic(err)
 	}
 
 	if err := rootCmd.PersistentFlags().MarkHidden("endpoint"); err != nil {
 		panic(err)
-	}
-
-	for _, flag := range []string{"endpoint", "host", "token", "debug"} {
-		bindCobraFlagToViper(rootCmd, flag)
 	}
 
 	// Cobra has a peculiar default behaviour:
@@ -158,36 +157,6 @@ func setFlagErrorFuncAndValidateArgs(command *cobra.Command) {
 			return nil
 		}
 	})
-}
-
-func bindCobraFlagToViper(command *cobra.Command, flag string) {
-	if err := viper.BindPFlag(flag, command.PersistentFlags().Lookup(flag)); err != nil {
-		panic(errors.Wrapf(err, "internal error binding cobra flag '%s' to viper", flag))
-	}
-}
-
-func init() {
-	cobra.OnInitialize(prepare)
-
-	configPath := settings.ConfigPath()
-	configFileName := settings.ConfigFilename()
-
-	viper.SetConfigName(strings.TrimSuffix(configFileName, filepath.Ext(configFileName)))
-	viper.AddConfigPath(configPath)
-	viper.SetEnvPrefix("circleci_cli")
-	viper.AutomaticEnv()
-
-	if err := settings.EnsureSettingsFileExists(configPath, "cli.yml"); err != nil {
-		panic(err)
-	}
-
-	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
-	}
-}
-
-func prepare() {
-	Logger = logger.NewLogger(viper.GetBool("debug"))
 }
 
 func visitAll(root *cobra.Command, fn func(*cobra.Command)) {

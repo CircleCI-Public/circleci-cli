@@ -13,12 +13,15 @@ var _ = Describe("build", func() {
 
 	Describe("loading settings", func() {
 
-		var tempHome string
+		var (
+			tempHome string
+			log      *logger.Logger
+		)
 
 		BeforeEach(func() {
-
-			Logger = logger.NewLogger(false)
 			var err error
+			log = logger.NewLogger(false)
+
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 
 			Expect(err).ToNot(HaveOccurred())
@@ -31,10 +34,9 @@ var _ = Describe("build", func() {
 		})
 
 		It("can load settings", func() {
-
 			Expect(storeBuildAgentSha("deipnosophist")).To(Succeed())
-			Expect(loadCurrentBuildAgentSha()).To(Equal("deipnosophist"))
-			image, err := picardImage()
+			Expect(loadCurrentBuildAgentSha(log)).To(Equal("deipnosophist"))
+			image, err := picardImage(log)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(image).To(Equal("circleci/picard@deipnosophist"))
 		})

@@ -2,24 +2,41 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"path"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 var testing = false
 
-func newSetupCommand() *cobra.Command {
+type setupOptions struct {
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
+	args []string
+}
+
+func newSetupCommand(config *settings.Config) *cobra.Command {
+	opts := setupOptions{
+		cfg: config,
+	}
+
 	setupCommand := &cobra.Command{
 		Use:   "setup",
 		Short: "Setup the CLI with your credentials",
-		RunE:  setup,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return setup(opts)
+		},
 	}
 
 	setupCommand.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
@@ -36,15 +53,15 @@ func newSetupCommand() *cobra.Command {
 // The `userInterface` is created here to allow us to pass a mock user
 // interface for testing.
 type userInterface interface {
-	readSecretStringFromUser(message string) (string, error)
-	readStringFromUser(message string, defaultValue string) string
-	askUserToConfirm(message string) bool
+	readSecretStringFromUser(log *logger.Logger, message string) (string, error)
+	readStringFromUser(log *logger.Logger, message string, defaultValue string) string
+	askUserToConfirm(log *logger.Logger, message string) bool
 }
 
 type interactiveUI struct {
 }
 
-func (interactiveUI) readSecretStringFromUser(message string) (string, error) {
+func (interactiveUI) readSecretStringFromUser(_ *logger.Logger, message string) (string, error) {
 	prompt := promptui.Prompt{
 		Label: message,
 		Mask:  '*',
@@ -59,7 +76,7 @@ func (interactiveUI) readSecretStringFromUser(message string) (string, error) {
 	return token, nil
 }
 
-func (interactiveUI) readStringFromUser(message string, defaultValue string) string {
+func (interactiveUI) readStringFromUser(_ *logger.Logger, message string, defaultValue string) string {
 	prompt := promptui.Prompt{
 		Label: message,
 	}
@@ -77,7 +94,7 @@ func (interactiveUI) readStringFromUser(message string, defaultValue string) str
 	return token
 }
 
-func (interactiveUI) askUserToConfirm(message string) bool {
+func (interactiveUI) askUserToConfirm(_ *logger.Logger, message string) bool {
 	prompt := promptui.Prompt{
 		Label:     message,
 		IsConfirm: true,
@@ -92,40 +109,38 @@ type testingUI struct {
 	confirm bool
 }
 
-func (ui testingUI) readSecretStringFromUser(message string) (string, error) {
-	Logger.Info(message)
+func (ui testingUI) readSecretStringFromUser(log *logger.Logger, message string) (string, error) {
+	log.Info(message)
 	return ui.input, nil
 }
 
-func (ui testingUI) readStringFromUser(message string, defaultValue string) string {
-	Logger.Info(message)
+func (ui testingUI) readStringFromUser(log *logger.Logger, message string, defaultValue string) string {
+	log.Info(message)
 	return ui.input
 }
 
-func (ui testingUI) askUserToConfirm(message string) bool {
-	Logger.Info(message)
+func (ui testingUI) askUserToConfirm(log *logger.Logger, message string) bool {
+	log.Info(message)
 	return ui.confirm
 }
 
-func shouldAskForToken(token string, ui userInterface) bool {
+func shouldAskForToken(token string, log *logger.Logger, ui userInterface) bool {
 	if token == "" {
 		return true
 	}
 
-	return ui.askUserToConfirm("A CircleCI token is already set. Do you want to change it")
+	return ui.askUserToConfirm(log, "A CircleCI token is already set. Do you want to change it")
 }
 
-func shouldAskForEndpoint(endpoint string, ui userInterface) bool {
+func shouldAskForEndpoint(endpoint string, log *logger.Logger, ui userInterface) bool {
 	if endpoint == defaultEndpoint {
 		return true
 	}
 
-	return ui.askUserToConfirm(fmt.Sprintf("Do you want to reset the endpoint? (default: %s)", defaultEndpoint))
+	return ui.askUserToConfirm(log, fmt.Sprintf("Do you want to reset the endpoint? (default: %s)", defaultEndpoint))
 }
 
-func setup(cmd *cobra.Command, args []string) error {
-	token := viper.GetString("token")
-
+func setup(opts setupOptions) error {
 	var ui userInterface = interactiveUI{}
 
 	if testing {
@@ -135,40 +150,27 @@ func setup(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	if shouldAskForToken(token, ui) {
-		token, err := ui.readSecretStringFromUser("CircleCI API Token")
+	if shouldAskForToken(opts.cfg.Token, opts.log, ui) {
+		token, err := ui.readSecretStringFromUser(opts.log, "CircleCI API Token")
 		if err != nil {
 			return errors.Wrap(err, "Error reading token")
 		}
-		viper.Set("token", token)
-		Logger.Info("API token has been set.")
+		opts.cfg.Token = token
+		opts.log.Info("API token has been set.")
 	}
-	viper.Set("host", ui.readStringFromUser("CircleCI Host", defaultHost))
-	Logger.Info("CircleCI host has been set.")
+	opts.cfg.Host = ui.readStringFromUser(opts.log, "CircleCI Host", defaultHost)
+	opts.log.Info("CircleCI host has been set.")
 
 	// Reset endpoint to default when running setup
 	// This ensures any accidental changes to this field can be fixed simply by rerunning this command.
-	endpoint := viper.GetString("endpoint")
-	if shouldAskForEndpoint(endpoint, ui) {
-		viper.Set("endpoint", defaultEndpoint)
+	if shouldAskForEndpoint(opts.cfg.Endpoint, opts.log, ui) {
+		opts.cfg.Endpoint = defaultEndpoint
 	}
 
-	// Marc: I can't find a way to prevent the debug flag from
-	// being written to the config file, so set it to false in
-	// the config file.
-	viper.Set("debug", false)
-
-	if err := viper.WriteConfig(); err != nil {
+	if err := opts.cfg.WriteToDisk(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")
 	}
 
-	// Since we store api tokens in the config and viper writes config files
-	// with 0644 permissions we need to set the permissions to 0600 afterwards
-	configFile := path.Join(settings.ConfigPath(), settings.ConfigFilename())
-	if err := os.Chmod(configFile, 0600); err != nil {
-		return errors.Wrap(err, "Failed to update permissions for config file")
-	}
-
-	Logger.Info("Setup complete. Your configuration has been saved.")
+	opts.log.Info("Setup complete. Your configuration has been saved.")
 	return nil
 }

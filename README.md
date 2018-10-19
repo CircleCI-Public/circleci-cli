@@ -25,9 +25,12 @@ If you're installing the new `circleci` CLI for the first time, run the followin
 bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
 ```
 
-This will install the CLI into the `/usr/local/bin` directory.
+By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`. Alternatively, you can install to an alternate location by defining the `DESTDIR` environment variable when invoking `bash`:
 
-If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`.
+```
+DESTDIR=/opt/bin bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+```
+
 
 #### Homebrew
 
@@ -82,6 +85,14 @@ To ensure that the tool is installed, you can use it to validate a build config 
 ```
 $ circleci config validate
 Config file at .circleci/config.yml is valid
+```
+
+## Docker
+
+The CLI may also be used without installation by using Docker.
+
+```
+docker run --rm -v $(pwd):/data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
 ```
 
 ## Contributing

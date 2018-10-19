@@ -6,6 +6,8 @@ import (
 	"os/exec"
 	"regexp"
 
+	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -15,7 +17,17 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newUpdateCommand() *cobra.Command {
+type updateOptions struct {
+	cfg  *settings.Config
+	log  *logger.Logger
+	args []string
+}
+
+func newUpdateCommand(config *settings.Config) *cobra.Command {
+	opts := updateOptions{
+		cfg: config,
+	}
+
 	update := &cobra.Command{
 		Use:   "update",
 		Short: "Update the tool",
@@ -24,19 +36,37 @@ func newUpdateCommand() *cobra.Command {
 	update.AddCommand(&cobra.Command{
 		Use:   "check",
 		Short: "Check if there are any updates available",
-		RunE:  checkForUpdates,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return checkForUpdates(opts)
+		},
 	})
 
 	update.AddCommand(&cobra.Command{
 		Use:   "install",
 		Short: "Update the tool to the latest version",
-		RunE:  installUpdate,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return installUpdate(opts)
+		},
 	})
 
 	update.AddCommand(&cobra.Command{
 		Use:   "build-agent",
 		Short: "Update the build agent to the latest version",
-		RunE:  updateBuildAgent,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return updateBuildAgent(opts)
+		},
 	})
 
 	return update
@@ -44,14 +74,14 @@ func newUpdateCommand() *cobra.Command {
 
 var picardRepo = "circleci/picard"
 
-func updateBuildAgent(cmd *cobra.Command, args []string) error {
+func updateBuildAgent(opts updateOptions) error {
 	latestSha256, err := findLatestPicardSha()
 
 	if err != nil {
 		return err
 	}
 
-	Logger.Infof("Latest build agent is version %s", latestSha256)
+	opts.log.Infof("Latest build agent is version %s", latestSha256)
 
 	return nil
 }
@@ -87,17 +117,17 @@ func findLatestPicardSha() (string, error) {
 	return latest, nil
 }
 
-func checkForUpdates(cmd *cobra.Command, args []string) error {
-	return update(true)
+func checkForUpdates(opts updateOptions) error {
+	return update(opts, true)
 
 }
 
-func installUpdate(cmd *cobra.Command, args []string) error {
-	return update(false)
+func installUpdate(opts updateOptions) error {
+	return update(opts, false)
 
 }
 
-func update(dryRun bool) error {
+func update(opts updateOptions, dryRun bool) error {
 	updater := selfupdate.DefaultUpdater()
 
 	slug := "CircleCI-Public/circleci-cli"
@@ -118,19 +148,19 @@ func update(dryRun bool) error {
 
 	current := semver.MustParse(version.Version)
 
-	Logger.Debug("Latest version: %s", latest.Version)
-	Logger.Debug("Published: %s", latest.PublishedAt)
-	Logger.Debug("Current Version: %s", current)
+	opts.log.Debug("Latest version: %s", latest.Version)
+	opts.log.Debug("Published: %s", latest.PublishedAt)
+	opts.log.Debug("Current Version: %s", current)
 
 	if latest.Version.Equals(current) {
-		Logger.Info("Already up-to-date.")
+		opts.log.Info("Already up-to-date.")
 		return nil
 	}
 
 	if dryRun {
-		Logger.Infof("A new release is available (%s)", latest.Version)
-		Logger.Infof("You are running %s", current)
-		Logger.Infof("You can update with `circleci update install`")
+		opts.log.Infof("A new release is available (%s)", latest.Version)
+		opts.log.Infof("You are running %s", current)
+		opts.log.Infof("You can update with `circleci update install`")
 		return nil
 	}
 
@@ -140,6 +170,6 @@ func update(dryRun bool) error {
 		return errors.Wrap(err, "failed to install update")
 	}
 
-	Logger.Infof("Updated to %s", release.Version)
+	opts.log.Infof("Updated to %s", release.Version)
 	return nil
 }

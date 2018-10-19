@@ -6,11 +6,53 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"regexp"
 	"testing"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 )
+
+var log = logger.NewLogger(false)
+
+func TestServerAddress(t *testing.T) {
+	var (
+		addr     string
+		expected string
+		err      error
+	)
+
+	addr, _ = getServerAddress("https://example.com/graphql", "")
+
+	expected = "https://example.com/graphql"
+	if addr != expected {
+		t.Errorf("Expected %s, got %s", expected, addr)
+	}
+
+	addr, _ = getServerAddress("https://example.com", "graphql-unstable")
+	expected = "https://example.com/graphql-unstable"
+	if addr != expected {
+		t.Errorf("Expected %s, got %s", expected, addr)
+	}
+
+	addr, _ = getServerAddress("https://example.com/graphql-unstable", "https://circleci.com/graphql")
+	expected = "https://circleci.com/graphql"
+	if addr != expected {
+		t.Errorf("Expected %s, got %s", expected, addr)
+	}
+
+	_, err = getServerAddress("", "")
+	expected = "Host () must be absolute URL, including scheme"
+	if err.Error() != expected {
+		t.Errorf("Expected error without absolute URL")
+	}
+
+	_, err = getServerAddress("", ":foo")
+	matched, _ := regexp.MatchString("Parsing endpoint", err.Error())
+	if !matched {
+		t.Errorf("Expected parsing endpoint error")
+	}
+}
 
 func TestDoJSON(t *testing.T) {
 	var calls int
@@ -35,16 +77,14 @@ func TestDoJSON(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "/", "token")
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var resp struct {
-		Data struct {
-			Something string
-		}
+		Something string
 	}
-	err := client.Run(ctx, &Request{Query: "query {}"}, &resp)
+	err := client.Run(ctx, log, &Request{Query: "query {}"}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -53,7 +93,7 @@ func TestDoJSON(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Data.Something != "yes" {
+	if resp.Something != "yes" {
 		t.Errorf("expected %+v", resp)
 	}
 }
@@ -78,9 +118,9 @@ func TestQueryJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "/", "token")
 
-	req := NewRequest("query {}")
+	req := NewUnauthorizedRequest("query {}")
 	req.Var("username", "matryer")
 
 	// check variables
@@ -93,11 +133,9 @@ func TestQueryJSON(t *testing.T) {
 	}
 
 	var resp struct {
-		Data struct {
-			Value string
-		}
+		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(ctx, log, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -106,7 +144,7 @@ func TestQueryJSON(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Data.Value != "some data" {
+	if resp.Value != "some data" {
 		t.Errorf("expected %+v", resp)
 	}
 }
@@ -141,28 +179,16 @@ func TestDoJSONErr(t *testing.T) {
 	defer server.Close()
 
 	ctx := context.Background()
-	client := NewClient(server.URL, logger.NewLogger(false))
+	client := NewClient(server.URL, "/", "token")
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	var responseData struct {
-		Data   map[string]interface{}
-		Errors []struct {
-			Message string
-		}
-	}
-	err := client.Run(ctx, &Request{Query: "query {}"}, &responseData)
-	if err != nil {
+	var responseData map[string]interface{}
+
+	err := client.Run(ctx, log, &Request{Query: "query {}"}, &responseData)
+	if err.Error() != "Something went wrong\nSomething else went wrong" {
 		t.Errorf(err.Error())
-	}
-
-	if len(responseData.Errors) < 1 {
-		t.Errorf("expected errors in %+v", responseData)
-	}
-
-	if responseData.Errors[0].Message != "Something went wrong" {
-		t.Errorf("expected %+v", responseData)
 	}
 }
 
@@ -183,17 +209,15 @@ func TestHeader(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, logger.NewLogger(false))
+	client := NewClient(srv.URL, "/", "token")
 
-	req := NewRequest("query {}")
+	req := NewUnauthorizedRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {
-		Data struct {
-			Value string
-		}
+		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(ctx, log, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -202,7 +226,7 @@ func TestHeader(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 
-	if resp.Data.Value != "some data" {
+	if resp.Value != "some data" {
 		t.Errorf("expected %+v", resp)
 	}
 }

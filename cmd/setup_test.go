@@ -71,7 +71,7 @@ var _ = Describe("Setup", func() {
 			config, err = os.OpenFile(
 				filepath.Join(tempHome, configDir, configFile),
 				os.O_RDWR|os.O_CREATE,
-				0644, // Using existing incorrect file permissions
+				0600,
 			)
 			Expect(err).ToNot(HaveOccurred())
 		})

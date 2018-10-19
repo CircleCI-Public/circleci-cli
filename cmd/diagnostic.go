@@ -4,62 +4,74 @@ import (
 	"context"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
-func newDiagnosticCommand() *cobra.Command {
+type diagnosticOptions struct {
+	cfg  *settings.Config
+	cl   *client.Client
+	log  *logger.Logger
+	args []string
+}
+
+func newDiagnosticCommand(config *settings.Config) *cobra.Command {
+	opts := diagnosticOptions{
+		cfg: config,
+	}
+
 	diagnosticCommand := &cobra.Command{
 		Use:   "diagnostic",
 		Short: "Check the status of your CircleCI CLI.",
-		RunE:  diagnostic,
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return diagnostic(opts)
+		},
 	}
 
 	return diagnosticCommand
 }
 
-func diagnostic(cmd *cobra.Command, args []string) error {
-	address, err := api.GraphQLServerAddress(api.EnvEndpointHost())
-	if err != nil {
-		return err
-	}
+func diagnostic(opts diagnosticOptions) error {
+	opts.log.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
+	opts.log.Infof("Debugger mode: %v\n", opts.cfg.Debug)
+	opts.log.Infof("Config found: %v\n", opts.cfg.FileUsed)
+	opts.log.Infof("API host: %s\n", opts.cfg.Host)
+	opts.log.Infof("API endpoint: %s\n", opts.cfg.Endpoint)
 
-	token := viper.GetString("token")
-
-	Logger.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
-	Logger.Infof("Debugger mode: %v\n", viper.GetBool("debug"))
-
-	Logger.Infof("Config found: %v\n", viper.ConfigFileUsed())
-
-	Logger.Infof("GraphQL API address: %s\n", address)
-
-	if token == "token" || token == "" {
+	if opts.cfg.Token == "token" || opts.cfg.Token == "" {
 		return errors.New("please set a token with 'circleci setup'")
 	}
-	Logger.Infoln("OK, got a token.")
+	opts.log.Infoln("OK, got a token.")
 
-	Logger.Infoln("Trying an introspection query on API... ")
-	responseIntro, err := api.IntrospectionQuery(context.Background(), Logger)
-	if responseIntro.Data.Schema.QueryType.Name == "" {
-		Logger.Infoln("Unable to make a query against the GraphQL API, please check your settings")
+	opts.log.Infoln("Trying an introspection query on API... ")
+	responseIntro, err := api.IntrospectionQuery(context.Background(), opts.log, opts.cl)
+	if responseIntro.Schema.QueryType.Name == "" {
+		opts.log.Infoln("Unable to make a query against the GraphQL API, please check your settings")
 		if err != nil {
 			return err
 		}
 	}
 
-	Logger.Infoln("Ok.")
+	opts.log.Infoln("Ok.")
 
-	Logger.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Data.Schema.QueryType.Name)
+	opts.log.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Schema.QueryType.Name)
 
-	responseWho, err := api.WhoamiQuery(context.Background(), Logger)
+	responseWho, err := api.WhoamiQuery(context.Background(), opts.log, opts.cl)
 
 	if err != nil {
 		return err
 	}
 
-	if responseWho.Data.Me.Name != "" {
-		Logger.Infof("Hello, %s.\n", responseWho.Data.Me.Name)
+	if responseWho.Me.Name != "" {
+		opts.log.Infof("Hello, %s.\n", responseWho.Me.Name)
 	}
 
 	return nil
