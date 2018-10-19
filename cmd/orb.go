@@ -206,12 +206,24 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedSections map[string]api.OrbSectionInfo) {
 	var err error
-	if len(elems) > 0 {
+	if len(namedSections) > 0 {
 		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		for key := range elems {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
+		for key := range namedSections {
+			_, err = buf.WriteString(fmt.Sprintf("    - %s:\n", key))
+			for parameterName := range namedSections[key].Parameters {
+				parameter := namedSections[key].Parameters[parameterName]
+
+				if parameter.Default != "" {
+					_, err = buf.WriteString(fmt.Sprintf("       - %s: %s (default: '%s')\n",
+						parameterName, parameter.Type, parameter.Default))
+				} else {
+					_, err = buf.WriteString(fmt.Sprintf("       - %s: %s\n",
+						parameterName, parameter.Type))
+
+				}
+			}
 		}
 	}
 	// This will never occur. The docs for bytes.Buffer.WriteString says err
