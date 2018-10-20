@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -30,6 +31,7 @@ var orbAnnotations = map[string]string{
 
 var orbListUncertified bool
 var orbListJSON bool
+var orbListDetails bool
 
 func newOrbCommand(config *settings.Config) *cobra.Command {
 	opts := orbOptions{
@@ -53,6 +55,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 	listCommand.Annotations["<namespace>"] = orbAnnotations["<namespace>"] + " (Optional)"
 	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
 	listCommand.PersistentFlags().BoolVar(&orbListJSON, "json", false, "print output as json instead of human-readable")
+	listCommand.PersistentFlags().BoolVarP(&orbListDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
 	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
 		panic(err)
 	}
@@ -203,6 +206,124 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
+func parameterDefaultToString(parameter api.OrbElementParameter) string {
+	defaultValue := " (default: '"
+
+	// If there isn't a default or the default value is for a steps parameter
+	// then just ignore the value.
+	// It's possible to have a very large list of steps that pollutes the output.
+	if parameter.Default == nil || parameter.Type == "steps" {
+		return ""
+	}
+
+	switch parameter.Type {
+	case "enum":
+		defaultValue += parameter.Default.(string)
+	case "string":
+		defaultValue += parameter.Default.(string)
+	case "boolean":
+		defaultValue += fmt.Sprintf("%t", parameter.Default.(bool))
+	default:
+		defaultValue += ""
+	}
+
+	return defaultValue + "')"
+}
+
+func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) error {
+	for parameterName, parameter := range orbElement.Parameters {
+		var err error
+
+		defaultValueString := parameterDefaultToString(parameter)
+		_, err = buf.WriteString(fmt.Sprintf("       - %s: %s%s\n", parameterName, parameter.Type, defaultValueString))
+
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map[string]api.OrbElement) {
+	var err error
+
+	if len(namedOrbElements) > 0 {
+		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		for elementName, orbElement := range namedOrbElements {
+			parameterCount := len(orbElement.Parameters)
+
+			_, err = buf.WriteString(fmt.Sprintf("    - %s: %d parameter(s)\n", elementName, parameterCount))
+
+			if parameterCount > 0 {
+				err = addOrbElementParametersToBuffer(buf, orbElement)
+			}
+		}
+	}
+
+	// This will never occur. The docs for bytes.Buffer.WriteString says err
+	// will always be nil. The linter still expects this error to be checked.
+	if err != nil {
+		panic(err)
+	}
+}
+
+func orbToDetailedString(orb api.Orb) string {
+	buffer := bytes.NewBufferString(orbToSimpleString(orb))
+
+	addOrbElementsToBuffer(buffer, "Commands", orb.Commands)
+	addOrbElementsToBuffer(buffer, "Jobs", orb.Jobs)
+	addOrbElementsToBuffer(buffer, "Executors", orb.Executors)
+
+	return buffer.String()
+}
+
+func orbToSimpleString(orb api.Orb) string {
+	var buffer bytes.Buffer
+
+	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
+	if err != nil {
+		// The WriteString docstring says that it will never return an error
+		panic(err)
+	}
+
+	return buffer.String()
+}
+
+func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
+	var result string
+
+	if orbListJSON {
+		orbJSON, err := json.MarshalIndent(orbCollection, "", "  ")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
+		}
+		result = string(orbJSON)
+	} else {
+		result += fmt.Sprintf("Total orbs found: %d\n\n", len(orbCollection.Orbs))
+		for _, orb := range orbCollection.Orbs {
+			if orbListDetails {
+				result += (orbToDetailedString(orb))
+			} else {
+				result += (orbToSimpleString(orb))
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func logOrbs(logger *logger.Logger, orbCollection *api.OrbCollection) error {
+	result, err := orbCollectionToString(orbCollection)
+	if err != nil {
+		return err
+	}
+
+	logger.Info(result)
+
+	return nil
+}
+
 func listOrbs(opts orbOptions) error {
 	if len(opts.args) != 0 {
 		return listNamespaceOrbs(opts)
@@ -213,17 +334,8 @@ func listOrbs(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
-	if orbListJSON {
-		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
-		if err != nil {
-			return errors.Wrapf(err, "Failed to convert to convert to JSON")
-		}
-		opts.log.Info(string(orbJSON))
 
-	} else {
-		opts.log.Info(orbs.String())
-	}
-	return nil
+	return logOrbs(opts.log, orbs)
 }
 
 func listNamespaceOrbs(opts orbOptions) error {
@@ -234,16 +346,8 @@ func listNamespaceOrbs(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
-	if orbListJSON {
-		orbJSON, err := json.MarshalIndent(orbs, "", "  ")
-		if err != nil {
-			return errors.Wrapf(err, "Failed to convert to convert to JSON")
-		}
-		opts.log.Info(string(orbJSON))
-	} else {
-		opts.log.Info(orbs.String())
-	}
-	return nil
+
+	return logOrbs(opts.log, orbs)
 }
 
 func validateOrb(opts orbOptions) error {

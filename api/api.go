@@ -1,7 +1,6 @@
 package api
 
 import (
-	"bytes"
 	"context"
 	"io/ioutil"
 	"os"
@@ -233,20 +232,25 @@ type OrbCollection struct {
 	Namespace string `json:"namespace,omitempty"`
 }
 
-// String returns a text representation of all Orbs, intended for
-// direct human use rather than machine use.
-func (orbCollection OrbCollection) String() string {
-	var result string
-	for _, o := range orbCollection.Orbs {
-		result += (o.String())
-	}
-	return result
-}
-
 // OrbVersion represents a single orb version and its source
 type OrbVersion struct {
 	Version string `json:"version"`
 	Source  string `json:"source"`
+}
+
+// OrbElementParameter represents the yaml-unmarshled contents of
+// a parameter for a command/job/executor
+type OrbElementParameter struct {
+	Description string      `json:"-"`
+	Type        string      `json:"-"`
+	Default     interface{} `json:"-"`
+}
+
+// OrbElement represents the yaml-unmarshled contents of
+// a named element under a command/job/executor
+type OrbElement struct {
+	Description string                         `json:"-"`
+	Parameters  map[string]OrbElementParameter `json:"-"`
 }
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
@@ -259,45 +263,12 @@ type Orb struct {
 	Source string `json:"-"`
 	// Avoid "Version" since there is a "version" key in the orb source referring
 	// to the orb schema version
-	HighestVersion string              `json:"version"`
-	Version        string              `json:"-"`
-	Commands       map[string]struct{} `json:"-"`
-	Jobs           map[string]struct{} `json:"-"`
-	Executors      map[string]struct{} `json:"-"`
-	Versions       []OrbVersion        `json:"versions"`
-}
-
-func addOrbElementsToBuffer(buf *bytes.Buffer, name string, elems map[string]struct{}) {
-	var err error
-	if len(elems) > 0 {
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		for key := range elems {
-			_, err = buf.WriteString(fmt.Sprintf("    - %s\n", key))
-		}
-	}
-	// This will never occur. The docs for bytes.Buffer.WriteString says err
-	// will always be nil. The linter still expects this error to be checked.
-	if err != nil {
-		panic(err)
-	}
-}
-
-// String returns a text representation of the Orb contents, intended for
-// direct human use rather than machine use. This function will exclude orb
-// source and orbs without any versions in its returned string.
-func (orb Orb) String() string {
-	var buffer bytes.Buffer
-
-	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
-	if err != nil {
-		// The WriteString docstring says that it will never return an error
-		panic(err)
-	}
-	addOrbElementsToBuffer(&buffer, "Commands", orb.Commands)
-	addOrbElementsToBuffer(&buffer, "Jobs", orb.Jobs)
-	addOrbElementsToBuffer(&buffer, "Executors", orb.Executors)
-
-	return buffer.String()
+	HighestVersion string                `json:"version"`
+	Version        string                `json:"-"`
+	Commands       map[string]OrbElement `json:"-"`
+	Jobs           map[string]OrbElement `json:"-"`
+	Executors      map[string]OrbElement `json:"-"`
+	Versions       []OrbVersion          `json:"versions"`
 }
 
 // #nosec

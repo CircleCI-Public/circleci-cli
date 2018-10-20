@@ -1182,10 +1182,11 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
+				Eventually(session.Out).Should(gbytes.Say("Total orbs found: 11"))
 				// Include an orb with content from the first mocked response
-				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure"))
+				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
-				Eventually(session.Out).Should(gbytes.Say("zzak/test4"))
+				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -1215,11 +1216,81 @@ var _ = Describe("Orb integration tests", func() {
 			})
 		})
 
+		Describe("when listing all orbs with --details", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--host", testServer.URL(),
+					"--details",
+				)
+				By("setting up a mock server")
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/response.json"))
+				gqlResponse := string(tmpBytes)
+
+				// Use Gomega's default matcher instead of our custom appendPostHandler
+				// since this query doesn't pass in a token.
+				// Skip checking the content type field to make this test simpler.
+				testServer.AppendHandlers(
+					ghttp.CombineHandlers(
+						ghttp.VerifyRequest("POST", "/graphql-unstable"),
+						ghttp.RespondWith(http.StatusOK, gqlResponse),
+					),
+				)
+			})
+
+			It("lists detailed orbs", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Total orbs found: 1"))
+				Eventually(session.Out).Should(gbytes.Say("foo/test \\(0.7.0\\)"))
+				Eventually(session.Out).Should(gbytes.Say("Commands:"))
+				Eventually(session.Out).Should(gbytes.Say("- echo: 2 parameter\\(s\\)"))
+				Eventually(session.Out).Should(gbytes.Say("- message: string"))
+				Eventually(session.Out).Should(gbytes.Say("- post-steps: steps"))
+				Eventually(session.Out).Should(gbytes.Say("Jobs:"))
+				Eventually(session.Out).Should(gbytes.Say("- hello-build: 0 parameter\\(s\\)"))
+				Eventually(session.Out).Should(gbytes.Say("Executors:"))
+				Eventually(session.Out).Should(gbytes.Say("- default: 1 parameter\\(s\\)"))
+				Eventually(session.Out).Should(gbytes.Say("- tag: string \\(default: 'curl-browsers'\\)"))
+				Eventually(session).Should(gexec.Exit(0))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+			})
+
+			Context("with the --json flag", func() {
+				BeforeEach(func() {
+					command = exec.Command(pathCLI,
+						"orb", "list",
+						"--host", testServer.URL(),
+						"--details",
+						"--json",
+					)
+				})
+
+				It("is overridden by the --json flag", func() {
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(0))
+
+					tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/pretty_json_output.json"))
+					expectedOutput := string(tmpBytes)
+					completeOutput := string(session.Wait().Out.Contents())
+					Expect(completeOutput).Should(MatchJSON(expectedOutput))
+					Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+				})
+			})
+		})
+
 		Describe("when listing orbs with a namespace argument", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
 					"--host", testServer.URL(),
+					"--details",
 				)
 				By("setting up a mock server")
 				// These requests and responses are generated from production data,

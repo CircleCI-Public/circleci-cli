@@ -1,0 +1,14 @@
+{
+	"orbs": [
+		{
+			"name": "foo/test",
+			"version": "0.7.0",
+			"versions": [
+				{
+					"version": "0.7.0",
+					"source": "version: 2.1\ndescription: An orb with some simple ways to help you with your first build.\n\ncommands:\n  echo:\n    parameters:\n      message:\n        type: string\n      post-steps:\n        type: steps\n        default: []\n    steps:\n      - run: echo \u003c\u003c parameters.message \u003e\u003e\n\nexecutors:\n  default:\n    parameters:\n      tag:\n        type: string\n        default: \"curl-browsers\"\n    docker:\n      - image: circleci/buildpack-deps:\u003c\u003c parameters.tag \u003e\u003e\n\njobs:\n  hello-build:\n    executor: default\n    steps:\n      - echo:\n          message: \"Hello, build!\"\n"
+				}
+			]
+		}
+	]
+}
