@@ -300,6 +300,7 @@ func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
 		}
 		result = string(orbJSON)
 	} else {
+		result += fmt.Sprintf("Total orbs found: %d\n\n", len(orbCollection.Orbs))
 		for _, orb := range orbCollection.Orbs {
 			if orbListDetails {
 				result += (orbToDetailedString(orb))

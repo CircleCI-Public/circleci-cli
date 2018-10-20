@@ -1182,10 +1182,11 @@ var _ = Describe("Orb integration tests", func() {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
+				Eventually(session.Out).Should(gbytes.Say("Total orbs found: 11"))
 				// Include an orb with content from the first mocked response
-				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure"))
+				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
-				Eventually(session.Out).Should(gbytes.Say("zzak/test4"))
+				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -1243,6 +1244,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Total orbs found: 1"))
 				Eventually(session.Out).Should(gbytes.Say("foo/test \\(0.7.0\\)"))
 				Eventually(session.Out).Should(gbytes.Say("Commands:"))
 				Eventually(session.Out).Should(gbytes.Say("- echo: 2 parameter\\(s\\)"))
