@@ -241,9 +241,9 @@ type OrbVersion struct {
 // OrbElementParameter represents the yaml-unmarshled contents of
 // a parameter for a command/job/executor
 type OrbElementParameter struct {
-	Description string `json:"-"`
-	Type        string `json:"-"`
-	Default     string `json:"-"`
+	Description string      `json:"-"`
+	Type        string      `json:"-"`
+	Default     interface{} `json:"-"`
 }
 
 // OrbElement represents the yaml-unmarshled contents of

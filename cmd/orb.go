@@ -206,14 +206,36 @@ Please note that at this time all orbs created in the registry are world-readabl
 	return orbCommand
 }
 
+func parameterDefaultToString(parameter api.OrbElementParameter) string {
+	defaultValue := " (default: '"
+
+	// If there isn't a default or the default value is for a steps parameter
+	// then just ignore the value.
+	// It's possible to have a very large list of steps that pollutes the output.
+	if parameter.Default == nil || parameter.Type == "steps" {
+		return ""
+	}
+
+	switch parameter.Type {
+	case "enum":
+		defaultValue += parameter.Default.(string)
+	case "string":
+		defaultValue += parameter.Default.(string)
+	case "boolean":
+		defaultValue += fmt.Sprintf("%t", parameter.Default.(bool))
+	default:
+		defaultValue += ""
+	}
+
+	return defaultValue + "')"
+}
+
 func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) error {
 	for parameterName, parameter := range orbElement.Parameters {
 		var err error
-		if parameter.Default != "" {
-			_, err = buf.WriteString(fmt.Sprintf("       - %s: %s (default: '%s')\n", parameterName, parameter.Type, parameter.Default))
-		} else {
-			_, err = buf.WriteString(fmt.Sprintf("       - %s: %s\n", parameterName, parameter.Type))
-		}
+
+		defaultValueString := parameterDefaultToString(parameter)
+		_, err = buf.WriteString(fmt.Sprintf("       - %s: %s%s\n", parameterName, parameter.Type, defaultValueString))
 
 		if err != nil {
 			return err
@@ -249,7 +271,6 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 func orbToDetailedString(orb api.Orb) string {
 	buffer := bytes.NewBufferString(orbToSimpleString(orb))
 
-	// TODO: Add params
 	addOrbElementsToBuffer(buffer, "Commands", orb.Commands)
 	addOrbElementsToBuffer(buffer, "Jobs", orb.Jobs)
 	addOrbElementsToBuffer(buffer, "Executors", orb.Executors)
