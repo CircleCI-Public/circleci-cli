@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -16,6 +17,9 @@ var defaultHost = "https://circleci.com"
 // therefore we can use it in other commands, like `usage`
 // it should be set once when Execute is first called
 var rootCmd *cobra.Command
+
+// AutoUpdate defines the default behavior to include `circleci update` command with update feature.
+var AutoUpdate = "true"
 
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
@@ -93,7 +97,11 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newVersionCommand(config))
 	rootCmd.AddCommand(newDiagnosticCommand(config))
 	rootCmd.AddCommand(newSetupCommand(config))
-	rootCmd.AddCommand(newUpdateCommand(config))
+
+	if isUpdateIncluded(AutoUpdate) {
+		rootCmd.AddCommand(newUpdateCommand(config))
+	}
+
 	rootCmd.AddCommand(newNamespaceCommand(config))
 	rootCmd.AddCommand(newUsageCommand(config))
 	rootCmd.AddCommand(newStepCommand(config))
@@ -164,4 +172,13 @@ func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
 		visitAll(cmd, fn)
 	}
 	fn(root)
+}
+
+func isUpdateIncluded(flag string) bool {
+	conv, err := strconv.ParseBool(flag)
+	if err != nil {
+		panic(err)
+	}
+
+	return conv
 }
