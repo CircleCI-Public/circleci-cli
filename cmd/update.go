@@ -8,7 +8,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/ui"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
@@ -19,17 +18,18 @@ import (
 )
 
 type updateOptions struct {
-	cfg    *settings.Config
-	log    *logger.Logger
-	dryRun bool
-	noTTY  bool
-	args   []string
+	cfg       *settings.Config
+	log       *logger.Logger
+	dryRun    bool
+	githubAPI string
+	args      []string
 }
 
 func newUpdateCommand(config *settings.Config) *cobra.Command {
 	opts := updateOptions{
-		cfg:    config,
-		dryRun: false,
+		cfg:       config,
+		dryRun:    false,
+		githubAPI: "https://api.github.com/api/v3",
 	}
 
 	update := &cobra.Command{
@@ -54,7 +54,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			opts.noTTY = true
 			return updateCLI(opts)
 		},
 	})
@@ -68,7 +67,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			opts.noTTY = true
 			return updateCLI(opts)
 		},
 	})
@@ -86,7 +84,12 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		},
 	})
 
-	update.PersistentFlags().BoolVar(&opts.noTTY, "no-tty", false, "Enable non-interactive mode for clients without a terminal")
+	update.PersistentFlags().BoolVar(&opts.dryRun, "check", false, "Check if there are any updates available without installing")
+
+	update.PersistentFlags().StringVar(&opts.githubAPI, "github-api", "https://api.github.com/api/v3", "Change the default endpoint to  GitHub API for retreiving updates")
+	if err := update.PersistentFlags().MarkHidden("github-api"); err != nil {
+		panic(err)
+	}
 
 	update.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
 	if err := update.Flags().MarkHidden("testing"); err != nil {
@@ -142,7 +145,13 @@ func findLatestPicardSha() (string, error) {
 }
 
 func updateCLI(opts updateOptions) error {
-	updater := selfupdate.DefaultUpdater()
+	updater, err := selfupdate.NewUpdater(selfupdate.Config{
+		APIToken:          "",
+		EnterpriseBaseURL: opts.githubAPI,
+	})
+	if err != nil {
+		return err
+	}
 
 	slug := "CircleCI-Public/circleci-cli"
 
@@ -171,49 +180,24 @@ func updateCLI(opts updateOptions) error {
 		return nil
 	}
 
+	reportVersion(opts.log, current, latest.Version)
+
 	if opts.dryRun {
-		reportVersion(opts.log, current, latest.Version)
 		opts.log.Infof("You can update with `circleci update install`")
 		return nil
 	}
 
-	if !opts.noTTY {
-		reportVersion(opts.log, current, latest.Version)
-		// prompt for user to update
-		var tty ui.UserInterface = ui.InteractiveUI{}
-
-		if testing {
-			tty = ui.TestingUI{
-				Confirm: true,
-			}
-		}
-
-		if tty.AskUserToConfirm(opts.log, "Would you like to update") {
-			release, err := updater.UpdateSelf(current, slug)
-
-			if err != nil {
-				return errors.Wrap(err, "failed to install update")
-			}
-
-			opts.log.Infof("Updated to %s", release.Version)
-		} else {
-			opts.log.Infof("You can update with `circleci update install`")
-		}
-
-		return nil
-	}
-
 	release, err := updater.UpdateSelf(current, slug)
-
 	if err != nil {
 		return errors.Wrap(err, "failed to install update")
 	}
 
 	opts.log.Infof("Updated to %s", release.Version)
+
 	return nil
 }
 
 func reportVersion(log *logger.Logger, current, latest semver.Version) {
-	log.Infof("A new release is available (%s)", latest)
 	log.Infof("You are running %s", current)
+	log.Infof("A new release is available (%s)", latest)
 }
