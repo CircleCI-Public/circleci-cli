@@ -192,6 +192,12 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 		}
 	}()
 
+	log.Debug(">> result status: %s", res.Status)
+
+	if res.StatusCode != 200 {
+		return fmt.Errorf("failure calling GraphQL API: %s", res.Status)
+	}
+
 	wrappedResponse := &Response{
 		Data: resp,
 	}
