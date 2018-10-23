@@ -1,7 +1,11 @@
 package cmd_test
 
 import (
+	"fmt"
+	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
@@ -83,6 +87,62 @@ var _ = Describe("Root", func() {
 			Eventually(session.Out).Should(gbytes.Say("update      Update the tool to the latest version"))
 
 			Eventually(session).Should(gexec.Exit(0))
+		})
+	})
+
+	Describe("token in help text", func() {
+		var (
+			command  *exec.Cmd
+			tempHome string
+		)
+
+		const (
+			configDir  = ".circleci"
+			configFile = "cli.yml"
+		)
+
+		BeforeEach(func() {
+			var err error
+			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
+			Expect(err).ToNot(HaveOccurred())
+
+			command = exec.Command(pathCLI, "help")
+			command.Env = append(os.Environ(),
+				fmt.Sprintf("HOME=%s", tempHome),
+				fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+			)
+		})
+
+		AfterEach(func() {
+			Expect(os.RemoveAll(tempHome)).To(Succeed())
+		})
+
+		Describe("existing config file", func() {
+			var config *os.File
+
+			BeforeEach(func() {
+				Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
+
+				var err error
+				config, err = os.OpenFile(
+					filepath.Join(tempHome, configDir, configFile),
+					os.O_RDWR|os.O_CREATE,
+					0600,
+				)
+				Expect(err).ToNot(HaveOccurred())
+
+				_, err = config.Write([]byte(`token: secret`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			It("does not include the users token in help text", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err.Contents()).Should(BeEmpty())
+
+				Ω(session.Wait().Out.Contents()).ShouldNot(ContainSubstring("your token for using CircleCI (default \"secret\")"))
+			})
 		})
 	})
 })
