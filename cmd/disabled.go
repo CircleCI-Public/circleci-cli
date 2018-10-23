@@ -13,6 +13,7 @@ type disableOptions struct {
 	args    []string
 }
 
+// nolint: unparam
 func newDisabledCommand(config *settings.Config, command string) *cobra.Command {
 	opts := disableOptions{
 		cfg:     config,
