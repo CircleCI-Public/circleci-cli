@@ -16,3 +16,4 @@ done
 # move index and update links
 mv out/circleci.html out/index.html
 sed -i -- 's#<a href="circleci.html">#<a href="index.html">#g' out/*.html
+cp -v install.sh out/install.sh
