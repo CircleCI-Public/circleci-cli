@@ -29,7 +29,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 	opts := updateOptions{
 		cfg:       config,
 		dryRun:    false,
-		githubAPI: "https://api.github.com/api/v3",
+		githubAPI: "https://api.github.com/",
 	}
 
 	update := &cobra.Command{
@@ -86,7 +86,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 	update.PersistentFlags().BoolVar(&opts.dryRun, "check", false, "Check if there are any updates available without installing")
 
-	update.PersistentFlags().StringVar(&opts.githubAPI, "github-api", "https://api.github.com/api/v3", "Change the default endpoint to  GitHub API for retreiving updates")
+	update.PersistentFlags().StringVar(&opts.githubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retreiving updates")
 	if err := update.PersistentFlags().MarkHidden("github-api"); err != nil {
 		panic(err)
 	}
@@ -146,7 +146,6 @@ func findLatestPicardSha() (string, error) {
 
 func updateCLI(opts updateOptions) error {
 	updater, err := selfupdate.NewUpdater(selfupdate.Config{
-		APIToken:          "",
 		EnterpriseBaseURL: opts.githubAPI,
 	})
 	if err != nil {
