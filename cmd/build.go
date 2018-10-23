@@ -54,8 +54,12 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 	}
 
 	buildCommand := &cobra.Command{
-		Use:   "execute",
+		Use:   "execute [flags] [-- Docker specific flags]",
 		Short: "Run a job in a container on the local machine",
+		Long: `Execute will run a CircleCI job on the local machine via 'docker run'. 
+		Docker specific flags can be passed by appending '--' and then the flags. For 
+		example:
+			circleci local execute -- -e INJECTED_ENVAR=value`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
@@ -64,7 +68,6 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runExecute(opts)
 		},
-		DisableFlagParsing: true,
 	}
 
 	// Used as a convenience work-around when DisableFlagParsing is enabled
