@@ -18,6 +18,12 @@ var defaultHost = "https://circleci.com"
 // it should be set once when Execute is first called
 var rootCmd *cobra.Command
 
+// config is used internally for preparing CLI and passed to sub-commands
+var config *settings.Config
+
+// token stores the value passed in through the flag --token
+var token string
+
 // AutoUpdate defines the default behavior to include `circleci update` command with update feature.
 var AutoUpdate = "true"
 
@@ -68,7 +74,7 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
-	config := &settings.Config{
+	config = &settings.Config{
 		Debug:    false,
 		Token:    "",
 		Host:     defaultHost,
@@ -114,7 +120,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newSwitchCommand(config))
 
 	rootCmd.PersistentFlags().BoolVar(&config.Debug, "debug", config.Debug, "Enable debug logging.")
-	rootCmd.PersistentFlags().StringVar(&config.Token, "token", config.Token, "your token for using CircleCI")
+	rootCmd.PersistentFlags().StringVar(&token, "token", "", "your token for using CircleCI")
 	rootCmd.PersistentFlags().StringVar(&config.Host, "host", config.Host, "URL to your CircleCI host")
 	rootCmd.PersistentFlags().StringVar(&config.Endpoint, "endpoint", config.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
@@ -139,6 +145,16 @@ func MakeCommands() *cobra.Command {
 	setFlagErrorFuncAndValidateArgs(rootCmd)
 
 	return rootCmd
+}
+
+func init() {
+	cobra.OnInitialize(prepare)
+}
+
+func prepare() {
+	if token != "" {
+		config.Token = token
+	}
 }
 
 func setFlagErrorFunc(cmd *cobra.Command, err error) error {
