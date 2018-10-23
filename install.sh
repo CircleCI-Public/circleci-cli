@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# Install the CircleCI CLI tool.
+# https://github.com/circleci-public/circleci-cli
+
 set -o errexit
 set -o nounset
 
