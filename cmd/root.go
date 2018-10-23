@@ -21,6 +21,10 @@ var rootCmd *cobra.Command
 // AutoUpdate defines the default behavior to include `circleci update` command with update feature.
 var AutoUpdate = "true"
 
+// PackageManager defines the package manager which was used to install the CLI.
+// You can override this value using -X flag to the compiler ldflags.
+var PackageManager = "source"
+
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
 // by main.main(). It only needs to happen once to
@@ -100,6 +104,8 @@ func MakeCommands() *cobra.Command {
 
 	if isUpdateIncluded(AutoUpdate) {
 		rootCmd.AddCommand(newUpdateCommand(config))
+	} else {
+		rootCmd.AddCommand(newDisabledCommand(config, "update"))
 	}
 
 	rootCmd.AddCommand(newNamespaceCommand(config))
