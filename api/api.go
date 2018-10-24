@@ -206,15 +206,25 @@ type OrbListResponse struct {
 	}
 }
 
-// OrbSourceResponse wraps the GQL result used by OrbSource
-type OrbSourceResponse struct {
+// OrbVersionResponse wraps the GQL result used by OrbSource and OrbInfo
+type OrbVersionResponse struct {
 	OrbVersion struct {
 		ID      string
 		Version string
 		Orb     struct {
-			ID string
+			ID        string
+			CreatedAt string
+			Name      string
+			Namespace struct {
+				Name string
+			}
+			Versions []struct {
+				Version   string
+				CreatedAt string
+			}
 		}
-		Source string
+		Source    string
+		CreatedAt string
 	}
 }
 
@@ -785,7 +795,7 @@ func orbVersionRef(orb string) string {
 	return fmt.Sprintf("%s@%s", split[0], "volatile")
 }
 
-// OrbSource gets the source or an orb
+// OrbSource gets the source of an orb
 func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef string) (string, error) {
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return "", err
@@ -793,7 +803,7 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 
 	ref := orbVersionRef(orbRef)
 
-	var response OrbSourceResponse
+	var response OrbVersionResponse
 
 	query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
@@ -817,6 +827,52 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 	}
 
 	return response.OrbVersion.Source, nil
+}
+
+// OrbInfo gets the meta-data of an orb
+func OrbInfo(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef string) (*OrbVersionResponse, error) {
+	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
+		return nil, err
+	}
+
+	ref := orbVersionRef(orbRef)
+
+	var response OrbVersionResponse
+
+	query := `query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb {
+                                    id
+                                    createdAt
+                                    name
+                                    namespace {
+                                        name
+                                    }
+                                    versions {
+                                        createdAt
+                                        version
+                                    }
+                                }
+                                source
+                                createdAt
+			    }
+		      }`
+
+	request := client.NewUnauthorizedRequest(query)
+	request.Var("orbVersionRef", ref)
+
+	err := cl.Run(ctx, log, request, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.OrbVersion.ID == "" {
+		return nil, fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
+	}
+
+	return &response, nil
 }
 
 // ListOrbs queries the API to find all orbs.

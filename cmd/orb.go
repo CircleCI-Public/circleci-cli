@@ -11,7 +11,9 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+	yaml "gopkg.in/yaml.v2"
 
 	"github.com/spf13/cobra"
 )
@@ -175,6 +177,24 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 	sourceCommand.Example = `  circleci orb source circleci/python@0.1.4 # grab the source at version 0.1.4
   circleci orb source my-ns/foo-orb@dev:latest # grab the source of dev release "latest"`
 
+	orbInfoCmd := &cobra.Command{
+		Use:   "info <orb>",
+		Short: "Show the meta-data of an orb",
+		PreRun: func(cmd *cobra.Command, args []string) {
+			opts.args = args
+			opts.log = logger.NewLogger(config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return orbInfo(opts)
+		},
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
+	}
+	orbInfoCmd.Annotations["<orb>"] = orbAnnotations["<orb>"]
+	orbInfoCmd.Example = `  circleci orb info circleci/python@0.1.4
+  circleci orb info my-ns/foo-orb@dev:latest`
+
 	orbCreate := &cobra.Command{
 		Use:   "create <namespace>/<orb>",
 		Short: "Create an orb in the specified namespace",
@@ -202,6 +222,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(processCommand)
 	orbCommand.AddCommand(publishCommand)
 	orbCommand.AddCommand(sourceCommand)
+	orbCommand.AddCommand(orbInfoCmd)
 
 	return orbCommand
 }
@@ -504,5 +525,72 @@ func showSource(opts orbOptions) error {
 		return errors.Wrapf(err, "Failed to get source for '%s'", ref)
 	}
 	opts.log.Info(source)
+	return nil
+}
+
+func orbInfo(opts orbOptions) error {
+	ref := opts.args[0]
+
+	info, err := api.OrbInfo(context.Background(), opts.log, opts.cl, ref)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get info for '%s'", ref)
+	}
+	opts.log.Infof("Found the '%s' orb using ref '%s'", info.OrbVersion.Orb.Name, ref)
+	opts.log.Infof("Namespace: %s", info.OrbVersion.Orb.Namespace.Name)
+	opts.log.Infof("Created at: %s", info.OrbVersion.Orb.CreatedAt)
+
+	opts.log.Info("\n")
+
+	revisions := info.OrbVersion.Orb.Versions
+
+	if len(revisions) > 0 {
+		opts.log.Infof("Latest: %s", revisions[0].Version)
+		opts.log.Infof("Last updated: %s", revisions[0].CreatedAt)
+		opts.log.Infof("Total revisions: %d", len(revisions))
+
+		firstRelease := revisions[len(revisions)-1]
+		opts.log.Infof("First release: %s @ %s", firstRelease.Version, firstRelease.CreatedAt)
+	} else {
+		opts.log.Infof("This orb hasn't published any versions yet.")
+	}
+
+	opts.log.Info("\n")
+
+	var (
+		jobs      = 0
+		commands  = 0
+		executors = 0
+	)
+
+	var raw map[string]interface{}
+	if err := yaml.Unmarshal([]byte(info.OrbVersion.Source), &raw); err != nil {
+		return err
+	}
+
+	var orbSource struct {
+		Jobs      map[string]interface{}
+		Commands  map[string]interface{}
+		Executors map[string]interface{}
+	}
+	if err := mapstructure.WeakDecode(raw, &orbSource); err != nil {
+		return err
+	}
+
+	for range orbSource.Commands {
+		commands++
+	}
+
+	for range orbSource.Executors {
+		executors++
+	}
+
+	for range orbSource.Jobs {
+		jobs++
+	}
+
+	opts.log.Infof("Total commands: %d", commands)
+	opts.log.Infof("Total executors: %d", executors)
+	opts.log.Infof("Total jobs: %d", jobs)
+
 	return nil
 }
