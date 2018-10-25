@@ -5,6 +5,8 @@
 set -o errexit
 set -o nounset
 
+echo Installing CircleCI CLI
+
 RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
 DESTDIR="${DESTDIR:-/usr/local/bin}"
 
@@ -29,9 +31,9 @@ echo -n 'Downloading CircleCI '
 grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
 
 grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
-grep -i "$(uname)" tarball_urls.txt | xargs curl --retry 3 --fail --location --output circleci.tgz
+grep -i "$(uname)" tarball_urls.txt | xargs curl --silent --retry 3 --fail --location --output circleci.tgz
 
-tar zxvf circleci.tgz --strip 1
+tar zxf circleci.tgz --strip 1
 
 echo "Installing to $DESTDIR"
 mv circleci "$DESTDIR"
