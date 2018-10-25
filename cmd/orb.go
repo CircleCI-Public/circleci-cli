@@ -562,7 +562,7 @@ func orbInfo(opts orbOptions) error {
 
 	var raw map[string]interface{}
 	if err := yaml.Unmarshal([]byte(info.OrbVersion.Source), &raw); err != nil {
-		return err
+		return errors.Wrap(err, "Unable to parse orb source")
 	}
 
 	var orbSource struct {
@@ -571,7 +571,7 @@ func orbInfo(opts orbOptions) error {
 		Executors map[string]interface{}
 	}
 	if err := mapstructure.WeakDecode(raw, &orbSource); err != nil {
-		return err
+		return errors.Wrap(err, "Unable to decode orb source")
 	}
 
 	for range orbSource.Commands {
