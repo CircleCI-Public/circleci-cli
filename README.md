@@ -22,13 +22,13 @@ This project is the seed for CircleCI's new command-line application.
 If you're installing the new `circleci` CLI for the first time, run the following command:
 
 ```
-bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+curl -fLSs https://circle.ci/cli | bash
 ```
 
 By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`. Alternatively, you can install to an alternate location by defining the `DESTDIR` environment variable when invoking `bash`:
 
 ```
-DESTDIR=/opt/bin bash -c "$(curl -fSl https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh)"
+curl -fLSs https://circle.ci/cli | DESTDIR=/opt/bin bash
 ```
 
 
