@@ -535,21 +535,19 @@ func orbInfo(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrapf(err, "Failed to get info for '%s'", ref)
 	}
-	opts.log.Infof("Found the '%s' orb using ref '%s'", info.OrbVersion.Orb.Name, ref)
-	opts.log.Infof("Namespace: %s", info.OrbVersion.Orb.Namespace.Name)
-	opts.log.Infof("Created at: %s", info.OrbVersion.Orb.CreatedAt)
 
 	opts.log.Info("\n")
 
 	revisions := info.OrbVersion.Orb.Versions
 
 	if len(revisions) > 0 {
-		opts.log.Infof("Latest: %s", revisions[0].Version)
-		opts.log.Infof("Last updated: %s", revisions[0].CreatedAt)
-		opts.log.Infof("Total revisions: %d", len(revisions))
-
+		opts.log.Infof("Latest: %s@%s", info.OrbVersion.Orb.Name, revisions[0].Version)
+		opts.log.Infof("Last-updated: %s", revisions[0].CreatedAt)
+		opts.log.Infof("Created: %s", info.OrbVersion.Orb.CreatedAt)
 		firstRelease := revisions[len(revisions)-1]
-		opts.log.Infof("First release: %s @ %s", firstRelease.Version, firstRelease.CreatedAt)
+		opts.log.Infof("First-release: %s @ %s", firstRelease.Version, firstRelease.CreatedAt)
+
+		opts.log.Infof("Total-revisions: %d", len(revisions))
 	} else {
 		opts.log.Infof("This orb hasn't published any versions yet.")
 	}
@@ -588,9 +586,9 @@ func orbInfo(opts orbOptions) error {
 		jobs++
 	}
 
-	opts.log.Infof("Total commands: %d", commands)
-	opts.log.Infof("Total executors: %d", executors)
-	opts.log.Infof("Total jobs: %d", jobs)
+	opts.log.Infof("Total-commands: %d", commands)
+	opts.log.Infof("Total-executors: %d", executors)
+	opts.log.Infof("Total-jobs: %d", jobs)
 
 	return nil
 }
