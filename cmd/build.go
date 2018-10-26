@@ -61,7 +61,13 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 			opts.log = logger.NewLogger(config.Debug)
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, flags []string) error {
+			for _, f := range flags {
+				if f == "--help" || f == "-h" {
+					return cmd.Help()
+				}
+			}
+
 			return runExecute(opts)
 		},
 		DisableFlagParsing: true,
