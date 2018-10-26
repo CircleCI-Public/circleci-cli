@@ -14,6 +14,7 @@ import (
 
 type usageOptions struct {
 	cfg  *settings.Config
+	tree bool
 	args []string
 }
 
@@ -22,7 +23,7 @@ func newUsageCommand(config *settings.Config) *cobra.Command {
 		cfg: config,
 	}
 
-	return &cobra.Command{
+	usageCmd := &cobra.Command{
 		Use:    "usage <path> (default is \"docs\")",
 		Short:  "Generate usage documentation in markdown for the CLI.",
 		Hidden: true,
@@ -33,6 +34,11 @@ func newUsageCommand(config *settings.Config) *cobra.Command {
 			return usage(opts)
 		},
 		Args: cobra.MaximumNArgs(1),
+	}
+
+	usageCmd.PersistentFlags().BoolVarP(&opts.tree, "tree", "", false, "generate a single file for the command tree")
+	if err := usageCmd.PersistentFlags().MarkHidden("tree"); err != nil {
+		panic(err)
 	}
 }
 
@@ -51,6 +57,10 @@ func usage(opts usageOptions) error {
 	out, err := filepath.Abs(docsPath)
 	if err != nil {
 		return err
+	}
+
+	if opts.tree {
+		return md_docs.GenMarkdownTreeSingle(rootCmd, out)
 	}
 
 	// generate markdown to out
