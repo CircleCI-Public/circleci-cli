@@ -936,8 +936,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
-					// TODO(zzak): Add an ErrorF to logger
-					log.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					log.ErrorF(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version)
 					continue Orbs
 				}
 
@@ -1007,7 +1006,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
-					log.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					log.ErrorF(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version)
 					continue NamespaceOrbs
 				}
 			} else {

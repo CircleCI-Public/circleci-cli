@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"os"
+
+	"github.com/pkg/errors"
 )
 
 // Logger wraps a few log.Logger instances in private fields.
@@ -63,6 +65,13 @@ func (l *Logger) Infof(format string, args ...interface{}) {
 func (l *Logger) Error(msg string, err error) {
 	if err != nil {
 		l.error.Print(msg, err.Error())
+	}
+}
+
+// ErrorF prints a formatted message given the error to os.Stderr
+func (l *Logger) ErrorF(err error, format string, args ...interface{}) {
+	if err != nil {
+		l.error.Print(errors.Wrapf(err, format, args...))
 	}
 }
 
