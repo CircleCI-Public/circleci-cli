@@ -1559,9 +1559,6 @@ https://circleci.com/account/api`))
                                     id
                                     createdAt
                                     name
-                                    namespace {
-                                        name
-                                    }
                                     versions {
                                         createdAt
                                         version
@@ -1584,9 +1581,6 @@ https://circleci.com/account/api`))
 								        "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								        "createdAt": "2018-09-24T08:53:37.086Z",
                                                                         "name": "my/orb",
-                                                                        "namespace": {
-                                                                            "name": "my"
-                                                                        },
                                                                         "versions": [
                                                                             {
                                                                                 "version": "0.0.1",
@@ -1594,7 +1588,7 @@ https://circleci.com/account/api`))
                                                                             }
                                                                         ]
 								},
-								"source": "commands:\n- foo: {bar: baz}",
+								"source": "description: zomg\ncommands: {foo: {parameters: {baz: {type: string}}}}",
                                                                 "createdAt": "2018-09-24T08:53:37.086Z"
 							}
 						}}`
@@ -1654,9 +1648,6 @@ Total-jobs: 0
                                     id
                                     createdAt
                                     name
-                                    namespace {
-                                        name
-                                    }
                                     versions {
                                         createdAt
                                         version
@@ -1679,12 +1670,9 @@ Total-jobs: 0
 								        "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								        "createdAt": "2018-09-24T08:53:37.086Z",
                                                                         "name": "my/orb",
-                                                                        "namespace": {
-                                                                            "name": "my"
-                                                                        },
                                                                         "versions": []
 								},
-								"source": "commands:\n- foo: {bar: baz}",
+								"source": "description: zomg\ncommands: {foo: {parameters: {baz: {type: string}}}}",
                                                                 "createdAt": "2018-09-24T08:53:37.086Z"
 							}
 						}}`
@@ -1740,9 +1728,6 @@ Total-jobs: 0
                                     id
                                     createdAt
                                     name
-                                    namespace {
-                                        name
-                                    }
                                     versions {
                                         createdAt
                                         version

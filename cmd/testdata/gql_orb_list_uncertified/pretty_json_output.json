@@ -35,8 +35,8 @@
       "version": "1.0.4",
       "versions": [
         {
-          "version": "1.0.4",
-          "source": "{}\n"
+          "version": "0.1.0",
+          "source": "{version: 2.1}\n"
         }
       ]
     },

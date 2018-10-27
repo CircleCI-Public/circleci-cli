@@ -102,9 +102,7 @@ type OrbPromoteResponse struct {
 // OrbLatestVersionResponse wraps the GQL result of fetching an Orb and latest version
 type OrbLatestVersionResponse struct {
 	Orb struct {
-		Versions []struct {
-			Version string
-		}
+		Versions []OrbVersion
 	}
 }
 
@@ -169,13 +167,7 @@ type NamespaceOrbResponse struct {
 		Orbs struct {
 			Edges []struct {
 				Cursor string
-				Node   struct {
-					Name     string
-					Versions []struct {
-						Version string
-						Source  string
-					}
-				}
+				Node   OrbList
 			}
 			TotalCount int
 			PageInfo   struct {
@@ -192,13 +184,7 @@ type OrbListResponse struct {
 		TotalCount int
 		Edges      []struct {
 			Cursor string
-			Node   struct {
-				Name     string
-				Versions []struct {
-					Version string
-					Source  string
-				}
-			}
+			Node   OrbList
 		}
 		PageInfo struct {
 			HasNextPage bool
@@ -206,26 +192,22 @@ type OrbListResponse struct {
 	}
 }
 
-// OrbVersionResponse wraps the GQL result used by OrbSource and OrbInfo
-type OrbVersionResponse struct {
-	OrbVersion struct {
-		ID      string
-		Version string
-		Orb     struct {
-			ID        string
-			CreatedAt string
-			Name      string
-			Namespace struct {
-				Name string
-			}
-			Versions []struct {
-				Version   string
-				CreatedAt string
-			}
-		}
-		Source    string
-		CreatedAt string
-	}
+// OrbListVersion wraps the GQL result used by OrbSource and OrbInfo
+type OrbListVersion struct {
+	ID        string `json:"-"`
+	Version   string `json:"version"`
+	Orb       Orb    `json:"-"`
+	Source    string `json:"source"`
+	CreatedAt string `json:"-"`
+}
+
+// OrbVersion wraps the GQL result used by OrbSource and OrbInfo
+type OrbVersion struct {
+	ID        string
+	Version   string
+	Orb       Orb
+	Source    string
+	CreatedAt string
 }
 
 // OrbConfigResponse wraps the GQL result for OrbQuery.
@@ -238,14 +220,8 @@ type OrbConfigResponse struct {
 // OrbCollection is a container type for multiple orbs to share formatting
 // functions on them.
 type OrbCollection struct {
-	Orbs      []Orb  `json:"orbs"`
-	Namespace string `json:"namespace,omitempty"`
-}
-
-// OrbVersion represents a single orb version and its source
-type OrbVersion struct {
-	Version string `json:"version"`
-	Source  string `json:"source"`
+	Orbs      []OrbList `json:"orbs"`
+	Namespace string    `json:"namespace,omitempty"`
 }
 
 // OrbElementParameter represents the yaml-unmarshled contents of
@@ -263,8 +239,8 @@ type OrbElement struct {
 	Parameters  map[string]OrbElementParameter `json:"-"`
 }
 
-// Orb is a struct for containing the yaml-unmarshaled contents of an orb
-type Orb struct {
+// OrbList is a struct for containing the yaml-unmarshaled contents of an orb
+type OrbList struct {
 	ID        string `json:"-"`
 	Name      string `json:"name"`
 	Namespace string `json:"-"`
@@ -278,7 +254,23 @@ type Orb struct {
 	Commands       map[string]OrbElement `json:"-"`
 	Jobs           map[string]OrbElement `json:"-"`
 	Executors      map[string]OrbElement `json:"-"`
-	Versions       []OrbVersion          `json:"versions"`
+	Versions       []OrbListVersion      `json:"versions"`
+}
+
+// Orb is a struct for containing the yaml-unmarshaled contents of an orb
+type Orb struct {
+	ID        string
+	Name      string
+	Namespace string
+	CreatedAt string
+
+	Source         string
+	HighestVersion string `json:"version"`
+	Version        string `json:"-"`
+	Commands       map[string]OrbElement
+	Jobs           map[string]OrbElement
+	Executors      map[string]OrbElement
+	Versions       []OrbVersion
 }
 
 // #nosec
@@ -536,7 +528,7 @@ func getOrganization(ctx context.Context, log *logger.Logger, cl *client.Client,
 	err = cl.Run(ctx, log, request, &response)
 
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
+		return nil, errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
 	return &response, nil
@@ -803,7 +795,9 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 
 	ref := orbVersionRef(orbRef)
 
-	var response OrbVersionResponse
+	var response struct {
+		OrbVersion OrbVersion
+	}
 
 	query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
@@ -830,14 +824,16 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 }
 
 // OrbInfo gets the meta-data of an orb
-func OrbInfo(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef string) (*OrbVersionResponse, error) {
+func OrbInfo(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef string) (*OrbVersion, error) {
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return nil, err
 	}
 
 	ref := orbVersionRef(orbRef)
 
-	var response OrbVersionResponse
+	var response struct {
+		OrbVersion OrbVersion
+	}
 
 	query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
@@ -847,9 +843,6 @@ func OrbInfo(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef 
                                     id
                                     createdAt
                                     name
-                                    namespace {
-                                        name
-                                    }
                                     versions {
                                         createdAt
                                         version
@@ -872,7 +865,21 @@ func OrbInfo(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef 
 		return nil, fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
 	}
 
-	return &response, nil
+	if len(response.OrbVersion.Orb.Versions) > 0 {
+		v := response.OrbVersion.Orb.Versions[0]
+
+		response.OrbVersion.Orb.HighestVersion = v.Version
+	} else {
+		response.OrbVersion.Orb.HighestVersion = "Not published"
+	}
+
+	// Parse the orb source to get its commands, executors and jobs
+	err = yaml.Unmarshal([]byte(response.OrbVersion.Source), &response.OrbVersion.Orb)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Corrupt Orb %s %s", response.OrbVersion.Orb.Name, response.OrbVersion.Version)
+	}
+
+	return &response.OrbVersion, nil
 }
 
 // ListOrbs queries the API to find all orbs.
@@ -919,24 +926,22 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		for i := range result.Orbs.Edges {
 			edge := result.Orbs.Edges[i]
 			currentCursor = edge.Cursor
+
 			if len(edge.Node.Versions) > 0 {
+
 				v := edge.Node.Versions[0]
 
-				var o Orb
+				edge.Node.HighestVersion = v.Version
 
-				o.Name = edge.Node.Name
-				o.HighestVersion = v.Version
-
-				for _, v := range edge.Node.Versions {
-					o.Versions = append(o.Versions, OrbVersion(v))
-				}
-				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
+					// TODO(zzak): Add an ErrorF to logger
 					log.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue Orbs
 				}
-				orbs.Orbs = append(orbs.Orbs, o)
+
+				orbs.Orbs = append(orbs.Orbs, edge.Node)
 			}
 		}
 
@@ -994,26 +999,21 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		for i := range result.RegistryNamespace.Orbs.Edges {
 			edge := result.RegistryNamespace.Orbs.Edges[i]
 			currentCursor = edge.Cursor
-			var o Orb
-			o.Name = edge.Node.Name
+
 			if len(edge.Node.Versions) > 0 {
 				v := edge.Node.Versions[0]
 
-				// Parse the orb source to print its commands, executors and jobs
-				o.HighestVersion = v.Version
-				for _, v := range edge.Node.Versions {
-					o.Versions = append(o.Versions, OrbVersion(v))
-				}
-				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				edge.Node.HighestVersion = v.Version
+
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
 					log.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
 					continue NamespaceOrbs
 				}
 			} else {
-				o.HighestVersion = "Not published"
-				o.Versions = []OrbVersion{}
+				edge.Node.HighestVersion = "Not published"
 			}
-			orbs.Orbs = append(orbs.Orbs, o)
+			orbs.Orbs = append(orbs.Orbs, edge.Node)
 		}
 
 		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {

@@ -11,9 +11,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
-	yaml "gopkg.in/yaml.v2"
 
 	"github.com/spf13/cobra"
 )
@@ -289,7 +287,7 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 	}
 }
 
-func orbToDetailedString(orb api.Orb) string {
+func orbToDetailedString(orb api.OrbList) string {
 	buffer := bytes.NewBufferString(orbToSimpleString(orb))
 
 	addOrbElementsToBuffer(buffer, "Commands", orb.Commands)
@@ -299,7 +297,7 @@ func orbToDetailedString(orb api.Orb) string {
 	return buffer.String()
 }
 
-func orbToSimpleString(orb api.Orb) string {
+func orbToSimpleString(orb api.OrbList) string {
 	var buffer bytes.Buffer
 
 	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
@@ -538,16 +536,14 @@ func orbInfo(opts orbOptions) error {
 
 	opts.log.Info("\n")
 
-	revisions := info.OrbVersion.Orb.Versions
-
-	if len(revisions) > 0 {
-		opts.log.Infof("Latest: %s@%s", info.OrbVersion.Orb.Name, revisions[0].Version)
-		opts.log.Infof("Last-updated: %s", revisions[0].CreatedAt)
-		opts.log.Infof("Created: %s", info.OrbVersion.Orb.CreatedAt)
-		firstRelease := revisions[len(revisions)-1]
+	if len(info.Orb.Versions) > 0 {
+		opts.log.Infof("Latest: %s@%s", info.Orb.Name, info.Orb.HighestVersion)
+		opts.log.Infof("Last-updated: %s", info.Orb.Versions[0].CreatedAt)
+		opts.log.Infof("Created: %s", info.Orb.CreatedAt)
+		firstRelease := info.Orb.Versions[len(info.Orb.Versions)-1]
 		opts.log.Infof("First-release: %s @ %s", firstRelease.Version, firstRelease.CreatedAt)
 
-		opts.log.Infof("Total-revisions: %d", len(revisions))
+		opts.log.Infof("Total-revisions: %d", len(info.Orb.Versions))
 	} else {
 		opts.log.Infof("This orb hasn't published any versions yet.")
 	}
@@ -560,29 +556,15 @@ func orbInfo(opts orbOptions) error {
 		executors = 0
 	)
 
-	var raw map[string]interface{}
-	if err := yaml.Unmarshal([]byte(info.OrbVersion.Source), &raw); err != nil {
-		return errors.Wrap(err, "Unable to parse orb source")
-	}
-
-	var orbSource struct {
-		Jobs      map[string]interface{}
-		Commands  map[string]interface{}
-		Executors map[string]interface{}
-	}
-	if err := mapstructure.WeakDecode(raw, &orbSource); err != nil {
-		return errors.Wrap(err, "Unable to decode orb source")
-	}
-
-	for range orbSource.Commands {
+	for range info.Orb.Commands {
 		commands++
 	}
 
-	for range orbSource.Executors {
+	for range info.Orb.Executors {
 		executors++
 	}
 
-	for range orbSource.Jobs {
+	for range info.Orb.Jobs {
 		jobs++
 	}
 
