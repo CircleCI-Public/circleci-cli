@@ -319,7 +319,12 @@ func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
 		}
 		result = string(orbJSON)
 	} else {
-		result += fmt.Sprintf("Total orbs found: %d\n\n", len(orbCollection.Orbs))
+		result += fmt.Sprintf("Orbs found: %d. ", len(orbCollection.Orbs))
+		if orbListUncertified {
+			result += "Includes all certified and uncertified orbs.\n\n"
+		} else {
+			result += "Showing only certified orbs. Add -u for a list of all orbs.\n\n"
+		}
 		for _, orb := range orbCollection.Orbs {
 			if orbListDetails {
 				result += (orbToDetailedString(orb))
