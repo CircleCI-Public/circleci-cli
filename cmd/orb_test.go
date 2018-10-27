@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -1387,12 +1388,22 @@ var _ = Describe("Orb integration tests", func() {
 		})
 
 		Describe("when creating an orb without a token", func() {
+			var tempHome string
+
 			BeforeEach(func() {
+				tempHome, _ = withTempHomeConfig()
+
 				command = exec.Command(pathCLI,
 					"orb", "create", "bar-ns/foo-orb",
-					"--host", testServer.URL(),
 					"--token", "",
 				)
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+				)
+			})
+
+			AfterEach(func() {
+				Expect(os.RemoveAll(tempHome)).To(Succeed())
 			})
 
 			It("instructs the user to run 'circleci setup' and create a new token", func() {
