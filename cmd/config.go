@@ -17,10 +17,9 @@ import (
 const defaultConfigPath = ".circleci/config.yml"
 
 type configOptions struct {
-	cfg  *settings.Config
-	cl   *client.Client
-	log  *logger.Logger
-	args []string
+	cfg     *settings.Config
+	apiOpts api.Options
+	args    []string
 }
 
 // Path to the config.yml file to operate on.
@@ -33,7 +32,8 @@ var configAnnotations = map[string]string{
 
 func newConfigCommand(config *settings.Config) *cobra.Command {
 	opts := configOptions{
-		cfg: config,
+		apiOpts: api.Options{},
+		cfg:     config,
 	}
 
 	configCmd := &cobra.Command{
@@ -46,8 +46,9 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Pack up your CircleCI configuration into a single file.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Context = context.Background()
+			opts.apiOpts.Log = logger.NewLogger(config.Debug)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packConfig(opts)
@@ -63,8 +64,9 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Context = context.Background()
+			opts.apiOpts.Log = logger.NewLogger(config.Debug)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateConfig(opts)
@@ -83,8 +85,9 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Process the config.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Context = context.Background()
+			opts.apiOpts.Log = logger.NewLogger(config.Debug)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processConfig(opts)
@@ -99,8 +102,9 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Migrate a pre-release 2.0 config to the official release version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Context = context.Background()
+			opts.apiOpts.Log = logger.NewLogger(config.Debug)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
@@ -133,31 +137,29 @@ func validateConfig(opts configOptions) error {
 		path = opts.args[0]
 	}
 
-	ctx := context.Background()
-	_, err := api.ConfigQuery(ctx, opts.log, opts.cl, path)
+	_, err := api.ConfigQuery(opts.apiOpts, path)
 
 	if err != nil {
 		return err
 	}
 
 	if path == "-" {
-		opts.log.Infof("Config input is valid.")
+		opts.apiOpts.Log.Infof("Config input is valid.")
 	} else {
-		opts.log.Infof("Config file at %s is valid.", path)
+		opts.apiOpts.Log.Infof("Config file at %s is valid.", path)
 	}
 
 	return nil
 }
 
 func processConfig(opts configOptions) error {
-	ctx := context.Background()
-	response, err := api.ConfigQuery(ctx, opts.log, opts.cl, opts.args[0])
+	response, err := api.ConfigQuery(opts.apiOpts, opts.args[0])
 
 	if err != nil {
 		return err
 	}
 
-	opts.log.Info(response.OutputYaml)
+	opts.apiOpts.Log.Info(response.OutputYaml)
 	return nil
 }
 
@@ -171,7 +173,7 @@ func packConfig(opts configOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
-	opts.log.Infof("%s\n", string(y))
+	opts.apiOpts.Log.Infof("%s\n", string(y))
 	return nil
 }
 
