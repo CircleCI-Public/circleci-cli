@@ -61,14 +61,8 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 			opts.log = logger.NewLogger(config.Debug)
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
-		RunE: func(cmd *cobra.Command, flags []string) error {
-			for _, f := range flags {
-				if f == "--help" || f == "-h" {
-					return cmd.Help()
-				}
-			}
-
-			return runExecute(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runExecute(opts, cmd.Help)
 		},
 		DisableFlagParsing: true,
 	}
@@ -251,7 +245,13 @@ func ensureDockerIsAvailable() error {
 	return nil
 }
 
-func runExecute(opts buildOptions) error {
+func runExecute(opts buildOptions, help func() error) error {
+	for _, f := range opts.args {
+		if f == "--help" || f == "-h" {
+			return help()
+		}
+	}
+
 	if err := validateConfigVersion(opts.args); err != nil {
 		return err
 	}
