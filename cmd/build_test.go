@@ -75,54 +75,58 @@ var _ = Describe("build", func() {
 
 	Describe("local execute", func() {
 		It("provides a help documentation when provided with a --help flag", func() {
-			mockOptions := buildOptions{
-				args: []string{"--help"},
-			}
 			called := false
 			mockHelp := func() error {
 				called = true
 				return nil
 			}
-			runExecute(mockOptions, mockHelp)
+			mockOptions := buildOptions{
+				args: []string{"--help"},
+				help: mockHelp,
+			}
+			runExecute(mockOptions)
 			Expect(called).To(BeTrue())
 		})
 
 		It("provides a help documentation when provided with a --help flag mixed with other flags", func() {
-			mockOptions := buildOptions{
-				args: []string{"--skip-checkout", "--help"},
-			}
 			called := false
 			mockHelp := func() error {
 				called = true
 				return nil
 			}
-			runExecute(mockOptions, mockHelp)
+			mockOptions := buildOptions{
+				args: []string{"--skip-checkout", "--help"},
+				help: mockHelp,
+			}
+			runExecute(mockOptions)
 			Expect(called).To(BeTrue())
 		})
 
 		It("provides a help documentation when provided with a -h flag", func() {
-			mockOptions := buildOptions{
-				args: []string{"-h"},
-			}
 			called := false
 			mockHelp := func() error {
 				called = true
 				return nil
 			}
-			runExecute(mockOptions, mockHelp)
+			mockOptions := buildOptions{
+				args: []string{"-h"},
+				help: mockHelp,
+			}
+			runExecute(mockOptions)
 			Expect(called).To(BeTrue())
 		})
 
 		It("provides a help documentation when provided with a -h flag mixed with other flags", func() {
-			mockOptions := buildOptions{
-				args: []string{"--skip-checkout", "-h"},
-			}
 			called := false
 			mockHelp := func() error {
 				called = true
 				return nil
 			}
-			runExecute(mockOptions, mockHelp)
+			mockOptions := buildOptions{
+				args: []string{"--skip-checkout", "-h"},
+				help: mockHelp,
+			}
+			runExecute(mockOptions)
 			Expect(called).To(BeTrue())
 		})
 	})
