@@ -24,6 +24,7 @@ type buildOptions struct {
 	cl   *client.Client
 	log  *logger.Logger
 	args []string
+	help func() error
 }
 
 // These options are purely here to retain a mock of the structure of the flags used by `build`.
@@ -60,6 +61,7 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.help = cmd.Help
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runExecute(opts)
@@ -246,6 +248,12 @@ func ensureDockerIsAvailable() error {
 }
 
 func runExecute(opts buildOptions) error {
+	for _, f := range opts.args {
+		if f == "--help" || f == "-h" {
+			return opts.help()
+		}
+	}
+
 	if err := validateConfigVersion(opts.args); err != nil {
 		return err
 	}
