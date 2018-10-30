@@ -22,6 +22,33 @@ var _ = BeforeSuite(func() {
 	Ω(err).ShouldNot(HaveOccurred())
 })
 
+func withTempHomeConfig() (string, *os.File) {
+	var (
+		tempHome string
+		err      error
+		config   *os.File
+	)
+
+	tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
+	Expect(err).ToNot(HaveOccurred())
+
+	const (
+		configDir  = ".circleci"
+		configFile = "cli.yml"
+	)
+
+	Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
+
+	config, err = os.OpenFile(
+		filepath.Join(tempHome, configDir, configFile),
+		os.O_RDWR|os.O_CREATE,
+		0600,
+	)
+	Expect(err).ToNot(HaveOccurred())
+
+	return tempHome, config
+}
+
 var _ = AfterSuite(func() {
 	gexec.CleanupBuildArtifacts()
 })

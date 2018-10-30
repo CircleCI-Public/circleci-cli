@@ -41,6 +41,13 @@ type GQLResponseError struct {
 	Type          string
 }
 
+// Options wraps common requirements for API functions into a single struct.
+type Options struct {
+	Context context.Context
+	Log     *logger.Logger
+	Client  *client.Client
+}
+
 // IntrospectionResponse matches the result from making an introspection query
 type IntrospectionResponse struct {
 	Schema struct {
@@ -102,9 +109,7 @@ type OrbPromoteResponse struct {
 // OrbLatestVersionResponse wraps the GQL result of fetching an Orb and latest version
 type OrbLatestVersionResponse struct {
 	Orb struct {
-		Versions []struct {
-			Version string
-		}
+		Versions []OrbVersion
 	}
 }
 
@@ -169,13 +174,7 @@ type NamespaceOrbResponse struct {
 		Orbs struct {
 			Edges []struct {
 				Cursor string
-				Node   struct {
-					Name     string
-					Versions []struct {
-						Version string
-						Source  string
-					}
-				}
+				Node   OrbList
 			}
 			TotalCount int
 			PageInfo   struct {
@@ -192,13 +191,7 @@ type OrbListResponse struct {
 		TotalCount int
 		Edges      []struct {
 			Cursor string
-			Node   struct {
-				Name     string
-				Versions []struct {
-					Version string
-					Source  string
-				}
-			}
+			Node   OrbList
 		}
 		PageInfo struct {
 			HasNextPage bool
@@ -206,16 +199,22 @@ type OrbListResponse struct {
 	}
 }
 
-// OrbSourceResponse wraps the GQL result used by OrbSource
-type OrbSourceResponse struct {
-	OrbVersion struct {
-		ID      string
-		Version string
-		Orb     struct {
-			ID string
-		}
-		Source string
-	}
+// OrbListVersion wraps the GQL result used by OrbSource and OrbInfo
+type OrbListVersion struct {
+	ID        string `json:"-"`
+	Version   string `json:"version"`
+	Orb       Orb    `json:"-"`
+	Source    string `json:"source"`
+	CreatedAt string `json:"-"`
+}
+
+// OrbVersion wraps the GQL result used by OrbSource and OrbInfo
+type OrbVersion struct {
+	ID        string
+	Version   string
+	Orb       Orb
+	Source    string
+	CreatedAt string
 }
 
 // OrbConfigResponse wraps the GQL result for OrbQuery.
@@ -228,14 +227,8 @@ type OrbConfigResponse struct {
 // OrbCollection is a container type for multiple orbs to share formatting
 // functions on them.
 type OrbCollection struct {
-	Orbs      []Orb  `json:"orbs"`
-	Namespace string `json:"namespace,omitempty"`
-}
-
-// OrbVersion represents a single orb version and its source
-type OrbVersion struct {
-	Version string `json:"version"`
-	Source  string `json:"source"`
+	Orbs      []OrbList `json:"orbs"`
+	Namespace string    `json:"namespace,omitempty"`
 }
 
 // OrbElementParameter represents the yaml-unmarshled contents of
@@ -253,8 +246,8 @@ type OrbElement struct {
 	Parameters  map[string]OrbElementParameter `json:"-"`
 }
 
-// Orb is a struct for containing the yaml-unmarshaled contents of an orb
-type Orb struct {
+// OrbList is a struct for containing the yaml-unmarshaled contents of an orb
+type OrbList struct {
 	ID        string `json:"-"`
 	Name      string `json:"name"`
 	Namespace string `json:"-"`
@@ -268,7 +261,23 @@ type Orb struct {
 	Commands       map[string]OrbElement `json:"-"`
 	Jobs           map[string]OrbElement `json:"-"`
 	Executors      map[string]OrbElement `json:"-"`
-	Versions       []OrbVersion          `json:"versions"`
+	Versions       []OrbListVersion      `json:"versions"`
+}
+
+// Orb is a struct for containing the yaml-unmarshaled contents of an orb
+type Orb struct {
+	ID        string
+	Name      string
+	Namespace string
+	CreatedAt string
+
+	Source         string
+	HighestVersion string `json:"version"`
+	Version        string `json:"-"`
+	Commands       map[string]OrbElement
+	Jobs           map[string]OrbElement
+	Executors      map[string]OrbElement
+	Versions       []OrbVersion
 }
 
 // #nosec
@@ -289,15 +298,15 @@ func loadYaml(path string) (string, error) {
 }
 
 // WhoamiQuery returns the result of querying the `/me` endpoint of the API
-func WhoamiQuery(ctx context.Context, log *logger.Logger, cl *client.Client) (*WhoamiResponse, error) {
+func WhoamiQuery(opts Options) (*WhoamiResponse, error) {
 	response := WhoamiResponse{}
 	query := `query { me { name } }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if err != nil {
 		return nil, err
@@ -307,7 +316,7 @@ func WhoamiQuery(ctx context.Context, log *logger.Logger, cl *client.Client) (*W
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(ctx context.Context, log *logger.Logger, cl *client.Client, configPath string) (*ConfigResponse, error) {
+func ConfigQuery(opts Options, configPath string) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 
 	config, err := loadYaml(configPath)
@@ -327,9 +336,9 @@ func ConfigQuery(ctx context.Context, log *logger.Logger, cl *client.Client, con
 
 	request := client.NewUnauthorizedRequest(query)
 	request.Var("config", config)
-	request.Header.Set("Authorization", cl.Token)
+	request.Header.Set("Authorization", opts.Client.Token)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
@@ -343,7 +352,7 @@ func ConfigQuery(ctx context.Context, log *logger.Logger, cl *client.Client, con
 }
 
 // OrbQuery validated and processes an orb.
-func OrbQuery(ctx context.Context, log *logger.Logger, cl *client.Client, configPath string) (*ConfigResponse, error) {
+func OrbQuery(opts Options, configPath string) (*ConfigResponse, error) {
 	var response OrbConfigResponse
 
 	config, err := loadYaml(configPath)
@@ -363,9 +372,9 @@ func OrbQuery(ctx context.Context, log *logger.Logger, cl *client.Client, config
 
 	request := client.NewUnauthorizedRequest(query)
 	request.Var("config", config)
-	request.Header.Set("Authorization", cl.Token)
+	request.Header.Set("Authorization", opts.Client.Token)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
@@ -379,9 +388,7 @@ func OrbQuery(ctx context.Context, log *logger.Logger, cl *client.Client, config
 }
 
 // OrbPublishByID publishes a new version of an orb by id
-func OrbPublishByID(ctx context.Context, log *logger.Logger, cl *client.Client,
-	configPath string, orbID string, orbVersion string) (*Orb, error) {
-
+func OrbPublishByID(opts Options, configPath string, orbID string, orbVersion string) (*Orb, error) {
 	var response OrbPublishResponse
 
 	config, err := loadYaml(configPath)
@@ -404,7 +411,7 @@ func OrbPublishByID(ctx context.Context, log *logger.Logger, cl *client.Client,
 		}
 	`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -412,7 +419,7 @@ func OrbPublishByID(ctx context.Context, log *logger.Logger, cl *client.Client,
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to publish orb")
@@ -426,7 +433,7 @@ func OrbPublishByID(ctx context.Context, log *logger.Logger, cl *client.Client,
 }
 
 // OrbID fetches an orb returning the ID
-func OrbID(ctx context.Context, log *logger.Logger, cl *client.Client, namespace string, orb string) (*OrbIDResponse, error) {
+func OrbID(opts Options, namespace string, orb string) (*OrbIDResponse, error) {
 	name := namespace + "/" + orb
 
 	var response OrbIDResponse
@@ -442,14 +449,14 @@ func OrbID(ctx context.Context, log *logger.Logger, cl *client.Client, namespace
 	  }
 	  `
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	// If there is an error, or the request was successful, return now.
 	if err != nil || response.Orb.ID != "" {
@@ -465,7 +472,7 @@ func OrbID(ctx context.Context, log *logger.Logger, cl *client.Client, namespace
 	return nil, fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
-func createNamespaceWithOwnerID(ctx context.Context, log *logger.Logger, cl *client.Client, name string, ownerID string) (*CreateNamespaceResponse, error) {
+func createNamespaceWithOwnerID(opts Options, name string, ownerID string) (*CreateNamespaceResponse, error) {
 	var response CreateNamespaceResponse
 
 	query := `
@@ -484,14 +491,14 @@ func createNamespaceWithOwnerID(ctx context.Context, log *logger.Logger, cl *cli
 				}
 			}`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if len(response.CreateNamespace.Errors) > 0 {
 		return nil, response.CreateNamespace.Errors
@@ -504,7 +511,7 @@ func createNamespaceWithOwnerID(ctx context.Context, log *logger.Logger, cl *cli
 	return &response, nil
 }
 
-func getOrganization(ctx context.Context, log *logger.Logger, cl *client.Client, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
+func getOrganization(opts Options, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
 	var response GetOrganizationResponse
 
 	query := `query($organizationName: String!, $organizationVcs: VCSType!) {
@@ -516,17 +523,17 @@ func getOrganization(ctx context.Context, log *logger.Logger, cl *client.Client,
 				}
 			}`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if err != nil {
-		return nil, errors.Wrap(err, fmt.Sprintf("Unable to find organization %s of vcs-type %s", organizationName, organizationVcs))
+		return nil, errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
 	return &response, nil
@@ -541,14 +548,14 @@ func organizationNotFound(name string, vcs string) error {
 }
 
 // CreateNamespace creates (reserves) a namespace for an organization
-func CreateNamespace(ctx context.Context, log *logger.Logger, cl *client.Client, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
-	getOrgResponse, getOrgError := getOrganization(ctx, log, cl, organizationName, organizationVcs)
+func CreateNamespace(opts Options, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
+	getOrgResponse, getOrgError := getOrganization(opts, organizationName, organizationVcs)
 
 	if getOrgError != nil {
 		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
 	}
 
-	createNSResponse, createNSError := createNamespaceWithOwnerID(ctx, log, cl, name, getOrgResponse.Organization.ID)
+	createNSResponse, createNSError := createNamespaceWithOwnerID(opts, name, getOrgResponse.Organization.ID)
 
 	if createNSError != nil {
 		return nil, createNSError
@@ -557,7 +564,7 @@ func CreateNamespace(ctx context.Context, log *logger.Logger, cl *client.Client,
 	return createNSResponse, nil
 }
 
-func getNamespace(ctx context.Context, log *logger.Logger, cl *client.Client, name string) (*GetNamespaceResponse, error) {
+func getNamespace(opts Options, name string) (*GetNamespaceResponse, error) {
 	var response GetNamespaceResponse
 
 	query := `
@@ -569,13 +576,13 @@ func getNamespace(ctx context.Context, log *logger.Logger, cl *client.Client, na
 					}
 			 }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
 	request.Var("name", name)
 
-	if err = cl.Run(ctx, log, request, &response); err != nil {
+	if err = opts.Client.Run(opts.Context, opts.Log, request, &response); err != nil {
 		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
@@ -586,7 +593,7 @@ func getNamespace(ctx context.Context, log *logger.Logger, cl *client.Client, na
 	return &response, nil
 }
 
-func createOrbWithNsID(ctx context.Context, log *logger.Logger, cl *client.Client, name string, namespaceID string) (*CreateOrbResponse, error) {
+func createOrbWithNsID(opts Options, name string, namespaceID string) (*CreateOrbResponse, error) {
 	var response CreateOrbResponse
 
 	query := `mutation($name: String!, $registryNamespaceId: UUID!){
@@ -604,14 +611,14 @@ func createOrbWithNsID(ctx context.Context, log *logger.Logger, cl *client.Clien
 				}
 }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if len(response.CreateOrb.Errors) > 0 {
 		return nil, response.CreateOrb.Errors
@@ -625,13 +632,13 @@ func createOrbWithNsID(ctx context.Context, log *logger.Logger, cl *client.Clien
 }
 
 // CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(ctx context.Context, log *logger.Logger, cl *client.Client, namespace string, name string) (*CreateOrbResponse, error) {
-	response, err := getNamespace(ctx, log, cl, namespace)
+func CreateOrb(opts Options, namespace string, name string) (*CreateOrbResponse, error) {
+	response, err := getNamespace(opts, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	return createOrbWithNsID(ctx, log, cl, name, response.RegistryNamespace.ID)
+	return createOrbWithNsID(opts, name, response.RegistryNamespace.ID)
 }
 
 // TODO(zzak): this function is not really related to the API. Move it to another package?
@@ -655,13 +662,14 @@ func incrementVersion(version string, segment string) (string, error) {
 }
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
-func OrbIncrementVersion(ctx context.Context, log *logger.Logger, cl *client.Client, configPath string, namespace string, orb string, segment string) (*Orb, error) {
-	id, err := OrbID(ctx, log, cl, namespace, orb)
+func OrbIncrementVersion(opts Options, configPath string, namespace string, orb string, segment string) (*Orb, error) {
+	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
+	id, err := OrbID(opts, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := OrbLatestVersion(ctx, log, cl, namespace, orb)
+	v, err := OrbLatestVersion(opts, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
@@ -671,19 +679,19 @@ func OrbIncrementVersion(ctx context.Context, log *logger.Logger, cl *client.Cli
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(ctx, log, cl, configPath, id.Orb.ID, v2)
+	response, err := OrbPublishByID(opts, configPath, id.Orb.ID, v2)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Orb.ID, v, segment, v2)
+	opts.Log.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Orb.ID, v, segment, v2)
 
 	return response, nil
 }
 
 // OrbLatestVersion finds the latest published version of an orb and returns it.
 // If it doesn't find a version, it will return 0.0.0 for the orb's version
-func OrbLatestVersion(ctx context.Context, log *logger.Logger, cl *client.Client, namespace string, orb string) (string, error) {
+func OrbLatestVersion(opts Options, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
 	var response OrbLatestVersionResponse
@@ -697,13 +705,13 @@ func OrbLatestVersion(ctx context.Context, log *logger.Logger, cl *client.Client
 			    }
 		      }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return "", err
 	}
 	request.Var("name", name)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 	if err != nil {
 		return "", err
 	}
@@ -716,14 +724,15 @@ func OrbLatestVersion(ctx context.Context, log *logger.Logger, cl *client.Client
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(ctx context.Context, log *logger.Logger, cl *client.Client, namespace string, orb string, label string, segment string) (*Orb, error) {
-	id, err := OrbID(ctx, log, cl, namespace, orb)
+func OrbPromote(opts Options, namespace string, orb string, label string, segment string) (*Orb, error) {
+	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
+	id, err := OrbID(opts, namespace, orb)
 
 	if err != nil {
 		return nil, err
 	}
 
-	v, err := OrbLatestVersion(ctx, log, cl, namespace, orb)
+	v, err := OrbLatestVersion(opts, namespace, orb)
 	if err != nil {
 		return nil, err
 	}
@@ -751,7 +760,7 @@ func OrbPromote(ctx context.Context, log *logger.Logger, cl *client.Client, name
 		}
 	`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
@@ -759,7 +768,7 @@ func OrbPromote(ctx context.Context, log *logger.Logger, cl *client.Client, name
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	if len(response.PromoteOrb.Errors) > 0 {
 		return nil, response.PromoteOrb.Errors
@@ -785,15 +794,17 @@ func orbVersionRef(orb string) string {
 	return fmt.Sprintf("%s@%s", split[0], "volatile")
 }
 
-// OrbSource gets the source or an orb
-func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRef string) (string, error) {
+// OrbSource gets the source of an orb
+func OrbSource(opts Options, orbRef string) (string, error) {
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return "", err
 	}
 
 	ref := orbVersionRef(orbRef)
 
-	var response OrbSourceResponse
+	var response struct {
+		OrbVersion OrbVersion
+	}
 
 	query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
@@ -807,7 +818,7 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 	request := client.NewUnauthorizedRequest(query)
 	request.Var("orbVersionRef", ref)
 
-	err := cl.Run(ctx, log, request, &response)
+	err := opts.Client.Run(opts.Context, opts.Log, request, &response)
 	if err != nil {
 		return "", err
 	}
@@ -819,10 +830,69 @@ func OrbSource(ctx context.Context, log *logger.Logger, cl *client.Client, orbRe
 	return response.OrbVersion.Source, nil
 }
 
+// OrbInfo gets the meta-data of an orb
+func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
+	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
+		return nil, err
+	}
+
+	ref := orbVersionRef(orbRef)
+
+	var response struct {
+		OrbVersion OrbVersion
+	}
+
+	query := `query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb {
+                                    id
+                                    createdAt
+                                    name
+                                    versions {
+                                        createdAt
+                                        version
+                                    }
+                                }
+                                source
+                                createdAt
+			    }
+		      }`
+
+	request := client.NewUnauthorizedRequest(query)
+	request.Var("orbVersionRef", ref)
+
+	err := opts.Client.Run(opts.Context, opts.Log, request, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.OrbVersion.ID == "" {
+		return nil, fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
+	}
+
+	if len(response.OrbVersion.Orb.Versions) > 0 {
+		v := response.OrbVersion.Orb.Versions[0]
+
+		response.OrbVersion.Orb.HighestVersion = v.Version
+	} else {
+		response.OrbVersion.Orb.HighestVersion = "Not published"
+	}
+
+	// Parse the orb source to get its commands, executors and jobs
+	err = yaml.Unmarshal([]byte(response.OrbVersion.Source), &response.OrbVersion.Orb)
+	if err != nil {
+		return nil, errors.Wrapf(err, "Corrupt Orb %s %s", response.OrbVersion.Orb.Name, response.OrbVersion.Version)
+	}
+
+	return &response.OrbVersion, nil
+}
+
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListOrbs(ctx context.Context, log *logger.Logger, cl *client.Client, uncertified bool) (*OrbCollection, error) {
+func ListOrbs(opts Options, uncertified bool) (*OrbCollection, error) {
 	query := `
 query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
   orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
@@ -854,7 +924,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
-		err := cl.Run(ctx, log, request, &result)
+		err := opts.Client.Run(opts.Context, opts.Log, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -863,24 +933,21 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		for i := range result.Orbs.Edges {
 			edge := result.Orbs.Edges[i]
 			currentCursor = edge.Cursor
+
 			if len(edge.Node.Versions) > 0 {
+
 				v := edge.Node.Versions[0]
 
-				var o Orb
+				edge.Node.HighestVersion = v.Version
 
-				o.Name = edge.Node.Name
-				o.HighestVersion = v.Version
-
-				for _, v := range edge.Node.Versions {
-					o.Versions = append(o.Versions, OrbVersion(v))
-				}
-				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
-					log.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					opts.Log.ErrorF(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version)
 					continue Orbs
 				}
-				orbs.Orbs = append(orbs.Orbs, o)
+
+				orbs.Orbs = append(orbs.Orbs, edge.Node)
 			}
 		}
 
@@ -895,7 +962,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 // namespace.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListNamespaceOrbs(ctx context.Context, log *logger.Logger, cl *client.Client, namespace string) (*OrbCollection, error) {
+func ListNamespaceOrbs(opts Options, namespace string) (*OrbCollection, error) {
 	query := `
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
@@ -929,7 +996,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		request.Var("namespace", namespace)
 		orbs.Namespace = namespace
 
-		err := cl.Run(ctx, log, request, &result)
+		err := opts.Client.Run(opts.Context, opts.Log, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -938,26 +1005,21 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		for i := range result.RegistryNamespace.Orbs.Edges {
 			edge := result.RegistryNamespace.Orbs.Edges[i]
 			currentCursor = edge.Cursor
-			var o Orb
-			o.Name = edge.Node.Name
+
 			if len(edge.Node.Versions) > 0 {
 				v := edge.Node.Versions[0]
 
-				// Parse the orb source to print its commands, executors and jobs
-				o.HighestVersion = v.Version
-				for _, v := range edge.Node.Versions {
-					o.Versions = append(o.Versions, OrbVersion(v))
-				}
-				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &o)
+				edge.Node.HighestVersion = v.Version
+
+				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
-					log.Error(fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version), err)
+					opts.Log.ErrorF(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version)
 					continue NamespaceOrbs
 				}
 			} else {
-				o.HighestVersion = "Not published"
-				o.Versions = []OrbVersion{}
+				edge.Node.HighestVersion = "Not published"
 			}
-			orbs.Orbs = append(orbs.Orbs, o)
+			orbs.Orbs = append(orbs.Orbs, edge.Node)
 		}
 
 		if !result.RegistryNamespace.Orbs.PageInfo.HasNextPage {
@@ -970,7 +1032,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 // IntrospectionQuery makes a query on the API asking for bits of the schema
 // This query isn't intended to get the entire schema, there are better tools for that.
-func IntrospectionQuery(ctx context.Context, log *logger.Logger, cl *client.Client) (*IntrospectionResponse, error) {
+func IntrospectionQuery(opts Options) (*IntrospectionResponse, error) {
 	var response IntrospectionResponse
 
 	query := `query IntrospectionQuery {
@@ -992,12 +1054,12 @@ func IntrospectionQuery(ctx context.Context, log *logger.Logger, cl *client.Clie
 		    }
 		  }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
+	request, err := client.NewAuthorizedRequest(query, opts.Client.Token)
 	if err != nil {
 		return nil, err
 	}
 
-	err = cl.Run(ctx, log, request, &response)
+	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
 
 	return &response, err
 }
