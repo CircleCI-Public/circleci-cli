@@ -18,11 +18,11 @@ var defaultHost = "https://circleci.com"
 // it should be set once when Execute is first called
 var rootCmd *cobra.Command
 
-// config is used internally for preparing CLI and passed to sub-commands
-var config *settings.Config
+// rootOptions is used internally for preparing CLI and passed to sub-commands
+var rootOptions *settings.Config
 
-// token stores the value passed in through the flag --token
-var token string
+// rootTokenFromFlag stores the value passed in through the flag --token
+var rootTokenFromFlag string
 
 // AutoUpdate defines the default behavior to include `circleci update` command with update feature.
 var AutoUpdate = "true"
@@ -74,14 +74,14 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
-	config = &settings.Config{
+	rootOptions = &settings.Config{
 		Debug:    false,
 		Token:    "",
 		Host:     defaultHost,
 		Endpoint: defaultEndpoint,
 	}
 
-	if err := config.Load(); err != nil {
+	if err := rootOptions.Load(); err != nil {
 		panic(err)
 	}
 
@@ -98,31 +98,35 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newTestsCommand(config))
-	rootCmd.AddCommand(newQueryCommand(config))
-	rootCmd.AddCommand(newConfigCommand(config))
-	rootCmd.AddCommand(newOrbCommand(config))
-	rootCmd.AddCommand(newLocalCommand(config))
-	rootCmd.AddCommand(newBuildCommand(config))
-	rootCmd.AddCommand(newVersionCommand(config))
-	rootCmd.AddCommand(newDiagnosticCommand(config))
-	rootCmd.AddCommand(newSetupCommand(config))
+	rootCmd.AddCommand(newTestsCommand(rootOptions))
+	rootCmd.AddCommand(newQueryCommand(rootOptions))
+	rootCmd.AddCommand(newConfigCommand(rootOptions))
+	rootCmd.AddCommand(newOrbCommand(rootOptions))
+	rootCmd.AddCommand(newLocalCommand(rootOptions))
+	rootCmd.AddCommand(newBuildCommand(rootOptions))
+	rootCmd.AddCommand(newVersionCommand(rootOptions))
+	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
+	rootCmd.AddCommand(newSetupCommand(rootOptions))
 
 	if isUpdateIncluded(AutoUpdate) {
-		rootCmd.AddCommand(newUpdateCommand(config))
+		rootCmd.AddCommand(newUpdateCommand(rootOptions))
 	} else {
-		rootCmd.AddCommand(newDisabledCommand(config, "update"))
+		rootCmd.AddCommand(newDisabledCommand(rootOptions, "update"))
 	}
 
-	rootCmd.AddCommand(newNamespaceCommand(config))
-	rootCmd.AddCommand(newUsageCommand(config))
-	rootCmd.AddCommand(newStepCommand(config))
-	rootCmd.AddCommand(newSwitchCommand(config))
+	rootCmd.AddCommand(newNamespaceCommand(rootOptions))
+	rootCmd.AddCommand(newUsageCommand(rootOptions))
+	rootCmd.AddCommand(newStepCommand(rootOptions))
+	rootCmd.AddCommand(newSwitchCommand(rootOptions))
 
-	rootCmd.PersistentFlags().BoolVar(&config.Debug, "debug", config.Debug, "Enable debug logging.")
-	rootCmd.PersistentFlags().StringVar(&token, "token", "", "your token for using CircleCI")
-	rootCmd.PersistentFlags().StringVar(&config.Host, "host", config.Host, "URL to your CircleCI host")
-	rootCmd.PersistentFlags().StringVar(&config.Endpoint, "endpoint", config.Endpoint, "URI to your CircleCI GraphQL API endpoint")
+	rootCmd.PersistentFlags().BoolVar(&rootOptions.Debug,
+		"debug", rootOptions.Debug, "Enable debug logging.")
+	rootCmd.PersistentFlags().StringVar(&rootTokenFromFlag,
+		"token", "", "your token for using CircleCI")
+	rootCmd.PersistentFlags().StringVar(&rootOptions.Host,
+		"host", rootOptions.Host, "URL to your CircleCI host")
+	rootCmd.PersistentFlags().StringVar(&rootOptions.Endpoint,
+		"endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
 		panic(err)
 	}
@@ -152,8 +156,8 @@ func init() {
 }
 
 func prepare() {
-	if token != "" {
-		config.Token = token
+	if rootTokenFromFlag != "" {
+		rootOptions.Token = rootTokenFromFlag
 	}
 }
 
