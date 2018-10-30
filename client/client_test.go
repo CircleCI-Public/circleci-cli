@@ -230,3 +230,107 @@ func TestHeader(t *testing.T) {
 		t.Errorf("expected %+v", resp)
 	}
 }
+
+func TestStatusCode200(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+
+		w.WriteHeader(http.StatusOK)
+
+		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	client := NewClient(srv.URL, "/", "token")
+
+	req := NewUnauthorizedRequest("query {}")
+
+	var resp interface{}
+
+	err := client.Run(ctx, log, req, &resp)
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	if calls != 1 {
+		t.Errorf("expected %s", string(calls))
+	}
+}
+
+func TestStatusCode500(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+
+		w.WriteHeader(500)
+
+		_, err := io.WriteString(w, "some: data")
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	client := NewClient(srv.URL, "/", "token")
+
+	req := NewUnauthorizedRequest("query {}")
+
+	var resp interface{}
+
+	err := client.Run(ctx, log, req, &resp)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	if err.Error() != "failure calling GraphQL API: 500 Internal Server Error" {
+		t.Errorf("expected %s", err.Error())
+	}
+
+	if calls != 1 {
+		t.Errorf("expected %s", string(calls))
+	}
+}
+
+func TestStatusCode413(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls++
+
+		w.WriteHeader(413)
+
+		_, err := io.WriteString(w, "some: data")
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+	}))
+	defer srv.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	client := NewClient(srv.URL, "/", "token")
+
+	req := NewUnauthorizedRequest("query {}")
+
+	var resp interface{}
+
+	err := client.Run(ctx, log, req, &resp)
+	if err == nil {
+		t.Error("expected error")
+	}
+
+	if err.Error() != "failure calling GraphQL API: 413 Request Entity Too Large" {
+		t.Errorf("expected %s", err.Error())
+	}
+
+	if calls != 1 {
+		t.Errorf("expected %s", string(calls))
+	}
+}
