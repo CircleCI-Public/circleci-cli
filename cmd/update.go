@@ -127,7 +127,7 @@ func findLatestPicardSha() (string, error) {
 	}
 
 	output := string(outputBytes)
-	sha256 := regexp.MustCompile("(?m)sha256.*$")
+	sha256 := regexp.MustCompile("(?m)sha256:[0-9a-f]+")
 	latest := sha256.FindString(output)
 
 	if latest == "" {
