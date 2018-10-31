@@ -174,7 +174,7 @@ type NamespaceOrbResponse struct {
 		Orbs struct {
 			Edges []struct {
 				Cursor string
-				Node   OrbList
+				Node   OrbWithData
 			}
 			TotalCount int
 			PageInfo   struct {
@@ -191,30 +191,12 @@ type OrbListResponse struct {
 		TotalCount int
 		Edges      []struct {
 			Cursor string
-			Node   OrbList
+			Node   OrbWithData
 		}
 		PageInfo struct {
 			HasNextPage bool
 		}
 	}
-}
-
-// OrbListVersion wraps the GQL result used by OrbSource and OrbInfo
-type OrbListVersion struct {
-	ID        string `json:"-"`
-	Version   string `json:"version"`
-	Orb       Orb    `json:"-"`
-	Source    string `json:"source"`
-	CreatedAt string `json:"-"`
-}
-
-// OrbVersion wraps the GQL result used by OrbSource and OrbInfo
-type OrbVersion struct {
-	ID        string
-	Version   string
-	Orb       Orb
-	Source    string
-	CreatedAt string
 }
 
 // OrbConfigResponse wraps the GQL result for OrbQuery.
@@ -224,11 +206,25 @@ type OrbConfigResponse struct {
 	}
 }
 
-// OrbCollection is a container type for multiple orbs to share formatting
-// functions on them.
-type OrbCollection struct {
-	Orbs      []OrbList `json:"orbs"`
-	Namespace string    `json:"namespace,omitempty"`
+// OrbsForListing is a container type for multiple orbs that includes the namespace and orbs for deserializing back into JSON.
+type OrbsForListing struct {
+	Orbs      []OrbWithData `json:"orbs"`
+	Namespace string        `json:"namespace,omitempty"`
+}
+
+// OrbWithData wraps an orb with select fields for deserializing into JSON.
+type OrbWithData struct {
+	Name           string `json:"name"`
+	HighestVersion string `json:"version"`
+	Versions       []struct {
+		Version string `json:"version"`
+		Source  string `json:"source"`
+	} `json:"versions"`
+
+	// These fields are printing manually when --details flag is added so hidden from JSON output.
+	Commands  map[string]OrbElement `json:"-"`
+	Jobs      map[string]OrbElement `json:"-"`
+	Executors map[string]OrbElement `json:"-"`
 }
 
 // OrbElementParameter represents the yaml-unmarshled contents of
@@ -246,24 +242,6 @@ type OrbElement struct {
 	Parameters  map[string]OrbElementParameter `json:"-"`
 }
 
-// OrbList is a struct for containing the yaml-unmarshaled contents of an orb
-type OrbList struct {
-	ID        string `json:"-"`
-	Name      string `json:"name"`
-	Namespace string `json:"-"`
-	CreatedAt string `json:"-"`
-
-	Source string `json:"-"`
-	// Avoid "Version" since there is a "version" key in the orb source referring
-	// to the orb schema version
-	HighestVersion string                `json:"version"`
-	Version        string                `json:"-"`
-	Commands       map[string]OrbElement `json:"-"`
-	Jobs           map[string]OrbElement `json:"-"`
-	Executors      map[string]OrbElement `json:"-"`
-	Versions       []OrbListVersion      `json:"versions"`
-}
-
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
 type Orb struct {
 	ID        string
@@ -273,11 +251,20 @@ type Orb struct {
 
 	Source         string
 	HighestVersion string `json:"version"`
-	Version        string `json:"-"`
-	Commands       map[string]OrbElement
-	Jobs           map[string]OrbElement
-	Executors      map[string]OrbElement
-	Versions       []OrbVersion
+
+	Commands  map[string]OrbElement
+	Jobs      map[string]OrbElement
+	Executors map[string]OrbElement
+	Versions  []OrbVersion
+}
+
+// OrbVersion wraps the GQL result used by OrbSource and OrbInfo
+type OrbVersion struct {
+	ID        string
+	Version   string
+	Orb       Orb
+	Source    string
+	CreatedAt string
 }
 
 // #nosec
@@ -892,7 +879,7 @@ func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListOrbs(opts Options, uncertified bool) (*OrbCollection, error) {
+func ListOrbs(opts Options, uncertified bool) (*OrbsForListing, error) {
 	query := `
 query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
   orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
@@ -914,7 +901,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 	`
 
-	var orbs OrbCollection
+	var orbs OrbsForListing
 
 	var result OrbListResponse
 	currentCursor := ""
@@ -962,7 +949,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 // namespace.
 // Returns a collection of Orb objects containing their relevant data. Logs
 // request and parse errors to the supplied logger.
-func ListNamespaceOrbs(opts Options, namespace string) (*OrbCollection, error) {
+func ListNamespaceOrbs(opts Options, namespace string) (*OrbsForListing, error) {
 	query := `
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
@@ -986,7 +973,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
-	var orbs OrbCollection
+	var orbs OrbsForListing
 	var result NamespaceOrbResponse
 	currentCursor := ""
 
@@ -1019,6 +1006,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			} else {
 				edge.Node.HighestVersion = "Not published"
 			}
+
 			orbs.Orbs = append(orbs.Orbs, edge.Node)
 		}
 
