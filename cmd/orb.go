@@ -558,27 +558,9 @@ func orbInfo(opts orbOptions) error {
 
 	log.Info("\n")
 
-	var (
-		jobs      = 0
-		commands  = 0
-		executors = 0
-	)
-
-	for range info.Orb.Commands {
-		commands++
-	}
-
-	for range info.Orb.Executors {
-		executors++
-	}
-
-	for range info.Orb.Jobs {
-		jobs++
-	}
-
-	log.Infof("Total-commands: %d", commands)
-	log.Infof("Total-executors: %d", executors)
-	log.Infof("Total-jobs: %d", jobs)
+	log.Infof("Total-commands: %d", len(info.Orb.Commands))
+	log.Infof("Total-executors: %d", len(info.Orb.Executors))
+	log.Infof("Total-jobs: %d", len(info.Orb.Jobs))
 
 	return nil
 }
