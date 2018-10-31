@@ -296,7 +296,7 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 	}
 }
 
-func orbToDetailedString(orb api.OrbList) string {
+func orbToDetailedString(orb api.OrbWithData) string {
 	buffer := bytes.NewBufferString(orbToSimpleString(orb))
 
 	addOrbElementsToBuffer(buffer, "Commands", orb.Commands)
@@ -306,7 +306,7 @@ func orbToDetailedString(orb api.OrbList) string {
 	return buffer.String()
 }
 
-func orbToSimpleString(orb api.OrbList) string {
+func orbToSimpleString(orb api.OrbWithData) string {
 	var buffer bytes.Buffer
 
 	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))
@@ -318,7 +318,7 @@ func orbToSimpleString(orb api.OrbList) string {
 	return buffer.String()
 }
 
-func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
+func orbCollectionToString(orbCollection *api.OrbsForListing) (string, error) {
 	var result string
 
 	if orbListJSON {
@@ -346,7 +346,7 @@ func orbCollectionToString(orbCollection *api.OrbCollection) (string, error) {
 	return result, nil
 }
 
-func logOrbs(logger *logger.Logger, orbCollection *api.OrbCollection) error {
+func logOrbs(logger *logger.Logger, orbCollection *api.OrbsForListing) error {
 	result, err := orbCollectionToString(orbCollection)
 	if err != nil {
 		return err
