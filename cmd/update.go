@@ -2,22 +2,19 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
 	"os/exec"
 	"regexp"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"github.com/rhysd/go-github-selfupdate/selfupdate"
 
-	"github.com/blang/semver"
 	"github.com/spf13/cobra"
 )
 
-type updateOptions struct {
+type updateCommandOptions struct {
 	cfg       *settings.Config
 	log       *logger.Logger
 	dryRun    bool
@@ -26,7 +23,7 @@ type updateOptions struct {
 }
 
 func newUpdateCommand(config *settings.Config) *cobra.Command {
-	opts := updateOptions{
+	opts := updateCommandOptions{
 		cfg:       config,
 		dryRun:    false,
 		githubAPI: "https://api.github.com/",
@@ -101,7 +98,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 var picardRepo = "circleci/picard"
 
-func updateBuildAgent(opts updateOptions) error {
+func updateBuildAgent(opts updateCommandOptions) error {
 	latestSha256, err := findLatestPicardSha()
 
 	if err != nil {
@@ -144,49 +141,38 @@ func findLatestPicardSha() (string, error) {
 	return latest, nil
 }
 
-func updateCLI(opts updateOptions) error {
-	updater, err := selfupdate.NewUpdater(selfupdate.Config{
-		EnterpriseBaseURL: opts.githubAPI,
-	})
+func updateCLI(opts updateCommandOptions) error {
+	slug := "CircleCI-Public/circleci-cli"
+
+	updaterOptions, err := update.NewOptions(opts.githubAPI, slug, version.Version, PackageManager)
 	if err != nil {
 		return err
 	}
 
-	slug := "CircleCI-Public/circleci-cli"
-
-	latest, found, err := updater.DetectLatest(slug)
-
+	found, err := updaterOptions.LatestRelease()
 	if err != nil {
-		if errResponse, ok := err.(*github.ErrorResponse); ok && errResponse.Response.StatusCode == http.StatusUnauthorized {
-			return errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
-		}
-
-		return errors.Wrap(err, "error finding latest release")
+		return err
 	}
 
 	if !found {
 		return errors.New("no updates were found")
 	}
 
-	current := semver.MustParse(version.Version)
+	debugVersion(opts.log, updaterOptions)
 
-	opts.log.Debug("Latest version: %s", latest.Version)
-	opts.log.Debug("Published: %s", latest.PublishedAt)
-	opts.log.Debug("Current Version: %s", current)
-
-	if latest.Version.Equals(current) {
+	if updaterOptions.NewerVersionAvailable() {
 		opts.log.Info("Already up-to-date.")
 		return nil
 	}
 
-	reportVersion(opts.log, current, latest.Version)
+	reportVersion(opts.log, updaterOptions)
 
 	if opts.dryRun {
 		opts.log.Infof("You can update with `circleci update install`")
 		return nil
 	}
 
-	release, err := updater.UpdateSelf(current, slug)
+	release, err := updaterOptions.UpdateToLatest()
 	if err != nil {
 		return errors.Wrap(err, "failed to install update")
 	}
@@ -196,7 +182,13 @@ func updateCLI(opts updateOptions) error {
 	return nil
 }
 
-func reportVersion(log *logger.Logger, current, latest semver.Version) {
-	log.Infof("You are running %s", current)
-	log.Infof("A new release is available (%s)", latest)
+func debugVersion(log *logger.Logger, opts *update.Options) {
+	log.Debug("Latest version: %s", opts.Latest.Version)
+	log.Debug("Published: %s", opts.Latest.PublishedAt)
+	log.Debug("Current Version: %s", opts.Current)
+}
+
+func reportVersion(log *logger.Logger, opts *update.Options) {
+	log.Infof("You are running %s", opts.Current)
+	log.Infof("A new release is available (%s)", opts.Latest.Version)
 }
