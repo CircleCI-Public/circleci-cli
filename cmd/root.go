@@ -75,10 +75,11 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
 	rootOptions = &settings.Config{
-		Debug:    false,
-		Token:    "",
-		Host:     defaultHost,
-		Endpoint: defaultEndpoint,
+		Debug:     false,
+		Token:     "",
+		Host:      defaultHost,
+		Endpoint:  defaultEndpoint,
+		GitHubAPI: "https://api.github.com/",
 	}
 
 	if err := rootOptions.Load(); err != nil {
@@ -89,6 +90,9 @@ func MakeCommands() *cobra.Command {
 		Use:   "circleci",
 		Short: `Use CircleCI from the command line.`,
 		Long:  `This project is the seed for CircleCI's new command-line application.`,
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+			return rootCmdPreRun(rootOptions)
+		},
 	}
 
 	// For supporting "Args" in command usage help
@@ -127,6 +131,17 @@ func MakeCommands() *cobra.Command {
 		"host", rootOptions.Host, "URL to your CircleCI host")
 	rootCmd.PersistentFlags().StringVar(&rootOptions.Endpoint,
 		"endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
+
+	rootCmd.PersistentFlags().StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retreiving updates")
+	if err := rootCmd.PersistentFlags().MarkHidden("github-api"); err != nil {
+		panic(err)
+	}
+
+	rootCmd.PersistentFlags().BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", false, "Skip the check for updates check run before every command")
+	if err := rootCmd.PersistentFlags().MarkHidden("skip-update-check"); err != nil {
+		panic(err)
+	}
+
 	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
 		panic(err)
 	}
@@ -159,6 +174,17 @@ func prepare() {
 	if rootTokenFromFlag != "" {
 		rootOptions.Token = rootTokenFromFlag
 	}
+}
+
+func rootCmdPreRun(rootOptions *settings.Config) error {
+	if !rootOptions.SkipUpdateCheck {
+		err := checkForUpdates(rootOptions)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func setFlagErrorFunc(cmd *cobra.Command, err error) error {

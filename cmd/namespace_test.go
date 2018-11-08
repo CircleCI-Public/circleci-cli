@@ -30,6 +30,7 @@ var _ = Describe("Namespace integration tests", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"namespace", "create",
+				"--skip-update-check",
 				"--token", token,
 				"--host", testServer.URL(),
 				"foo-ns",
@@ -91,6 +92,7 @@ var _ = Describe("Namespace integration tests", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"namespace", "create",
+				"--skip-update-check",
 				"--token", token,
 				"--host", testServer.URL(),
 				"foo-ns",

@@ -8,22 +8,19 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	yaml "gopkg.in/yaml.v2"
 )
 
 // Config is used to represent the current state of a CLI instance.
-// It's passed around internally among commands to persist an HTTP client, Logger and other useful data.
 type Config struct {
-	Client   *client.Client `yaml:"-"`
-	Logger   *logger.Logger `yaml:"-"`
-	Host     string
-	Endpoint string
-	Token    string
-	Debug    bool   `yaml:"-"`
-	Address  string `yaml:"-"`
-	FileUsed string `yaml:"-"`
+	GitHubAPI       string `yaml:"-"`
+	Host            string
+	Endpoint        string
+	Token           string
+	Debug           bool   `yaml:"-"`
+	Address         string `yaml:"-"`
+	FileUsed        string `yaml:"-"`
+	SkipUpdateCheck bool   `yaml:"-"`
 }
 
 // Load will read the config from the user's disk and then evaluate possible configuration from the environment.

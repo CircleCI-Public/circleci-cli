@@ -38,7 +38,9 @@ var _ = Describe("Root", func() {
 		})
 
 		It("reports update command as unavailable", func() {
-			command = exec.Command(buildCLI, "help")
+			command = exec.Command(buildCLI, "help",
+				"--skip-update-check",
+			)
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -50,7 +52,9 @@ var _ = Describe("Root", func() {
 		})
 
 		It("tells the user to update using their package manager", func() {
-			command = exec.Command(buildCLI, "update")
+			command = exec.Command(buildCLI, "update",
+				"--skip-update-check",
+			)
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -75,7 +79,9 @@ var _ = Describe("Root", func() {
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			command = exec.Command(buildCLI, "help")
+			command = exec.Command(buildCLI, "help",
+				"--skip-update-check",
+			)
 		})
 
 		It("does include the update command in help text", func() {
@@ -106,7 +112,9 @@ var _ = Describe("Root", func() {
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 			Expect(err).ToNot(HaveOccurred())
 
-			command = exec.Command(pathCLI, "help")
+			command = exec.Command(pathCLI, "help",
+				"--skip-update-check",
+			)
 			command.Env = append(os.Environ(),
 				fmt.Sprintf("HOME=%s", tempHome),
 				fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
