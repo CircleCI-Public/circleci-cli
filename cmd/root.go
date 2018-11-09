@@ -177,14 +177,7 @@ func prepare() {
 }
 
 func rootCmdPreRun(rootOptions *settings.Config) error {
-	if !rootOptions.SkipUpdateCheck {
-		err := checkForUpdates(rootOptions)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return checkForUpdates(rootOptions)
 }
 
 func setFlagErrorFunc(cmd *cobra.Command, err error) error {

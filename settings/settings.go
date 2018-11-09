@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"time"
 
 	yaml "gopkg.in/yaml.v2"
 )
@@ -23,6 +24,42 @@ type Config struct {
 	SkipUpdateCheck bool   `yaml:"-"`
 }
 
+// UpdateCheck is used to represent settings for checking for updates of the CLI.
+type UpdateCheck struct {
+	LastUpdateCheck time.Time `yaml:"last_update_check"`
+	FileUsed        string    `yaml:"-"`
+}
+
+// Load will read the update check settings from the user's disk and then deserialize it into the current instance.
+func (upd *UpdateCheck) Load() error {
+	path := filepath.Join(settingsPath(), updateCheckFilename())
+
+	if err := ensureSettingsFileExists(path); err != nil {
+		return err
+	}
+
+	upd.FileUsed = path
+
+	content, err := ioutil.ReadFile(path) // #nosec
+	if err != nil {
+		return err
+	}
+
+	err = yaml.Unmarshal(content, &upd)
+	return err
+}
+
+// WriteToDisk will write the last update check to disk by serializing the YAML
+func (upd *UpdateCheck) WriteToDisk() error {
+	enc, err := yaml.Marshal(&upd)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(upd.FileUsed, enc, 0600)
+	return err
+}
+
 // Load will read the config from the user's disk and then evaluate possible configuration from the environment.
 func (cfg *Config) Load() error {
 	if err := cfg.LoadFromDisk(); err != nil {
@@ -36,7 +73,7 @@ func (cfg *Config) Load() error {
 
 // LoadFromDisk is used to read config from the user's disk and deserialize the YAML into our runtime config.
 func (cfg *Config) LoadFromDisk() error {
-	path := filepath.Join(configPath(), configFilename())
+	path := filepath.Join(settingsPath(), configFilename())
 
 	if err := ensureSettingsFileExists(path); err != nil {
 		return err
@@ -97,14 +134,19 @@ func UserHomeDir() string {
 	return os.Getenv("HOME")
 }
 
-// ConfigFilename returns the name of the cli config file
+// updateCheckFilename returns the name of the cli update checks file
+func updateCheckFilename() string {
+	return "update_check.yml"
+}
+
+// configFilename returns the name of the cli config file
 func configFilename() string {
 	// TODO: Make this configurable
 	return "cli.yml"
 }
 
-// ConfigPath returns the path of the cli config file
-func configPath() string {
+// settingsPath returns the path of the CLI settings directory
+func settingsPath() string {
 	// TODO: Make this configurable
 	return path.Join(UserHomeDir(), ".circleci")
 }

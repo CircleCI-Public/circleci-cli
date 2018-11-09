@@ -6,12 +6,22 @@ import (
 	"net/http"
 	"os/exec"
 	"strings"
+	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/blang/semver"
 	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
+
+var hoursPerWeek = 168
+
+// ShouldCheckForUpdates tell us if the last update check was more than a week ago
+func ShouldCheckForUpdates(upd *settings.UpdateCheck) bool {
+	diff := time.Since(upd.LastUpdateCheck)
+	return diff.Hours() >= float64(hoursPerWeek)
+}
 
 // CheckForUpdates will check for updates given the proper package manager
 func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options, error) {
