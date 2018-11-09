@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/briandowns/spinner"
 )
 
 func checkForUpdates(opts *settings.Config) error {
@@ -27,7 +28,13 @@ func checkForUpdates(opts *settings.Config) error {
 		log := logger.NewLogger(opts.Debug)
 		slug := "CircleCI-Public/circleci-cli"
 
+		spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		spr.Suffix = " Checking for updates..."
+		spr.Start()
+
 		check, err := update.CheckForUpdates(opts.GitHubAPI, slug, version.Version, PackageManager)
+
+		spr.Stop()
 		if err != nil {
 			return err
 		}

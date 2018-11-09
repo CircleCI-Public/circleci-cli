@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os/exec"
 	"regexp"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -12,6 +13,8 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
+
+	"github.com/briandowns/spinner"
 )
 
 type updateCommandOptions struct {
@@ -149,7 +152,13 @@ func findLatestPicardSha() (string, error) {
 func updateCLI(opts updateCommandOptions) error {
 	slug := "CircleCI-Public/circleci-cli"
 
+	spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	spr.Suffix = " Checking for updates..."
+	spr.Start()
+
 	check, err := update.CheckForUpdates(opts.cfg.GitHubAPI, slug, version.Version, PackageManager)
+
+	spr.Stop()
 	if err != nil {
 		return err
 	}
@@ -166,7 +175,10 @@ func updateCLI(opts updateCommandOptions) error {
 		return nil
 	}
 
+	spr.Suffix = " Installing update..."
+	spr.Restart()
 	message, err := update.InstallLatest(check)
+	spr.Stop()
 	if err != nil {
 		return err
 	}

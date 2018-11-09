@@ -26,12 +26,28 @@
   version = "v1.0.9"
 
 [[projects]]
+  digest = "1:2fd83c8c2b1ff53fd7c4376a63c3a2f31e002e9296df9d7f150b07da524de88d"
+  name = "github.com/briandowns/spinner"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "dd69c579ff204842e8962816987f838e2c2c18d8"
+  version = "1.4"
+
+[[projects]]
   branch = "master"
   digest = "1:454adc7f974228ff789428b6dc098638c57a64aa0718f0bd61e53d3cd39d7a75"
   name = "github.com/chzyer/readline"
   packages = ["."]
   pruneopts = "UT"
   revision = "2972be24d48e78746da79ba8e24e8b488c9880de"
+
+[[projects]]
+  digest = "1:865079840386857c809b72ce300be7580cb50d3d3129ce11bf9aa6ca2bc1934a"
+  name = "github.com/fatih/color"
+  packages = ["."]
+  pruneopts = "UT"
+  revision = "5b77d2a35fb0ede96d138fc9a99f5c9b6aef11b4"
+  version = "v1.7.0"
 
 [[projects]]
   digest = "1:15042ad3498153684d09f393bbaec6b216c8eec6d61f63dff711de7d64ed8861"
@@ -354,6 +370,7 @@
     "github.com/Masterminds/semver",
     "github.com/blang/semver",
     "github.com/bmatcuk/doublestar",
+    "github.com/briandowns/spinner",
     "github.com/google/go-github/github",
     "github.com/manifoldco/promptui",
     "github.com/mitchellh/mapstructure",
