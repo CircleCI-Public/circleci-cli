@@ -70,7 +70,7 @@ func checkFromSource(check *Options) error {
 	}
 
 	if !found {
-		return errors.New("no updates were found")
+		return errors.New("couldn't find updates for this project")
 	}
 
 	return nil
