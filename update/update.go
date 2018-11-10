@@ -115,6 +115,11 @@ func checkFromHomebrew(check *Options) error {
 		}
 	}
 
+	// This may occur if `brew outdated` returned nothing
+	if check.Current.String() == "" || check.Latest == nil {
+		return errors.New("couldn't find updates from homebrew")
+	}
+
 	return nil
 }
 
@@ -171,8 +176,12 @@ func latestRelease(opts *Options) (bool, error) {
 	return found, nil
 }
 
-// IsLatestVersion will tell us if the current version is the same as the latest version found from the GitHub releases API.
+// IsLatestVersion will tell us if the current version is the latest version available
 func IsLatestVersion(opts *Options) bool {
+	if opts.Current.String() == "" || opts.Latest == nil {
+		return true
+	}
+
 	return opts.Latest.Version.Equals(opts.Current)
 }
 
