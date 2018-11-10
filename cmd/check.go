@@ -34,15 +34,18 @@ func checkForUpdates(opts *settings.Config) error {
 
 		check, err := update.CheckForUpdates(opts.GitHubAPI, slug, version.Version, PackageManager)
 
-		spr.Stop()
 		if err != nil {
+			spr.Stop()
 			return err
 		}
 
 		if update.IsLatestVersion(check) {
-			log.Info("Already up-to-date.")
+			spr.Suffix = "Already up-to-date."
+			time.Sleep(300 * time.Millisecond)
+			spr.Stop()
 			return nil
 		}
+		spr.Stop()
 
 		log.Debug(update.DebugVersion(check))
 		log.Info(update.ReportVersion(check))
