@@ -171,7 +171,7 @@ func updateCLI(opts updateCommandOptions) error {
 	opts.log.Info(update.ReportVersion(check))
 
 	if opts.dryRun {
-		opts.log.Info("You can update with `circleci update install`")
+		opts.log.Info(update.HowToUpdate(check))
 		return nil
 	}
 
