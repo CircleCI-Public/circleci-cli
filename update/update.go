@@ -34,6 +34,11 @@ func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options,
 	}
 
 	switch check.PackageManager {
+	case "release":
+		err := checkFromSource(check)
+		if err != nil {
+			return nil, err
+		}
 	case "source":
 		err := checkFromSource(check)
 		if err != nil {
@@ -206,6 +211,8 @@ func HowToUpdate(opts *Options) string {
 	switch opts.PackageManager {
 	case "homebrew":
 		return "You can update with `brew upgrade circleci`"
+	case "release":
+		return "You can update with `circleci update install`"
 	case "source":
 		return strings.Join([]string{
 			"You can visit the Github releases page for the CLI to manually download and install:",
