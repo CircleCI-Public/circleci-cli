@@ -65,14 +65,6 @@ func checkFromSource(check *Options) error {
 	return err
 }
 
-/*
-
-$ brew outdated
-circleci (0.1.1248) < 0.1.3923
-docker (18.06.0) < 18.06.1
-goreleaser (0.83.0) < 0.92.1
-
-*/
 func checkFromHomebrew(check *Options) error {
 	brew, err := exec.LookPath("brew")
 	if err != nil {
@@ -111,22 +103,19 @@ func checkFromHomebrew(check *Options) error {
 }
 
 // HomebrewOutdated wraps the JSON output from running `brew outdated --json=v1`
-/*
-
-For example:
-
-[
-  {
-    "name": "circleci",
-    "installed_versions": [
-      "0.1.1248"
-    ],
-    "current_version": "0.1.3923",
-    "pinned": false,
-    "pinned_version": null
-  },
-]
-*/
+// We're specifically looking for this kind of structured data from the command:
+//
+//   [
+//     {
+//       "name": "circleci",
+//       "installed_versions": [
+//         "0.1.1248"
+//       ],
+//       "current_version": "0.1.3923",
+//       "pinned": false,
+//       "pinned_version": null
+//     },
+//   ]
 type HomebrewOutdated []struct {
 	Name              string   `json:"name"`
 	InstalledVersions []string `json:"installed_versions"`
