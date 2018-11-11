@@ -52,9 +52,7 @@ var _ = Describe("Root", func() {
 		})
 
 		It("tells the user to update using their package manager", func() {
-			command = exec.Command(buildCLI, "update",
-				"--skip-update-check",
-			)
+			command = exec.Command(buildCLI, "update")
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
