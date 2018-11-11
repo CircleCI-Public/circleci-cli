@@ -30,11 +30,12 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		dryRun: false,
 	}
 
-	opts.cfg.SkipUpdateCheck = true
-
 	update := &cobra.Command{
 		Use:   "update",
 		Short: "Update the tool to the latest version",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
@@ -48,6 +49,9 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "check",
 		Hidden: true,
 		Short:  "Check if there are any updates available",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.dryRun = true
@@ -62,6 +66,9 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "install",
 		Hidden: true,
 		Short:  "Update the tool to the latest version",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
@@ -76,6 +83,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Hidden: true,
 		Short:  "Update the build agent to the latest version",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
