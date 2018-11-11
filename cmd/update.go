@@ -157,19 +157,21 @@ func updateCLI(opts updateCommandOptions) error {
 	spr.Start()
 
 	check, err := update.CheckForUpdates(opts.cfg.GitHubAPI, slug, version.Version, PackageManager)
+	spr.Stop()
 
 	if err != nil {
-		spr.Stop()
 		return err
 	}
 
-	if update.IsLatestVersion(check) {
-		spr.Suffix = "Already up-to-date."
-		time.Sleep(300 * time.Millisecond)
-		spr.Stop()
+	if !check.Found {
+		opts.log.Info("No updates found.")
 		return nil
 	}
-	spr.Stop()
+
+	if update.IsLatestVersion(check) {
+		opts.log.Info("Already up-to-date.")
+		return nil
+	}
 
 	opts.log.Debug(update.DebugVersion(check))
 	opts.log.Info(update.ReportVersion(check))

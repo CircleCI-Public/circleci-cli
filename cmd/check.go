@@ -39,6 +39,13 @@ func checkForUpdates(opts *settings.Config) error {
 			return err
 		}
 
+		if !check.Found {
+			spr.Suffix = "No updates found."
+			time.Sleep(300 * time.Millisecond)
+			spr.Stop()
+			return nil
+		}
+
 		if update.IsLatestVersion(check) {
 			spr.Suffix = "Already up-to-date."
 			time.Sleep(300 * time.Millisecond)

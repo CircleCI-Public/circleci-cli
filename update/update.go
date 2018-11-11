@@ -25,7 +25,12 @@ func ShouldCheckForUpdates(upd *settings.UpdateCheck) bool {
 
 // CheckForUpdates will check for updates given the proper package manager
 func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options, error) {
-	check := &Options{
+	var (
+		err   error
+		check *Options
+	)
+
+	check = &Options{
 		Current:        semver.MustParse(current),
 		PackageManager: packageManager,
 
@@ -35,23 +40,14 @@ func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options,
 
 	switch check.PackageManager {
 	case "release":
-		err := checkFromSource(check)
-		if err != nil {
-			return nil, err
-		}
+		err = checkFromSource(check)
 	case "source":
-		err := checkFromSource(check)
-		if err != nil {
-			return nil, err
-		}
+		err = checkFromSource(check)
 	case "homebrew":
-		err := checkFromHomebrew(check)
-		if err != nil {
-			return nil, err
-		}
+		err = checkFromHomebrew(check)
 	}
 
-	return check, nil
+	return check, err
 }
 
 func checkFromSource(check *Options) error {
@@ -64,16 +60,9 @@ func checkFromSource(check *Options) error {
 
 	check.updater = updater
 
-	found, err := latestRelease(check)
-	if err != nil {
-		return err
-	}
+	err = latestRelease(check)
 
-	if !found {
-		return errors.New("couldn't find updates for this project")
-	}
-
-	return nil
+	return err
 }
 
 /*
@@ -112,12 +101,10 @@ func checkFromHomebrew(check *Options) error {
 			check.Latest = &selfupdate.Release{
 				Version: semver.MustParse(o.CurrentVersion),
 			}
-		}
-	}
 
-	// This may occur if `brew outdated` returned nothing
-	if check.Current.String() == "" || check.Latest == nil {
-		return errors.New("couldn't find updates from homebrew")
+			// We found a release so update state of updates check
+			check.Found = true
+		}
 	}
 
 	return nil
@@ -151,6 +138,7 @@ type HomebrewOutdated []struct {
 // Options contains everything we need to check for or perform updates of the CLI.
 type Options struct {
 	Current        semver.Version
+	Found          bool
 	Latest         *selfupdate.Release
 	PackageManager string
 
@@ -160,20 +148,21 @@ type Options struct {
 }
 
 // latestRelease will set the last known release as a member on the Options instance.
-// We'll return false if no releases were found, are you sure you have the right project?
-func latestRelease(opts *Options) (bool, error) {
+// We also update options if any releases were found or not.
+func latestRelease(opts *Options) error {
 	latest, found, err := opts.updater.DetectLatest(opts.slug)
 	opts.Latest = latest
+	opts.Found = found
 
 	if err != nil {
 		if errResponse, ok := err.(*github.ErrorResponse); ok && errResponse.Response.StatusCode == http.StatusUnauthorized {
-			return false, errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
+			return errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
 		}
 
-		return false, errors.Wrap(err, "error finding latest release")
+		return errors.Wrap(err, "error finding latest release")
 	}
 
-	return found, nil
+	return nil
 }
 
 // IsLatestVersion will tell us if the current version is the latest version available
