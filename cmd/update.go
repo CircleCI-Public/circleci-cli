@@ -38,6 +38,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
+			opts.cfg.SkipUpdateCheck = true
 			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
