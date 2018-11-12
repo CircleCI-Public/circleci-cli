@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"strconv"
 
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -23,9 +22,6 @@ var rootOptions *settings.Config
 
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
-
-// AutoUpdate defines the default behavior to include `circleci update` command with update feature.
-var AutoUpdate = "true"
 
 // PackageManager defines the package manager which was used to install the CLI.
 // You can override this value using -X flag to the compiler ldflags.
@@ -112,7 +108,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
 
-	if isUpdateIncluded(AutoUpdate) {
+	if isUpdateIncluded(PackageManager) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))
 	} else {
 		rootCmd.AddCommand(newDisabledCommand(rootOptions, "update"))
@@ -219,11 +215,11 @@ func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
 	fn(root)
 }
 
-func isUpdateIncluded(flag string) bool {
-	conv, err := strconv.ParseBool(flag)
-	if err != nil {
-		panic(err)
+func isUpdateIncluded(packageManager string) bool {
+	switch packageManager {
+	case "homebrew":
+		return false
+	default:
+		return true
 	}
-
-	return conv
 }
