@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -19,15 +21,24 @@ var _ = Describe("Check", func() {
 		err         error
 		checkCLI    string
 		tempHome    string
-		updateCheck *os.File
 		testServer  *ghttp.Server
+		updateCheck *settings.UpdateCheck
+		updateFile  *os.File
 	)
 
 	BeforeEach(func() {
 		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		tempHome, _, updateCheck = withTempSettings()
+		tempHome, _, updateFile = withTempSettings()
+
+		updateCheck = &settings.UpdateCheck{
+			LastUpdateCheck: time.Time{},
+		}
+
+		updateCheck.FileUsed = updateFile.Name()
+		err = updateCheck.WriteToDisk()
+		Expect(err).ShouldNot(HaveOccurred())
 
 		testServer = ghttp.NewServer()
 
@@ -56,7 +67,7 @@ var _ = Describe("Check", func() {
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			tempHome, _, updateCheck = withTempSettings()
+			tempHome, _, _ = withTempSettings()
 
 			command = exec.Command(checkCLI, "help",
 				"--github-api", testServer.URL(),
