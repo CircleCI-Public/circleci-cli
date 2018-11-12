@@ -1408,7 +1408,7 @@ var _ = Describe("Orb integration tests", func() {
 			var tempHome string
 
 			BeforeEach(func() {
-				tempHome, _ = withTempHomeConfig()
+				tempHome, _, _ = withTempSettings()
 
 				command = exec.Command(pathCLI,
 					"orb", "create", "bar-ns/foo-orb",

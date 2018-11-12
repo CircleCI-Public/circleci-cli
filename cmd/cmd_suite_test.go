@@ -22,31 +22,40 @@ var _ = BeforeSuite(func() {
 	Ω(err).ShouldNot(HaveOccurred())
 })
 
-func withTempHomeConfig() (string, *os.File) {
+func withTempSettings() (string, *os.File, *os.File) {
 	var (
 		tempHome string
 		err      error
 		config   *os.File
+		update   *os.File
 	)
 
 	tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 	Expect(err).ToNot(HaveOccurred())
 
 	const (
-		configDir  = ".circleci"
-		configFile = "cli.yml"
+		settingsPath        = ".circleci"
+		configFilename      = "cli.yml"
+		updateCheckFilename = "update_check.yml"
 	)
 
-	Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
+	Expect(os.Mkdir(filepath.Join(tempHome, settingsPath), 0700)).To(Succeed())
 
 	config, err = os.OpenFile(
-		filepath.Join(tempHome, configDir, configFile),
+		filepath.Join(tempHome, settingsPath, configFilename),
 		os.O_RDWR|os.O_CREATE,
 		0600,
 	)
 	Expect(err).ToNot(HaveOccurred())
 
-	return tempHome, config
+	update, err = os.OpenFile(
+		filepath.Join(tempHome, settingsPath, updateCheckFilename),
+		os.O_RDWR|os.O_CREATE,
+		0600,
+	)
+	Expect(err).ToNot(HaveOccurred())
+
+	return tempHome, config, update
 }
 
 var _ = AfterSuite(func() {
