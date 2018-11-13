@@ -24,21 +24,34 @@ var _ = Describe("Root", func() {
 
 	Describe("build without auto update", func() {
 		var (
-			command  *exec.Cmd
-			err      error
-			buildCLI string
+			command     *exec.Cmd
+			err         error
+			noUpdateCLI string
+			tempHome    string
 		)
 
 		BeforeEach(func() {
-			buildCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
+			tempHome, _, _ = withTempSettings()
+
+			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=homebrew",
+				"-X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=homebrew",
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
+		AfterEach(func() {
+			Expect(os.RemoveAll(tempHome)).To(Succeed())
+		})
+
 		It("reports update command as unavailable", func() {
-			command = exec.Command(buildCLI, "help")
+			command = exec.Command(noUpdateCLI, "help",
+				"--skip-update-check",
+			)
+			command.Env = append(os.Environ(),
+				fmt.Sprintf("HOME=%s", tempHome),
+			)
+
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -50,7 +63,7 @@ var _ = Describe("Root", func() {
 		})
 
 		It("tells the user to update using their package manager", func() {
-			command = exec.Command(buildCLI, "update")
+			command = exec.Command(noUpdateCLI, "update")
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -64,18 +77,18 @@ var _ = Describe("Root", func() {
 
 	Describe("build with auto update", func() {
 		var (
-			command  *exec.Cmd
-			err      error
-			buildCLI string
+			command   *exec.Cmd
+			err       error
+			updateCLI string
 		)
 
 		BeforeEach(func() {
-			buildCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
-				"-ldflags", "-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=true",
-			)
+			updateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 			Expect(err).ShouldNot(HaveOccurred())
 
-			command = exec.Command(buildCLI, "help")
+			command = exec.Command(updateCLI, "help",
+				"--skip-update-check",
+			)
 		})
 
 		It("does include the update command in help text", func() {
@@ -106,7 +119,9 @@ var _ = Describe("Root", func() {
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 			Expect(err).ToNot(HaveOccurred())
 
-			command = exec.Command(pathCLI, "help")
+			command = exec.Command(pathCLI, "help",
+				"--skip-update-check",
+			)
 			command.Env = append(os.Environ(),
 				fmt.Sprintf("HOME=%s", tempHome),
 				fmt.Sprintf("USERPROFILE=%s", tempHome), // windows

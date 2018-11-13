@@ -2,39 +2,40 @@ package cmd
 
 import (
 	"fmt"
-	"net/http"
 	"os/exec"
 	"regexp"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
-	"github.com/rhysd/go-github-selfupdate/selfupdate"
 
-	"github.com/blang/semver"
 	"github.com/spf13/cobra"
+
+	"github.com/briandowns/spinner"
 )
 
-type updateOptions struct {
-	cfg       *settings.Config
-	log       *logger.Logger
-	dryRun    bool
-	githubAPI string
-	args      []string
+type updateCommandOptions struct {
+	cfg    *settings.Config
+	log    *logger.Logger
+	dryRun bool
+	args   []string
 }
 
 func newUpdateCommand(config *settings.Config) *cobra.Command {
-	opts := updateOptions{
-		cfg:       config,
-		dryRun:    false,
-		githubAPI: "https://api.github.com/",
+	opts := updateCommandOptions{
+		cfg:    config,
+		dryRun: false,
 	}
 
 	update := &cobra.Command{
 		Use:   "update",
 		Short: "Update the tool to the latest version",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
@@ -48,6 +49,9 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "check",
 		Hidden: true,
 		Short:  "Check if there are any updates available",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.dryRun = true
@@ -62,6 +66,9 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "install",
 		Hidden: true,
 		Short:  "Update the tool to the latest version",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
@@ -75,6 +82,9 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "build-agent",
 		Hidden: true,
 		Short:  "Update the build agent to the latest version",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
@@ -86,11 +96,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 	update.PersistentFlags().BoolVar(&opts.dryRun, "check", false, "Check if there are any updates available without installing")
 
-	update.PersistentFlags().StringVar(&opts.githubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retreiving updates")
-	if err := update.PersistentFlags().MarkHidden("github-api"); err != nil {
-		panic(err)
-	}
-
 	update.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
 	if err := update.Flags().MarkHidden("testing"); err != nil {
 		panic(err)
@@ -101,7 +106,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 var picardRepo = "circleci/picard"
 
-func updateBuildAgent(opts updateOptions) error {
+func updateBuildAgent(opts updateCommandOptions) error {
 	latestSha256, err := findLatestPicardSha()
 
 	if err != nil {
@@ -144,59 +149,47 @@ func findLatestPicardSha() (string, error) {
 	return latest, nil
 }
 
-func updateCLI(opts updateOptions) error {
-	updater, err := selfupdate.NewUpdater(selfupdate.Config{
-		EnterpriseBaseURL: opts.githubAPI,
-	})
+func updateCLI(opts updateCommandOptions) error {
+	slug := "CircleCI-Public/circleci-cli"
+
+	spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+	spr.Suffix = " Checking for updates..."
+	spr.Start()
+
+	check, err := update.CheckForUpdates(opts.cfg.GitHubAPI, slug, version.Version, PackageManager)
+	spr.Stop()
+
 	if err != nil {
 		return err
 	}
 
-	slug := "CircleCI-Public/circleci-cli"
-
-	latest, found, err := updater.DetectLatest(slug)
-
-	if err != nil {
-		if errResponse, ok := err.(*github.ErrorResponse); ok && errResponse.Response.StatusCode == http.StatusUnauthorized {
-			return errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
-		}
-
-		return errors.Wrap(err, "error finding latest release")
+	if !check.Found {
+		opts.log.Info("No updates found.")
+		return nil
 	}
 
-	if !found {
-		return errors.New("no updates were found")
-	}
-
-	current := semver.MustParse(version.Version)
-
-	opts.log.Debug("Latest version: %s", latest.Version)
-	opts.log.Debug("Published: %s", latest.PublishedAt)
-	opts.log.Debug("Current Version: %s", current)
-
-	if latest.Version.Equals(current) {
+	if update.IsLatestVersion(check) {
 		opts.log.Info("Already up-to-date.")
 		return nil
 	}
 
-	reportVersion(opts.log, current, latest.Version)
+	opts.log.Debug(update.DebugVersion(check))
+	opts.log.Info(update.ReportVersion(check))
 
 	if opts.dryRun {
-		opts.log.Infof("You can update with `circleci update install`")
+		opts.log.Info(update.HowToUpdate(check))
 		return nil
 	}
 
-	release, err := updater.UpdateSelf(current, slug)
+	spr.Suffix = " Installing update..."
+	spr.Restart()
+	message, err := update.InstallLatest(check)
+	spr.Stop()
 	if err != nil {
-		return errors.Wrap(err, "failed to install update")
+		return err
 	}
 
-	opts.log.Infof("Updated to %s", release.Version)
+	opts.log.Infof(message)
 
 	return nil
-}
-
-func reportVersion(log *logger.Logger, current, latest semver.Version) {
-	log.Infof("You are running %s", current)
-	log.Infof("A new release is available (%s)", latest)
 }

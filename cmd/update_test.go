@@ -71,7 +71,9 @@ var _ = Describe("Update", func() {
 
 			Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
 			Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-			Eventually(session.Out).Should(gbytes.Say("You can update with `circleci update install`"))
+
+			Eventually(session.Out).Should(gbytes.Say("You can visit the Github releases page for the CLI to manually download and install:"))
+			Eventually(session.Out).Should(gbytes.Say("https://github.com/CircleCI-Public/circleci-cli/releases"))
 
 			Eventually(session).Should(gexec.Exit(0))
 		})
@@ -91,7 +93,9 @@ var _ = Describe("Update", func() {
 
 			Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
 			Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-			Eventually(session.Out).Should(gbytes.Say("You can update with `circleci update install`"))
+
+			Eventually(session.Out).Should(gbytes.Say("You can visit the Github releases page for the CLI to manually download and install:"))
+			Eventually(session.Out).Should(gbytes.Say("https://github.com/CircleCI-Public/circleci-cli/releases"))
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session).Should(gexec.Exit(0))

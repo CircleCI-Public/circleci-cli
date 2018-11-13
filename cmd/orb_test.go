@@ -53,6 +53,7 @@ var _ = Describe("Orb integration tests", func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "validate",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					"-",
@@ -121,6 +122,7 @@ var _ = Describe("Orb integration tests", func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"orb", "validate", orb.Path,
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 				)
@@ -170,6 +172,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate", orb.Path,
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 				)
@@ -250,6 +253,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "process",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
@@ -333,6 +337,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "publish",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
@@ -461,6 +466,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "publish",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
@@ -589,6 +595,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "publish", "increment",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					orb.Path,
@@ -754,6 +761,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "publish", "promote",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					"my/orb@dev:foo",
@@ -920,6 +928,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "create",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					"bar-ns/foo-orb",
@@ -1042,6 +1051,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--skip-update-check",
 					"--host", testServer.URL(),
 				)
 			})
@@ -1083,6 +1093,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--skip-update-check",
 					"--host", testServer.URL(),
 					"--json",
 				)
@@ -1133,6 +1144,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--skip-update-check",
 					"--uncertified",
 					"--host", testServer.URL(),
 				)
@@ -1195,6 +1207,7 @@ var _ = Describe("Orb integration tests", func() {
 				BeforeEach(func() {
 					command = exec.Command(pathCLI,
 						"orb", "list",
+						"--skip-update-check",
 						"--uncertified",
 						"--host", testServer.URL(),
 						"--json",
@@ -1221,6 +1234,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
+					"--skip-update-check",
 					"--host", testServer.URL(),
 					"--details",
 				)
@@ -1264,6 +1278,7 @@ var _ = Describe("Orb integration tests", func() {
 				BeforeEach(func() {
 					command = exec.Command(pathCLI,
 						"orb", "list",
+						"--skip-update-check",
 						"--host", testServer.URL(),
 						"--details",
 						"--json",
@@ -1290,6 +1305,7 @@ var _ = Describe("Orb integration tests", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
+					"--skip-update-check",
 					"--host", testServer.URL(),
 					"--details",
 				)
@@ -1366,6 +1382,7 @@ var _ = Describe("Orb integration tests", func() {
 				BeforeEach(func() {
 					command = exec.Command(pathCLI,
 						"orb", "list", "circleci",
+						"--skip-update-check",
 						"--host", testServer.URL(),
 						"--json",
 					)
@@ -1391,10 +1408,11 @@ var _ = Describe("Orb integration tests", func() {
 			var tempHome string
 
 			BeforeEach(func() {
-				tempHome, _ = withTempHomeConfig()
+				tempHome, _, _ = withTempSettings()
 
 				command = exec.Command(pathCLI,
 					"orb", "create", "bar-ns/foo-orb",
+					"--skip-update-check",
 					"--token", "",
 				)
 				command.Env = append(os.Environ(),
@@ -1422,6 +1440,7 @@ https://circleci.com/account/api`))
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "source",
+					"--skip-update-check",
 					"--host", testServer.URL(),
 					"my/orb@dev:foo",
 				)
@@ -1541,6 +1560,7 @@ https://circleci.com/account/api`))
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "info",
+					"--skip-update-check",
 					"--host", testServer.URL(),
 					"my/orb@dev:foo",
 				)

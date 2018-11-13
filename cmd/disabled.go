@@ -23,6 +23,9 @@ func newDisabledCommand(config *settings.Config, command string) *cobra.Command 
 	disable := &cobra.Command{
 		Use:   opts.command,
 		Short: "This command is unavailable on your platform",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)

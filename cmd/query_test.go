@@ -32,6 +32,7 @@ var _ = Describe("Query", func() {
 
 		token = "mytoken"
 		command = exec.Command(pathCLI, "query", "-",
+			"--skip-update-check",
 			"--token", token,
 			"--host", server.URL(),
 		)

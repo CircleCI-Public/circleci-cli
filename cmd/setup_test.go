@@ -29,7 +29,11 @@ var _ = Describe("Setup", func() {
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 
-		command = exec.Command(pathCLI, "setup", "--testing")
+		command = exec.Command(pathCLI,
+			"setup",
+			"--testing",
+			"--skip-update-check",
+		)
 		command.Env = append(os.Environ(),
 			fmt.Sprintf("HOME=%s", tempHome),
 			fmt.Sprintf("USERPROFILE=%s", tempHome), // windows

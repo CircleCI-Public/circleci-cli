@@ -49,6 +49,7 @@ var _ = Describe("Config", func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"config", "validate",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					config.Path,
@@ -133,6 +134,7 @@ var _ = Describe("Config", func() {
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"config", "process",
+					"--skip-update-check",
 					"--token", token,
 					"--host", testServer.URL(),
 					config.Path,
@@ -217,7 +219,10 @@ var _ = Describe("Config", func() {
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
 			BeforeEach(func() {
 				var err error
-				command = exec.Command(pathCLI, "config", "pack", "testdata/hugo-pack/.circleci")
+				command = exec.Command(pathCLI,
+					"config", "pack",
+					"--skip-update-check",
+					"testdata/hugo-pack/.circleci")
 				results, err = ioutil.ReadFile("testdata/hugo-pack/result.yml")
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -236,7 +241,10 @@ var _ = Describe("Config", func() {
 			BeforeEach(func() {
 				var err error
 				var path string = "nested-orbs-and-local-commands-etc"
-				command = exec.Command(pathCLI, "config", "pack", filepath.Join("testdata", path, "test"))
+				command = exec.Command(pathCLI,
+					"config", "pack",
+					"--skip-update-check",
+					filepath.Join("testdata", path, "test"))
 				results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -254,7 +262,10 @@ var _ = Describe("Config", func() {
 		Describe("an orb containing local executors and commands in folder", func() {
 			BeforeEach(func() {
 				var err error
-				command = exec.Command(pathCLI, "config", "pack", "testdata/myorb/test")
+				command = exec.Command(pathCLI,
+					"config", "pack",
+					"--skip-update-check",
+					"testdata/myorb/test")
 				results, err = ioutil.ReadFile("testdata/myorb/result.yml")
 				Expect(err).ShouldNot(HaveOccurred())
 			})
@@ -273,7 +284,10 @@ var _ = Describe("Config", func() {
 			BeforeEach(func() {
 				var err error
 				var path string = "test-with-large-nested-rails-orb"
-				command = exec.Command(pathCLI, "config", "pack", filepath.Join("testdata", path, "test"))
+				command = exec.Command(pathCLI,
+					"config", "pack",
+					"--skip-update-check",
+					filepath.Join("testdata", path, "test"))
 				results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
 				Expect(err).ShouldNot(HaveOccurred())
 			})

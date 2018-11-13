@@ -32,6 +32,7 @@ var _ = Describe("Diagnostic", func() {
 
 		command = exec.Command(pathCLI,
 			"diagnostic",
+			"--skip-update-check",
 			"--endpoint", testServer.URL())
 
 		command.Env = append(os.Environ(),
@@ -153,6 +154,7 @@ token: mytoken
 
 				command = exec.Command(pathCLI,
 					"diagnostic",
+					"--skip-update-check",
 					"--endpoint", testServer.URL(),
 					"--debug",
 				)

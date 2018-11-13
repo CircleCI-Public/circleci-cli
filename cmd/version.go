@@ -21,6 +21,9 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Display version information",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			opts.cfg.SkipUpdateCheck = true
+		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.log = logger.NewLogger(config.Debug)
