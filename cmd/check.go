@@ -46,11 +46,7 @@ func checkForUpdates(opts *settings.Config) error {
 
 			updateCheck.LastUpdateCheck = time.Now()
 			err = updateCheck.WriteToDisk()
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		}
 
 		if update.IsLatestVersion(check) {
@@ -60,11 +56,7 @@ func checkForUpdates(opts *settings.Config) error {
 
 			updateCheck.LastUpdateCheck = time.Now()
 			err = updateCheck.WriteToDisk()
-			if err != nil {
-				return err
-			}
-
-			return nil
+			return err
 		}
 		spr.Stop()
 
