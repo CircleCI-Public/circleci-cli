@@ -43,6 +43,13 @@ func checkForUpdates(opts *settings.Config) error {
 			spr.Suffix = "No updates found."
 			time.Sleep(300 * time.Millisecond)
 			spr.Stop()
+
+			updateCheck.LastUpdateCheck = time.Now()
+			err = updateCheck.WriteToDisk()
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 
@@ -50,6 +57,13 @@ func checkForUpdates(opts *settings.Config) error {
 			spr.Suffix = "Already up-to-date."
 			time.Sleep(300 * time.Millisecond)
 			spr.Stop()
+
+			updateCheck.LastUpdateCheck = time.Now()
+			err = updateCheck.WriteToDisk()
+			if err != nil {
+				return err
+			}
+
 			return nil
 		}
 		spr.Stop()
