@@ -189,7 +189,6 @@ func ReportVersion(opts *Options) string {
 	return strings.Join([]string{
 		fmt.Sprintf("You are running %s", opts.Current),
 		fmt.Sprintf("A new release is available (%s)", opts.Latest.Version),
-		"\n",
 	}, "\n")
 }
 

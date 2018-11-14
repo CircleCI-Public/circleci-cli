@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"log"
+	"os"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -25,10 +26,11 @@ func checkForUpdates(opts *settings.Config) error {
 	}
 
 	if update.ShouldCheckForUpdates(updateCheck) {
-		log := logger.NewLogger(opts.Debug)
+		log := log.New(os.Stderr, "", 0)
 		slug := "CircleCI-Public/circleci-cli"
 
 		spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond)
+		spr.Writer = os.Stderr
 		spr.Suffix = " Checking for updates..."
 		spr.Start()
 
@@ -60,11 +62,15 @@ func checkForUpdates(opts *settings.Config) error {
 		}
 		spr.Stop()
 
-		log.Debug(update.DebugVersion(check))
-		log.Info(update.ReportVersion(check))
-		log.Info(update.HowToUpdate(check))
+		if opts.Debug {
+			log.Println(update.DebugVersion(check))
+			log.Println("")
+		}
 
-		log.Info("\n") // Print a new-line after all of that
+		log.Println(update.ReportVersion(check))
+		log.Println(update.HowToUpdate(check))
+
+		log.Println("") // Print a new-line after all of that
 
 		updateCheck.LastUpdateCheck = time.Now()
 		err = updateCheck.WriteToDisk()
