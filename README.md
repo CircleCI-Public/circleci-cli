@@ -53,7 +53,11 @@ circleci update
 circleci switch
 ```
 
-This command may prompt you for `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`.
+This command may prompt you an error message of 
+```
+mv: cannot move 'circleci' to '/usr/local/bin/circleci': Permission denied
+```
+which means you need `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`. 
 
 ### Updating after install
 
@@ -70,6 +74,20 @@ You may first need to generate a CircleCI API Token from the [Personal API Token
 ```
 $ circleci setup
 ```
+You should be prompted to enter the _CircleCI API Token_ you generated from Personal API Token tab](https://circleci.com/account/api)
+
+`✔ CircleCI API Token: `
+
+=> `API token has been set.`
+
+`✔ CircleCI Host: https://circleci.com`
+
+=> 
+```
+        CircleCI host has been set.
+        Setup complete. Your configuration has been saved.
+```
+
 
 If you are using this tool on `circleci.com`. accept the provided default `CircleCI Host`.
 
@@ -84,8 +102,9 @@ To ensure that the tool is installed, you can use it to validate a build config 
 
 ```
 $ circleci config validate
-Config file at .circleci/config.yml is valid
 ```
+=> `Config file at .circleci/config.yml is valid`
+
 
 ## Docker
 
