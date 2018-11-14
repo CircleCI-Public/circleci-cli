@@ -15,12 +15,13 @@ import (
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 
-var hoursPerWeek = 168
+// hoursBeforeCheck is used to configure the delay between auto-update checks
+var hoursBeforeCheck = 28
 
-// ShouldCheckForUpdates tell us if the last update check was more than a week ago
+// ShouldCheckForUpdates tell us if the last update check was more than a day ago
 func ShouldCheckForUpdates(upd *settings.UpdateCheck) bool {
 	diff := time.Since(upd.LastUpdateCheck)
-	return diff.Hours() >= float64(hoursPerWeek)
+	return diff.Hours() >= float64(hoursBeforeCheck)
 }
 
 // CheckForUpdates will check for updates given the proper package manager
