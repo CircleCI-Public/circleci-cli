@@ -115,11 +115,9 @@ var _ = Describe("Check", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				Eventually(session.Err.Contents()).Should(BeEmpty())
-
-				Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
-				Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-				Eventually(session.Out).Should(gbytes.Say("You can update with `circleci update install`"))
+				Eventually(session.Err).Should(gbytes.Say("You are running 0.0.0-dev"))
+				Eventually(session.Err).Should(gbytes.Say("A new release is available (.*)"))
+				Eventually(session.Err).Should(gbytes.Say("You can update with `circleci update install`"))
 
 				Eventually(session).Should(gexec.Exit(0))
 			})
