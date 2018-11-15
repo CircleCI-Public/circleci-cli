@@ -57,7 +57,6 @@ This command may require `sudo` if your user doesn't have write permissions to t
 
 ```
 mv: cannot move 'circleci' to '/usr/local/bin/circleci': Permission denied
-
 ```
 
 
@@ -88,7 +87,6 @@ API token has been set.
 CircleCI host has been set.
 
 Setup complete. Your configuration has been saved.
-
 ```
 
 
