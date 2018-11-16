@@ -70,7 +70,7 @@ circleci update install
 
 ## Configure the CLI
 
-You may first need to generate a CircleCI API Token from the [Personal API Token tab](https://circleci.com/account/api).
+After installing the latest version of our CLI, you must run setup to configure the tool.
 
 ```
 $ circleci setup
