@@ -53,7 +53,7 @@ changes to your submission during the review process.
 
 # Hall of Fame
 
-Have you reported a bug that was fixed or even contributed a pull request that fixed one?
+Have you reported a bug that was fixed or even sent a patch that fixed one?
 
 First of all, you rock! Thank you so much for your help!
 
