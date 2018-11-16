@@ -192,7 +192,8 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 		}
 	}()
 
-	log.Debug(">> result status: %s", res.Status)
+	log.Debug("<< request id: %s", res.Header.Get("X-Request-Id"))
+	log.Debug("<< result status: %s", res.Status)
 
 	if res.StatusCode != 200 {
 		return fmt.Errorf("failure calling GraphQL API: %s", res.Status)

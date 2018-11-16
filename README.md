@@ -75,7 +75,9 @@ You may first need to generate a CircleCI API Token from the [Personal API Token
 ```
 $ circleci setup
 ```
+
 You should be prompted to enter the _CircleCI API Token_ you generated from the [Personal API Token tab](https://circleci.com/account/api)
+
 
 ```
 ✔ CircleCI API Token: 
