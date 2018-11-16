@@ -10,6 +10,7 @@ entirety before submitting a Pull Request or Reporting a bug.
 - [Creating an issue](#creating-an-issue)
 - [Feature requests](#feature-requests)
 - [Opening a pull request](#opening-a-pull-request)
+- [Hall of Fame](#hall-of-fame)
 - [Code of Conduct](#code-of-conduct)
 - [License](#license)
 - [Contributor license agreement](#contributor-license-agreement)
