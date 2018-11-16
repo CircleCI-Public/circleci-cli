@@ -50,6 +50,14 @@ changes to your submission during the review process.
 
 - Test your change thoroughly
 
+# Hall of Fame
+
+Have you reported a bug that was fixed or even contributed a pull request that fixed one?
+
+First of all, you rock! Thank you so much for your help!
+
+Please send us a pull request and add yourself to the [CONTRIBUTORS.md](./CONTRIBUTORS.md) hall of fame.
+
 
 # Code of Conduct
 
