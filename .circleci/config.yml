@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   codecov: circleci/codecov-clojure@0.0.4
+  shellcheck: circleci/shellcheck@1.2.0
 
 executors:
   go:
@@ -119,18 +120,6 @@ jobs:
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
 
-  shellcheck:
-    docker:
-      - image: nlknguyen/alpine-shellcheck:v0.4.6
-    steps:
-      - checkout
-      - run:
-          name: Check Scripts
-          command: |
-            find . -type f -name '*.sh' -not -path './vendor/*' > /tmp/files.txt
-            echo "Checking $(cat /tmp/files.txt | wc -l ) files"
-            cat /tmp/files.txt | xargs -t shellcheck --external-sources
-
   brew-prepare:
     machine: true
     steps:
@@ -164,7 +153,8 @@ workflows:
   version: 2
   ci:
     jobs:
-      - shellcheck
+      - shellcheck/check:
+          exclude: ./vendor/*
       - test
       - coverage
       - lint
@@ -179,7 +169,7 @@ workflows:
             - test
             - coverage
             - lint
-            - shellcheck
+            - shellcheck/check
           filters:
             branches:
               only: master
