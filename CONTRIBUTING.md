@@ -10,6 +10,7 @@ entirety before submitting a Pull Request or Reporting a bug.
 - [Creating an issue](#creating-an-issue)
 - [Feature requests](#feature-requests)
 - [Opening a pull request](#opening-a-pull-request)
+- [Hall of Fame](#hall-of-fame)
 - [Code of Conduct](#code-of-conduct)
 - [License](#license)
 - [Contributor license agreement](#contributor-license-agreement)
@@ -49,6 +50,14 @@ changes to your submission during the review process.
 #### Before submitting
 
 - Test your change thoroughly
+
+# Hall of Fame
+
+Have you reported a bug that was fixed or even sent a patch that fixed one?
+
+First of all, you rock! Thank you so much for your help!
+
+Please send us a pull request and add yourself to the [CONTRIBUTORS.md](./CONTRIBUTORS.md) hall of fame.
 
 
 # Code of Conduct
