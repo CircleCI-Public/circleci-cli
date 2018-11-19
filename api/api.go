@@ -237,10 +237,12 @@ type OrbElementParameter struct {
 
 // OrbElement represents the yaml-unmarshled contents of
 // a named element under a command/job/executor
-type OrbElement struct {
+type RealOrbElement struct {
 	Description string                         `json:"-"`
 	Parameters  map[string]OrbElementParameter `json:"-"`
 }
+
+type OrbElement RealOrbElement
 
 // OrbElement implements UnmarshalYAML, which allows it to be a string or a map.
 // For now, don't even try to dereference the string, just return what is essentially
@@ -249,16 +251,16 @@ func (orbElement *OrbElement) UnmarshalYAML(unmarshal func(interface{}) error) e
 	var s string
 	err := unmarshal(&s)
 	if err == nil {
-		*orbElement = OrbElement{
-			Description: "",
-			Parameters:  map[string]OrbElementParameter{},
-		}
+		*orbElement = OrbElement{}
 		return nil
 	}
-	var oe OrbElement
+	var oe RealOrbElement
 	err = unmarshal(&oe)
 	if err == nil {
-		*orbElement = oe
+		*orbElement = OrbElement{
+			Description: oe.Description,
+			Parameters:  oe.Parameters,
+		}
 		return nil
 	}
 	return nil
