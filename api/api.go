@@ -235,11 +235,35 @@ type OrbElementParameter struct {
 	Default     interface{} `json:"-"`
 }
 
-// OrbElement represents the yaml-unmarshled contents of
+// RealOrbElement represents the yaml-unmarshled contents of
 // a named element under a command/job/executor
-type OrbElement struct {
+type RealOrbElement struct {
 	Description string                         `json:"-"`
 	Parameters  map[string]OrbElementParameter `json:"-"`
+}
+
+// OrbElement implements RealOrbElement interface and allows us to deserialize by hand.
+type OrbElement RealOrbElement
+
+// UnmarshalYAML method allows OrbElement to be a string or a map.
+// For now, don't even try to dereference the string, just return what is essentially
+// an empty OrbElement (no description or parameters)
+func (orbElement *OrbElement) UnmarshalYAML(unmarshal func(interface{}) error) error {
+	var s string
+	err := unmarshal(&s)
+	if err == nil {
+		*orbElement = OrbElement{}
+		return nil
+	}
+
+	var oe RealOrbElement
+	err = unmarshal(&oe)
+	if err == nil {
+		*orbElement = OrbElement(oe)
+
+		return nil
+	}
+	return nil
 }
 
 // Orb is a struct for containing the yaml-unmarshaled contents of an orb
