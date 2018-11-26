@@ -120,29 +120,18 @@ jobs:
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
 
-  brew-prepare:
-    machine: true
-    steps:
-      - checkout
-      - run: |
-          docker run -v $PWD:/go/src/github.com/CircleCI-Public/circleci-cli \
-            -w /go/src/github.com/CircleCI-Public/circleci-cli \
-            -it goreleaser/goreleaser:latest release --skip-validate --skip-publish --rm-dist
-      - persist_to_workspace:
-          root: .
-          paths:
-            - "dist"
-
   brew-deploy:
     macos:
       xcode: "10.0.0"
     environment:
       - USER: circleci
       - TRAVIS: circleci
+      - DESTDIR: /Users/distiller/dest
     steps:
       - checkout
-      - attach_workspace:
-          at: .
+      - run: |
+          mkdir $DESTDIR
+          curl -fLSs https://circle.ci/cli | DESTDIR="$DESTDIR" bash
       - run: |
           git config --global user.email "$GH_EMAIL" > /dev/null 2>&1
           git config --global user.name "$GH_NAME" > /dev/null 2>&1
@@ -184,9 +173,6 @@ workflows:
     jobs:
       - run-brew-deploy-gate:
           type: approval
-      - brew-prepare:
-          requires:
-            - run-brew-deploy-gate
       - brew-deploy:
           requires:
-            - brew-prepare
+            - run-brew-deploy-gate
