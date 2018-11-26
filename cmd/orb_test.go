@@ -1259,7 +1259,8 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Ω(session.Wait().Out.Contents()).Should(ContainSubstring(`Orbs found: 1. Showing only certified orbs. Add -u for a list of all orbs.
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`Orbs found: 1. Showing only certified orbs. Add -u for a list of all orbs.
 
 foo/test (0.7.0)
   Commands:
@@ -1270,7 +1271,8 @@ foo/test (0.7.0)
     - hello-build: 0 parameter(s)
   Executors:
     - default: 1 parameter(s)
-       - tag: string (default: 'curl-browsers')`))
+       - tag: string (default: 'curl-browsers')
+`))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
 			})
