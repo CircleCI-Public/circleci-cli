@@ -1259,17 +1259,18 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orbs found: 1. Showing only certified orbs. Add -u for a list of all orbs."))
-				Eventually(session.Out).Should(gbytes.Say("foo/test \\(0.7.0\\)"))
-				Eventually(session.Out).Should(gbytes.Say("Commands:"))
-				Eventually(session.Out).Should(gbytes.Say("- myfoo: 0 parameter\\(s\\)"))
-				Eventually(session.Out).Should(gbytes.Say("- bar: 1 parameter\\(s\\)"))
-				Eventually(session.Out).Should(gbytes.Say("- hello: string \\(default: 'world'\\)"))
-				Eventually(session.Out).Should(gbytes.Say("Jobs:"))
-				Eventually(session.Out).Should(gbytes.Say("- hello-build: 0 parameter\\(s\\)"))
-				Eventually(session.Out).Should(gbytes.Say("Executors:"))
-				Eventually(session.Out).Should(gbytes.Say("- default: 1 parameter\\(s\\)"))
-				Eventually(session.Out).Should(gbytes.Say("- tag: string \\(default: 'curl-browsers'\\)"))
+				Ω(session.Wait().Out.Contents()).Should(ContainSubstring(`Orbs found: 1. Showing only certified orbs. Add -u for a list of all orbs.
+
+foo/test (0.7.0)
+  Commands:
+    - myfoo: 0 parameter(s)
+    - bar: 1 parameter(s)
+       - hello: string (default: 'world')
+  Jobs:
+    - hello-build: 0 parameter(s)
+  Executors:
+    - default: 1 parameter(s)
+       - tag: string (default: 'curl-browsers')`))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
 			})
