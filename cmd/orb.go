@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -259,7 +260,16 @@ func parameterDefaultToString(parameter api.OrbElementParameter) string {
 }
 
 func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) error {
-	for parameterName, parameter := range orbElement.Parameters {
+	keys := make([]string, 0, len(orbElement.Parameters))
+	for k := range orbElement.Parameters {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		parameterName := k
+		parameter := orbElement.Parameters[k]
+
 		var err error
 
 		defaultValueString := parameterDefaultToString(parameter)
@@ -277,8 +287,17 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 	var err error
 
 	if len(namedOrbElements) > 0 {
+		keys := make([]string, 0, len(namedOrbElements))
+		for k := range namedOrbElements {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+
 		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
-		for elementName, orbElement := range namedOrbElements {
+		for _, k := range keys {
+			elementName := k
+			orbElement := namedOrbElements[k]
+
 			parameterCount := len(orbElement.Parameters)
 
 			_, err = buf.WriteString(fmt.Sprintf("    - %s: %d parameter(s)\n", elementName, parameterCount))
