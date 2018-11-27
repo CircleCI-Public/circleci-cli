@@ -1264,9 +1264,9 @@ var _ = Describe("Orb integration tests", func() {
 
 foo/test (0.7.0)
   Commands:
-    - myfoo: 0 parameter(s)
     - bar: 1 parameter(s)
        - hello: string (default: 'world')
+    - myfoo: 0 parameter(s)
   Jobs:
     - hello-build: 0 parameter(s)
   Executors:
