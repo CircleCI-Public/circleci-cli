@@ -7,3 +7,4 @@ We are very grateful to the following people have helped us to build the CLI too
 - [Matthias Fax](https://github.com/matfax)
 - [Ben Porter](https://github.com/FreedomBen)
 - [Reuben Antz](https://github.com/antzshrek)
+- [Hiroyuki Matsuo](https://github.com/h-matsuo)
