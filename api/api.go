@@ -172,6 +172,7 @@ type CreateOrbResponse struct {
 type NamespaceOrbResponse struct {
 	RegistryNamespace struct {
 		Name string
+		ID   string
 		Orbs struct {
 			Edges []struct {
 				Cursor string
@@ -1036,6 +1037,7 @@ func ListNamespaceOrbs(opts Options, namespace string) (*OrbsForListing, error) 
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
 		name
+                id
 		orbs(first: 20, after: $after) {
 			edges {
 				cursor
@@ -1073,6 +1075,10 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		err := opts.Client.Run(opts.Context, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
+		}
+
+		if result.RegistryNamespace.ID == "" {
+			return nil, errors.New("No namespace found")
 		}
 
 	NamespaceOrbs:
