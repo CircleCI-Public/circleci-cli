@@ -49,7 +49,9 @@ func diagnostic(opts diagnosticOptions) error {
 	log.Infof("API endpoint: %s\n", opts.cfg.Endpoint)
 
 	if opts.cfg.Token == "token" || opts.cfg.Token == "" {
-		return errors.New("please set a token with 'circleci setup'")
+		return errors.New(`please set a token with 'circleci setup'
+You can create a new personal API token here:
+https://circleci.com/account/api`)
 	}
 	log.Infoln("OK, got a token.")
 
