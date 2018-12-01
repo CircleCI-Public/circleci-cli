@@ -9,11 +9,7 @@ import (
 	"regexp"
 	"testing"
 	"time"
-
-	"github.com/CircleCI-Public/circleci-cli/logger"
 )
-
-var log = logger.NewLogger(false)
 
 func TestServerAddress(t *testing.T) {
 	var (
@@ -77,14 +73,14 @@ func TestDoJSON(t *testing.T) {
 	defer srv.Close()
 
 	ctx := context.Background()
-	client := NewClient(srv.URL, "/", "token")
+	client := NewClient(srv.URL, "/", "token", false)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 	var resp struct {
 		Something string
 	}
-	err := client.Run(ctx, log, &Request{Query: "query {}"}, &resp)
+	err := client.Run(ctx, &Request{Query: "query {}"}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -118,7 +114,7 @@ func TestQueryJSON(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, "/", "token")
+	client := NewClient(srv.URL, "/", "token", false)
 
 	req := NewUnauthorizedRequest("query {}")
 	req.Var("username", "matryer")
@@ -135,7 +131,7 @@ func TestQueryJSON(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, log, req, &resp)
+	err := client.Run(ctx, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -179,14 +175,14 @@ func TestDoJSONErr(t *testing.T) {
 	defer server.Close()
 
 	ctx := context.Background()
-	client := NewClient(server.URL, "/", "token")
+	client := NewClient(server.URL, "/", "token", false)
 
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
 	var responseData map[string]interface{}
 
-	err := client.Run(ctx, log, &Request{Query: "query {}"}, &responseData)
+	err := client.Run(ctx, &Request{Query: "query {}"}, &responseData)
 	if err.Error() != "Something went wrong\nSomething else went wrong" {
 		t.Errorf(err.Error())
 	}
@@ -209,7 +205,7 @@ func TestHeader(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, "/", "token")
+	client := NewClient(srv.URL, "/", "token", false)
 
 	req := NewUnauthorizedRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
@@ -217,7 +213,7 @@ func TestHeader(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, log, req, &resp)
+	err := client.Run(ctx, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -247,13 +243,13 @@ func TestStatusCode200(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, "/", "token")
+	client := NewClient(srv.URL, "/", "token", false)
 
 	req := NewUnauthorizedRequest("query {}")
 
 	var resp interface{}
 
-	err := client.Run(ctx, log, req, &resp)
+	err := client.Run(ctx, req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -279,13 +275,13 @@ func TestStatusCode500(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, "/", "token")
+	client := NewClient(srv.URL, "/", "token", false)
 
 	req := NewUnauthorizedRequest("query {}")
 
 	var resp interface{}
 
-	err := client.Run(ctx, log, req, &resp)
+	err := client.Run(ctx, req, &resp)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -315,13 +311,13 @@ func TestStatusCode413(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
 
-	client := NewClient(srv.URL, "/", "token")
+	client := NewClient(srv.URL, "/", "token", false)
 
 	req := NewUnauthorizedRequest("query {}")
 
 	var resp interface{}
 
-	err := client.Run(ctx, log, req, &resp)
+	err := client.Run(ctx, req, &resp)
 	if err == nil {
 		t.Error("expected error")
 	}

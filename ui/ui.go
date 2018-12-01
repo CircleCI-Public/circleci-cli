@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/manifoldco/promptui"
 )
 
@@ -13,9 +12,9 @@ import (
 // This is because the first call to PromptUI reads from stdin correctly,
 // but subsequent calls return EOF.
 type UserInterface interface {
-	ReadSecretStringFromUser(log *logger.Logger, message string) (string, error)
-	ReadStringFromUser(log *logger.Logger, message string, defaultValue string) string
-	AskUserToConfirm(log *logger.Logger, message string) bool
+	ReadSecretStringFromUser(message string) (string, error)
+	ReadStringFromUser(message string, defaultValue string) string
+	AskUserToConfirm(message string) bool
 }
 
 // InteractiveUI implements the UserInterface used by the real program, not in tests.
@@ -24,7 +23,7 @@ type InteractiveUI struct {
 
 // ReadSecretStringFromUser can be used to read a value from the user by masking their input.
 // It's useful for token input in our case.
-func (InteractiveUI) ReadSecretStringFromUser(_ *logger.Logger, message string) (string, error) {
+func (InteractiveUI) ReadSecretStringFromUser(message string) (string, error) {
 	prompt := promptui.Prompt{
 		Label: message,
 		Mask:  '*',
@@ -40,7 +39,7 @@ func (InteractiveUI) ReadSecretStringFromUser(_ *logger.Logger, message string) 
 }
 
 // ReadStringFromUser can be used to read any value from the user or the defaultValue when provided.
-func (InteractiveUI) ReadStringFromUser(_ *logger.Logger, message string, defaultValue string) string {
+func (InteractiveUI) ReadStringFromUser(message string, defaultValue string) string {
 	prompt := promptui.Prompt{
 		Label: message,
 	}
@@ -59,7 +58,7 @@ func (InteractiveUI) ReadStringFromUser(_ *logger.Logger, message string, defaul
 }
 
 // AskUserToConfirm will prompt the user to confirm with the provided message.
-func (InteractiveUI) AskUserToConfirm(_ *logger.Logger, message string) bool {
+func (InteractiveUI) AskUserToConfirm(message string) bool {
 	prompt := promptui.Prompt{
 		Label:     message,
 		IsConfirm: true,
@@ -77,38 +76,38 @@ type TestingUI struct {
 
 // ReadSecretStringFromUser implements the TestingUI interface for asking a user's input.
 // It works by simply printing the message to standard output and passing the input through.
-func (ui TestingUI) ReadSecretStringFromUser(log *logger.Logger, message string) (string, error) {
-	log.Info(message)
+func (ui TestingUI) ReadSecretStringFromUser(message string) (string, error) {
+	fmt.Println(message)
 	return ui.Input, nil
 }
 
 // ReadStringFromUser implements the TestingUI interface for asking a user's input.
 // It works by simply printing the message to standard output and passing the input through.
-func (ui TestingUI) ReadStringFromUser(log *logger.Logger, message string, defaultValue string) string {
-	log.Info(message)
+func (ui TestingUI) ReadStringFromUser(message string, defaultValue string) string {
+	fmt.Println(message)
 	return ui.Input
 }
 
 // AskUserToConfirm works by printing the provided message to standard out and returning a Confirm dialogue up the chain.
-func (ui TestingUI) AskUserToConfirm(log *logger.Logger, message string) bool {
-	log.Info(message)
+func (ui TestingUI) AskUserToConfirm(message string) bool {
+	fmt.Println(message)
 	return ui.Confirm
 }
 
 // ShouldAskForToken wraps an AskUserToConfirm dialogue only if their token is empty or blank.
-func ShouldAskForToken(token string, log *logger.Logger, ui UserInterface) bool {
+func ShouldAskForToken(token string, ui UserInterface) bool {
 	if token == "" {
 		return true
 	}
 
-	return ui.AskUserToConfirm(log, "A CircleCI token is already set. Do you want to change it")
+	return ui.AskUserToConfirm("A CircleCI token is already set. Do you want to change it")
 }
 
 // ShouldAskForEndpoint wraps an AskUserToConfirm dialogue only if their endpoint has changed from the default value.
-func ShouldAskForEndpoint(endpoint string, log *logger.Logger, ui UserInterface, defaultValue string) bool {
+func ShouldAskForEndpoint(endpoint string, ui UserInterface, defaultValue string) bool {
 	if endpoint == defaultValue {
 		return true
 	}
 
-	return ui.AskUserToConfirm(log, fmt.Sprintf("Do you want to reset the endpoint? (default: %s)", defaultValue))
+	return ui.AskUserToConfirm(fmt.Sprintf("Do you want to reset the endpoint? (default: %s)", defaultValue))
 }

@@ -6,7 +6,6 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -19,7 +18,6 @@ import (
 
 type updateCommandOptions struct {
 	cfg    *settings.Config
-	log    *logger.Logger
 	dryRun bool
 	args   []string
 }
@@ -38,7 +36,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return updateCLI(opts)
@@ -55,7 +52,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.dryRun = true
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return updateCLI(opts)
@@ -71,7 +67,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return updateCLI(opts)
@@ -87,10 +82,9 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return updateBuildAgent(opts)
+			return updateBuildAgent()
 		},
 	})
 
@@ -106,14 +100,14 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 var picardRepo = "circleci/picard"
 
-func updateBuildAgent(opts updateCommandOptions) error {
+func updateBuildAgent() error {
 	latestSha256, err := findLatestPicardSha()
 
 	if err != nil {
 		return err
 	}
 
-	opts.log.Infof("Latest build agent is version %s", latestSha256)
+	fmt.Printf("Latest build agent is version %s", latestSha256)
 
 	return nil
 }
@@ -164,20 +158,22 @@ func updateCLI(opts updateCommandOptions) error {
 	}
 
 	if !check.Found {
-		opts.log.Info("No updates found.")
+		fmt.Println("No updates found.")
 		return nil
 	}
 
 	if update.IsLatestVersion(check) {
-		opts.log.Info("Already up-to-date.")
+		fmt.Println("Already up-to-date.")
 		return nil
 	}
 
-	opts.log.Debug(update.DebugVersion(check))
-	opts.log.Info(update.ReportVersion(check))
+	if opts.cfg.Debug {
+		fmt.Println(update.DebugVersion(check))
+	}
+	fmt.Println(update.ReportVersion(check))
 
 	if opts.dryRun {
-		opts.log.Info(update.HowToUpdate(check))
+		fmt.Println(update.HowToUpdate(check))
 		return nil
 	}
 
@@ -189,7 +185,7 @@ func updateCLI(opts updateCommandOptions) error {
 		return err
 	}
 
-	opts.log.Infof(message)
+	fmt.Println(message)
 
 	return nil
 }

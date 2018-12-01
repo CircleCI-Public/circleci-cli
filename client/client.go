@@ -5,17 +5,19 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
 
 // A Client is an HTTP client for our GraphQL endpoint.
 type Client struct {
+	Debug      bool
 	Endpoint   string
 	Host       string
 	Token      string
@@ -23,12 +25,13 @@ type Client struct {
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(host, endpoint, token string) *Client {
+func NewClient(host, endpoint, token string, debug bool) *Client {
 	return &Client{
 		httpClient: http.DefaultClient,
 		Endpoint:   endpoint,
 		Host:       host,
 		Token:      token,
+		Debug:      debug,
 	}
 }
 
@@ -161,7 +164,11 @@ func prepareRequest(ctx context.Context, address string, request *Request) (*htt
 }
 
 // Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
-func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request, resp interface{}) error {
+// TODO(zzak): This function is fairly complex, we should refactor it
+// nolint: gocyclo
+func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) error {
+	l := log.New(os.Stderr, "", 0)
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -177,8 +184,11 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 	if err != nil {
 		return err
 	}
-	log.Debug(">> variables: %v", request.Variables)
-	log.Debug(">> query: %s", request.Query)
+
+	if cl.Debug {
+		l.Printf(">> variables: %v", request.Variables)
+		l.Printf(">> query: %s", request.Query)
+	}
 
 	res, err := cl.httpClient.Do(req)
 
@@ -188,12 +198,14 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 	defer func() {
 		err := res.Body.Close()
 		if err != nil {
-			log.Debug(err.Error())
+			l.Printf(err.Error())
 		}
 	}()
 
-	log.Debug("<< request id: %s", res.Header.Get("X-Request-Id"))
-	log.Debug("<< result status: %s", res.Status)
+	if cl.Debug {
+		l.Printf("<< request id: %s", res.Header.Get("X-Request-Id"))
+		l.Printf("<< result status: %s", res.Status)
+	}
 
 	if res.StatusCode != 200 {
 		return fmt.Errorf("failure calling GraphQL API: %s", res.Status)
@@ -211,7 +223,9 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 		return wrappedResponse.Errors
 	}
 
-	log.Debug("<< %+v", resp)
+	if cl.Debug {
+		l.Printf("<< %+v", resp)
+	}
 
 	return nil
 }

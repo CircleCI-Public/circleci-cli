@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -15,7 +16,6 @@ import (
 type queryOptions struct {
 	cfg  *settings.Config
 	cl   *client.Client
-	log  *logger.Logger
 	args []string
 }
 
@@ -29,8 +29,7 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 		Short: "Query the CircleCI GraphQL API.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return query(opts)
@@ -63,12 +62,16 @@ func query(opts queryOptions) error {
 	if err != nil {
 		return err
 	}
-	err = opts.cl.Run(context.Background(), opts.log, req, &resp)
+	err = opts.cl.Run(context.Background(), req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")
 	}
 
-	opts.log.Prettyify(resp)
+	bytes, err := json.MarshalIndent(resp, "", "  ")
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(bytes))
 
 	return nil
 }

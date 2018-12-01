@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -47,8 +47,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packConfig(opts)
@@ -65,8 +64,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateConfig(opts)
@@ -86,8 +84,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processConfig(opts)
@@ -103,8 +100,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
@@ -144,9 +140,9 @@ func validateConfig(opts configOptions) error {
 	}
 
 	if path == "-" {
-		opts.apiOpts.Log.Infof("Config input is valid.")
+		fmt.Printf("Config input is valid.")
 	} else {
-		opts.apiOpts.Log.Infof("Config file at %s is valid.", path)
+		fmt.Printf("Config file at %s is valid.", path)
 	}
 
 	return nil
@@ -159,7 +155,7 @@ func processConfig(opts configOptions) error {
 		return err
 	}
 
-	opts.apiOpts.Log.Info(response.OutputYaml)
+	fmt.Printf(response.OutputYaml)
 	return nil
 }
 
@@ -173,7 +169,7 @@ func packConfig(opts configOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
-	opts.apiOpts.Log.Infof("%s\n", string(y))
+	fmt.Printf("%s\n", string(y))
 	return nil
 }
 

@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
+	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -29,8 +30,7 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return diagnostic(opts)
@@ -41,33 +41,37 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 }
 
 func diagnostic(opts diagnosticOptions) error {
-	log := opts.apiOpts.Log
-	log.Infoln("\n---\nCircleCI CLI Diagnostics\n---")
-	log.Infof("Debugger mode: %v\n", opts.cfg.Debug)
-	log.Infof("Config found: %v\n", opts.cfg.FileUsed)
-	log.Infof("API host: %s\n", opts.cfg.Host)
-	log.Infof("API endpoint: %s\n", opts.cfg.Endpoint)
+	fmt.Println("\n---\nCircleCI CLI Diagnostics\n---")
+	fmt.Printf("Debugger mode: %v\n", opts.cfg.Debug)
+	fmt.Printf("Config found: %v\n", opts.cfg.FileUsed)
+	fmt.Printf("API host: %s\n", opts.cfg.Host)
+	fmt.Printf("API endpoint: %s\n", opts.cfg.Endpoint)
 
 	if opts.cfg.Token == "token" || opts.cfg.Token == "" {
 		return errors.New(`please set a token with 'circleci setup'
 You can create a new personal API token here:
 https://circleci.com/account/api`)
 	}
-	log.Infoln("OK, got a token.")
+	fmt.Println("OK, got a token.")
 
-	log.Infoln("Trying an introspection query on API... ")
+	fmt.Println("Trying an introspection query on API... ")
 
 	responseIntro, err := api.IntrospectionQuery(opts.apiOpts)
 	if responseIntro.Schema.QueryType.Name == "" {
-		log.Infoln("Unable to make a query against the GraphQL API, please check your settings")
+		fmt.Println("Unable to make a query against the GraphQL API, please check your settings")
 		if err != nil {
 			return err
 		}
 	}
 
-	log.Infoln("Ok.")
+	fmt.Println("Ok.")
 
-	log.Debug("Introspection query result with Schema.QueryType of %s", responseIntro.Schema.QueryType.Name)
+	if opts.cfg.Debug {
+		_, err = fmt.Fprintf(os.Stderr, "Introspection query result with Schema.QueryType of %s", responseIntro.Schema.QueryType.Name)
+		if err != nil {
+			return err
+		}
+	}
 
 	responseWho, err := api.WhoamiQuery(opts.apiOpts)
 
@@ -76,7 +80,7 @@ https://circleci.com/account/api`)
 	}
 
 	if responseWho.Me.Name != "" {
-		log.Infof("Hello, %s.\n", responseWho.Me.Name)
+		fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
 	}
 
 	return nil

@@ -2,11 +2,11 @@ package cmd
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
 )
@@ -36,8 +36,7 @@ Please note that at this time all namespaces created in the registry are world-r
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return createNamespace(opts)
@@ -64,7 +63,7 @@ func createNamespace(opts namespaceOptions) error {
 		return err
 	}
 
-	opts.apiOpts.Log.Infof("Namespace `%s` created.", namespaceName)
-	opts.apiOpts.Log.Info("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
+	fmt.Printf("Namespace `%s` created.", namespaceName)
+	fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
 	return nil
 }

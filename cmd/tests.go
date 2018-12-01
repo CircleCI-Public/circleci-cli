@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/logger"
+	"fmt"
+
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/bmatcuk/doublestar"
@@ -10,7 +11,6 @@ import (
 
 type testsOptions struct {
 	cfg  *settings.Config
-	log  *logger.Logger
 	args []string
 }
 
@@ -30,7 +30,6 @@ func newTestsCommand(config *settings.Config) *cobra.Command {
 		Short: "Glob files using pattern",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return globRun(opts)
@@ -86,7 +85,7 @@ func globRun(opts testsOptions) error {
 	}
 
 	for _, filename := range allfiles {
-		opts.log.Infoln(filename)
+		fmt.Println(filename)
 	}
 
 	return nil
