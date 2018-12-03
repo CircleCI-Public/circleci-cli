@@ -8,6 +8,8 @@ executors:
   go:
     docker:
       - image: circleci/golang:1.11
+    environment:
+      CGO_ENABLED: 0
 
 jobs:
   test:
@@ -38,16 +40,10 @@ jobs:
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
-    docker:
-      - image: supinf/gometalinter:latest
-    environment:
-      CGO_ENABLED: 0
+    executor: go
     steps:
       - checkout
-      # This is an alpine image and they remove git
-      # We need to reinstall it for go modules to work
-      - run: apk --no-cache add --virtual git
-      - run: go build
+      - run: make dev
       - run: gometalinter ./...
 
   deploy:
