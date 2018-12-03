@@ -42,22 +42,18 @@ jobs:
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
-    executor: go
-    environment:
-      CLI_ROOT: /go/src/github/CircleCI-Public/circleci-cli
+    docker:
+      - image: supinf/gometalinter:latest
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
-      - run: go mod vendor
-      - run: |
-          echo "Move the project into $GOPATH"
-          mkdir -p "$CLI_ROOT"
-          cd ..
-          mv project "$CLI_ROOT/circleci-cli"
-      - run: |
-          echo "Installing gometalinter and linting"
-          cd "$CLI_ROOT/circleci-cli"
-          make dev
-          make lint
+      - run:
+          name: Install deps to use with gometalinter
+          command: |
+            apk --no-cache add --virtual git
+            go get -u github.com/golang/dep/cmd/dep
+            dep init
+      - run: gometalinter ./...
 
   deploy:
     executor: go
