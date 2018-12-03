@@ -41,10 +41,12 @@ jobs:
 
   lint:
     executor: go
+    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
-      - run: make dev
-      - run: gometalinter ./...
+      - run: go mod vendor
+      - run: GO111MODULE=off make dev
+      - run: GO111MODULE=off make lint
 
   deploy:
     executor: go

@@ -5,6 +5,7 @@ coverage.txt
 dist/
 docs/
 out/
+vendor/
 .vscode
 
 # Snapcraft Related
