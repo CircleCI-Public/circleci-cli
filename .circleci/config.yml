@@ -43,12 +43,21 @@ jobs:
 
   lint:
     executor: go
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    environment:
+      CLI_ROOT: /go/src/github/CircleCI-Public/circleci-cli
     steps:
       - checkout
       - run: go mod vendor
-      - run: GO111MODULE=off make dev
-      - run: GO111MODULE=off make lint
+      - run: |
+          echo "Move the project into $GOPATH"
+          mkdir -p "$CLI_ROOT"
+          cd ..
+          mv project "$CLI_ROOT/circleci-cli"
+      - run: |
+          echo "Installing gometalinter and linting"
+          cd "$CLI_ROOT/circleci-cli"
+          make dev
+          make lint
 
   deploy:
     executor: go
