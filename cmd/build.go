@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -22,7 +21,6 @@ import (
 type buildOptions struct {
 	cfg  *settings.Config
 	cl   *client.Client
-	log  *logger.Logger
 	args []string
 	help func() error
 }
@@ -59,8 +57,7 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 		Short: "Run a job in a container on the local machine",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 			opts.help = cmd.Help
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
@@ -140,7 +137,7 @@ func storeBuildAgentSha(sha256 string) error {
 	return errors.Wrap(err, "Failed to write build agent settings file")
 }
 
-func loadCurrentBuildAgentSha(log *logger.Logger) string {
+func loadCurrentBuildAgentSha() string {
 	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
 		return ""
 	}
@@ -148,7 +145,11 @@ func loadCurrentBuildAgentSha(log *logger.Logger) string {
 	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
 
 	if err != nil {
-		log.Error("Failed to load build agent settings JSON", err)
+		_, er := fmt.Fprint(os.Stderr, "Failed to load build agent settings JSON", err.Error())
+		if er != nil {
+			panic(er)
+		}
+
 		return ""
 	}
 
@@ -157,20 +158,24 @@ func loadCurrentBuildAgentSha(log *logger.Logger) string {
 	err = json.Unmarshal(settingsJSON, &settings)
 
 	if err != nil {
-		log.Error("Failed to parse build agent settings JSON", err)
+		_, er := fmt.Fprint(os.Stderr, "Failed to parse build agent settings JSON", err.Error())
+		if er != nil {
+			panic(er)
+		}
+
 		return ""
 	}
 
 	return settings.LatestSha256
 }
 
-func picardImage(log *logger.Logger) (string, error) {
+func picardImage() (string, error) {
 
-	sha := loadCurrentBuildAgentSha(log)
+	sha := loadCurrentBuildAgentSha()
 
 	if sha == "" {
 
-		log.Info("Downloading latest CircleCI build agent...")
+		fmt.Println("Downloading latest CircleCI build agent...")
 
 		var err error
 
@@ -181,7 +186,7 @@ func picardImage(log *logger.Logger) (string, error) {
 		}
 
 	}
-	log.Infof("Docker image digest: %s", sha)
+	fmt.Printf("Docker image digest: %s", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
@@ -247,6 +252,8 @@ func ensureDockerIsAvailable() error {
 	return nil
 }
 
+// nolint: gocyclo
+// TODO(zzak): This function is fairly complex, we should refactor it
 func runExecute(opts buildOptions) error {
 	for _, f := range opts.args {
 		if f == "--help" || f == "-h" {
@@ -268,7 +275,7 @@ func runExecute(opts buildOptions) error {
 		return err
 	}
 
-	image, err := picardImage(opts.log)
+	image, err := picardImage()
 
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
@@ -288,7 +295,12 @@ func runExecute(opts buildOptions) error {
 
 	arguments = append(arguments, opts.args...)
 
-	opts.log.Debug(fmt.Sprintf("Starting docker with args: %s", arguments))
+	if opts.cfg.Debug {
+		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
+		if err != nil {
+			return err
+		}
+	}
 
 	dockerPath, err := exec.LookPath("docker")
 

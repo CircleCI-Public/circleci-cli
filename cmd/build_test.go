@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -15,13 +14,10 @@ var _ = Describe("build", func() {
 
 		var (
 			tempHome string
-			log      *logger.Logger
 		)
 
 		BeforeEach(func() {
 			var err error
-			log = logger.NewLogger(false)
-
 			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 
 			Expect(err).ToNot(HaveOccurred())
@@ -35,8 +31,8 @@ var _ = Describe("build", func() {
 
 		It("can load settings", func() {
 			Expect(storeBuildAgentSha("deipnosophist")).To(Succeed())
-			Expect(loadCurrentBuildAgentSha(log)).To(Equal("deipnosophist"))
-			image, err := picardImage(log)
+			Expect(loadCurrentBuildAgentSha()).To(Equal("deipnosophist"))
+			image, err := picardImage()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(image).To(Equal("circleci/picard@deipnosophist"))
 		})

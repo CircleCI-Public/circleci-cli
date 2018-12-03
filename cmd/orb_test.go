@@ -1272,6 +1272,7 @@ foo/test (0.7.0)
   Executors:
     - default: 1 parameter(s)
        - tag: string (default: 'curl-browsers')
+
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
@@ -1643,7 +1644,8 @@ https://circleci.com/account/api`))
 
 				Expect(err).ShouldNot(HaveOccurred())
 
-				Ω(session.Wait().Out.Contents()).Should(ContainSubstring(`
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`
 Latest: my/orb@0.0.1
 Last-updated: 2018-10-11T22:12:19.477Z
 Created: 2018-09-24T08:53:37.086Z
@@ -1727,7 +1729,8 @@ Total-jobs: 0
 
 				Expect(err).ShouldNot(HaveOccurred())
 
-				Ω(session.Wait().Out.Contents()).Should(ContainSubstring(`
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`
 This orb hasn't published any versions yet.
 
 Total-commands: 1

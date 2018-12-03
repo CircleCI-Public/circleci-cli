@@ -3,13 +3,13 @@ package api
 import (
 	"context"
 	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
@@ -44,7 +44,6 @@ type GQLResponseError struct {
 // Options wraps common requirements for API functions into a single struct.
 type Options struct {
 	Context context.Context
-	Log     *logger.Logger
 	Client  *client.Client
 }
 
@@ -317,7 +316,7 @@ func WhoamiQuery(opts Options) (*WhoamiResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if err != nil {
 		return nil, err
@@ -349,7 +348,7 @@ func ConfigQuery(opts Options, configPath string) (*ConfigResponse, error) {
 	request.Var("config", config)
 	request.Header.Set("Authorization", opts.Client.Token)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
@@ -385,7 +384,7 @@ func OrbQuery(opts Options, configPath string) (*ConfigResponse, error) {
 	request.Var("config", config)
 	request.Header.Set("Authorization", opts.Client.Token)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
@@ -430,7 +429,7 @@ func OrbPublishByID(opts Options, configPath string, orbID string, orbVersion st
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to publish orb")
@@ -467,7 +466,7 @@ func OrbID(opts Options, namespace string, orb string) (*OrbIDResponse, error) {
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	// If there is an error, or the request was successful, return now.
 	if err != nil || response.Orb.ID != "" {
@@ -509,7 +508,7 @@ func createNamespaceWithOwnerID(opts Options, name string, ownerID string) (*Cre
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if len(response.CreateNamespace.Errors) > 0 {
 		return nil, response.CreateNamespace.Errors
@@ -541,7 +540,7 @@ func getOrganization(opts Options, organizationName string, organizationVcs stri
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
@@ -593,7 +592,7 @@ func getNamespace(opts Options, name string) (*GetNamespaceResponse, error) {
 	}
 	request.Var("name", name)
 
-	if err = opts.Client.Run(opts.Context, opts.Log, request, &response); err != nil {
+	if err = opts.Client.Run(opts.Context, request, &response); err != nil {
 		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
@@ -629,7 +628,7 @@ func createOrbWithNsID(opts Options, name string, namespaceID string) (*CreateOr
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if len(response.CreateOrb.Errors) > 0 {
 		return nil, response.CreateOrb.Errors
@@ -695,8 +694,6 @@ func OrbIncrementVersion(opts Options, configPath string, namespace string, orb 
 		return nil, err
 	}
 
-	opts.Log.Debug("Bumped %s/%s#%s from %s by %s to %s\n.", namespace, orb, id.Orb.ID, v, segment, v2)
-
 	return response, nil
 }
 
@@ -722,7 +719,7 @@ func OrbLatestVersion(opts Options, namespace string, orb string) (string, error
 	}
 	request.Var("name", name)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 	if err != nil {
 		return "", err
 	}
@@ -779,7 +776,7 @@ func OrbPromote(opts Options, namespace string, orb string, label string, segmen
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	if len(response.PromoteOrb.Errors) > 0 {
 		return nil, response.PromoteOrb.Errors
@@ -829,7 +826,7 @@ func OrbSource(opts Options, orbRef string) (string, error) {
 	request := client.NewUnauthorizedRequest(query)
 	request.Var("orbVersionRef", ref)
 
-	err := opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err := opts.Client.Run(opts.Context, request, &response)
 	if err != nil {
 		return "", err
 	}
@@ -874,7 +871,7 @@ func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
 	request := client.NewUnauthorizedRequest(query)
 	request.Var("orbVersionRef", ref)
 
-	err := opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err := opts.Client.Run(opts.Context, request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -901,9 +898,10 @@ func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
 }
 
 // ListOrbs queries the API to find all orbs.
-// Returns a collection of Orb objects containing their relevant data. Logs
-// request and parse errors to the supplied logger.
+// Returns a collection of Orb objects containing their relevant data.
 func ListOrbs(opts Options, uncertified bool) (*OrbsForListing, error) {
+	l := log.New(os.Stderr, "", 0)
+
 	query := `
 query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
   orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
@@ -935,7 +933,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
-		err := opts.Client.Run(opts.Context, opts.Log, request, &result)
+		err := opts.Client.Run(opts.Context, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -954,7 +952,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
-					opts.Log.ErrorF(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version)
+					l.Printf(errors.Wrapf(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version).Error())
 					continue Orbs
 				}
 
@@ -971,9 +969,10 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
 // namespace.
-// Returns a collection of Orb objects containing their relevant data. Logs
-// request and parse errors to the supplied logger.
+// Returns a collection of Orb objects containing their relevant data.
 func ListNamespaceOrbs(opts Options, namespace string) (*OrbsForListing, error) {
+	l := log.New(os.Stderr, "", 0)
+
 	query := `
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
@@ -1007,7 +1006,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		request.Var("namespace", namespace)
 		orbs.Namespace = namespace
 
-		err := opts.Client.Run(opts.Context, opts.Log, request, &result)
+		err := opts.Client.Run(opts.Context, request, &result)
 		if err != nil {
 			return nil, errors.Wrap(err, "GraphQL query failed")
 		}
@@ -1024,7 +1023,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
-					opts.Log.ErrorF(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version)
+					l.Printf(errors.Wrapf(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version).Error())
 					continue NamespaceOrbs
 				}
 			} else {
@@ -1071,7 +1070,7 @@ func IntrospectionQuery(opts Options) (*IntrospectionResponse, error) {
 		return nil, err
 	}
 
-	err = opts.Client.Run(opts.Context, opts.Log, request, &response)
+	err = opts.Client.Run(opts.Context, request, &response)
 
 	return &response, err
 }
