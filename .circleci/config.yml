@@ -19,6 +19,8 @@ jobs:
       - run: make test
   coverage:
     executor: go
+    environment:
+      CGO_ENABLED: 1
     steps:
       - checkout
       - run: make cover
