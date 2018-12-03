@@ -40,7 +40,6 @@ jobs:
   lint:
     docker:
       - image: supinf/gometalinter:latest
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     environment:
       CGO_ENABLED: 0
     steps:
