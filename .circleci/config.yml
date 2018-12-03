@@ -44,6 +44,10 @@ jobs:
       CGO_ENABLED: 0
     steps:
       - checkout
+      # This is an alpine image and they remove git
+      # We need to reinstall it for go modules to work
+      - run: apk --no-cache add --virtual git
+      - run: go build
       - run: gometalinter ./...
 
   deploy:
