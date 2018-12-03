@@ -11,21 +11,19 @@ Second, it's written in Go. If you are new to Go, we recommend the following res
 
 ## Requirements
 
-* Go 1.10+
+* Go 1.11+
 * Make
 * ...
 
 ## Getting setup
 
-You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
-
-This includes setting a valid `$GOPATH`.
+You should already have [installed Go](https://golang.org/doc/install).
 
 ### 1. Get the repo
 
 ```
-$ go get -u github.com/CircleCI-Public/circleci-cli
-$ cd $GOPATH/src/github.com/CircleCI-Public/circleci-cli
+$ git clone github.com/CircleCI-Public/circleci-cli
+$ cd circleci-cli
 ```
 
 ### 2. Build the binary
@@ -54,29 +52,10 @@ $
 
 ## Managing Dependencies
 
-We use `dep` for vendoring our depencencies:
-https://github.com/golang/dep
+We use Go 1.11 Modules for managing our dependencies.
 
-If you want to update or modify any dependencies you will need to install it.
-
-You can do so on MacOS:
-
-```
-$ brew install dep
-$ brew upgrade dep
-```
-
-Or on Linux, etc:
-
-```
-$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-```
-
-To make sure dependencies are installed:
-
-```
-$ dep ensure
-```
+You can read more about it on the wiki:
+https://github.com/golang/go/wiki/Modules
 
 ## Linting your code
 
