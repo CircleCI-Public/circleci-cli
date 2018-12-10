@@ -77,6 +77,14 @@ jobs:
             git config --global user.name $GH_NAME
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
+      - restore_cache:
+          keys: [v1-gomod-]
+      - run:
+          name: Download go module dependencies
+          command: go mod download
+      - save_cache:
+          key: v1-gomod-{{ checksum "go.sum" }}
+          paths: [/go/pkg/mod]
       - run:
           name: Release
           command: goreleaser
