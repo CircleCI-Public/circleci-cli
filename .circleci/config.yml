@@ -37,12 +37,14 @@ jobs:
       CGO_ENABLED: 1
     steps:
       - checkout
+      - gomod
       - run: make cover
       - store_artifacts:
           path: ./coverage.txt
           destination: coverage.txt
       - codecov/upload:
           path: coverage.txt
+
   docs:
     executor: go
     steps:
@@ -64,7 +66,6 @@ jobs:
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
-      - gomod
       - run:
           name: Install deps to use with gometalinter
           command: |
