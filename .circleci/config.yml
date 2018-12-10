@@ -11,12 +11,26 @@ executors:
     environment:
       CGO_ENABLED: 0
 
+commands:
+  gomod:
+    steps:
+      - restore_cache:
+          keys: [v1-gomod-]
+      - run:
+          name: Download go module dependencies
+          command: go mod download
+      - save_cache:
+          key: v1-gomod-{{ checksum "go.sum" }}
+          paths: [/go/pkg/mod]
+
 jobs:
   test:
     executor: go
     steps:
       - checkout
+      - gomod
       - run: make test
+
   coverage:
     executor: go
     environment:
@@ -34,6 +48,7 @@ jobs:
     steps:
       - checkout
       - run: sudo apt-get install pandoc
+      - gomod
       - run: go run main.go usage
       - store_artifacts:
           path: ./docs
@@ -49,6 +64,7 @@ jobs:
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
+      - gomod
       - run:
           name: Install deps to use with gometalinter
           command: |
@@ -77,14 +93,7 @@ jobs:
             git config --global user.name $GH_NAME
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
-      - restore_cache:
-          keys: [v1-gomod-]
-      - run:
-          name: Download go module dependencies
-          command: go mod download
-      - save_cache:
-          key: v1-gomod-{{ checksum "go.sum" }}
-          paths: [/go/pkg/mod]
+      - gomod
       - run:
           name: Release
           command: goreleaser
