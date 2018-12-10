@@ -60,11 +60,11 @@ jobs:
   deploy:
     executor: go
     environment:
-      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.77.1/goreleaser_amd64.deb
+      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
     steps:
       - checkout
       - restore_cache:
-          keys: [v2-goreleaser-]
+          keys: [v3-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
@@ -101,7 +101,7 @@ jobs:
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
             docker push     circleci/circleci-cli:alpine
       - save_cache:
-          key: v2-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
       - persist_to_workspace:
           root: .
