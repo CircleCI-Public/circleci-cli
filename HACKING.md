@@ -21,6 +21,7 @@ You should already have [installed Go](https://golang.org/doc/install).
 
 ### 1. Get the repo
 
+Clone the repo, placing it outside of your `GOPATH` (`GO111MODULE` variable is set incorrectly otherwise):
 ```
 $ git clone github.com/CircleCI-Public/circleci-cli
 $ cd circleci-cli
