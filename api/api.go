@@ -220,6 +220,12 @@ type OrbWithData struct {
 		Source  string `json:"source"`
 	} `json:"versions"`
 
+	UsageStats struct {
+		Last30DaysBuildCount        int
+		Last30DaysProjectCount      int
+		Last30DaysOrganizationCount int
+	} `json:"-"`
+
 	// These fields are printing manually when --details flag is added so hidden from JSON output.
 	Commands  map[string]OrbElement `json:"-"`
 	Jobs      map[string]OrbElement `json:"-"`
@@ -274,6 +280,12 @@ type Orb struct {
 
 	Source         string
 	HighestVersion string `json:"version"`
+
+	UsageStats struct {
+		Last30DaysBuildCount        int
+		Last30DaysProjectCount      int
+		Last30DaysOrganizationCount int
+	}
 
 	Commands  map[string]OrbElement
 	Jobs      map[string]OrbElement
@@ -858,6 +870,11 @@ func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
                                     id
                                     createdAt
                                     name
+	                            usageStats {
+		                        last30DaysBuildCount,
+		                        last30DaysProjectCount,
+		                        last30DaysOrganizationCount
+	                            }
                                     versions {
                                         createdAt
                                         version
@@ -910,6 +927,11 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
+	    usageStats {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
 		  versions(count: 1) {
 			version,
 			source
@@ -921,7 +943,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
     }
   }
 }
-	`
+`
 
 	var orbs OrbsForListing
 
@@ -986,6 +1008,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 						version
 					}
 					name
+	                                usageStats {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
 				}
 			}
 			totalCount

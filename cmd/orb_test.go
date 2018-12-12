@@ -1150,43 +1150,64 @@ var _ = Describe("Orb integration tests", func() {
 				)
 				By("setting up a mock server")
 
-				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_request.json"))
-				firstGqlRequest := string(tmpBytes)
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    usageStats {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
 
-				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_response.json"))
+				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest.Variables["after"] = ""
+				firstRequest.Variables["certifiedOnly"] = false
+
+				firstRequestEncoded, err := firstRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest.Variables["after"] = "test/here-we-go"
+				secondRequest.Variables["certifiedOnly"] = false
+
+				secondRequestEncoded, err := secondRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_response.json"))
 				firstResponse := string(tmpBytes)
-
-				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_request.json"))
-				secondGqlRequest := string(tmpBytes)
 
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_response.json"))
 				secondResponse := string(tmpBytes)
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, firstResponse),
-					),
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, secondResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  firstRequestEncoded.String(),
+						Response: firstResponse,
+					})
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  secondRequestEncoded.String(),
+						Response: secondResponse,
+					})
 			})
 
 			It("sends a GraphQL request with 'uncertifiedOnly: false'", func() {

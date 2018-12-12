@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -207,8 +208,24 @@ func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) e
 		l.Printf("<< result status: %s", res.Status)
 	}
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("failure calling GraphQL API: %s", res.Status)
+	}
+
+	// Request.Body is an io.ReadCloser it can only be read once
+	if cl.Debug {
+		var bodyBytes []byte
+		if res.Body != nil {
+			bodyBytes, err = ioutil.ReadAll(res.Body)
+			if err != nil {
+				return errors.Wrap(err, "reading response")
+			}
+
+			l.Printf("<< %s", string(bodyBytes))
+
+			// Restore the io.ReadCloser to its original state
+			res.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+		}
 	}
 
 	wrappedResponse := &Response{
@@ -221,10 +238,6 @@ func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) e
 
 	if len(wrappedResponse.Errors) > 0 {
 		return wrappedResponse.Errors
-	}
-
-	if cl.Debug {
-		l.Printf("<< %+v", resp)
 	}
 
 	return nil
