@@ -1335,57 +1335,69 @@ foo/test (0.7.0)
 					"--details",
 				)
 				By("setting up a mock server")
-				// These requests and responses are generated from production data,
+
+				query := `
+query namespaceOrbs ($namespace: String, $after: String!) {
+	registryNamespace(name: $namespace) {
+		name
+		orbs(first: 20, after: $after) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+	                                usageStats {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest.Variables["after"] = ""
+				firstRequest.Variables["namespace"] = "circleci"
+
+				firstRequestEncoded, err := firstRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest.Variables["after"] = "circleci/codecov-clojure"
+				secondRequest.Variables["namespace"] = "circleci"
+
+				secondRequestEncoded, err := secondRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				// These responses are generated from production data,
 				// but using a 5-per-page limit instead of the 20 requested.
-				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_request.json"))
-				firstGqlRequest := string(tmpBytes)
-
-				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_request.json"))
-				secondGqlRequest := string(tmpBytes)
-
-				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_response.json"))
-				firstGqlResponse := string(tmpBytes)
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/first_response.json"))
+				firstResponse := string(tmpBytes)
 
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_response.json"))
-				secondGqlResponse := string(tmpBytes)
+				secondResponse := string(tmpBytes)
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(firstGqlRequest), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
-					),
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(secondGqlRequest), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  firstRequestEncoded.String(),
+						Response: firstResponse,
+					})
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  secondRequestEncoded.String(),
+						Response: secondResponse,
+					})
 			})
 
 			It("makes a namespace query and requests all orbs on that namespace", func() {
