@@ -3,7 +3,6 @@ package cmd_test
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1059,25 +1058,64 @@ var _ = Describe("Orb integration tests", func() {
 			It("sends multiple requests when there are more than 1 page of orbs", func() {
 				By("setting up a mock server")
 
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    usageStats {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
+
+				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest.Variables["after"] = ""
+				firstRequest.Variables["certifiedOnly"] = true
+
+				firstRequestEncoded, err := firstRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest.Variables["after"] = "test/test"
+				secondRequest.Variables["certifiedOnly"] = true
+
+				secondRequestEncoded, err := secondRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
 				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/first_response.json"))
-				firstGqlResponse := string(tmpBytes)
+				firstResponse := string(tmpBytes)
 
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/second_response.json"))
-				secondGqlResponse := string(tmpBytes)
+				secondResponse := string(tmpBytes)
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
-					),
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  firstRequestEncoded.String(),
+						Response: firstResponse,
+					})
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  secondRequestEncoded.String(),
+						Response: secondResponse,
+					})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1101,28 +1139,67 @@ var _ = Describe("Orb integration tests", func() {
 			It("sends multiple requests and groups the results into a single json output", func() {
 				By("setting up a mock server")
 
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    usageStats {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
+
+				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest.Variables["after"] = ""
+				firstRequest.Variables["certifiedOnly"] = true
+
+				firstRequestEncoded, err := firstRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest.Variables["after"] = "test/test"
+				secondRequest.Variables["certifiedOnly"] = true
+
+				secondRequestEncoded, err := secondRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
 				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/first_response.json"))
-				firstGqlResponse := string(tmpBytes)
+				firstResponse := string(tmpBytes)
 
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/second_response.json"))
-				secondGqlResponse := string(tmpBytes)
+				secondResponse := string(tmpBytes)
 
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/pretty_json_output.json"))
 				expectedOutput := string(tmpBytes)
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						ghttp.RespondWith(http.StatusOK, firstGqlResponse),
-					),
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						ghttp.RespondWith(http.StatusOK, secondGqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  firstRequestEncoded.String(),
+						Response: firstResponse,
+					})
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  secondRequestEncoded.String(),
+						Response: secondResponse,
+					})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1261,18 +1338,47 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				)
 				By("setting up a mock server")
 
-				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/response.json"))
-				gqlResponse := string(tmpBytes)
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    usageStats {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
-					),
-				)
+				request := client.NewUnauthorizedRequest(query)
+				request.Variables["after"] = ""
+				request.Variables["certifiedOnly"] = true
+
+				encoded, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/response.json"))
+
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  encoded.String(),
+						Response: string(tmpBytes),
+					})
 			})
 
 			It("lists detailed orbs", func() {
@@ -1497,10 +1603,10 @@ https://circleci.com/account/api`))
 			    }
 		      }`)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
-				expected, err := request.Encode()
+				encoded, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				gqlResponse := `{"data": {
+				response := `{
 							"orbVersion": {
 								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								"version": "dev:foo",
@@ -1509,29 +1615,12 @@ https://circleci.com/account/api`))
 								},
 								"source": "some orb"
 							}
-						}}`
+						}`
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "", MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  encoded.String(),
+					Response: response})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1547,41 +1636,27 @@ https://circleci.com/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
                                 orb { id }
                                 source
 			    }
-		      }`)
+		      }`
+				request := client.NewUnauthorizedRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				gqlResponse := `{"data": { "orbVersion": {} }}`
+				response := `{"data": { "orbVersion": {} }}`
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expected.String(),
+						Response: response,
+					})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1608,7 +1683,7 @@ https://circleci.com/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1629,13 +1704,14 @@ https://circleci.com/account/api`))
                                 source
                                 createdAt
 			    }
-		      }`)
+		      }`
 
+				request := client.NewUnauthorizedRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				gqlResponse := `{"data": {
+				response := `{
 							"orbVersion": {
 								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								"version": "dev:foo",
@@ -1653,29 +1729,14 @@ https://circleci.com/account/api`))
 								"source": "description: zomg\ncommands: {foo: {parameters: {baz: {type: string}}}}",
                                                                 "createdAt": "2018-09-24T08:53:37.086Z"
 							}
-						}}`
+						}`
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expected.String(),
+						Response: response,
+					})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1703,7 +1764,7 @@ Total-jobs: 0
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1724,13 +1785,14 @@ Total-jobs: 0
                                 source
                                 createdAt
 			    }
-		      }`)
+		      }`
 
+				request := client.NewUnauthorizedRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				gqlResponse := `{"data": {
+				response := `{
 							"orbVersion": {
 								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								"version": "dev:foo",
@@ -1745,27 +1807,12 @@ Total-jobs: 0
 							}
 						}}`
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expected.String(),
+						Response: response,
+					})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1789,7 +1836,7 @@ Total-jobs: 0
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				query := `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1810,35 +1857,21 @@ Total-jobs: 0
                                 source
                                 createdAt
 			    }
-		      }`)
+		      }`
 
+				request := client.NewUnauthorizedRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				gqlResponse := `{"data": { "orbVersion": {} }}`
+				response := `{ "orbVersion": {} }`
 
-				// Use Gomega's default matcher instead of our custom appendPostHandler
-				// since this query doesn't pass in a token.
-				// Skip checking the content type field to make this test simpler.
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(expected.String()), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, gqlResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expected.String(),
+						Response: response,
+					})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
