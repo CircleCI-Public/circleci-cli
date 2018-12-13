@@ -1616,6 +1616,11 @@ https://circleci.com/account/api`))
                                     id
                                     createdAt
                                     name
+	                            usageStats {
+		                        last30DaysBuildCount,
+		                        last30DaysProjectCount,
+		                        last30DaysOrganizationCount
+	                            }
                                     versions {
                                         createdAt
                                         version
@@ -1706,6 +1711,11 @@ Total-jobs: 0
                                     id
                                     createdAt
                                     name
+	                            usageStats {
+		                        last30DaysBuildCount,
+		                        last30DaysProjectCount,
+		                        last30DaysOrganizationCount
+	                            }
                                     versions {
                                         createdAt
                                         version
@@ -1787,6 +1797,11 @@ Total-jobs: 0
                                     id
                                     createdAt
                                     name
+	                            usageStats {
+		                        last30DaysBuildCount,
+		                        last30DaysProjectCount,
+		                        last30DaysOrganizationCount
+	                            }
                                     versions {
                                         createdAt
                                         version
