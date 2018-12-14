@@ -197,9 +197,9 @@ func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) e
 		return err
 	}
 	defer func() {
-		err := res.Body.Close()
-		if err != nil {
-			l.Printf(err.Error())
+		responseBodyCloseErr := res.Body.Close()
+		if responseBodyCloseErr != nil {
+			l.Printf(responseBodyCloseErr.Error())
 		}
 	}()
 
