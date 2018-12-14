@@ -3,6 +3,7 @@ version: 2.1
 orbs:
   codecov: circleci/codecov-clojure@0.0.4
   shellcheck: circleci/shellcheck@1.2.0
+  slack: circleci/slack@0.1.14
 
 executors:
   go:
@@ -22,6 +23,11 @@ commands:
       - save_cache:
           key: v1-gomod-{{ checksum "go.sum" }}
           paths: [/go/pkg/mod]
+  # Wrap the slack/status command to only notify on failures
+  slack-notify-on-failure:
+    steps:
+      - slack/status:
+          fail_only: "true"
 
 jobs:
   test:
@@ -30,6 +36,7 @@ jobs:
       - checkout
       - gomod
       - run: make test
+      - slack-notify-on-failure
 
   coverage:
     executor: go
@@ -44,6 +51,7 @@ jobs:
           destination: coverage.txt
       - codecov/upload:
           path: coverage.txt
+      - slack-notify-on-failure
 
   docs:
     executor: go
@@ -57,22 +65,25 @@ jobs:
           destination: docs
       - run: ./.circleci/generate-docs.sh
       - run: ./.circleci/deploy-gh-pages.sh
+      - slack-notify-on-failure
 
   lint:
     docker:
       - image: supinf/gometalinter:latest
     environment:
       CGO_ENABLED: 0
+      SHELL: /bin/bash
     working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
     steps:
       - checkout
       - run:
           name: Install deps to use with gometalinter
           command: |
-            apk --no-cache add --virtual git
+            apk --no-cache add git bash curl
             go get -u github.com/golang/dep/cmd/dep
             dep init
       - run: gometalinter ./...
+      - slack-notify-on-failure
 
   deploy:
     executor: go
@@ -128,6 +139,7 @@ jobs:
       - store_artifacts:
           path: ./dist
           destination: dist
+      - slack-notify-on-failure
 
   snap:
     docker:
@@ -146,6 +158,7 @@ jobs:
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
+      - slack-notify-on-failure
 
   brew-deploy:
     macos:
@@ -164,6 +177,7 @@ jobs:
           git config --global user.name "$GH_NAME" > /dev/null 2>&1
       - run: brew --version
       - run: ./.circleci/brew-deploy.sh
+      - slack-notify-on-failure
 
 workflows:
   version: 2
