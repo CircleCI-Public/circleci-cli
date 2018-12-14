@@ -569,5 +569,11 @@ func orbInfo(opts orbOptions) error {
 	fmt.Printf("Total-executors: %d\n", len(info.Orb.Executors))
 	fmt.Printf("Total-jobs: %d\n", len(info.Orb.Jobs))
 
+	fmt.Println("")
+	fmt.Println("## Statistics (30 days):")
+	fmt.Printf("Builds: %d\n", info.Orb.Statistics.Last30DaysBuildCount)
+	fmt.Printf("Projects: %d\n", info.Orb.Statistics.Last30DaysProjectCount)
+	fmt.Printf("Orgs: %d\n", info.Orb.Statistics.Last30DaysOrganizationCount)
+
 	return nil
 }

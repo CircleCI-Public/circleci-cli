@@ -1754,6 +1754,11 @@ Total-revisions: 1
 Total-commands: 1
 Total-executors: 0
 Total-jobs: 0
+
+## Statistics (30 days):
+Builds: 0
+Projects: 0
+Orgs: 0
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -1826,6 +1831,11 @@ This orb hasn't published any versions yet.
 Total-commands: 1
 Total-executors: 0
 Total-jobs: 0
+
+## Statistics (30 days):
+Builds: 0
+Projects: 0
+Orgs: 0
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
