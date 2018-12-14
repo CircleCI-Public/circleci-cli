@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"fmt"
@@ -211,6 +212,23 @@ type OrbsForListing struct {
 	Namespace string        `json:"namespace,omitempty"`
 }
 
+func (orbs *OrbsForListing) SortBy(sortBy string) {
+	switch sortBy {
+	case "builds":
+		sort.Slice(orbs.Orbs, func(i, j int) bool {
+			return orbs.Orbs[i].Statistics.Last30DaysBuildCount > orbs.Orbs[j].Statistics.Last30DaysBuildCount
+		})
+	case "projects":
+		sort.Slice(orbs.Orbs, func(i, j int) bool {
+			return orbs.Orbs[i].Statistics.Last30DaysProjectCount > orbs.Orbs[j].Statistics.Last30DaysProjectCount
+		})
+	case "orgs":
+		sort.Slice(orbs.Orbs, func(i, j int) bool {
+			return orbs.Orbs[i].Statistics.Last30DaysOrganizationCount > orbs.Orbs[j].Statistics.Last30DaysOrganizationCount
+		})
+	}
+}
+
 // OrbWithData wraps an orb with select fields for deserializing into JSON.
 type OrbWithData struct {
 	Name           string `json:"name"`
@@ -224,7 +242,7 @@ type OrbWithData struct {
 		Last30DaysBuildCount        int
 		Last30DaysProjectCount      int
 		Last30DaysOrganizationCount int
-	} `json:"-"`
+	}
 
 	// These fields are printing manually when --details flag is added so hidden from JSON output.
 	Commands  map[string]OrbElement `json:"-"`

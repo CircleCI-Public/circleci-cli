@@ -24,6 +24,7 @@ type orbOptions struct {
 	listUncertified bool
 	listJSON        bool
 	listDetails     bool
+	sortBy          string
 }
 
 var orbAnnotations = map[string]string{
@@ -53,6 +54,8 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Annotations: make(map[string]string),
 	}
 	listCommand.Annotations["<namespace>"] = orbAnnotations["<namespace>"] + " (Optional)"
+
+	listCommand.PersistentFlags().StringVar(&opts.sortBy, "sort", "", `one of "builds"|"projects"|"orgs"`)
 	listCommand.PersistentFlags().BoolVarP(&opts.listUncertified, "uncertified", "u", false, "include uncertified orbs")
 	listCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
 	listCommand.PersistentFlags().BoolVarP(&opts.listDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
@@ -366,6 +369,19 @@ func logOrbs(orbCollection *api.OrbsForListing, opts orbOptions) error {
 	return nil
 }
 
+var validSortFlag = map[string]bool{
+	"builds":   true,
+	"projects": true,
+	"orgs":     true}
+
+func validateSortFlag(sort string) error {
+	if _, valid := validSortFlag[sort]; valid {
+		return nil
+	}
+	// TODO(zzak): we could probably reuse the map above to print the valid values
+	return fmt.Errorf("expected `%s` to be one of \"builds\", \"projects\", or \"orgs\"", sort)
+}
+
 func listOrbs(opts orbOptions) error {
 	if len(opts.args) != 0 {
 		return listNamespaceOrbs(opts)
@@ -374,6 +390,14 @@ func listOrbs(opts orbOptions) error {
 	orbs, err := api.ListOrbs(opts.apiOpts, opts.listUncertified)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
+	}
+
+	if opts.sortBy != "" {
+		if err := validateSortFlag(opts.sortBy); err != nil {
+			return err
+		}
+
+		orbs.SortBy(opts.sortBy)
 	}
 
 	return logOrbs(orbs, opts)
@@ -385,6 +409,14 @@ func listNamespaceOrbs(opts orbOptions) error {
 	orbs, err := api.ListNamespaceOrbs(opts.apiOpts, namespace)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
+	}
+
+	if opts.sortBy != "" {
+		if err := validateSortFlag(opts.sortBy); err != nil {
+			return err
+		}
+
+		orbs.SortBy(opts.sortBy)
 	}
 
 	return logOrbs(orbs, opts)
