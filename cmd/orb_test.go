@@ -1768,6 +1768,65 @@ Orgs: 0
 				Eventually(session).Should(gexec.Exit(0))
 			})
 
+			It("reports usage statistics", func() {
+				response := `{
+							"orbVersion": {
+								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+								"version": "dev:foo",
+								"orb": {
+								        "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
+								        "createdAt": "2018-09-24T08:53:37.086Z",
+                                                                        "name": "my/orb",
+                                                                        "statistics": {
+                                                                                "last30DaysBuildCount": 555,
+                                                                                "last30DaysProjectCount": 777,
+                                                                                "last30DaysOrganizationCount": 999
+                                                                        },
+                                                                        "versions": [
+                                                                            {
+                                                                                "version": "0.0.1",
+                                                                                "createdAt": "2018-10-11T22:12:19.477Z"
+                                                                            }
+                                                                        ]
+								},
+								"source": "description: zomg\ncommands: {foo: {parameters: {baz: {type: string}}}}",
+                                                                "createdAt": "2018-09-24T08:53:37.086Z"
+							}
+						}`
+
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expected.String(),
+						Response: response,
+					})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`
+Latest: my/orb@0.0.1
+Last-updated: 2018-10-11T22:12:19.477Z
+Created: 2018-09-24T08:53:37.086Z
+First-release: 0.0.1 @ 2018-10-11T22:12:19.477Z
+Total-revisions: 1
+
+Total-commands: 1
+Total-executors: 0
+Total-jobs: 0
+
+## Statistics (30 days):
+Builds: 555
+Projects: 777
+Orgs: 999
+`))
+
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
 			It("reports when an dev orb hasn't released any semantic versions", func() {
 				response := `{
 							"orbVersion": {
