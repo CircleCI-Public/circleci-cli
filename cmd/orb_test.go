@@ -1,6 +1,7 @@
 package cmd_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -1669,6 +1670,13 @@ https://circleci.com/account/api`))
 		})
 
 		Describe("when fetching an orb's meta-data", func() {
+			var (
+				request  *client.Request
+				query    string
+				expected bytes.Buffer
+				err      error
+			)
+
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "info",
@@ -1676,14 +1684,8 @@ https://circleci.com/account/api`))
 					"--host", testServer.URL(),
 					"my/orb@dev:foo",
 				)
-			})
 
-			It("works", func() {
-				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
-				// on BeforeEach in each block to specify server mocking.
-				By("setting up a mock server")
-
-				query := `query($orbVersionRef: String!) {
+				query = `query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1706,11 +1708,13 @@ https://circleci.com/account/api`))
 			    }
 		      }`
 
-				request := client.NewUnauthorizedRequest(query)
+				request = client.NewUnauthorizedRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
-				expected, err := request.Encode()
+				expected, err = request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
+			})
 
+			It("works", func() {
 				response := `{
 							"orbVersion": {
 								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
@@ -1765,38 +1769,6 @@ Orgs: 0
 			})
 
 			It("reports when an dev orb hasn't released any semantic versions", func() {
-				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
-				// on BeforeEach in each block to specify server mocking.
-				By("setting up a mock server")
-
-				query := `query($orbVersionRef: String!) {
-			    orbVersion(orbVersionRef: $orbVersionRef) {
-			        id
-                                version
-                                orb {
-                                    id
-                                    createdAt
-                                    name
-	                            statistics {
-		                        last30DaysBuildCount,
-		                        last30DaysProjectCount,
-		                        last30DaysOrganizationCount
-	                            }
-                                    versions {
-                                        createdAt
-                                        version
-                                    }
-                                }
-                                source
-                                createdAt
-			    }
-		      }`
-
-				request := client.NewUnauthorizedRequest(query)
-				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
-				expected, err := request.Encode()
-				Expect(err).ShouldNot(HaveOccurred())
-
 				response := `{
 							"orbVersion": {
 								"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
@@ -1842,38 +1814,6 @@ Orgs: 0
 			})
 
 			It("reports when an dev orb hasn't released any semantic versions", func() {
-				// TODO: factor out common test setup into a top-level JustBeforeEach. Rely
-				// on BeforeEach in each block to specify server mocking.
-				By("setting up a mock server")
-
-				query := `query($orbVersionRef: String!) {
-			    orbVersion(orbVersionRef: $orbVersionRef) {
-			        id
-                                version
-                                orb {
-                                    id
-                                    createdAt
-                                    name
-	                            statistics {
-		                        last30DaysBuildCount,
-		                        last30DaysProjectCount,
-		                        last30DaysOrganizationCount
-	                            }
-                                    versions {
-                                        createdAt
-                                        version
-                                    }
-                                }
-                                source
-                                createdAt
-			    }
-		      }`
-
-				request := client.NewUnauthorizedRequest(query)
-				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
-				expected, err := request.Encode()
-				Expect(err).ShouldNot(HaveOccurred())
-
 				response := `{ "orbVersion": {} }`
 
 				appendPostHandler(testServer, "",
