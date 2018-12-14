@@ -1066,7 +1066,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
-	    usageStats {
+	    statistics {
 		last30DaysBuildCount,
 		last30DaysProjectCount,
 		last30DaysOrganizationCount
@@ -1147,7 +1147,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
-	    usageStats {
+	    statistics {
 		last30DaysBuildCount,
 		last30DaysProjectCount,
 		last30DaysOrganizationCount
@@ -1235,7 +1235,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
-	    usageStats {
+	    statistics {
 		last30DaysBuildCount,
 		last30DaysProjectCount,
 		last30DaysOrganizationCount
@@ -1346,7 +1346,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
-	    usageStats {
+	    statistics {
 		last30DaysBuildCount,
 		last30DaysProjectCount,
 		last30DaysOrganizationCount
@@ -1455,7 +1455,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 						version
 					}
 					name
-	                                usageStats {
+	                                statistics {
 		                           last30DaysBuildCount,
 		                           last30DaysProjectCount,
 		                           last30DaysOrganizationCount
@@ -1691,7 +1691,7 @@ https://circleci.com/account/api`))
                                     id
                                     createdAt
                                     name
-	                            usageStats {
+	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount
@@ -1772,7 +1772,7 @@ Total-jobs: 0
                                     id
                                     createdAt
                                     name
-	                            usageStats {
+	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount
@@ -1844,7 +1844,7 @@ Total-jobs: 0
                                     id
                                     createdAt
                                     name
-	                            usageStats {
+	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount

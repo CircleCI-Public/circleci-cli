@@ -220,7 +220,7 @@ type OrbWithData struct {
 		Source  string `json:"source"`
 	} `json:"versions"`
 
-	UsageStats struct {
+	Statistics struct {
 		Last30DaysBuildCount        int
 		Last30DaysProjectCount      int
 		Last30DaysOrganizationCount int
@@ -281,7 +281,7 @@ type Orb struct {
 	Source         string
 	HighestVersion string `json:"version"`
 
-	UsageStats struct {
+	Statistics struct {
 		Last30DaysBuildCount        int
 		Last30DaysProjectCount      int
 		Last30DaysOrganizationCount int
@@ -870,7 +870,7 @@ func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
                                     id
                                     createdAt
                                     name
-	                            usageStats {
+	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount
@@ -927,7 +927,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
-	    usageStats {
+	    statistics {
 		last30DaysBuildCount,
 		last30DaysProjectCount,
 		last30DaysOrganizationCount
@@ -1008,7 +1008,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 						version
 					}
 					name
-	                                usageStats {
+	                                statistics {
 		                           last30DaysBuildCount,
 		                           last30DaysProjectCount,
 		                           last30DaysOrganizationCount
