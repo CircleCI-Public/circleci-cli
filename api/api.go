@@ -213,6 +213,7 @@ type OrbsForListing struct {
 	Namespace string        `json:"namespace,omitempty"`
 }
 
+// SortBy allows us to sort a collection of orbs by builds, projects, or orgs from the last 30 days of data.
 func (orbs *OrbsForListing) SortBy(sortBy string) {
 	switch sortBy {
 	case "builds":
@@ -259,13 +260,13 @@ type OrbWithData struct {
 // MarshalJSON allows us to leave out excess fields we don't want to serialize.
 // As is the case with commands/jobs/executors and now statistics.
 func (orb OrbWithData) MarshalJSON() ([]byte, error) {
-	orbForJson := OrbBase{
+	orbForJSON := OrbBase{
 		orb.Name,
 		orb.HighestVersion,
 		orb.Versions,
 	}
 
-	return json.Marshal(orbForJson)
+	return json.Marshal(orbForJSON)
 }
 
 // OrbElementParameter represents the yaml-unmarshled contents of
