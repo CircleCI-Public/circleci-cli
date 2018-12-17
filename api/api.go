@@ -2,6 +2,7 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"os"
@@ -229,14 +230,20 @@ func (orbs *OrbsForListing) SortBy(sortBy string) {
 	}
 }
 
-// OrbWithData wraps an orb with select fields for deserializing into JSON.
-type OrbWithData struct {
+// OrbBase represents the minimum fields we wish to serialize for orbs.
+// This type can be embedded for extending orbs with more data. e.g. OrbWithData
+type OrbBase struct {
 	Name           string `json:"name"`
 	HighestVersion string `json:"version"`
 	Versions       []struct {
 		Version string `json:"version"`
 		Source  string `json:"source"`
 	} `json:"versions"`
+}
+
+// OrbWithData extends the OrbBase type with additional data used for printing.
+type OrbWithData struct {
+	OrbBase
 
 	Statistics struct {
 		Last30DaysBuildCount        int
@@ -244,10 +251,21 @@ type OrbWithData struct {
 		Last30DaysOrganizationCount int
 	}
 
-	// These fields are printing manually when --details flag is added so hidden from JSON output.
-	Commands  map[string]OrbElement `json:"-"`
-	Jobs      map[string]OrbElement `json:"-"`
-	Executors map[string]OrbElement `json:"-"`
+	Commands  map[string]OrbElement
+	Jobs      map[string]OrbElement
+	Executors map[string]OrbElement
+}
+
+// MarshalJSON allows us to leave out excess fields we don't want to serialize.
+// As is the case with commands/jobs/executors and now statistics.
+func (orb OrbWithData) MarshalJSON() ([]byte, error) {
+	orbForJson := OrbBase{
+		orb.Name,
+		orb.HighestVersion,
+		orb.Versions,
+	}
+
+	return json.Marshal(orbForJson)
 }
 
 // OrbElementParameter represents the yaml-unmarshled contents of
