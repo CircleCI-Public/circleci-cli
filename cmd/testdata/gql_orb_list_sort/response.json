@@ -1,0 +1,61 @@
+{
+    "orbs": {
+      "totalCount": 2,
+      "edges": [
+        {
+          "cursor": "first",
+          "node": {
+            "name": "first",
+            "statistics": {
+                "last30DaysBuildCount": 1,
+                "last30DaysProjectCount": 100,
+                "last30DaysOrganizationCount": 5
+            },
+            "versions": [
+                {
+                    "source": "version: 2.1",
+                    "version": "0.7.0"
+                }
+            ]
+          }
+        },
+        {
+          "cursor": "second",
+          "node": {
+            "name": "second",
+            "statistics": {
+                "last30DaysBuildCount": 100,
+                "last30DaysProjectCount": 1,
+                "last30DaysOrganizationCount": 100
+            },
+           "versions": [
+                {
+                    "source": "version: 2.1",
+                    "version": "0.8.0"
+                }
+            ]
+          }
+        },
+        {
+          "cursor": "third",
+          "node": {
+            "name": "third",
+            "statistics": {
+                "last30DaysBuildCount": 5,
+                "last30DaysProjectCount": 500,
+                "last30DaysOrganizationCount": 1
+            },
+            "versions": [
+                {
+                    "source": "version: 2.1",
+                    "version": "0.9.0"
+                }
+            ]
+          }
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": false
+      }
+    }
+}

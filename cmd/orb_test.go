@@ -1128,6 +1128,144 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 		})
 
+		Describe("when sorting orbs by builds with --sort", func() {
+			BeforeEach(func() {
+				By("setting up a mock server")
+
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    statistics {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
+
+				request := client.NewUnauthorizedRequest(query)
+				request.Variables["after"] = ""
+				request.Variables["certifiedOnly"] = true
+
+				encoded, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_sort/response.json"))
+				response := string(tmpBytes)
+
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  encoded.String(),
+						Response: response,
+					})
+
+			})
+
+			It("should sort by builds", func() {
+				By("running the command")
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--sort", "builds",
+					"--skip-update-check",
+					"--host", testServer.URL(),
+				)
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+
+				// the orb named "second" actually has more builds
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+
+second (0.8.0)
+third (0.9.0)
+first (0.7.0)
+
+`))
+			})
+
+			It("should sort by projects", func() {
+				By("running the command")
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--sort", "projects",
+					"--skip-update-check",
+					"--host", testServer.URL(),
+				)
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+
+				// the orb named "third" actually has the most projects
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+
+third (0.9.0)
+first (0.7.0)
+second (0.8.0)
+
+`))
+			})
+
+			It("should sort by orgs", func() {
+				By("running the command")
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--sort", "orgs",
+					"--skip-update-check",
+					"--host", testServer.URL(),
+				)
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+
+				// the orb named "second" actually has the most orgs
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+
+second (0.8.0)
+first (0.7.0)
+third (0.9.0)
+
+`))
+			})
+
+			Context("when using --sort with invalid option", func() {
+				It("should throw an error", func() {
+					By("running the command")
+					command = exec.Command(pathCLI,
+						"orb", "list",
+						"--sort", "idontknow",
+						"--skip-update-check",
+						"--host", testServer.URL(),
+					)
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(255))
+
+					stderr := session.Wait().Err.Contents()
+					Expect(string(stderr)).To(Equal("Error: expected `idontknow` to be one of \"builds\", \"projects\", or \"orgs\"\n"))
+				})
+			})
+
+		})
+
 		Describe("when listing all orbs with the --json flag", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
