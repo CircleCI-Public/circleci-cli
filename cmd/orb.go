@@ -383,6 +383,12 @@ func validateSortFlag(sort string) error {
 }
 
 func listOrbs(opts orbOptions) error {
+	if opts.sortBy != "" {
+		if err := validateSortFlag(opts.sortBy); err != nil {
+			return err
+		}
+	}
+
 	if len(opts.args) != 0 {
 		return listNamespaceOrbs(opts)
 	}
@@ -393,10 +399,6 @@ func listOrbs(opts orbOptions) error {
 	}
 
 	if opts.sortBy != "" {
-		if err := validateSortFlag(opts.sortBy); err != nil {
-			return err
-		}
-
 		orbs.SortBy(opts.sortBy)
 	}
 
@@ -412,10 +414,6 @@ func listNamespaceOrbs(opts orbOptions) error {
 	}
 
 	if opts.sortBy != "" {
-		if err := validateSortFlag(opts.sortBy); err != nil {
-			return err
-		}
-
 		orbs.SortBy(opts.sortBy)
 	}
 

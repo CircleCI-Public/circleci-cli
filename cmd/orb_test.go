@@ -1246,24 +1246,24 @@ third (0.9.0)
 `))
 			})
 
-			Context("when using --sort with invalid option", func() {
-				It("should throw an error", func() {
-					By("running the command")
-					command = exec.Command(pathCLI,
-						"orb", "list",
-						"--sort", "idontknow",
-						"--skip-update-check",
-						"--host", testServer.URL(),
-					)
-					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-					Expect(err).ShouldNot(HaveOccurred())
-					Eventually(session).Should(gexec.Exit(255))
+		})
 
-					stderr := session.Wait().Err.Contents()
-					Expect(string(stderr)).To(Equal("Error: expected `idontknow` to be one of \"builds\", \"projects\", or \"orgs\"\n"))
-				})
+		Describe("when using --sort with invalid option", func() {
+			It("should throw an error", func() {
+				By("running the command")
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--sort", "idontknow",
+					"--skip-update-check",
+					"--host", testServer.URL(),
+				)
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(255))
+
+				stderr := session.Wait().Err.Contents()
+				Expect(string(stderr)).To(Equal("Error: expected `idontknow` to be one of \"builds\", \"projects\", or \"orgs\"\n"))
 			})
-
 		})
 
 		Describe("when listing all orbs with the --json flag", func() {
