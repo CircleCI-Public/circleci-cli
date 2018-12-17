@@ -2,9 +2,11 @@ package api
 
 import (
 	"context"
+	"encoding/json"
 	"io/ioutil"
 	"log"
 	"os"
+	"sort"
 	"strings"
 
 	"fmt"
@@ -211,19 +213,60 @@ type OrbsForListing struct {
 	Namespace string        `json:"namespace,omitempty"`
 }
 
-// OrbWithData wraps an orb with select fields for deserializing into JSON.
-type OrbWithData struct {
+// SortBy allows us to sort a collection of orbs by builds, projects, or orgs from the last 30 days of data.
+func (orbs *OrbsForListing) SortBy(sortBy string) {
+	switch sortBy {
+	case "builds":
+		sort.Slice(orbs.Orbs, func(i, j int) bool {
+			return orbs.Orbs[i].Statistics.Last30DaysBuildCount > orbs.Orbs[j].Statistics.Last30DaysBuildCount
+		})
+	case "projects":
+		sort.Slice(orbs.Orbs, func(i, j int) bool {
+			return orbs.Orbs[i].Statistics.Last30DaysProjectCount > orbs.Orbs[j].Statistics.Last30DaysProjectCount
+		})
+	case "orgs":
+		sort.Slice(orbs.Orbs, func(i, j int) bool {
+			return orbs.Orbs[i].Statistics.Last30DaysOrganizationCount > orbs.Orbs[j].Statistics.Last30DaysOrganizationCount
+		})
+	}
+}
+
+// OrbBase represents the minimum fields we wish to serialize for orbs.
+// This type can be embedded for extending orbs with more data. e.g. OrbWithData
+type OrbBase struct {
 	Name           string `json:"name"`
 	HighestVersion string `json:"version"`
 	Versions       []struct {
 		Version string `json:"version"`
 		Source  string `json:"source"`
 	} `json:"versions"`
+}
 
-	// These fields are printing manually when --details flag is added so hidden from JSON output.
-	Commands  map[string]OrbElement `json:"-"`
-	Jobs      map[string]OrbElement `json:"-"`
-	Executors map[string]OrbElement `json:"-"`
+// OrbWithData extends the OrbBase type with additional data used for printing.
+type OrbWithData struct {
+	OrbBase
+
+	Statistics struct {
+		Last30DaysBuildCount        int
+		Last30DaysProjectCount      int
+		Last30DaysOrganizationCount int
+	}
+
+	Commands  map[string]OrbElement
+	Jobs      map[string]OrbElement
+	Executors map[string]OrbElement
+}
+
+// MarshalJSON allows us to leave out excess fields we don't want to serialize.
+// As is the case with commands/jobs/executors and now statistics.
+func (orb OrbWithData) MarshalJSON() ([]byte, error) {
+	orbForJSON := OrbBase{
+		orb.Name,
+		orb.HighestVersion,
+		orb.Versions,
+	}
+
+	return json.Marshal(orbForJSON)
 }
 
 // OrbElementParameter represents the yaml-unmarshled contents of
@@ -274,6 +317,12 @@ type Orb struct {
 
 	Source         string
 	HighestVersion string `json:"version"`
+
+	Statistics struct {
+		Last30DaysBuildCount        int
+		Last30DaysProjectCount      int
+		Last30DaysOrganizationCount int
+	}
 
 	Commands  map[string]OrbElement
 	Jobs      map[string]OrbElement
@@ -858,6 +907,11 @@ func OrbInfo(opts Options, orbRef string) (*OrbVersion, error) {
                                     id
                                     createdAt
                                     name
+	                            statistics {
+		                        last30DaysBuildCount,
+		                        last30DaysProjectCount,
+		                        last30DaysOrganizationCount
+	                            }
                                     versions {
                                         createdAt
                                         version
@@ -910,6 +964,11 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		cursor
 	  node {
 	    name
+	    statistics {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
 		  versions(count: 1) {
 			version,
 			source
@@ -921,7 +980,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
     }
   }
 }
-	`
+`
 
 	var orbs OrbsForListing
 
@@ -986,6 +1045,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 						version
 					}
 					name
+	                                statistics {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
 				}
 			}
 			totalCount

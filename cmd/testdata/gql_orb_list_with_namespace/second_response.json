@@ -1,6 +1,5 @@
 {
-  "data": {
-    "registryNamespace": {
+  "registryNamespace": {
       "name": "circleci",
       "orbs": {
         "edges": [
@@ -56,5 +55,4 @@
         }
       }
     }
-  }
 }

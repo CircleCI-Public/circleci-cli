@@ -20,6 +20,11 @@ type orbOptions struct {
 	apiOpts api.Options
 	cfg     *settings.Config
 	args    []string
+
+	listUncertified bool
+	listJSON        bool
+	listDetails     bool
+	sortBy          string
 }
 
 var orbAnnotations = map[string]string{
@@ -27,10 +32,6 @@ var orbAnnotations = map[string]string{
 	"<namespace>": "The namespace used for the orb (i.e. circleci)",
 	"<orb>":       "A fully-qualified reference to an orb. This takes the form namespace/orb@version",
 }
-
-var orbListUncertified bool
-var orbListJSON bool
-var orbListDetails bool
 
 func newOrbCommand(config *settings.Config) *cobra.Command {
 	opts := orbOptions{
@@ -53,9 +54,11 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Annotations: make(map[string]string),
 	}
 	listCommand.Annotations["<namespace>"] = orbAnnotations["<namespace>"] + " (Optional)"
-	listCommand.PersistentFlags().BoolVarP(&orbListUncertified, "uncertified", "u", false, "include uncertified orbs")
-	listCommand.PersistentFlags().BoolVar(&orbListJSON, "json", false, "print output as json instead of human-readable")
-	listCommand.PersistentFlags().BoolVarP(&orbListDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
+
+	listCommand.PersistentFlags().StringVar(&opts.sortBy, "sort", "", `one of "builds"|"projects"|"orgs"`)
+	listCommand.PersistentFlags().BoolVarP(&opts.listUncertified, "uncertified", "u", false, "include uncertified orbs")
+	listCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
+	listCommand.PersistentFlags().BoolVarP(&opts.listDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
 	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
 		panic(err)
 	}
@@ -327,10 +330,10 @@ func orbToSimpleString(orb api.OrbWithData) string {
 	return buffer.String()
 }
 
-func orbCollectionToString(orbCollection *api.OrbsForListing) (string, error) {
+func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (string, error) {
 	var result string
 
-	if orbListJSON {
+	if opts.listJSON {
 		orbJSON, err := json.MarshalIndent(orbCollection, "", "  ")
 		if err != nil {
 			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
@@ -338,13 +341,13 @@ func orbCollectionToString(orbCollection *api.OrbsForListing) (string, error) {
 		result = string(orbJSON)
 	} else {
 		result += fmt.Sprintf("Orbs found: %d. ", len(orbCollection.Orbs))
-		if orbListUncertified {
+		if opts.listUncertified {
 			result += "Includes all certified and uncertified orbs.\n\n"
 		} else {
 			result += "Showing only certified orbs. Add -u for a list of all orbs.\n\n"
 		}
 		for _, orb := range orbCollection.Orbs {
-			if orbListDetails {
+			if opts.listDetails {
 				result += (orbToDetailedString(orb))
 			} else {
 				result += (orbToSimpleString(orb))
@@ -355,8 +358,8 @@ func orbCollectionToString(orbCollection *api.OrbsForListing) (string, error) {
 	return result, nil
 }
 
-func logOrbs(orbCollection *api.OrbsForListing) error {
-	result, err := orbCollectionToString(orbCollection)
+func logOrbs(orbCollection *api.OrbsForListing, opts orbOptions) error {
+	result, err := orbCollectionToString(orbCollection, opts)
 	if err != nil {
 		return err
 	}
@@ -366,17 +369,40 @@ func logOrbs(orbCollection *api.OrbsForListing) error {
 	return nil
 }
 
+var validSortFlag = map[string]bool{
+	"builds":   true,
+	"projects": true,
+	"orgs":     true}
+
+func validateSortFlag(sort string) error {
+	if _, valid := validSortFlag[sort]; valid {
+		return nil
+	}
+	// TODO(zzak): we could probably reuse the map above to print the valid values
+	return fmt.Errorf("expected `%s` to be one of \"builds\", \"projects\", or \"orgs\"", sort)
+}
+
 func listOrbs(opts orbOptions) error {
+	if opts.sortBy != "" {
+		if err := validateSortFlag(opts.sortBy); err != nil {
+			return err
+		}
+	}
+
 	if len(opts.args) != 0 {
 		return listNamespaceOrbs(opts)
 	}
 
-	orbs, err := api.ListOrbs(opts.apiOpts, orbListUncertified)
+	orbs, err := api.ListOrbs(opts.apiOpts, opts.listUncertified)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
 	}
 
-	return logOrbs(orbs)
+	if opts.sortBy != "" {
+		orbs.SortBy(opts.sortBy)
+	}
+
+	return logOrbs(orbs, opts)
 }
 
 func listNamespaceOrbs(opts orbOptions) error {
@@ -387,7 +413,11 @@ func listNamespaceOrbs(opts orbOptions) error {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
 
-	return logOrbs(orbs)
+	if opts.sortBy != "" {
+		orbs.SortBy(opts.sortBy)
+	}
+
+	return logOrbs(orbs, opts)
 }
 
 func validateOrb(opts orbOptions) error {
@@ -568,6 +598,12 @@ func orbInfo(opts orbOptions) error {
 	fmt.Printf("Total-commands: %d\n", len(info.Orb.Commands))
 	fmt.Printf("Total-executors: %d\n", len(info.Orb.Executors))
 	fmt.Printf("Total-jobs: %d\n", len(info.Orb.Jobs))
+
+	fmt.Println("")
+	fmt.Println("## Statistics (30 days):")
+	fmt.Printf("Builds: %d\n", info.Orb.Statistics.Last30DaysBuildCount)
+	fmt.Printf("Projects: %d\n", info.Orb.Statistics.Last30DaysProjectCount)
+	fmt.Printf("Orgs: %d\n", info.Orb.Statistics.Last30DaysOrganizationCount)
 
 	return nil
 }
