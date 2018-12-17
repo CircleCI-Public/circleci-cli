@@ -84,13 +84,10 @@ func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers .
 			responseBody = fmt.Sprintf("{ \"data\": %s, \"errors\": %s}", handler.Response, handler.ErrorResponse)
 		}
 
-		if authToken != "" {
+		if authToken == "" {
 			server.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/graphql-unstable"),
-					ghttp.VerifyHeader(http.Header{
-						"Authorization": []string{authToken},
-					}),
 					ghttp.VerifyContentType("application/json; charset=utf-8"),
 					// From Gomegas ghttp.VerifyJson to avoid the
 					// VerifyContentType("application/json") check
@@ -108,6 +105,9 @@ func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers .
 			server.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/graphql-unstable"),
+					ghttp.VerifyHeader(http.Header{
+						"Authorization": []string{authToken},
+					}),
 					ghttp.VerifyContentType("application/json; charset=utf-8"),
 					// From Gomegas ghttp.VerifyJson to avoid the
 					// VerifyContentType("application/json") check
