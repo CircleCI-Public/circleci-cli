@@ -28,7 +28,7 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 		},
 		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Printf("%s+%s", version.Version, version.Commit)
+			fmt.Printf("%s+%s\n", version.Version, version.Commit)
 		},
 	}
 }

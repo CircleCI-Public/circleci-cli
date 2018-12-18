@@ -38,7 +38,7 @@ func newDisabledCommand(config *settings.Config, command string) *cobra.Command 
 }
 
 func disableCommand(opts disableOptions) {
-	fmt.Printf("`%s` is not available because this tool was installed using `%s`.", opts.command, PackageManager)
+	fmt.Printf("`%s` is not available because this tool was installed using `%s`.\n", opts.command, PackageManager)
 
 	if opts.command == "update" {
 		fmt.Println("Please consult the package manager's documentation on how to update the CLI.")

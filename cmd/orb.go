@@ -430,7 +430,7 @@ func validateOrb(opts orbOptions) error {
 	if opts.args[0] == "-" {
 		fmt.Println("Orb input is valid.")
 	} else {
-		fmt.Printf("Orb at `%s` is valid.", opts.args[0])
+		fmt.Printf("Orb at `%s` is valid.\n", opts.args[0])
 	}
 
 	return nil
@@ -466,12 +466,12 @@ func publishOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Printf("Orb `%s` was published.", ref)
+	fmt.Printf("Orb `%s` was published.\n", ref)
 	fmt.Println("Please note that this is an open orb and is world-readable.")
 
 	if references.IsDevVersion(version) {
-		fmt.Printf("Note that your dev label `%s` can be overwritten by anyone in your organization.", version)
-		fmt.Printf("Your dev orb will expire in 90 days unless a new version is published on the label `%s`.", version)
+		fmt.Printf("Note that your dev label `%s` can be overwritten by anyone in your organization.\n", version)
+		fmt.Printf("Your dev orb will expire in 90 days unless a new version is published on the label `%s`.\n", version)
 	}
 	return nil
 }
