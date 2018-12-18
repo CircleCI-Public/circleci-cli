@@ -4,12 +4,11 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
-
-	"io"
 
 	"gotest.tools/golden"
 
@@ -1585,6 +1584,7 @@ foo/test (0.7.0)
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
 		name
+                id
 		orbs(first: 20, after: $after) {
 			edges {
 				cursor
@@ -1684,6 +1684,75 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 				})
 			})
+		})
+
+		Describe("when listing orb that doesn't exist", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", "nonexist",
+					"--skip-update-check",
+					"--host", testServer.URL(),
+				)
+
+				By("setting up a mock server")
+
+				query := `
+query namespaceOrbs ($namespace: String, $after: String!) {
+	registryNamespace(name: $namespace) {
+		name
+                id
+		orbs(first: 20, after: $after) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+	                                statistics {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+
+				request := client.NewUnauthorizedRequest(query)
+				request.Variables["after"] = ""
+				request.Variables["namespace"] = "nonexist"
+
+				encodedRequest, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				mockResponse := `{"data": {}}`
+
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  encodedRequest.String(),
+						Response: mockResponse,
+					})
+			})
+
+			It("returns an error", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("No namespace found"))
+				Eventually(session).Should(gexec.Exit(255))
+				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
+			})
+
 		})
 
 		Describe("when creating an orb without a token", func() {
