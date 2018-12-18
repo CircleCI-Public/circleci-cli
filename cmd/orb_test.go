@@ -1743,7 +1743,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					})
 			})
 
-			It("makes a namespace query and requests all orbs on that namespace", func() {
+			It("returns an error", func() {
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
