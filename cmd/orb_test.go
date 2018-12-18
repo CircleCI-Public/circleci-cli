@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -1585,6 +1584,7 @@ foo/test (0.7.0)
 query namespaceOrbs ($namespace: String, $after: String!) {
 	registryNamespace(name: $namespace) {
 		name
+                id
 		orbs(first: 20, after: $after) {
 			edges {
 				cursor
@@ -1686,7 +1686,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			})
 		})
 
-		FDescribe("when listing orb that doesn't exist", func() {
+		Describe("when listing orb that doesn't exist", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list", "nonexist",
@@ -1695,33 +1695,52 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				)
 
 				By("setting up a mock server")
-				mockRequest := `{
-  "variables": {
-    "namespace": "nonexist",
-    "after": ""
-  },
-  "query": "\nquery namespaceOrbs ($namespace: String, $after: String!) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n\t\torbs(first: 20, after: $after) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n"
-}`
+
+				query := `
+query namespaceOrbs ($namespace: String, $after: String!) {
+	registryNamespace(name: $namespace) {
+		name
+                id
+		orbs(first: 20, after: $after) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+	                                statistics {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+
+				request := client.NewUnauthorizedRequest(query)
+				request.Variables["after"] = ""
+				request.Variables["namespace"] = "nonexist"
+
+				encodedRequest, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
 				mockResponse := `{"data": {}}`
 
-				testServer.AppendHandlers(
-					ghttp.CombineHandlers(
-						ghttp.VerifyRequest("POST", "/graphql-unstable"),
-
-						// TODO: Extract this into a verifyJSONUtf8 helper function
-						ghttp.VerifyContentType("application/json; charset=utf-8"),
-						// From Gomegas ghttp.VerifyJson to avoid the
-						// VerifyContentType("application/json") check
-						// that fails with "application/json; charset=utf-8"
-						func(w http.ResponseWriter, req *http.Request) {
-							body, error := ioutil.ReadAll(req.Body)
-							req.Body.Close()
-							Expect(error).ShouldNot(HaveOccurred())
-							Expect(body).Should(MatchJSON(mockRequest), "JSON Mismatch")
-						},
-						ghttp.RespondWith(http.StatusOK, mockResponse),
-					),
-				)
+				appendPostHandler(testServer, "",
+					MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  encodedRequest.String(),
+						Response: mockResponse,
+					})
 			})
 
 			It("makes a namespace query and requests all orbs on that namespace", func() {
