@@ -118,6 +118,18 @@ The CLI may also be used without installation by using Docker.
 docker run --rm -v $(pwd):/data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
 ```
 
+## circleci-agent
+
+In order to maintain backwards compatibility with the `circleci` binary present in builds, some commands are proxied to a program called `circleci-agent`.
+
+This program must exist in your `$PATH` as is the case inside of a job.
+
+The following commands are affected:
+
+* `circleci tests split`
+* `circleci step halt`
+* `circleci config migrate`
+
 ## Contributing
 
 Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKING.md).
