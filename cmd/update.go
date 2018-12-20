@@ -107,7 +107,7 @@ func updateBuildAgent() error {
 		return err
 	}
 
-	fmt.Printf("Latest build agent is version %s", latestSha256)
+	fmt.Printf("Latest build agent is version %s\n", latestSha256)
 
 	return nil
 }

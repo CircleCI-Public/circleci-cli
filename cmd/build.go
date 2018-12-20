@@ -186,7 +186,7 @@ func picardImage() (string, error) {
 		}
 
 	}
-	fmt.Printf("Docker image digest: %s", sha)
+	fmt.Printf("Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 

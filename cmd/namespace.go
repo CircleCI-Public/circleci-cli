@@ -63,7 +63,7 @@ func createNamespace(opts namespaceOptions) error {
 		return err
 	}
 
-	fmt.Printf("Namespace `%s` created.", namespaceName)
+	fmt.Printf("Namespace `%s` created.\n", namespaceName)
 	fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
 	return nil
 }
