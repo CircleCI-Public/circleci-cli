@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -17,6 +18,7 @@ func mergeTree(trees ...interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for _, tree := range trees {
 		kvp := make(map[string]interface{})
+
 		if err := mapstructure.Decode(tree, &kvp); err != nil {
 			panic(err)
 		}
@@ -68,6 +70,12 @@ func (n Node) marshalParent() (interface{}, error) {
 	subtree := map[string]interface{}{}
 	for _, child := range n.Children {
 		c, err := child.MarshalYAML()
+
+		switch c.(type) {
+		case []interface{}:
+			return nil, fmt.Errorf("expected a map, got an array for %s", child.FullPath)
+		}
+
 		if err != nil {
 			return subtree, err
 		}

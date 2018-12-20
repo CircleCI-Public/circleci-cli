@@ -1,6 +1,7 @@
 package cmd_test
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -327,11 +328,16 @@ var _ = Describe("Config", func() {
 				err := config.write(`[]`)
 				Expect(err).ShouldNot(HaveOccurred())
 
+				fullPath := filepath.Join(tmpDir, ".circleci", "config.yaml")
+				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got an array for %s\n", fullPath)
+
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out.Contents()).Should(BeEmpty())
-				Eventually(session).Should(gexec.Exit(0))
+
+				stderr := session.Wait().Err.Contents()
+				Expect(string(stderr)).To(Equal(expected))
+				Eventually(session).Should(gexec.Exit(255))
 			})
 		})
 	})
