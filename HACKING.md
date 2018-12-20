@@ -21,10 +21,14 @@ You should already have [installed Go](https://golang.org/doc/install).
 
 ### 1. Get the repo
 
+Clone the repo.
+
 ```
 $ git clone github.com/CircleCI-Public/circleci-cli
 $ cd circleci-cli
 ```
+
+If you cloned the repo inside of your `$GOPATH`, you can use `GO111MODULE=on` in order to use Go modules. We recommend cloning the repo outside of `$GOPATH` as you would any other source code project, for example `~/code/circleci-cli`.
 
 ### 2. Build the binary
 
