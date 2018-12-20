@@ -9,3 +9,4 @@ We are very grateful to the following people have helped us to build the CLI too
 - [Reuben Antz](https://github.com/antzshrek)
 - [Hiroyuki Matsuo](https://github.com/h-matsuo)
 - [Sam Chapler](https://github.com/SamChapler)
+- [Nick Miyake](https://github.com/nmiyake)
