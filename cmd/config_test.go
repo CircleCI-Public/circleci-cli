@@ -301,5 +301,38 @@ var _ = Describe("Config", func() {
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
+
+		Context("config is a list and not a map", func() {
+			var (
+				config tmpFile
+				tmpDir string
+			)
+
+			BeforeEach(func() {
+				var err error
+				tmpDir, err = openTmpDir("")
+				Expect(err).ToNot(HaveOccurred())
+
+				config, err = openTmpFile(tmpDir, filepath.Join(".circleci", "config.yaml"))
+				Expect(err).ToNot(HaveOccurred())
+
+				command = exec.Command(pathCLI,
+					"config", "pack",
+					"--skip-update-check",
+					filepath.Join(tmpDir, ".circleci"),
+				)
+			})
+
+			It("prints an error about invalid YAML", func() {
+				err := config.write(`[]`)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out.Contents()).Should(BeEmpty())
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
 	})
 })
