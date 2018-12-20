@@ -128,7 +128,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.PersistentFlags().StringVar(&rootOptions.Endpoint,
 		"endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 
-	rootCmd.PersistentFlags().StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retreiving updates")
+	rootCmd.PersistentFlags().StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retrieving updates")
 	if err := rootCmd.PersistentFlags().MarkHidden("github-api"); err != nil {
 		panic(err)
 	}
