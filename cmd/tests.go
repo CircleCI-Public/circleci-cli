@@ -34,12 +34,12 @@ func newTestsCommand(config *settings.Config) *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return globRun(opts)
 		},
-		Hidden: true,
 	}
 
 	splitCmd := &cobra.Command{
 		Use:   "split",
-		Short: "Return a split batch of provided files",
+		Short: "Return a split batch of provided files (must be inside a build).",
+		Long:  "This command wraps `circleci-agent` which must be run inside of a build.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 
@@ -47,7 +47,6 @@ func newTestsCommand(config *settings.Config) *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return splitRunE(opts)
 		},
-		Hidden: true,
 	}
 	splitCmd.Flags().Uint("index", 0, "index of node.")
 	splitCmd.Flags().Uint("total", 1, "number of nodes.")
