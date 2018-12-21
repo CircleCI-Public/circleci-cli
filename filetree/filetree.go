@@ -72,23 +72,23 @@ func (n Node) marshalParent() (interface{}, error) {
 		c, err := child.MarshalYAML()
 
 		switch c.(type) {
-		case []interface{}:
-			return nil, fmt.Errorf("expected a map, got an array for %s", child.FullPath)
-		}
+		case map[string]interface{}, map[interface{}]interface{}, nil:
+			if err != nil {
+				return subtree, err
+			}
 
-		if err != nil {
-			return subtree, err
-		}
-
-		if child.rootFile() {
-			merged := mergeTree(subtree, c)
-			subtree = merged
-		} else if child.specialCase() {
-			merged := mergeTree(subtree, subtree[child.Parent.name()], c)
-			subtree = merged
-		} else {
-			merged := mergeTree(subtree[child.name()], c)
-			subtree[child.name()] = merged
+			if child.rootFile() {
+				merged := mergeTree(subtree, c)
+				subtree = merged
+			} else if child.specialCase() {
+				merged := mergeTree(subtree, subtree[child.Parent.name()], c)
+				subtree = merged
+			} else {
+				merged := mergeTree(subtree[child.name()], c)
+				subtree[child.name()] = merged
+			}
+		default:
+			return nil, fmt.Errorf("expected a map, got a `%T` which is not supported at this time for \"%s\"", c, child.FullPath)
 		}
 	}
 

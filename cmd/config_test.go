@@ -329,7 +329,7 @@ var _ = Describe("Config", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				fullPath := filepath.Join(tmpDir, ".circleci", "config.yaml")
-				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got an array for %s\n", fullPath)
+				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", fullPath)
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
