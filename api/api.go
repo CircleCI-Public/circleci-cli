@@ -237,7 +237,12 @@ func (orbs *OrbsForListing) SortBy(sortBy string) {
 type OrbBase struct {
 	Name           string `json:"name"`
 	HighestVersion string `json:"version"`
-	Versions       []struct {
+	Statistics     struct {
+		Last30DaysBuildCount        int `json:"last30DaysBuildCount"`
+		Last30DaysProjectCount      int `json:"last30DaysProjectCount"`
+		Last30DaysOrganizationCount int `json:"last30DaysOrganizationCount"`
+	} `json:"statistics"`
+	Versions []struct {
 		Version string `json:"version"`
 		Source  string `json:"source"`
 	} `json:"versions"`
@@ -246,12 +251,6 @@ type OrbBase struct {
 // OrbWithData extends the OrbBase type with additional data used for printing.
 type OrbWithData struct {
 	OrbBase
-
-	Statistics struct {
-		Last30DaysBuildCount        int
-		Last30DaysProjectCount      int
-		Last30DaysOrganizationCount int
-	}
 
 	Commands  map[string]OrbElement
 	Jobs      map[string]OrbElement
@@ -264,6 +263,7 @@ func (orb OrbWithData) MarshalJSON() ([]byte, error) {
 	orbForJSON := OrbBase{
 		orb.Name,
 		orb.HighestVersion,
+		orb.Statistics,
 		orb.Versions,
 	}
 
