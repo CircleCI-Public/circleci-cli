@@ -252,7 +252,7 @@ func parameterDefaultToString(parameter api.OrbElementParameter) string {
 	return defaultValue + "')"
 }
 
-// nolint: errcheck
+// nolint: errcheck, gosec
 func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) {
 	keys := make([]string, 0, len(orbElement.Parameters))
 	for k := range orbElement.Parameters {
@@ -269,7 +269,7 @@ func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElemen
 	}
 }
 
-// nolint: errcheck
+// nolint: errcheck, gosec
 func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map[string]api.OrbElement) {
 	if len(namedOrbElements) > 0 {
 		keys := make([]string, 0, len(namedOrbElements))
@@ -294,7 +294,7 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 	}
 }
 
-// nolint: unparam, errcheck
+// nolint: unparam, errcheck, gosec
 func addOrbStatisticsToBuffer(buf *bytes.Buffer, name string, stats api.OrbStatistics) {
 	var (
 		encoded []byte
