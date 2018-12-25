@@ -252,7 +252,8 @@ func parameterDefaultToString(parameter api.OrbElementParameter) string {
 	return defaultValue + "')"
 }
 
-func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) error {
+// nolint: errcheck
+func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElement) {
 	keys := make([]string, 0, len(orbElement.Parameters))
 	for k := range orbElement.Parameters {
 		keys = append(keys, k)
@@ -263,22 +264,13 @@ func addOrbElementParametersToBuffer(buf *bytes.Buffer, orbElement api.OrbElemen
 		parameterName := k
 		parameter := orbElement.Parameters[k]
 
-		var err error
-
 		defaultValueString := parameterDefaultToString(parameter)
-		_, err = buf.WriteString(fmt.Sprintf("       - %s: %s%s\n", parameterName, parameter.Type, defaultValueString))
-
-		if err != nil {
-			return err
-		}
+		_, _ = buf.WriteString(fmt.Sprintf("       - %s: %s%s\n", parameterName, parameter.Type, defaultValueString))
 	}
-
-	return nil
 }
 
+// nolint: errcheck
 func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map[string]api.OrbElement) {
-	var err error
-
 	if len(namedOrbElements) > 0 {
 		keys := make([]string, 0, len(namedOrbElements))
 		for k := range namedOrbElements {
@@ -286,47 +278,40 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 		}
 		sort.Strings(keys)
 
-		_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+		_, _ = buf.WriteString(fmt.Sprintf("  %s:\n", name))
 		for _, k := range keys {
 			elementName := k
 			orbElement := namedOrbElements[k]
 
 			parameterCount := len(orbElement.Parameters)
 
-			_, err = buf.WriteString(fmt.Sprintf("    - %s: %d parameter(s)\n", elementName, parameterCount))
+			_, _ = buf.WriteString(fmt.Sprintf("    - %s: %d parameter(s)\n", elementName, parameterCount))
 
 			if parameterCount > 0 {
-				err = addOrbElementParametersToBuffer(buf, orbElement)
+				addOrbElementParametersToBuffer(buf, orbElement)
 			}
 		}
 	}
-
-	// This will never occur. The docs for bytes.Buffer.WriteString says err
-	// will always be nil. The linter still expects this error to be checked.
-	if err != nil {
-		panic(err)
-	}
 }
 
-// nolint: unparam
+// nolint: unparam, errcheck
 func addOrbStatisticsToBuffer(buf *bytes.Buffer, name string, stats api.OrbStatistics) {
 	var (
-		err     error
 		encoded []byte
 		data    map[string]int
 	)
 
 	// Roundtrip the stats to JSON so we can iterate a map since we don't care about the fields
-	encoded, err = json.Marshal(stats)
+	encoded, err := json.Marshal(stats)
 	if err != nil {
 		panic(err)
 	}
 
-	if err = json.Unmarshal(encoded, &data); err != nil {
+	if err := json.Unmarshal(encoded, &data); err != nil {
 		panic(err)
 	}
 
-	_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+	_, _ = buf.WriteString(fmt.Sprintf("  %s:\n", name))
 
 	// Sort the keys so we always get the same results even after the round-trip
 	keys := make([]string, 0, len(data))
@@ -337,13 +322,7 @@ func addOrbStatisticsToBuffer(buf *bytes.Buffer, name string, stats api.OrbStati
 
 	for _, key := range keys {
 		value := data[key]
-		_, err = buf.WriteString(fmt.Sprintf("    - %s: %d\n", key, value))
-	}
-
-	// This will never occur. The docs for bytes.Buffer.WriteString says err
-	// will always be nil. The linter still expects this error to be checked.
-	if err != nil {
-		panic(err)
+		_, _ = buf.WriteString(fmt.Sprintf("    - %s: %d\n", key, value))
 	}
 }
 
