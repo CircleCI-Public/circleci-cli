@@ -1,26 +1,46 @@
 {
   "namespace": "circleci",
   "orbs": [
-	{
-		"name": "circleci/aws-cli",
-		"version": "Not published",
-		"versions": []
-	},
-	{
-		"name": "circleci/aws-code-deploy",
-		"version": "Not published",
-		"versions": []
-	},
-	{
-		"name": "circleci/aws-s3",
-		"version": "Not published",
-		"versions": []
-	},
-	{
-		"name": "circleci/circleci-cli",
-		"version": "Not published",
-		"versions": []
-	},
+    {
+      "name": "circleci/aws-cli",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
+    {
+      "name": "circleci/aws-code-deploy",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
+    {
+      "name": "circleci/aws-s3",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
+    {
+      "name": "circleci/circleci-cli",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
     {
       "version": "0.0.3",
       "versions": [
@@ -33,18 +53,33 @@
           "version": "0.0.2"
         }
       ],
-      "name": "circleci/codecov-clojure"
-	},
-	{
-		"name": "circleci/delete-me",
-		"version": "Not published",
-		"versions": []
-	},
-	{
-		"name": "circleci/delete-me-too",
-		"version": "Not published",
-		"versions": []
-	},
+      "name": "circleci/codecov-clojure",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      }
+    },
+    {
+      "name": "circleci/delete-me",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
+    {
+      "name": "circleci/delete-me-too",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
     {
       "versions": [
         {
@@ -53,13 +88,23 @@
         }
       ],
       "version": "0.0.1",
-	  "name": "circleci/gradle"
-	},
-	{
-		"name": "circleci/heroku",
-		"version": "Not published",
-		"versions": []
-	},
+      "name": "circleci/gradle",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      }
+    },
+    {
+      "name": "circleci/heroku",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
+      "version": "Not published",
+      "versions": []
+    },
     {
       "versions": [
         {
@@ -68,7 +113,12 @@
         }
       ],
       "version": "0.0.1",
-      "name": "circleci/rollbar"
+      "name": "circleci/rollbar",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      }
     }
   ]
 }
