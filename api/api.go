@@ -235,17 +235,20 @@ func (orbs *OrbsForListing) SortBy(sortBy string) {
 // OrbBase represents the minimum fields we wish to serialize for orbs.
 // This type can be embedded for extending orbs with more data. e.g. OrbWithData
 type OrbBase struct {
-	Name           string `json:"name"`
-	HighestVersion string `json:"version"`
-	Statistics     struct {
-		Last30DaysBuildCount        int `json:"last30DaysBuildCount"`
-		Last30DaysProjectCount      int `json:"last30DaysProjectCount"`
-		Last30DaysOrganizationCount int `json:"last30DaysOrganizationCount"`
-	} `json:"statistics"`
-	Versions []struct {
+	Name           string        `json:"name"`
+	HighestVersion string        `json:"version"`
+	Statistics     OrbStatistics `json:"statistics"`
+	Versions       []struct {
 		Version string `json:"version"`
 		Source  string `json:"source"`
 	} `json:"versions"`
+}
+
+// OrbStatistics represents the data we retrieve for orb usage in the last thirty days.
+type OrbStatistics struct {
+	Last30DaysBuildCount        int `json:"last30DaysBuildCount"`
+	Last30DaysProjectCount      int `json:"last30DaysProjectCount"`
+	Last30DaysOrganizationCount int `json:"last30DaysOrganizationCount"`
 }
 
 // OrbWithData extends the OrbBase type with additional data used for printing.
