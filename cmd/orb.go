@@ -308,6 +308,7 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 	}
 }
 
+// nolint: unparam
 func addOrbStatisticsToBuffer(buf *bytes.Buffer, name string, stats api.OrbStatistics) {
 	var (
 		err     error
