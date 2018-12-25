@@ -1537,6 +1537,10 @@ foo/test (0.7.0)
   Executors:
     - default: 1 parameter(s)
        - tag: string (default: 'curl-browsers')
+  Statistics:
+    - last30DaysBuildCount: 0
+    - last30DaysOrganizationCount: 0
+    - last30DaysProjectCount: 0
 
 `))
 				Eventually(session).Should(gexec.Exit(0))

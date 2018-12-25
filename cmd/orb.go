@@ -308,12 +308,52 @@ func addOrbElementsToBuffer(buf *bytes.Buffer, name string, namedOrbElements map
 	}
 }
 
+func addOrbStatisticsToBuffer(buf *bytes.Buffer, name string, stats api.OrbStatistics) {
+	var (
+		err     error
+		encoded []byte
+		data    map[string]int
+	)
+
+	// Roundtrip the stats to JSON so we can iterate a map since we don't care about the fields
+	encoded, err = json.Marshal(stats)
+	if err != nil {
+		panic(err)
+	}
+
+	if err = json.Unmarshal(encoded, &data); err != nil {
+		panic(err)
+	}
+
+	_, err = buf.WriteString(fmt.Sprintf("  %s:\n", name))
+
+	// Sort the keys so we always get the same results even after the round-trip
+	keys := make([]string, 0, len(data))
+	for k := range data {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		value := data[key]
+		_, err = buf.WriteString(fmt.Sprintf("    - %s: %d\n", key, value))
+	}
+
+	// This will never occur. The docs for bytes.Buffer.WriteString says err
+	// will always be nil. The linter still expects this error to be checked.
+	if err != nil {
+		panic(err)
+	}
+}
+
 func orbToDetailedString(orb api.OrbWithData) string {
 	buffer := bytes.NewBufferString(orbToSimpleString(orb))
 
 	addOrbElementsToBuffer(buffer, "Commands", orb.Commands)
 	addOrbElementsToBuffer(buffer, "Jobs", orb.Jobs)
 	addOrbElementsToBuffer(buffer, "Executors", orb.Executors)
+
+	addOrbStatisticsToBuffer(buffer, "Statistics", orb.Statistics)
 
 	return buffer.String()
 }
