@@ -1,6 +1,6 @@
-- [ ]: I have our [Contribution Guidelines](./CONTRIBUTING.md).
-- [ ]: I checked for similar issues and didn't find anything relevant.
-- [ ]: This is not a security issue (which should be reported here: https://circleci.com/security/)
+- [ ] I have our [Contribution Guidelines](./CONTRIBUTING.md).
+- [ ] I checked for similar issues and didn't find anything relevant.
+- [ ] This is not a security issue (which should be reported here: https://circleci.com/security/)
 
 **Do you want to request a *feature* or report a *bug*?**
 
