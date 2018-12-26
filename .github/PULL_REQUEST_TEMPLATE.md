@@ -1,3 +1,7 @@
+- [ ]: I have our [Contribution Guidelines](./CONTRIBUTING.md).
+- [ ]: I checked for similar issues and didn't find anything relevant.
+- [ ]: This is not a security issue (which should be reported here: https://circleci.com/security/)
+
 **Here are some helpful tips you can follow when submitting a pull request:**
 
 1. Fork [the repository](https://github.com/CircleCI-Public/circleci-cli) and create your branch from `master`.
@@ -7,8 +11,5 @@
 5. The `--debug` flag is often helpful for debugging HTTP client requests and responses.
 6. Format your code with [gofmt](https://golang.org/cmd/gofmt/).
 7. Make sure your code lints (`make lint`). Tip: `make dev` will install `gometalinter`.
-8. Run `make doc` (after installing `godoc`) to view the API documentation.
-9. Be sure to read our [Contribution Guidelines](./CONTRIBUTING.md).
-10. Find out more about [HACKING](./HACKING.md) the CLI.
 
-If you have any questions, feel free to ping us at `\@CircleCI-Public/dx-clients`.
+**If you have any questions, feel free to ping us at @CircleCI-Public/dx-clients.**
