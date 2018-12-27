@@ -1,5 +1,5 @@
-- [ ] I have our [Contribution Guidelines](./CONTRIBUTING.md).
-- [ ] I checked for similar issues and didn't find anything relevant.
+- [ ] I have read [Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/master/CONTRIBUTING.md).
+- [ ] I have checked for similar issues and haven't found anything relevant.
 - [ ] This is not a security issue (which should be reported here: https://circleci.com/security/)
 
 **Do you want to request a *feature* or report a *bug*?**
