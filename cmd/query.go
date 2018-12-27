@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -62,7 +61,7 @@ func query(opts queryOptions) error {
 	if err != nil {
 		return err
 	}
-	err = opts.cl.Run(context.Background(), req, &resp)
+	err = opts.cl.Run(req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")
 	}

@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -12,15 +11,14 @@ import (
 )
 
 type namespaceOptions struct {
-	apiOpts api.Options
-	cfg     *settings.Config
-	args    []string
+	cfg  *settings.Config
+	cl   *client.Client
+	args []string
 }
 
 func newNamespaceCommand(config *settings.Config) *cobra.Command {
 	opts := namespaceOptions{
-		apiOpts: api.Options{},
-		cfg:     config,
+		cfg: config,
 	}
 
 	namespaceCmd := &cobra.Command{
@@ -35,8 +33,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 Please note that at this time all namespaces created in the registry are world-readable.`,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return createNamespace(opts)
@@ -57,7 +54,7 @@ Please note that at this time all namespaces created in the registry are world-r
 func createNamespace(opts namespaceOptions) error {
 	namespaceName := opts.args[0]
 
-	_, err := api.CreateNamespace(opts.apiOpts, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
+	_, err := api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
 
 	if err != nil {
 		return err

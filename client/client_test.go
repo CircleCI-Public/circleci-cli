@@ -1,14 +1,12 @@
 package client
 
 import (
-	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
 	"testing"
-	"time"
 )
 
 func TestServerAddress(t *testing.T) {
@@ -72,15 +70,12 @@ func TestDoJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	ctx := context.Background()
 	client := NewClient(srv.URL, "/", "token", false)
 
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
 	var resp struct {
 		Something string
 	}
-	err := client.Run(ctx, &Request{Query: "query {}"}, &resp)
+	err := client.Run(&Request{Query: "query {}"}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -111,8 +106,6 @@ func TestQueryJSON(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 
 	client := NewClient(srv.URL, "/", "token", false)
 
@@ -131,7 +124,7 @@ func TestQueryJSON(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -174,15 +167,11 @@ func TestDoJSONErr(t *testing.T) {
 
 	defer server.Close()
 
-	ctx := context.Background()
 	client := NewClient(server.URL, "/", "token", false)
-
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
 
 	var responseData map[string]interface{}
 
-	err := client.Run(ctx, &Request{Query: "query {}"}, &responseData)
+	err := client.Run(&Request{Query: "query {}"}, &responseData)
 	if err.Error() != "Something went wrong\nSomething else went wrong" {
 		t.Errorf(err.Error())
 	}
@@ -202,8 +191,6 @@ func TestHeader(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 
 	client := NewClient(srv.URL, "/", "token", false)
 
@@ -213,7 +200,7 @@ func TestHeader(t *testing.T) {
 	var resp struct {
 		Value string
 	}
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -240,8 +227,6 @@ func TestStatusCode200(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 
 	client := NewClient(srv.URL, "/", "token", false)
 
@@ -249,7 +234,7 @@ func TestStatusCode200(t *testing.T) {
 
 	var resp interface{}
 
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(req, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -272,8 +257,6 @@ func TestStatusCode500(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 
 	client := NewClient(srv.URL, "/", "token", false)
 
@@ -281,7 +264,7 @@ func TestStatusCode500(t *testing.T) {
 
 	var resp interface{}
 
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(req, &resp)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -308,8 +291,6 @@ func TestStatusCode413(t *testing.T) {
 		}
 	}))
 	defer srv.Close()
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
-	defer cancel()
 
 	client := NewClient(srv.URL, "/", "token", false)
 
@@ -317,7 +298,7 @@ func TestStatusCode413(t *testing.T) {
 
 	var resp interface{}
 
-	err := client.Run(ctx, req, &resp)
+	err := client.Run(req, &resp)
 	if err == nil {
 		t.Error("expected error")
 	}

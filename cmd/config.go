@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -17,9 +16,9 @@ import (
 const defaultConfigPath = ".circleci/config.yml"
 
 type configOptions struct {
-	cfg     *settings.Config
-	apiOpts api.Options
-	args    []string
+	cfg  *settings.Config
+	cl   *client.Client
+	args []string
 }
 
 // Path to the config.yml file to operate on.
@@ -32,8 +31,7 @@ var configAnnotations = map[string]string{
 
 func newConfigCommand(config *settings.Config) *cobra.Command {
 	opts := configOptions{
-		apiOpts: api.Options{},
-		cfg:     config,
+		cfg: config,
 	}
 
 	configCmd := &cobra.Command{
@@ -46,8 +44,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Pack up your CircleCI configuration into a single file.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packConfig(opts)
@@ -63,8 +60,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateConfig(opts)
@@ -83,8 +79,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Process the config.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processConfig(opts)
@@ -99,8 +94,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Migrate a pre-release 2.0 config to the official release version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
@@ -133,7 +127,7 @@ func validateConfig(opts configOptions) error {
 		path = opts.args[0]
 	}
 
-	_, err := api.ConfigQuery(opts.apiOpts, path)
+	_, err := api.ConfigQuery(opts.cl, path)
 
 	if err != nil {
 		return err
@@ -149,7 +143,7 @@ func validateConfig(opts configOptions) error {
 }
 
 func processConfig(opts configOptions) error {
-	response, err := api.ConfigQuery(opts.apiOpts, opts.args[0])
+	response, err := api.ConfigQuery(opts.cl, opts.args[0])
 
 	if err != nil {
 		return err

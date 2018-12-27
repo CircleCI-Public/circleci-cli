@@ -167,8 +167,9 @@ func prepareRequest(ctx context.Context, address string, request *Request) (*htt
 // Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
 // TODO(zzak): This function is fairly complex, we should refactor it
 // nolint: gocyclo
-func (cl *Client) Run(ctx context.Context, request *Request, resp interface{}) error {
+func (cl *Client) Run(request *Request, resp interface{}) error {
 	l := log.New(os.Stderr, "", 0)
+	ctx := context.Background()
 
 	select {
 	case <-ctx.Done():
