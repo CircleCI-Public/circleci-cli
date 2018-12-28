@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/link"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
@@ -83,9 +84,8 @@ func MakeCommands() *cobra.Command {
 	}
 
 	rootCmd = &cobra.Command{
-		Use:   "circleci",
-		Short: `Use CircleCI from the command line.`,
-		Long:  `This project is the seed for CircleCI's new command-line application.`,
+		Use:  "circleci",
+		Long: rootHelpLong(rootOptions),
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
@@ -222,4 +222,19 @@ func isUpdateIncluded(packageManager string) bool {
 	default:
 		return true
 	}
+}
+
+func rootHelpLong(config *settings.Config) string {
+	long := `Use CircleCI from the command line.
+
+This project is the seed for CircleCI's new command-line application.`
+
+	// We should only print this for cloud users
+	if config.Host != defaultHost {
+		return long
+	}
+
+	return fmt.Sprintf(`%s
+
+For more help, see the documentation here: %s`, long, link.CLIDocs)
 }
