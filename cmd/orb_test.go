@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -20,6 +21,67 @@ import (
 )
 
 var _ = Describe("Orb integration tests", func() {
+	Describe("Orb help text", func() {
+		It("shows a link to the docs", func() {
+			command := exec.Command(pathCLI, "orb", "--help")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).Should(gbytes.Say(`Operate on orbs
+
+See a full explanation and documentation on orbs here: https://circleci.com/docs/2.0/orb-intro/
+`))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
+		Context("if user changes host settings through configuration", func() {
+			var (
+				err        error
+				tempHome   string
+				command    *exec.Cmd
+				config     *os.File
+				configDir  = ".circleci"
+				configFile = "cli.yml"
+			)
+
+			BeforeEach(func() {
+				command = exec.Command(pathCLI, "orb", "--help")
+
+				tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
+				Expect(err).ToNot(HaveOccurred())
+
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+				)
+
+				Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
+
+				config, err = os.OpenFile(
+					filepath.Join(tempHome, configDir, configFile),
+					os.O_RDWR|os.O_CREATE,
+					0600,
+				)
+				Expect(err).ToNot(HaveOccurred())
+				_, err = config.Write([]byte(`host: foo.bar`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			AfterEach(func() {
+				Expect(os.RemoveAll(tempHome)).To(Succeed())
+			})
+
+			It("doesn't link to docs if user changes --host", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				Consistently(session.Out).ShouldNot(gbytes.Say("See a full explanation and documentation on orbs here: https://circleci.com/docs/2.0/orb-intro/"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+	})
+
 	Describe("CLI behavior with a stubbed api and an orb.yml provided", func() {
 		var (
 			testServer *ghttp.Server
