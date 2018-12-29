@@ -1851,6 +1851,27 @@ You can create a new personal API token here:
 https://circleci.com/account/api`))
 				Eventually(session).Should(gexec.Exit(255))
 			})
+
+			It("uses the host setting from config in the url", func() {
+				command = exec.Command(pathCLI,
+					"orb", "create", "bar-ns/foo-orb",
+					"--skip-update-check",
+					"--token", "",
+					"--host", "foo.bar",
+				)
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
+You can create a new personal API token here:
+foo.bar/account/api`))
+				Eventually(session).Should(gexec.Exit(255))
+			})
 		})
 
 		Describe("when fetching an orb's source", func() {
