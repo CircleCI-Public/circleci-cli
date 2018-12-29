@@ -9,7 +9,6 @@ import (
 	"path"
 	"syscall"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
@@ -20,7 +19,6 @@ import (
 
 type buildOptions struct {
 	cfg  *settings.Config
-	cl   *client.Client
 	args []string
 	help func() error
 }
@@ -57,7 +55,6 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 		Short: "Run a job in a container on the local machine",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 			opts.help = cmd.Help
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {

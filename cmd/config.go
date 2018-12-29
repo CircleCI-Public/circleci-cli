@@ -44,7 +44,6 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Pack up your CircleCI configuration into a single file.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packConfig(opts)
@@ -94,7 +93,6 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Migrate a pre-release 2.0 config to the official release version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
