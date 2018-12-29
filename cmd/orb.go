@@ -42,10 +42,6 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Use:   "list <namespace>",
 		Short: "List orbs",
 		Args:  cobra.MaximumNArgs(1),
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return listOrbs(opts)
 		},
@@ -64,10 +60,6 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 	validateCommand := &cobra.Command{
 		Use:   "validate <path>",
 		Short: "Validate an orb.yml",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateOrb(opts)
 		},
@@ -79,10 +71,6 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
 		Short: "Validate an orb and print its form after all pre-registration processing",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processOrb(opts)
 		},
@@ -96,12 +84,11 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Short: "Publish an orb to the registry",
 		Long: `Publish an orb to the registry.
 Please note that at this time all orbs published to the registry are world-readable.`,
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return publishOrb(opts)
+		},
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return validateToken(opts.cfg)
 		},
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -116,12 +103,11 @@ Please note that at this time all orbs published to the registry are world-reada
 Please note that at this time all orbs promoted within the registry are world-readable.
 
 Example: 'circleci orb publish promote foo/bar@dev:master major' => foo/bar@1.0.0`,
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return promoteOrb(opts)
+		},
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return validateToken(opts.cfg)
 		},
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
@@ -136,12 +122,11 @@ Example: 'circleci orb publish promote foo/bar@dev:master major' => foo/bar@1.0.
 Please note that at this time all orbs incremented within the registry are world-readable.
 
 Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1.1.0`,
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return incrementOrb(opts)
+		},
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return validateToken(opts.cfg)
 		},
 		Args:        cobra.ExactArgs(3),
 		Annotations: make(map[string]string),
@@ -156,10 +141,6 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 	sourceCommand := &cobra.Command{
 		Use:   "source <orb>",
 		Short: "Show the source of an orb",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return showSource(opts)
 		},
@@ -173,10 +154,6 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 	orbInfoCmd := &cobra.Command{
 		Use:   "info <orb>",
 		Short: "Show the meta-data of an orb",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return orbInfo(opts)
 		},
@@ -192,12 +169,11 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 		Short: "Create an orb in the specified namespace",
 		Long: `Create an orb in the specified namespace
 Please note that at this time all orbs created in the registry are world-readable.`,
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
-		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return createOrb(opts)
+		},
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return validateToken(opts.cfg)
 		},
 		Args: cobra.ExactArgs(1),
 	}
@@ -206,6 +182,15 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Use:   "orb",
 		Short: "Operate on orbs",
 		Long:  orbHelpLong(config),
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			opts.args = args
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+
+			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
+			// So we explicitly call it here to retain that behavior.
+			// As of writing this comment, that is only for daily update checks.
+			return rootCmdPreRun(rootOptions)
+		},
 	}
 
 	orbCommand.AddCommand(listCommand)

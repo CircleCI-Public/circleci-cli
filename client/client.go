@@ -36,28 +36,8 @@ func NewClient(host, endpoint, token string, debug bool) *Client {
 	}
 }
 
-// NewAuthorizedRequest returns a new GraphQL request with the
-// authorization headers set for CircleCI auth.
-func NewAuthorizedRequest(query string, token string) (*Request, error) {
-	if token == "" {
-		return nil, errors.New(`please set a token with 'circleci setup'
-You can create a new personal API token here:
-https://circleci.com/account/api`)
-	}
-
-	request := &Request{
-		Query:     query,
-		Variables: make(map[string]interface{}),
-		Header:    make(map[string][]string),
-	}
-
-	request.Header.Set("Authorization", token)
-	request.Header.Set("User-Agent", version.UserAgent())
-	return request, nil
-}
-
-// NewUnauthorizedRequest returns a new GraphQL request without any authorization header.
-func NewUnauthorizedRequest(query string) *Request {
+// NewRequest returns a new GraphQL request.
+func NewRequest(query string) *Request {
 	request := &Request{
 		Query:     query,
 		Variables: make(map[string]interface{}),
@@ -76,6 +56,11 @@ type Request struct {
 	// Header represent any request headers that will be set
 	// when the request is made.
 	Header http.Header `json:"-"`
+}
+
+// SetToken sets the Authorization header for the request with the given token.
+func (request *Request) SetToken(token string) {
+	request.Header.Set("Authorization", token)
 }
 
 // Var sets a variable.

@@ -26,9 +26,11 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 	queryCommand := &cobra.Command{
 		Use:   "query <path>",
 		Short: "Query the CircleCI GraphQL API.",
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRunE: func(_ *cobra.Command, _ []string) error {
 			opts.args = args
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+
+			return validateToken(opts.cfg)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return query(opts)
@@ -57,10 +59,9 @@ func query(opts queryOptions) error {
 		return errors.Wrap(err, "Unable to read query from stdin")
 	}
 
-	req, err := client.NewAuthorizedRequest(string(q), opts.cfg.Token)
-	if err != nil {
-		return err
-	}
+	req := client.NewRequest(string(q))
+	req.SetToken(opts.cfg.Token)
+
 	err = opts.cl.Run(req, &resp)
 	if err != nil {
 		return errors.Wrap(err, "Error occurred when running query")

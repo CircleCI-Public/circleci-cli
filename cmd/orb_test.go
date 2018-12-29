@@ -1146,14 +1146,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1219,7 +1219,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -1365,14 +1365,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1453,14 +1453,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = false
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "test/here-we-go"
 				secondRequest.Variables["certifiedOnly"] = false
 
@@ -1564,7 +1564,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -1675,14 +1675,14 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["namespace"] = "circleci"
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "circleci/codecov-clojure"
 				secondRequest.Variables["namespace"] = "circleci"
 
@@ -1792,7 +1792,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 }
 `
 
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["namespace"] = "nonexist"
 
@@ -1868,7 +1868,7 @@ https://circleci.com/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				request := client.NewRequest(`query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1918,7 +1918,7 @@ https://circleci.com/account/api`))
                                 source
 			    }
 		      }`
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1981,7 +1981,7 @@ https://circleci.com/account/api`))
 			    }
 		      }`
 
-				request = client.NewUnauthorizedRequest(query)
+				request = client.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err = request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())

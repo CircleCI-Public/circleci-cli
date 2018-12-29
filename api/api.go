@@ -358,12 +358,10 @@ func WhoamiQuery(cl *client.Client) (*WhoamiResponse, error) {
 	response := WhoamiResponse{}
 	query := `query { me { name } }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
-	err = cl.Run(request, &response)
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
 
+	err := cl.Run(request, &response)
 	if err != nil {
 		return nil, err
 	}
@@ -390,9 +388,9 @@ func ConfigQuery(cl *client.Client, configPath string) (*ConfigResponse, error) 
 			}
 		}`
 
-	request := client.NewUnauthorizedRequest(query)
+	request := client.NewRequest(query)
 	request.Var("config", config)
-	request.Header.Set("Authorization", cl.Token)
+	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
 
@@ -426,9 +424,9 @@ func OrbQuery(cl *client.Client, configPath string) (*ConfigResponse, error) {
 			}
 		}`
 
-	request := client.NewUnauthorizedRequest(query)
+	request := client.NewRequest(query)
 	request.Var("config", config)
-	request.Header.Set("Authorization", cl.Token)
+	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
 
@@ -467,10 +465,9 @@ func OrbPublishByID(cl *client.Client, configPath string, orbID string, orbVersi
 		}
 	`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("config", config)
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
@@ -505,14 +502,13 @@ func OrbID(cl *client.Client, namespace string, orb string) (*OrbIDResponse, err
 	  }
 	  `
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	err = cl.Run(request, &response)
+	err := cl.Run(request, &response)
 
 	// If there is an error, or the request was successful, return now.
 	if err != nil || response.Orb.ID != "" {
@@ -547,14 +543,13 @@ func createNamespaceWithOwnerID(cl *client.Client, name string, ownerID string) 
 				}
 			}`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	err = cl.Run(request, &response)
+	err := cl.Run(request, &response)
 
 	if len(response.CreateNamespace.Errors) > 0 {
 		return nil, response.CreateNamespace.Errors
@@ -579,14 +574,13 @@ func getOrganization(cl *client.Client, organizationName string, organizationVcs
 				}
 			}`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", organizationVcs)
 
-	err = cl.Run(request, &response)
+	err := cl.Run(request, &response)
 
 	if err != nil {
 		return nil, errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
@@ -632,13 +626,12 @@ func getNamespace(cl *client.Client, name string) (*GetNamespaceResponse, error)
 					}
 			 }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("name", name)
 
-	if err = cl.Run(request, &response); err != nil {
+	if err := cl.Run(request, &response); err != nil {
 		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
 	}
 
@@ -667,14 +660,13 @@ func createOrbWithNsID(cl *client.Client, name string, namespaceID string) (*Cre
 				}
 }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
 
-	err = cl.Run(request, &response)
+	err := cl.Run(request, &response)
 
 	if len(response.CreateOrb.Errors) > 0 {
 		return nil, response.CreateOrb.Errors
@@ -759,13 +751,12 @@ func OrbLatestVersion(cl *client.Client, namespace string, orb string) (string, 
 			    }
 		      }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return "", err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("name", name)
 
-	err = cl.Run(request, &response)
+	err := cl.Run(request, &response)
 	if err != nil {
 		return "", err
 	}
@@ -814,10 +805,9 @@ func OrbPromote(cl *client.Client, namespace string, orb string, label string, s
 		}
 	`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
 	request.Var("orbId", id.Orb.ID)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
@@ -869,7 +859,7 @@ func OrbSource(cl *client.Client, orbRef string) (string, error) {
 			    }
 		      }`
 
-	request := client.NewUnauthorizedRequest(query)
+	request := client.NewRequest(query)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -919,7 +909,7 @@ func OrbInfo(cl *client.Client, orbRef string) (*OrbVersion, error) {
 			    }
 		      }`
 
-	request := client.NewUnauthorizedRequest(query)
+	request := client.NewRequest(query)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -985,7 +975,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 	currentCursor := ""
 
 	for {
-		request := client.NewUnauthorizedRequest(query)
+		request := client.NewRequest(query)
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
@@ -1063,7 +1053,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	currentCursor := ""
 
 	for {
-		request := client.NewUnauthorizedRequest(query)
+		request := client.NewRequest(query)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 		orbs.Namespace = namespace
@@ -1131,12 +1121,10 @@ func IntrospectionQuery(cl *client.Client) (*IntrospectionResponse, error) {
 		    }
 		  }`
 
-	request, err := client.NewAuthorizedRequest(query, cl.Token)
-	if err != nil {
-		return nil, err
-	}
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
 
-	err = cl.Run(request, &response)
+	err := cl.Run(request, &response)
 
 	return &response, err
 }
