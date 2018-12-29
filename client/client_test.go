@@ -109,7 +109,7 @@ func TestQueryJSON(t *testing.T) {
 
 	client := NewClient(srv.URL, "/", "token", false)
 
-	req := NewUnauthorizedRequest("query {}")
+	req := NewRequest("query {}")
 	req.Var("username", "matryer")
 
 	// check variables
@@ -194,7 +194,7 @@ func TestHeader(t *testing.T) {
 
 	client := NewClient(srv.URL, "/", "token", false)
 
-	req := NewUnauthorizedRequest("query {}")
+	req := NewRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
 
 	var resp struct {
@@ -230,7 +230,7 @@ func TestStatusCode200(t *testing.T) {
 
 	client := NewClient(srv.URL, "/", "token", false)
 
-	req := NewUnauthorizedRequest("query {}")
+	req := NewRequest("query {}")
 
 	var resp interface{}
 
@@ -260,7 +260,7 @@ func TestStatusCode500(t *testing.T) {
 
 	client := NewClient(srv.URL, "/", "token", false)
 
-	req := NewUnauthorizedRequest("query {}")
+	req := NewRequest("query {}")
 
 	var resp interface{}
 
@@ -294,7 +294,7 @@ func TestStatusCode413(t *testing.T) {
 
 	client := NewClient(srv.URL, "/", "token", false)
 
-	req := NewUnauthorizedRequest("query {}")
+	req := NewRequest("query {}")
 
 	var resp interface{}
 

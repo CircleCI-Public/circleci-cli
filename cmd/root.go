@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/link"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -174,6 +175,18 @@ func prepare() {
 
 func rootCmdPreRun(rootOptions *settings.Config) error {
 	return checkForUpdates(rootOptions)
+}
+
+func validateToken(rootOptions *settings.Config) error {
+	var err error
+
+	if rootOptions.Token == "" {
+		err = errors.New(`please set a token with 'circleci setup'
+You can create a new personal API token here:
+https://circleci.com/account/api`)
+	}
+
+	return err
 }
 
 func setFlagErrorFunc(cmd *cobra.Command, err error) error {
