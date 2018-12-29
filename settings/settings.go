@@ -14,13 +14,13 @@ import (
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	GitHubAPI       string `yaml:"-"`
 	Host            string
 	Endpoint        string
 	Token           string
 	Debug           bool   `yaml:"-"`
 	Address         string `yaml:"-"`
 	FileUsed        string `yaml:"-"`
+	GitHubAPI       string `yaml:"-"`
 	SkipUpdateCheck bool   `yaml:"-"`
 }
 
