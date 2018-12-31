@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/data"
 	yaml "gopkg.in/yaml.v2"
 )
 
@@ -17,11 +18,12 @@ type Config struct {
 	Host            string
 	Endpoint        string
 	Token           string
-	Debug           bool   `yaml:"-"`
-	Address         string `yaml:"-"`
-	FileUsed        string `yaml:"-"`
-	GitHubAPI       string `yaml:"-"`
-	SkipUpdateCheck bool   `yaml:"-"`
+	Data            *data.DataYML `yaml:"-"`
+	Debug           bool          `yaml:"-"`
+	Address         string        `yaml:"-"`
+	FileUsed        string        `yaml:"-"`
+	GitHubAPI       string        `yaml:"-"`
+	SkipUpdateCheck bool          `yaml:"-"`
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.
