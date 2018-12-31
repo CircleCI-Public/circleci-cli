@@ -9,7 +9,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/link"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -223,7 +222,7 @@ func orbHelpLong(config *settings.Config) string {
 
 	return fmt.Sprintf(`Operate on orbs
 
-See a full explanation and documentation on orbs here: %s`, link.OrbDocs)
+See a full explanation and documentation on orbs here: %s`, config.Data.Links.OrbDocs)
 }
 
 func parameterDefaultToString(parameter api.OrbElementParameter) string {

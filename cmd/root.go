@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/CircleCI-Public/circleci-cli/link"
+	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
@@ -82,6 +82,12 @@ func MakeCommands() *cobra.Command {
 	if err := rootOptions.Load(); err != nil {
 		panic(err)
 	}
+
+	loaded, err := data.LoadData()
+	if err != nil {
+		panic(err)
+	}
+	rootOptions.Data = loaded
 
 	rootCmd = &cobra.Command{
 		Use:  "circleci",
@@ -183,7 +189,7 @@ func validateToken(rootOptions *settings.Config) error {
 	)
 
 	if rootOptions.Host == defaultHost {
-		url = link.NewAPIToken
+		url = rootOptions.Data.Links.NewAPIToken
 	} else {
 		url = fmt.Sprintf("%s/account/api", rootOptions.Host)
 	}
@@ -257,5 +263,5 @@ This project is the seed for CircleCI's new command-line application.`
 
 	return fmt.Sprintf(`%s
 
-For more help, see the documentation here: %s`, long, link.CLIDocs)
+For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
 }
