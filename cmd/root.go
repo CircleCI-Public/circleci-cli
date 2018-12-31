@@ -7,7 +7,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/link"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -178,12 +177,21 @@ func rootCmdPreRun(rootOptions *settings.Config) error {
 }
 
 func validateToken(rootOptions *settings.Config) error {
-	var err error
+	var (
+		err error
+		url string
+	)
 
-	if rootOptions.Token == "" {
-		err = errors.New(`please set a token with 'circleci setup'
+	if rootOptions.Host == defaultHost {
+		url = link.NewAPIToken
+	} else {
+		url = fmt.Sprintf("%s/account/api", rootOptions.Host)
+	}
+
+	if rootOptions.Token == "token" || rootOptions.Token == "" {
+		err = fmt.Errorf(`please set a token with 'circleci setup'
 You can create a new personal API token here:
-https://circleci.com/account/api`)
+%s`, url)
 	}
 
 	return err
