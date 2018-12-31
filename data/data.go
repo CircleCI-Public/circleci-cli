@@ -5,6 +5,8 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
+// DataYML maps the YAML found in _data/data.yml
+// Be sure to update this type when you modify the structure of that file!
 type DataYML struct {
 	Links struct {
 		CLIDocs     string `yaml:"cli_docs"`
@@ -13,6 +15,7 @@ type DataYML struct {
 	} `yaml:"links"`
 }
 
+// LoadData should be called once to decode the YAML into DataYML.
 func LoadData() (*DataYML, error) {
 	var (
 		bts []byte
