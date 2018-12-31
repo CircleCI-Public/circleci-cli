@@ -7,7 +7,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -44,11 +43,10 @@ func diagnostic(opts diagnosticOptions) error {
 	fmt.Printf("API host: %s\n", opts.cfg.Host)
 	fmt.Printf("API endpoint: %s\n", opts.cfg.Endpoint)
 
-	if opts.cfg.Token == "token" || opts.cfg.Token == "" {
-		return errors.New(`please set a token with 'circleci setup'
-You can create a new personal API token here:
-https://circleci.com/account/api`)
+	if err := validateToken(opts.cfg); err != nil {
+		return err
 	}
+
 	fmt.Println("OK, got a token.")
 
 	fmt.Println("Trying an introspection query on API... ")
