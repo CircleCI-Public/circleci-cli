@@ -5,9 +5,9 @@ import (
 	yaml "gopkg.in/yaml.v2"
 )
 
-// DataYML maps the YAML found in _data/data.yml
+// YML maps the YAML found in _data/data.yml
 // Be sure to update this type when you modify the structure of that file!
-type DataYML struct {
+type YML struct {
 	Links struct {
 		CLIDocs     string `yaml:"cli_docs"`
 		OrbDocs     string `yaml:"orb_docs"`
@@ -15,14 +15,14 @@ type DataYML struct {
 	} `yaml:"links"`
 }
 
-// LoadData should be called once to decode the YAML into DataYML.
-func LoadData() (*DataYML, error) {
+// LoadData should be called once to decode the YAML into YML.
+func LoadData() (*YML, error) {
 	var (
 		bts []byte
 		err error
 	)
 
-	d := &DataYML{}
+	d := &YML{}
 	box := packr.New("circleci-cli-box", "../_data")
 
 	bts, err = box.Find("data.yml")
