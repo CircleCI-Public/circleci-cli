@@ -13,9 +13,12 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"
+	packr "github.com/gobuffalo/packr/v2"
 	"github.com/pkg/errors"
 	yaml "gopkg.in/yaml.v2"
 )
+
+var gqlBox = packr.New("circleci-cli-gql-box", "../_graphql")
 
 // GQLErrorsCollection is a slice of errors returned by the GraphQL server.
 // Each error is made up of a GQLResponseError type.
@@ -1100,31 +1103,22 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 // IntrospectionQuery makes a query on the API asking for bits of the schema
 // This query isn't intended to get the entire schema, there are better tools for that.
 func IntrospectionQuery(cl *client.Client) (*IntrospectionResponse, error) {
-	var response IntrospectionResponse
+	var (
+		err      error
+		query    string
+		request  *client.Request
+		response IntrospectionResponse
+	)
 
-	query := `query IntrospectionQuery {
-		    __schema {
-		      queryType { name }
-		      mutationType { name }
-		      types {
-		        ...FullType
-		      }
-		    }
-		  }
+	query, err = gqlBox.FindString("introspection.graphql")
+	if err != nil {
+		return nil, err
+	}
 
-		  fragment FullType on __Type {
-		    kind
-		    name
-		    description
-		    fields(includeDeprecated: true) {
-		      name
-		    }
-		  }`
-
-	request := client.NewRequest(query)
+	request = client.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	err := cl.Run(request, &response)
+	err = cl.Run(request, &response)
 
 	return &response, err
 }
