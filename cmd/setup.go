@@ -129,7 +129,7 @@ func setupNoPrompt(opts setupOptions) error {
 	}
 
 	if opts.token == "" {
-		fmt.Println("No token saved. You must specify --token to use with --no-prompt.")
+		fmt.Println("No token saved. You didn't specify a --token to use with --no-prompt.")
 	}
 
 	// BOTH are blank!

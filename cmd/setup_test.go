@@ -219,7 +219,7 @@ token: fooBarBaz
 				Expect(err).ShouldNot(HaveOccurred())
 
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(fmt.Sprintf(`No token saved. You must specify --token to use with --no-prompt.
+				Expect(string(stdout)).To(Equal(fmt.Sprintf(`No token saved. You didn't specify a --token to use with --no-prompt.
 Setup complete.
 Your configuration has been saved to %s.
 `, configPath)))
