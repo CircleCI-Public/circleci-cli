@@ -13,15 +13,13 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("Setup", func() {
+var _ = Describe("Setup with prompts", func() {
 	var (
-		tempHome string
-		command  *exec.Cmd
-	)
-
-	const (
+		tempHome   string
+		command    *exec.Cmd
 		configDir  = ".circleci"
 		configFile = "cli.yml"
+		configPath string
 	)
 
 	BeforeEach(func() {
@@ -45,7 +43,6 @@ var _ = Describe("Setup", func() {
 	})
 
 	Describe("new config file", func() {
-
 		It("should set file permissions to 0600", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
@@ -54,12 +51,13 @@ var _ = Describe("Setup", func() {
 			Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-			Eventually(session.Out).Should(gbytes.Say("Setup complete. Your configuration has been saved."))
 
+			configPath = filepath.Join(tempHome, configDir, configFile)
+			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", configPath)))
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session).Should(gexec.Exit(0))
 
-			fileInfo, err := os.Stat(filepath.Join(tempHome, configDir, configFile))
+			fileInfo, err := os.Stat(configPath)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
 		})
@@ -72,8 +70,9 @@ var _ = Describe("Setup", func() {
 			Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
 
 			var err error
+			configPath = filepath.Join(tempHome, configDir, configFile)
 			config, err = os.OpenFile(
-				filepath.Join(tempHome, configDir, configFile),
+				configPath,
 				os.O_RDWR|os.O_CREATE,
 				0600,
 			)
@@ -86,12 +85,12 @@ var _ = Describe("Setup", func() {
 
 			Eventually(session).Should(gexec.Exit(0))
 
-			fileInfo, err := os.Stat(filepath.Join(tempHome, configDir, configFile))
+			fileInfo, err := os.Stat(configPath)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
 		})
 
-		Describe("token and endpoint set in config file", func() {
+		Describe("token and host set in config file", func() {
 
 			It("print success", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -102,7 +101,7 @@ var _ = Describe("Setup", func() {
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say("Setup complete. Your configuration has been saved."))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", configPath)))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -110,7 +109,7 @@ var _ = Describe("Setup", func() {
 		Context("token set to some string in config file", func() {
 			BeforeEach(func() {
 				_, err := config.Write([]byte(`
-endpoint: https://example.com/graphql
+host: https://example.com/graphql
 token: fooBarBaz
 `))
 				Expect(err).ToNot(HaveOccurred())
@@ -125,9 +124,70 @@ token: fooBarBaz
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say("Setup complete. Your configuration has been saved."))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", configPath)))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
+	})
+})
+
+var _ = Describe("Setup without prompts", func() {
+	Context("with an existing config", func() {
+		var (
+			tempHome   string
+			command    *exec.Cmd
+			config     *os.File
+			configDir  = ".circleci"
+			configFile = "cli.yml"
+			configPath string
+		)
+
+		BeforeEach(func() {
+			var err error
+			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
+			Expect(err).ToNot(HaveOccurred())
+
+			command = exec.Command(pathCLI,
+				"setup",
+				"--no-prompt",
+				"--skip-update-check",
+			)
+			command.Env = append(os.Environ(),
+				fmt.Sprintf("HOME=%s", tempHome),
+				fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+			)
+
+			Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
+
+			configPath = filepath.Join(tempHome, configDir, configFile)
+			config, err = os.OpenFile(
+				configPath,
+				os.O_RDWR|os.O_CREATE,
+				0600,
+			)
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			Expect(os.RemoveAll(tempHome)).To(Succeed())
+		})
+
+		Describe("of valid settings", func() {
+			BeforeEach(func() {
+				_, err := config.Write([]byte(`
+host: https://example.com
+token: fooBarBaz
+`))
+				Expect(err).ToNot(HaveOccurred())
+				Expect(config.Close()).To(Succeed())
+			})
+
+			It("should keep the existing configuration", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuation at %s.\n", configPath)))
+			})
+		})
+
 	})
 })
