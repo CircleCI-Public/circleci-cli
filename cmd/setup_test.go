@@ -27,6 +27,8 @@ var _ = Describe("Setup with prompts", func() {
 		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 
+		configPath = filepath.Join(tempHome, configDir, configFile)
+
 		command = exec.Command(pathCLI,
 			"setup",
 			"--testing",
@@ -52,7 +54,6 @@ var _ = Describe("Setup with prompts", func() {
 			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
 
-			configPath = filepath.Join(tempHome, configDir, configFile)
 			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", configPath)))
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session).Should(gexec.Exit(0))
@@ -70,7 +71,7 @@ var _ = Describe("Setup with prompts", func() {
 			Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
 
 			var err error
-			configPath = filepath.Join(tempHome, configDir, configFile)
+
 			config, err = os.OpenFile(
 				configPath,
 				os.O_RDWR|os.O_CREATE,
@@ -190,9 +191,6 @@ token: fooBarBaz
 				Context("re-open the config to check the contents", func() {
 					file, err := os.Open(configPath)
 					Expect(err).ShouldNot(HaveOccurred())
-					go func() {
-						defer file.Close()
-					}()
 
 					reread, err := ioutil.ReadAll(file)
 					Expect(err).ShouldNot(HaveOccurred())
@@ -228,9 +226,6 @@ Your configuration has been saved to %s.
 				Context("re-open the config to check the contents", func() {
 					file, err := os.Open(configPath)
 					Expect(err).ShouldNot(HaveOccurred())
-					go func() {
-						defer file.Close()
-					}()
 
 					reread, err := ioutil.ReadAll(file)
 					Expect(err).ShouldNot(HaveOccurred())
