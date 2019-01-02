@@ -185,7 +185,60 @@ token: fooBarBaz
 			It("should keep the existing configuration", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuation at %s.\n", configPath)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", configPath)))
+
+				Context("re-open the config to check the contents", func() {
+					file, err := os.Open(configPath)
+					Expect(err).ShouldNot(HaveOccurred())
+					go func() {
+						defer file.Close()
+					}()
+
+					reread, err := ioutil.ReadAll(file)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(reread)).To(Equal(`
+host: https://example.com
+token: fooBarBaz
+`))
+				})
+			})
+
+			It("should change if provided one of flags", func() {
+				command = exec.Command(pathCLI,
+					"setup",
+					"--host", "asdf",
+					"--no-prompt",
+					"--skip-update-check",
+				)
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+				)
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(fmt.Sprintf(`No token saved. You must specify --token to use with --no-prompt.
+Setup complete.
+Your configuration has been saved to %s.
+`, configPath)))
+				Eventually(session).Should(gexec.Exit(0))
+
+				Context("re-open the config to check the contents", func() {
+					file, err := os.Open(configPath)
+					Expect(err).ShouldNot(HaveOccurred())
+					go func() {
+						defer file.Close()
+					}()
+
+					reread, err := ioutil.ReadAll(file)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(reread)).To(Equal(`host: asdf
+endpoint: graphql-unstable
+token: fooBarBaz
+`))
+				})
 			})
 		})
 

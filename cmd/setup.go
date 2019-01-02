@@ -98,47 +98,68 @@ func setup(opts setupOptions) error {
 	return nil
 }
 
-func existingConfigExists(opts setupOptions) bool {
-	return opts.cfg.Host != "" && opts.cfg.Token != ""
+func shouldKeepExistingConfig(opts setupOptions) bool {
+	// Check if host or token is set
+	if opts.cfg.Host == "" || opts.cfg.Token == "" {
+		return false
+	}
+
+	// Check if host is different and flag is not blank
+	if opts.cfg.Host != opts.host && opts.host != "" {
+		return false
+	}
+
+	// Check if token is different and flag is not blank
+	if opts.cfg.Token != opts.token && opts.token != "" {
+		return false
+	}
+
+	// Otherwise, use existing settings
+	return true
 }
 
 func setupNoPrompt(opts setupOptions) error {
-	if existingConfigExists(opts) {
-		fmt.Printf("Setup has kept your existing configuation at %s.\n", opts.cfg.FileUsed)
+	if shouldKeepExistingConfig(opts) {
+		fmt.Printf("Setup has kept your existing configuration at %s.\n", opts.cfg.FileUsed)
 		return nil
 	}
 
-	var err error
-
 	if opts.host == "" {
-		err = errors.New("You must specify --host to use --no-prompt")
+		fmt.Println("No host saved. You didn't specify a --host to use with --no-prompt.")
 	}
 
 	if opts.token == "" {
-		msg := "You must specify --token to use --no-prompt"
-
-		if err != nil {
-			err = errors.Wrap(err, msg)
-		} else {
-			err = errors.New(msg)
-		}
+		fmt.Println("No token saved. You must specify --token to use with --no-prompt.")
 	}
 
-	if err != nil {
-		return errors.Wrap(err, "No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
+	// BOTH are blank!
+	if opts.host == "" && opts.token == "" {
+		return errors.New("No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
 	}
 
 	config := settings.Config{}
 
 	// First calling load will ensure the new config can be saved to disk
-	if err = config.LoadFromDisk(); err != nil {
+	if err := config.LoadFromDisk(); err != nil {
 		return errors.Wrap(err, "Failed to create config file on disk")
 	}
 
-	// Update the config with flags passed in and inherit default endpoint
+	// Use the default endpoint since we don't expose that to users
 	config.Endpoint = defaultEndpoint
-	config.Host = opts.host
-	config.Token = opts.token
+
+	// Keep the host setting from their config unless it's changed and not blank
+	if opts.cfg.Host == opts.host || opts.host == "" {
+		config.Host = opts.cfg.Host
+	} else {
+		config.Host = opts.host
+	}
+
+	// Keep the token setting from their config unless it's changed and not blank
+	if opts.cfg.Token == opts.token || opts.token == "" {
+		config.Token = opts.cfg.Token
+	} else {
+		config.Token = opts.token
+	}
 
 	// Then save the new config to disk
 	if err := config.WriteToDisk(); err != nil {
