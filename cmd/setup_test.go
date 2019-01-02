@@ -273,4 +273,91 @@ token: asdf
 		})
 
 	})
+
+	Context("with no existing config", func() {
+		var (
+			tempHome string
+			command  *exec.Cmd
+		)
+
+		BeforeEach(func() {
+			var err error
+			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
+
+			Expect(err).ToNot(HaveOccurred())
+		})
+
+		AfterEach(func() {
+			Expect(os.RemoveAll(tempHome)).To(Succeed())
+		})
+
+		Context("with no host or token flags", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"setup",
+					"--no-prompt",
+					"--skip-update-check",
+				)
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+				)
+			})
+
+			It("Should raise an error about missing host and token flags", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(255))
+
+				stderr := session.Wait().Err.Contents()
+				Expect(string(stderr)).To(Equal("Error: No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt\n"))
+			})
+		})
+
+		Context("with both host and token flags", func() {
+			var (
+				configDir  = ".circleci"
+				configFile = "cli.yml"
+				configPath string
+			)
+
+			BeforeEach(func() {
+				configPath = filepath.Join(tempHome, configDir, configFile)
+
+				command = exec.Command(pathCLI,
+					"setup",
+					"--host", "https://zomg.com",
+					"--token", "mytoken",
+					"--no-prompt",
+					"--skip-update-check",
+				)
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+				)
+			})
+
+			It("write the configuration to a file", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Setup complete.
+Your configuration has been saved to %s.
+`, configPath)))
+
+				Context("re-open the config to check the contents", func() {
+					file, err := os.Open(configPath)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					reread, err := ioutil.ReadAll(file)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(reread)).To(Equal(`host: https://zomg.com
+endpoint: graphql-unstable
+token: mytoken
+`))
+				})
+			})
+		})
+	})
+
 })
