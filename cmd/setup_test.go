@@ -235,6 +235,41 @@ token: fooBarBaz
 `))
 				})
 			})
+
+			It("should change only the provided token", func() {
+				command = exec.Command(pathCLI,
+					"setup",
+					"--token", "asdf",
+					"--no-prompt",
+					"--skip-update-check",
+				)
+				command.Env = append(os.Environ(),
+					fmt.Sprintf("HOME=%s", tempHome),
+					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+				)
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(fmt.Sprintf(`No host saved. You didn't specify a --host to use with --no-prompt.
+Setup complete.
+Your configuration has been saved to %s.
+`, configPath)))
+				Eventually(session).Should(gexec.Exit(0))
+
+				Context("re-open the config to check the contents", func() {
+					file, err := os.Open(configPath)
+					Expect(err).ShouldNot(HaveOccurred())
+
+					reread, err := ioutil.ReadAll(file)
+					Expect(err).ShouldNot(HaveOccurred())
+					Expect(string(reread)).To(Equal(`host: https://example.com
+endpoint: graphql-unstable
+token: asdf
+`))
+				})
+			})
 		})
 
 	})
