@@ -7,6 +7,7 @@ require (
 	github.com/briandowns/spinner v0.0.0-20181018151057-dd69c579ff20
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e
 	github.com/fatih/color v1.7.0
+	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/gobuffalo/buffalo-plugins v1.9.3 // indirect
 	github.com/gobuffalo/flect v0.0.0-20181210151238-24a2b68e0316 // indirect
 	github.com/gobuffalo/packr/v2 v2.0.0-rc.13

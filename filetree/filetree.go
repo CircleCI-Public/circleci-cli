@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-yaml/yaml"
 	"github.com/mitchellh/mapstructure"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // This is a quick hack of a function to convert interfaces

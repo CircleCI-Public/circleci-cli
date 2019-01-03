@@ -10,11 +10,11 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/go-yaml/yaml"
 	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	yaml "gopkg.in/yaml.v2"
 )
 
 type buildOptions struct {
