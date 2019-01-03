@@ -8,6 +8,9 @@ out/
 vendor/
 .vscode
 
+# For supporting generated config of 2.1 syntax for local testing
+.circleci/processed.yml
+
 # Snapcraft Related
 parts/
 prime/

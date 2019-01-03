@@ -26,7 +26,14 @@ cover:
 
 .PHONY: lint
 lint:
-	gometalinter ./...
+	@echo Executing local build of lint job until gometalinter supports Go 1.11 modules...
+	@echo This requires Docker to run, so it may fail if docker cannot be found.
+	@echo 
+	@echo Generating tmp/processed.yml from .circleci/config.yml 2.1 version
+	go run main.go config process .circleci/config.yml > .circleci/processed.yml
+	@echo 
+	@echo Running local build..
+	go run main.go local execute -c .circleci/processed.yml --job lint
 
 .PHONY: doc
 doc:
@@ -35,8 +42,6 @@ doc:
 .PHONY: dev
 dev:
 	go get golang.org/x/tools/cmd/godoc
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
 
 .PHONY: always
 always:
