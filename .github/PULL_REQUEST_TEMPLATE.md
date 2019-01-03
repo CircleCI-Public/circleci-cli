@@ -10,6 +10,6 @@
 4. Ensure the test suite passes (`make test`).
 5. The `--debug` flag is often helpful for debugging HTTP client requests and responses.
 6. Format your code with [gofmt](https://golang.org/cmd/gofmt/).
-7. Make sure your code lints (`make lint`). Tip: `make dev` will install `gometalinter`.
+7. Make sure your code lints (`make lint`). Note: This requires Docker to run inside a local job.
 
 **If you have any questions, feel free to ping us at @CircleCI-Public/dx-clients.**

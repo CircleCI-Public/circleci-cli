@@ -65,16 +65,19 @@ https://github.com/golang/go/wiki/Modules
 
 We use [`gometalinter`](github.com/alecthomas/gometalinter) for linting.
 
-You can install it via `$ make dev` or manually with:
+However, since we updated to Go 1.11 modules this doesn't work.
 
-```
-$ go get -u github.com/alecthomas/gometalinter
-$ gometalinter --install
-```
+You will have to run our `lint` job inside a local build in order to lint your code changes.
 
-Then you can run it with `$ make lint`.
+This requires docker and may fail if the docker is not available on your machine.
+
+Once you have installed Docker, you can execute the `lint` job locally with `$ make lint`.
+
+## Code coverage
 
 There is also a `coverage` job as part of the build which will lint any code you commit.
+
+This can be run manually with `$ make cover`.
 
 ## Editor support
 
