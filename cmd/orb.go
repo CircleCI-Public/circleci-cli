@@ -362,6 +362,7 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 				result += (orbToSimpleString(orb))
 			}
 		}
+		result += "\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n"
 		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"
 	}
 
