@@ -353,7 +353,7 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 		if opts.listUncertified {
 			result += "Includes all certified and uncertified orbs.\n\n"
 		} else {
-			result += "Showing only certified orbs. Add -u for a list of all orbs.\n\n"
+			result += "Showing only certified orbs.\nAdd --uncertified for a list of all orbs.\n\n"
 		}
 		for _, orb := range orbCollection.Orbs {
 			if opts.listDetails {

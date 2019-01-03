@@ -1189,7 +1189,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				// the orb named "second" actually has more builds
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 second (0.8.0)
 third (0.9.0)
@@ -1212,7 +1213,8 @@ first (0.7.0)
 
 				// the orb named "third" actually has the most projects
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 third (0.9.0)
 first (0.7.0)
@@ -1235,7 +1237,8 @@ second (0.8.0)
 
 				// the orb named "second" actually has the most orgs
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 second (0.8.0)
 first (0.7.0)
@@ -1524,7 +1527,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 1. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 1. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 foo/test (0.7.0)
   Commands:
