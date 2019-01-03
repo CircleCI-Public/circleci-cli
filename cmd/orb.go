@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -615,6 +616,13 @@ func orbInfo(opts orbOptions) error {
 	fmt.Printf("Builds: %d\n", info.Orb.Statistics.Last30DaysBuildCount)
 	fmt.Printf("Projects: %d\n", info.Orb.Statistics.Last30DaysProjectCount)
 	fmt.Printf("Orgs: %d\n", info.Orb.Statistics.Last30DaysOrganizationCount)
+
+	orbVersionSplit := strings.Split(ref, "@")
+	orbRef := orbVersionSplit[0]
+	fmt.Printf(`
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/%s
+`, orbRef)
 
 	return nil
 }
