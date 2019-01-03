@@ -362,6 +362,7 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 				result += (orbToSimpleString(orb))
 			}
 		}
+		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"
 	}
 
 	return result, nil

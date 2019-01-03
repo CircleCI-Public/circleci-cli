@@ -1197,6 +1197,7 @@ second (0.8.0)
 third (0.9.0)
 first (0.7.0)
 
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 			})
 
@@ -1221,6 +1222,7 @@ third (0.9.0)
 first (0.7.0)
 second (0.8.0)
 
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 			})
 
@@ -1245,6 +1247,7 @@ second (0.8.0)
 first (0.7.0)
 third (0.9.0)
 
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 			})
 
@@ -1439,6 +1442,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
+
+				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -1546,6 +1551,7 @@ foo/test (0.7.0)
     - last30DaysOrganizationCount: 0
     - last30DaysProjectCount: 0
 
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
