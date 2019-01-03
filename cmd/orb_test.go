@@ -1993,6 +1993,9 @@ Total-jobs: 0
 Builds: 0
 Projects: 0
 Orgs: 0
+
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2052,6 +2055,9 @@ Total-jobs: 0
 Builds: 555
 Projects: 777
 Orgs: 999
+
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2097,6 +2103,9 @@ Total-jobs: 0
 Builds: 0
 Projects: 0
 Orgs: 0
+
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
