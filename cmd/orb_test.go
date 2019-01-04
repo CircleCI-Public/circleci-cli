@@ -1876,7 +1876,7 @@ https://circleci.com/account/api`))
 					"--host", "foo.bar",
 				)
 				command.Env = append(os.Environ(),
-					fmt.Sprintf("HOME=%s", tempHome),
+					fmt.Sprintf("HOME=%s", tempSettings.home),
 				)
 
 				By("running the command")
