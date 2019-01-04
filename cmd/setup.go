@@ -129,21 +129,19 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Use the default endpoint since we don't expose that to users
 	config.Endpoint = defaultEndpoint
+	config.Host = opts.host   // Set new host to flag
+	config.Token = opts.token // Set new token to flag
 
-	// Keep the host setting from their config unless it's changed and not blank
-	if opts.cfg.Host == opts.host || opts.host == "" {
+	// Reset their host if the flag was blank
+	if opts.host == "" {
 		fmt.Println("Host unchanged from existing config. Use --host with --no-prompt to overwrite it.")
 		config.Host = opts.cfg.Host
-	} else {
-		config.Host = opts.host
 	}
 
-	// Keep the token setting from their config unless it's changed and not blank
-	if opts.cfg.Token == opts.token || opts.token == "" {
+	// Reset their token if the flag was blank
+	if opts.token == "" {
 		fmt.Println("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.")
 		config.Token = opts.cfg.Token
-	} else {
-		config.Token = opts.token
 	}
 
 	// Then save the new config to disk
