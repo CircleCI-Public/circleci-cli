@@ -115,15 +115,7 @@ func setupNoPrompt(opts setupOptions) error {
 		return nil
 	}
 
-	if opts.host == "" {
-		fmt.Println("No host saved. You didn't specify a --host to use with --no-prompt.")
-	}
-
-	if opts.token == "" {
-		fmt.Println("No token saved. You didn't specify a --token to use with --no-prompt.")
-	}
-
-	// BOTH are blank!
+	// Throw an error if both flags are blank are blank!
 	if opts.host == "" && opts.token == "" {
 		return errors.New("No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
 	}
@@ -140,6 +132,7 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Keep the host setting from their config unless it's changed and not blank
 	if opts.cfg.Host == opts.host || opts.host == "" {
+		fmt.Println("Host unchanged from existing config. Use --host with --no-prompt to overwrite it.")
 		config.Host = opts.cfg.Host
 	} else {
 		config.Host = opts.host
@@ -147,6 +140,7 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Keep the token setting from their config unless it's changed and not blank
 	if opts.cfg.Token == opts.token || opts.token == "" {
+		fmt.Println("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.")
 		config.Token = opts.cfg.Token
 	} else {
 		config.Token = opts.token
