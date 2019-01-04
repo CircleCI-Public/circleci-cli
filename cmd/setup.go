@@ -99,23 +99,14 @@ func setup(opts setupOptions) error {
 }
 
 func shouldKeepExistingConfig(opts setupOptions) bool {
-	// Check if host or token is set
-	if opts.cfg.Host == "" || opts.cfg.Token == "" {
+	// Host will always be set, since it has a default value of circleci.com
+	// We assume by an empty token there is no existing config.
+	if opts.cfg.Token == "" {
 		return false
 	}
 
-	// Check if host is different and flag is not blank
-	if opts.cfg.Host != opts.host && opts.host != "" {
-		return false
-	}
-
-	// Check if token is different and flag is not blank
-	if opts.cfg.Token != opts.token && opts.token != "" {
-		return false
-	}
-
-	// Otherwise, use existing settings
-	return true
+	// If they pass either host or token with a value this will be false, overwriting their existing config
+	return opts.host == "" && opts.token == ""
 }
 
 func setupNoPrompt(opts setupOptions) error {
