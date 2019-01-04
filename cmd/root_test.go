@@ -1,11 +1,8 @@
 package cmd_test
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
@@ -24,14 +21,14 @@ var _ = Describe("Root", func() {
 
 	Describe("build without auto update", func() {
 		var (
-			command     *exec.Cmd
-			err         error
-			noUpdateCLI string
-			tempHome    string
+			command      *exec.Cmd
+			err          error
+			noUpdateCLI  string
+			tempSettings *temporarySettings
 		)
 
 		BeforeEach(func() {
-			tempHome, _, _ = withTempSettings()
+			tempSettings = withTempSettings()
 
 			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
@@ -41,15 +38,12 @@ var _ = Describe("Root", func() {
 		})
 
 		AfterEach(func() {
-			Expect(os.RemoveAll(tempHome)).To(Succeed())
+			Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 		})
 
 		It("reports update command as unavailable", func() {
-			command = exec.Command(noUpdateCLI, "help",
-				"--skip-update-check",
-			)
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
+			command = commandWithHome(noUpdateCLI, tempSettings.home,
+				"help", "--skip-update-check",
 			)
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -105,50 +99,25 @@ var _ = Describe("Root", func() {
 
 	Describe("token in help text", func() {
 		var (
-			command  *exec.Cmd
-			tempHome string
-		)
-
-		const (
-			configDir  = ".circleci"
-			configFile = "cli.yml"
+			command      *exec.Cmd
+			tempSettings *temporarySettings
 		)
 
 		BeforeEach(func() {
-			var err error
-			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-			Expect(err).ToNot(HaveOccurred())
+			tempSettings = withTempSettings()
 
-			command = exec.Command(pathCLI, "help",
-				"--skip-update-check",
-			)
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
-				fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+			command = commandWithHome(pathCLI, tempSettings.home,
+				"help", "--skip-update-check",
 			)
 		})
 
 		AfterEach(func() {
-			Expect(os.RemoveAll(tempHome)).To(Succeed())
+			Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 		})
 
 		Describe("existing config file", func() {
-			var config *os.File
-
 			BeforeEach(func() {
-				Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
-
-				var err error
-				config, err = os.OpenFile(
-					filepath.Join(tempHome, configDir, configFile),
-					os.O_RDWR|os.O_CREATE,
-					0600,
-				)
-				Expect(err).ToNot(HaveOccurred())
-
-				_, err = config.Write([]byte(`token: secret`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.writeToConfigAndClose([]byte(`token: secret`))
 			})
 
 			It("does not include the users token in help text", func() {

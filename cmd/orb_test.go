@@ -3,7 +3,6 @@ package cmd_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -1760,23 +1759,20 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		})
 
 		Describe("when creating an orb without a token", func() {
-			var tempHome string
+			var tempSettings *temporarySettings
 
 			BeforeEach(func() {
-				tempHome, _, _ = withTempSettings()
+				tempSettings = withTempSettings()
 
-				command = exec.Command(pathCLI,
+				command = commandWithHome(pathCLI, tempSettings.home,
 					"orb", "create", "bar-ns/foo-orb",
 					"--skip-update-check",
 					"--token", "",
 				)
-				command.Env = append(os.Environ(),
-					fmt.Sprintf("HOME=%s", tempHome),
-				)
 			})
 
 			AfterEach(func() {
-				Expect(os.RemoveAll(tempHome)).To(Succeed())
+				Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 			})
 
 			It("instructs the user to run 'circleci setup' and create a new token", func() {
