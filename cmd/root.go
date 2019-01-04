@@ -122,9 +122,9 @@ func MakeCommands() *cobra.Command {
 	rootCmd.PersistentFlags().BoolVar(&rootOptions.Debug,
 		"debug", rootOptions.Debug, "Enable debug logging.")
 	rootCmd.PersistentFlags().StringVar(&rootTokenFromFlag,
-		"token", "", "your token for using CircleCI")
+		"token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
 	rootCmd.PersistentFlags().StringVar(&rootOptions.Host,
-		"host", rootOptions.Host, "URL to your CircleCI host")
+		"host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
 	rootCmd.PersistentFlags().StringVar(&rootOptions.Endpoint,
 		"endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 

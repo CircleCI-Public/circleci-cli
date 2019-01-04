@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -22,40 +23,68 @@ var _ = BeforeSuite(func() {
 	Ω(err).ShouldNot(HaveOccurred())
 })
 
-func withTempSettings() (string, *os.File, *os.File) {
-	var (
-		tempHome string
-		err      error
-		config   *os.File
-		update   *os.File
+type temporarySettings struct {
+	home       string
+	configFile *os.File
+	configPath string
+	updateFile *os.File
+	updatePath string
+}
+
+func (tempSettings temporarySettings) writeToConfigAndClose(contents []byte) {
+	_, err := tempSettings.configFile.Write(contents)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(tempSettings.configFile.Close()).To(Succeed())
+}
+
+func (tempSettings temporarySettings) assertConfigRereadMatches(contents string) {
+	file, err := os.Open(tempSettings.configPath)
+	Expect(err).ShouldNot(HaveOccurred())
+
+	reread, err := ioutil.ReadAll(file)
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(string(reread)).To(Equal(contents))
+}
+
+func commandWithHome(bin, home string, args ...string) *exec.Cmd {
+	command := exec.Command(bin, args...)
+
+	command.Env = append(os.Environ(),
+		fmt.Sprintf("HOME=%s", home),
+		fmt.Sprintf("USERPROFILE=%s", home), // windows
 	)
 
-	tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
+	return command
+}
+
+func withTempSettings() *temporarySettings {
+	var err error
+
+	tempSettings := &temporarySettings{}
+
+	tempSettings.home, err = ioutil.TempDir("", "circleci-cli-test-")
 	Expect(err).ToNot(HaveOccurred())
 
-	const (
-		settingsPath        = ".circleci"
-		configFilename      = "cli.yml"
-		updateCheckFilename = "update_check.yml"
-	)
+	settingsPath := filepath.Join(tempSettings.home, ".circleci")
 
-	Expect(os.Mkdir(filepath.Join(tempHome, settingsPath), 0700)).To(Succeed())
+	Expect(os.Mkdir(settingsPath, 0700)).To(Succeed())
 
-	config, err = os.OpenFile(
-		filepath.Join(tempHome, settingsPath, configFilename),
+	tempSettings.configPath = filepath.Join(settingsPath, "cli.yml")
+
+	tempSettings.configFile, err = os.OpenFile(tempSettings.configPath,
 		os.O_RDWR|os.O_CREATE,
 		0600,
 	)
 	Expect(err).ToNot(HaveOccurred())
 
-	update, err = os.OpenFile(
-		filepath.Join(tempHome, settingsPath, updateCheckFilename),
+	tempSettings.updatePath = filepath.Join(settingsPath, "update_check.yml")
+	tempSettings.updateFile, err = os.OpenFile(tempSettings.updatePath,
 		os.O_RDWR|os.O_CREATE,
 		0600,
 	)
 	Expect(err).ToNot(HaveOccurred())
 
-	return tempHome, config, update
+	return tempSettings
 }
 
 var _ = AfterSuite(func() {

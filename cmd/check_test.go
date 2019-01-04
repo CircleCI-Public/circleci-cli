@@ -1,7 +1,6 @@
 package cmd_test
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"os/exec"
@@ -17,48 +16,41 @@ import (
 
 var _ = Describe("Check", func() {
 	var (
-		command     *exec.Cmd
-		err         error
-		checkCLI    string
-		tempHome    string
-		testServer  *ghttp.Server
-		updateCheck *settings.UpdateCheck
-		updateFile  *os.File
+		command      *exec.Cmd
+		err          error
+		checkCLI     string
+		tempSettings *temporarySettings
+		testServer   *ghttp.Server
+		updateCheck  *settings.UpdateCheck
 	)
 
 	BeforeEach(func() {
 		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		tempHome, _, updateFile = withTempSettings()
+		tempSettings = withTempSettings()
 
 		updateCheck = &settings.UpdateCheck{
 			LastUpdateCheck: time.Time{},
 		}
 
-		updateCheck.FileUsed = updateFile.Name()
+		updateCheck.FileUsed = tempSettings.updateFile.Name()
 		err = updateCheck.WriteToDisk()
 		Expect(err).ShouldNot(HaveOccurred())
 
 		testServer = ghttp.NewServer()
 
-		command = exec.Command(checkCLI, "help",
-			"--github-api", testServer.URL(),
-		)
-
-		command.Env = append(os.Environ(),
-			fmt.Sprintf("HOME=%s", tempHome),
+		command = commandWithHome(checkCLI, tempSettings.home,
+			"help", "--github-api", testServer.URL(),
 		)
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempHome)).To(Succeed())
+		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 	})
 
 	Describe("update auto checks with a new release", func() {
-		var (
-			response string
-		)
+		var response string
 
 		BeforeEach(func() {
 			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
@@ -67,14 +59,10 @@ var _ = Describe("Check", func() {
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			tempHome, _, _ = withTempSettings()
+			tempSettings = withTempSettings()
 
-			command = exec.Command(checkCLI, "help",
-				"--github-api", testServer.URL(),
-			)
-
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
+			command = commandWithHome(checkCLI, tempSettings.home,
+				"help", "--github-api", testServer.URL(),
 			)
 
 			response = `
