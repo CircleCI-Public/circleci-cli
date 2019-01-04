@@ -1,11 +1,8 @@
 package cmd_test
 
 import (
-	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
@@ -39,40 +36,20 @@ For more help, see the documentation here: https://circleci.com/docs/2.0/local-c
 
 		Context("if user changes host settings through configuration", func() {
 			var (
-				err        error
-				tempHome   string
-				command    *exec.Cmd
-				config     *os.File
-				configDir  = ".circleci"
-				configFile = "cli.yml"
+				tempSettings *temporarySettings
+				command      *exec.Cmd
 			)
 
 			BeforeEach(func() {
-				command = exec.Command(pathCLI, "--help")
+				tempSettings = withTempSettings()
 
-				tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-				Expect(err).ToNot(HaveOccurred())
+				command = commandWithHome(pathCLI, tempSettings.home, "--help")
 
-				command.Env = append(os.Environ(),
-					fmt.Sprintf("HOME=%s", tempHome),
-					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
-				)
-
-				Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
-
-				config, err = os.OpenFile(
-					filepath.Join(tempHome, configDir, configFile),
-					os.O_RDWR|os.O_CREATE,
-					0600,
-				)
-				Expect(err).ToNot(HaveOccurred())
-				_, err = config.Write([]byte(`host: foo.bar`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.writeToConfigAndClose([]byte(`host: foo.bar`))
 			})
 
 			AfterEach(func() {
-				Expect(os.RemoveAll(tempHome)).To(Succeed())
+				Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 			})
 
 			It("doesn't link to docs if user changes --host", func() {

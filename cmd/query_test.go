@@ -2,8 +2,6 @@ package cmd_test
 
 import (
 	"bytes"
-	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -16,36 +14,31 @@ import (
 
 var _ = Describe("Query", func() {
 	var (
-		server   *ghttp.Server
-		token    string
-		tempHome string
-		stdin    bytes.Buffer
-		command  *exec.Cmd
+		server       *ghttp.Server
+		token        string
+		tempSettings *temporarySettings
+		stdin        bytes.Buffer
+		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
 		server = ghttp.NewServer()
 
-		var err error
-		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-		Expect(err).ToNot(HaveOccurred())
+		tempSettings = withTempSettings()
 
 		token = "mytoken"
-		command = exec.Command(pathCLI, "query", "-",
+		command = commandWithHome(pathCLI, tempSettings.home,
+			"query", "-",
 			"--skip-update-check",
 			"--token", token,
 			"--host", server.URL(),
 		)
 		command.Stdin = &stdin
-		command.Env = append(os.Environ(),
-			fmt.Sprintf("HOME=%s", tempHome),
-			fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
-		)
 	})
 
 	AfterEach(func() {
 		server.Close()
-		Expect(os.RemoveAll(tempHome)).To(Succeed())
+		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 	})
 
 	Describe("query provided to STDIN", func() {

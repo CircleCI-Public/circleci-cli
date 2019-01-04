@@ -18,27 +18,20 @@ import (
 
 var _ = Describe("Diagnostic", func() {
 	var (
-		tempHome        string
+		tempSettings    *temporarySettings
 		command         *exec.Cmd
 		testServer      *ghttp.Server
 		defaultEndpoint = "graphql-unstable"
 	)
 
 	BeforeEach(func() {
-		var err error
-		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-		Expect(err).ToNot(HaveOccurred())
-
+		tempSettings = withTempSettings()
 		testServer = ghttp.NewServer()
 
-		command = exec.Command(pathCLI,
+		command = commandWithHome(pathCLI, tempSettings.home,
 			"diagnostic",
 			"--skip-update-check",
 			"--host", testServer.URL())
-
-		command.Env = append(os.Environ(),
-			fmt.Sprintf("HOME=%s", tempHome),
-		)
 
 		query := `query IntrospectionQuery {
 		    __schema {
@@ -88,34 +81,13 @@ var _ = Describe("Diagnostic", func() {
 
 	AfterEach(func() {
 		testServer.Close()
-		Expect(os.RemoveAll(tempHome)).To(Succeed())
+		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 	})
 
 	Describe("existing config file", func() {
-		var config *os.File
-
-		BeforeEach(func() {
-			const (
-				configDir  = ".circleci"
-				configFile = "cli.yml"
-			)
-
-			Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
-
-			var err error
-			config, err = os.OpenFile(
-				filepath.Join(tempHome, configDir, configFile),
-				os.O_RDWR|os.O_CREATE,
-				0600,
-			)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
 		Describe("token set in config file", func() {
 			BeforeEach(func() {
-				_, err := config.Write([]byte(`token: mytoken`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.writeToConfigAndClose([]byte(`token: mytoken`))
 			})
 
 			It("print success", func() {
@@ -133,12 +105,10 @@ var _ = Describe("Diagnostic", func() {
 
 		Describe("fully-qualified address from --endpoint preferred over host in config ", func() {
 			BeforeEach(func() {
-				_, err := config.Write([]byte(`
+				tempSettings.writeToConfigAndClose([]byte(`
 host: https://circleci.com/
 token: mytoken
 `))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
 			})
 
 			It("print success", func() {
@@ -156,9 +126,7 @@ token: mytoken
 
 		Context("empty token in config file", func() {
 			BeforeEach(func() {
-				_, err := config.Write([]byte(`token: `))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.writeToConfigAndClose([]byte(`token: `))
 			})
 
 			It("print error", func() {
@@ -175,19 +143,13 @@ token: mytoken
 
 		Context("debug outputs introspection query results", func() {
 			BeforeEach(func() {
-				_, err := config.Write([]byte(`token: zomg`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.writeToConfigAndClose([]byte(`token: zomg`))
 
-				command = exec.Command(pathCLI,
+				command = commandWithHome(pathCLI, tempSettings.home,
 					"diagnostic",
 					"--skip-update-check",
 					"--host", testServer.URL(),
 					"--debug",
-				)
-
-				command.Env = append(os.Environ(),
-					fmt.Sprintf("HOME=%s", tempHome),
 				)
 			})
 			It("print success", func() {
@@ -202,46 +164,20 @@ token: mytoken
 
 	Describe("whoami returns a user", func() {
 		var (
-			tempHome        string
 			command         *exec.Cmd
 			testServer      *ghttp.Server
 			defaultEndpoint = "graphql-unstable"
-			config          *os.File
 		)
 
 		BeforeEach(func() {
-			var err error
-			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-			Expect(err).ToNot(HaveOccurred())
-
 			testServer = ghttp.NewServer()
+			tempSettings = withTempSettings()
+			tempSettings.writeToConfigAndClose([]byte(`token: mytoken`))
 
-			const (
-				configDir  = ".circleci"
-				configFile = "cli.yml"
-			)
-
-			Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
-
-			config, err = os.OpenFile(
-				filepath.Join(tempHome, configDir, configFile),
-				os.O_RDWR|os.O_CREATE,
-				0600,
-			)
-			Expect(err).ToNot(HaveOccurred())
-
-			_, err = config.Write([]byte(`token: mytoken`))
-			Expect(err).ToNot(HaveOccurred())
-			Expect(config.Close()).To(Succeed())
-
-			command = exec.Command(pathCLI,
+			command = commandWithHome(pathCLI, tempSettings.home,
 				"diagnostic",
 				"--skip-update-check",
 				"--host", testServer.URL())
-
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
-			)
 
 			query := `query IntrospectionQuery {
 		    __schema {
@@ -293,7 +229,7 @@ token: mytoken
 
 		AfterEach(func() {
 			testServer.Close()
-			Expect(os.RemoveAll(tempHome)).To(Succeed())
+			Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 		})
 
 		It("print success", func() {
