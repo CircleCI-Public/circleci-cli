@@ -80,6 +80,11 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
 		Short: "Validate an orb and print its form after all pre-registration processing",
+		Long: strings.Join([]string{
+			"You can use `$ circleci orb process` to resolve an orb, and it's dependencies to see how it would be expanded when you publish it to the registry.",
+			"", // purposeful new-line
+			"This can be helpful for validating an orb and debugging the processed form before publishing",
+		}, "\n"),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
@@ -90,6 +95,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
+	processCommand.Example = `  circleci orb process src/my-orb/@orb.yml`
 	processCommand.Annotations["<path>"] = orbAnnotations["<path>"]
 
 	publishCommand := &cobra.Command{
