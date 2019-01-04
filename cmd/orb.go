@@ -9,6 +9,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/link"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -205,6 +206,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand := &cobra.Command{
 		Use:   "orb",
 		Short: "Operate on orbs",
+		Long:  orbHelpLong(config),
 	}
 
 	orbCommand.AddCommand(listCommand)
@@ -216,6 +218,17 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(orbInfoCmd)
 
 	return orbCommand
+}
+
+func orbHelpLong(config *settings.Config) string {
+	// We should only print this for cloud users
+	if config.Host != defaultHost {
+		return ""
+	}
+
+	return fmt.Sprintf(`Operate on orbs
+
+See a full explanation and documentation on orbs here: %s`, link.OrbDocs)
 }
 
 func parameterDefaultToString(parameter api.OrbElementParameter) string {
