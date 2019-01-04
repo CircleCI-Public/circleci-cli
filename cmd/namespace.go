@@ -31,9 +31,11 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 		Short: "Create a namespace",
 		Long: `Create a namespace.
 Please note that at this time all namespaces created in the registry are world-readable.`,
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+
+			return validateToken(opts.cfg)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return createNamespace(opts)

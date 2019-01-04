@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/ui"
 	"github.com/pkg/errors"
@@ -14,7 +13,6 @@ var testing = false
 
 type setupOptions struct {
 	cfg      *settings.Config
-	cl       *client.Client
 	noPrompt bool
 	// Add host and token for use with --no-prompt
 	host  string
@@ -32,7 +30,6 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		Short: "Setup the CLI with your credentials",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return setup(opts)

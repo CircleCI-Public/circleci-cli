@@ -3,9 +3,7 @@ package cmd_test
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -37,40 +35,22 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 		Context("if user changes host settings through configuration", func() {
 			var (
-				err        error
-				tempHome   string
-				command    *exec.Cmd
-				config     *os.File
-				configDir  = ".circleci"
-				configFile = "cli.yml"
+				tempSettings *temporarySettings
+				command      *exec.Cmd
 			)
 
 			BeforeEach(func() {
-				command = exec.Command(pathCLI, "orb", "--help")
+				tempSettings = withTempSettings()
 
-				tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-				Expect(err).ToNot(HaveOccurred())
-
-				command.Env = append(os.Environ(),
-					fmt.Sprintf("HOME=%s", tempHome),
-					fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+				command = commandWithHome(pathCLI, tempSettings.home,
+					"orb", "--help",
 				)
 
-				Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
-
-				config, err = os.OpenFile(
-					filepath.Join(tempHome, configDir, configFile),
-					os.O_RDWR|os.O_CREATE,
-					0600,
-				)
-				Expect(err).ToNot(HaveOccurred())
-				_, err = config.Write([]byte(`host: foo.bar`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.writeToConfigAndClose([]byte(`host: foo.bar`))
 			})
 
 			AfterEach(func() {
-				Expect(os.RemoveAll(tempHome)).To(Succeed())
+				Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 			})
 
 			It("doesn't link to docs if user changes --host", func() {
@@ -1146,14 +1126,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1219,7 +1199,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -1377,14 +1357,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1465,14 +1445,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = false
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "test/here-we-go"
 				secondRequest.Variables["certifiedOnly"] = false
 
@@ -1579,7 +1559,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -1694,14 +1674,14 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
-				firstRequest := client.NewUnauthorizedRequest(query)
+				firstRequest := client.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["namespace"] = "circleci"
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewUnauthorizedRequest(query)
+				secondRequest := client.NewRequest(query)
 				secondRequest.Variables["after"] = "circleci/codecov-clojure"
 				secondRequest.Variables["namespace"] = "circleci"
 
@@ -1811,7 +1791,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 }
 `
 
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["namespace"] = "nonexist"
 
@@ -1867,6 +1847,24 @@ You can create a new personal API token here:
 https://circleci.com/account/api`))
 				Eventually(session).Should(gexec.Exit(255))
 			})
+
+			It("uses the host setting from config in the url", func() {
+				command = commandWithHome(pathCLI, tempSettings.home,
+					"orb", "create", "bar-ns/foo-orb",
+					"--skip-update-check",
+					"--token", "",
+					"--host", "foo.bar",
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
+You can create a new personal API token here:
+foo.bar/account/api`))
+				Eventually(session).Should(gexec.Exit(255))
+			})
 		})
 
 		Describe("when fetching an orb's source", func() {
@@ -1884,7 +1882,7 @@ https://circleci.com/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewUnauthorizedRequest(`query($orbVersionRef: String!) {
+				request := client.NewRequest(`query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -1934,7 +1932,7 @@ https://circleci.com/account/api`))
                                 source
 			    }
 		      }`
-				request := client.NewUnauthorizedRequest(query)
+				request := client.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1997,7 +1995,7 @@ https://circleci.com/account/api`))
 			    }
 		      }`
 
-				request = client.NewUnauthorizedRequest(query)
+				request = client.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err = request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
