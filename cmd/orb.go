@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
@@ -353,7 +354,7 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 		if opts.listUncertified {
 			result += "Includes all certified and uncertified orbs.\n\n"
 		} else {
-			result += "Showing only certified orbs. Add -u for a list of all orbs.\n\n"
+			result += "Showing only certified orbs.\nAdd --uncertified for a list of all orbs.\n\n"
 		}
 		for _, orb := range orbCollection.Orbs {
 			if opts.listDetails {
@@ -362,6 +363,8 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 				result += (orbToSimpleString(orb))
 			}
 		}
+		result += "\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n"
+		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"
 	}
 
 	return result, nil
@@ -613,6 +616,13 @@ func orbInfo(opts orbOptions) error {
 	fmt.Printf("Builds: %d\n", info.Orb.Statistics.Last30DaysBuildCount)
 	fmt.Printf("Projects: %d\n", info.Orb.Statistics.Last30DaysProjectCount)
 	fmt.Printf("Orgs: %d\n", info.Orb.Statistics.Last30DaysOrganizationCount)
+
+	orbVersionSplit := strings.Split(ref, "@")
+	orbRef := orbVersionSplit[0]
+	fmt.Printf(`
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/%s
+`, orbRef)
 
 	return nil
 }

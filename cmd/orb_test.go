@@ -1189,12 +1189,16 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				// the orb named "second" actually has more builds
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 second (0.8.0)
 third (0.9.0)
 first (0.7.0)
 
+In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
+
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 			})
 
@@ -1212,12 +1216,16 @@ first (0.7.0)
 
 				// the orb named "third" actually has the most projects
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 third (0.9.0)
 first (0.7.0)
 second (0.8.0)
 
+In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
+
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 			})
 
@@ -1235,12 +1243,16 @@ second (0.8.0)
 
 				// the orb named "second" actually has the most orgs
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 3. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 second (0.8.0)
 first (0.7.0)
 third (0.9.0)
 
+In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
+
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 			})
 
@@ -1435,6 +1447,9 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
+
+				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
+				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -1524,7 +1539,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(`Orbs found: 1. Showing only certified orbs. Add -u for a list of all orbs.
+				Expect(string(stdout)).To(Equal(`Orbs found: 1. Showing only certified orbs.
+Add --uncertified for a list of all orbs.
 
 foo/test (0.7.0)
   Commands:
@@ -1541,6 +1557,9 @@ foo/test (0.7.0)
     - last30DaysOrganizationCount: 0
     - last30DaysProjectCount: 0
 
+In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
+
+Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(testServer.ReceivedRequests()).Should(HaveLen(1))
@@ -1970,6 +1989,9 @@ Total-jobs: 0
 Builds: 0
 Projects: 0
 Orgs: 0
+
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2029,6 +2051,9 @@ Total-jobs: 0
 Builds: 555
 Projects: 777
 Orgs: 999
+
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2074,6 +2099,9 @@ Total-jobs: 0
 Builds: 0
 Projects: 0
 Orgs: 0
+
+Learn more about this orb online in the CircleCI Orb Registry:
+https://circleci.com/orbs/registry/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
