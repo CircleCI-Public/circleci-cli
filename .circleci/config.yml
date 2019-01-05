@@ -13,6 +13,57 @@ executors:
       CGO_ENABLED: 0
 
 commands:
+  build-docker-image:
+    steps:
+      - run:
+          name: Build Latest Docker Image
+          command: |
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
+            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci update check
+  build-alpine-image:
+    steps:
+      - run:
+          name: Build Alpine Docker Image
+          command: |
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine --file Dockerfile.alpine .
+            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine update check
+  deploy-save-cache-workspace-and-artifacts:
+    steps:
+      - save_cache:
+          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          paths: [~/goreleaser_amd64.deb]
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "dist"
+      - store_artifacts:
+          path: ./dist
+          destination: dist
+  install-goreleaser:
+    parameters:
+      GORELEASER_URL:
+        type: string
+        default: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
+    steps:
+      - restore_cache:
+          keys: [v3-goreleaser-]
+      - run:
+          name: Install GoReleaser
+          command: |
+            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
+            sudo apt install ~/goreleaser_amd64.deb
+  install-packr:
+    parameters:
+      PACKR_URL:
+        type: string
+        default: https://github.com/gobuffalo/packr/releases/download/v2.0.0-rc.13/packr_2.0.0-rc.13_linux_amd64.tar.gz
+    steps:
+      - run:
+          name: Install packr2 to build packrd data before goreleaser builds final binary
+          command: |
+            cd $(mktemp -d)
+            curl -SL << parameters.PACKR_URL >> | tar -xzv
+            sudo mv packr2 /usr/local/bin/packr2
   gomod:
     steps:
       - restore_cache:
@@ -87,61 +138,26 @@ jobs:
 
   deploy-test:
     executor: go
-    environment:
-      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
-      PACKR_URL: https://github.com/gobuffalo/packr/releases/download/v2.0.0-rc.13/packr_2.0.0-rc.13_linux_amd64.tar.gz
     steps:
       - checkout
-      - restore_cache:
-          keys: [v3-goreleaser-]
-      - run:
-          name: Install GoReleaser
-          command: |
-            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
-            sudo apt install ~/goreleaser_amd64.deb
+      - install-goreleaser
       - gomod
-      - run:
-          name: Install packr2 to build packrd data before goreleaser builds final binary
-          command: |
-            cd $(mktemp -d)
-            curl -SL $PACKR_URL | tar -xzv
-            sudo mv packr2 /usr/local/bin/packr2
+      - install-packr
       - run:
           name: Release
           command: goreleaser --skip-publish --skip-validate
       - setup_remote_docker:
           docker_layer_caching: true
-      - run:
-          name: Build Latest Docker Image
-          command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci update check
-      - run:
-          name: Build Alpine Docker Image
-          command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine --file Dockerfile.alpine .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine update check
-      - save_cache:
-          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
-          paths: [~/goreleaser_amd64.deb]
-      - store_artifacts:
-          path: ./dist
-          destination: dist
+      - build-docker-image
+      - build-alpine-image
+      - deploy-save-cache-workspace-and-artifacts
       - slack-notify-on-failure
 
   deploy:
     executor: go
-    environment:
-      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
     steps:
       - checkout
-      - restore_cache:
-          keys: [v3-goreleaser-]
-      - run:
-          name: Install GoReleaser
-          command: |
-            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
-            sudo apt install ~/goreleaser_amd64.deb
+      - install-goreleaser
       - run:
           name: Tag Repo
           command: |
@@ -150,9 +166,7 @@ jobs:
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
       - gomod
-      - run:
-          name: Install packr2 to build packrd data before goreleaser builds final binary
-          command: GO111MODULE=off go get -u github.com/gobuffalo/packr/v2/packr2
+      - install-packr
       - run:
           name: Release
           command: goreleaser
@@ -161,32 +175,21 @@ jobs:
       - run:
           name: Docker Login
           command: docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+      - build-docker-image
       - run:
-          name: Build Latest Docker Image
+          name: Deploy Docker Image
           command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM update check
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
             docker push     circleci/circleci-cli:latest
+      - build-alpine-image
       - run:
-          name: Build Alpine Docker Image
+          name: Deploy Alpine Docker Image
           command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine --file Dockerfile.alpine .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine update check
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
             docker push     circleci/circleci-cli:alpine
-      - save_cache:
-          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
-          paths: [~/goreleaser_amd64.deb]
-      - persist_to_workspace:
-          root: .
-          paths:
-            - "dist"
-      - store_artifacts:
-          path: ./dist
-          destination: dist
+      - deploy-save-cache-workspace-and-artifacts
       - slack-notify-on-failure
 
   snap:
