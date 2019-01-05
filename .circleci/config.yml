@@ -85,6 +85,43 @@ jobs:
       - run: gometalinter ./...
       - slack-notify-on-failure
 
+  deploy-test:
+    executor: go
+    environment:
+      GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [v3-goreleaser-]
+      - run:
+          name: Install GoReleaser
+          command: |
+            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 $GORELEASER_URL > ~/goreleaser_amd64.deb
+            sudo apt install ~/goreleaser_amd64.deb
+      - gomod
+      - run:
+          name: Release
+          command: goreleaser --skip-publish
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          name: Build Latest Docker Image
+          command: |
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
+            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM update check
+      - run:
+          name: Build Alpine Docker Image
+          command: |
+            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine --file Dockerfile.alpine .
+            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine update check
+      - save_cache:
+          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          paths: [~/goreleaser_amd64.deb]
+      - store_artifacts:
+          path: ./dist
+          destination: dist
+      - slack-notify-on-failure
+
   deploy:
     executor: go
     environment:
@@ -189,6 +226,7 @@ workflows:
       - test
       - coverage
       - lint
+      - deploy-test
       - docs:
           requires:
             - deploy
@@ -200,6 +238,7 @@ workflows:
             - test
             - coverage
             - lint
+            - deploy-test
             - shellcheck/check
           filters:
             branches:
