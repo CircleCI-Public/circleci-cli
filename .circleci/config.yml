@@ -89,6 +89,7 @@ jobs:
     executor: go
     environment:
       GORELEASER_URL: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
+      PACKR_URL: https://github.com/gobuffalo/packr/releases/download/v2.0.0-rc.13/packr_2.0.0-rc.13_linux_amd64.tar.gz
     steps:
       - checkout
       - restore_cache:
@@ -100,15 +101,21 @@ jobs:
             sudo apt install ~/goreleaser_amd64.deb
       - gomod
       - run:
+          name: Install packr2 to build packrd data before goreleaser builds final binary
+          command: |
+            cd $(mktemp -d)
+            curl -SL $PACKR_URL | tar -xzv
+            sudo mv packr2 /usr/local/bin/packr2
+      - run:
           name: Release
-          command: goreleaser --skip-publish
+          command: goreleaser --skip-publish --skip-validate
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
           name: Build Latest Docker Image
           command: |
             docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM update check
+            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci update check
       - run:
           name: Build Alpine Docker Image
           command: |
@@ -143,6 +150,9 @@ jobs:
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
       - gomod
+      - run:
+          name: Install packr2 to build packrd data before goreleaser builds final binary
+          command: GO111MODULE=off go get -u github.com/gobuffalo/packr/v2/packr2
       - run:
           name: Release
           command: goreleaser

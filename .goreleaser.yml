@@ -12,10 +12,15 @@ archive:
     - client/LICENSE
     - md_docs/LICENSE
 
+before:
+  hooks:
+  - make pack
+
 builds:
   - binary: circleci
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - windows
       - darwin

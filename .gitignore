@@ -17,3 +17,7 @@ prime/
 snap/.snapcraft/
 stage/
 *.snap
+
+# packr related
+*/*-packr.go
+packrd/
