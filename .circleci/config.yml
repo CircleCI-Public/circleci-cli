@@ -118,6 +118,7 @@ jobs:
           name: Build Latest Docker Image
           command: |
             docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
+            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM update check
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
             docker push     circleci/circleci-cli:latest
