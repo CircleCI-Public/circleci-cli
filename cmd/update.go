@@ -90,11 +90,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 	update.PersistentFlags().BoolVar(&opts.dryRun, "check", false, "Check if there are any updates available without installing")
 
-	update.Flags().BoolVar(&testing, "testing", false, "Enable test mode to bypass interactive UI.")
-	if err := update.Flags().MarkHidden("testing"); err != nil {
-		panic(err)
-	}
-
 	return update
 }
 

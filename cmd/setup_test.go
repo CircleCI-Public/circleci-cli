@@ -23,7 +23,7 @@ var _ = Describe("Setup with prompts", func() {
 
 		command = commandWithHome(pathCLI, tempSettings.home,
 			"setup",
-			"--testing",
+			"--integration-testing",
 			"--skip-update-check",
 		)
 	})
