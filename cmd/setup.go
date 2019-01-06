@@ -15,6 +15,7 @@ var testing = false
 
 type setupOptions struct {
 	cfg      *settings.Config
+	cl       *client.Client
 	noPrompt bool
 	// Add host and token for use with --no-prompt
 	host  string
