@@ -60,7 +60,7 @@ func query(opts queryOptions) error {
 	}
 
 	req := client.NewRequest(string(q))
-	req.SetToken(opts.cfg.Token)
+	req.SetToken(opts.cl.Token)
 
 	err = opts.cl.Run(req, &resp)
 	if err != nil {

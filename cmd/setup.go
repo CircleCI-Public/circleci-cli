@@ -186,6 +186,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		Short: "Setup the CLI with your credentials",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if opts.integrationTesting {
@@ -251,7 +252,7 @@ func setup(opts setupOptions) error {
 
 	if !opts.integrationTesting {
 		// Reset client after setup config
-		opts.cl = client.NewClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		opts.cl.Reset(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
 
 		fmt.Printf("\n")
 		fmt.Printf("Trying an introspection query on API to verify your setup... ")
