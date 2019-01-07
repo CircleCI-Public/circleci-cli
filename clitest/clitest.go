@@ -98,7 +98,8 @@ func (tempSettings *TempSettings) AppendPostHandler(authToken string, combineHan
 					// that fails with "application/json; charset=utf-8"
 					func(w http.ResponseWriter, req *http.Request) {
 						body, err := ioutil.ReadAll(req.Body)
-						defer req.Body.Close()
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						err = req.Body.Close()
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 						gomega.Expect(body).Should(gomega.MatchJSON(handler.Request), "JSON Mismatch")
 					},
@@ -118,7 +119,8 @@ func (tempSettings *TempSettings) AppendPostHandler(authToken string, combineHan
 					// that fails with "application/json; charset=utf-8"
 					func(w http.ResponseWriter, req *http.Request) {
 						body, err := ioutil.ReadAll(req.Body)
-						defer req.Body.Close()
+						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+						err = req.Body.Close()
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 						gomega.Expect(body).Should(gomega.MatchJSON(handler.Request), "JSON Mismatch")
 					},
@@ -181,7 +183,8 @@ func WithCapturedOutput(f func()) string {
 	}()
 
 	f()
-	defer w.Close()
+	err = w.Close()
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	var buf bytes.Buffer
 	_, err = io.Copy(&buf, r)
