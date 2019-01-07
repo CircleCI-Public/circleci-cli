@@ -25,12 +25,6 @@ type temporarySettings struct {
 	updatePath string
 }
 
-func (tempSettings temporarySettings) writeToConfigAndClose(contents []byte) {
-	_, err := tempSettings.configFile.Write(contents)
-	Expect(err).ToNot(HaveOccurred())
-	Expect(tempSettings.configFile.Close()).To(Succeed())
-}
-
 func (tempSettings temporarySettings) assertConfigRereadMatches(contents string) {
 	file, err := os.Open(tempSettings.configPath)
 	Expect(err).ShouldNot(HaveOccurred())
