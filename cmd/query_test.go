@@ -3,9 +3,9 @@ package cmd_test
 import (
 	"bytes"
 	"net/http"
-	"os"
 	"os/exec"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -15,27 +15,26 @@ import (
 var _ = Describe("Query", func() {
 	var (
 		token        string
-		tempSettings *temporarySettings
+		tempSettings *clitest.TempSettings
 		stdin        bytes.Buffer
 		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		tempSettings = withTempSettings()
+		tempSettings = clitest.WithTempSettings()
 
 		token = "mytoken"
-		command = commandWithHome(pathCLI, tempSettings.home,
+		command = commandWithHome(pathCLI, tempSettings.Home,
 			"query", "-",
 			"--skip-update-check",
 			"--token", token,
-			"--host", tempSettings.testServer.URL(),
+			"--host", tempSettings.TestServer.URL(),
 		)
 		command.Stdin = &stdin
 	})
 
 	AfterEach(func() {
-		tempSettings.testServer.Close()
-		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+		tempSettings.Cleanup()
 	})
 
 	Describe("query provided to STDIN", func() {
@@ -69,7 +68,7 @@ var _ = Describe("Query", func() {
 }
 `
 
-			tempSettings.testServer.AppendHandlers(
+			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/graphql-unstable"),
 					ghttp.VerifyHeader(http.Header{

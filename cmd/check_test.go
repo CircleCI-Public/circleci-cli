@@ -2,10 +2,10 @@ package cmd_test
 
 import (
 	"net/http"
-	"os"
 	"os/exec"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -19,7 +19,7 @@ var _ = Describe("Check", func() {
 		command      *exec.Cmd
 		err          error
 		checkCLI     string
-		tempSettings *temporarySettings
+		tempSettings *clitest.TempSettings
 		updateCheck  *settings.UpdateCheck
 	)
 
@@ -27,24 +27,23 @@ var _ = Describe("Check", func() {
 		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		tempSettings = withTempSettings()
+		tempSettings = clitest.WithTempSettings()
 
 		updateCheck = &settings.UpdateCheck{
 			LastUpdateCheck: time.Time{},
 		}
 
-		updateCheck.FileUsed = tempSettings.updateFile.Name()
+		updateCheck.FileUsed = tempSettings.Update.File.Name()
 		err = updateCheck.WriteToDisk()
 		Expect(err).ShouldNot(HaveOccurred())
 
-		command = commandWithHome(checkCLI, tempSettings.home,
-			"help", "--github-api", tempSettings.testServer.URL(),
+		command = commandWithHome(checkCLI, tempSettings.Home,
+			"help", "--github-api", tempSettings.TestServer.URL(),
 		)
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
-		tempSettings.testServer.Close()
+		tempSettings.Cleanup()
 	})
 
 	Describe("update auto checks with a new release", func() {
@@ -57,10 +56,8 @@ var _ = Describe("Check", func() {
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			tempSettings = withTempSettings()
-
-			command = commandWithHome(checkCLI, tempSettings.home,
-				"help", "--github-api", tempSettings.testServer.URL(),
+			command = commandWithHome(checkCLI, tempSettings.Home,
+				"help", "--github-api", tempSettings.TestServer.URL(),
 			)
 
 			response = `
@@ -83,7 +80,7 @@ var _ = Describe("Check", func() {
 ]
 `
 
-			tempSettings.testServer.AppendHandlers(
+			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),

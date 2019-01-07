@@ -3,10 +3,10 @@ package cmd_test
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -16,39 +16,38 @@ import (
 
 var _ = Describe("Config", func() {
 	Describe("with an api and config.yml", func() {
-		var tempSettings *temporarySettings
+		var tempSettings *clitest.TempSettings
 
 		BeforeEach(func() {
-			tempSettings = withTempSettings()
+			tempSettings = clitest.WithTempSettings()
 		})
 
 		AfterEach(func() {
-			os.RemoveAll(tempSettings.home)
-			tempSettings.testServer.Close()
+			tempSettings.Cleanup()
 		})
 
 		Describe("when validating config", func() {
 			var (
 				token   string
-				config  tmpFile
+				config  *clitest.TmpFile
 				command *exec.Cmd
 			)
 
 			BeforeEach(func() {
-				config = openTmpFile(tempSettings.home, ".circleci/config.yaml")
+				config = clitest.OpenTmpFile(tempSettings.Home, ".circleci/config.yaml")
 
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"config", "validate",
 					"--skip-update-check",
 					"--token", token,
-					"--host", tempSettings.testServer.URL(),
-					config.path,
+					"--host", tempSettings.TestServer.URL(),
+					config.Path,
 				)
 			})
 
 			It("works", func() {
-				config.write([]byte(`some config`))
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -65,7 +64,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -79,7 +78,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				config.write([]byte(`some config`))
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -98,7 +97,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -116,25 +115,25 @@ var _ = Describe("Config", func() {
 		Describe("when processing config", func() {
 			var (
 				token   string
-				config  tmpFile
+				config  *clitest.TmpFile
 				command *exec.Cmd
 			)
 
 			BeforeEach(func() {
-				config = openTmpFile(tempSettings.home, ".circleci/config.yaml")
+				config = clitest.OpenTmpFile(tempSettings.Home, ".circleci/config.yaml")
 
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"config", "process",
 					"--skip-update-check",
 					"--token", token,
-					"--host", tempSettings.testServer.URL(),
-					config.path,
+					"--host", tempSettings.TestServer.URL(),
+					config.Path,
 				)
 			})
 
 			It("works", func() {
-				config.write([]byte(`some config`))
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -151,7 +150,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -165,7 +164,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				config.write([]byte(`some config`))
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -185,7 +184,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -204,16 +203,15 @@ var _ = Describe("Config", func() {
 		var (
 			command      *exec.Cmd
 			results      []byte
-			tempSettings *temporarySettings
+			tempSettings *clitest.TempSettings
 		)
 
 		BeforeEach(func() {
-			tempSettings = withTempSettings()
+			tempSettings = clitest.WithTempSettings()
 		})
 
 		AfterEach(func() {
-			os.RemoveAll(tempSettings.home)
-			tempSettings.testServer.Close()
+			tempSettings.Cleanup()
 		})
 
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
@@ -296,22 +294,22 @@ var _ = Describe("Config", func() {
 		})
 
 		Context("config is a list and not a map", func() {
-			var config tmpFile
+			var config *clitest.TmpFile
 
 			BeforeEach(func() {
-				config = openTmpFile(filepath.Join(tempSettings.home, "myorb"), "config.yaml")
+				config = clitest.OpenTmpFile(filepath.Join(tempSettings.Home, "myorb"), "config.yaml")
 
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
-					config.rootDir,
+					config.RootDir,
 				)
 			})
 
 			It("prints an error about invalid YAML", func() {
-				config.write([]byte(`[]`))
+				config.Write([]byte(`[]`))
 
-				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", config.path)
+				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", config.Path)
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 

@@ -2,9 +2,9 @@ package cmd_test
 
 import (
 	"net/http"
-	"os"
 	"os/exec"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -13,18 +13,17 @@ import (
 
 var _ = Describe("Namespace integration tests", func() {
 	var (
-		tempSettings *temporarySettings
+		tempSettings *clitest.TempSettings
 		token        string = "testtoken"
 		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		tempSettings = withTempSettings()
+		tempSettings = clitest.WithTempSettings()
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
-		tempSettings.testServer.Close()
+		tempSettings.Cleanup()
 	})
 
 	Describe("registering a namespace", func() {
@@ -33,7 +32,7 @@ var _ = Describe("Namespace integration tests", func() {
 				"namespace", "create",
 				"--skip-update-check",
 				"--token", token,
-				"--host", tempSettings.testServer.URL(),
+				"--host", tempSettings.TestServer.URL(),
 				"foo-ns",
 				"BITBUCKET",
 				"test-org",
@@ -70,11 +69,11 @@ var _ = Describe("Namespace integration tests", func() {
             }
           }`
 
-			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedOrganizationRequest,
 				Response: gqlOrganizationResponse})
-			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedNsRequest,
 				Response: gqlNsResponse})
@@ -95,7 +94,7 @@ var _ = Describe("Namespace integration tests", func() {
 				"namespace", "create",
 				"--skip-update-check",
 				"--token", token,
-				"--host", tempSettings.testServer.URL(),
+				"--host", tempSettings.TestServer.URL(),
 				"foo-ns",
 				"BITBUCKET",
 				"test-org",
@@ -137,11 +136,11 @@ var _ = Describe("Namespace integration tests", func() {
             }
           }`
 
-			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedOrganizationRequest,
 				Response: gqlOrganizationResponse})
-			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedNsRequest,
 				Response: gqlNsResponse})
@@ -193,19 +192,17 @@ var _ = Describe("Namespace integration tests", func() {
             			}
           		}`
 
-			appendPostHandler(tempSettings.testServer, token,
-				MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedOrganizationRequest,
-					Response: gqlOrganizationResponse,
-				})
-			appendPostHandler(tempSettings.testServer, token,
-				MockRequestResponse{
-					Status:        http.StatusOK,
-					Request:       expectedRequestJSON,
-					Response:      gqlResponse,
-					ErrorResponse: gqlNativeErrors,
-				})
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expectedOrganizationRequest,
+				Response: gqlOrganizationResponse,
+			})
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:        http.StatusOK,
+				Request:       expectedRequestJSON,
+				Response:      gqlResponse,
+				ErrorResponse: gqlNativeErrors,
+			})
 
 			By("running the command")
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)

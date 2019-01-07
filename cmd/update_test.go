@@ -2,10 +2,10 @@ package cmd_test
 
 import (
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -18,11 +18,11 @@ var _ = Describe("Update", func() {
 	var (
 		command      *exec.Cmd
 		response     string
-		tempSettings *temporarySettings
+		tempSettings *clitest.TempSettings
 	)
 
 	BeforeEach(func() {
-		tempSettings = withTempSettings()
+		tempSettings = clitest.WithTempSettings()
 
 		response = `
 [
@@ -44,7 +44,7 @@ var _ = Describe("Update", func() {
 ]
 `
 
-		tempSettings.testServer.AppendHandlers(
+		tempSettings.TestServer.AppendHandlers(
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 				ghttp.RespondWith(http.StatusOK, response),
@@ -53,15 +53,14 @@ var _ = Describe("Update", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
-		tempSettings.testServer.Close()
+		tempSettings.Cleanup()
 	})
 
 	Describe("update --check", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"update", "--check",
-				"--github-api", tempSettings.testServer.URL(),
+				"--github-api", tempSettings.TestServer.URL(),
 			)
 		})
 
@@ -85,7 +84,7 @@ var _ = Describe("Update", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"update", "check",
-				"--github-api", tempSettings.testServer.URL(),
+				"--github-api", tempSettings.TestServer.URL(),
 			)
 		})
 
@@ -111,13 +110,13 @@ var _ = Describe("Update", func() {
 
 			command = exec.Command(updateCLI,
 				"update",
-				"--github-api", tempSettings.testServer.URL(),
+				"--github-api", tempSettings.TestServer.URL(),
 			)
 
 			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
 			assetResponse := string(assetBytes)
 
-			tempSettings.testServer.AppendHandlers(
+			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),

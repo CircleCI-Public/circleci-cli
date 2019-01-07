@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -15,13 +16,13 @@ import (
 var _ = Describe("Setup with prompts", func() {
 	var (
 		command      *exec.Cmd
-		tempSettings *temporarySettings
+		tempSettings *clitest.TempSettings
 	)
 
 	BeforeEach(func() {
-		tempSettings = withTempSettings()
+		tempSettings = clitest.WithTempSettings()
 
-		command = commandWithHome(pathCLI, tempSettings.home,
+		command = commandWithHome(pathCLI, tempSettings.Home,
 			"setup",
 			"--integration-testing",
 			"--skip-update-check",
@@ -29,7 +30,7 @@ var _ = Describe("Setup with prompts", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+		tempSettings.Cleanup()
 	})
 
 	Describe("new config file", func() {
@@ -42,11 +43,11 @@ var _ = Describe("Setup with prompts", func() {
 			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
 
-			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.configPath)))
+			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.Config.Path)))
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session).Should(gexec.Exit(0))
 
-			fileInfo, err := os.Stat(tempSettings.configPath)
+			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
 		})
@@ -59,7 +60,7 @@ var _ = Describe("Setup with prompts", func() {
 
 			Eventually(session).Should(gexec.Exit(0))
 
-			fileInfo, err := os.Stat(tempSettings.configPath)
+			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
 			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
 		})
@@ -74,14 +75,14 @@ var _ = Describe("Setup with prompts", func() {
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.configPath)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.Config.Path)))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 
 		Context("token set to some string in config file", func() {
 			BeforeEach(func() {
-				tempSettings.writeToConfigAndClose([]byte(`
+				tempSettings.Config.Write([]byte(`
 host: https://example.com/graphql
 token: fooBarBaz
 `))
@@ -95,7 +96,7 @@ token: fooBarBaz
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.configPath)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.Config.Path)))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -104,13 +105,13 @@ token: fooBarBaz
 
 var _ = Describe("Setup without prompts", func() {
 	var (
-		tempSettings *temporarySettings
+		tempSettings *clitest.TempSettings
 		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		tempSettings = withTempSettings()
-		command = commandWithHome(pathCLI, tempSettings.home,
+		tempSettings = clitest.WithTempSettings()
+		command = commandWithHome(pathCLI, tempSettings.Home,
 			"setup",
 			"--no-prompt",
 			"--skip-update-check",
@@ -118,13 +119,13 @@ var _ = Describe("Setup without prompts", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+		tempSettings.Cleanup()
 	})
 
 	Context("with an existing config", func() {
 		Describe("of valid settings", func() {
 			BeforeEach(func() {
-				tempSettings.writeToConfigAndClose([]byte(`
+				tempSettings.Config.Write([]byte(`
 host: https://example.com
 token: fooBarBaz
 `))
@@ -133,10 +134,10 @@ token: fooBarBaz
 			It("should keep the existing configuration", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", tempSettings.configPath)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", tempSettings.Config.Path)))
 
 				Context("re-open the config to check the contents", func() {
-					tempSettings.assertConfigRereadMatches(`
+					tempSettings.AssertConfigRereadMatches(`
 host: https://example.com
 token: fooBarBaz
 `)
@@ -144,7 +145,7 @@ token: fooBarBaz
 			})
 
 			It("should change if provided one of flags", func() {
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"setup",
 					"--host", "asdf",
 					"--no-prompt",
@@ -158,11 +159,11 @@ token: fooBarBaz
 				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Token unchanged from existing config. Use --token with --no-prompt to overwrite it.
 Setup complete.
 Your configuration has been saved to %s.
-`, tempSettings.configPath)))
+`, tempSettings.Config.Path)))
 				Eventually(session).Should(gexec.Exit(0))
 
 				Context("re-open the config to check the contents", func() {
-					tempSettings.assertConfigRereadMatches(`host: asdf
+					tempSettings.AssertConfigRereadMatches(`host: asdf
 endpoint: graphql-unstable
 token: fooBarBaz
 `)
@@ -170,7 +171,7 @@ token: fooBarBaz
 			})
 
 			It("should change only the provided token", func() {
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"setup",
 					"--token", "asdf",
 					"--no-prompt",
@@ -184,11 +185,11 @@ token: fooBarBaz
 				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Host unchanged from existing config. Use --host with --no-prompt to overwrite it.
 Setup complete.
 Your configuration has been saved to %s.
-`, tempSettings.configPath)))
+`, tempSettings.Config.Path)))
 				Eventually(session).Should(gexec.Exit(0))
 
 				Context("re-open the config to check the contents", func() {
-					tempSettings.assertConfigRereadMatches(`host: https://example.com
+					tempSettings.AssertConfigRereadMatches(`host: https://example.com
 endpoint: graphql-unstable
 token: asdf
 `)
@@ -201,7 +202,7 @@ token: asdf
 	Context("with no existing config", func() {
 		Context("with no host or token flags", func() {
 			BeforeEach(func() {
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"setup",
 					"--no-prompt",
 					"--skip-update-check",
@@ -220,7 +221,7 @@ token: asdf
 
 		Context("with both host and token flags", func() {
 			BeforeEach(func() {
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"setup",
 					"--host", "https://zomg.com",
 					"--token", "mytoken",
@@ -235,10 +236,10 @@ token: asdf
 				stdout := session.Wait().Out.Contents()
 				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Setup complete.
 Your configuration has been saved to %s.
-`, tempSettings.configPath)))
+`, tempSettings.Config.Path)))
 
 				Context("re-open the config to check the contents", func() {
-					file, err := os.Open(tempSettings.configPath)
+					file, err := os.Open(tempSettings.Config.Path)
 					Expect(err).ShouldNot(HaveOccurred())
 
 					reread, err := ioutil.ReadAll(file)

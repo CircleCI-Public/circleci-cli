@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
 	"gotest.tools/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -34,23 +34,22 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 		Context("if user changes host settings through configuration", func() {
 			var (
-				tempSettings *temporarySettings
+				tempSettings *clitest.TempSettings
 				command      *exec.Cmd
 			)
 
 			BeforeEach(func() {
-				tempSettings = withTempSettings()
+				tempSettings = clitest.WithTempSettings()
 
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"orb", "--help",
 				)
 
-				tempSettings.writeToConfigAndClose([]byte(`host: foo.bar`))
+				tempSettings.Config.Write([]byte(`host: foo.bar`))
 			})
 
 			AfterEach(func() {
-				Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
-				tempSettings.testServer.Close()
+				tempSettings.Cleanup()
 			})
 
 			It("doesn't link to docs if user changes --host", func() {
@@ -65,20 +64,19 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 	Describe("CLI behavior with a stubbed api and an orb.yml provided", func() {
 		var (
-			tempSettings *temporarySettings
-			orb          tmpFile
+			tempSettings *clitest.TempSettings
+			orb          *clitest.TmpFile
 			token        string = "testtoken"
 			command      *exec.Cmd
 		)
 
 		BeforeEach(func() {
-			tempSettings = withTempSettings()
-			orb = openTmpFile(tempSettings.home, filepath.Join("myorb", "orb.yml"))
+			tempSettings = clitest.WithTempSettings()
+			orb = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("myorb", "orb.yml"))
 		})
 
 		AfterEach(func() {
-			os.RemoveAll(tempSettings.home)
-			tempSettings.testServer.Close()
+			tempSettings.Cleanup()
 		})
 
 		Describe("when using STDIN", func() {
@@ -88,7 +86,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					"orb", "validate",
 					"--skip-update-check",
 					"--token", token,
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"-",
 				)
 				stdin, err := command.StdinPipe()
@@ -134,7 +132,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				expected, err := json.Marshal(response)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  string(expected),
 					Response: gqlResponse})
@@ -148,25 +146,24 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 		Describe("when using default path", func() {
 			BeforeEach(func() {
-				orb = openTmpFile(tempSettings.home, "orb.yml")
+				orb = clitest.OpenTmpFile(tempSettings.Home, "orb.yml")
 
 				token = "testtoken"
 				command = exec.Command(pathCLI,
-					"orb", "validate", orb.path,
+					"orb", "validate", orb.Path,
 					"--skip-update-check",
 					"--token", token,
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 			})
 
 			AfterEach(func() {
-				Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
-				tempSettings.testServer.Close()
+				tempSettings.Cleanup()
 			})
 
 			It("works", func() {
 				By("setting up a mock server")
-				orb.write([]byte(`{}`))
+				orb.Write([]byte(`{}`))
 
 				gqlResponse := `{
 							"orbConfig": {
@@ -183,7 +180,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse})
@@ -200,16 +197,16 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 		Context("with 'some orb'", func() {
 			BeforeEach(func() {
-				orb.write([]byte(`some orb`))
+				orb.Write([]byte(`some orb`))
 			})
 
 			Describe("when validating orb", func() {
 				BeforeEach(func() {
 					command = exec.Command(pathCLI,
-						"orb", "validate", orb.path,
+						"orb", "validate", orb.Path,
 						"--skip-update-check",
 						"--token", token,
-						"--host", tempSettings.testServer.URL(),
+						"--host", tempSettings.TestServer.URL(),
 					)
 				})
 
@@ -230,7 +227,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedRequestJson,
 						Response: gqlResponse,
@@ -264,7 +261,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					  "config": "some orb"
 					}
 				  }`
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedRequestJson,
 						Response: gqlResponse,
@@ -285,8 +282,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						"orb", "process",
 						"--skip-update-check",
 						"--token", token,
-						"--host", tempSettings.testServer.URL(),
-						orb.path,
+						"--host", tempSettings.TestServer.URL(),
+						orb.Path,
 					)
 				})
 
@@ -308,7 +305,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				  }`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedRequestJson,
 						Response: gqlResponse,
@@ -343,7 +340,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				  }`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedRequestJson,
 						Response: gqlResponse,
@@ -365,8 +362,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						"orb", "publish",
 						"--skip-update-check",
 						"--token", token,
-						"--host", tempSettings.testServer.URL(),
-						orb.path,
+						"--host", tempSettings.TestServer.URL(),
+						orb.Path,
 						"my/orb@0.0.1",
 					)
 				})
@@ -406,11 +403,11 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
@@ -460,11 +457,11 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
@@ -485,8 +482,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						"orb", "publish",
 						"--skip-update-check",
 						"--token", token,
-						"--host", tempSettings.testServer.URL(),
-						orb.path,
+						"--host", tempSettings.TestServer.URL(),
+						orb.Path,
 						"my/orb@dev:foo",
 					)
 				})
@@ -526,11 +523,11 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
@@ -580,11 +577,11 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
@@ -605,8 +602,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						"orb", "publish", "increment",
 						"--skip-update-check",
 						"--token", token,
-						"--host", tempSettings.testServer.URL(),
-						orb.path,
+						"--host", tempSettings.TestServer.URL(),
+						orb.Path,
 						"my/orb", "minor",
 					)
 				})
@@ -661,15 +658,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
 						Response: gqlVersionResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
@@ -734,15 +731,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
 						Response: gqlVersionResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
@@ -763,7 +760,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						"orb", "publish", "promote",
 						"--skip-update-check",
 						"--token", token,
-						"--host", tempSettings.testServer.URL(),
+						"--host", tempSettings.TestServer.URL(),
 						"my/orb@dev:foo",
 						"minor",
 					)
@@ -820,15 +817,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
 						Response: gqlVersionResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPromoteRequest,
 						Response: gqlPromoteResponse})
@@ -893,15 +890,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}
 				}`
 
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
 						Response: gqlOrbIDResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
 						Response: gqlVersionResponse})
-					appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPromoteRequest,
 						Response: gqlPromoteResponse})
@@ -923,7 +920,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					"orb", "create",
 					"--skip-update-check",
 					"--token", token,
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"bar-ns/foo-orb",
 				)
 			})
@@ -961,12 +958,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
             }
           }`
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedNamespaceRequest,
 					Response: gqlNamespaceResponse})
 
-				appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedOrbRequest,
 					Response: gqlOrbResponse})
@@ -1017,19 +1014,17 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
             }
           }`
 
-				appendPostHandler(tempSettings.testServer, token,
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedNamespaceRequest,
-						Response: gqlNamespaceResponse,
-					})
-				appendPostHandler(tempSettings.testServer, token,
-					MockRequestResponse{
-						Status:        http.StatusOK,
-						Request:       expectedOrbRequest,
-						Response:      gqlOrbResponse,
-						ErrorResponse: gqlErrors,
-					})
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expectedNamespaceRequest,
+					Response: gqlNamespaceResponse,
+				})
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:        http.StatusOK,
+					Request:       expectedOrbRequest,
+					Response:      gqlOrbResponse,
+					ErrorResponse: gqlErrors,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1045,7 +1040,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 			})
 
@@ -1098,25 +1093,23 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/second_response.json"))
 				secondResponse := string(tmpBytes)
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  firstRequestEncoded.String(),
-						Response: firstResponse,
-					})
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  secondRequestEncoded.String(),
-						Response: secondResponse,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  firstRequestEncoded.String(),
+					Response: firstResponse,
+				})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  secondRequestEncoded.String(),
+					Response: secondResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
-				Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(2))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
 		})
@@ -1161,12 +1154,11 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_sort/response.json"))
 				response := string(tmpBytes)
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  encoded.String(),
-						Response: response,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  encoded.String(),
+					Response: response,
+				})
 
 			})
 
@@ -1176,7 +1168,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 					"orb", "list",
 					"--sort", "builds",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1203,7 +1195,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 					"orb", "list",
 					"--sort", "projects",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1230,7 +1222,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 					"orb", "list",
 					"--sort", "orgs",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1260,7 +1252,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 					"orb", "list",
 					"--sort", "idontknow",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
@@ -1276,7 +1268,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"--json",
 				)
 			})
@@ -1332,18 +1324,16 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list/pretty_json_output.json"))
 				expectedOutput := string(tmpBytes)
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  firstRequestEncoded.String(),
-						Response: firstResponse,
-					})
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  secondRequestEncoded.String(),
-						Response: secondResponse,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  firstRequestEncoded.String(),
+					Response: firstResponse,
+				})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  secondRequestEncoded.String(),
+					Response: secondResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1357,7 +1347,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				// match
 				completeOutput := string(session.Wait().Out.Contents())
 				Expect(completeOutput).Should(MatchJSON(expectedOutput))
-				Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(2))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 		})
 
@@ -1367,7 +1357,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 					"orb", "list",
 					"--skip-update-check",
 					"--uncertified",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 				By("setting up a mock server")
 
@@ -1417,18 +1407,16 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_response.json"))
 				secondResponse := string(tmpBytes)
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  firstRequestEncoded.String(),
-						Response: firstResponse,
-					})
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  secondRequestEncoded.String(),
-						Response: secondResponse,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  firstRequestEncoded.String(),
+					Response: firstResponse,
+				})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  secondRequestEncoded.String(),
+					Response: secondResponse,
+				})
 			})
 
 			It("sends a GraphQL request with 'uncertifiedOnly: false'", func() {
@@ -1445,7 +1433,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
 				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"))
-				Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(2))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
 			Context("with the --json flag", func() {
@@ -1454,7 +1442,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 						"orb", "list",
 						"--skip-update-check",
 						"--uncertified",
-						"--host", tempSettings.testServer.URL(),
+						"--host", tempSettings.TestServer.URL(),
 						"--json",
 					)
 				})
@@ -1470,7 +1458,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 					expectedOutput := string(tmpBytes)
 					completeOutput := string(session.Wait().Out.Contents())
 					Expect(completeOutput).Should(MatchJSON(expectedOutput))
-					Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(2))
+					Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 				})
 			})
 		})
@@ -1480,7 +1468,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"--details",
 				)
 				By("setting up a mock server")
@@ -1520,12 +1508,11 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/response.json"))
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  encoded.String(),
-						Response: string(tmpBytes),
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  encoded.String(),
+					Response: string(tmpBytes),
+				})
 			})
 
 			It("lists detailed orbs", func() {
@@ -1557,7 +1544,7 @@ In order to see more details about each orb, type: ` + "`circleci orb info orb-n
 Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
 `))
 				Eventually(session).Should(gexec.Exit(0))
-				Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(1))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 			})
 
 			Context("with the --json flag", func() {
@@ -1565,7 +1552,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 					command = exec.Command(pathCLI,
 						"orb", "list",
 						"--skip-update-check",
-						"--host", tempSettings.testServer.URL(),
+						"--host", tempSettings.TestServer.URL(),
 						"--details",
 						"--json",
 					)
@@ -1582,7 +1569,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 					expectedOutput := string(tmpBytes)
 					completeOutput := string(session.Wait().Out.Contents())
 					Expect(completeOutput).Should(MatchJSON(expectedOutput))
-					Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(1))
+					Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 				})
 			})
 		})
@@ -1592,7 +1579,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 				command = exec.Command(pathCLI,
 					"orb", "list", "circleci",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"--details",
 				)
 				By("setting up a mock server")
@@ -1648,18 +1635,16 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_response.json"))
 				secondResponse := string(tmpBytes)
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  firstRequestEncoded.String(),
-						Response: firstResponse,
-					})
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  secondRequestEncoded.String(),
-						Response: secondResponse,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  firstRequestEncoded.String(),
+					Response: firstResponse,
+				})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  secondRequestEncoded.String(),
+					Response: secondResponse,
+				})
 			})
 
 			It("makes a namespace query and requests all orbs on that namespace", func() {
@@ -1674,7 +1659,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				Eventually(session.Out).Should(gbytes.Say("Commands"))
 				Eventually(session.Out).Should(gbytes.Say("- notify_deploy"))
 				Eventually(session).Should(gexec.Exit(0))
-				Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(2))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
 			Context("with the --json flag", func() {
@@ -1682,7 +1667,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					command = exec.Command(pathCLI,
 						"orb", "list", "circleci",
 						"--skip-update-check",
-						"--host", tempSettings.testServer.URL(),
+						"--host", tempSettings.TestServer.URL(),
 						"--json",
 					)
 				})
@@ -1698,7 +1683,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 					completeOutput := string(session.Wait().Out.Contents())
 					Expect(completeOutput).Should(MatchJSON(expectedOutput))
 					Eventually(session).Should(gexec.Exit(0))
-					Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(2))
+					Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 				})
 			})
 		})
@@ -1708,7 +1693,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				command = exec.Command(pathCLI,
 					"orb", "list", "nonexist",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 				)
 
 				By("setting up a mock server")
@@ -1752,12 +1737,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 				mockResponse := `{"data": {}}`
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  encodedRequest.String(),
-						Response: mockResponse,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  encodedRequest.String(),
+					Response: mockResponse,
+				})
 			})
 
 			It("returns an error", func() {
@@ -1767,14 +1751,14 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("No namespace found"))
 				Eventually(session).Should(gexec.Exit(255))
-				Expect(tempSettings.testServer.ReceivedRequests()).Should(HaveLen(1))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 			})
 
 		})
 
 		Describe("when creating an orb without a token", func() {
 			BeforeEach(func() {
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"orb", "create", "bar-ns/foo-orb",
 					"--skip-update-check",
 					"--token", "",
@@ -1793,7 +1777,7 @@ https://circleci.com/account/api`))
 			})
 
 			It("uses the host setting from config in the url", func() {
-				command = commandWithHome(pathCLI, tempSettings.home,
+				command = commandWithHome(pathCLI, tempSettings.Home,
 					"orb", "create", "bar-ns/foo-orb",
 					"--skip-update-check",
 					"--token", "",
@@ -1816,7 +1800,7 @@ foo.bar/account/api`))
 				command = exec.Command(pathCLI,
 					"orb", "source",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"my/orb@dev:foo",
 				)
 			})
@@ -1849,7 +1833,7 @@ foo.bar/account/api`))
 							}
 						}`
 
-				appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  encoded.String(),
 					Response: response})
@@ -1883,12 +1867,11 @@ foo.bar/account/api`))
 
 				response := `{"data": { "orbVersion": {} }}`
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expected.String(),
-						Response: response,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expected.String(),
+					Response: response,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1912,7 +1895,7 @@ foo.bar/account/api`))
 				command = exec.Command(pathCLI,
 					"orb", "info",
 					"--skip-update-check",
-					"--host", tempSettings.testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					"my/orb@dev:foo",
 				)
 
@@ -1966,12 +1949,11 @@ foo.bar/account/api`))
 							}
 						}`
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expected.String(),
-						Response: response,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expected.String(),
+					Response: response,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -2028,12 +2010,11 @@ https://circleci.com/orbs/registry/orb/my/orb
 							}
 						}`
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expected.String(),
-						Response: response,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expected.String(),
+					Response: response,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -2080,12 +2061,11 @@ https://circleci.com/orbs/registry/orb/my/orb
 							}
 						}}`
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expected.String(),
-						Response: response,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expected.String(),
+					Response: response,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -2115,12 +2095,11 @@ https://circleci.com/orbs/registry/orb/my/orb
 			It("reports when an dev orb hasn't released any semantic versions", func() {
 				response := `{ "orbVersion": {} }`
 
-				appendPostHandler(tempSettings.testServer, "",
-					MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expected.String(),
-						Response: response,
-					})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expected.String(),
+					Response: response,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)

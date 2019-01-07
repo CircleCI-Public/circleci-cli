@@ -1,9 +1,9 @@
 package cmd_test
 
 import (
-	"os"
 	"os/exec"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -36,20 +36,20 @@ For more help, see the documentation here: https://circleci.com/docs/2.0/local-c
 
 		Context("if user changes host settings through configuration", func() {
 			var (
-				tempSettings *temporarySettings
+				tempSettings *clitest.TempSettings
 				command      *exec.Cmd
 			)
 
 			BeforeEach(func() {
-				tempSettings = withTempSettings()
+				tempSettings = clitest.WithTempSettings()
 
-				command = commandWithHome(pathCLI, tempSettings.home, "--help")
+				command = commandWithHome(pathCLI, tempSettings.Home, "--help")
 
-				tempSettings.writeToConfigAndClose([]byte(`host: foo.bar`))
+				tempSettings.Config.Write([]byte(`host: foo.bar`))
 			})
 
 			AfterEach(func() {
-				Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+				tempSettings.Cleanup()
 			})
 
 			It("doesn't link to docs if user changes --host", func() {
@@ -67,11 +67,11 @@ For more help, see the documentation here: https://circleci.com/docs/2.0/local-c
 			command      *exec.Cmd
 			err          error
 			noUpdateCLI  string
-			tempSettings *temporarySettings
+			tempSettings *clitest.TempSettings
 		)
 
 		BeforeEach(func() {
-			tempSettings = withTempSettings()
+			tempSettings = clitest.WithTempSettings()
 
 			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
@@ -81,11 +81,11 @@ For more help, see the documentation here: https://circleci.com/docs/2.0/local-c
 		})
 
 		AfterEach(func() {
-			Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+			tempSettings.Cleanup()
 		})
 
 		It("reports update command as unavailable", func() {
-			command = commandWithHome(noUpdateCLI, tempSettings.home,
+			command = commandWithHome(noUpdateCLI, tempSettings.Home,
 				"help", "--skip-update-check",
 			)
 
@@ -143,24 +143,24 @@ For more help, see the documentation here: https://circleci.com/docs/2.0/local-c
 	Describe("token in help text", func() {
 		var (
 			command      *exec.Cmd
-			tempSettings *temporarySettings
+			tempSettings *clitest.TempSettings
 		)
 
 		BeforeEach(func() {
-			tempSettings = withTempSettings()
+			tempSettings = clitest.WithTempSettings()
 
-			command = commandWithHome(pathCLI, tempSettings.home,
+			command = commandWithHome(pathCLI, tempSettings.Home,
 				"help", "--skip-update-check",
 			)
 		})
 
 		AfterEach(func() {
-			Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+			tempSettings.Cleanup()
 		})
 
 		Describe("existing config file", func() {
 			BeforeEach(func() {
-				tempSettings.writeToConfigAndClose([]byte(`token: secret`))
+				tempSettings.Config.Write([]byte(`token: secret`))
 			})
 
 			It("does not include the users token in help text", func() {
