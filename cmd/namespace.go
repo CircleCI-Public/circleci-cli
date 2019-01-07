@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -14,11 +15,44 @@ type namespaceOptions struct {
 	cfg  *settings.Config
 	cl   *client.Client
 	args []string
+
+	// Allows user to skip y/n confirm when creating a namespace
+	noPrompt bool
+	// This lets us pass in our own interface for testing
+	tty createNamespaceUserInterface
+	// Linked with --integration-testing flag for stubbing UI in gexec tests
+	integrationTesting bool
+}
+
+type createNamespaceUserInterface interface {
+	askUserToConfirm(message string) bool
+}
+
+type createNamespaceInteractiveUI struct{}
+
+func (ui createNamespaceInteractiveUI) askUserToConfirm(message string) bool {
+	prompt := promptui.Prompt{
+		Label:     message,
+		IsConfirm: true,
+	}
+
+	result, err := prompt.Run()
+	return err == nil && strings.ToLower(result) == "y"
+}
+
+type createNamespaceTestUI struct {
+	confirm bool
+}
+
+func (ui createNamespaceTestUI) askUserToConfirm(message string) bool {
+	fmt.Println(message)
+	return ui.confirm
 }
 
 func newNamespaceCommand(config *settings.Config) *cobra.Command {
 	opts := namespaceOptions{
 		cfg: config,
+		tty: createNamespaceInteractiveUI{},
 	}
 
 	namespaceCmd := &cobra.Command{
@@ -38,6 +72,12 @@ Please note that at this time all namespaces created in the registry are world-r
 			return validateToken(opts.cfg)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if opts.integrationTesting {
+				opts.tty = createNamespaceTestUI{
+					confirm: true,
+				}
+			}
+
 			return createNamespace(opts)
 		},
 		Args:        cobra.ExactArgs(3),
@@ -48,6 +88,12 @@ Please note that at this time all namespaces created in the registry are world-r
 	createCmd.Annotations["<vcs-type>"] = `Your VCS provider, can be either "github" or "bitbucket"`
 	createCmd.Annotations["<org-name>"] = `The name used for your organization`
 
+	createCmd.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
+	if err := createCmd.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
+	createCmd.Flags().BoolVar(&opts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
+
 	namespaceCmd.AddCommand(createCmd)
 
 	return namespaceCmd
@@ -56,13 +102,27 @@ Please note that at this time all namespaces created in the registry are world-r
 func createNamespace(opts namespaceOptions) error {
 	namespaceName := opts.args[0]
 
-	_, err := api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
+	if !opts.noPrompt {
+		fmt.Printf(`You are creating a namespace called "%s".
 
-	if err != nil {
-		return err
+This is the only namespace permitted for your %s organization, %s.
+
+To change the namespace, you will have to contact CircleCI customer support.
+
+`, namespaceName, strings.ToLower(opts.args[1]), opts.args[2])
 	}
 
-	fmt.Printf("Namespace `%s` created.\n", namespaceName)
-	fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
+	confirm := fmt.Sprintf("Please confirm the namespace you wish to create: `%s`.", namespaceName)
+	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
+		_, err := api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Namespace `%s` created.\n", namespaceName)
+		fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
+	}
+
 	return nil
 }
