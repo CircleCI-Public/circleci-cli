@@ -25,6 +25,7 @@ var _ = BeforeSuite(func() {
 
 type temporarySettings struct {
 	home       string
+	testServer *ghttp.Server
 	configFile *os.File
 	configPath string
 	updateFile *os.File
@@ -83,6 +84,8 @@ func withTempSettings() *temporarySettings {
 		0600,
 	)
 	Expect(err).ToNot(HaveOccurred())
+
+	tempSettings.testServer = ghttp.NewServer()
 
 	return tempSettings
 }
@@ -155,58 +158,38 @@ func appendPostHandler(server *ghttp.Server, authToken string, combineHandlers .
 }
 
 type tmpFile struct {
-	RootDir string
-	Path    string
-	File    *os.File
+	rootDir string
+	path    string
+	file    *os.File
 }
 
-func (f tmpFile) close() {
-	f.File.Close()
-	os.RemoveAll(f.RootDir)
+func (f tmpFile) write(contents []byte) {
+	_, err := f.file.Write(contents)
+	Expect(err).ToNot(HaveOccurred())
+	Expect(f.file.Close()).To(Succeed())
 }
 
-func (f tmpFile) write(fileContent string) error {
-	_, err := f.File.Write([]byte(fileContent))
-
-	return err
-}
-
-func openTmpDir(prefix string) (string, error) {
-	var dir string
-	if prefix == "" {
-		dir = "circleci-cli-test-"
-	} else {
-		dir = prefix
-	}
-	tmpDir, err := ioutil.TempDir("", dir)
-	return tmpDir, err
-}
-
-func openTmpFile(directory string, path string) (tmpFile, error) {
+func openTmpFile(directory string, path string) tmpFile {
 	var (
 		config tmpFile = tmpFile{}
 		err    error
 	)
 
-	config.RootDir = directory
-	config.Path = filepath.Join(directory, path)
+	config.rootDir = directory
+	config.path = filepath.Join(directory, path)
 
-	err = os.MkdirAll(filepath.Dir(config.Path), 0700)
-	if err != nil {
-		return config, err
-	}
+	err = os.MkdirAll(filepath.Dir(config.path), 0700)
+	Expect(err).ToNot(HaveOccurred())
 
 	var file *os.File
 	file, err = os.OpenFile(
-		config.Path,
+		config.path,
 		os.O_RDWR|os.O_CREATE,
 		0600,
 	)
-	if err != nil {
-		return config, err
-	}
+	Expect(err).ToNot(HaveOccurred())
 
-	config.File = file
+	config.file = file
 
-	return config, nil
+	return config
 }
