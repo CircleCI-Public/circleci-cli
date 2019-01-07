@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"os/exec"
@@ -915,33 +916,35 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 		})
 
 		Describe("when creating / reserving an orb", func() {
-			BeforeEach(func() {
-				command = exec.Command(pathCLI,
-					"orb", "create",
-					"--skip-update-check",
-					"--token", token,
-					"--host", tempSettings.TestServer.URL(),
-					"bar-ns/foo-orb",
-				)
-			})
+			Context("skipping prompts", func() {
+				BeforeEach(func() {
+					command = exec.Command(pathCLI,
+						"orb", "create",
+						"--skip-update-check",
+						"--token", token,
+						"--host", tempSettings.TestServer.URL(),
+						"--no-prompt",
+						"bar-ns/foo-orb",
+					)
+				})
 
-			It("works", func() {
-				By("setting up a mock server")
+				It("works", func() {
+					By("setting up a mock server")
 
-				gqlNamespaceResponse := `{
+					gqlNamespaceResponse := `{
     											"registryNamespace": {
       												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
     											}
   				}`
 
-				expectedNamespaceRequest := `{
+					expectedNamespaceRequest := `{
             "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
             "variables": {
               "name": "bar-ns"
             }
           }`
 
-				gqlOrbResponse := `{
+					gqlOrbResponse := `{
 									 "createOrb": {
 										 "errors": [],
 										 "orb": {
@@ -950,7 +953,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 									 }
 								   }`
 
-				expectedOrbRequest := `{
+					expectedOrbRequest := `{
             "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
               "name": "foo-orb",
@@ -958,43 +961,45 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
             }
           }`
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedNamespaceRequest,
-					Response: gqlNamespaceResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedNamespaceRequest,
+						Response: gqlNamespaceResponse})
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedOrbRequest,
-					Response: gqlOrbResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbRequest,
+						Response: gqlOrbResponse})
 
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb `bar-ns/foo-orb` created."))
-				Eventually(session.Out).Should(gbytes.Say("Please note that any versions you publish of this orb are world-readable."))
-				Eventually(session.Out).Should(gbytes.Say("You can now register versions of `bar-ns/foo-orb` using `circleci orb publish`"))
-				Eventually(session).Should(gexec.Exit(0))
-			})
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(0))
 
-			It("prints all in-band errors returned by the GraphQL API", func() {
-				By("setting up a mock server")
+					stdout := session.Wait().Out.Contents()
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
+Please note that any versions you publish of this orb are world-readable.
+You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
+				})
 
-				gqlNamespaceResponse := `{
+				It("prints all in-band errors returned by the GraphQL API", func() {
+					By("setting up a mock server")
+
+					gqlNamespaceResponse := `{
 											"registryNamespace": {
 												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
 										}
 				}`
 
-				expectedNamespaceRequest := `{
+					expectedNamespaceRequest := `{
             "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
             "variables": {
               "name": "bar-ns"
             }
           }`
 
-				gqlOrbResponse := `{
+					gqlOrbResponse := `{
 									 "createOrb": {
 										 "errors": [
 													{"message": "error1"},
@@ -1004,9 +1009,9 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 									}
 				}`
 
-				gqlErrors := `[ { "message": "ignored error" } ]`
+					gqlErrors := `[ { "message": "ignored error" } ]`
 
-				expectedOrbRequest := `{
+					expectedOrbRequest := `{
             "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
               "name": "foo-orb",
@@ -1014,24 +1019,159 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
             }
           }`
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedNamespaceRequest,
-					Response: gqlNamespaceResponse,
-				})
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:        http.StatusOK,
-					Request:       expectedOrbRequest,
-					Response:      gqlOrbResponse,
-					ErrorResponse: gqlErrors,
-				})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedNamespaceRequest,
+						Response: gqlNamespaceResponse,
+					})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:        http.StatusOK,
+						Request:       expectedOrbRequest,
+						Response:      gqlOrbResponse,
+						ErrorResponse: gqlErrors,
+					})
 
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
-				Eventually(session).ShouldNot(gexec.Exit(0))
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
+					Eventually(session).ShouldNot(gexec.Exit(0))
+				})
+			})
+
+			Context("with interactive prompts", func() {
+				Describe("when creating / reserving an orb", func() {
+					BeforeEach(func() {
+						command = exec.Command(pathCLI,
+							"orb", "create",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							"--integration-testing",
+							"bar-ns/foo-orb",
+						)
+					})
+
+					It("works", func() {
+						By("setting up a mock server")
+
+						gqlNamespaceResponse := `{
+    											"registryNamespace": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+						expectedNamespaceRequest := `{
+            "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+            "variables": {
+              "name": "bar-ns"
+            }
+          }`
+
+						gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [],
+										 "orb": {
+											"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										 }
+									 }
+								   }`
+
+						expectedOrbRequest := `{
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "variables": {
+              "name": "foo-orb",
+              "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedNamespaceRequest,
+							Response: gqlNamespaceResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbRequest,
+							Response: gqlOrbResponse})
+
+						By("running the command")
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(gexec.Exit(0))
+
+						stdout := session.Wait().Out.Contents()
+
+						Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`You are creating an orb called "%s".
+
+You will not be able to change the name of this orb.
+
+If you change your mind about the name, you will have to create a new orb with the new name.
+
+Please confirm the name of this orb: %s.
+Orb %s created.
+Please note that any versions you publish of this orb are world-readable.
+You can now register versions of %s using %s.`,
+							"bar-ns/foo-orb", "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
+					})
+
+					It("prints all in-band errors returned by the GraphQL API", func() {
+						By("setting up a mock server")
+
+						gqlNamespaceResponse := `{
+											"registryNamespace": {
+												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										}
+				}`
+
+						expectedNamespaceRequest := `{
+            "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+            "variables": {
+              "name": "bar-ns"
+            }
+          }`
+
+						gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [
+													{"message": "error1"},
+													{"message": "error2"}
+												   ],
+										 "orb": null
+									}
+				}`
+
+						gqlErrors := `[ { "message": "ignored error" } ]`
+
+						expectedOrbRequest := `{
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "variables": {
+              "name": "foo-orb",
+              "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedNamespaceRequest,
+							Response: gqlNamespaceResponse,
+						})
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:        http.StatusOK,
+							Request:       expectedOrbRequest,
+							Response:      gqlOrbResponse,
+							ErrorResponse: gqlErrors,
+						})
+
+						By("running the command")
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					})
+				})
 			})
 		})
 

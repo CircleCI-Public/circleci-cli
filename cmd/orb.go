@@ -11,6 +11,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
@@ -25,6 +26,12 @@ type orbOptions struct {
 	listJSON        bool
 	listDetails     bool
 	sortBy          string
+	// Allows user to skip y/n confirm when creating an orb
+	noPrompt bool
+	// This lets us pass in our own interface for testing
+	tty createOrbUserInterface
+	// Linked with --integration-testing flag for stubbing UI in gexec tests
+	integrationTesting bool
 }
 
 var orbAnnotations = map[string]string{
@@ -33,9 +40,35 @@ var orbAnnotations = map[string]string{
 	"<orb>":       "A fully-qualified reference to an orb. This takes the form namespace/orb@version",
 }
 
+type createOrbUserInterface interface {
+	askUserToConfirm(message string) bool
+}
+
+type createOrbInteractiveUI struct{}
+
+func (ui createOrbInteractiveUI) askUserToConfirm(message string) bool {
+	prompt := promptui.Prompt{
+		Label:     message,
+		IsConfirm: true,
+	}
+
+	result, err := prompt.Run()
+	return err == nil && strings.ToLower(result) == "y"
+}
+
+type createOrbTestUI struct {
+	confirm bool
+}
+
+func (ui createOrbTestUI) askUserToConfirm(message string) bool {
+	fmt.Println(message)
+	return ui.confirm
+}
+
 func newOrbCommand(config *settings.Config) *cobra.Command {
 	opts := orbOptions{
 		cfg: config,
+		tty: createOrbInteractiveUI{},
 	}
 
 	listCommand := &cobra.Command{
@@ -180,6 +213,12 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 		Long: `Create an orb in the specified namespace
 Please note that at this time all orbs created in the registry are world-readable.`,
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if opts.integrationTesting {
+				opts.tty = createOrbTestUI{
+					confirm: true,
+				}
+			}
+
 			return createOrb(opts)
 		},
 		PreRunE: func(_ *cobra.Command, _ []string) error {
@@ -187,6 +226,11 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 		Args: cobra.ExactArgs(1),
 	}
+	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
+	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
+	orbCreate.Flags().BoolVar(&opts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
 	orbCommand := &cobra.Command{
 		Use:   "orb",
@@ -567,15 +611,30 @@ func createOrb(opts orbOptions) error {
 		return err
 	}
 
-	_, err = api.CreateOrb(opts.cl, namespace, orb)
+	if !opts.noPrompt {
+		fmt.Printf(`You are creating an orb called "%s/%s".
 
-	if err != nil {
-		return err
+You will not be able to change the name of this orb.
+
+If you change your mind about the name, you will have to create a new orb with the new name.
+
+`, namespace, orb)
 	}
 
-	fmt.Printf("Orb `%s` created.\n", opts.args[0])
-	fmt.Println("Please note that any versions you publish of this orb are world-readable.")
-	fmt.Printf("You can now register versions of `%s` using `circleci orb publish`.\n", opts.args[0])
+	confirm := fmt.Sprintf("Please confirm the name of this orb: `%s/%s`.", namespace, orb)
+
+	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
+		_, err = api.CreateOrb(opts.cl, namespace, orb)
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Orb `%s` created.\n", opts.args[0])
+		fmt.Println("Please note that any versions you publish of this orb are world-readable.")
+		fmt.Printf("You can now register versions of `%s` using `circleci orb publish`.\n", opts.args[0])
+	}
+
 	return nil
 }
 
