@@ -198,6 +198,10 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 				}
 			}
 
+			if opts.noPrompt {
+				return setupNoPrompt(opts)
+			}
+
 			return setup(opts)
 		},
 	}
@@ -223,10 +227,6 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 }
 
 func setup(opts setupOptions) error {
-	if opts.noPrompt {
-		return setupNoPrompt(opts)
-	}
-
 	if shouldAskForToken(opts.cfg.Token, opts.tty) {
 		token, err := opts.tty.readTokenFromUser("CircleCI API Token")
 		if err != nil {
@@ -251,32 +251,34 @@ func setup(opts setupOptions) error {
 	fmt.Printf("Setup complete.\nYour configuration has been saved to %s.\n", opts.cfg.FileUsed)
 
 	if !opts.integrationTesting {
-		// Reset client after setup config
-		opts.cl.Reset(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
-
-		fmt.Printf("\n")
-		fmt.Printf("Trying an introspection query on API to verify your setup... ")
-
-		responseIntro, err := api.IntrospectionQuery(opts.cl)
-		if responseIntro.Schema.QueryType.Name == "" {
-			fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings")
-		} else {
-			fmt.Println("Ok.")
-		}
-
-		fmt.Printf("Trying to query your username given the provided token... ")
-		responseWho, err := api.WhoamiQuery(opts.cl)
-
-		if err != nil {
-			return err
-		}
-
-		if responseWho.Me.Name != "" {
-			fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
-		}
+		setupDiagnosticCheck(opts)
 	}
 
 	return nil
+}
+
+func setupDiagnosticCheck(opts setupOptions) {
+	// Reset client after setup config
+	opts.cl.Reset(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+
+	fmt.Printf("\n")
+	fmt.Printf("Trying an introspection query on API to verify your setup... ")
+
+	responseIntro, err := api.IntrospectionQuery(opts.cl)
+	if err != nil || responseIntro.Schema.QueryType.Name == "" {
+		fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings")
+	} else {
+		fmt.Println("Ok.")
+	}
+
+	fmt.Printf("Trying to query your username given the provided token... ")
+	responseWho, err := api.WhoamiQuery(opts.cl)
+
+	if err != nil || responseWho.Me.Name == "" {
+		fmt.Println("\nUnable to query the GraphQL API for your username, please check your settings")
+	} else {
+		fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
+	}
 }
 
 func shouldKeepExistingConfig(opts setupOptions) bool {
