@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,25 +12,23 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
+	"gotest.tools/golden"
 )
 
 var _ = Describe("Diagnostic", func() {
 	var (
 		tempSettings    *temporarySettings
 		command         *exec.Cmd
-		testServer      *ghttp.Server
 		defaultEndpoint = "graphql-unstable"
 	)
 
 	BeforeEach(func() {
 		tempSettings = withTempSettings()
-		testServer = ghttp.NewServer()
 
 		command = commandWithHome(pathCLI, tempSettings.home,
 			"diagnostic",
 			"--skip-update-check",
-			"--host", testServer.URL())
+			"--host", tempSettings.testServer.URL())
 
 		query := `query IntrospectionQuery {
 		    __schema {
@@ -56,11 +53,10 @@ var _ = Describe("Diagnostic", func() {
 		expected, err := request.Encode()
 		Expect(err).ShouldNot(HaveOccurred())
 
-		tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/diagnostic", "response.json"))
-		Expect(err).ShouldNot(HaveOccurred())
+		tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("diagnostic/response.json"))
 		mockResponse := string(tmpBytes)
 
-		appendPostHandler(testServer, "", MockRequestResponse{
+		appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
 			Status:   http.StatusOK,
 			Request:  expected.String(),
 			Response: mockResponse})
@@ -73,14 +69,14 @@ var _ = Describe("Diagnostic", func() {
 
 		response := `{ "me": { "name": "zzak" } }`
 
-		appendPostHandler(testServer, "", MockRequestResponse{
+		appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
 			Status:   http.StatusOK,
 			Request:  expected.String(),
 			Response: response})
 	})
 
 	AfterEach(func() {
-		testServer.Close()
+		tempSettings.testServer.Close()
 		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 	})
 
@@ -95,7 +91,7 @@ var _ = Describe("Diagnostic", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("API host: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", tempSettings.testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say(
 					fmt.Sprintf("API endpoint: %s", defaultEndpoint)))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
@@ -116,7 +112,7 @@ token: mytoken
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("API host: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", tempSettings.testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say(
 					fmt.Sprintf("API endpoint: %s", defaultEndpoint)))
 				Eventually(session.Out).Should(gbytes.Say("OK, got a token."))
@@ -134,7 +130,7 @@ token: mytoken
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("Error: please set a token with 'circleci setup'"))
 				Eventually(session.Out).Should(gbytes.Say(
-					fmt.Sprintf("API host: %s", testServer.URL())))
+					fmt.Sprintf("API host: %s", tempSettings.testServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say(
 					fmt.Sprintf("API endpoint: %s", defaultEndpoint)))
 				Eventually(session).Should(gexec.Exit(255))
@@ -148,7 +144,7 @@ token: mytoken
 				command = commandWithHome(pathCLI, tempSettings.home,
 					"diagnostic",
 					"--skip-update-check",
-					"--host", testServer.URL(),
+					"--host", tempSettings.testServer.URL(),
 					"--debug",
 				)
 			})
@@ -165,19 +161,17 @@ token: mytoken
 	Describe("whoami returns a user", func() {
 		var (
 			command         *exec.Cmd
-			testServer      *ghttp.Server
 			defaultEndpoint = "graphql-unstable"
 		)
 
 		BeforeEach(func() {
-			testServer = ghttp.NewServer()
 			tempSettings = withTempSettings()
 			tempSettings.writeToConfigAndClose([]byte(`token: mytoken`))
 
 			command = commandWithHome(pathCLI, tempSettings.home,
 				"diagnostic",
 				"--skip-update-check",
-				"--host", testServer.URL())
+				"--host", tempSettings.testServer.URL())
 
 			query := `query IntrospectionQuery {
 		    __schema {
@@ -202,11 +196,10 @@ token: mytoken
 			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
-			tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/diagnostic", "response.json"))
-			Expect(err).ShouldNot(HaveOccurred())
+			tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("diagnostic/response.json"))
 			mockResponse := string(tmpBytes)
 
-			appendPostHandler(testServer, "", MockRequestResponse{
+			appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expected.String(),
 				Response: mockResponse})
@@ -221,14 +214,14 @@ token: mytoken
 
 			response := `{ "me": { "name": "zzak" } }`
 
-			appendPostHandler(testServer, "mytoken", MockRequestResponse{
+			appendPostHandler(tempSettings.testServer, "mytoken", MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expected.String(),
 				Response: response})
 		})
 
 		AfterEach(func() {
-			testServer.Close()
+			tempSettings.testServer.Close()
 			Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 		})
 
@@ -237,7 +230,7 @@ token: mytoken
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session.Out).Should(gbytes.Say(
-				fmt.Sprintf("API host: %s", testServer.URL())))
+				fmt.Sprintf("API host: %s", tempSettings.testServer.URL())))
 			Eventually(session.Out).Should(gbytes.Say(
 				fmt.Sprintf("API endpoint: %s", defaultEndpoint)))
 			Eventually(session.Out).Should(gbytes.Say("OK, got a token."))

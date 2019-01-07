@@ -20,7 +20,6 @@ var _ = Describe("Check", func() {
 		err          error
 		checkCLI     string
 		tempSettings *temporarySettings
-		testServer   *ghttp.Server
 		updateCheck  *settings.UpdateCheck
 	)
 
@@ -38,15 +37,14 @@ var _ = Describe("Check", func() {
 		err = updateCheck.WriteToDisk()
 		Expect(err).ShouldNot(HaveOccurred())
 
-		testServer = ghttp.NewServer()
-
 		command = commandWithHome(checkCLI, tempSettings.home,
-			"help", "--github-api", testServer.URL(),
+			"help", "--github-api", tempSettings.testServer.URL(),
 		)
 	})
 
 	AfterEach(func() {
 		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+		tempSettings.testServer.Close()
 	})
 
 	Describe("update auto checks with a new release", func() {
@@ -62,7 +60,7 @@ var _ = Describe("Check", func() {
 			tempSettings = withTempSettings()
 
 			command = commandWithHome(checkCLI, tempSettings.home,
-				"help", "--github-api", testServer.URL(),
+				"help", "--github-api", tempSettings.testServer.URL(),
 			)
 
 			response = `
@@ -85,17 +83,13 @@ var _ = Describe("Check", func() {
 ]
 `
 
-			testServer.AppendHandlers(
+			tempSettings.testServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 			)
 
-		})
-
-		AfterEach(func() {
-			testServer.Close()
 		})
 
 		Context("using a binary release", func() {

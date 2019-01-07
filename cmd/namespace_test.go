@@ -2,28 +2,29 @@ package cmd_test
 
 import (
 	"net/http"
+	"os"
 	"os/exec"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
 )
 
 var _ = Describe("Namespace integration tests", func() {
 	var (
-		testServer *ghttp.Server
-		token      string = "testtoken"
-		command    *exec.Cmd
+		tempSettings *temporarySettings
+		token        string = "testtoken"
+		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		testServer = ghttp.NewServer()
+		tempSettings = withTempSettings()
 	})
 
 	AfterEach(func() {
-		testServer.Close()
+		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+		tempSettings.testServer.Close()
 	})
 
 	Describe("registering a namespace", func() {
@@ -32,7 +33,7 @@ var _ = Describe("Namespace integration tests", func() {
 				"namespace", "create",
 				"--skip-update-check",
 				"--token", token,
-				"--host", testServer.URL(),
+				"--host", tempSettings.testServer.URL(),
 				"foo-ns",
 				"BITBUCKET",
 				"test-org",
@@ -69,11 +70,11 @@ var _ = Describe("Namespace integration tests", func() {
             }
           }`
 
-			appendPostHandler(testServer, token, MockRequestResponse{
+			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedOrganizationRequest,
 				Response: gqlOrganizationResponse})
-			appendPostHandler(testServer, token, MockRequestResponse{
+			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedNsRequest,
 				Response: gqlNsResponse})
@@ -94,7 +95,7 @@ var _ = Describe("Namespace integration tests", func() {
 				"namespace", "create",
 				"--skip-update-check",
 				"--token", token,
-				"--host", testServer.URL(),
+				"--host", tempSettings.testServer.URL(),
 				"foo-ns",
 				"BITBUCKET",
 				"test-org",
@@ -136,11 +137,11 @@ var _ = Describe("Namespace integration tests", func() {
             }
           }`
 
-			appendPostHandler(testServer, token, MockRequestResponse{
+			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedOrganizationRequest,
 				Response: gqlOrganizationResponse})
-			appendPostHandler(testServer, token, MockRequestResponse{
+			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
 				Status:   http.StatusOK,
 				Request:  expectedNsRequest,
 				Response: gqlNsResponse})
@@ -192,13 +193,13 @@ var _ = Describe("Namespace integration tests", func() {
             			}
           		}`
 
-			appendPostHandler(testServer, token,
+			appendPostHandler(tempSettings.testServer, token,
 				MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedOrganizationRequest,
 					Response: gqlOrganizationResponse,
 				})
-			appendPostHandler(testServer, token,
+			appendPostHandler(tempSettings.testServer, token,
 				MockRequestResponse{
 					Status:        http.StatusOK,
 					Request:       expectedRequestJSON,

@@ -14,7 +14,6 @@ import (
 
 var _ = Describe("Query", func() {
 	var (
-		server       *ghttp.Server
 		token        string
 		tempSettings *temporarySettings
 		stdin        bytes.Buffer
@@ -22,8 +21,6 @@ var _ = Describe("Query", func() {
 	)
 
 	BeforeEach(func() {
-		server = ghttp.NewServer()
-
 		tempSettings = withTempSettings()
 
 		token = "mytoken"
@@ -31,13 +28,13 @@ var _ = Describe("Query", func() {
 			"query", "-",
 			"--skip-update-check",
 			"--token", token,
-			"--host", server.URL(),
+			"--host", tempSettings.testServer.URL(),
 		)
 		command.Stdin = &stdin
 	})
 
 	AfterEach(func() {
-		server.Close()
+		tempSettings.testServer.Close()
 		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
 	})
 
@@ -72,7 +69,7 @@ var _ = Describe("Query", func() {
 }
 `
 
-			server.AppendHandlers(
+			tempSettings.testServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/graphql-unstable"),
 					ghttp.VerifyHeader(http.Header{

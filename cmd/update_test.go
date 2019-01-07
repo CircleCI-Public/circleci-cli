@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -15,13 +16,13 @@ import (
 
 var _ = Describe("Update", func() {
 	var (
-		command    *exec.Cmd
-		response   string
-		testServer *ghttp.Server
+		command      *exec.Cmd
+		response     string
+		tempSettings *temporarySettings
 	)
 
 	BeforeEach(func() {
-		testServer = ghttp.NewServer()
+		tempSettings = withTempSettings()
 
 		response = `
 [
@@ -43,7 +44,7 @@ var _ = Describe("Update", func() {
 ]
 `
 
-		testServer.AppendHandlers(
+		tempSettings.testServer.AppendHandlers(
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 				ghttp.RespondWith(http.StatusOK, response),
@@ -52,14 +53,15 @@ var _ = Describe("Update", func() {
 	})
 
 	AfterEach(func() {
-		testServer.Close()
+		Expect(os.RemoveAll(tempSettings.home)).To(Succeed())
+		tempSettings.testServer.Close()
 	})
 
 	Describe("update --check", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"update", "--check",
-				"--github-api", testServer.URL(),
+				"--github-api", tempSettings.testServer.URL(),
 			)
 		})
 
@@ -83,7 +85,7 @@ var _ = Describe("Update", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"update", "check",
-				"--github-api", testServer.URL(),
+				"--github-api", tempSettings.testServer.URL(),
 			)
 		})
 
@@ -109,13 +111,13 @@ var _ = Describe("Update", func() {
 
 			command = exec.Command(updateCLI,
 				"update",
-				"--github-api", testServer.URL(),
+				"--github-api", tempSettings.testServer.URL(),
 			)
 
 			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
 			assetResponse := string(assetBytes)
 
-			testServer.AppendHandlers(
+			tempSettings.testServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
