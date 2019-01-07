@@ -14,6 +14,7 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/ghttp"
+	"gotest.tools/golden"
 )
 
 type temporarySettings struct {
@@ -31,7 +32,7 @@ func (tempSettings temporarySettings) assertConfigRereadMatches(contents string)
 
 	reread, err := ioutil.ReadAll(file)
 	Expect(err).ShouldNot(HaveOccurred())
-	Expect(string(reread)).To(Equal(contents))
+	Expect(string(reread)).To(ContainSubstring(contents))
 }
 
 func withTempSettings() *temporarySettings {
@@ -171,53 +172,6 @@ var _ = Describe("Setup with prompts", func() {
 			},
 		}
 		opts.cl = tempSettings.newFakeClient()
-
-		query := `query IntrospectionQuery {
-		    __schema {
-		      queryType { name }
-		      mutationType { name }
-		      types {
-		        ...FullType
-		      }
-		    }
-		  }
-
-		  fragment FullType on __Type {
-		    kind
-		    name
-		    description
-		    fields(includeDeprecated: true) {
-		      name
-		    }
-		  }`
-
-		request := client.NewRequest(query)
-		expected, err := request.Encode()
-		Expect(err).ShouldNot(HaveOccurred())
-
-		tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/diagnostic", "response.json"))
-		Expect(err).ShouldNot(HaveOccurred())
-		mockResponse := string(tmpBytes)
-
-		appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
-			Status:   http.StatusOK,
-			Request:  expected.String(),
-			Response: mockResponse})
-
-		// Here we want to actually validate the token in our test too
-		query = `query { me { name } }`
-		request = client.NewRequest(query)
-		request.SetToken(token)
-		Expect(err).ShouldNot(HaveOccurred())
-		expected, err = request.Encode()
-		Expect(err).ShouldNot(HaveOccurred())
-
-		response := `{ "me": { "name": "zomg" } }`
-
-		appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
-			Status:   http.StatusOK,
-			Request:  expected.String(),
-			Response: response})
 	})
 
 	AfterEach(func() {
@@ -225,22 +179,8 @@ var _ = Describe("Setup with prompts", func() {
 		tempSettings.testServer.Close()
 	})
 
-	Describe("new config file", func() {
-		It("should set file permissions to 0600", func() {
-			err := setup(opts)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			fileInfo, err := os.Stat(tempSettings.configPath)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
-		})
-	})
-
-	Describe("existing config file", func() {
+	Context("with happy diagnostic responses", func() {
 		BeforeEach(func() {
-			opts.cfg.Host = "https://example.com/graphql"
-			opts.cfg.Token = token
-
 			query := `query IntrospectionQuery {
 		    __schema {
 		      queryType { name }
@@ -264,8 +204,7 @@ var _ = Describe("Setup with prompts", func() {
 			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
-			tmpBytes, err := ioutil.ReadFile(filepath.Join("testdata/diagnostic", "response.json"))
-			Expect(err).ShouldNot(HaveOccurred())
+			tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("diagnostic/response.json"))
 			mockResponse := string(tmpBytes)
 
 			appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
@@ -289,20 +228,37 @@ var _ = Describe("Setup with prompts", func() {
 				Response: response})
 		})
 
-		It("should print setup complete", func() {
-			opts.tty = setupTestUI{
-				host:            tempSettings.testServer.URL(),
-				token:           token,
-				confirmEndpoint: true,
-				confirmToken:    true,
-			}
-
-			output := withCapturedOutput(func() {
+		Describe("new config file", func() {
+			It("should set file permissions to 0600", func() {
 				err := setup(opts)
 				Expect(err).ShouldNot(HaveOccurred())
+
+				fileInfo, err := os.Stat(tempSettings.configPath)
+				Expect(err).ToNot(HaveOccurred())
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			})
+		})
+
+		Describe("existing config file", func() {
+			BeforeEach(func() {
+				opts.cfg.Host = "https://example.com/graphql"
+				opts.cfg.Token = token
 			})
 
-			Expect(output).To(Equal(fmt.Sprintf(`A CircleCI token is already set. Do you want to change it
+			It("should print setup complete", func() {
+				opts.tty = setupTestUI{
+					host:            tempSettings.testServer.URL(),
+					token:           token,
+					confirmEndpoint: true,
+					confirmToken:    true,
+				}
+
+				output := withCapturedOutput(func() {
+					err := setup(opts)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				Expect(output).To(ContainSubstring(fmt.Sprintf(`A CircleCI token is already set. Do you want to change it
 CircleCI API Token
 API token has been set.
 CircleCI Host
@@ -315,10 +271,190 @@ Trying an introspection query on API to verify your setup... Ok.
 Trying to query your username given the provided token... Hello, %s.
 `, tempSettings.configPath, `zomg`)))
 
-			tempSettings.assertConfigRereadMatches(fmt.Sprintf(`host: %s
+				tempSettings.assertConfigRereadMatches(fmt.Sprintf(`host: %s
 endpoint: graphql-unstable
 token: %s
 `, tempSettings.testServer.URL(), token))
+			})
+
+			It("should not ask to set token if prompt for existing token is cancelled", func() {
+				opts.tty = setupTestUI{
+					host:            tempSettings.testServer.URL(),
+					token:           token,
+					confirmEndpoint: true,
+					confirmToken:    false,
+				}
+
+				output := withCapturedOutput(func() {
+					err := setup(opts)
+					Expect(err).ShouldNot(HaveOccurred())
+				})
+
+				Expect(output).To(ContainSubstring(fmt.Sprintf(`A CircleCI token is already set. Do you want to change it
+CircleCI Host
+CircleCI host has been set.
+Do you want to reset the endpoint? (default: graphql-unstable)
+Setup complete.
+Your configuration has been saved to %s.
+
+Trying an introspection query on API to verify your setup... Ok.
+Trying to query your username given the provided token... Hello, %s.
+`, tempSettings.configPath, `zomg`)))
+
+				tempSettings.assertConfigRereadMatches(fmt.Sprintf(`host: %s
+endpoint: graphql-unstable
+token: %s
+`, tempSettings.testServer.URL(), token))
+			})
+		})
+	})
+
+	Context("when introspection query returns an error", func() {
+		BeforeEach(func() {
+			query := `query IntrospectionQuery {
+		    __schema {
+		      queryType { name }
+		      mutationType { name }
+		      types {
+		        ...FullType
+		      }
+		    }
+		  }
+
+		  fragment FullType on __Type {
+		    kind
+		    name
+		    description
+		    fields(includeDeprecated: true) {
+		      name
+		    }
+		  }`
+
+			request := client.NewRequest(query)
+			expected, err := request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
+				Status:   http.StatusInternalServerError,
+				Request:  expected.String(),
+				Response: "{}"})
+
+			// Here we want to actually validate the token in our test too
+			query = `query { me { name } }`
+			request = client.NewRequest(query)
+			request.SetToken(token)
+			Expect(err).ShouldNot(HaveOccurred())
+			expected, err = request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			response := `{ "me": { "name": "zomg" } }`
+
+			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expected.String(),
+				Response: response})
+		})
+
+		It("should show an error", func() {
+			opts.tty = setupTestUI{
+				host:            tempSettings.testServer.URL(),
+				token:           token,
+				confirmEndpoint: true,
+				confirmToken:    true,
+			}
+
+			output := withCapturedOutput(func() {
+				err := setup(opts)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token
+API token has been set.
+CircleCI Host
+CircleCI host has been set.
+Do you want to reset the endpoint? (default: graphql-unstable)
+Setup complete.
+Your configuration has been saved to %s.
+
+Trying an introspection query on API to verify your setup... 
+Unable to make a query against the GraphQL API, please check your settings
+Trying to query your username given the provided token... Hello, %s.
+`, tempSettings.configPath, `zomg`)))
+		})
+	})
+
+	Context("when whoami query returns an auth error", func() {
+		BeforeEach(func() {
+			query := `query IntrospectionQuery {
+		    __schema {
+		      queryType { name }
+		      mutationType { name }
+		      types {
+		        ...FullType
+		      }
+		    }
+		  }
+
+		  fragment FullType on __Type {
+		    kind
+		    name
+		    description
+		    fields(includeDeprecated: true) {
+		      name
+		    }
+		  }`
+
+			request := client.NewRequest(query)
+			expected, err := request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("diagnostic/response.json"))
+			mockResponse := string(tmpBytes)
+
+			appendPostHandler(tempSettings.testServer, "", MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expected.String(),
+				Response: mockResponse})
+
+			// Here we want to actually validate the token in our test too
+			query = `query { me { name } }`
+			request = client.NewRequest(query)
+			request.SetToken(token)
+			Expect(err).ShouldNot(HaveOccurred())
+			expected, err = request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			appendPostHandler(tempSettings.testServer, token, MockRequestResponse{
+				Status:   http.StatusUnauthorized,
+				Request:  expected.String(),
+				Response: `{}`})
+		})
+
+		It("should show an error", func() {
+			opts.tty = setupTestUI{
+				host:            tempSettings.testServer.URL(),
+				token:           token,
+				confirmEndpoint: true,
+				confirmToken:    true,
+			}
+
+			output := withCapturedOutput(func() {
+				err := setup(opts)
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token
+API token has been set.
+CircleCI Host
+CircleCI host has been set.
+Do you want to reset the endpoint? (default: graphql-unstable)
+Setup complete.
+Your configuration has been saved to %s.
+
+Trying an introspection query on API to verify your setup... Ok.
+Trying to query your username given the provided token... 
+Unable to query the GraphQL API for your username, please check your settings
+`, tempSettings.configPath)))
 		})
 	})
 })
