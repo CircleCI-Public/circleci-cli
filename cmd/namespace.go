@@ -112,7 +112,7 @@ To change the namespace, you will have to contact CircleCI customer support.
 `, namespaceName, strings.ToLower(opts.args[1]), opts.args[2])
 	}
 
-	confirm := fmt.Sprintf("Please confirm the namespace you wish to create: `%s`.", namespaceName)
+	confirm := fmt.Sprintf("Are you sure you wish to create the namespace: `%s`", namespaceName)
 	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
 		_, err := api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
 

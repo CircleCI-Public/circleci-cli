@@ -285,7 +285,7 @@ This is the only namespace permitted for your bitbucket organization, test-org.
 
 To change the namespace, you will have to contact CircleCI customer support.
 
-Please confirm the namespace you wish to create: %s.
+Are you sure you wish to create the namespace: %s
 Namespace %s created.
 Please note that any orbs you publish in this namespace are open orbs and are world-readable.`, "foo-ns", "`foo-ns`", "`foo-ns`")))
 			})
@@ -362,7 +362,7 @@ This is the only namespace permitted for your bitbucket organization, test-org.
 
 To change the namespace, you will have to contact CircleCI customer support.
 
-Please confirm the namespace you wish to create: %s.
+Are you sure you wish to create the namespace: %s
 Namespace %s created.
 Please note that any orbs you publish in this namespace are open orbs and are world-readable.`, "foo-ns", "`foo-ns`", "`foo-ns`")))
 			})
