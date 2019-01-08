@@ -1109,7 +1109,7 @@ You will not be able to change the name of this orb.
 
 If you change your mind about the name, you will have to create a new orb with the new name.
 
-Please confirm the name of this orb: %s.
+Are you sure you wish to create the orb: %s
 Orb %s created.
 Please note that any versions you publish of this orb are world-readable.
 You can now register versions of %s using %s.`,

@@ -621,7 +621,7 @@ If you change your mind about the name, you will have to create a new orb with t
 `, namespace, orb)
 	}
 
-	confirm := fmt.Sprintf("Please confirm the name of this orb: `%s/%s`.", namespace, orb)
+	confirm := fmt.Sprintf("Are you sure you wish to create the orb: `%s/%s`", namespace, orb)
 
 	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
 		_, err = api.CreateOrb(opts.cl, namespace, orb)
