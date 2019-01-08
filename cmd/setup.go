@@ -266,7 +266,7 @@ func setupDiagnosticCheck(opts setupOptions) {
 
 	responseIntro, err := api.IntrospectionQuery(opts.cl)
 	if err != nil || responseIntro.Schema.QueryType.Name == "" {
-		fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings")
+		fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings.")
 	} else {
 		fmt.Println("Ok.")
 	}
@@ -275,7 +275,7 @@ func setupDiagnosticCheck(opts setupOptions) {
 	responseWho, err := api.WhoamiQuery(opts.cl)
 
 	if err != nil || responseWho.Me.Name == "" {
-		fmt.Println("\nUnable to query the GraphQL API for your username, please check your settings")
+		fmt.Println("\nUnable to query the GraphQL API for your username, please check your settings.")
 	} else {
 		fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
 	}

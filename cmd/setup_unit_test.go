@@ -241,7 +241,7 @@ Setup complete.
 Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... 
-Unable to make a query against the GraphQL API, please check your settings
+Unable to make a query against the GraphQL API, please check your settings.
 Trying to query your username given the provided token... Hello, %s.
 `, tempSettings.Config.Path, `zomg`)))
 		})
@@ -317,7 +317,7 @@ Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... Ok.
 Trying to query your username given the provided token... 
-Unable to query the GraphQL API for your username, please check your settings
+Unable to query the GraphQL API for your username, please check your settings.
 `, tempSettings.Config.Path)))
 		})
 	})
