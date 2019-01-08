@@ -2,64 +2,52 @@ package cmd_test
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
+	"gotest.tools/golden"
 )
 
 var _ = Describe("Config", func() {
 	Describe("with an api and config.yml", func() {
-		var (
-			testServer *ghttp.Server
-			config     tmpFile
-			tmpDir     string
-		)
+		var tempSettings *clitest.TempSettings
 
 		BeforeEach(func() {
-			var err error
-			tmpDir, err = openTmpDir("")
-			Expect(err).ToNot(HaveOccurred())
-
-			config, err = openTmpFile(tmpDir, filepath.Join(".circleci", "config.yaml"))
-			Expect(err).ToNot(HaveOccurred())
-
-			testServer = ghttp.NewServer()
+			tempSettings = clitest.WithTempSettings()
 		})
 
 		AfterEach(func() {
-			config.close()
-			os.RemoveAll(tmpDir)
-			testServer.Close()
+			tempSettings.Cleanup()
 		})
 
 		Describe("when validating config", func() {
 			var (
 				token   string
+				config  *clitest.TmpFile
 				command *exec.Cmd
 			)
 
 			BeforeEach(func() {
+				config = clitest.OpenTmpFile(tempSettings.Home, ".circleci/config.yaml")
+
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"config", "validate",
 					"--skip-update-check",
 					"--token", token,
-					"--host", testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					config.Path,
 				)
 			})
 
 			It("works", func() {
-				err := config.write(`some config`)
-				Expect(err).ToNot(HaveOccurred())
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -76,7 +64,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -90,8 +78,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				err := config.write(`some config`)
-				Expect(err).ToNot(HaveOccurred())
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -110,7 +97,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -128,23 +115,25 @@ var _ = Describe("Config", func() {
 		Describe("when processing config", func() {
 			var (
 				token   string
+				config  *clitest.TmpFile
 				command *exec.Cmd
 			)
 
 			BeforeEach(func() {
+				config = clitest.OpenTmpFile(tempSettings.Home, ".circleci/config.yaml")
+
 				token = "testtoken"
 				command = exec.Command(pathCLI,
 					"config", "process",
 					"--skip-update-check",
 					"--token", token,
-					"--host", testServer.URL(),
+					"--host", tempSettings.TestServer.URL(),
 					config.Path,
 				)
 			})
 
 			It("works", func() {
-				err := config.write(`some config`)
-				Expect(err).ToNot(HaveOccurred())
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -161,7 +150,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -175,8 +164,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("prints errors if invalid", func() {
-				err := config.write(`some config`)
-				Expect(err).ToNot(HaveOccurred())
+				config.Write([]byte(`some config`))
 
 				gqlResponse := `{
 							"buildConfig": {
@@ -196,7 +184,7 @@ var _ = Describe("Config", func() {
 					}
 				  }`
 
-				appendPostHandler(testServer, token, MockRequestResponse{
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
 					Response: gqlResponse,
@@ -213,19 +201,26 @@ var _ = Describe("Config", func() {
 
 	Describe("pack", func() {
 		var (
-			command *exec.Cmd
-			results []byte
+			command      *exec.Cmd
+			results      []byte
+			tempSettings *clitest.TempSettings
 		)
+
+		BeforeEach(func() {
+			tempSettings = clitest.WithTempSettings()
+		})
+
+		AfterEach(func() {
+			tempSettings.Cleanup()
+		})
 
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
 			BeforeEach(func() {
-				var err error
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
 					"testdata/hugo-pack/.circleci")
-				results, err = ioutil.ReadFile("testdata/hugo-pack/result.yml")
-				Expect(err).ShouldNot(HaveOccurred())
+				results = golden.Get(GinkgoT(), filepath.FromSlash("hugo-pack/result.yml"))
 			})
 
 			It("pack all YAML contents as expected", func() {
@@ -240,14 +235,12 @@ var _ = Describe("Config", func() {
 
 		Describe("local orbs folder with mixed inline and local commands, jobs, etc", func() {
 			BeforeEach(func() {
-				var err error
 				var path string = "nested-orbs-and-local-commands-etc"
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
 					filepath.Join("testdata", path, "test"))
-				results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
-				Expect(err).ShouldNot(HaveOccurred())
+				results = golden.Get(GinkgoT(), filepath.FromSlash(fmt.Sprintf("%s/result.yml", path)))
 			})
 
 			It("pack all YAML contents as expected", func() {
@@ -262,13 +255,12 @@ var _ = Describe("Config", func() {
 
 		Describe("an orb containing local executors and commands in folder", func() {
 			BeforeEach(func() {
-				var err error
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
 					"testdata/myorb/test")
-				results, err = ioutil.ReadFile("testdata/myorb/result.yml")
-				Expect(err).ShouldNot(HaveOccurred())
+
+				results = golden.Get(GinkgoT(), filepath.FromSlash("myorb/result.yml"))
 			})
 
 			It("pack all YAML contents as expected", func() {
@@ -283,14 +275,12 @@ var _ = Describe("Config", func() {
 
 		Describe("with a large nested config including rails orb", func() {
 			BeforeEach(func() {
-				var err error
 				var path string = "test-with-large-nested-rails-orb"
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
 					filepath.Join("testdata", path, "test"))
-				results, err = ioutil.ReadFile(filepath.Join("testdata", path, "result.yml"))
-				Expect(err).ShouldNot(HaveOccurred())
+				results = golden.Get(GinkgoT(), filepath.FromSlash(fmt.Sprintf("%s/result.yml", path)))
 			})
 
 			It("pack all YAML contents as expected", func() {
@@ -304,32 +294,22 @@ var _ = Describe("Config", func() {
 		})
 
 		Context("config is a list and not a map", func() {
-			var (
-				config tmpFile
-				tmpDir string
-			)
+			var config *clitest.TmpFile
 
 			BeforeEach(func() {
-				var err error
-				tmpDir, err = openTmpDir("")
-				Expect(err).ToNot(HaveOccurred())
-
-				config, err = openTmpFile(tmpDir, filepath.Join(".circleci", "config.yaml"))
-				Expect(err).ToNot(HaveOccurred())
+				config = clitest.OpenTmpFile(filepath.Join(tempSettings.Home, "myorb"), "config.yaml")
 
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
-					filepath.Join(tmpDir, ".circleci"),
+					config.RootDir,
 				)
 			})
 
 			It("prints an error about invalid YAML", func() {
-				err := config.write(`[]`)
-				Expect(err).ShouldNot(HaveOccurred())
+				config.Write([]byte(`[]`))
 
-				fullPath := filepath.Join(tmpDir, ".circleci", "config.yaml")
-				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", fullPath)
+				expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", config.Path)
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 

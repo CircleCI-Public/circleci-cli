@@ -36,6 +36,14 @@ func NewClient(host, endpoint, token string, debug bool) *Client {
 	}
 }
 
+// Reset replaces the existing fields with out creating a new client instance
+func (cl *Client) Reset(host, endpoint, token string, debug bool) {
+	cl.Endpoint = endpoint
+	cl.Host = host
+	cl.Token = token
+	cl.Debug = debug
+}
+
 // NewRequest returns a new GraphQL request.
 func NewRequest(query string) *Request {
 	request := &Request{
