@@ -2,12 +2,11 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -31,13 +30,9 @@ type setupOptions struct {
 // This is because the first call to PromptUI reads from stdin correctly,
 // but subsequent calls return EOF.
 type setupUserInterface interface {
-	readSecretStringFromUser(message string) (string, error)
 	readTokenFromUser(message string) (string, error)
-
-	readStringFromUser(message string, defaultValue string) string
 	readHostFromUser(message string, defaultValue string) string
 
-	askUserToConfirm(message string) bool
 	askUserToConfirmEndpoint(message string) bool
 	askUserToConfirmToken(message string) bool
 }
@@ -45,69 +40,22 @@ type setupUserInterface interface {
 // setupUI implements the setupUserInterface used by the real program, not in tests.
 type setupInteractiveUI struct{}
 
-// readSecretStringFromUser can be used to read a value from the user by masking their input.
-// It's useful for token input in our case.
-func (setupInteractiveUI) readSecretStringFromUser(message string) (string, error) {
-	prompt := promptui.Prompt{
-		Label: message,
-		Mask:  '*',
-	}
-
-	secret, err := prompt.Run()
-
-	if err != nil {
-		return "", err
-	}
-
-	return secret, nil
-}
-
-// readStringFromUser can be used to read any value from the user or the defaultValue when provided.
-func (setupInteractiveUI) readStringFromUser(message string, defaultValue string) string {
-	prompt := promptui.Prompt{
-		Label: message,
-	}
-
-	if defaultValue != "" {
-		prompt.Default = defaultValue
-	}
-
-	token, err := prompt.Run()
-
-	if err != nil {
-		panic(err)
-	}
-
-	return token
-}
-
 // readHostFromUser implements the setupInteractiveUI interface for asking a user's input.
-func (ui setupInteractiveUI) readHostFromUser(message string, defaultValue string) string {
-	return ui.readStringFromUser(message, defaultValue)
+func (setupInteractiveUI) readHostFromUser(message string, defaultValue string) string {
+	return prompt.ReadStringFromUser(message, defaultValue)
 }
 
 // readTokenFromUser implements the setupInteractiveUI interface for asking a user's token.
-func (ui setupInteractiveUI) readTokenFromUser(message string) (string, error) {
-	return ui.readSecretStringFromUser(message)
+func (setupInteractiveUI) readTokenFromUser(message string) (string, error) {
+	return prompt.ReadSecretStringFromUser(message)
 }
 
-// askUserToConfirm will prompt the user to confirm with the provided message.
-func (setupInteractiveUI) askUserToConfirm(message string) bool {
-	prompt := promptui.Prompt{
-		Label:     message,
-		IsConfirm: true,
-	}
-
-	result, err := prompt.Run()
-	return err == nil && strings.ToLower(result) == "y"
+func (setupInteractiveUI) askUserToConfirmEndpoint(message string) bool {
+	return prompt.AskUserToConfirm(message)
 }
 
-func (ui setupInteractiveUI) askUserToConfirmEndpoint(message string) bool {
-	return ui.askUserToConfirm(message)
-}
-
-func (ui setupInteractiveUI) askUserToConfirmToken(message string) bool {
-	return ui.askUserToConfirm(message)
+func (setupInteractiveUI) askUserToConfirmToken(message string) bool {
+	return prompt.AskUserToConfirm(message)
 }
 
 // setupTestUI implements the setupUserInterface for our testing purposes.
@@ -116,14 +64,6 @@ type setupTestUI struct {
 	token           string
 	confirmEndpoint bool
 	confirmToken    bool
-}
-
-func (setupTestUI) readStringFromUser(message string, defaultValue string) string {
-	return ""
-}
-
-func (setupTestUI) readSecretStringFromUser(message string) (string, error) {
-	return "", nil
 }
 
 // readHostFromUser implements the setupTestUI interface for asking a user's input.
@@ -138,11 +78,6 @@ func (ui setupTestUI) readHostFromUser(message string, defaultValue string) stri
 func (ui setupTestUI) readTokenFromUser(message string) (string, error) {
 	fmt.Println(message)
 	return ui.token, nil
-}
-
-// askUserToConfirm implements the setupTestUI interface for returning the confirm prompt.
-func (ui setupTestUI) askUserToConfirm(message string) bool {
-	return true
 }
 
 // askUserToConfirmEndpoint works by printing the provided message to standard out and returning a Confirm dialogue up the chain.

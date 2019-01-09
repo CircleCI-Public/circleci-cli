@@ -6,8 +6,8 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/manifoldco/promptui"
 	"github.com/spf13/cobra"
 )
 
@@ -30,14 +30,8 @@ type createNamespaceUserInterface interface {
 
 type createNamespaceInteractiveUI struct{}
 
-func (ui createNamespaceInteractiveUI) askUserToConfirm(message string) bool {
-	prompt := promptui.Prompt{
-		Label:     message,
-		IsConfirm: true,
-	}
-
-	result, err := prompt.Run()
-	return err == nil && strings.ToLower(result) == "y"
+func (createNamespaceInteractiveUI) askUserToConfirm(message string) bool {
+	return prompt.AskUserToConfirm(message)
 }
 
 type createNamespaceTestUI struct {

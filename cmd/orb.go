@@ -9,9 +9,9 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/manifoldco/promptui"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
@@ -46,14 +46,8 @@ type createOrbUserInterface interface {
 
 type createOrbInteractiveUI struct{}
 
-func (ui createOrbInteractiveUI) askUserToConfirm(message string) bool {
-	prompt := promptui.Prompt{
-		Label:     message,
-		IsConfirm: true,
-	}
-
-	result, err := prompt.Run()
-	return err == nil && strings.ToLower(result) == "y"
+func (createOrbInteractiveUI) askUserToConfirm(message string) bool {
+	return prompt.AskUserToConfirm(message)
 }
 
 type createOrbTestUI struct {
