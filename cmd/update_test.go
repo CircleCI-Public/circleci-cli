@@ -141,4 +141,41 @@ var _ = Describe("Update", func() {
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
+
+	FDescribe("When Github returns a 403 error", func() {
+		BeforeEach(func() {
+			command = exec.Command(pathCLI,
+				"update", "check",
+				"--github-api", tempSettings.TestServer.URL(),
+			)
+
+			tempSettings.TestServer.Reset()
+			tempSettings.TestServer.AppendHandlers(
+				ghttp.CombineHandlers(
+					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.RespondWith(http.StatusForbidden, []byte("Forbidden")),
+				),
+			)
+		})
+
+		It("should print a helpful error message & exit 255", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			// TODO: This should exit with error status 1, since 255 is a
+			// special error status for: "exit status outside of range".
+			Eventually(session.Err).Should(gbytes.Say("Failed to query the GitHub API for updates."))
+			Eventually(session.Err).Should(gbytes.Say("This is most likely due to GitHub rate-limiting on unauthenticated requests."))
+			Eventually(session.Err).Should(gbytes.Say("We call the github releases API to look for new releases. More information"))
+			Eventually(session.Err).Should(gbytes.Say("about that API can be found here: https://developer.github.com/v3/repos/releases/"))
+			Eventually(session.Err).Should(gbytes.Say("To have the circleci-cli make authenticated requests please:"))
+			Eventually(session.Err).Should(gbytes.Say("  1. Generate a token at https://github.com/settings/tokens"))
+			Eventually(session.Err).Should(gbytes.Say("  2. Set the token by either adding it to your ~/.gitconfig"))
+			Eventually(session.Err).Should(gbytes.Say("     setting the GITHUB_TOKEN environment variable"))
+			Eventually(session.Err).Should(gbytes.Say("Instructions for generating a token can be found at"))
+			Eventually(session.Err).Should(gbytes.Say("https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/"))
+
+			Eventually(session).Should(gexec.Exit(255))
+		})
+	})
 })
