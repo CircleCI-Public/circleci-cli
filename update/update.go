@@ -145,11 +145,34 @@ func latestRelease(opts *Options) error {
 	opts.Found = found
 
 	if err != nil {
-		if errResponse, ok := err.(*github.ErrorResponse); ok && errResponse.Response.StatusCode == http.StatusUnauthorized {
-			return errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
-		}
+		ghErr, ok := err.(*github.ErrorResponse)
 
-		return errors.Wrap(err, "error finding latest release")
+		if ok {
+			if ghErr.Response.StatusCode >= 400 && ghErr.Response.StatusCode < 500 {
+				return errors.Wrap(err, `Failed to query the GitHub API for updates.
+
+This is most likely due to GitHub rate-limiting on unauthenticated requests.
+
+To have the circleci-cli make authenticated requests please:
+
+  1. Generate a token at https://github.com/settings/tokens
+  2. Set the token by either adding it to your ~/.gitconfig or
+     setting the GITHUB_TOKEN environment variable.
+
+Instructions for generating a token can be found at:
+https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
+
+We call the GitHub releases API to look for new releases.
+More information about that API can be found here: https://developer.github.com/v3/repos/releases/
+`)
+			}
+
+			if ghErr.Response.StatusCode == http.StatusUnauthorized {
+				return errors.Wrap(err, "Your GitHub token is invalid. Check the [github] section in ~/.gitconfig\n")
+			}
+		} else {
+			return errors.Wrap(err, "error finding latest release")
+		}
 	}
 
 	return nil
