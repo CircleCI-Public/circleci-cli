@@ -3,14 +3,12 @@ package update
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/blang/semver"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
@@ -145,11 +143,7 @@ func latestRelease(opts *Options) error {
 	opts.Found = found
 
 	if err != nil {
-		ghErr, ok := err.(*github.ErrorResponse)
-
-		if ok {
-			if ghErr.Response.StatusCode >= 400 && ghErr.Response.StatusCode < 500 {
-				return errors.Wrap(err, `Failed to query the GitHub API for updates.
+		return errors.Wrap(err, `Failed to query the GitHub API for updates.
 
 This is most likely due to GitHub rate-limiting on unauthenticated requests.
 
@@ -164,15 +158,8 @@ https://help.github.com/articles/creating-a-personal-access-token-for-the-comman
 
 We call the GitHub releases API to look for new releases.
 More information about that API can be found here: https://developer.github.com/v3/repos/releases/
-`)
-			}
 
-			if ghErr.Response.StatusCode == http.StatusUnauthorized {
-				return errors.Wrap(err, "Your GitHub token is invalid. Check the [github] section in ~/.gitconfig\n")
-			}
-		} else {
-			return errors.Wrap(err, "error finding latest release")
-		}
+`)
 	}
 
 	return nil
