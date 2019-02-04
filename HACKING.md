@@ -30,10 +30,13 @@ $ cd circleci-cli
 
 If you cloned the repo inside of your `$GOPATH`, you can use `GO111MODULE=on` in order to use Go modules. We recommend cloning the repo outside of `$GOPATH` as you would any other source code project, for example `~/code/circleci-cli`.
 
-The Makefile also assumes you have the `packr2` binary installed. You can install this with:
+The Makefile also assumes you have the `packr2` binary installed. You can check for the latest release on the packr [Github releases page](https://github.com/gobuffalo/packr/releases).
+
+macOS install instructions
 
 ```
-go get -u github.com/gobuffalo/packr/v2/packr2
+$ curl -L https://github.com/gobuffalo/packr/releases/download/v2.0.0/packr_2.0.0_darwin_amd64.tar.gz | tar -x > /usr/local/bin/packr2
+$ chmod +x /usr/local/bin/packr2
 ```
 
 ### 2. Build the binary
