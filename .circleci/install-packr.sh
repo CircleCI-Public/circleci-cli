@@ -56,7 +56,7 @@ echo "Installing packr for $ARCH to $DESTDIR"
 mv packr2 "$DESTDIR"
 chmod +x "$DESTDIR/packr2"
 
-command -v packr2
+command -v "$DESTDIR/packr2"
 
 # Delete the working directory when the install was successful.
 rm -r "$SCRATCH"
