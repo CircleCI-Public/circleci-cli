@@ -67,6 +67,7 @@ commands:
     steps:
       - slack/status:
           fail_only: "true"
+          only_for_branch: "master"
 
 jobs:
   test:
