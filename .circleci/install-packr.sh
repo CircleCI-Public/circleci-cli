@@ -29,9 +29,9 @@ grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
 grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
 
 function get_arch_type() {
-    if [[ $(uname -i) == "i686" ]]; then
+    if [[ $(uname -m) == "i686" ]]; then
         echo "386"
-    elif [[ $(uname -i) == "x86_64" ]]; then
+    elif [[ $(uname -m) == "x86_64" ]]; then
         echo "amd64"
     fi
 }
