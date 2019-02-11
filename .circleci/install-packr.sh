@@ -46,7 +46,11 @@ function get_arch_base() {
 
 ARCH="$(get_arch_base)_$(get_arch_type)"
 
-grep -i "$ARCH" tarball_urls.txt | xargs curl --retry 3 --fail --location | tar -xz
+PACKR_RELEASE_URL=$(grep -i "$ARCH" tarball_urls.txt)
+
+echo "Fetching packr for $ARCH at $PACKR_RELEASE_URL"
+
+curl --retry 3 --fail --location "$PACKR_RELEASE_URL" | tar -xz
 
 echo "Installing packr for $ARCH to $DESTDIR"
 mv packr2 "$DESTDIR"
