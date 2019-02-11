@@ -48,7 +48,7 @@ ARCH="$(get_arch_base)_$(get_arch_type)"
 
 PACKR_RELEASE_URL=$(grep -i "$ARCH" tarball_urls.txt)
 
-echo "Fetching packr for $ARCH at $PACKR_RELEASE_URL"
+echo "Fetching packr from $PACKR_RELEASE_URL"
 
 curl --retry 3 --fail --location "$PACKR_RELEASE_URL" | tar -xz
 
