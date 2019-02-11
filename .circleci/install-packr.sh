@@ -40,11 +40,9 @@ elif [[ "$OSTYPE" == "darwin"* ]]; then
     ARCH_BASE="darwin"
 fi
 
-ARCH="$ARCH_BASE"_"$ARCH_TYPE"
+grep -i "$ARCH_BASE"_"$ARCH_TYPE" tarball_urls.txt | xargs curl --retry 3 --fail --location | tar -xz
 
-grep -i "$ARCH" tarball_urls.txt | xargs curl --retry 3 --fail --location | tar -xz
-
-echo "Installing packr for $ARCH to $DESTDIR"
+echo "Installing packr for $ARCH_BASE-$ARCH_TYPE to $DESTDIR"
 mv packr2 "$DESTDIR"
 chmod +x "$DESTDIR/packr2"
 
