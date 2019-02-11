@@ -4,34 +4,40 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-PACKR_DEST=bin/packr2
-PACKR_VERSION=2.0.1
-PACKR_URL=https://github.com/gobuffalo/packr/releases/download/v"$PACKR_VERSION"/packr_"$PACKR_VERSION"_linux_amd64.tar.gz
+RELEASE_URL="https://api.github.com/repos/gobuffalo/packr/releases/latest"
+DESTDIR="${DESTDIR:-$PWD/bin}"
 
-export PACKR_DEST
-export PACKR_VERSION
-export PACKR_URL
+SCRATCH=$(mktemp -d)
+cd "$SCRATCH"
 
-TDIR=$(mktemp -d)
-ORIGIN="$PWD"
-
-cleanup() {
-    test -n "$TDIR" && test -d "$TDIR" && rm -rf "$TDIR"
+function error() {
+    echo "An error occured installing the tool."
+    echo "The contents of the directory $SCRATCH have been left in place to help to debug the issue."
 }
 
-trap cleanup SIGINT
-trap 'cleanup; exit 127' INT TERM
+trap error SIGINT
 
-(
-    cd "$TDIR"
-    curl -SL "$PACKR_URL" | tar -xzv
-)
+echo "Finding latest release of packr."
+curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL"
+python -m json.tool release.json > formatted_release.json
 
-(
-    cd "$ORIGIN"
-    mv "$TDIR"/packr2 "$PACKR_DEST"
+STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
 
-    rm -rf "$TDIR"
-)
+echo -n 'Downloading packr '
+grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
+
+grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
+grep -i "$(uname)" tarball_urls.txt | xargs curl --silent --retry 3 --fail --location --output packr.tgz
+
+tar zxf packr.tgz --strip 1
+
+echo "Installing to $DESTDIR"
+mv packr2 "$DESTDIR"
+chmod +x "$DESTDIR/packr2"
+
+command -v packr2
+
+# Delete the working directory when the install was successful.
+rm -r "$SCRATCH"
 
 exit 0
