@@ -27,11 +27,24 @@ echo -n 'Downloading packr '
 grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
 
 grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
-grep -i "$(uname)" tarball_urls.txt | xargs curl --silent --retry 3 --fail --location --output packr.tgz
 
-tar zxf packr.tgz --strip 1
+if [[ $(uname -i) == "i686" ]]; then
+    ARCH_TYPE="386"
+elif [[ $(uname -i) == "x86_64" ]]; then
+    ARCH_TYPE="amd64"
+fi
 
-echo "Installing to $DESTDIR"
+if [[ "$OSTYPE" == "linux-gnu" ]]; then
+    ARCH_BASE="linux"
+elif [[ "$OSTYPE" == "darwin"* ]]; then
+    ARCH_BASE="darwin"
+fi
+
+ARCH="$ARCH_BASE"_"$ARCH_TYPE"
+
+grep -i "$ARCH" tarball_urls.txt | xargs curl --retry 3 --fail --location | tar -xz
+
+echo "Installing packr for $ARCH to $DESTDIR"
 mv packr2 "$DESTDIR"
 chmod +x "$DESTDIR/packr2"
 
