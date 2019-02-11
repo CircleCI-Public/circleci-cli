@@ -28,21 +28,27 @@ grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
 
 grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
 
-if [[ $(uname -i) == "i686" ]]; then
-    ARCH_TYPE="386"
-elif [[ $(uname -i) == "x86_64" ]]; then
-    ARCH_TYPE="amd64"
-fi
+function get_arch_type() {
+    if [[ $(uname -i) == "i686" ]]; then
+        echo "386"
+    elif [[ $(uname -i) == "x86_64" ]]; then
+        echo "amd64"
+    fi
+}
 
-if [[ "$OSTYPE" == "linux-gnu" ]]; then
-    ARCH_BASE="linux"
-elif [[ "$OSTYPE" == "darwin"* ]]; then
-    ARCH_BASE="darwin"
-fi
+function get_arch_base() {
+    if [[ "$OSTYPE" == "linux-gnu" ]]; then
+        echo "linux"
+    elif [[ "$OSTYPE" == "darwin"* ]]; then
+        echo "darwin"
+    fi
+}
 
-grep -i "$ARCH_BASE"_"$ARCH_TYPE" tarball_urls.txt | xargs curl --retry 3 --fail --location | tar -xz
+ARCH="$(get_arch_base)_$(get_arch_type)"
 
-echo "Installing packr for $ARCH_BASE-$ARCH_TYPE to $DESTDIR"
+grep -i "$ARCH" tarball_urls.txt | xargs curl --retry 3 --fail --location | tar -xz
+
+echo "Installing packr for $ARCH to $DESTDIR"
 mv packr2 "$DESTDIR"
 chmod +x "$DESTDIR/packr2"
 
