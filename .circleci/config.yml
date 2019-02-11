@@ -130,6 +130,7 @@ jobs:
       - checkout
       - install-goreleaser
       - gomod
+      - run: make dev
       - run:
           name: Release
           command: goreleaser --skip-publish --skip-validate
@@ -153,6 +154,7 @@ jobs:
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
       - gomod
+      - run: make dev
       - run:
           name: Release
           command: goreleaser
