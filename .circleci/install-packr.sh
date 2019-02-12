@@ -4,7 +4,8 @@ set -o errexit
 set -o pipefail
 set -o nounset
 
-RELEASE_URL="https://api.github.com/repos/gobuffalo/packr/releases/latest"
+PACKR_VERSION="2.0.1"
+RELEASE_URL="https://github.com/gobuffalo/packr/releases/download"
 DESTDIR="${DESTDIR:-$PWD/bin}"
 
 SCRATCH=$(mktemp -d)
@@ -16,17 +17,6 @@ function error() {
 }
 
 trap error SIGINT
-
-echo "Finding latest release of packr."
-curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL"
-python -m json.tool release.json > formatted_release.json
-
-STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
-
-echo -n 'Downloading packr '
-grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
-
-grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
 
 function get_arch_type() {
     if [[ $(uname -m) == "i686" ]]; then
@@ -45,8 +35,7 @@ function get_arch_base() {
 }
 
 ARCH="$(get_arch_base)_$(get_arch_type)"
-
-PACKR_RELEASE_URL=$(grep -i "$ARCH" tarball_urls.txt)
+PACKR_RELEASE_URL="${RELEASE_URL}/v${PACKR_VERSION}/packr_${PACKR_VERSION}_${ARCH}.tar.gz"
 
 echo "Fetching packr from $PACKR_RELEASE_URL"
 
