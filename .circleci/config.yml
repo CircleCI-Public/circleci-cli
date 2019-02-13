@@ -52,18 +52,6 @@ commands:
           command: |
             [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
             sudo apt install ~/goreleaser_amd64.deb
-  install-packr:
-    parameters:
-      PACKR_URL:
-        type: string
-        default: https://github.com/gobuffalo/packr/releases/download/v2.0.0-rc.13/packr_2.0.0-rc.13_linux_amd64.tar.gz
-    steps:
-      - run:
-          name: Install packr2 to build packrd data before goreleaser builds final binary
-          command: |
-            cd $(mktemp -d)
-            curl -SL << parameters.PACKR_URL >> | tar -xzv
-            sudo mv packr2 /usr/local/bin/packr2
   gomod:
     steps:
       - restore_cache:
@@ -79,6 +67,7 @@ commands:
     steps:
       - slack/status:
           fail_only: "true"
+          only_for_branch: "master"
 
 jobs:
   test:
@@ -142,7 +131,7 @@ jobs:
       - checkout
       - install-goreleaser
       - gomod
-      - install-packr
+      - run: make dev
       - run:
           name: Release
           command: goreleaser --skip-publish --skip-validate
@@ -166,7 +155,7 @@ jobs:
             git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             git push origin "v0.1.$CIRCLE_BUILD_NUM"
       - gomod
-      - install-packr
+      - run: make dev
       - run:
           name: Release
           command: goreleaser

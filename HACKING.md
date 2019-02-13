@@ -36,6 +36,14 @@ If you cloned the repo inside of your `$GOPATH`, you can use `GO111MODULE=on` in
 $ make
 ```
 
+The `make` file assumes you have the `packr2` binary available which is installable via `make dev`. This will pull the latest stable binary into the project's `./bin/packr2` path.
+
+If you don't run `make dev`, you will see a make error:
+
+```
+/bin/sh: 1: bin/packr2: not found
+```
+
 ### 3. Run tests
 
 ```
