@@ -11,7 +11,7 @@ RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/
 DESTDIR="${DESTDIR:-/usr/local/bin}"
 
 # Run the script in a temporary directory that we know is empty.
-SCRATCH=$(mktemp -d)
+SCRATCH=$(mktemp -d -t tmp)
 cd "$SCRATCH"
 
 function error {
