@@ -195,7 +195,7 @@ jobs:
       - run:
           name: Publish to store
           command: |
-            # The Snapcraft login file here will expire March 1st, 2022. A new one will need to be created then.
+            # The Snapcraft login file here will expire March 1st, 2020. A new one will need to be created then.
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
