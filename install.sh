@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
+
 # Install the CircleCI CLI tool.
-# https://github.com/circleci-public/circleci-cli
+# https://github.com/CircleCI-Public/circleci-cli
+#
+# Dependencies: curl, cut
+#
+# The version to install and the binary location can be passed in via VERSION and DESTDIR respectively.
+#
 
 set -o errexit
-set -o nounset
 
-echo Installing CircleCI CLI
+echo "Starting installation."
 
-RELEASE_URL="https://api.github.com/repos/CircleCI-Public/circleci-cli/releases/latest"
+# GitHub's URL for the latest release, will redirect.
+LATEST_URL="https://github.com/CircleCI-Public/circleci-cli/releases/latest/"
 DESTDIR="${DESTDIR:-/usr/local/bin}"
+
+if [ -z "$VERSION" ]; then
+	VERSION=$(curl -sLI -o /dev/null -w '%{url_effective}' $LATEST_URL | cut -d "v" -f 2)
+fi
+
+echo "Installing CircleCI CLI v${VERSION}"
 
 # Run the script in a temporary directory that we know is empty.
 SCRATCH=$(mktemp -d || mktemp -d -t 'tmp')
@@ -21,19 +33,20 @@ function error {
 
 trap error ERR
 
-echo "Finding latest release."
-curl --retry 3 --fail --location --silent --output release.json "$RELEASE_URL"
-python -m json.tool release.json > formatted_release.json
+# Determine release filename. This can be expanded with CPU arch in the future.
+if [ "$(uname)" == "Linux" ]; then
+	OS="linux"
+elif [ "$(uname)" == "Darwin" ]; then
+	OS="darwin"
+else
+	echo "This operating system is not supported."
+	exit 1
+fi
 
-STRIP_JSON_STRING='s/.*"([^"]+)".*/\1/'
+RELEASE_URL="https://github.com/CircleCI-Public/circleci-cli/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_amd64.tar.gz"
 
-echo -n 'Downloading CircleCI '
-grep tag_name formatted_release.json | sed -E "$STRIP_JSON_STRING"
-
-grep browser_download_url formatted_release.json | sed -E "$STRIP_JSON_STRING" > tarball_urls.txt
-grep -i "$(uname)" tarball_urls.txt | xargs curl --silent --retry 3 --fail --location --output circleci.tgz
-
-tar zxf circleci.tgz --strip 1
+# Download & unpack the release tarball.
+curl -sL --retry 3 "${RELEASE_URL}" | tar zx --strip 1
 
 echo "Installing to $DESTDIR"
 mv circleci "$DESTDIR"

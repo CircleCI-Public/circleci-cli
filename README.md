@@ -31,6 +31,12 @@ By default, the `circleci` app will be installed to the ``/usr/local/bin`` direc
 curl -fLSs https://circle.ci/cli | DESTDIR=/opt/bin bash
 ```
 
+You can also set a specific version of the CLI to install with the `VERSION` environment variable:
+
+```
+curl -fLSs https://circle.ci/cli | VERSION=0.1.5222 sudo bash
+```
+
 
 #### Homebrew
 
