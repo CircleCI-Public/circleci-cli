@@ -196,6 +196,29 @@ var _ = Describe("Config", func() {
 				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
+
+		})
+
+		Describe("When processing a config that has special characters", func() {
+			var (
+				command *exec.Cmd
+				results []byte
+			)
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"config", "process",
+					"--skip-update-check",
+					"testdata/formatting/with_percent.yml")
+				results = golden.Get(GinkgoT(), filepath.FromSlash("formatting/result.yml"))
+			})
+			It("respects percent signs", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				session.Wait()
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err.Contents()).Should(BeEmpty())
+				Eventually(session.Out.Contents()).Should(MatchYAML(results))
+				Eventually(session).Should(gexec.Exit(0))
+			})
 		})
 	})
 

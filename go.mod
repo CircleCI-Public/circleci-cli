@@ -15,6 +15,8 @@ require (
 	github.com/google/go-cmp v0.2.0
 	github.com/google/go-github v15.0.0+incompatible
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135
+	github.com/google/pprof v0.0.0-20190309163659-77426154d546 // indirect
+	github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6 // indirect
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf
 	github.com/inconshreveable/mousetrap v1.0.0
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a
@@ -34,6 +36,7 @@ require (
 	github.com/tcnksm/go-gitconfig v0.1.2
 	github.com/ugorji/go/codec v0.0.0-20181209151446-772ced7fd4c2 // indirect
 	github.com/ulikunitz/xz v0.5.4
+	golang.org/x/arch v0.0.0-20190226203302-36aee92af9e8 // indirect
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3
 	golang.org/x/oauth2 v0.0.0-20180724155351-3d292e4d0cdc
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
