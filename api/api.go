@@ -140,6 +140,7 @@ type GetOrganizationResponse struct {
 // WhoamiResponse type matches the data shape of the GQL response for the current user
 type WhoamiResponse struct {
 	Me struct {
+		Login string
 		Name string
 	}
 }
