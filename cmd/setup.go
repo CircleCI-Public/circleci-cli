@@ -211,9 +211,9 @@ func setupDiagnosticCheck(opts setupOptions) {
 
 	if err != nil {
 		fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings.")
-		// If user does not have a name set in their VCS, return their login (VCS handle) instead
+		// If user does not have a name set in their VCS, let's just say hi :)
 	} else if responseWho.Me.Name == "" {
-		fmt.Printf("Hello, %s.\n", responseWho.Me.Login)
+		fmt.Printf("Hello!")
 	} else {
 		fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
 	}
