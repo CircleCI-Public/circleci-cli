@@ -141,7 +141,7 @@ type GetOrganizationResponse struct {
 type WhoamiResponse struct {
 	Me struct {
 		Login string
-		Name string
+		Name  string
 	}
 }
 
