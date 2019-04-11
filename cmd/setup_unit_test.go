@@ -317,7 +317,7 @@ Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... Ok.
 Trying to query our API for your profile name... 
-Unable to make a query against the GraphQL API, please check your settings.
+Unable to query our API for your profile name, please check your settings.
 `, tempSettings.Config.Path)))
 		})
 	})
