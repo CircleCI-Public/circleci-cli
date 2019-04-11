@@ -206,11 +206,11 @@ func setupDiagnosticCheck(opts setupOptions) {
 		fmt.Println("Ok.")
 	}
 
-	fmt.Printf("Trying to query your username given the provided token... ")
+	fmt.Printf("Trying to query our API for your profile name... ")
 	responseWho, err := api.WhoamiQuery(opts.cl)
 
 	if err != nil {
-		fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings.")
+		fmt.Println("\nUnable to query our API for your profile name, please check your settings.")
 		// If user does not have a name set in their VCS, let's just say hi :)
 	} else if responseWho.Me.Name == "" {
 		fmt.Printf("Hello!")

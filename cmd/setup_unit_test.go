@@ -132,7 +132,7 @@ Setup complete.
 Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... Ok.
-Trying to query your username given the provided token... Hello, %s.
+Trying to query our API for your profile name... Hello, %s.
 `, tempSettings.Config.Path, `zomg`)))
 
 				tempSettings.AssertConfigRereadMatches(fmt.Sprintf(`host: %s
@@ -162,7 +162,7 @@ Setup complete.
 Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... Ok.
-Trying to query your username given the provided token... Hello, %s.
+Trying to query our API for your profile name... Hello, %s.
 `, tempSettings.Config.Path, `zomg`)))
 
 				tempSettings.AssertConfigRereadMatches(fmt.Sprintf(`host: %s
@@ -242,7 +242,7 @@ Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... 
 Unable to make a query against the GraphQL API, please check your settings.
-Trying to query your username given the provided token... Hello, %s.
+Trying to query our API for your profile name... Hello, %s.
 `, tempSettings.Config.Path, `zomg`)))
 		})
 	})
@@ -316,7 +316,7 @@ Setup complete.
 Your configuration has been saved to %s.
 
 Trying an introspection query on API to verify your setup... Ok.
-Trying to query your username given the provided token... 
+Trying to query our API for your profile name... 
 Unable to make a query against the GraphQL API, please check your settings.
 `, tempSettings.Config.Path)))
 		})
