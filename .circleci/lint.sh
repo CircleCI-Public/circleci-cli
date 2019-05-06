@@ -6,7 +6,7 @@ set -o nounset
 
 function error() {
     echo "An error occured running golangci-lint."
-    echo "Have you run `make install-lint`?"
+    echo "Have you run \"make install-lint\"?"
 }
 
 trap error SIGINT
