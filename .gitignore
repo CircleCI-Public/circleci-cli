@@ -21,3 +21,7 @@ stage/
 # packr related
 */*-packr.go
 packrd/
+
+# golangci-lint
+# We expect to install the binary each time in CI
+bin/golangci-lint

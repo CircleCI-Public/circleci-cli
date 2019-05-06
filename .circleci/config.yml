@@ -108,21 +108,11 @@ jobs:
       - slack-notify-on-failure
 
   lint:
-    docker:
-      - image: supinf/gometalinter:latest
-    environment:
-      CGO_ENABLED: 0
-      SHELL: /bin/bash
-    working_directory: /go/src/github.com/CircleCI-Public/circleci-cli
+    executor: go
     steps:
       - checkout
-      - run:
-          name: Install deps to use with gometalinter
-          command: |
-            apk --no-cache add git bash curl
-            go get -u github.com/golang/dep/cmd/dep
-            dep init
-      - run: gometalinter ./...
+      - run: make install-lint
+      - run: make lint
       - slack-notify-on-failure
 
   deploy-test:
