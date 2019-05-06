@@ -21,4 +21,3 @@ stage/
 # packr related
 */*-packr.go
 packrd/
-/bin/packr2

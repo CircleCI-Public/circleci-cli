@@ -41,13 +41,13 @@ lint:
 doc:
 	godoc -http=:6060
 
-.PHONY: dev
-dev:
+.PHONY: install-packr
+install-packr:
 	bash .circleci/install-packr.sh
 
 .PHONY: pack
 pack:
-	GO111MODULE=on bin/packr2 build
+	bash .circleci/pack.sh
 
 .PHONY: always
 always:
