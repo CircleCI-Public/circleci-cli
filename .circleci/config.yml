@@ -131,7 +131,6 @@ jobs:
       - checkout
       - install-goreleaser
       - gomod
-      - run: make dev
       - run:
           name: Release
           command: goreleaser --skip-publish --skip-validate
