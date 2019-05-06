@@ -14,4 +14,4 @@ Can you provide an example?
 
 Please provide the output of `circleci version` and `circleci diagnostic`.
 
-**If you have any questions, feel free to ping us at @CircleCI-Public/dx-clients.**
+**If you have any questions, feel free to ping us at @CircleCI-Public/x-team.**
