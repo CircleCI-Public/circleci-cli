@@ -149,7 +149,7 @@ func processConfig(opts configOptions) error {
 		return err
 	}
 
-	fmt.Printf(response.OutputYaml)
+	fmt.Print(response.OutputYaml)
 	return nil
 }
 
