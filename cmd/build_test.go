@@ -80,7 +80,8 @@ var _ = Describe("build", func() {
 				args: []string{"--help"},
 				help: mockHelp,
 			}
-			runExecute(mockOptions)
+			err := runExecute(mockOptions)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(called).To(BeTrue())
 		})
 
@@ -94,7 +95,8 @@ var _ = Describe("build", func() {
 				args: []string{"--skip-checkout", "--help"},
 				help: mockHelp,
 			}
-			runExecute(mockOptions)
+			err := runExecute(mockOptions)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(called).To(BeTrue())
 		})
 
@@ -108,7 +110,8 @@ var _ = Describe("build", func() {
 				args: []string{"-h"},
 				help: mockHelp,
 			}
-			runExecute(mockOptions)
+			err := runExecute(mockOptions)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(called).To(BeTrue())
 		})
 
@@ -122,7 +125,8 @@ var _ = Describe("build", func() {
 				args: []string{"--skip-checkout", "-h"},
 				help: mockHelp,
 			}
-			runExecute(mockOptions)
+			err := runExecute(mockOptions)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(called).To(BeTrue())
 		})
 	})

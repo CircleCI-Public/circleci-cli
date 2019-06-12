@@ -62,11 +62,14 @@ func TestDoJSON(t *testing.T) {
 			t.Errorf("expected %s", string(b))
 		}
 
-		io.WriteString(w, `{
+		_, err = io.WriteString(w, `{
 			"data": {
 				"something": "yes"
 			}
 		}`)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
 	}))
 	defer srv.Close()
 
@@ -152,7 +155,7 @@ func TestDoJSONErr(t *testing.T) {
 			t.Errorf("expected %s", body)
 		}
 
-		io.WriteString(writer,
+		_, err = io.WriteString(writer,
 			`{
 				"errors": [
 					{
@@ -163,6 +166,9 @@ func TestDoJSONErr(t *testing.T) {
 					}
 				]
 			}`)
+		if err != nil {
+			t.Errorf(err.Error())
+		}
 	}))
 
 	defer server.Close()
