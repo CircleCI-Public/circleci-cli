@@ -112,6 +112,7 @@ jobs:
     steps:
       - checkout
       - run: make install-lint
+      - run: make build
       - run: make lint
       - slack-notify-on-failure
 
