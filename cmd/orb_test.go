@@ -94,7 +94,10 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				Expect(err).ToNot(HaveOccurred())
 				go func() {
 					defer stdin.Close()
-					io.WriteString(stdin, "{}")
+					_, err := io.WriteString(stdin, "{}")
+					if err != nil {
+						panic(err)
+					}
 				}()
 			})
 
