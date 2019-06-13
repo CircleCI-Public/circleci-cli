@@ -10,6 +10,6 @@ function error() {
 
 trap error SIGINT
 
-curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s v1.16.0
+curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s v1.17.1
 
 command -v ./bin/golangci-lint
