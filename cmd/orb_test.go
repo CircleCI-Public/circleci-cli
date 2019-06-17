@@ -1736,7 +1736,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			edges {
 				cursor
 				node {
-					versions {
+					versions(count: 200) {
 						source
 						version
 					}
@@ -1850,7 +1850,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			edges {
 				cursor
 				node {
-					versions {
+					versions(count: 200) {
 						source
 						version
 					}
@@ -2055,7 +2055,7 @@ foo.bar/account/api`))
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount
 	                            }
-                                    versions {
+                                    versions(count: 200) {
                                         createdAt
                                         version
                                     }
