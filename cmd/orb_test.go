@@ -1736,7 +1736,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			edges {
 				cursor
 				node {
-					versions(count: 200) {
+					versions {
 						source
 						version
 					}
@@ -1850,7 +1850,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 			edges {
 				cursor
 				node {
-					versions(count: 200) {
+					versions {
 						source
 						version
 					}
