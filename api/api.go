@@ -899,7 +899,7 @@ func OrbInfo(cl *client.Client, orbRef string) (*OrbVersion, error) {
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount
 	                            }
-                                    versions {
+                                    versions(count: 200) {
                                         createdAt
                                         version
                                     }
