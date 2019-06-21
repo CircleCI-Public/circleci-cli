@@ -2055,7 +2055,7 @@ foo.bar/account/api`))
 		                        last30DaysProjectCount,
 		                        last30DaysOrganizationCount
 	                            }
-                                    versions {
+                                    versions(count: 200) {
                                         createdAt
                                         version
                                     }
@@ -2108,7 +2108,6 @@ foo.bar/account/api`))
 Latest: my/orb@0.0.1
 Last-updated: 2018-10-11T22:12:19.477Z
 Created: 2018-09-24T08:53:37.086Z
-First-release: 0.0.1 @ 2018-10-11T22:12:19.477Z
 Total-revisions: 1
 
 Total-commands: 1
@@ -2169,7 +2168,6 @@ https://circleci.com/orbs/registry/orb/my/orb
 Latest: my/orb@0.0.1
 Last-updated: 2018-10-11T22:12:19.477Z
 Created: 2018-09-24T08:53:37.086Z
-First-release: 0.0.1 @ 2018-10-11T22:12:19.477Z
 Total-revisions: 1
 
 Total-commands: 1
