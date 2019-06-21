@@ -657,7 +657,6 @@ func orbInfo(opts orbOptions) error {
 		fmt.Printf("Latest: %s@%s\n", info.Orb.Name, info.Orb.HighestVersion)
 		fmt.Printf("Last-updated: %s\n", info.Orb.Versions[0].CreatedAt)
 		fmt.Printf("Created: %s\n", info.Orb.CreatedAt)
-		// firstRelease := info.Orb.Versions[len(info.Orb.Versions)-1]
 
 		fmt.Printf("Total-revisions: %d\n", len(info.Orb.Versions))
 	} else {
