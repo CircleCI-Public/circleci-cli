@@ -237,7 +237,7 @@ You can use 'circleci config process' to pre-process your config into a version 
 
 func ensureDockerIsAvailable() error {
 	if _, err := exec.LookPath("docker"); err != nil {
-		return errors.New("could not find `docker` on the PATH; please ensure than docker is installed")
+		return errors.New("could not find `docker` on the PATH; please ensure that docker is installed")
 	}
 
 	dockerRunning := exec.Command("docker", "version").Run() == nil // #nosec
