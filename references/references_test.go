@@ -44,4 +44,14 @@ var _ = Describe("Parsing Orbs", func() {
 		Expect(version).To(Equal("dev:bah/bah"))
 		Expect(err).ShouldNot(HaveOccurred())
 	})
+
+	It("Should correctly identify a valid orb reference", func() {
+		err := references.IsOrbRefWithOptionalVersion("circleci/aws-s3@1.0.8")
+		Expect(err).ShouldNot(HaveOccurred())
+	})
+
+	It("Should correctly identify an invalid orb reference", func() {
+		err := references.IsOrbRefWithOptionalVersion("foobar@1.2.3")
+		Expect(err).Should(HaveOccurred())
+	})
 })
