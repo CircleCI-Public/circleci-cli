@@ -317,8 +317,3 @@ func TestStatusCode413(t *testing.T) {
 		t.Errorf("expected %s", string(calls))
 	}
 }
-
-func TestResetClient(t *testing.T) {
-	client := NewClient("http://localhost", "/", "token", false)
-  client = Reset("http://localhoster", "/", "newtoken", true)
-}
