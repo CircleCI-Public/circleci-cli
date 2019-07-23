@@ -320,6 +320,5 @@ func TestStatusCode413(t *testing.T) {
 
 func TestResetClient(t *testing.T) {
 	client := NewClient("http://localhost", "/", "token", false)
-  Expect(&client.Host).To(Equal("http://localhost"))
   client = Reset("http://localhoster", "/", "newtoken", true)
 }
