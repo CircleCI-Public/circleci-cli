@@ -1,9 +1,11 @@
-package api_test
+package api
 
 import (
+	"fmt"
+	"path/filepath"
+	"reflect"
+	"runtime"
 	"testing"
-
-  . "github.com/CircleCI-Public/circleci-cli/api"
 )
 
 func TestOrbVersionRef(t *testing.T) {
@@ -33,18 +35,18 @@ func TestOrbVersionRef(t *testing.T) {
 }
 
 func TestErrorString(t *testing.T) {
-  var gqlCollection = []GQLResponseError {
-    gql {
-      Message: "This is a test message",
-    },
-    gql {
-      Message: "This is another test message",
-    },
-  }
+	var gqlCollection = GQLErrorsCollection{
+		GQLResponseError{
+			Message: "This is a test message",
+		},
+		GQLResponseError{
+			Message: "This is another test message",
+		},
+	}
 
-  output := Error(gqlCollection)
+	output := gqlCollection.Error()
 
-  equals(t, "This is a test message\nThis is another test message", output)
+	equals(t, "This is a test message\nThis is another test message", output)
 
 }
 
