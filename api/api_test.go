@@ -36,11 +36,10 @@ func TestErrorString(t *testing.T) {
   var gqlCollection = []GQLResponseError {
     gql {
       Message: "This is a test message",
-    }
-
+    },
     gql {
       Message: "This is another test message",
-    }
+    },
   }
 
   output := Error(gqlCollection)
