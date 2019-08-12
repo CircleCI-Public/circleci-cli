@@ -12,8 +12,9 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 
+	"github.com/pkg/errors"
+	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/spf13/cobra"
 )
 
@@ -64,6 +65,27 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		cfg: config,
 		tty: createOrbInteractiveUI{},
 	}
+
+	diffCommand := &cobra.Command{
+		Use:   "diff <orb> <version> [<version>]",
+		Short: "Show the diff between two orb versions",
+		Long: `The orb diff command can be passed two versions of an orb to compare.
+It will return a color-coded line diff between the source code of the two 
+versions. When passed a single version, it will compare the passed version to 
+the latest version of the orb.
+		
+It's convenient to pass the output of this command to 'less -R' (see example).`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return diffSource(opts)
+		},
+		Args:        cobra.RangeArgs(2, 3),
+		Annotations: make(map[string]string),
+	}
+	diffCommand.Annotations["<orb>"] = "<namespace>/<orb-name>"
+	diffCommand.Annotations["<version>"] = `"major"|"minor"|"patch"`
+	diffCommand.Example = `  circleci orb diff circleci/hugo 0.2.2 0.3.1
+	
+  circleci orb diff circleci/slack 3.0.0 | less -R`
 
 	listCommand := &cobra.Command{
 		Use:   "list <namespace>",
@@ -241,6 +263,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 	}
 
+	orbCommand.AddCommand(diffCommand)
 	orbCommand.AddCommand(listCommand)
 	orbCommand.AddCommand(orbCreate)
 	orbCommand.AddCommand(validateCommand)
@@ -640,6 +663,46 @@ func showSource(opts orbOptions) error {
 		return errors.Wrapf(err, "Failed to get source for '%s'", ref)
 	}
 	fmt.Println(source)
+	return nil
+}
+
+func diffSource(opts orbOptions) error {
+
+	ref0 := opts.args[0]
+	ref1 := opts.args[0] + "@" + opts.args[1]
+	ref2 := ""
+
+	if len(opts.args) == 2 {
+
+		info, err := api.OrbInfo(opts.cl, ref0)
+		if err != nil {
+			return errors.Wrapf(err, "Failed to get info for '%s'", ref0)
+		}
+
+		ref2 = ref0 + "@" + info.Orb.HighestVersion
+	} else {
+		ref2 = ref0 + "@" + opts.args[2]
+	}
+
+	if ref1 == ref2 {
+		return errors.New("Cannot diff the same versions of an orb.")
+	}
+
+	source1, err := api.OrbSource(opts.cl, ref1)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get source for '%s'", ref1)
+	}
+
+	source2, err := api.OrbSource(opts.cl, ref2)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get source for '%s'", ref2)
+	}
+
+	dmp := diffmatchpatch.New()
+	s1r, s2r, rArray := dmp.DiffLinesToRunes(source1, source2)
+	diffs := dmp.DiffCharsToLines(dmp.DiffMainRunes(s1r, s2r, false), rArray)
+	fmt.Println(dmp.DiffPrettyText(diffs))
+
 	return nil
 }
 
