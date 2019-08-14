@@ -24,8 +24,9 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 	}
 
 	queryCommand := &cobra.Command{
-		Use:   "query <path>",
-		Short: "Query the CircleCI GraphQL API.",
+		Use:    "query <path>",
+		Short:  "Query the CircleCI GraphQL API.",
+		Hidden: true,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
