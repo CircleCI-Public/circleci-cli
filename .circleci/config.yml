@@ -50,7 +50,7 @@ commands:
       - run:
           name: Install GoReleaser
           command: |
-            [ -f ~/goreleaser_amd64.db ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
+            [ -f ~/goreleaser_amd64.deb ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
             sudo apt install ~/goreleaser_amd64.deb
   gomod:
     steps:
