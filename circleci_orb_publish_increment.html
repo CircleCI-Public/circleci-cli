@@ -1,18 +1,23 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
 <head>
-  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-  <meta http-equiv="Content-Style-Type" content="text/css" />
+  <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
-  <title></title>
-  <style type="text/css">code{white-space: pre;}</style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_orb_publish_increment</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
 </head>
 <body>
 <h2 id="circleci-orb-publish-increment">circleci orb publish increment</h2>
 <p>Increment a released version of an orb</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>Increment a released version of an orb. Please note that at this time all orbs incremented within the registry are world-readable.</p>
-<p>Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' =&gt; foo/bar@1.1.0</p>
+<p>Example: ‘circleci orb publish increment foo/orb.yml foo/bar minor’ =&gt; foo/bar@1.1.0</p>
 <pre><code>circleci orb publish increment &lt;path&gt; &lt;namespace&gt;/&lt;orb&gt; &lt;segment&gt; [flags]</code></pre>
 <h3 id="arguments">Arguments</h3>
 <pre><code>&lt;path&gt;      The path to your orb (use &quot;-&quot; for STDIN)
