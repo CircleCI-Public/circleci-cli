@@ -100,6 +100,16 @@ type OrbPromoteResponse struct {
 	}
 }
 
+// The OrbSetOrbListStatusResponse type matches the data shape of the GQL response for
+// setting the list status of an orb.
+type OrbSetOrbListStatusResponse struct {
+	SetOrbListStatus struct {
+		Listed bool
+
+		Errors GQLErrorsCollection
+	}
+}
+
 // OrbLatestVersionResponse wraps the GQL result of fetching an Orb and latest version
 type OrbLatestVersionResponse struct {
 	Orb struct {
@@ -823,6 +833,49 @@ func OrbPromote(cl *client.Client, namespace string, orb string, label string, s
 	}
 
 	return &response.PromoteOrb.Orb, nil
+}
+
+// OrbSetOrbListStatus sets whether an orb can be listed in the registry or not.
+func OrbSetOrbListStatus(cl *client.Client, namespace string, orb string, list bool) (*bool, error) {
+	id, err := OrbID(cl, namespace, orb)
+	if err != nil {
+		return nil, err
+	}
+
+	var response OrbSetOrbListStatusResponse
+
+	query := `
+		mutation($orbId: UUID!, $list: Boolean!) {
+			setOrbListStatus(
+				orbId: $orbId,
+				list: $list
+			) {
+				listed
+				errors { 
+					message
+					type 
+				}
+			}
+		}
+	`
+
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+
+	request.Var("orbId", id.Orb.ID)
+	request.Var("list", list)
+
+	err = cl.Run(request, &response)
+
+	if len(response.SetOrbListStatus.Errors) > 0 {
+		return nil, response.SetOrbListStatus.Errors
+	}
+
+	if err != nil {
+		return nil, errors.Wrap(err, "Unable to set orb list status")
+	}
+
+	return &response.SetOrbListStatus.Listed, nil
 }
 
 // orbVersionRef is designed to ensure an orb reference fits the orbVersion query where orbVersionRef argument requires a version

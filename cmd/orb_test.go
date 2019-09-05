@@ -8,12 +8,14 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 
 	"gotest.tools/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
@@ -1175,6 +1177,330 @@ You can now register versions of %s using %s.`,
 						Eventually(session).ShouldNot(gexec.Exit(0))
 					})
 				})
+			})
+		})
+
+		Describe("when setting the listed status of an orb", func() {
+			Context("with an authorized user's token", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(list bool, expectedDisplayedStatus string) {
+						command = exec.Command(pathCLI,
+							"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							"bar-ns/foo-orb",
+							strconv.FormatBool(!list),
+						)
+
+						gqlOrbIDResponse := `{
+							"orb": {
+								  "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+							}
+						}`
+
+						expectedOrbIDRequest := `{
+							"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+							"variables": {
+								"name": "bar-ns/foo-orb",
+								"namespace": "bar-ns"
+							}
+						}`
+
+						gqlOrbResponse := fmt.Sprintf(`{
+							"setOrbListStatus": {
+								"listed": %t,
+								"errors": []
+							}
+						}`, list)
+
+						expectedOrbRequest := fmt.Sprintf(`{
+							"query": "\n\t\tmutation($orbId: UUID!, $list: Boolean!) {\n\t\t\tsetOrbListStatus(\n\t\t\t\torbId: $orbId,\n\t\t\t\tlist: $list\n\t\t\t) {\n\t\t\t\tlisted\n\t\t\t\terrors { \n\t\t\t\t\tmessage\n\t\t\t\t\ttype \n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
+							"variables": {
+								"list": %t,
+								"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+							}
+						}`, list)
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbRequest,
+							Response: gqlOrbResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(gexec.Exit(0))
+
+						stdout := session.Wait().Out.Contents()
+						Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`The listing of orb %s is now %s.`, "`bar-ns/foo-orb`", expectedDisplayedStatus)))
+					},
+					Entry("listing an orb", true, "enabled"),
+					Entry("unlisting an orb", false, "disabled"),
+				)
+			})
+			Context("with an unauthorized user's token", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(list bool) {
+						command = exec.Command(pathCLI,
+							"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							"bar-ns/foo-orb",
+							strconv.FormatBool(!list),
+						)
+
+						gqlOrbIDResponse := `{
+							"orb": {
+								  "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+							}
+						}`
+
+						expectedOrbIDRequest := `{
+							"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+							"variables": {
+								"name": "bar-ns/foo-orb",
+								"namespace": "bar-ns"
+							}
+						}`
+
+						gqlOrbResponse := `{
+							"setOrbListStatus": {
+								"listed": null,
+								"errors": [
+								  {
+									"message": "AUTHORIZATION_FAILURE",
+									"type": "AUTHORIZATION_FAILURE"
+								  }
+								]
+							}
+						}`
+
+						expectedOrbRequest := fmt.Sprintf(`{
+							"query": "\n\t\tmutation($orbId: UUID!, $list: Boolean!) {\n\t\t\tsetOrbListStatus(\n\t\t\t\torbId: $orbId,\n\t\t\t\tlist: $list\n\t\t\t) {\n\t\t\t\tlisted\n\t\t\t\terrors { \n\t\t\t\t\tmessage\n\t\t\t\t\ttype \n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
+							"variables": {
+								"list": %t,
+								"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+							}
+						}`, list)
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbRequest,
+							Response: gqlOrbResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say("AUTHORIZATION_FAILURE"))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					},
+					Entry("listing an orb", true),
+					Entry("unlisting an orb", false),
+				)
+			})
+			Context("specified namespace does not exist", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(list bool) {
+						command = exec.Command(pathCLI,
+							"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							"bar-ns/foo-orb",
+							strconv.FormatBool(!list),
+						)
+
+						gqlOrbIDResponse := `{
+							"orb": null,
+							"registryNamespace": null
+						}`
+
+						expectedOrbIDRequest := `{
+							"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+							"variables": {
+								"name": "bar-ns/foo-orb",
+								"namespace": "bar-ns"
+							}
+						}`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say("Error: the namespace 'bar-ns' does not exist."))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					},
+					Entry("listing an orb", true),
+					Entry("unlisting an orb", false),
+				)
+			})
+			Context("specified orb does not exist in the namespace", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(list bool) {
+						command = exec.Command(pathCLI,
+							"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							"bar-ns/foo-orb",
+							strconv.FormatBool(!list),
+						)
+
+						gqlOrbIDResponse := `{
+							"orb": null,
+							"registryNamespace": {
+								"id": "eac63dee-9960-48c2-b763-612e1683194e"
+							}
+						}`
+
+						expectedOrbIDRequest := `{
+							"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+							"variables": {
+								"name": "bar-ns/foo-orb",
+								"namespace": "bar-ns"
+							}
+						}`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say("Error: the 'foo-orb' orb does not exist in the 'bar-ns' namespace."))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					},
+					Entry("listing an orb", true),
+					Entry("unlisting an orb", false),
+				)
+			})
+			Context("orb unexpectedly cannot be found from the looked-up orb id", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(list bool) {
+						command = exec.Command(pathCLI,
+							"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							"bar-ns/foo-orb",
+							strconv.FormatBool(!list),
+						)
+
+						gqlOrbIDResponse := `{
+							"orb": {
+								  "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+							}
+						}`
+
+						expectedOrbIDRequest := `{
+							"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+							"variables": {
+								"name": "bar-ns/foo-orb",
+								"namespace": "bar-ns"
+							}
+						}`
+
+						// This is to test the case of the orb unexpectedly not being able to be looked up with the orb id
+						// returned in the response to the OrbID request
+						gqlOrbResponse := `{
+							"setOrbListStatus": {
+								"listed": null,
+								"errors": [
+								  {
+									"message": "Namespace not found for provided orb-id bb604b45-b6b0-4b81-ad80-796f15eddf87."
+								  }
+								]
+							}
+						}`
+
+						expectedOrbRequest := fmt.Sprintf(`{
+							"query": "\n\t\tmutation($orbId: UUID!, $list: Boolean!) {\n\t\t\tsetOrbListStatus(\n\t\t\t\torbId: $orbId,\n\t\t\t\tlist: $list\n\t\t\t) {\n\t\t\t\tlisted\n\t\t\t\terrors { \n\t\t\t\t\tmessage\n\t\t\t\t\ttype \n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
+							"variables": {
+								"list": %t,
+								"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+							}
+						}`, list)
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbRequest,
+							Response: gqlOrbResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say("Namespace not found for provided orb-id bb604b45-b6b0-4b81-ad80-796f15eddf87."))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					},
+					Entry("listing an orb", true),
+					Entry("unlisting an orb", false),
+				)
+			})
+			Context("incorrect number of arguments supplied", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(args ...string) {
+						argList := []string{"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL()}
+						newArgList := append(argList, args...)
+						command = exec.Command(pathCLI,
+							newArgList...,
+						)
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say("Error: accepts 2 arg\\(s\\), received %d", len(args)))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					},
+					Entry("0 args"),
+					Entry("1 arg", "bar-ns/foo-orb"),
+					Entry("3 args", "bar-ns/foo-orb", "true", "true"),
+				)
+			})
+			Context("invalid arguments supplied", func() {
+				DescribeTable("when setting the listed status of an orb",
+					func(expectedError string, args ...string) {
+						argList := []string{"orb", "unlist",
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL()}
+						newArgList := append(argList, args...)
+						command = exec.Command(pathCLI,
+							newArgList...,
+						)
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session.Err).Should(gbytes.Say(expectedError))
+						Eventually(session).ShouldNot(gexec.Exit(0))
+					},
+					Entry("invalid orb name", "Error: Invalid orb foo-orb. Expected a namespace and orb in the form 'namespace/orb'", "foo-orb", "true"),
+					Entry("non-boolean value", "Error: Specify \"true\" or \"false\" to set whether the orb should be unlisted or not", "bar-ns/foo-orb", "falsey"),
+				)
 			})
 		})
 

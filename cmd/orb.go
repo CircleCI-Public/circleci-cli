@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -175,6 +176,20 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 	publishCommand.AddCommand(promoteCommand)
 	publishCommand.AddCommand(incrementCommand)
 
+	unlistCmd := &cobra.Command{
+		Use:   "unlist <namespace>/<orb> <true|false>",
+		Short: "Enables or disables the specified orb for listing in the registry.",
+		Long: `Enables or disables the specified orb for listing in the registry.
+
+Example: Run 'circleci orb unlist foo/bar true' to disable the listing of the
+orb in the registry and 'circleci orb unlist foo/bar false' to re-enable the
+listing of the orb in the registry.`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return setOrbListStatus(opts)
+		},
+		Args: cobra.ExactArgs(2),
+	}
+
 	sourceCommand := &cobra.Command{
 		Use:   "source <orb>",
 		Short: "Show the source of an orb",
@@ -246,6 +261,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(processCommand)
 	orbCommand.AddCommand(publishCommand)
+	orbCommand.AddCommand(unlistCmd)
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
 
@@ -530,6 +546,38 @@ func publishOrb(opts orbOptions) error {
 		fmt.Printf("Note that your dev label `%s` can be overwritten by anyone in your organization.\n", version)
 		fmt.Printf("Your dev orb will expire in 90 days unless a new version is published on the label `%s`.\n", version)
 	}
+	return nil
+}
+
+func setOrbListStatus(opts orbOptions) error {
+	var err error
+
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(opts.args[0])
+
+	if err != nil {
+		return err
+	}
+
+	unlist, err := strconv.ParseBool(opts.args[1])
+	if err != nil {
+		return errors.New("Specify \"true\" or \"false\" to set whether the orb should be unlisted or not")
+	}
+
+	listed, err := api.OrbSetOrbListStatus(opts.cl, namespace, orb, !unlist)
+	if err != nil {
+		return err
+	}
+
+	if listed != nil {
+		displayedStatus := "enabled"
+		if *listed == false {
+			displayedStatus = "disabled"
+		}
+		fmt.Printf("The listing of orb `%s` is now %s.\n", opts.args[0], displayedStatus)
+	} else {
+		return fmt.Errorf("unexpected error in setting the list status of orb `%s`", opts.args[0])
+	}
+
 	return nil
 }
 
