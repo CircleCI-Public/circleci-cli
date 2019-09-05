@@ -570,7 +570,7 @@ func setOrbListStatus(opts orbOptions) error {
 
 	if listed != nil {
 		displayedStatus := "enabled"
-		if *listed == false {
+		if !*listed {
 			displayedStatus = "disabled"
 		}
 		fmt.Printf("The listing of orb `%s` is now %s.\n", opts.args[0], displayedStatus)
