@@ -178,8 +178,8 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 
 	unlistCmd := &cobra.Command{
 		Use:   "unlist <namespace>/<orb> <true|false>",
-		Short: "Enables or disables an orb for listing in the registry",
-		Long: `Enables or disables an orb for listing in the registry.
+		Short: "Disable or enable an orb's listing in the registry",
+		Long: `Disable or enable an orb's listing in the registry.
 
 Example: Run 'circleci orb unlist foo/bar true' to disable the listing of the
 orb in the registry and 'circleci orb unlist foo/bar false' to re-enable the
