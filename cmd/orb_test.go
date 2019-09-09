@@ -1499,7 +1499,7 @@ You can now register versions of %s using %s.`,
 						Eventually(session).ShouldNot(gexec.Exit(0))
 					},
 					Entry("invalid orb name", "Error: Invalid orb foo-orb. Expected a namespace and orb in the form 'namespace/orb'", "foo-orb", "true"),
-					Entry("non-boolean value", "Error: Specify \"true\" or \"false\" to set whether the orb should be unlisted or not", "bar-ns/foo-orb", "falsey"),
+					Entry("non-boolean value", "Error: expected \"true\" or \"false\", got \"falsey\"", "bar-ns/foo-orb", "falsey"),
 				)
 			})
 		})

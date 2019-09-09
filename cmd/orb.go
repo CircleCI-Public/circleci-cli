@@ -553,17 +553,19 @@ func publishOrb(opts orbOptions) error {
 }
 
 func setOrbListStatus(opts orbOptions) error {
+	ref := opts.args[0]
+	unlistArg := opts.args[1]
 	var err error
 
-	namespace, orb, err := references.SplitIntoOrbAndNamespace(opts.args[0])
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(ref)
 
 	if err != nil {
 		return err
 	}
 
-	unlist, err := strconv.ParseBool(opts.args[1])
+	unlist, err := strconv.ParseBool(unlistArg)
 	if err != nil {
-		return errors.New("Specify \"true\" or \"false\" to set whether the orb should be unlisted or not")
+		return fmt.Errorf("expected \"true\" or \"false\", got \"%s\"", unlistArg)
 	}
 
 	listed, err := api.OrbSetOrbListStatus(opts.cl, namespace, orb, !unlist)
@@ -576,9 +578,9 @@ func setOrbListStatus(opts orbOptions) error {
 		if !*listed {
 			displayedStatus = "disabled"
 		}
-		fmt.Printf("The listing of orb `%s` is now %s.\n", opts.args[0], displayedStatus)
+		fmt.Printf("The listing of orb `%s` is now %s.\n", ref, displayedStatus)
 	} else {
-		return fmt.Errorf("unexpected error in setting the list status of orb `%s`", opts.args[0])
+		return fmt.Errorf("unexpected error in setting the list status of orb `%s`", ref)
 	}
 
 	return nil
