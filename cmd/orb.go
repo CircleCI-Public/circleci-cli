@@ -180,6 +180,8 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 		Use:   "unlist <namespace>/<orb> <true|false>",
 		Short: "Disable or enable an orb's listing in the registry",
 		Long: `Disable or enable an orb's listing in the registry.
+This only affects whether the orb is displayed in registry search results;
+the orb remains world-readable as long as referenced with a valid name.
 
 Example: Run 'circleci orb unlist foo/bar true' to disable the listing of the
 orb in the registry and 'circleci orb unlist foo/bar false' to re-enable the
@@ -578,7 +580,8 @@ func setOrbListStatus(opts orbOptions) error {
 		if !*listed {
 			displayedStatus = "disabled"
 		}
-		fmt.Printf("The listing of orb `%s` is now %s.\n", ref, displayedStatus)
+		fmt.Printf("The listing of orb `%s` is now %s.\n"+
+			"Note: changes may not be immediately reflected in the registry.\n", ref, displayedStatus)
 	} else {
 		return fmt.Errorf("unexpected error in setting the list status of orb `%s`", ref)
 	}
