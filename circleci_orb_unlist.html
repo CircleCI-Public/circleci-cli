@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_orb_unlist</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-orb-unlist">circleci orb unlist</h2>
+<p>Disable or enable an orb’s listing in the registry</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>Disable or enable an orb’s listing in the registry. This only affects whether the orb is displayed in registry search results; the orb remains world-readable as long as referenced with a valid name.</p>
+<p>Example: Run ‘circleci orb unlist foo/bar true’ to disable the listing of the orb in the registry and ‘circleci orb unlist foo/bar false’ to re-enable the listing of the orb in the registry.</p>
+<pre><code>circleci orb unlist &lt;namespace&gt;/&lt;orb&gt; &lt;true|false&gt; [flags]</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>  -h, --help   help for unlist</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string    URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --token string   your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_orb.html">circleci orb</a> - Operate on orbs</li>
+</ul>
+</body>
+</html>
