@@ -22,6 +22,11 @@ clean:
 test:
 	go test -v ./...
 
+.PHONY: ci_test
+ci_test:
+	TESTFILES=$(circleci tests glob "**/*_test.go" | circleci tests split --split-by=timings)
+	go test -run ${TESTFILES}
+
 .PHONY: cover
 cover:
 	go test -race -coverprofile=coverage.txt ./...

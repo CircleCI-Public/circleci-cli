@@ -75,7 +75,7 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: make test
+      - run: make ci_test
       - slack-notify-on-failure
 
   coverage:
