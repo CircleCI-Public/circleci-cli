@@ -24,8 +24,8 @@ test:
 
 .PHONY: ci_test
 ci_test:
-	TESTFILES=$(circleci tests glob "**/*_test.go" | circleci tests split --split-by=timings)
-	go test -run ${TESTFILES}
+	PACKAGE_NAMES=$(go list ./... | circleci tests split --split-by=timings --timings-type=classname)
+	go test -run $PACKAGE_NAMES
 
 .PHONY: cover
 cover:
