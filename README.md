@@ -52,7 +52,7 @@ sudo snap install circleci
 
 ### Upgrade from existing CLI
 
-If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
+If you installed the old CLI before, and you're on a version less than `0.1.6`, you need to run the following commands:
 
 ```
 circleci update
@@ -68,7 +68,7 @@ mv: cannot move 'circleci' to '/usr/local/bin/circleci': Permission denied
 
 ### Updating after install
 
-The CLI comes with a built in version managment system. You can check if there any updates pending and update if so using the following commands:
+The CLI comes with a built in version managment system. You can check for any pending updates and if so, update using the following commands:
 ```
 circleci update check
 circleci update install
@@ -142,4 +142,4 @@ Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKI
 
 ## More
 
-Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
+Please refer to the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
