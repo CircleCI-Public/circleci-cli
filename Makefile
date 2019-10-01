@@ -24,7 +24,7 @@ test:
 
 .PHONY: ci_test
 ci_test:
-	go test -run (go list ./... | circleci tests split --split-by=timings --timings-type=classname)
+	go test -run $(go list ./... | circleci tests split --split-by=timings --timings-type=classname)
 
 .PHONY: cover
 cover:
