@@ -52,7 +52,7 @@ sudo snap install circleci
 
 ### Upgrade from existing CLI
 
-If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
+If you have installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
 
 ```
 circleci update
