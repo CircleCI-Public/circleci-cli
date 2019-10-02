@@ -33,7 +33,7 @@ Your issue must follow these guidelines for it to be considered:
 
 #### Before submitting
 
-- Check you’re on the latest version, we may have already fixed your bug!
+- Check if you’re on the latest version, as we may have already fixed your bug!
 - [Search our issue
   tracker](https://github.com/CircleCI-Public/circleci-cli/issues/search&type=issues)
   for your problem, someone may have already reported it
