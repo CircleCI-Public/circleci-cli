@@ -76,7 +76,7 @@ circleci update install
 
 ## Configure the CLI
 
-After installing the latest version of our CLI, you must run setup to configure the tool.
+Now after installing the latest version of our CLI, you must run setup to configure the tool.
 
 ```
 $ circleci setup
