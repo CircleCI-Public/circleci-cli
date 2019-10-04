@@ -6,12 +6,13 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
-	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"gotest.tools/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 var _ = Describe("Setup with prompts", func() {
@@ -123,7 +124,7 @@ var _ = Describe("Setup with prompts", func() {
 				})
 
 				Expect(output).To(ContainSubstring(fmt.Sprintf(`A CircleCI token is already set. Do you want to change it
-CircleCI API Token
+CircleCI API Token (which can be created here: https://circleci.com/account/api)
 API token has been set.
 CircleCI Host
 CircleCI host has been set.
@@ -232,7 +233,7 @@ token: %s
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 
-			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token
+			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token (which can be created here: https://circleci.com/account/api)
 API token has been set.
 CircleCI Host
 CircleCI host has been set.
@@ -307,7 +308,7 @@ Trying to query our API for your profile name... Hello, %s.
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 
-			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token
+			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token (which can be created here: https://circleci.com/account/api)
 API token has been set.
 CircleCI Host
 CircleCI host has been set.

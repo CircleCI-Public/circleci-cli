@@ -6,11 +6,12 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 )
 
 var _ = Describe("Setup with prompts", func() {
@@ -38,7 +39,7 @@ var _ = Describe("Setup with prompts", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
+			Eventually(session.Out).Should(gbytes.Say("CircleCI API Token (which can be created here: https://circleci.com/account/api)"))
 			Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
@@ -71,7 +72,7 @@ var _ = Describe("Setup with prompts", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 
-				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
+				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token (which can be created here: https://circleci.com/account/api)"))
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
@@ -92,7 +93,7 @@ token: fooBarBaz
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Out).Should(gbytes.Say("A CircleCI token is already set. Do you want to change it"))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
+				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token (which can be created here: https://circleci.com/account/api)"))
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))

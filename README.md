@@ -86,7 +86,7 @@ You should be prompted to enter the _CircleCI API Token_ you generated from the 
 
 
 ```
-✔ CircleCI API Token: 
+✔ CircleCI API Token (which can be created here: https://circleci.com/account/api): 
 
 API token has been set.
 

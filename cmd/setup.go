@@ -3,12 +3,13 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 type setupOptions struct {
@@ -163,7 +164,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 
 func setup(opts setupOptions) error {
 	if shouldAskForToken(opts.cfg.Token, opts.tty) {
-		token, err := opts.tty.readTokenFromUser("CircleCI API Token")
+		token, err := opts.tty.readTokenFromUser("CircleCI API Token (which can be created here: https://circleci.com/account/api)")
 		if err != nil {
 			return errors.Wrap(err, "Error reading token")
 		}
