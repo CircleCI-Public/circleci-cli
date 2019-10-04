@@ -39,7 +39,7 @@ var _ = Describe("Setup with prompts", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Eventually(session.Out).Should(gbytes.Say("CircleCI API Token (which can be created here: https://circleci.com/account/api)"))
+			Eventually(session.Out).Should(gbytes.Say(`CircleCI API Token \(which can be created here: https://circleci.com/account/api\)`))
 			Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
@@ -72,7 +72,7 @@ var _ = Describe("Setup with prompts", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err.Contents()).Should(BeEmpty())
 
-				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token (which can be created here: https://circleci.com/account/api)"))
+				Eventually(session.Out).Should(gbytes.Say(`CircleCI API Token \(which can be created here: https://circleci.com/account/api\)`))
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
@@ -93,7 +93,7 @@ token: fooBarBaz
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Out).Should(gbytes.Say("A CircleCI token is already set. Do you want to change it"))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token (which can be created here: https://circleci.com/account/api)"))
+				Eventually(session.Out).Should(gbytes.Say(`CircleCI API Token \(which can be created here: https://circleci.com/account/api\)`))
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
