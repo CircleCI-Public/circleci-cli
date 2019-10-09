@@ -75,7 +75,7 @@ Once you have installed Docker, you can execute the `lint` job locally with `$ m
 
 ## Code coverage
 
-There is also a `coverage` job as part of the build which will lint any code you commit.
+There is also a `coverage` job as part of the build which will lint (lint, or a linter, is a tool that analyzes source code to flag programming errors, bugs, stylistic errors, and suspicious constructs.) any code you commit.
 
 This can be run manually with `$ make cover`.
 
