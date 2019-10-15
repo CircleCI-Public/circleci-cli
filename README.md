@@ -19,7 +19,7 @@ This project is the seed for CircleCI's new command-line application.
 
 #### Install script
 
-If you're installing the new `circleci` CLI for the first time, run the following command:
+**If you're installing the new `circleci` CLI for the first time, run the following command:***
 
 ```
 curl -fLSs https://circle.ci/cli | bash
