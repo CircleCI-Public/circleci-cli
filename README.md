@@ -1,4 +1,4 @@
-# circleci-cli
+# circleCi-cli
 
 This project is the seed for CircleCI's new command-line application.
 
@@ -130,7 +130,7 @@ The CLI may also be used without installation by using Docker.
 docker run --rm -v $(pwd):/data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
 ```
 
-## circleci-agent
+## circleCi-agent
 
 In order to maintain backwards compatibility with the `circleci` binary present in builds, some commands are proxied to a program called `circleci-agent`.
 
