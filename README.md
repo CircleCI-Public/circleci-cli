@@ -142,6 +142,11 @@ The following commands are affected:
 * `circleci step halt`
 * `circleci config migrate`
 
+## Conclusion
+These are the most commonly used Docker commands, and they help you perform the most essential functions on a day-to-day basis. To make the most of these commands you should be familiar with each command’s options. However, they’re not the entire list. You can view the full list on the Docker documentation.
+
+As you work with Docker containers, they make development much easier, and more powerful. There are Docker commands for everything from pulling an image, to inspecting it, and committing it. The key to this is mastering the Docker CLI and the various commands you can use. This includes the options which are unique for each command. One of Docker’s strength is its simple yet powerful CLI, and we’ve seen proof of that in this post.
+
 ## Contributing
 
 Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKING.md).
