@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/data"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // Config is used to represent the current state of a CLI instance.
@@ -24,6 +24,23 @@ type Config struct {
 	FileUsed        string    `yaml:"-"`
 	GitHubAPI       string    `yaml:"-"`
 	SkipUpdateCheck bool      `yaml:"-"`
+}
+
+// configYAML concludes all configuration values that will be written into a YAML file.
+type configYAML struct {
+	Data            *data.YML `yaml:"-"`
+	Debug           bool      `yaml:"-"`
+	Address         string    `yaml:"-"`
+	FileUsed        string    `yaml:"-"`
+	GitHubAPI       string    `yaml:"-"`
+	SkipUpdateCheck bool      `yaml:"-"`
+}
+
+// configKeyring concludes all configuration values that will be stored in the system keyring.
+type configKeyring struct {
+	Host     string
+	Endpoint string
+	Token    string
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.
@@ -94,7 +111,17 @@ func (cfg *Config) LoadFromDisk() error {
 
 // WriteToDisk will write the runtime config instance to disk by serializing the YAML
 func (cfg *Config) WriteToDisk() error {
-	enc, err := yaml.Marshal(&cfg)
+
+	// Pick the configuration values that will be stored in a YAML file.
+	configYAML := configYAML{
+		Data:            cfg.Data,
+		Debug:           cfg.Debug,
+		Address:         cfg.Address,
+		FileUsed:        cfg.FileUsed,
+		GitHubAPI:       cfg.GitHubAPI,
+		SkipUpdateCheck: cfg.SkipUpdateCheck,
+	}
+	enc, err := yaml.Marshal(&configYAML)
 	if err != nil {
 		return err
 	}
@@ -116,6 +143,27 @@ func (cfg *Config) LoadFromEnv(prefix string) {
 	if token := ReadFromEnv(prefix, "token"); token != "" {
 		cfg.Token = token
 	}
+}
+
+// split splits the configuration into configuration types which will be stored in different ways.
+// For example, some values will be written into a YAML file while other ones will be stored in the system keyring.
+func (cfg *Config) split() (configYAML, configKeyring) {
+	cfgYAML := configYAML{
+		Data:            cfg.Data,
+		Debug:           cfg.Debug,
+		Address:         cfg.Address,
+		FileUsed:        cfg.FileUsed,
+		GitHubAPI:       cfg.GitHubAPI,
+		SkipUpdateCheck: cfg.SkipUpdateCheck,
+	}
+
+	cfgKeyring := configKeyring{
+		Host:     cfg.Host,
+		Endpoint: cfg.Endpoint,
+		Token:    cfg.Token,
+	}
+
+	return cfgYAML, cfgKeyring
 }
 
 // ReadFromEnv takes a prefix and field to search the environment for after capitalizing and joining them with an underscore.
