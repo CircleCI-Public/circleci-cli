@@ -28,6 +28,8 @@ type Config struct {
 
 // configYAML concludes all configuration values that will be written into a YAML file.
 type configYAML struct {
+	Host            string
+	Endpoint        string
 	Data            *data.YML `yaml:"-"`
 	Debug           bool      `yaml:"-"`
 	Address         string    `yaml:"-"`
@@ -38,9 +40,7 @@ type configYAML struct {
 
 // configKeyring concludes all configuration values that will be stored in the system keyring.
 type configKeyring struct {
-	Host     string
-	Endpoint string
-	Token    string
+	Token string
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.
@@ -149,6 +149,8 @@ func (cfg *Config) LoadFromEnv(prefix string) {
 // For example, some values will be written into a YAML file while other ones will be stored in the system keyring.
 func (cfg *Config) split() (configYAML, configKeyring) {
 	cfgYAML := configYAML{
+		Host:            cfg.Host,
+		Endpoint:        cfg.Endpoint,
 		Data:            cfg.Data,
 		Debug:           cfg.Debug,
 		Address:         cfg.Address,
@@ -158,12 +160,27 @@ func (cfg *Config) split() (configYAML, configKeyring) {
 	}
 
 	cfgKeyring := configKeyring{
-		Host:     cfg.Host,
-		Endpoint: cfg.Endpoint,
-		Token:    cfg.Token,
+		Token: cfg.Token,
 	}
 
 	return cfgYAML, cfgKeyring
+}
+
+// mergeConfigs merges the given configuration types, creating a Config instance. This function is the reverse operation of split.
+func mergeConfigs(cfgYAML *configYAML, cfgKeyring *configKeyring) *Config {
+	cfg := Config{
+		Host:            cfgYAML.Host,
+		Endpoint:        cfgYAML.Endpoint,
+		Token:           cfgKeyring.Token,
+		Data:            cfgYAML.Data,
+		Debug:           cfgYAML.Debug,
+		Address:         cfgYAML.Address,
+		FileUsed:        cfgYAML.FileUsed,
+		GitHubAPI:       cfgYAML.GitHubAPI,
+		SkipUpdateCheck: cfgYAML.SkipUpdateCheck,
+	}
+
+	return &cfg
 }
 
 // ReadFromEnv takes a prefix and field to search the environment for after capitalizing and joining them with an underscore.
