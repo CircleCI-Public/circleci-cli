@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"github.com/zalando/go-keyring"
 	"io/ioutil"
 	"os"
 	"path"
@@ -105,28 +106,31 @@ func (cfg *Config) LoadFromDisk() error {
 		return err
 	}
 
-	err = yaml.Unmarshal(content, &cfg)
+	var cfgYAML configYAML
+	err = yaml.Unmarshal(content, &cfgYAML)
+
+	token, err := keyring.Get("circleci", "circleci_cli")
+	cfgKeyring := configKeyring{
+		Token: token,
+	}
+
+	cfg = mergeConfigs(&cfgYAML, &cfgKeyring)
+
 	return err
 }
 
 // WriteToDisk will write the runtime config instance to disk by serializing the YAML
 func (cfg *Config) WriteToDisk() error {
+	cfgYAML, cfgKeyring := cfg.split()
 
-	// Pick the configuration values that will be stored in a YAML file.
-	configYAML := configYAML{
-		Data:            cfg.Data,
-		Debug:           cfg.Debug,
-		Address:         cfg.Address,
-		FileUsed:        cfg.FileUsed,
-		GitHubAPI:       cfg.GitHubAPI,
-		SkipUpdateCheck: cfg.SkipUpdateCheck,
-	}
-	enc, err := yaml.Marshal(&configYAML)
+	enc, err := yaml.Marshal(&cfgYAML)
 	if err != nil {
 		return err
 	}
 
 	err = ioutil.WriteFile(cfg.FileUsed, enc, 0600)
+	err = keyring.Set("circleci", "circleci_cli", cfgKeyring.Token)
+
 	return err
 }
 
