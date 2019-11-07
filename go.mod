@@ -33,7 +33,7 @@ require (
 	github.com/stretchr/objx v0.2.0 // indirect
 	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
 	github.com/ulikunitz/xz v0.5.4 // indirect
-	github.com/zalando/go-keyring v0.0.0-20190913082157-62750a1ff80d // indirect
+	github.com/zalando/go-keyring v0.0.0-20190913082157-62750a1ff80d
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect
 	golang.org/x/oauth2 v0.0.0-20180724155351-3d292e4d0cdc // indirect
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect

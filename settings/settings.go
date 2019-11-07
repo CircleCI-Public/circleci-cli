@@ -109,9 +109,9 @@ func (cfg *Config) LoadFromDisk() error {
 	var cfgYAML configYAML
 	err = yaml.Unmarshal(content, &cfgYAML)
 
-	token, err := keyring.Get("circleci", "circleci_cli")
-	cfgKeyring := configKeyring{
-		Token: token,
+	var cfgKeyring configKeyring
+	if token, err := keyring.Get("circleci", "circleci_cli"); err == nil {
+		cfgKeyring.Token = token
 	}
 
 	cfg = mergeConfigs(&cfgYAML, &cfgKeyring)
