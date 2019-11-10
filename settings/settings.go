@@ -128,10 +128,15 @@ func (cfg *Config) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(cfg.FileUsed, enc, 0600)
-	err = keyring.Set("circleci", "circleci_cli", cfgKeyring.Token)
+	if err = ioutil.WriteFile(cfg.FileUsed, enc, 0600); err != nil {
+		return err
+	}
 
-	return err
+	if err = keyring.Set("circleci", "circleci_cli", cfgKeyring.Token); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LoadFromEnv will read from environment variables of the given prefix for host, endpoint, and token specifically.
