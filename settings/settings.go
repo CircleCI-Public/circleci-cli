@@ -114,7 +114,7 @@ func (cfg *Config) LoadFromDisk() error {
 		cfgKeyring.Token = token
 	}
 
-	cfg = mergeConfigs(&cfgYAML, &cfgKeyring)
+	cfg.merge(&cfgYAML, &cfgKeyring)
 
 	return err
 }
@@ -170,21 +170,17 @@ func (cfg *Config) split() (configYAML, configKeyring) {
 	return cfgYAML, cfgKeyring
 }
 
-// mergeConfigs merges the given configuration types, creating a Config instance. This function is the reverse operation of split.
-func mergeConfigs(cfgYAML *configYAML, cfgKeyring *configKeyring) *Config {
-	cfg := Config{
-		Host:            cfgYAML.Host,
-		Endpoint:        cfgYAML.Endpoint,
-		Token:           cfgKeyring.Token,
-		Data:            cfgYAML.Data,
-		Debug:           cfgYAML.Debug,
-		Address:         cfgYAML.Address,
-		FileUsed:        cfgYAML.FileUsed,
-		GitHubAPI:       cfgYAML.GitHubAPI,
-		SkipUpdateCheck: cfgYAML.SkipUpdateCheck,
-	}
-
-	return &cfg
+// merge merges the given configuration types into the Config instance. This function is the reverse operation of split.
+func (cfg *Config) merge(cfgYAML *configYAML, cfgKeyring *configKeyring) {
+	cfg.Host = cfgYAML.Host
+	cfg.Endpoint = cfgYAML.Endpoint
+	cfg.Token = cfgKeyring.Token
+	cfg.Data = cfgYAML.Data
+	cfg.Debug = cfgYAML.Debug
+	cfg.Address = cfgYAML.Address
+	cfg.FileUsed = cfgYAML.FileUsed
+	cfg.GitHubAPI = cfgYAML.GitHubAPI
+	cfg.SkipUpdateCheck = cfgYAML.SkipUpdateCheck
 }
 
 // ReadFromEnv takes a prefix and field to search the environment for after capitalizing and joining them with an underscore.
