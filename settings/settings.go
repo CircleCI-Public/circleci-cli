@@ -1,6 +1,7 @@
 package settings
 
 import (
+	"github.com/zalando/go-keyring"
 	"io/ioutil"
 	"os"
 	"path"
@@ -10,7 +11,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/data"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v2"
 )
 
 // Config is used to represent the current state of a CLI instance.
@@ -24,6 +25,23 @@ type Config struct {
 	FileUsed        string    `yaml:"-"`
 	GitHubAPI       string    `yaml:"-"`
 	SkipUpdateCheck bool      `yaml:"-"`
+}
+
+// configYAML concludes all configuration values that will be written into a YAML file.
+type configYAML struct {
+	Host            string
+	Endpoint        string
+	Data            *data.YML `yaml:"-"`
+	Debug           bool      `yaml:"-"`
+	Address         string    `yaml:"-"`
+	FileUsed        string    `yaml:"-"`
+	GitHubAPI       string    `yaml:"-"`
+	SkipUpdateCheck bool      `yaml:"-"`
+}
+
+// configKeyring concludes all configuration values that will be stored in the system keyring.
+type configKeyring struct {
+	Token string
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.
@@ -88,19 +106,37 @@ func (cfg *Config) LoadFromDisk() error {
 		return err
 	}
 
-	err = yaml.Unmarshal(content, &cfg)
+	var cfgYAML configYAML
+	err = yaml.Unmarshal(content, &cfgYAML)
+
+	var cfgKeyring configKeyring
+	if token, err := keyring.Get("circleci", "circleci_cli"); err == nil {
+		cfgKeyring.Token = token
+	}
+
+	cfg.merge(&cfgYAML, &cfgKeyring)
+
 	return err
 }
 
 // WriteToDisk will write the runtime config instance to disk by serializing the YAML
 func (cfg *Config) WriteToDisk() error {
-	enc, err := yaml.Marshal(&cfg)
+	cfgYAML, cfgKeyring := cfg.split()
+
+	enc, err := yaml.Marshal(&cfgYAML)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(cfg.FileUsed, enc, 0600)
-	return err
+	if err = ioutil.WriteFile(cfg.FileUsed, enc, 0600); err != nil {
+		return err
+	}
+
+	if err = keyring.Set("circleci", "circleci_cli", cfgKeyring.Token); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // LoadFromEnv will read from environment variables of the given prefix for host, endpoint, and token specifically.
@@ -116,6 +152,40 @@ func (cfg *Config) LoadFromEnv(prefix string) {
 	if token := ReadFromEnv(prefix, "token"); token != "" {
 		cfg.Token = token
 	}
+}
+
+// split splits the configuration into configuration types which will be stored in different ways.
+// For example, some values will be written into a YAML file while other ones will be stored in the system keyring.
+func (cfg *Config) split() (configYAML, configKeyring) {
+	cfgYAML := configYAML{
+		Host:            cfg.Host,
+		Endpoint:        cfg.Endpoint,
+		Data:            cfg.Data,
+		Debug:           cfg.Debug,
+		Address:         cfg.Address,
+		FileUsed:        cfg.FileUsed,
+		GitHubAPI:       cfg.GitHubAPI,
+		SkipUpdateCheck: cfg.SkipUpdateCheck,
+	}
+
+	cfgKeyring := configKeyring{
+		Token: cfg.Token,
+	}
+
+	return cfgYAML, cfgKeyring
+}
+
+// merge merges the given configuration types into the Config instance. This function is the reverse operation of split.
+func (cfg *Config) merge(cfgYAML *configYAML, cfgKeyring *configKeyring) {
+	cfg.Host = cfgYAML.Host
+	cfg.Endpoint = cfgYAML.Endpoint
+	cfg.Token = cfgKeyring.Token
+	cfg.Data = cfgYAML.Data
+	cfg.Debug = cfgYAML.Debug
+	cfg.Address = cfgYAML.Address
+	cfg.FileUsed = cfgYAML.FileUsed
+	cfg.GitHubAPI = cfgYAML.GitHubAPI
+	cfg.SkipUpdateCheck = cfgYAML.SkipUpdateCheck
 }
 
 // ReadFromEnv takes a prefix and field to search the environment for after capitalizing and joining them with an underscore.
