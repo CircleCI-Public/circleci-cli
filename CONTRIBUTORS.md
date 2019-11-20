@@ -18,3 +18,4 @@ We are very grateful to the following people have helped us to build the CLI too
 - [Brady Sullivan](https://github.com/d1str0)
 - [Ashley Reid](https://github.com/akanix42)
 - [Joshu Coats](https://github.com/rhwlo)
+- [Seong Yong-ju](https://github.com/sei40kr)
