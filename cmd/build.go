@@ -88,7 +88,6 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 
 func newBuildCommand(config *settings.Config) *cobra.Command {
 	cmd := newLocalExecuteCommand(config)
-	cmd.Hidden = true
 	cmd.Use = "build"
 	return cmd
 }
