@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -175,6 +176,25 @@ Example: 'circleci orb publish increment foo/orb.yml foo/bar minor' => foo/bar@1
 	publishCommand.AddCommand(promoteCommand)
 	publishCommand.AddCommand(incrementCommand)
 
+	unlistCmd := &cobra.Command{
+		Use:   "unlist <namespace>/<orb> <true|false>",
+		Short: "Disable or enable an orb's listing in the registry",
+		Long: `Disable or enable an orb's listing in the registry.
+This only affects whether the orb is displayed in registry search results;
+the orb remains world-readable as long as referenced with a valid name.
+
+Example: Run 'circleci orb unlist foo/bar true' to disable the listing of the
+orb in the registry and 'circleci orb unlist foo/bar false' to re-enable the
+listing of the orb in the registry.`,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return setOrbListStatus(opts)
+		},
+		PreRunE: func(_ *cobra.Command, _ []string) error {
+			return validateToken(opts.cfg)
+		},
+		Args: cobra.ExactArgs(2),
+	}
+
 	sourceCommand := &cobra.Command{
 		Use:   "source <orb>",
 		Short: "Show the source of an orb",
@@ -246,6 +266,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(processCommand)
 	orbCommand.AddCommand(publishCommand)
+	orbCommand.AddCommand(unlistCmd)
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
 
@@ -530,6 +551,41 @@ func publishOrb(opts orbOptions) error {
 		fmt.Printf("Note that your dev label `%s` can be overwritten by anyone in your organization.\n", version)
 		fmt.Printf("Your dev orb will expire in 90 days unless a new version is published on the label `%s`.\n", version)
 	}
+	return nil
+}
+
+func setOrbListStatus(opts orbOptions) error {
+	ref := opts.args[0]
+	unlistArg := opts.args[1]
+	var err error
+
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(ref)
+
+	if err != nil {
+		return err
+	}
+
+	unlist, err := strconv.ParseBool(unlistArg)
+	if err != nil {
+		return fmt.Errorf("expected \"true\" or \"false\", got \"%s\"", unlistArg)
+	}
+
+	listed, err := api.OrbSetOrbListStatus(opts.cl, namespace, orb, !unlist)
+	if err != nil {
+		return err
+	}
+
+	if listed != nil {
+		displayedStatus := "enabled"
+		if !*listed {
+			displayedStatus = "disabled"
+		}
+		fmt.Printf("The listing of orb `%s` is now %s.\n"+
+			"Note: changes may not be immediately reflected in the registry.\n", ref, displayedStatus)
+	} else {
+		return fmt.Errorf("unexpected error in setting the list status of orb `%s`", ref)
+	}
+
 	return nil
 }
 

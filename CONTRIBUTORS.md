@@ -10,3 +10,4 @@ We are very grateful to the following people have helped us to build the CLI too
 - [Hiroyuki Matsuo](https://github.com/h-matsuo)
 - [Sam Chapler](https://github.com/SamChapler)
 - [Nick Miyake](https://github.com/nmiyake)
+- [Juan Carlos Mejías Rodríguez](https://github.com/greenled)
