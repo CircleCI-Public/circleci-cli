@@ -1,7 +1,7 @@
 version: 2.1
 
 orbs:
-  codecov: circleci/codecov-clojure@0.0.4
+  codecov: circleci/codecov-clojure@0.0.10
   shellcheck: circleci/shellcheck@1.2.0
   slack: circleci/slack@0.1.14
 
