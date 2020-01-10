@@ -52,7 +52,7 @@ echo "Installing to $DESTDIR"
 mv circleci "$DESTDIR"
 chmod +x "$DESTDIR/circleci"
 
-command -v circleci
+command -v ${DESTDIR}/circleci
 
 # Delete the working directory when the install was successful.
 rm -r "$SCRATCH"
