@@ -8,7 +8,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: circleci/golang:1.11
+      - image: circleci/golang:1.12.15
     environment:
       CGO_ENABLED: 0
 
@@ -51,6 +51,7 @@ commands:
           name: Install GoReleaser
           command: |
             [ -f ~/goreleaser_amd64.deb ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
+            sudo apt-get update -y
             sudo apt install ~/goreleaser_amd64.deb
   gomod:
     steps:

@@ -11,7 +11,7 @@ Second, it's written in Go. If you are new to Go, we recommend the following res
 
 ## Requirements
 
-* Go 1.11+
+* Go 1.12+
 * Make
 * ...
 
