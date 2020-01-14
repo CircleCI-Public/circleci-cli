@@ -56,6 +56,12 @@ brew install circleci
 sudo snap install circleci
 ```
 
+### Chocolatey
+
+```
+choco install circleci-cli -y
+```
+
 ### Upgrade from existing CLI
 
 If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
