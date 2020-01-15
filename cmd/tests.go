@@ -1,95 +1,19 @@
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/CircleCI-Public/circleci-cli/proxy"
-	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/bmatcuk/doublestar"
 	"github.com/spf13/cobra"
 )
 
-type testsOptions struct {
-	cfg  *settings.Config
-	args []string
-}
-
-func newTestsCommand(config *settings.Config) *cobra.Command {
-	opts := testsOptions{
-		cfg: config,
-	}
-
+func newTestsCommand() *cobra.Command {
 	testsCmd := &cobra.Command{
-		Use:    "tests",
-		Short:  "Collect and split files with tests",
-		Hidden: true,
-	}
-
-	globCmd := &cobra.Command{
-		Use:   "glob",
-		Short: "Glob files using pattern",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return globRun(opts)
+		Use:                "tests",
+		Short:              "Collect and split tests so they may be run in parallel.",
+		DisableFlagParsing: true,
+		Hidden:             true,
+		RunE: func(_ *cobra.Command, args []string) error {
+			return proxy.Exec([]string{"tests"}, args)
 		},
 	}
-
-	splitCmd := &cobra.Command{
-		Use:   "split",
-		Short: "Return a split batch of provided files (must be inside a build).",
-		Long:  "This command wraps `circleci-agent` which must be run inside of a build.",
-		PreRun: func(cmd *cobra.Command, args []string) {
-			opts.args = args
-
-		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return splitRunE(opts)
-		},
-	}
-	splitCmd.Flags().Uint("index", 0, "index of node.")
-	splitCmd.Flags().Uint("total", 1, "number of nodes.")
-	splitCmd.Flags().String("split-by", "name", `how to weight the split, allowed values are "name", "filesize", and "timings".`)
-	splitCmd.Flags().String("timings-type", "filename", `lookup historical timing data by: "classname", "filename", or "testname".`)
-	splitCmd.Flags().Bool("show-counts", false, `print test file or test class counts to stderr (default false).`)
-	splitCmd.Flags().String("timings-file", "", "JSON file containing historical timing data.")
-
-	testsCmd.AddCommand(globCmd)
-	testsCmd.AddCommand(splitCmd)
-
 	return testsCmd
-}
-
-func expandGlobs(opts testsOptions) ([]string, error) {
-	result := []string{}
-
-	for _, arg := range opts.args {
-		matches, err := doublestar.Glob(arg)
-		if err != nil {
-			return nil, err
-		}
-
-		result = append(result, matches...)
-	}
-
-	return result, nil
-}
-
-func globRun(opts testsOptions) error {
-	allfiles, err := expandGlobs(opts)
-
-	if err != nil {
-		return err
-	}
-
-	for _, filename := range allfiles {
-		fmt.Println(filename)
-	}
-
-	return nil
-}
-
-func splitRunE(opts testsOptions) error {
-	return proxy.Exec([]string{"tests", "split"}, opts.args)
 }
