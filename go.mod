@@ -21,6 +21,7 @@ require (
 	github.com/manifoldco/promptui v0.3.0
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mitchellh/mapstructure v1.1.2
+	github.com/olekukonko/tablewriter v0.0.4
 	github.com/onsi/ginkgo v1.7.0
 	github.com/onsi/gomega v1.4.3
 	github.com/pkg/browser v0.0.0-20180916011732-0a3d74bf9ce4

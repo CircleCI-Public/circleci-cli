@@ -103,6 +103,13 @@ jobs:
       CGO_ENABLED: 1
     steps:
       - checkout
+      - run:
+          # Uploading to codecov has been failing due to HTTP 2.0 issues.
+          # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
+          #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
+          # The issue seems to be on the server-side, so force HTTP 1.1
+          name: 'cURL: Force HTTP 1.1'
+          command: echo '--http1.1' >> ~/.curlrc
       - gomod
       - run: make cover
       - store_artifacts:
