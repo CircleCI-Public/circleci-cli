@@ -11,6 +11,12 @@ executors:
       - image: circleci/golang:1.12.15
     environment:
       CGO_ENABLED: 0
+  mac:
+    macos:
+      xcode: 11.3.1
+    environment:
+      CGO_ENABLED: 0
+      HOMEBREW_NO_AUTO_UPDATE: 1
 
 commands:
   build-docker-image:
@@ -56,13 +62,15 @@ commands:
   gomod:
     steps:
       - restore_cache:
-          keys: [v1-gomod-]
+          keys: ["v2-gomod-{{ arch }}-"]
       - run:
           name: Download go module dependencies
           command: go mod download
       - save_cache:
-          key: v1-gomod-{{ checksum "go.sum" }}
-          paths: [/go/pkg/mod]
+          key: v2-gomod-{{ arch }}-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod  # Linux
+            - ~/go/pkg/mod # macOS
   # Wrap the slack/status command to only notify on failures
   slack-notify-on-failure:
     steps:
@@ -71,6 +79,16 @@ commands:
           only_for_branch: "master"
 
 jobs:
+  test_mac:
+    executor: mac
+    steps:
+      - checkout
+      - run: |
+          brew install go@1.12
+          echo 'export PATH="/usr/local/opt/go@1.12/bin:$PATH"' >> ~/.bash_profile
+      - gomod
+      - run: make test
+      - slack-notify-on-failure
   test:
     executor: go
     steps:
@@ -217,6 +235,7 @@ workflows:
       - shellcheck/check:
           exclude: ./vendor/*
       - test
+      - test_mac
       - coverage
       - lint
       - deploy-test
@@ -229,6 +248,7 @@ workflows:
       - deploy:
           requires:
             - test
+            - test_mac
             - coverage
             - lint
             - deploy-test
