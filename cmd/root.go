@@ -104,6 +104,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
+	rootCmd.AddCommand(newOpenCommand())
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
 	rootCmd.AddCommand(newConfigCommand(rootOptions))
