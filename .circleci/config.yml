@@ -36,7 +36,7 @@ commands:
   deploy-save-cache-workspace-and-artifacts:
     steps:
       - save_cache:
-          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          key: v4-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
       - persist_to_workspace:
           root: .
@@ -49,10 +49,10 @@ commands:
     parameters:
       GORELEASER_URL:
         type: string
-        default: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
+        default: https://github.com/goreleaser/goreleaser/releases/download/v0.127.0/goreleaser_amd64.deb
     steps:
       - restore_cache:
-          keys: [v3-goreleaser-]
+          keys: [v4-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
@@ -143,7 +143,11 @@ jobs:
       - gomod
       - run:
           name: Release
-          command: goreleaser --skip-publish --skip-validate
+          command: |
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
+            git tag -a "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
+            goreleaser --skip-publish
       - setup_remote_docker:
           docker_layer_caching: true
       - build-docker-image
