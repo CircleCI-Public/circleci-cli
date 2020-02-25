@@ -7,6 +7,7 @@ require (
 	github.com/chzyer/logex v1.1.10 // indirect
 	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
 	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect
+	github.com/fatih/color v1.9.0 // indirect
 	github.com/go-yaml/yaml v2.1.0+incompatible
 	github.com/gobuffalo/buffalo-plugins v1.9.3 // indirect
 	github.com/gobuffalo/flect v0.0.0-20181210151238-24a2b68e0316 // indirect
@@ -18,6 +19,7 @@ require (
 	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a // indirect
 	github.com/lunixbochs/vtclean v0.0.0-20170504063817-d14193dfc626 // indirect
 	github.com/manifoldco/promptui v0.3.0
+	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/onsi/ginkgo v1.7.0
 	github.com/onsi/gomega v1.4.3
@@ -31,7 +33,6 @@ require (
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect
 	golang.org/x/oauth2 v0.0.0-20180724155351-3d292e4d0cdc // indirect
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
-	golang.org/x/sys v0.0.0-20181228144115-9a3f9b0469bb // indirect
 	golang.org/x/tools v0.0.0-20181221235234-d00ac6d27372 // indirect
 	gopkg.in/yaml.v2 v2.2.2
 	gotest.tools v2.1.0+incompatible
