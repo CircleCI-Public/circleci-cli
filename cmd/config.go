@@ -6,14 +6,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
-
-const defaultConfigPath = ".circleci/config.yml"
 
 type configOptions struct {
 	cfg  *settings.Config
@@ -114,7 +113,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions) error {
-	path := defaultConfigPath
+	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
 		path = configPath
