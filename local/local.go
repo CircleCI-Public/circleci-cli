@@ -3,6 +3,7 @@ package local
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -10,22 +11,16 @@ import (
 	"regexp"
 	"syscall"
 
+	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
-	"gopkg.in/yaml.v2"
 )
 
 var picardRepo = "circleci/picard"
 
 const DefaultConfigPath = ".circleci/config.yml"
-
-type BuildOptions struct {
-	Cfg  *settings.Config
-	Args []string
-	Help func() error
-}
 
 type buildAgentSettings struct {
 	LatestSha256 string
@@ -43,57 +38,59 @@ func UpdateBuildAgent() error {
 	return nil
 }
 
-// nolint: gocyclo
-// TODO(zzak): This function is fairly complex, we should refactor it
-func Execute(opts BuildOptions) error {
-	for _, f := range opts.Args {
-		if f == "--help" || f == "-h" {
-			return opts.Help()
-		}
+func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
+
+	processedArgs, configPath := buildAgentArguments(flags)
+	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	configResponse, err := api.ConfigQuery(cl, configPath)
+
+	if err != nil {
+		return err
 	}
 
-	if err := validateConfigVersion(opts.Args); err != nil {
+	if !configResponse.Valid {
+		return fmt.Errorf("config errors %v", configResponse.Errors)
+	}
+
+	processedConfigPath, err := writeStringToTempFile(configResponse.OutputYaml)
+
+	// The file at processedConfigPath must be left in place until after the call
+	// to `docker run` has completed. Typically, we would `defer` a call to remove
+	// the file. In this case, we execute `docker` using `syscall.Exec`, which
+	// replaces the current process, and no more go code will execute at that
+	// point, so we cannot delete the file easily. We choose to leave the file
+	// in-place in /tmp.
+
+	if err != nil {
 		return err
 	}
 
 	pwd, err := os.Getwd()
 
 	if err != nil {
-		return errors.Wrap(err, "Could not find pwd")
-	}
-
-	if err = ensureDockerIsAvailable(); err != nil {
 		return err
 	}
 
-	image, err := picardImage()
+	dockerPath, err := ensureDockerIsAvailable()
+
+	if err != nil {
+		return err
+	}
+
+	image, err := picardImage(os.Stdout)
 
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
 	}
 
-	// TODO: marc:
-	// We are passing the current environment to picard,
-	// so DOCKER_API_VERSION is only passed when it is set
-	// explicitly. The old bash script sets this to `1.23`
-	// when not explicitly set. Is this OK?
-	arguments := []string{"docker", "run", "--interactive", "--tty", "--rm",
-		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
-		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
-		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
-		"--workdir", pwd,
-		image, "circleci", "build"}
+	arguments := generateDockerCommand(processedConfigPath, image, pwd, processedArgs...)
 
-	arguments = append(arguments, opts.Args...)
-
-	if opts.Cfg.Debug {
+	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
 		if err != nil {
 			return err
 		}
 	}
-
-	dockerPath, err := exec.LookPath("docker")
 
 	if err != nil {
 		return errors.Wrap(err, "Could not find a `docker` executable on $PATH; please ensure that docker installed")
@@ -103,58 +100,58 @@ func Execute(opts BuildOptions) error {
 	return errors.Wrap(err, "failed to execute docker")
 }
 
-func validateConfigVersion(args []string) error {
-	invalidConfigError := `
-You attempted to run a local build with version '%s' of configuration.
-Local builds do not support that version at this time.
-You can use 'circleci config process' to pre-process your config into a version that local builds can run (see 'circleci help config process' for more information)`
-	configFlags := pflag.NewFlagSet("configFlags", pflag.ContinueOnError)
-	configFlags.ParseErrorsWhitelist.UnknownFlags = true
-	var filename string
-
-	configFlags.StringVarP(&filename, "config", "c", DefaultConfigPath, "config file")
-
-	err := configFlags.Parse(args)
-	if err != nil {
-		return errors.New("Unable to parse flags")
-	}
-
-	// #nosec
-	configBytes, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return errors.Wrapf(err, "Unable to read config file")
-	}
-
-	version, isVersion := configVersion(configBytes)
-	if !isVersion || version == "" {
-		return errors.New("Unable to identify config version")
-	}
-
-	if version != "2.0" && version != "2" {
-		return fmt.Errorf(invalidConfigError, version)
-	}
-
-	return nil
+// The `local execute` command proxies execution to the picard docker container,
+// and ultimately to `build-agent`. We want to pass all arguments passed to the
+// `local execute` command on to build-agent
+// These options are here to retain a mock of the flags used by `build-agent`.
+// They don't reflect the entire structure or available flags, only those which
+// are public in the original command.
+func AddFlagsForDocumentation(flags *pflag.FlagSet) {
+	flags.StringP("config", "c", DefaultConfigPath, "config file")
+	flags.String("job", "build", "job to be executed")
+	flags.Int("node-total", 1, "total number of parallel nodes")
+	flags.Int("index", 0, "node index of parallelism")
+	flags.Bool("skip-checkout", true, "use local path as-is")
+	flags.StringSliceP("volume", "v", nil, "Volume bind-mounting")
+	flags.String("checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
+	flags.String("revision", "", "Git Revision")
+	flags.String("branch", "", "Git branch")
+	flags.String("repo-url", "", "Git Url")
+	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
-func configVersion(configBytes []byte) (string, bool) {
-	var raw map[string]interface{}
-	if err := yaml.Unmarshal(configBytes, &raw); err != nil {
-		return "", false
-	}
+// Given the full set of flags that were passed to this command, return the path
+// to the config file, and the list of supplied args _except_ for the `--config`
+// or `-c` argument.
+// The `build-agent` can only deal with config version 2.0. In order to feed
+// version 2.0 config to it, we need to process the supplied config file using the
+// GraphQL API, and feed the result of that into `build-agent`. The first step of
+// that process is to find the local path to the config file. This is supplied with
+// the `config` flag.
+func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
-	var configWithVersion struct {
-		Version string `yaml:"version"`
-	}
-	if err := mapstructure.WeakDecode(raw, &configWithVersion); err != nil {
-		return "", false
-	}
-	return configWithVersion.Version, true
+	var result []string = []string{}
+
+	// build a list of all supplied flags, that we will pass on to build-agent
+	flags.Visit(func(flag *pflag.Flag) {
+		if flag.Name != "config" && flag.Name != "debug" {
+			result = append(result, "--"+flag.Name, flag.Value.String())
+		}
+	})
+	result = append(result, flags.Args()...)
+
+	configPath, _ := flags.GetString("config")
+
+	return result, configPath
 }
 
-func picardImage() (string, error) {
+func picardImage(output io.Writer) (string, error) {
 
-	sha := loadCurrentBuildAgentSha()
+	sha, err := loadCurrentBuildAgentSha()
+
+	if err != nil {
+		fmt.Printf("Failed to load build agent settings: %s\n", err)
+	}
 
 	if sha == "" {
 
@@ -169,28 +166,31 @@ func picardImage() (string, error) {
 		}
 
 	}
-	fmt.Printf("Docker image digest: %s\n", sha)
+	_, _ = fmt.Fprintf(output, "Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
 
-func ensureDockerIsAvailable() error {
-	if _, err := exec.LookPath("docker"); err != nil {
-		return errors.New("could not find `docker` on the PATH; please ensure that docker is installed")
+func ensureDockerIsAvailable() (string, error) {
+
+	dockerPath, err := exec.LookPath("docker")
+
+	if err != nil {
+		return "", errors.New("could not find `docker` on the PATH; please ensure that docker is installed")
 	}
 
-	dockerRunning := exec.Command("docker", "version").Run() == nil // #nosec
+	dockerRunning := exec.Command(dockerPath, "version").Run() == nil // #nosec
 
 	if !dockerRunning {
-		return errors.New("failed to connect to docker; please ensure that docker is running, and that `docker version` succeeds")
+		return "", errors.New("failed to connect to docker; please ensure that docker is running, and that `docker version` succeeds")
 	}
 
-	return nil
+	return dockerPath, nil
 }
 
 // Still depends on a function in cmd/build.go
 func findLatestPicardSha() (string, error) {
 
-	if err := ensureDockerIsAvailable(); err != nil {
+	if _, err := ensureDockerIsAvailable(); err != nil {
 		return "", err
 	}
 
@@ -242,34 +242,58 @@ func storeBuildAgentSha(sha256 string) error {
 	return errors.Wrap(err, "Failed to write build agent settings file")
 }
 
-func loadCurrentBuildAgentSha() string {
+func loadCurrentBuildAgentSha() (string, error) {
+
 	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
-		return ""
+		// Settings file does not exist.
+		return "", nil
 	}
 
-	settingsJSON, err := ioutil.ReadFile(buildAgentSettingsPath())
-
+	file, err := os.Open(buildAgentSettingsPath())
 	if err != nil {
-		_, er := fmt.Fprint(os.Stderr, "Failed to load build agent settings JSON", err.Error())
-		if er != nil {
-			panic(er)
-		}
-
-		return ""
+		return "", errors.Wrap(err, "Could not open build settings config")
 	}
+	defer file.Close()
 
 	var settings buildAgentSettings
 
-	err = json.Unmarshal(settingsJSON, &settings)
+	if err := json.NewDecoder(file).Decode(&settings); err != nil {
 
-	if err != nil {
-		_, er := fmt.Fprint(os.Stderr, "Failed to parse build agent settings JSON", err.Error())
-		if er != nil {
-			panic(er)
-		}
-
-		return ""
+		return "", errors.Wrap(err, "Could not parse build settings config")
 	}
 
-	return settings.LatestSha256
+	return settings.LatestSha256, nil
+}
+
+// Write data to a temp file, and return the path to that file.
+func writeStringToTempFile(data string) (string, error) {
+	// It's important to specify `/tmp` here as the location of the temp file.
+	// On macOS, the regular temp directories is not shared with Docker by default.
+	// The error message is along the lines of:
+	// > The path /var/folders/q0/2g2lcf6j79df6vxqm0cg_0zm0000gn/T/287575618-config.yml
+	// > is not shared from OS X and is not known to Docker.
+	// Docker has `/tmp` shared by default.
+	f, err := ioutil.TempFile("/tmp", "*_circleci_config.yml")
+
+	if err != nil {
+		return "", errors.Wrap(err, "Error creating temporary config file")
+	}
+
+	if _, err = f.WriteString(data); err != nil {
+		return "", errors.Wrap(err, "Error writing processed config to temporary file")
+	}
+
+	return f.Name(), nil
+}
+
+func generateDockerCommand(configPath, image, pwd string, arguments ...string) []string {
+	const configPathInsideContainer = "/tmp/local_build_config.yml"
+	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
+		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
+		"--volume", fmt.Sprintf("%s:%s", configPath, configPathInsideContainer),
+		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
+		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
+		"--workdir", pwd,
+		image, "circleci", "build", "--config", configPathInsideContainer}
+	return append(core, arguments...)
 }
