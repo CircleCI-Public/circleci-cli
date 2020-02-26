@@ -588,7 +588,7 @@ func getOrganization(cl *client.Client, organizationName string, organizationVcs
 	request.SetToken(cl.Token)
 
 	request.Var("organizationName", organizationName)
-	request.Var("organizationVcs", organizationVcs)
+	request.Var("organizationVcs", strings.ToUpper(organizationVcs))
 
 	err := cl.Run(request, &response)
 

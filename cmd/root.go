@@ -106,6 +106,7 @@ func MakeCommands() *cobra.Command {
 
 	rootCmd.AddCommand(newOpenCommand())
 	rootCmd.AddCommand(newTestsCommand())
+	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
 	rootCmd.AddCommand(newConfigCommand(rootOptions))
 	rootCmd.AddCommand(newOrbCommand(rootOptions))
