@@ -256,6 +256,14 @@ workflows:
       - snap:
           requires:
             - deploy
+      # Only deploy to homebrew after manual approval.
+      - run-brew-deploy-gate:
+          type: approval
+          requires:
+            - deploy
+      - brew-deploy:
+          requires:
+            - run-brew-deploy-gate
       - deploy:
           requires:
             - test
@@ -267,17 +275,3 @@ workflows:
           filters:
             branches:
               only: master
-  weekly:
-    triggers:
-      - schedule:
-          cron: "0 23 * * 0"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      - run-brew-deploy-gate:
-          type: approval
-      - brew-deploy:
-          requires:
-            - run-brew-deploy-gate
