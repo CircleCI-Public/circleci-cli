@@ -15,4 +15,3 @@ brew bump-formula-pr --strict \
   --tag="$TAG" \
   --revision="$REVISION" \
   circleci
-
