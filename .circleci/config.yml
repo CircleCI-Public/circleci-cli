@@ -19,6 +19,15 @@ executors:
       HOMEBREW_NO_AUTO_UPDATE: 1
 
 commands:
+  force-http-1:
+    steps:
+      - run:
+          # Uploading to codecov has been failing due to HTTP 2.0 issues.
+          # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
+          #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
+          # The issue seems to be on the server-side, so force HTTP 1.1
+          name: 'cURL: Force HTTP 1.1'
+          command: echo '--http1.1' >> ~/.curlrc
   build-docker-image:
     steps:
       - run:
@@ -103,13 +112,7 @@ jobs:
       CGO_ENABLED: 1
     steps:
       - checkout
-      - run:
-          # Uploading to codecov has been failing due to HTTP 2.0 issues.
-          # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
-          #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
-          # The issue seems to be on the server-side, so force HTTP 1.1
-          name: 'cURL: Force HTTP 1.1'
-          command: echo '--http1.1' >> ~/.curlrc
+      - force-http-1
       - gomod
       - run: make cover
       - store_artifacts:
@@ -222,13 +225,14 @@ jobs:
 
   brew-deploy:
     macos:
-      xcode: "10.0.0"
+      xcode: "11.3.0"
     environment:
       - USER: circleci
       - TRAVIS: circleci
       - DESTDIR: /Users/distiller/dest
     steps:
       - checkout
+      - force-http-1
       - run: |
           mkdir $DESTDIR
           curl -fLSs https://circle.ci/cli | DESTDIR="$DESTDIR" bash
@@ -240,7 +244,6 @@ jobs:
       - slack-notify-on-failure
 
 workflows:
-  version: 2
   ci:
     jobs:
       - shellcheck/check:

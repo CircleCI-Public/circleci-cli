@@ -92,7 +92,7 @@ You should be prompted to enter the _CircleCI API Token_ you generated from the 
 
 
 ```
-✔ CircleCI API Token: 
+✔ CircleCI API Token:
 
 API token has been set.
 
@@ -141,6 +141,23 @@ The following commands are affected:
 * `circleci tests split`
 * `circleci step halt`
 * `circleci config migrate`
+
+## Platforms, Deployment and Package Managers
+
+The tool is deployed through a number of channels. The primary release channel is through [GitHub Releases](https://github.com/CircleCI-Public/circleci-cli/releases). Green builds on the `master` branch will publish a new GitHub release. These releases contain binaries for macOS, Linux and Windows. These releases are published from (CircleCI)[https://app.circleci.com/pipelines/github/CircleCI-Public/circleci-cli] using (GoReleaser)[https://goreleaser.com/].
+
+### Homebrew
+
+We publish the tool to [Homebrew](https://brew.sh/). The tool is [part of `homebrew-core`](https://github.com/Homebrew/homebrew-core/blob/master/Formula/circleci.rb), and therefore the maintainers of the tool are obligated to follow the guidelines for acceptable Homebrew formulae. You should [familairise yourself with the guidelines](https://docs.brew.sh/Acceptable-Formulae#we-dont-like-tools-that-upgrade-themselves) before making changes to the Homebrew deployment system.
+
+The particular considerations that we make are:
+
+1. Since Homebrew [doesn't "like tools that upgrade themselves"](https://docs.brew.sh/Acceptable-Formulae#we-dont-like-tools-that-upgrade-themselves), we disable the `circleci update` command when the tool is released through homebrew. We do this by [defining the PackageManager](https://github.com/Homebrew/homebrew-core/blob/eb1fdb84e2924289bcc8c85ee45081bf83dc024d/Formula/circleci.rb#L28) constant to `homebrew`, which allows us to [disable the `update` command at runtime](https://github.com/CircleCI-Public/circleci-cli/blob/67c7d52bace63846f87a1ed79f67f257c94a55b4/cmd/root.go#L119-L123).
+1. We want to avoid every push to `master` from creating a Pull Request to the `circleci` formula on Homebrew. We want to avoid overloading the Homebrew team with pull requests to update our formula for small changes (changes to docs or other files that don't change functionality in the tool).
+
+### Snapcraft
+
+We publish Linux builds of the tool to the Snapcraft package manager.
 
 ## Contributing
 
