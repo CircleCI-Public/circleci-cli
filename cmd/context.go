@@ -25,13 +25,12 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	command := &cobra.Command{
-		Hidden: true,
-		Use:    "context",
-		Short:  "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
+		Use:   "context",
+		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
 	}
 
 	listCommand := &cobra.Command{
-		Short:  "List contexts",
+		Short:  "List all contexts",
 		Use:    "list <vcs-type> <org-name>",
 		PreRun: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -51,7 +50,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	storeCommand := &cobra.Command{
-		Short:  "Store an new secret in the named context. The value is read from stdin.",
+		Short:  "Store a new environment variable in the named context. The value is read from stdin.",
 		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRun: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -61,7 +60,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	removeCommand := &cobra.Command{
-		Short:  "Remove a secret from the named context",
+		Short:  "Remove an environment variable from the named context",
 		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRun: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
