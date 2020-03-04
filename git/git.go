@@ -59,11 +59,11 @@ func findProviderAndSlug(url string) (VcsType, string, error) {
 
 	var vcsParsers = map[VcsType][]*regexp.Regexp{
 		GitHub: {
-			regexp.MustCompile(`^git@github\.com:(.*)`),
+			regexp.MustCompile(`^(?:ssh\://)?git@github\.com[:/](.*)`),
 			regexp.MustCompile(`https://(?:.*@)?github\.com/(.*)`),
 		},
 		Bitbucket: {
-			regexp.MustCompile(`^git@bitbucket\.org:(.*)`),
+			regexp.MustCompile(`^(?:ssh\://)?git@bitbucket\.org[:/](.*)`),
 			regexp.MustCompile(`https://(?:.*@)?bitbucket\.org/(.*)`),
 		},
 	}

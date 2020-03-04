@@ -62,6 +62,18 @@ var _ = Describe("Dealing with git", func() {
 					Organization: "kiwi",
 					Project:      "fruit",
 				},
+
+				"ssh://git@github.com/cloud/rain": &Remote{
+					VcsType:      GitHub,
+					Organization: "cloud",
+					Project:      "rain",
+				},
+
+				"ssh://git@bitbucket.org/snow/ice": &Remote{
+					VcsType:      Bitbucket,
+					Organization: "snow",
+					Project:      "ice",
+				},
 			}
 
 			for url, remote := range cases {

@@ -208,7 +208,7 @@ jobs:
       - attach_workspace:
           at: .
       - run: |
-          export TAG=$(./dist/linux_amd64/circleci version)
+          TAG=$(./dist/circleci-cli_linux_amd64/circleci version) && export TAG
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
       - run: snapcraft
       - run:
@@ -256,6 +256,14 @@ workflows:
       - snap:
           requires:
             - deploy
+      # Only deploy to homebrew after manual approval.
+      - run-brew-deploy-gate:
+          type: approval
+          requires:
+            - deploy
+      - brew-deploy:
+          requires:
+            - run-brew-deploy-gate
       - deploy:
           requires:
             - test
@@ -267,17 +275,3 @@ workflows:
           filters:
             branches:
               only: master
-  weekly:
-    triggers:
-      - schedule:
-          cron: "0 23 * * 0"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      - run-brew-deploy-gate:
-          type: approval
-      - brew-deploy:
-          requires:
-            - run-brew-deploy-gate
