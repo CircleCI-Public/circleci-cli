@@ -80,7 +80,7 @@ func Execute(opts BuildOptions) error {
 	arguments := []string{"docker", "run", "--interactive", "--tty", "--rm",
 		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
-		"--volume", fmt.Sprintf("%s:/root/.circleci", circleCiDir()),
+		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
 		image, "circleci", "build"}
 
@@ -218,26 +218,22 @@ func findLatestPicardSha() (string, error) {
 	return latest, nil
 }
 
-func circleCiDir() string {
-	return path.Join(settings.UserHomeDir(), ".circleci")
-}
-
 func buildAgentSettingsPath() string {
-	return path.Join(circleCiDir(), "build_agent_settings.json")
+	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
 }
 
 func storeBuildAgentSha(sha256 string) error {
-	settings := buildAgentSettings{
+	agentSettings := buildAgentSettings{
 		LatestSha256: sha256,
 	}
 
-	settingsJSON, err := json.Marshal(settings)
+	settingsJSON, err := json.Marshal(agentSettings)
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to serialize build agent settings")
 	}
 
-	if err = os.MkdirAll(circleCiDir(), 0700); err != nil {
+	if err = os.MkdirAll(settings.SettingsPath(), 0700); err != nil {
 		return errors.Wrap(err, "Could not create settings directory")
 	}
 
