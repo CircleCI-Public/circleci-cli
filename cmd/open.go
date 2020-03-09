@@ -12,7 +12,7 @@ import (
 )
 
 func projectUrl(remote *git.Remote) string {
-	return fmt.Sprintf("https://app.circleci.com/%s/%s/%s/pipelines",
+	return fmt.Sprintf("https://app.circleci.com/pipelines/%s/%s/%s",
 		url.PathEscape(strings.ToLower(string(remote.VcsType))),
 		url.PathEscape(remote.Organization),
 		url.PathEscape(remote.Project))
