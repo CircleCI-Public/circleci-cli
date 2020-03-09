@@ -12,7 +12,7 @@ var _ = Describe("open", func() {
 			Project:      "foo",
 			Organization: "bar",
 			VcsType:      git.GitHub,
-		})).To(Equal("https://app.circleci.com/github/bar/foo/pipelines"))
+		})).To(Equal("https://app.circleci.com/pipelines/github/bar/foo"))
 	})
 
 	It("escapes garbage", func() {
@@ -20,6 +20,6 @@ var _ = Describe("open", func() {
 			Project:      "/one/two",
 			Organization: "%^&*()[]",
 			VcsType:      git.Bitbucket,
-		})).To(Equal("https://app.circleci.com/bitbucket/%25%5E&%2A%28%29%5B%5D/%2Fone%2Ftwo/pipelines"))
+		})).To(Equal("https://app.circleci.com/pipelines/bitbucket/%25%5E&%2A%28%29%5B%5D/%2Fone%2Ftwo"))
 	})
 })
