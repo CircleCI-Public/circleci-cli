@@ -134,8 +134,14 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "config" && flag.Name != "debug" && flag.Name != "env" {
 			result = append(result, "--"+flag.Name, flag.Value.String())
+		}
+		if flag.Name == "env" {
+			var envs, _ = flags.GetStringArray("env")
+			for _, env := range envs {
+				result = append(result, "--"+flag.Name, env)
+			}
 		}
 	})
 	result = append(result, flags.Args()...)
