@@ -104,28 +104,28 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newOpenCommand())
-	rootCmd.AddCommand(newTestsCommand())
-	rootCmd.AddCommand(newContextCommand(rootOptions))
-	rootCmd.AddCommand(newQueryCommand(rootOptions))
-	rootCmd.AddCommand(newConfigCommand(rootOptions))
-	rootCmd.AddCommand(newOrbCommand(rootOptions))
-	rootCmd.AddCommand(newLocalCommand(rootOptions))
+	rootCmd.AddCommand(newBetaCommand(rootOptions))
 	rootCmd.AddCommand(newBuildCommand(rootOptions))
-	rootCmd.AddCommand(newVersionCommand(rootOptions))
+	rootCmd.AddCommand(newConfigCommand(rootOptions))
+	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
+	rootCmd.AddCommand(newLocalCommand(rootOptions))
+	rootCmd.AddCommand(newNamespaceCommand(rootOptions))
+	rootCmd.AddCommand(newOpenCommand())
+	rootCmd.AddCommand(newOrbCommand(rootOptions))
+	rootCmd.AddCommand(newQueryCommand(rootOptions))
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
+	rootCmd.AddCommand(newStepCommand(rootOptions))
+	rootCmd.AddCommand(newSwitchCommand(rootOptions))
+	rootCmd.AddCommand(newTestsCommand())
+	rootCmd.AddCommand(newUsageCommand(rootOptions))
+	rootCmd.AddCommand(newVersionCommand(rootOptions))
 
 	if isUpdateIncluded(PackageManager) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))
 	} else {
 		rootCmd.AddCommand(newDisabledCommand(rootOptions, "update"))
 	}
-
-	rootCmd.AddCommand(newNamespaceCommand(rootOptions))
-	rootCmd.AddCommand(newUsageCommand(rootOptions))
-	rootCmd.AddCommand(newStepCommand(rootOptions))
-	rootCmd.AddCommand(newSwitchCommand(rootOptions))
 
 	rootCmd.PersistentFlags().BoolVar(&rootOptions.Debug,
 		"debug", rootOptions.Debug, "Enable debug logging.")
