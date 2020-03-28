@@ -28,7 +28,7 @@ require (
 	github.com/pkg/errors v0.8.0
 	github.com/rhysd/go-github-selfupdate v0.0.0-20180520142321-41c1bbb0804a
 	github.com/spf13/cobra v0.0.3
-	github.com/spf13/pflag v1.0.3
+	github.com/spf13/pflag v1.0.5
 	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
 	github.com/ulikunitz/xz v0.5.4 // indirect
 	golang.org/x/net v0.0.0-20181220203305-927f97764cc3 // indirect

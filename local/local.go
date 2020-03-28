@@ -117,7 +117,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringSliceP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -135,7 +135,14 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
 		if flag.Name != "config" && flag.Name != "debug" {
-			result = append(result, "--"+flag.Name, flag.Value.String())
+			switch flag.Value.Type() {
+			case "stringSlice":
+				for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
+					result = append(result, "--"+flag.Name, value)
+				}
+			default:
+				result = append(result, "--"+flag.Name, flag.Value.String())
+			}
 		}
 	})
 	result = append(result, flags.Args()...)
