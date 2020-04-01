@@ -74,7 +74,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
-		Short: "Process the config.",
+		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
