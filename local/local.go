@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -135,14 +136,30 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
 		if flag.Name != "config" && flag.Name != "debug" {
-			result = append(result, "--"+flag.Name, flag.Value.String())
+			var values []string = decompose(flag.Value.String())
+			for _, value := range values {
+				result = append(result, "--"+flag.Name, value)
+			}
 		}
 	})
+
 	result = append(result, flags.Args()...)
 
 	configPath, _ := flags.GetString("config")
 
 	return result, configPath
+}
+
+// The pflag library returns arguments as a single string value, formatted as such -> [value1,value2,...]
+// The Docker executable does not like that and sees that value as an argument with a single improperly formatted
+// argument.
+// Remove the first [ and last character ] and return a string array
+func decompose(incoming string) ([]string) {
+	if strings.HasPrefix(incoming, "[") {
+		return strings.Split(incoming[1:len(incoming)-1], ",")
+	} else {
+		return []string{incoming}
+	}
 }
 
 func picardImage(output io.Writer) (string, error) {

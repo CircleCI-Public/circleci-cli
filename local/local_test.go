@@ -97,6 +97,12 @@ var _ = Describe("build", func() {
 				expectedArgs:       []string{"--index", "9", "--job", "horse", "d"},
 			}),
 
+			Entry("many args, multiple envs", TestCase{
+				input:              []string{"--env", "ed", "--env", "mcity", "--job", "horse", "--config", "foo", "--index", "9", "d"},
+				expectedConfigPath: "foo",
+				expectedArgs:       []string{"--env", "ed", "--env", "mcity", "--index", "9", "--job", "horse", "d"},
+			}),
+
 			Entry("args that are not flags", TestCase{
 				input:              []string{"a", "--debug", "b", "--config", "foo", "d"},
 				expectedConfigPath: "foo",
