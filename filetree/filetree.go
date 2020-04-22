@@ -1,14 +1,15 @@
 package filetree
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	"github.com/go-yaml/yaml"
 	"github.com/mitchellh/mapstructure"
-	yaml "gopkg.in/yaml.v2"
 )
 
 // This is a quick hack of a function to convert interfaces
@@ -17,6 +18,7 @@ func mergeTree(trees ...interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for _, tree := range trees {
 		kvp := make(map[string]interface{})
+
 		if err := mapstructure.Decode(tree, &kvp); err != nil {
 			panic(err)
 		}
@@ -68,19 +70,25 @@ func (n Node) marshalParent() (interface{}, error) {
 	subtree := map[string]interface{}{}
 	for _, child := range n.Children {
 		c, err := child.MarshalYAML()
-		if err != nil {
-			return subtree, err
-		}
 
-		if child.rootFile() {
-			merged := mergeTree(subtree, c)
-			subtree = merged
-		} else if child.specialCase() {
-			merged := mergeTree(subtree, subtree[child.Parent.name()], c)
-			subtree = merged
-		} else {
-			merged := mergeTree(subtree[child.name()], c)
-			subtree[child.name()] = merged
+		switch c.(type) {
+		case map[string]interface{}, map[interface{}]interface{}, nil:
+			if err != nil {
+				return subtree, err
+			}
+
+			if child.rootFile() {
+				merged := mergeTree(subtree, c)
+				subtree = merged
+			} else if child.specialCase() {
+				merged := mergeTree(subtree, subtree[child.Parent.name()], c)
+				subtree = merged
+			} else {
+				merged := mergeTree(subtree[child.name()], c)
+				subtree[child.name()] = merged
+			}
+		default:
+			return nil, fmt.Errorf("expected a map, got a `%T` which is not supported at this time for \"%s\"", c, child.FullPath)
 		}
 	}
 

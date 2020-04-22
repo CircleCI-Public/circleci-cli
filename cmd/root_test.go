@@ -1,12 +1,9 @@
 package cmd_test
 
 import (
-	"fmt"
-	"io/ioutil"
-	"os"
 	"os/exec"
-	"path/filepath"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -18,20 +15,63 @@ var _ = Describe("Root", func() {
 	Describe("subcommands", func() {
 		It("can create commands", func() {
 			commands := cmd.MakeCommands()
-			Expect(len(commands.Commands())).To(Equal(14))
+			Expect(len(commands.Commands())).To(Equal(16))
+		})
+	})
+
+	Describe("Help text", func() {
+		It("shows a link to the docs", func() {
+			command := exec.Command(pathCLI, "--help")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).Should(gbytes.Say(`Use CircleCI from the command line.
+
+This project is the seed for CircleCI's new command-line application.
+
+For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/
+`))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
+		Context("if user changes host settings through configuration", func() {
+			var (
+				tempSettings *clitest.TempSettings
+				command      *exec.Cmd
+			)
+
+			BeforeEach(func() {
+				tempSettings = clitest.WithTempSettings()
+
+				command = commandWithHome(pathCLI, tempSettings.Home, "--help")
+
+				tempSettings.Config.Write([]byte(`host: foo.bar`))
+			})
+
+			AfterEach(func() {
+				tempSettings.Cleanup()
+			})
+
+			It("doesn't link to docs if user changes --host", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				Consistently(session.Out).ShouldNot(gbytes.Say("For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/"))
+				Eventually(session).Should(gexec.Exit(0))
+			})
 		})
 	})
 
 	Describe("build without auto update", func() {
 		var (
-			command     *exec.Cmd
-			err         error
-			noUpdateCLI string
-			tempHome    string
+			command      *exec.Cmd
+			err          error
+			noUpdateCLI  string
+			tempSettings *clitest.TempSettings
 		)
 
 		BeforeEach(func() {
-			tempHome, _, _ = withTempSettings()
+			tempSettings = clitest.WithTempSettings()
 
 			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
@@ -41,15 +81,12 @@ var _ = Describe("Root", func() {
 		})
 
 		AfterEach(func() {
-			Expect(os.RemoveAll(tempHome)).To(Succeed())
+			tempSettings.Cleanup()
 		})
 
 		It("reports update command as unavailable", func() {
-			command = exec.Command(noUpdateCLI, "help",
-				"--skip-update-check",
-			)
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
+			command = commandWithHome(noUpdateCLI, tempSettings.Home,
+				"help", "--skip-update-check",
 			)
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -105,50 +142,25 @@ var _ = Describe("Root", func() {
 
 	Describe("token in help text", func() {
 		var (
-			command  *exec.Cmd
-			tempHome string
-		)
-
-		const (
-			configDir  = ".circleci"
-			configFile = "cli.yml"
+			command      *exec.Cmd
+			tempSettings *clitest.TempSettings
 		)
 
 		BeforeEach(func() {
-			var err error
-			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-			Expect(err).ToNot(HaveOccurred())
+			tempSettings = clitest.WithTempSettings()
 
-			command = exec.Command(pathCLI, "help",
-				"--skip-update-check",
-			)
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
-				fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
+			command = commandWithHome(pathCLI, tempSettings.Home,
+				"help", "--skip-update-check",
 			)
 		})
 
 		AfterEach(func() {
-			Expect(os.RemoveAll(tempHome)).To(Succeed())
+			tempSettings.Cleanup()
 		})
 
 		Describe("existing config file", func() {
-			var config *os.File
-
 			BeforeEach(func() {
-				Expect(os.Mkdir(filepath.Join(tempHome, configDir), 0700)).To(Succeed())
-
-				var err error
-				config, err = os.OpenFile(
-					filepath.Join(tempHome, configDir, configFile),
-					os.O_RDWR|os.O_CREATE,
-					0600,
-				)
-				Expect(err).ToNot(HaveOccurred())
-
-				_, err = config.Write([]byte(`token: secret`))
-				Expect(err).ToNot(HaveOccurred())
-				Expect(config.Close()).To(Succeed())
+				tempSettings.Config.Write([]byte(`token: secret`))
 			})
 
 			It("does not include the users token in help text", func() {

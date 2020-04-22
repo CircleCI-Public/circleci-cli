@@ -1,12 +1,11 @@
 package cmd_test
 
 import (
-	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -17,48 +16,38 @@ import (
 
 var _ = Describe("Check", func() {
 	var (
-		command     *exec.Cmd
-		err         error
-		checkCLI    string
-		tempHome    string
-		testServer  *ghttp.Server
-		updateCheck *settings.UpdateCheck
-		updateFile  *os.File
+		command      *exec.Cmd
+		err          error
+		checkCLI     string
+		tempSettings *clitest.TempSettings
+		updateCheck  *settings.UpdateCheck
 	)
 
 	BeforeEach(func() {
 		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 		Expect(err).ShouldNot(HaveOccurred())
 
-		tempHome, _, updateFile = withTempSettings()
+		tempSettings = clitest.WithTempSettings()
 
 		updateCheck = &settings.UpdateCheck{
 			LastUpdateCheck: time.Time{},
 		}
 
-		updateCheck.FileUsed = updateFile.Name()
+		updateCheck.FileUsed = tempSettings.Update.File.Name()
 		err = updateCheck.WriteToDisk()
 		Expect(err).ShouldNot(HaveOccurred())
 
-		testServer = ghttp.NewServer()
-
-		command = exec.Command(checkCLI, "help",
-			"--github-api", testServer.URL(),
-		)
-
-		command.Env = append(os.Environ(),
-			fmt.Sprintf("HOME=%s", tempHome),
+		command = commandWithHome(checkCLI, tempSettings.Home,
+			"help", "--github-api", tempSettings.TestServer.URL(),
 		)
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempHome)).To(Succeed())
+		tempSettings.Cleanup()
 	})
 
 	Describe("update auto checks with a new release", func() {
-		var (
-			response string
-		)
+		var response string
 
 		BeforeEach(func() {
 			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
@@ -67,14 +56,8 @@ var _ = Describe("Check", func() {
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			tempHome, _, _ = withTempSettings()
-
-			command = exec.Command(checkCLI, "help",
-				"--github-api", testServer.URL(),
-			)
-
-			command.Env = append(os.Environ(),
-				fmt.Sprintf("HOME=%s", tempHome),
+			command = commandWithHome(checkCLI, tempSettings.Home,
+				"help", "--github-api", tempSettings.TestServer.URL(),
 			)
 
 			response = `
@@ -91,23 +74,26 @@ var _ = Describe("Check", func() {
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
+      },
+	  {
+        "id": 1,
+        "name": "darwin_amd64.tar.gz",
+		"label": "short description",
+        "content_type": "application/zip",
+		"size": 1024
       }
     ]
   }
 ]
 `
 
-			testServer.AppendHandlers(
+			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 			)
 
-		})
-
-		AfterEach(func() {
-			testServer.Close()
 		})
 
 		Context("using a binary release", func() {

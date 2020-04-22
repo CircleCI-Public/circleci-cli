@@ -1,5 +1,4 @@
 {
-  "data": {
     "orbs": {
       "totalCount": 31,
       "edges": [
@@ -100,5 +99,4 @@
         "hasNextPage": false
       }
     }
-  }
 }

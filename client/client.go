@@ -5,17 +5,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/logger"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
 
 // A Client is an HTTP client for our GraphQL endpoint.
 type Client struct {
+	Debug      bool
 	Endpoint   string
 	Host       string
 	Token      string
@@ -23,37 +26,26 @@ type Client struct {
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(host, endpoint, token string) *Client {
+func NewClient(host, endpoint, token string, debug bool) *Client {
 	return &Client{
 		httpClient: http.DefaultClient,
 		Endpoint:   endpoint,
 		Host:       host,
 		Token:      token,
+		Debug:      debug,
 	}
 }
 
-// NewAuthorizedRequest returns a new GraphQL request with the
-// authorization headers set for CircleCI auth.
-func NewAuthorizedRequest(query string, token string) (*Request, error) {
-	if token == "" {
-		return nil, errors.New(`please set a token with 'circleci setup'
-You can create a new personal API token here:
-https://circleci.com/account/api`)
-	}
-
-	request := &Request{
-		Query:     query,
-		Variables: make(map[string]interface{}),
-		Header:    make(map[string][]string),
-	}
-
-	request.Header.Set("Authorization", token)
-	request.Header.Set("User-Agent", version.UserAgent())
-	return request, nil
+// Reset replaces the existing fields with out creating a new client instance
+func (cl *Client) Reset(host, endpoint, token string, debug bool) {
+	cl.Endpoint = endpoint
+	cl.Host = host
+	cl.Token = token
+	cl.Debug = debug
 }
 
-// NewUnauthorizedRequest returns a new GraphQL request without any authorization header.
-func NewUnauthorizedRequest(query string) *Request {
+// NewRequest returns a new GraphQL request.
+func NewRequest(query string) *Request {
 	request := &Request{
 		Query:     query,
 		Variables: make(map[string]interface{}),
@@ -72,6 +64,11 @@ type Request struct {
 	// Header represent any request headers that will be set
 	// when the request is made.
 	Header http.Header `json:"-"`
+}
+
+// SetToken sets the Authorization header for the request with the given token.
+func (request *Request) SetToken(token string) {
+	request.Header.Set("Authorization", token)
 }
 
 // Var sets a variable.
@@ -95,9 +92,48 @@ type Response struct {
 // ResponseErrorsCollection represents a slice of errors returned by the GraphQL server out-of-band from the actual data.
 type ResponseErrorsCollection []ResponseError
 
+/*
+An Example Error for an enum error looks like this:
+
+{
+  "errors": [
+    {
+      "message": "Provided argument value `GRUBHUB' is not member of enum type.",
+      "locations": [
+        {
+          "line": 3,
+          "column": 3
+        }
+      ],
+      "extensions": {
+        "field": "organization",
+        "argument": "vcsType",
+        "value": "GRUBHUB",
+        "allowed-values": [
+          "GITHUB",
+          "BITBUCKET"
+        ],
+        "enum-type": "VCSType"
+      }
+    }
+  ]
+}
+*/
+
 // ResponseError represents the key-value pair of data returned by the GraphQL server to represent errors.
 type ResponseError struct {
-	Message string
+	Message   string
+	Locations []struct {
+		Line   int
+		Column int
+	}
+	Extensions struct {
+		Field         string
+		Argument      string
+		Value         string
+		AllowedValues []string `json:"allowed-values"`
+		EnumType      string   `json:"enum-type"`
+	}
 }
 
 // Error turns a ResponseErrorsCollection into an acceptable error string that can be printed to the user.
@@ -161,7 +197,12 @@ func prepareRequest(ctx context.Context, address string, request *Request) (*htt
 }
 
 // Run sends an HTTP request to the GraphQL server and deserializes the response or returns an error.
-func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request, resp interface{}) error {
+// TODO(zzak): This function is fairly complex, we should refactor it
+// nolint: gocyclo
+func (cl *Client) Run(request *Request, resp interface{}) error {
+	l := log.New(os.Stderr, "", 0)
+	ctx := context.Background()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
@@ -177,8 +218,11 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 	if err != nil {
 		return err
 	}
-	log.Debug(">> variables: %v", request.Variables)
-	log.Debug(">> query: %s", request.Query)
+
+	if cl.Debug {
+		l.Printf(">> variables: %v", request.Variables)
+		l.Printf(">> query: %s", request.Query)
+	}
 
 	res, err := cl.httpClient.Do(req)
 
@@ -186,17 +230,35 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 		return err
 	}
 	defer func() {
-		err := res.Body.Close()
-		if err != nil {
-			log.Debug(err.Error())
+		responseBodyCloseErr := res.Body.Close()
+		if responseBodyCloseErr != nil {
+			l.Printf(responseBodyCloseErr.Error())
 		}
 	}()
 
-	log.Debug("<< request id: %s", res.Header.Get("X-Request-Id"))
-	log.Debug("<< result status: %s", res.Status)
+	if cl.Debug {
+		l.Printf("<< request id: %s", res.Header.Get("X-Request-Id"))
+		l.Printf("<< result status: %s", res.Status)
+	}
 
-	if res.StatusCode != 200 {
+	if res.StatusCode != http.StatusOK {
 		return fmt.Errorf("failure calling GraphQL API: %s", res.Status)
+	}
+
+	// Request.Body is an io.ReadCloser it can only be read once
+	if cl.Debug {
+		var bodyBytes []byte
+		if res.Body != nil {
+			bodyBytes, err = ioutil.ReadAll(res.Body)
+			if err != nil {
+				return errors.Wrap(err, "reading response")
+			}
+
+			l.Printf("<< %s", string(bodyBytes))
+
+			// Restore the io.ReadCloser to its original state
+			res.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+		}
 	}
 
 	wrappedResponse := &Response{
@@ -210,8 +272,6 @@ func (cl *Client) Run(ctx context.Context, log *logger.Logger, request *Request,
 	if len(wrappedResponse.Errors) > 0 {
 		return wrappedResponse.Errors
 	}
-
-	log.Debug("<< %+v", resp)
 
 	return nil
 }

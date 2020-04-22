@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
@@ -82,10 +83,15 @@ func MakeCommands() *cobra.Command {
 		panic(err)
 	}
 
+	loaded, err := data.LoadData()
+	if err != nil {
+		panic(err)
+	}
+	rootOptions.Data = loaded
+
 	rootCmd = &cobra.Command{
-		Use:   "circleci",
-		Short: `Use CircleCI from the command line.`,
-		Long:  `This project is the seed for CircleCI's new command-line application.`,
+		Use:  "circleci",
+		Long: rootHelpLong(rootOptions),
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
@@ -98,7 +104,9 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newTestsCommand(rootOptions))
+	rootCmd.AddCommand(newOpenCommand())
+	rootCmd.AddCommand(newTestsCommand())
+	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
 	rootCmd.AddCommand(newConfigCommand(rootOptions))
 	rootCmd.AddCommand(newOrbCommand(rootOptions))
@@ -122,13 +130,13 @@ func MakeCommands() *cobra.Command {
 	rootCmd.PersistentFlags().BoolVar(&rootOptions.Debug,
 		"debug", rootOptions.Debug, "Enable debug logging.")
 	rootCmd.PersistentFlags().StringVar(&rootTokenFromFlag,
-		"token", "", "your token for using CircleCI")
+		"token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
 	rootCmd.PersistentFlags().StringVar(&rootOptions.Host,
-		"host", rootOptions.Host, "URL to your CircleCI host")
+		"host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
 	rootCmd.PersistentFlags().StringVar(&rootOptions.Endpoint,
 		"endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 
-	rootCmd.PersistentFlags().StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retreiving updates")
+	rootCmd.PersistentFlags().StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retrieving updates")
 	if err := rootCmd.PersistentFlags().MarkHidden("github-api"); err != nil {
 		panic(err)
 	}
@@ -174,6 +182,27 @@ func prepare() {
 
 func rootCmdPreRun(rootOptions *settings.Config) error {
 	return checkForUpdates(rootOptions)
+}
+
+func validateToken(rootOptions *settings.Config) error {
+	var (
+		err error
+		url string
+	)
+
+	if rootOptions.Host == defaultHost {
+		url = rootOptions.Data.Links.NewAPIToken
+	} else {
+		url = fmt.Sprintf("%s/account/api", rootOptions.Host)
+	}
+
+	if rootOptions.Token == "token" || rootOptions.Token == "" {
+		err = fmt.Errorf(`please set a token with 'circleci setup'
+You can create a new personal API token here:
+%s`, url)
+	}
+
+	return err
 }
 
 func setFlagErrorFunc(cmd *cobra.Command, err error) error {
@@ -222,4 +251,19 @@ func isUpdateIncluded(packageManager string) bool {
 	default:
 		return true
 	}
+}
+
+func rootHelpLong(config *settings.Config) string {
+	long := `Use CircleCI from the command line.
+
+This project is the seed for CircleCI's new command-line application.`
+
+	// We should only print this for cloud users
+	if config.Host != defaultHost {
+		return long
+	}
+
+	return fmt.Sprintf(`%s
+
+For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
 }

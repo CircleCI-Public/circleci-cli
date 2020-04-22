@@ -5,23 +5,24 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/data"
 	yaml "gopkg.in/yaml.v2"
 )
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	GitHubAPI       string `yaml:"-"`
 	Host            string
 	Endpoint        string
 	Token           string
-	Debug           bool   `yaml:"-"`
-	Address         string `yaml:"-"`
-	FileUsed        string `yaml:"-"`
-	SkipUpdateCheck bool   `yaml:"-"`
+	Data            *data.YML `yaml:"-"`
+	Debug           bool      `yaml:"-"`
+	Address         string    `yaml:"-"`
+	FileUsed        string    `yaml:"-"`
+	GitHubAPI       string    `yaml:"-"`
+	SkipUpdateCheck bool      `yaml:"-"`
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.
@@ -32,7 +33,7 @@ type UpdateCheck struct {
 
 // Load will read the update check settings from the user's disk and then deserialize it into the current instance.
 func (upd *UpdateCheck) Load() error {
-	path := filepath.Join(settingsPath(), updateCheckFilename())
+	path := filepath.Join(SettingsPath(), updateCheckFilename())
 
 	if err := ensureSettingsFileExists(path); err != nil {
 		return err
@@ -73,7 +74,7 @@ func (cfg *Config) Load() error {
 
 // LoadFromDisk is used to read config from the user's disk and deserialize the YAML into our runtime config.
 func (cfg *Config) LoadFromDisk() error {
-	path := filepath.Join(settingsPath(), configFilename())
+	path := filepath.Join(SettingsPath(), configFilename())
 
 	if err := ensureSettingsFileExists(path); err != nil {
 		return err
@@ -122,18 +123,6 @@ func ReadFromEnv(prefix, field string) string {
 	return os.Getenv(strings.ToUpper(name))
 }
 
-// UserHomeDir returns the path to the current user's HOME directory.
-func UserHomeDir() string {
-	if runtime.GOOS == "windows" {
-		home := os.Getenv("HOMEDRIVE") + os.Getenv("HOMEPATH")
-		if home == "" {
-			home = os.Getenv("USERPROFILE")
-		}
-		return home
-	}
-	return os.Getenv("HOME")
-}
-
 // updateCheckFilename returns the name of the cli update checks file
 func updateCheckFilename() string {
 	return "update_check.yml"
@@ -146,9 +135,10 @@ func configFilename() string {
 }
 
 // settingsPath returns the path of the CLI settings directory
-func settingsPath() string {
+func SettingsPath() string {
 	// TODO: Make this configurable
-	return path.Join(UserHomeDir(), ".circleci")
+	home, _ := os.UserHomeDir()
+	return path.Join(home, ".circleci")
 }
 
 // ensureSettingsFileExists does just that.

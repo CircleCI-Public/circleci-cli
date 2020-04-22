@@ -1,25 +1,23 @@
 package cmd
 
 import (
-	"context"
+	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
-	"github.com/CircleCI-Public/circleci-cli/logger"
+	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	yaml "gopkg.in/yaml.v2"
 )
 
-const defaultConfigPath = ".circleci/config.yml"
-
 type configOptions struct {
-	cfg     *settings.Config
-	apiOpts api.Options
-	args    []string
+	cfg  *settings.Config
+	cl   *client.Client
+	args []string
 }
 
 // Path to the config.yml file to operate on.
@@ -32,8 +30,7 @@ var configAnnotations = map[string]string{
 
 func newConfigCommand(config *settings.Config) *cobra.Command {
 	opts := configOptions{
-		apiOpts: api.Options{},
-		cfg:     config,
+		cfg: config,
 	}
 
 	configCmd := &cobra.Command{
@@ -46,9 +43,6 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Pack up your CircleCI configuration into a single file.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packConfig(opts)
@@ -64,9 +58,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateConfig(opts)
@@ -85,9 +77,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Process the config.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
+			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processConfig(opts)
@@ -102,9 +92,6 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Migrate a pre-release 2.0 config to the official release version",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.apiOpts.Context = context.Background()
-			opts.apiOpts.Log = logger.NewLogger(config.Debug)
-			opts.apiOpts.Client = client.NewClient(config.Host, config.Endpoint, config.Token)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
@@ -126,7 +113,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions) error {
-	path := defaultConfigPath
+	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
 		path = configPath
@@ -137,29 +124,29 @@ func validateConfig(opts configOptions) error {
 		path = opts.args[0]
 	}
 
-	_, err := api.ConfigQuery(opts.apiOpts, path)
+	_, err := api.ConfigQuery(opts.cl, path)
 
 	if err != nil {
 		return err
 	}
 
 	if path == "-" {
-		opts.apiOpts.Log.Infof("Config input is valid.")
+		fmt.Printf("Config input is valid.\n")
 	} else {
-		opts.apiOpts.Log.Infof("Config file at %s is valid.", path)
+		fmt.Printf("Config file at %s is valid.\n", path)
 	}
 
 	return nil
 }
 
 func processConfig(opts configOptions) error {
-	response, err := api.ConfigQuery(opts.apiOpts, opts.args[0])
+	response, err := api.ConfigQuery(opts.cl, opts.args[0])
 
 	if err != nil {
 		return err
 	}
 
-	opts.apiOpts.Log.Info(response.OutputYaml)
+	fmt.Print(response.OutputYaml)
 	return nil
 }
 
@@ -173,7 +160,7 @@ func packConfig(opts configOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
-	opts.apiOpts.Log.Infof("%s\n", string(y))
+	fmt.Printf("%s\n", string(y))
 	return nil
 }
 

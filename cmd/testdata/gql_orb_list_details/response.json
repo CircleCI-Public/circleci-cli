@@ -1,5 +1,4 @@
 {
-	"data": {
 		"orbs": {
 			"totalCount": 1,
 			"edges": [
@@ -9,8 +8,8 @@
 						"name": "foo/test",
 						"versions": [
 							{
-								"source": "version: 2.1\ndescription: An orb with some simple ways to help you with your first build.\n\ncommands:\n  echo:\n    parameters:\n      message:\n        type: string\n      post-steps:\n        type: steps\n        default: []\n    steps:\n      - run: echo << parameters.message >>\n\nexecutors:\n  default:\n    parameters:\n      tag:\n        type: string\n        default: \"curl-browsers\"\n    docker:\n      - image: circleci/buildpack-deps:<< parameters.tag >>\n\njobs:\n  hello-build:\n    executor: default\n    steps:\n      - echo:\n          message: \"Hello, build!\"\n",
-								"version": "0.7.0"
+							  "source": "version: 2.1\norbs:\n  foo:\n    commands:\n      foo:\n        steps:\n          - checkout\ncommands:\n  myfoo: foo/foo\n  bar:\n    parameters:\n      hello:\n        type: string\n        default: world\n    steps:\n      - echo <<parameters.hello>>\n\nexecutors:\n  default:\n    parameters:\n      tag:\n        type: string\n        default: \"curl-browsers\"\n    docker:\n      - image: circleci/buildpack-deps:<< parameters.tag >>\n\njobs:\n  hello-build:\n    executor: default\n    steps:\n      - echo:\n          message: \"Hello, build!\"\n",
+							  "version": "0.7.0"
 							}
 						]
 					}
@@ -20,6 +19,4 @@
 				"hasNextPage": false
 			}
 		}
-	}
 }
-

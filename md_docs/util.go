@@ -1,8 +1,6 @@
 package md_docs
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 )
 
@@ -20,15 +18,6 @@ func hasSeeAlso(cmd *cobra.Command) bool {
 		return true
 	}
 	return false
-}
-
-// Temporary workaround for yaml lib generating incorrect yaml with long strings
-// that do not contain \n.
-func forceMultiLine(s string) string {
-	if len(s) > 60 && !strings.Contains(s, "\n") {
-		s = s + "\n"
-	}
-	return s
 }
 
 type byName []*cobra.Command
