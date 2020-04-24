@@ -149,6 +149,13 @@ jobs:
   deploy-test:
     executor: go
     steps:
+      - run:
+          name: Skip this job if this is a forked pull request
+          command: |
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              echo "Forked PRs can't run this step."
+              circleci step halt
+            fi
       - checkout
       - install-goreleaser
       - gomod
@@ -225,8 +232,7 @@ jobs:
       - slack-notify-on-failure
 
   brew-deploy:
-    macos:
-      xcode: "11.3.0"
+    executor: mac
     environment:
       - USER: circleci
       - TRAVIS: circleci
