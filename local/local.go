@@ -117,7 +117,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringSliceP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -307,13 +307,9 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 	switch flag.Value.Type() {
 	// A stringArray type argument is collapsed into a single flag:
 	// `--foo 1 --foo 2` will result in a single `foo` flag with an array of values.
-	case "stringArray":
-		vals, err := flags.GetStringArray(flag.Name)
-		if err != nil {
-			panic("Failed reading string array from flag that must be a string array")
-		}
-		for _, val := range vals {
-			result = append(result, flagName, val)
+	case "stringSlice":
+		for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
+			result = append(result, flagName, value)
 		}
 	default:
 		result = append(result, flagName, flag.Value.String())
