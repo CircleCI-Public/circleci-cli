@@ -17,6 +17,7 @@ executors:
     environment:
       CGO_ENABLED: 0
       HOMEBREW_NO_AUTO_UPDATE: 1
+      TERM: xterm-256color
 
 commands:
   force-http-1:
