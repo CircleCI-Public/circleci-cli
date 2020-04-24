@@ -225,8 +225,7 @@ jobs:
       - slack-notify-on-failure
 
   brew-deploy:
-    macos:
-      xcode: "11.3.0"
+    executor: mac
     environment:
       - USER: circleci
       - TRAVIS: circleci
