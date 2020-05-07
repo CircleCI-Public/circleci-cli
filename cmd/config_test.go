@@ -14,6 +14,26 @@ import (
 	"gotest.tools/golden"
 )
 
+func predictValidateConfigRequest() string {
+	return `
+{
+		"query": "\n\t\tquery ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {\n\t\t\tbuildConfig(configYaml: $config, pipelineValues: $pipelineValues) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+		"variables": {
+				"config": "some config",
+				"pipelineValues": [
+						{"key": "git.base_revision", "val": "0123456789abcdef0123456789abcdef0123"},
+						{"key": "git.branch", "val": "test_git_branch"},
+						{"key": "git.revision", "val": "0123456789abcdef0123456789abcdef0123"},
+						{"key": "git.tag", "val": "test_git_tag"},
+						{"key": "id", "val": "00000000-0000-0000-0000-000000000001"},
+						{"key": "number", "val": "1"},
+						{"key": "project.git_url", "val": "https://test.vcs/test/test"},
+						{"key": "project.type", "val": "vcs_type"}
+				]
+		}
+}`
+}
+
 var _ = Describe("Config", func() {
 	Describe("with an api and config.yml", func() {
 		var tempSettings *clitest.TempSettings
@@ -57,12 +77,7 @@ var _ = Describe("Config", func() {
 							}
 						}`
 
-				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-					"variables": {
-					  "config": "some config"
-					}
-				  }`
+				expectedRequestJson := predictValidateConfigRequest()
 
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
@@ -90,12 +105,8 @@ var _ = Describe("Config", func() {
 							}
 						}`
 
-				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
-					"variables": {
-					  "config": "some config"
-					}
-				  }`
+
+				expectedRequestJson := predictValidateConfigRequest()
 
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
@@ -144,7 +155,7 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {\n\t\t\tbuildConfig(configYaml: $config, pipelineValues: $pipelineValues) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some config"
 					}
@@ -178,7 +189,7 @@ var _ = Describe("Config", func() {
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateConfig ($config: String!) {\n\t\t\tbuildConfig(configYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {\n\t\t\tbuildConfig(configYaml: $config, pipelineValues: $pipelineValues) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some config"
 					}
