@@ -11,6 +11,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"
 	"github.com/go-yaml/yaml"
@@ -380,7 +381,7 @@ func WhoamiQuery(cl *client.Client) (*WhoamiResponse, error) {
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(cl *client.Client, configPath string) (*ConfigResponse, error) {
+func ConfigQuery(cl *client.Client, configPath string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 
 	config, err := loadYaml(configPath)
@@ -389,8 +390,8 @@ func ConfigQuery(cl *client.Client, configPath string) (*ConfigResponse, error) 
 	}
 
 	query := `
-		query ValidateConfig ($config: String!) {
-			buildConfig(configYaml: $config) {
+		query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
+			buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
 				valid,
 				errors { message },
 				sourceYaml,
@@ -400,6 +401,9 @@ func ConfigQuery(cl *client.Client, configPath string) (*ConfigResponse, error) 
 
 	request := client.NewRequest(query)
 	request.Var("config", config)
+	if pipelineValues != nil {
+		request.Var("pipelineValues", pipeline.PrepareForGraphQL(pipelineValues))
+	}
 	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
