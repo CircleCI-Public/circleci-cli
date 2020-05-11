@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/local"
+	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/go-yaml/yaml"
@@ -124,7 +125,7 @@ func validateConfig(opts configOptions) error {
 		path = opts.args[0]
 	}
 
-	_, err := api.ConfigQuery(opts.cl, path)
+	_, err := api.ConfigQuery(opts.cl, path, pipeline.FabricatedValues())
 
 	if err != nil {
 		return err
@@ -140,7 +141,7 @@ func validateConfig(opts configOptions) error {
 }
 
 func processConfig(opts configOptions) error {
-	response, err := api.ConfigQuery(opts.cl, opts.args[0])
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], nil)
 
 	if err != nil {
 		return err
