@@ -29,7 +29,7 @@ func PackageManager() string {
 
 // UserAgent returns the user agent that should be user for external requests
 func UserAgent() string {
-	return fmt.Sprintf("circleci-cli/%s+%s (%s)", Version, Commit, packageManager)
+	return fmt.Sprintf("circleci-cli/%s+%s (%s)", Version, Commit, PackageManager())
 }
 
 func runningInsideSnap() bool {
