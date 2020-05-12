@@ -98,7 +98,7 @@ func updateCLI(opts updateCommandOptions) error {
 	spr.Suffix = " Checking for updates..."
 	spr.Start()
 
-	check, err := update.CheckForUpdates(opts.cfg.GitHubAPI, slug, version.Version, PackageManager)
+	check, err := update.CheckForUpdates(opts.cfg.GitHubAPI, slug, version.Version, version.PackageManager())
 	spr.Stop()
 
 	if err != nil {
