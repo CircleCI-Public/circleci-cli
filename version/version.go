@@ -16,8 +16,8 @@ var (
 
 // PackageManager defines the package manager which was used to install the CLI.
 // You can override this value using -X flag to the compiler ldflags. This is
-// overridden when we build for Homebrew, but not for Snapcraft. the binary that
-// we ship with Snapcraft is the same binary that we ship to the GitHub release.
+// overridden when we build for Homebrew, but not for Snap. the binary that we
+// ship with Snap is the same binary that we ship to the GitHub release.
 var packageManager = "source"
 
 func PackageManager() string {
