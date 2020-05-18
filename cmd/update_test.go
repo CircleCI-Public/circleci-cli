@@ -38,6 +38,13 @@ var _ = Describe("Update", func() {
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
+      },
+	  {
+        "id": 1,
+        "name": "darwin_amd64.tar.gz",
+		"label": "short description",
+        "content_type": "application/zip",
+		"size": 1024
       }
     ]
   }

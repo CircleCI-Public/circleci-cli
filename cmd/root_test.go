@@ -15,7 +15,7 @@ var _ = Describe("Root", func() {
 	Describe("subcommands", func() {
 		It("can create commands", func() {
 			commands := cmd.MakeCommands()
-			Expect(len(commands.Commands())).To(Equal(14))
+			Expect(len(commands.Commands())).To(Equal(16))
 		})
 	})
 
@@ -75,7 +75,7 @@ For more help, see the documentation here: https://circleci.com/docs/2.0/local-c
 
 			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=homebrew",
+				"-X github.com/CircleCI-Public/circleci-cli/version.packageManager=homebrew",
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 		})

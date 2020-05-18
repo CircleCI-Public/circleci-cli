@@ -52,7 +52,7 @@ var _ = Describe("Check", func() {
 		BeforeEach(func() {
 			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=release",
+				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release",
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -74,6 +74,13 @@ var _ = Describe("Check", func() {
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
+      },
+	  {
+        "id": 1,
+        "name": "darwin_amd64.tar.gz",
+		"label": "short description",
+        "content_type": "application/zip",
+		"size": 1024
       }
     ]
   }

@@ -6,14 +6,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/local"
+	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
-
-const defaultConfigPath = ".circleci/config.yml"
 
 type configOptions struct {
 	cfg  *settings.Config
@@ -75,7 +75,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
-		Short: "Process the config.",
+		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
@@ -114,7 +114,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions) error {
-	path := defaultConfigPath
+	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
 		path = configPath
@@ -125,7 +125,7 @@ func validateConfig(opts configOptions) error {
 		path = opts.args[0]
 	}
 
-	_, err := api.ConfigQuery(opts.cl, path)
+	_, err := api.ConfigQuery(opts.cl, path, pipeline.FabricatedValues())
 
 	if err != nil {
 		return err
@@ -141,7 +141,7 @@ func validateConfig(opts configOptions) error {
 }
 
 func processConfig(opts configOptions) error {
-	response, err := api.ConfigQuery(opts.cl, opts.args[0])
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], nil)
 
 	if err != nil {
 		return err

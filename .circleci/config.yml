@@ -8,11 +8,27 @@ orbs:
 executors:
   go:
     docker:
-      - image: circleci/golang:1.11
+      - image: circleci/golang:1.12.15
     environment:
       CGO_ENABLED: 0
+  mac:
+    macos:
+      xcode: 11.3.1
+    environment:
+      CGO_ENABLED: 0
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      TERM: xterm-256color
 
 commands:
+  force-http-1:
+    steps:
+      - run:
+          # Uploading to codecov has been failing due to HTTP 2.0 issues.
+          # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
+          #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
+          # The issue seems to be on the server-side, so force HTTP 1.1
+          name: 'cURL: Force HTTP 1.1'
+          command: echo '--http1.1' >> ~/.curlrc
   build-docker-image:
     steps:
       - run:
@@ -30,7 +46,7 @@ commands:
   deploy-save-cache-workspace-and-artifacts:
     steps:
       - save_cache:
-          key: v3-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          key: v4-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
           paths: [~/goreleaser_amd64.deb]
       - persist_to_workspace:
           root: .
@@ -43,25 +59,28 @@ commands:
     parameters:
       GORELEASER_URL:
         type: string
-        default: https://github.com/goreleaser/goreleaser/releases/download/v0.94.0/goreleaser_amd64.deb
+        default: https://github.com/goreleaser/goreleaser/releases/download/v0.127.0/goreleaser_amd64.deb
     steps:
       - restore_cache:
-          keys: [v3-goreleaser-]
+          keys: [v4-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
             [ -f ~/goreleaser_amd64.deb ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
+            sudo apt-get update -y
             sudo apt install ~/goreleaser_amd64.deb
   gomod:
     steps:
       - restore_cache:
-          keys: [v1-gomod-]
+          keys: ["v2-gomod-{{ arch }}-"]
       - run:
           name: Download go module dependencies
           command: go mod download
       - save_cache:
-          key: v1-gomod-{{ checksum "go.sum" }}
-          paths: [/go/pkg/mod]
+          key: v2-gomod-{{ arch }}-{{ checksum "go.sum" }}
+          paths:
+            - /go/pkg/mod  # Linux
+            - ~/go/pkg/mod # macOS
   # Wrap the slack/status command to only notify on failures
   slack-notify-on-failure:
     steps:
@@ -70,6 +89,43 @@ commands:
           only_for_branch: "master"
 
 jobs:
+  test_mac:
+    executor: mac
+    steps:
+      - checkout
+      - run: |
+          brew install go@1.12
+          echo 'export PATH="/usr/local/opt/go@1.12/bin:$PATH"' >> ~/.bash_profile
+      - gomod
+      - run: make test
+      - slack-notify-on-failure
+  build:
+    executor: go
+    steps:
+      - checkout
+      - gomod
+      - run: make
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "build"
+  cucumber:
+    docker:
+      - image: cimg/ruby:2.7
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Install CLI tool from workspace"
+          command: sudo cp ~/project/build/linux/amd64/circleci /usr/local/bin/
+      - run:
+          command: bundle install
+          working_directory: integration_tests
+      - run:
+          command: bundle exec cucumber
+          working_directory: integration_tests
+
   test:
     executor: go
     steps:
@@ -84,6 +140,7 @@ jobs:
       CGO_ENABLED: 1
     steps:
       - checkout
+      - force-http-1
       - gomod
       - run: make cover
       - store_artifacts:
@@ -119,12 +176,23 @@ jobs:
   deploy-test:
     executor: go
     steps:
+      - run:
+          name: Skip this job if this is a forked pull request
+          command: |
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              echo "Forked PRs can't run this step."
+              circleci step halt
+            fi
       - checkout
       - install-goreleaser
       - gomod
       - run:
           name: Release
-          command: goreleaser --skip-publish --skip-validate
+          command: |
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
+            git tag -a "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
+            goreleaser --skip-publish
       - setup_remote_docker:
           docker_layer_caching: true
       - build-docker-image
@@ -178,27 +246,27 @@ jobs:
       - attach_workspace:
           at: .
       - run: |
-          export TAG=$(./dist/linux_amd64/circleci version)
+          TAG=$(./dist/circleci-cli_linux_amd64/circleci version | cut -d' ' -f 1) && export TAG
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
       - run: snapcraft
       - run:
           name: Publish to store
           command: |
-            # The Snapcraft login file here will expire March 1st, 2022. A new one will need to be created then.
+            # The Snapcraft login file here will expire: 2021-03-05T18:12:13. A new one will need to be created then.
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
       - slack-notify-on-failure
 
   brew-deploy:
-    macos:
-      xcode: "10.0.0"
+    executor: mac
     environment:
       - USER: circleci
       - TRAVIS: circleci
       - DESTDIR: /Users/distiller/dest
     steps:
       - checkout
+      - force-http-1
       - run: |
           mkdir $DESTDIR
           curl -fLSs https://circle.ci/cli | DESTDIR="$DESTDIR" bash
@@ -210,12 +278,15 @@ jobs:
       - slack-notify-on-failure
 
 workflows:
-  version: 2
   ci:
     jobs:
+      - build
+      - cucumber:
+          requires: [build]
       - shellcheck/check:
           exclude: ./vendor/*
       - test
+      - test_mac
       - coverage
       - lint
       - deploy-test
@@ -225,9 +296,18 @@ workflows:
       - snap:
           requires:
             - deploy
+      # Only deploy to homebrew after manual approval.
+      - run-brew-deploy-gate:
+          type: approval
+          requires:
+            - deploy
+      - brew-deploy:
+          requires:
+            - run-brew-deploy-gate
       - deploy:
           requires:
             - test
+            - test_mac
             - coverage
             - lint
             - deploy-test
@@ -235,17 +315,3 @@ workflows:
           filters:
             branches:
               only: master
-  weekly:
-    triggers:
-      - schedule:
-          cron: "0 23 * * 0"
-          filters:
-            branches:
-              only:
-                - master
-    jobs:
-      - run-brew-deploy-gate:
-          type: approval
-      - brew-deploy:
-          requires:
-            - run-brew-deploy-gate

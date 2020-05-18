@@ -92,9 +92,48 @@ type Response struct {
 // ResponseErrorsCollection represents a slice of errors returned by the GraphQL server out-of-band from the actual data.
 type ResponseErrorsCollection []ResponseError
 
+/*
+An Example Error for an enum error looks like this:
+
+{
+  "errors": [
+    {
+      "message": "Provided argument value `GRUBHUB' is not member of enum type.",
+      "locations": [
+        {
+          "line": 3,
+          "column": 3
+        }
+      ],
+      "extensions": {
+        "field": "organization",
+        "argument": "vcsType",
+        "value": "GRUBHUB",
+        "allowed-values": [
+          "GITHUB",
+          "BITBUCKET"
+        ],
+        "enum-type": "VCSType"
+      }
+    }
+  ]
+}
+*/
+
 // ResponseError represents the key-value pair of data returned by the GraphQL server to represent errors.
 type ResponseError struct {
-	Message string
+	Message   string
+	Locations []struct {
+		Line   int
+		Column int
+	}
+	Extensions struct {
+		Field         string
+		Argument      string
+		Value         string
+		AllowedValues []string `json:"allowed-values"`
+		EnumType      string   `json:"enum-type"`
+	}
 }
 
 // Error turns a ResponseErrorsCollection into an acceptable error string that can be printed to the user.

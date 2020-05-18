@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/spf13/cobra"
 )
 
@@ -23,10 +24,6 @@ var rootOptions *settings.Config
 
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
-
-// PackageManager defines the package manager which was used to install the CLI.
-// You can override this value using -X flag to the compiler ldflags.
-var PackageManager = "source"
 
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
@@ -104,7 +101,9 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newTestsCommand(rootOptions))
+	rootCmd.AddCommand(newOpenCommand())
+	rootCmd.AddCommand(newTestsCommand())
+	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
 	rootCmd.AddCommand(newConfigCommand(rootOptions))
 	rootCmd.AddCommand(newOrbCommand(rootOptions))
@@ -114,7 +113,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
 
-	if isUpdateIncluded(PackageManager) {
+	if isUpdateIncluded(version.PackageManager()) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))
 	} else {
 		rootCmd.AddCommand(newDisabledCommand(rootOptions, "update"))
@@ -244,7 +243,7 @@ func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
 
 func isUpdateIncluded(packageManager string) bool {
 	switch packageManager {
-	case "homebrew":
+	case "homebrew", "snap":
 		return false
 	default:
 		return true
