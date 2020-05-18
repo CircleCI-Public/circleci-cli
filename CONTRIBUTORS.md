@@ -15,3 +15,4 @@ We are very grateful to the following people have helped us to build the CLI too
 - [Ed Serzo](https://github.com/eserzomcity)
 - [Daniel Ruthardt](https://github.com/DanielRuthardt)
 - [Josef Šimánek](https://github.com/simi)
+- [Brady Sullivan](https://github.com/d1str0)

@@ -16,7 +16,8 @@ func FabricatedValues() Values {
 	gitUrl := "https://github.com/CircleCI-Public/circleci-cli"
 	projectType := "github"
 
-	if remote, err := git.InferProjectFromGitRemotes(); err != nil {
+	// If we encounter an error infering project, skip this and use defaults.
+	if remote, err := git.InferProjectFromGitRemotes(); err == nil {
 		switch remote.VcsType {
 		case git.GitHub:
 			gitUrl = fmt.Sprintf("https://github.com/%s/%s", remote.Organization, remote.Project)
