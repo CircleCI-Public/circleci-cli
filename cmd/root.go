@@ -243,7 +243,7 @@ func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
 
 func isUpdateIncluded(packageManager string) bool {
 	switch packageManager {
-	case "homebrew", "snapcraft":
+	case "homebrew", "snap":
 		return false
 	default:
 		return true
