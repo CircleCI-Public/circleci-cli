@@ -30,4 +30,4 @@ builds:
       # -w Omit the DWARF symbol table.
       # These are the defaults specified by goreleaser:
       # https://github.com/goreleaser/goreleaser/blob/682c811106f56ffe06c4212de546aec62161fb9d/internal/builders/golang/build.go#L46
-      - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.ShortCommit}} -X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=release
+      - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.ShortCommit}} -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release

@@ -52,7 +52,7 @@ var _ = Describe("Check", func() {
 		BeforeEach(func() {
 			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=release",
+				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release",
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
