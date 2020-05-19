@@ -57,7 +57,7 @@ var _ = Describe("Check", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 
 			command = commandWithHome(checkCLI, tempSettings.Home,
-				"help", "--github-api", tempSettings.TestServer.URL(),
+				"help", "--skip-update-check=false", "--github-api", tempSettings.TestServer.URL(),
 			)
 
 			response = `
