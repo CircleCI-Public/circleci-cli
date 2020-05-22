@@ -34,7 +34,7 @@ var _ = Describe("Query", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("query provided to STDIN", func() {

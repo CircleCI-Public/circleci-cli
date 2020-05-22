@@ -43,7 +43,7 @@ var _ = Describe("Check", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("update auto checks with a new release", func() {

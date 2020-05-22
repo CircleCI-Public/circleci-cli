@@ -26,7 +26,7 @@ var _ = Describe("Config", func() {
 		})
 
 		AfterEach(func() {
-			tempSettings.Cleanup()
+			tempSettings.Close()
 		})
 
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
@@ -121,6 +121,10 @@ var _ = Describe("Config", func() {
 				)
 			})
 
+			AfterEach(func() {
+				config.Close()
+			})
+
 			It("prints an error about invalid YAML", func() {
 				config.Write([]byte(`[]`))
 
@@ -132,7 +136,7 @@ var _ = Describe("Config", func() {
 
 				stderr := session.Wait().Err.Contents()
 				Expect(string(stderr)).To(Equal(expected))
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})
 	})
