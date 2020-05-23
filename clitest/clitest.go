@@ -9,12 +9,25 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
+	"github.com/onsi/gomega/types"
 
 	"github.com/onsi/gomega"
 )
+
+// On Unix, we want to assert that processed exited with 255
+// On Windows, it should be -1.
+func ShouldFail() types.GomegaMatcher {
+	failureCode := 255
+	if runtime.GOOS == "windows" {
+		failureCode = -1
+	}
+	return gexec.Exit(failureCode)
+}
 
 // TempSettings contains useful settings for testing the CLI
 type TempSettings struct {
@@ -22,6 +35,14 @@ type TempSettings struct {
 	TestServer *ghttp.Server
 	Config     *TmpFile
 	Update     *TmpFile
+}
+
+// Close should be called in an AfterEach and cleans up the temp directory and server process
+func (settings *TempSettings) Close() error {
+	settings.TestServer.Close()
+	settings.Config.Close()
+	settings.Update.Close()
+	return os.RemoveAll(settings.Home)
 }
 
 // AssertConfigRereadMatches re-opens the config file and checks it's contents against the given string
@@ -53,17 +74,6 @@ func WithTempSettings() *TempSettings {
 	tempSettings.TestServer = ghttp.NewServer()
 
 	return tempSettings
-}
-
-// Cleanup should be called in an AfterEach and cleans up the temp directory and server process
-func (tempSettings *TempSettings) Cleanup() {
-	defer func() {
-		tempSettings.TestServer.Close()
-		err := os.RemoveAll(tempSettings.Home)
-		if err != nil {
-			panic(err)
-		}
-	}()
 }
 
 // NewFakeClient returns a new *client.Client with the TestServer set and the provided endpoint, token.
@@ -136,6 +146,10 @@ type TmpFile struct {
 	RootDir string
 	Path    string
 	File    *os.File
+}
+
+func (tempFile *TmpFile) Close() error {
+	return tempFile.File.Close()
 }
 
 // Write will write the given contents to the file on disk and close it.

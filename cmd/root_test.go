@@ -38,7 +38,7 @@ var _ = Describe("Root", func() {
 		})
 
 		AfterEach(func() {
-			tempSettings.Cleanup()
+			tempSettings.Close()
 		})
 
 		It("reports update command as unavailable", func() {
@@ -96,4 +96,5 @@ var _ = Describe("Root", func() {
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
+
 })

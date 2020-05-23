@@ -24,7 +24,7 @@ var _ = Describe("Namespace integration tests", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Context("skipping prompts", func() {
