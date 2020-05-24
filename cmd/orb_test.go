@@ -52,7 +52,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 			})
 
 			AfterEach(func() {
-				tempSettings.Cleanup()
+				tempSettings.Close()
 			})
 
 			It("doesn't link to docs if user changes --host", func() {
@@ -79,7 +79,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 		})
 
 		AfterEach(func() {
-			tempSettings.Cleanup()
+			tempSettings.Close()
+			orb.Close()
 		})
 
 		Describe("when using STDIN", func() {
@@ -164,7 +165,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 			})
 
 			AfterEach(func() {
-				tempSettings.Cleanup()
+				tempSettings.Close()
+				orb.Close()
 			})
 
 			It("works", func() {
@@ -244,7 +246,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 					Expect(err).ShouldNot(HaveOccurred())
 					// the .* is because the full path with temp dir is printed
-					Eventually(session.Out).Should(gbytes.Say("Orb at `.*myorb/orb.yml` is valid."))
+					Eventually(session.Out).Should(gbytes.Say("Orb at `.*orb.yml` is valid."))
 					Eventually(session).Should(gexec.Exit(0))
 				})
 
@@ -1725,7 +1727,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 				)
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 
 				stderr := session.Wait().Err.Contents()
 				Expect(string(stderr)).To(Equal("Error: expected `idontknow` to be one of \"builds\", \"projects\", or \"orgs\"\n"))
@@ -2219,7 +2221,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("No namespace found"))
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 			})
 
@@ -2242,7 +2244,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
 You can create a new personal API token here:
 https://circleci.com/account/api`))
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 			})
 
 			It("uses the host setting from config in the url", func() {
@@ -2260,7 +2262,7 @@ https://circleci.com/account/api`))
 				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
 You can create a new personal API token here:
 foo.bar/account/api`))
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})
 
@@ -2348,7 +2350,7 @@ foo.bar/account/api`))
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say("no Orb 'my/orb@dev:foo' was found; please check that the Orb reference is correct"))
 
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})
 
@@ -2575,7 +2577,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 
 				Eventually(session.Err).Should(gbytes.Say("no Orb 'my/orb@dev:foo' was found; please check that the Orb reference is correct"))
 
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})
 	})

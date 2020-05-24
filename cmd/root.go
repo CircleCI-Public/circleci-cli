@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/spf13/cobra"
 )
 
@@ -23,10 +24,6 @@ var rootOptions *settings.Config
 
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
-
-// PackageManager defines the package manager which was used to install the CLI.
-// You can override this value using -X flag to the compiler ldflags.
-var PackageManager = "source"
 
 // Execute adds all child commands to rootCmd and
 // sets flags appropriately. This function is called
@@ -104,7 +101,9 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
-	rootCmd.AddCommand(newTestsCommand(rootOptions))
+	rootCmd.AddCommand(newOpenCommand())
+	rootCmd.AddCommand(newTestsCommand())
+	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
 	rootCmd.AddCommand(newConfigCommand(rootOptions))
 	rootCmd.AddCommand(newOrbCommand(rootOptions))
@@ -114,7 +113,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
 
-	if isUpdateIncluded(PackageManager) {
+	if isUpdateIncluded(version.PackageManager()) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))
 	} else {
 		rootCmd.AddCommand(newDisabledCommand(rootOptions, "update"))
@@ -125,31 +124,21 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newStepCommand(rootOptions))
 	rootCmd.AddCommand(newSwitchCommand(rootOptions))
 
-	rootCmd.PersistentFlags().BoolVar(&rootOptions.Debug,
-		"debug", rootOptions.Debug, "Enable debug logging.")
-	rootCmd.PersistentFlags().StringVar(&rootTokenFromFlag,
-		"token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
-	rootCmd.PersistentFlags().StringVar(&rootOptions.Host,
-		"host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
-	rootCmd.PersistentFlags().StringVar(&rootOptions.Endpoint,
-		"endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
+	flags := rootCmd.PersistentFlags()
 
-	rootCmd.PersistentFlags().StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to  GitHub API for retrieving updates")
-	if err := rootCmd.PersistentFlags().MarkHidden("github-api"); err != nil {
-		panic(err)
-	}
+	flags.BoolVar(&rootOptions.Debug, "debug", rootOptions.Debug, "Enable debug logging.")
+	flags.StringVar(&rootTokenFromFlag, "token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
+	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
+	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
+	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
+	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", runningInCi(), "Skip the check for updates check run before every command.")
 
-	rootCmd.PersistentFlags().BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", false, "Skip the check for updates check run before every command")
-	if err := rootCmd.PersistentFlags().MarkHidden("skip-update-check"); err != nil {
-		panic(err)
-	}
+	hidden := []string{"github-api", "debug", "endpoint"}
 
-	if err := rootCmd.PersistentFlags().MarkHidden("debug"); err != nil {
-		panic(err)
-	}
-
-	if err := rootCmd.PersistentFlags().MarkHidden("endpoint"); err != nil {
-		panic(err)
+	for _, f := range hidden {
+		if err := flags.MarkHidden(f); err != nil {
+			panic(err)
+		}
 	}
 
 	// Cobra has a peculiar default behaviour:
@@ -244,7 +233,7 @@ func visitAll(root *cobra.Command, fn func(*cobra.Command)) {
 
 func isUpdateIncluded(packageManager string) bool {
 	switch packageManager {
-	case "homebrew":
+	case "homebrew", "snap":
 		return false
 	default:
 		return true
@@ -264,4 +253,8 @@ This project is the seed for CircleCI's new command-line application.`
 	return fmt.Sprintf(`%s
 
 For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
+}
+
+func runningInCi() bool {
+	return os.Getenv("CI") == "true"
 }

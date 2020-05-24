@@ -76,7 +76,7 @@ var _ = Describe("Diagnostic", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("existing config file", func() {
@@ -132,7 +132,7 @@ token: mytoken
 					fmt.Sprintf("API host: %s", tempSettings.TestServer.URL())))
 				Eventually(session.Out).Should(gbytes.Say(
 					fmt.Sprintf("API endpoint: %s", defaultEndpoint)))
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})
 
@@ -220,7 +220,7 @@ token: mytoken
 		})
 
 		AfterEach(func() {
-			tempSettings.Cleanup()
+			tempSettings.Close()
 		})
 
 		It("print success", func() {
