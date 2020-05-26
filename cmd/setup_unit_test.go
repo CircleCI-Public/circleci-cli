@@ -39,8 +39,7 @@ var _ = Describe("Setup with prompts", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.Home)).To(Succeed())
-		tempSettings.TestServer.Close()
+		tempSettings.Close()
 	})
 
 	Context("with happy diagnostic responses", func() {

@@ -43,7 +43,7 @@ var _ = Describe("Check", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("update auto checks with a new release", func() {
@@ -52,12 +52,12 @@ var _ = Describe("Check", func() {
 		BeforeEach(func() {
 			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
 				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=release",
+				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release",
 			)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			command = commandWithHome(checkCLI, tempSettings.Home,
-				"help", "--github-api", tempSettings.TestServer.URL(),
+				"help", "--skip-update-check=false", "--github-api", tempSettings.TestServer.URL(),
 			)
 
 			response = `

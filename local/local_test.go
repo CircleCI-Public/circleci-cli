@@ -97,6 +97,12 @@ var _ = Describe("build", func() {
 				expectedArgs:       []string{"--index", "9", "--job", "horse", "d"},
 			}),
 
+			Entry("many args, multiple envs", TestCase{
+				input:              []string{"--env", "foo", "--env", "bar", "--env", "baz"},
+				expectedConfigPath: ".circleci/config.yml",
+				expectedArgs:       []string{"--env", "foo", "--env", "bar", "--env", "baz"},
+			}),
+
 			Entry("args that are not flags", TestCase{
 				input:              []string{"a", "--debug", "b", "--config", "foo", "d"},
 				expectedConfigPath: "foo",

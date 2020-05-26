@@ -103,3 +103,33 @@ func getRemoteUrl(remoteName string) (string, error) {
 	}
 	return string(out), nil
 }
+
+func commandOutputOrDefault(cmd *exec.Cmd, defaultValue string) string {
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		return defaultValue
+	}
+
+	return strings.TrimSpace(string(output))
+}
+
+func Branch() string {
+	// Git 2.22 (Q2 2019)added `git branch --show-current`, but using
+	// `git rev-parse` works in all versions.
+	return commandOutputOrDefault(
+		exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD"),
+		"master")
+}
+
+func Revision() string {
+	return commandOutputOrDefault(
+		exec.Command("git", "rev-parse", "HEAD"),
+		"0000000000000000000000000000000000000000")
+}
+
+func Tag() string {
+	return commandOutputOrDefault(
+		exec.Command("git", "tag", "--points-at", "HEAD"),
+		"")
+}

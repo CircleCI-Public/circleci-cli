@@ -42,7 +42,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
 	processedArgs, configPath := buildAgentArguments(flags)
 	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	configResponse, err := api.ConfigQuery(cl, configPath)
+	configResponse, err := api.ConfigQuery(cl, configPath, nil)
 
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringSliceP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -135,7 +135,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
 		if flag.Name != "config" && flag.Name != "debug" {
-			result = append(result, "--"+flag.Name, flag.Value.String())
+			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
 	result = append(result, flags.Args()...)
@@ -296,4 +296,23 @@ func generateDockerCommand(configPath, image, pwd string, arguments ...string) [
 		"--workdir", pwd,
 		image, "circleci", "build", "--config", configPathInsideContainer}
 	return append(core, arguments...)
+}
+
+// Convert the given flag back into a list of strings suitable to be passed on
+// the command line to run docker.
+// https://github.com/CircleCI-Public/circleci-cli/issues/391
+func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
+	flagName := "--" + flag.Name
+	result := []string{}
+	switch flag.Value.Type() {
+	// A stringArray type argument is collapsed into a single flag:
+	// `--foo 1 --foo 2` will result in a single `foo` flag with an array of values.
+	case "stringSlice":
+		for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
+			result = append(result, flagName, value)
+		}
+	default:
+		result = append(result, flagName, flag.Value.String())
+	}
+	return result
 }

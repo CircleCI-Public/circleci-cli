@@ -73,7 +73,7 @@ func checkFromHomebrew(check *Options) error {
 	command := exec.Command(brew, "outdated", "--json=v1") // #nosec
 	out, err := command.Output()
 	if err != nil {
-		return errors.Wrap(err, "failed to check for updates via `brew`")
+		return errors.Wrap(err, "failed to check for updates. `brew outdated --json=v1` returned an error")
 	}
 
 	var outdated HomebrewOutdated

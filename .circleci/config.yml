@@ -4,6 +4,7 @@ orbs:
   codecov: circleci/codecov-clojure@0.0.4
   shellcheck: circleci/shellcheck@1.2.0
   slack: circleci/slack@0.1.14
+  windows: circleci/windows@2.2.0
 
 executors:
   go:
@@ -17,6 +18,7 @@ executors:
     environment:
       CGO_ENABLED: 0
       HOMEBREW_NO_AUTO_UPDATE: 1
+      TERM: xterm-256color
 
 commands:
   force-http-1:
@@ -88,6 +90,21 @@ commands:
           only_for_branch: "master"
 
 jobs:
+  test_windows:
+    executor: windows/default
+    steps:
+      - checkout
+      - run: setx GOPATH %USERPROFILE%\go
+      - run: go get gotest.tools/gotestsum
+      - run: mkdir test_results
+      - run:
+          name: Run tests
+          command: |
+            C:\Users\circleci\go\bin\gotestsum.exe --junitfile test_results/windows.xml
+      - store_test_results:
+          path: test_results
+      - store_artifacts:
+          path: test_results
   test_mac:
     executor: mac
     steps:
@@ -98,6 +115,33 @@ jobs:
       - gomod
       - run: make test
       - slack-notify-on-failure
+  build:
+    executor: go
+    steps:
+      - checkout
+      - gomod
+      - run: make
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "build"
+  cucumber:
+    docker:
+      - image: cimg/ruby:2.7
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - run:
+          name: "Install CLI tool from workspace"
+          command: sudo cp ~/project/build/linux/amd64/circleci /usr/local/bin/
+      - run:
+          command: bundle install
+          working_directory: integration_tests
+      - run:
+          command: bundle exec cucumber
+          working_directory: integration_tests
+
   test:
     executor: go
     steps:
@@ -148,6 +192,13 @@ jobs:
   deploy-test:
     executor: go
     steps:
+      - run:
+          name: Skip this job if this is a forked pull request
+          command: |
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              echo "Forked PRs can't run this step."
+              circleci step halt
+            fi
       - checkout
       - install-goreleaser
       - gomod
@@ -211,7 +262,7 @@ jobs:
       - attach_workspace:
           at: .
       - run: |
-          TAG=$(./dist/circleci-cli_linux_amd64/circleci version) && export TAG
+          TAG=$(./dist/circleci-cli_linux_amd64/circleci version | cut -d' ' -f 1) && export TAG
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
       - run: snapcraft
       - run:
@@ -224,8 +275,7 @@ jobs:
       - slack-notify-on-failure
 
   brew-deploy:
-    macos:
-      xcode: "11.3.0"
+    executor: mac
     environment:
       - USER: circleci
       - TRAVIS: circleci
@@ -246,10 +296,14 @@ jobs:
 workflows:
   ci:
     jobs:
+      - build
+      - cucumber:
+          requires: [build]
       - shellcheck/check:
           exclude: ./vendor/*
       - test
       - test_mac
+      - test_windows
       - coverage
       - lint
       - deploy-test
