@@ -105,6 +105,28 @@ jobs:
           path: test_results
       - store_artifacts:
           path: test_results
+
+  build_windows_installer:
+    executor: windows/default
+    steps:
+      - checkout
+      - run: setx GOPATH %USERPROFILE%\go
+      - run:
+          name: Build CLI executable for Windows
+          command: go build -o circleci-cli.exe
+      - run:
+          name: Fetch & install Inno Setup
+          command: |
+            Import-Module BitsTransfer
+            Start-BitsTransfer -Source https://jrsoftware.org/download.php/is.exe -Destination is.exe
+            & '.\is.exe' /VERYSILENT
+      - run:
+          name: Create Windows x64 installer
+          command: |
+            iscc inno-setup.iss
+      - store_artifacts:
+          path: ./build/windows
+
   test_mac:
     executor: mac
     steps:
