@@ -117,9 +117,8 @@ jobs:
       - run:
           name: Fetch & install Inno Setup
           command: |
-            Import-Module BitsTransfer
-            Start-BitsTransfer -Source https://jrsoftware.org/download.php/is.exe -Destination is.exe
-            & '.\is.exe' /VERYSILENT
+            Invoke-WebRequest http://files.jrsoftware.org/is/6/innosetup-6.0.5.exe -OutFile is.exe
+            & '.\is.exe' /VERYSILENT /CURRENTUSER
       - run:
           name: Create Windows x64 installer
           command: |
