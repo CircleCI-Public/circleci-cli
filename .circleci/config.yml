@@ -110,10 +110,8 @@ jobs:
     executor: windows/default
     steps:
       - checkout
-      - run: setx GOPATH %USERPROFILE%\go
-      - run:
-          name: Build CLI executable for Windows
-          command: go build -o circleci-cli.exe
+      - attach_workspace:
+         at: .
       - run:
           name: Install Inno Setup
           command: choco install innosetup
@@ -215,22 +213,12 @@ jobs:
     executor: go
     steps:
       - run:
-          name: Skip this job if this is a forked pull request
-          command: |
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
-              echo "Forked PRs can't run this step."
-              circleci step halt
-            fi
-      - checkout
-      - install-goreleaser
-      - gomod
-      - run:
           name: Release
           command: |
             git config --global user.email $GH_EMAIL
             git config --global user.name $GH_NAME
             git tag -a "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
-            goreleaser --skip-publish
+
       - setup_remote_docker:
           docker_layer_caching: true
       - build-docker-image
@@ -240,40 +228,52 @@ jobs:
 
   deploy:
     executor: go
+    parameters:
+      dry_run:
+        type: boolean
+        default: false
     steps:
+      - run:
+          name: Skip this job if this is a forked pull request
+          command: |
+            if [ -n "$CIRCLE_PR_NUMBER" ]; then
+              echo "Forked PRs can't run this step."
+              circleci step halt
+            fi
       - checkout
+      - gomod
       - install-goreleaser
       - run:
           name: Tag Repo
           command: |
             git config --global user.email $GH_EMAIL
             git config --global user.name $GH_NAME
-            git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
-            git push origin "v0.1.$CIRCLE_BUILD_NUM"
-      - gomod
+            git tag -a "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
       - run:
-          name: Release
-          command: goreleaser
+          name: Go Releaser
+          command: goreleaser <<# parameters.dry_run >> --skip-publish <</ parameters.dry_run >>
       - setup_remote_docker:
           docker_layer_caching: true
-      - run:
-          name: Docker Login
-          command: docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
       - build-docker-image
-      - run:
-          name: Deploy Docker Image
-          command: |
-            docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
-            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
-            docker push     circleci/circleci-cli:latest
       - build-alpine-image
-      - run:
-          name: Deploy Alpine Docker Image
-          command: |
-            docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
-            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
-            docker push     circleci/circleci-cli:alpine
       - deploy-save-cache-workspace-and-artifacts
+      - when:
+          condition:
+            not: << parameters.dry_run >>
+          steps:
+            - run:
+                name: Publish Tag
+                command: git push origin "v0.1.$CIRCLE_BUILD_NUM"
+            - run:
+                name: Deploy Docker Images
+                command: |
+                  docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
+                  docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
+                  docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
+                  docker push     circleci/circleci-cli:latest
+                  docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
+                  docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
+                  docker push     circleci/circleci-cli:alpine
       - slack-notify-on-failure
 
   snap:
@@ -327,10 +327,14 @@ workflows:
       - test_mac
       - test_windows
       - build_windows_installer:
-          requires: [test_windows]
+          requires:
+            # - test_windows
+            - deploy-test
       - coverage
       - lint
-      - deploy-test
+      - deploy:
+          name: deploy-test
+          dry_run: true
       - docs:
           requires:
             - deploy
