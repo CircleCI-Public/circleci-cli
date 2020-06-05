@@ -24,7 +24,7 @@ DisableProgramGroupPage=yes
 ; Uncomment the following line to run in non administrative install mode (install for current user only.)
 ;PrivilegesRequired=lowest
 ;PrivilegesRequiredOverridesAllowed=dialog
-OutputDir=build
+OutputDir=build\windows
 OutputBaseFilename=CircleCI CLI
 Compression=lzma
 SolidCompression=yes
@@ -43,6 +43,7 @@ Source: "circleci-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "c
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
+; https://stackoverflow.com/a/3431379
 [Registry]
 Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environment"; \
     ValueType: expandsz; ValueName: "Path"; ValueData: "{olddata};{app}"; \
