@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
@@ -50,7 +51,9 @@ var _ = Describe("Setup with prompts", func() {
 
 			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			if runtime.GOOS != "windows" {
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			}
 		})
 	})
 
@@ -63,7 +66,9 @@ var _ = Describe("Setup with prompts", func() {
 
 			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			if runtime.GOOS != "windows" {
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			}
 		})
 
 		Describe("token and host set in config file", func() {
