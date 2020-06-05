@@ -326,6 +326,8 @@ workflows:
       - test
       - test_mac
       - test_windows
+      - build_windows_installer:
+          requires: [test_windows]
       - coverage
       - lint
       - deploy-test
