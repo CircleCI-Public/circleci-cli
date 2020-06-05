@@ -2,7 +2,7 @@
 ; SEE THE DOCUMENTATION FOR DETAILS ON CREATING INNO SETUP SCRIPT FILES!
 
 #define MyAppName "CircleCI CLI"
-#define MyAppVersion "0.1.7868"
+#define MyAppVersion "CLI_VERSION"
 #define MyAppPublisher "Circle Internet Services, Inc."
 #define MyAppURL "https://circleci.com"
 #define MyAppExeName "circleci.exe"
@@ -25,7 +25,7 @@ DisableProgramGroupPage=yes
 ;PrivilegesRequired=lowest
 ;PrivilegesRequiredOverridesAllowed=dialog
 OutputDir=build\windows
-OutputBaseFilename=CircleCI CLI
+OutputBaseFilename=CircleCI_CLI
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern

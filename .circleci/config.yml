@@ -118,8 +118,12 @@ jobs:
           name: Install Inno Setup
           command: choco install innosetup
       - run:
+          name: Bump version in inno-setup.iss.
+          command: |
+            ((Get-Content -path inno-setup.iss -Raw) -replace 'CLI_VERSION', "v0.1.$CIRCLE_BUILD_NUM") | Set-Content -Path inno-setup.iss
+      - run:
           name: Create Windows x64 installer
-          command: iscc inno-setup.iss
+          command: iscc inno-setup.iss /F"CircleCI_CLI-v0.1.$CIRCLE_BUILD_NUM-x64"
       - store_artifacts:
           path: ./build/windows
 
