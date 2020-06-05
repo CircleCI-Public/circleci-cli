@@ -36,7 +36,7 @@ ArchitecturesAllowed=x64
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
-Source: "circleci-cli.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "circleci.exe"
+Source: "dist\circleci-cli_windows_amd64\circleci.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "circleci.exe"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
