@@ -326,10 +326,6 @@ workflows:
       - test
       - test_mac
       - test_windows
-      - build_windows_installer:
-          requires:
-            # - test_windows
-            - deploy-test
       - coverage
       - lint
       - deploy:
@@ -353,6 +349,17 @@ workflows:
           requires:
             - test
             - test_mac
+            - coverage
+            - lint
+            - deploy-test
+            - shellcheck/check
+          filters:
+            branches:
+              only: master
+      - build_windows_installer:
+          requires:
+            - test
+            - test_windows
             - coverage
             - lint
             - deploy-test
