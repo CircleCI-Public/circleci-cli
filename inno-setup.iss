@@ -32,15 +32,18 @@ WizardStyle=modern
 ChangesEnvironment=true
 ArchitecturesInstallIn64BitMode=x64
 ArchitecturesAllowed=x64
+SetupIconFile=.circleci/circleci.ico
+
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Files]
 Source: "dist\circleci-cli_windows_amd64\circleci.exe"; DestDir: "{app}"; Flags: ignoreversion; DestName: "circleci.exe"
+Source: ".circleci/circleci.ico"; DestDir: "{app}"; Flags: ignoreversion; DestName: "circleci.ico"
 ; NOTE: Don't use "Flags: ignoreversion" on any shared system files
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{group}\{#MyAppName}"; Filename: "circleci.ico"; IconFilename: "{app}/circleci.ico"
 Name: "{group}\{cm:UninstallProgram,{#MyAppName}}"; Filename: "{uninstallexe}"
 
 ; https://stackoverflow.com/a/3431379
