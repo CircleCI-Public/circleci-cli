@@ -43,7 +43,7 @@ var _ = Describe("Check", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("update auto checks with a new release", func() {
@@ -57,7 +57,7 @@ var _ = Describe("Check", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 
 			command = commandWithHome(checkCLI, tempSettings.Home,
-				"help", "--github-api", tempSettings.TestServer.URL(),
+				"help", "--skip-update-check=false", "--github-api", tempSettings.TestServer.URL(),
 			)
 
 			response = `
@@ -81,6 +81,13 @@ var _ = Describe("Check", func() {
 		"label": "short description",
         "content_type": "application/zip",
 		"size": 1024
+      },
+      {
+        "id": 1,
+        "name": "windows_amd64.tar.gz",
+        "label": "short description",
+        "content_type": "application/zip",
+        "size": 1024
       }
     ]
   }

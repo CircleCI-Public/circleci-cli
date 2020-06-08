@@ -45,6 +45,13 @@ var _ = Describe("Update", func() {
 		"label": "short description",
         "content_type": "application/zip",
 		"size": 1024
+      },
+      {
+        "id": 1,
+        "name": "windows_amd64.tar.gz",
+        "label": "short description",
+        "content_type": "application/zip",
+        "size": 1024
       }
     ]
   }
@@ -60,7 +67,7 @@ var _ = Describe("Update", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("update --check", func() {
@@ -168,7 +175,7 @@ var _ = Describe("Update", func() {
 		It("should print a helpful error message & exit 255", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(255))
+			Eventually(session).Should(clitest.ShouldFail())
 
 			// TODO: This should exit with error status 1, since 255 is a
 			// special error status for: "exit status outside of range".

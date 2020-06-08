@@ -4,6 +4,7 @@ orbs:
   codecov: circleci/codecov-clojure@0.0.4
   shellcheck: circleci/shellcheck@1.2.0
   slack: circleci/slack@0.1.14
+  windows: circleci/windows@2.2.0
 
 executors:
   go:
@@ -89,6 +90,21 @@ commands:
           only_for_branch: "master"
 
 jobs:
+  test_windows:
+    executor: windows/default
+    steps:
+      - checkout
+      - run: setx GOPATH %USERPROFILE%\go
+      - run: go get gotest.tools/gotestsum
+      - run: mkdir test_results
+      - run:
+          name: Run tests
+          command: |
+            C:\Users\circleci\go\bin\gotestsum.exe --junitfile test_results/windows.xml
+      - store_test_results:
+          path: test_results
+      - store_artifacts:
+          path: test_results
   test_mac:
     executor: mac
     steps:
@@ -287,6 +303,7 @@ workflows:
           exclude: ./vendor/*
       - test
       - test_mac
+      - test_windows
       - coverage
       - lint
       - deploy-test

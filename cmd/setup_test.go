@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
@@ -30,7 +32,7 @@ var _ = Describe("Setup with prompts", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Describe("new config file", func() {
@@ -43,13 +45,15 @@ var _ = Describe("Setup with prompts", func() {
 			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
 
-			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.Config.Path)))
+			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session).Should(gexec.Exit(0))
 
 			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			if runtime.GOOS != "windows" {
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			}
 		})
 	})
 
@@ -62,7 +66,9 @@ var _ = Describe("Setup with prompts", func() {
 
 			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			if runtime.GOOS != "windows" {
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			}
 		})
 
 		Describe("token and host set in config file", func() {
@@ -75,7 +81,7 @@ var _ = Describe("Setup with prompts", func() {
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.Config.Path)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -96,7 +102,7 @@ token: fooBarBaz
 				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
 				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", tempSettings.Config.Path)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
@@ -119,7 +125,7 @@ var _ = Describe("Setup without prompts", func() {
 	})
 
 	AfterEach(func() {
-		tempSettings.Cleanup()
+		tempSettings.Close()
 	})
 
 	Context("with an existing config", func() {
@@ -134,7 +140,7 @@ token: fooBarBaz
 			It("should keep the existing configuration", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", tempSettings.Config.Path)))
+				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
 
 				Context("re-open the config to check the contents", func() {
 					tempSettings.AssertConfigRereadMatches(`
@@ -212,7 +218,7 @@ token: asdf
 			It("Should raise an error about missing host and token flags", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(gexec.Exit(255))
+				Eventually(session).Should(clitest.ShouldFail())
 
 				stderr := session.Wait().Err.Contents()
 				Expect(string(stderr)).To(Equal("Error: No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt\n"))
