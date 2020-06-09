@@ -301,6 +301,7 @@ jobs:
           name: Trigger Chocolatey repository build
           command: |
             curl -X POST https://circleci.com/api/v2/project/gh/CircleCI-Public/chocolatey-circleci-cli/pipeline \
+              --fail --silent \
               -H 'Content-Type: application/json' \
               -H 'Accept: application/json' \
               -H "Circle-Token: $CIRCLE_TOKEN" \
