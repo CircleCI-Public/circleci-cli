@@ -4,12 +4,15 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -523,6 +526,34 @@ func processOrb(opts orbOptions) error {
 
 	fmt.Println(response.OutputYaml)
 	return nil
+}
+
+func localScriptProcess (file *os.File) error {
+	// Takes a yaml file and replaces instances of the script tag
+	// parse yaml file
+	// check each key for a match against the inject regex
+	// Where a match is found, replace the value with the contents of the injected script.
+}
+
+func packOrb (opts orbOptions) error {
+	sourceDir := opts.args[0]
+	// Validate the supplied directory contains an @orb.yml file
+	var orbEntryPoint string =  sourceDir + "/@orb.yml"
+	if _, err := os.Stat(orbEntryPoint); err == nil {
+		fmt.Printf("Packing Orb\n");  
+	  } else {
+		fmt.Printf("Not a valid orb directory\n @orb.yml cannot be located.\n");  
+	  }
+	// only files within these select folders should be considered orb components. This allows the user to keep a "scripts" folder with their orb source without them being considered as part of the orb for packing.
+	validOrbComponents := [4]string{"jobs", "commands", "executors", "examples"}
+	// create a temporary directory and copy the orb components and @orb.yml to the directory.
+	tempDir, err := ioutil.TempDir("", "*-orbpack")
+	if err != nil {
+		fmt.Print("Unable to create the temporary directory for orb packing.")
+	}
+	//    // For each directory, compare against ValidOrbComponents, and if there is a match, create the folder in the temp directory and copy over all yaml files (safer than copying all/anything)
+	// run localScriptProcess against each orb component
+	// "Pack" or combine all (approved) orb components into a single orb file. All ordering must be preserved.
 }
 
 func publishOrb(opts orbOptions) error {
