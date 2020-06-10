@@ -1,18 +1,23 @@
 package cmd
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
 
 	"github.com/spf13/cobra"
@@ -240,6 +245,17 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 		Args: cobra.ExactArgs(1),
 	}
+
+	orbPack := &cobra.Command{
+		Use:   "pack <path>",
+		Short: "Pack an Orb with local scripts.",
+		Long:  ``,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return packOrb(opts)
+		},
+		Args: cobra.ExactArgs(1),
+	}
+
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
 		panic(err)
@@ -269,6 +285,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(unlistCmd)
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
+	orbCommand.AddCommand(orbPack)
 
 	return orbCommand
 }
@@ -737,6 +754,57 @@ func orbInfo(opts orbOptions) error {
 Learn more about this orb online in the CircleCI Orb Registry:
 https://circleci.com/orbs/registry/orb/%s
 `, orbRef)
+
+	return nil
+}
+
+func packOrb(opts orbOptions) error {
+	tree, err := filetree.NewTree(opts.args[0])
+	if err != nil {
+		return errors.Wrap(err, "An error occurred trying to build the tree")
+	}
+
+	y, err := yaml.Marshal(&tree)
+	if err != nil {
+		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
+	}
+
+	// Maps to
+	// [0] => Full match
+	// [1] => Preceeding whitespace
+	// [2] => Configuration key
+	// [3] => File to include
+	regEx, err := regexp.Compile(`([\t ]*)(\w*?): <<include\((.+\/[^\/]+)\)>>`)
+	if err != nil {
+		return errors.Wrap(err, "Could not compile regex for Orb packing.")
+	}
+
+	// Iterate through matches.
+	matches := regEx.FindAllSubmatch(y, -1)
+	for i := 0; i < len(matches); i++ {
+		match := matches[i]
+		// Todo: We could probably improve this by caching files and their indentation.
+		for k := 0; k < len(match); k += 4 {
+			whitespace := string(match[k+1])
+			command := string(match[k+2])
+			filename := string(match[k+3])
+			file, err := os.Open(filename)
+			defer file.Close()
+
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb.", filename))
+			}
+			fileString := fmt.Sprintf("%s%s: |\n", whitespace, command)
+			scanner := bufio.NewScanner(file)
+			// Scan each line of the script to enforce indentation level in configuration.
+			for scanner.Scan() {
+				fileString += fmt.Sprintf("%s%s\n", strings.Repeat(whitespace, 2), scanner.Text())
+			}
+
+			y = bytes.Replace(y, match[k], []byte(fileString), 1)
+		}
+	}
+	fmt.Println(string(y))
 
 	return nil
 }
