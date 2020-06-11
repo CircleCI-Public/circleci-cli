@@ -773,6 +773,9 @@ func packOrb(opts orbOptions) error {
 	// Create generic YAML node.
 	var node yaml.Node
 	err = yaml.Unmarshal(y, &node)
+	if err != nil {
+		return errors.Wrap(err, "Failed unmarshal YAML tree.")
+	}
 
 	err = travelTree(&node, opts.args[0])
 	if err != nil {
