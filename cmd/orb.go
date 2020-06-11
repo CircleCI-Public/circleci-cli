@@ -1,11 +1,10 @@
 package cmd
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"os"
+	"io/ioutil"
 	"regexp"
 	"sort"
 	"strconv"
@@ -17,8 +16,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	"github.com/spf13/cobra"
 )
@@ -759,6 +758,8 @@ https://circleci.com/orbs/registry/orb/%s
 }
 
 func packOrb(opts orbOptions) error {
+	// Travel our Orb and build a tree from the YAML files.
+	// Non-YAML files will be ignored here.
 	tree, err := filetree.NewTree(opts.args[0])
 	if err != nil {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
@@ -769,42 +770,52 @@ func packOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
 
-	// Maps to
-	// [0] => Full match
-	// [1] => Preceeding whitespace
-	// [2] => Configuration key
-	// [3] => File to include
-	regEx, err := regexp.Compile(`([\t ]*)(\w*?): <<include\((.+\/[^\/]+)\)>>`)
+	// Create generic YAML node.
+	var node yaml.Node
+	err = yaml.Unmarshal(y, &node)
+
+	err = travelTree(&node, opts.args[0])
 	if err != nil {
-		return errors.Wrap(err, "Could not compile regex for Orb packing.")
+		return errors.Wrap(err, "Failed trying to travel Orb YAML.")
 	}
 
-	// Iterate through matches.
-	matches := regEx.FindAllSubmatch(y, -1)
-	for i := 0; i < len(matches); i++ {
-		match := matches[i]
-		// Todo: We could probably improve this by caching files and their indentation.
-		for k := 0; k < len(match); k += 4 {
-			whitespace := string(match[k+1])
-			command := string(match[k+2])
-			filename := string(match[k+3])
-			file, err := os.Open(filename)
-			defer file.Close()
+	final, err := yaml.Marshal(&node)
+	if err != nil {
+		return errors.Wrap(err, "Failed trying to marshal Orb YAML.")
+	}
 
+	fmt.Println(string(final))
+
+	return nil
+}
+
+func travelTree(node *yaml.Node, orbRoot string) error {
+	regEx, err := regexp.Compile(`<<include\((.+\/[^\/]+)\)>>`)
+
+	// If we're dealing with a ScalarNode, we can replace the contents.
+	// Otherwise, we recurse into the children of the Node in search of
+	// a matching regex.
+	if node.Kind == yaml.ScalarNode {
+		if err != nil {
+			return errors.Wrap(err, fmt.Sprintf("Could not compile regex for script inclusion."))
+		}
+		matches := regEx.FindStringSubmatch(node.Value)
+		if len(matches) > 0 {
+			filename := matches[1]
+			file, err := ioutil.ReadFile(orbRoot + "/" + filename)
 			if err != nil {
 				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb.", filename))
 			}
-			fileString := fmt.Sprintf("%s%s: |\n", whitespace, command)
-			scanner := bufio.NewScanner(file)
-			// Scan each line of the script to enforce indentation level in configuration.
-			for scanner.Scan() {
-				fileString += fmt.Sprintf("%s%s\n", strings.Repeat(whitespace, 2), scanner.Text())
-			}
 
-			y = bytes.Replace(y, match[k], []byte(fileString), 1)
+			node.Value = string(file)
+		}
+	} else {
+		for _, child := range node.Content {
+			err := travelTree(child, orbRoot)
+			if err != nil {
+				return errors.Wrap(err, fmt.Sprintf("Could not travel rest of the YAML node."))
+			}
 		}
 	}
-	fmt.Println(string(y))
-
 	return nil
 }

@@ -7,9 +7,9 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/go-yaml/yaml"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 )

@@ -1,8 +1,8 @@
 package data
 
 import (
-	"github.com/go-yaml/yaml"
 	packr "github.com/gobuffalo/packr/v2"
+	"gopkg.in/yaml.v3"
 )
 
 // YML maps the YAML found in _data/data.yml
