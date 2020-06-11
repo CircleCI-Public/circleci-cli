@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -761,7 +762,12 @@ https://circleci.com/orbs/registry/orb/%s
 func packOrb(opts orbOptions) error {
 	// Travel our Orb and build a tree from the YAML files.
 	// Non-YAML files will be ignored here.
-	tree, err := filetree.NewTree(opts.args[0])
+	_, err := os.Stat(filepath.Join(opts.args[0], "@orb.yml"))
+	if err != nil {
+		return errors.Wrap(err, "@orb.yml file not found, are you sure this is the Orb root?")
+	}
+
+	tree, err := filetree.NewTree(opts.args[0], "executors", "jobs", "commands", "examples")
 	if err != nil {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
 	}

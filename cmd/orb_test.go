@@ -2591,18 +2591,19 @@ https://circleci.com/orbs/registry/orb/my/orb
 		)
 		BeforeEach(func() {
 			tempSettings = clitest.WithTempSettings()
-			orb = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("myorb", "orb.yml"))
+			orb = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("commands", "orb.yml"))
+			clitest.OpenTmpFile(tempSettings.Home, "@orb.yml")
 			orb.Write([]byte(`steps:
     - run:
         name: Say hello
-        command: <<include(myorb/script.sh)>>
+        command: <<include(scripts/script.sh)>>
 `))
-			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("myorb", "script.sh"))
+			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("scripts", "script.sh"))
 			script.Write([]byte(`echo Hello, world!`))
 			command = exec.Command(pathCLI,
 				"orb", "pack",
 				"--skip-update-check",
-				orb.RootDir,
+				tempSettings.Home,
 			)
 		})
 
@@ -2616,7 +2617,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Eventually(session.Out).Should(gbytes.Say(`myorb:
+			Eventually(session.Out).Should(gbytes.Say(`commands:
     orb:
         steps:
             - run:
