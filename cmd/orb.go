@@ -813,6 +813,8 @@ func travelTree(node *yaml.Node, orbRoot string) error {
 			node.Value = string(file)
 		}
 	} else {
+		// I am *slightly* worried about performance related to this approach, but don't have any
+		// larger Orbs to test against.
 		for _, child := range node.Content {
 			err := travelTree(child, orbRoot)
 			if err != nil {
