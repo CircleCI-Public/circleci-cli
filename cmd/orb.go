@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -777,7 +778,7 @@ func packOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Failed unmarshal YAML tree.")
 	}
 
-	err = travelTree(&node, opts.args[0])
+	err = travelOrbTree(&node, opts.args[0])
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to travel Orb YAML.")
 	}
@@ -792,22 +793,22 @@ func packOrb(opts orbOptions) error {
 	return nil
 }
 
-func travelTree(node *yaml.Node, orbRoot string) error {
-	regEx, err := regexp.Compile(`<<include\((.+\/[^\/]+)\)>>`)
+func travelOrbTree(node *yaml.Node, orbRoot string) error {
+	includeRegEx, err := regexp.Compile(`<<include\((.+\/[^\/]+)\)>>`)
+	if err != nil {
+		return err
+	}
 
 	// If we're dealing with a ScalarNode, we can replace the contents.
 	// Otherwise, we recurse into the children of the Node in search of
 	// a matching regex.
-	if node.Kind == yaml.ScalarNode {
-		if err != nil {
-			return errors.Wrap(err, fmt.Sprintf("Could not compile regex for script inclusion."))
-		}
-		matches := regEx.FindStringSubmatch(node.Value)
-		if len(matches) > 0 {
-			filename := matches[1]
-			file, err := ioutil.ReadFile(orbRoot + "/" + filename)
+	if node.Kind == yaml.ScalarNode && node.Value != "" {
+		includeMatches := includeRegEx.FindStringSubmatch(node.Value)
+		if len(includeMatches) > 0 {
+			filepath := filepath.Join(orbRoot, includeMatches[1])
+			file, err := ioutil.ReadFile(filepath)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb.", filename))
+				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb.", filepath))
 			}
 
 			node.Value = string(file)
@@ -816,9 +817,9 @@ func travelTree(node *yaml.Node, orbRoot string) error {
 		// I am *slightly* worried about performance related to this approach, but don't have any
 		// larger Orbs to test against.
 		for _, child := range node.Content {
-			err := travelTree(child, orbRoot)
+			err := travelOrbTree(child, orbRoot)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("Could not travel rest of the YAML node."))
+				return err
 			}
 		}
 	}
