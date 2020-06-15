@@ -293,6 +293,20 @@ jobs:
       - run: ./.circleci/brew-deploy.sh
       - slack-notify-on-failure
 
+  trigger-chocolatey-deploy:
+    docker:
+      - image: cimg/base:edge
+    steps:
+      - run:
+          name: Trigger Chocolatey repository build
+          command: |
+            curl -X POST https://circleci.com/api/v2/project/gh/CircleCI-Public/chocolatey-circleci-cli/pipeline \
+              --fail --silent \
+              -H 'Content-Type: application/json' \
+              -H 'Accept: application/json' \
+              -H "Circle-Token: $CIRCLE_TOKEN" \
+              --data '{ "parameters": { "deploy-production": true } }'
+
 workflows:
   ci:
     jobs:
@@ -329,6 +343,12 @@ workflows:
             - lint
             - deploy-test
             - shellcheck/check
+          filters:
+            branches:
+              only: master
+      - trigger-chocolatey-deploy:
+          requires:
+            - deploy
           filters:
             branches:
               only: master
