@@ -166,7 +166,7 @@ jobs:
           path: coverage.txt
       - slack-notify-on-failure
 
-  docs:
+  docs: 
     executor: go
     steps:
       - checkout
