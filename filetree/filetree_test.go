@@ -99,6 +99,7 @@ sub_dir:
 			Expect(err).ToNot(HaveOccurred())
 
 			out, err := yaml.Marshal(tree)
+			Expect(err).ToNot(HaveOccurred())
 			Expect(out).To(MatchYAML(`sub_dir:
   sub_dir_file:
     foo:
