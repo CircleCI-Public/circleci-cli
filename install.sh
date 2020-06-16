@@ -13,11 +13,12 @@ set -o errexit
 echo "Starting installation."
 
 # GitHub's URL for the latest release, will redirect.
-LATEST_URL="https://github.com/CircleCI-Public/circleci-cli/releases/latest/"
+GITHUB_BASE_URL="https://github.com/CircleCI-Public/circleci-cli"
+LATEST_URL="${GITHUB_BASE_URL}/releases/latest/"
 DESTDIR="${DESTDIR:-/usr/local/bin}"
 
 if [ -z "$VERSION" ]; then
-	VERSION=$(curl -sLI -o /dev/null -w '%{url_effective}' $LATEST_URL | cut -d "v" -f 2)
+	VERSION=$(curl -sLI -o /dev/null -w '%{url_effective}' "$LATEST_URL" | cut -d "v" -f 2)
 fi
 
 echo "Installing CircleCI CLI v${VERSION}"
@@ -34,23 +35,26 @@ function error {
 trap error ERR
 
 # Determine release filename. This can be expanded with CPU arch in the future.
-if [ "$(uname)" == "Linux" ]; then
-	OS="linux"
-elif [ "$(uname)" == "Darwin" ]; then
-	OS="darwin"
-else
-	echo "This operating system is not supported."
-	exit 1
-fi
+case "$(uname)" in
+	Linux)
+		OS='linux'
+	;;
+	Darwin)
+		OS='darwin'
+	;;
+	*)
+		echo "This operating system is not supported."
+		exit 1	
+	;;
+esac
 
-RELEASE_URL="https://github.com/CircleCI-Public/circleci-cli/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_amd64.tar.gz"
+RELEASE_URL="${GITHUB_BASE_URL}/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_amd64.tar.gz"
 
 # Download & unpack the release tarball.
 curl -sL --retry 3 "${RELEASE_URL}" | tar zx --strip 1
 
 echo "Installing to $DESTDIR"
-mv circleci "$DESTDIR"
-chmod +x "$DESTDIR/circleci"
+install circleci "$DESTDIR"
 
 command -v "${DESTDIR}/circleci"
 

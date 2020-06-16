@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
@@ -39,8 +40,7 @@ var _ = Describe("Setup with prompts", func() {
 	})
 
 	AfterEach(func() {
-		Expect(os.RemoveAll(tempSettings.Home)).To(Succeed())
-		tempSettings.TestServer.Close()
+		tempSettings.Close()
 	})
 
 	Context("with happy diagnostic responses", func() {
@@ -94,12 +94,15 @@ var _ = Describe("Setup with prompts", func() {
 
 		Describe("new config file", func() {
 			It("should set file permissions to 0600", func() {
+
 				err := setup(opts)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				fileInfo, err := os.Stat(tempSettings.Config.Path)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+				if runtime.GOOS != "windows" {
+					Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+				}
 			})
 		})
 
