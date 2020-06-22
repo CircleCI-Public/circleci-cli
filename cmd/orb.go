@@ -770,9 +770,17 @@ type OrbSchema struct {
 	Examples    map[string]ExampleSchema `yaml:"examples,omitempty"`
 }
 
+type ExampleUsageSchema struct {
+	Version   string      `yaml:"version,omitempty"`
+	Orbs      interface{} `yaml:"orbs,omitempty"`
+	Jobs      interface{} `yaml:"jobs,omitempty"`
+	Workflows interface{} `yaml:"workflows"`
+}
+
 type ExampleSchema struct {
-	Description string    `yaml:"description,omitempty"`
-	Usage       OrbSchema `yaml:"usage,omitempty"`
+	Description string             `yaml:"description,omitempty"`
+	Usage       ExampleUsageSchema `yaml:"usage,omitempty"`
+	Result      ExampleUsageSchema `yaml:"result,omitempty"`
 }
 
 func packOrb(opts orbOptions) error {
