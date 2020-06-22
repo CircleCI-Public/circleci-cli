@@ -759,6 +759,22 @@ https://circleci.com/orbs/registry/orb/%s
 	return nil
 }
 
+type OrbSchema struct {
+	Version     string                   `yaml:"version,omitempty"`
+	Description string                   `yaml:"description,omitempty"`
+	Display     interface{}              `yaml:"display,omitempty"`
+	Orbs        interface{}              `yaml:"orbs,omitempty"`
+	Commands    interface{}              `yaml:"commands,omitempty"`
+	Executors   interface{}              `yaml:"executors,omitempty"`
+	Jobs        interface{}              `yaml:"jobs,omitempty"`
+	Examples    map[string]ExampleSchema `yaml:"examples,omitempty"`
+}
+
+type ExampleSchema struct {
+	Description string    `yaml:"description,omitempty"`
+	Usage       OrbSchema `yaml:"usage,omitempty"`
+}
+
 func packOrb(opts orbOptions) error {
 	// Travel our Orb and build a tree from the YAML files.
 	// Non-YAML files will be ignored here.
@@ -794,7 +810,20 @@ func packOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Failed trying to marshal Orb YAML.")
 	}
 
-	fmt.Println(string(final))
+	// Unmarshal again into a struct so that it can be
+	// marhsalled again but with custom-ordered keys
+	var orb OrbSchema
+	err = yaml.Unmarshal(final, &orb)
+	if err != nil {
+		return errors.Wrap(err, "Failed unmarshal YAML tree.")
+	}
+
+	finalOrdered, err := yaml.Marshal(&orb)
+	if err != nil {
+		return errors.Wrap(err, "Failed trying to marshal Orb YAML.")
+	}
+
+	fmt.Println(string(finalOrdered))
 
 	return nil
 }
