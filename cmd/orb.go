@@ -249,7 +249,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	orbPack := &cobra.Command{
 		Use:   "pack <path>",
-		Short: "Pack an Orb with local scripts.",
+		Short: "Pack an orb with local scripts.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packOrb(opts)
