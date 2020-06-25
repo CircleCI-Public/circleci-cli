@@ -836,8 +836,15 @@ func packOrb(opts orbOptions) error {
 	return nil
 }
 
+// Travel down a YAML node, replacing values as we go.
 func travelOrbTree(node *yaml.Node, orbRoot string) error {
-	includeRegEx, err := regexp.Compile(`<<include\((.+\/[^\/]+)\)>>`)
+	// View: https://regexr.com/57bg7
+	includeRegex, err := regexp.Compile(`(?U)<<\s*include\((.*\/*[^\/]+)\)\s*?>>`)
+	if err != nil {
+		return err
+	}
+	// View: https://regexr.com/57b7a
+	maybeHeredocRegex, err := regexp.Compile(`(<<[\w\s\d\.>]*)`)
 	if err != nil {
 		return err
 	}
@@ -846,7 +853,7 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 	// Otherwise, we recurse into the children of the Node in search of
 	// a matching regex.
 	if node.Kind == yaml.ScalarNode && node.Value != "" {
-		includeMatches := includeRegEx.FindStringSubmatch(node.Value)
+		includeMatches := includeRegex.FindStringSubmatch(node.Value)
 		if len(includeMatches) > 0 {
 			filepath := filepath.Join(orbRoot, includeMatches[1])
 			file, err := ioutil.ReadFile(filepath)
@@ -856,6 +863,22 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 
 			node.Value = string(file)
 		}
+
+		// Escape unclosed `<<` for heredocs. First we partially match the syntax,
+		// then if we have a match we verify there is no closing tag for it.
+		maybeHeredocMatches := maybeHeredocRegex.FindAllString(node.Value, -1)
+		// View: https://regexr.com/57bh8
+		paramRegex, _ := regexp.Compile(`(?i)<<.+?>>`)
+
+		if len(maybeHeredocMatches) > 0 {
+			for _, match := range maybeHeredocMatches {
+				isParam := len(paramRegex.FindStringSubmatch(match)) > 0
+				if !isParam {
+					node.Value = strings.Replace(node.Value, match, "\\"+match, -1)
+				}
+			}
+		}
+
 	} else {
 		// I am *slightly* worried about performance related to this approach, but don't have any
 		// larger Orbs to test against.
