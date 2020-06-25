@@ -844,7 +844,7 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 		return err
 	}
 	// View: https://regexr.com/57b7a
-	maybeHeredocRegex, err := regexp.Compile(`(<<[\w\s\d\.>]*)`)
+	maybeHeredocRegex, err := regexp.Compile(`(<<[\w\d\.>]*\S*)`)
 	if err != nil {
 		return err
 	}
@@ -874,10 +874,15 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 		}
 
 		if len(maybeHeredocMatches) > 0 {
+			// This is a little messier, hope to tweak soon.
+			// Loop through matches, if match has already been replaced we skip it,
+			// otherwise we replace it and mark it as having been done.
+			escaped := make(map[string]struct{})
 			for _, match := range maybeHeredocMatches {
 				isParam := len(paramRegex.FindStringSubmatch(match)) > 0
-				if !isParam {
+				if _, done := escaped[match]; !done && !isParam {
 					node.Value = strings.Replace(node.Value, match, "\\"+match, -1)
+					escaped[match] = struct{}{}
 				}
 			}
 		}
