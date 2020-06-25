@@ -249,7 +249,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	orbPack := &cobra.Command{
 		Use:   "pack <path>",
-		Short: "Pack an orb with local scripts.",
+		Short: "Pack an Orb with local scripts.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return packOrb(opts)
@@ -798,24 +798,24 @@ func packOrb(opts orbOptions) error {
 
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
+		return errors.Wrap(err, "Failed trying to marshal the tree to YAML")
 	}
 
 	// Create generic YAML node.
 	var node yaml.Node
 	err = yaml.Unmarshal(y, &node)
 	if err != nil {
-		return errors.Wrap(err, "Failed unmarshal YAML tree.")
+		return errors.Wrap(err, "Failed unmarshal YAML tree")
 	}
 
 	err = travelOrbTree(&node, opts.args[0])
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to travel Orb YAML.")
+		return errors.Wrap(err, "Failed trying to travel Orb YAML")
 	}
 
 	final, err := yaml.Marshal(&node)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal Orb YAML.")
+		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
 	}
 
 	// Unmarshal again into a struct so that it can be
@@ -823,12 +823,12 @@ func packOrb(opts orbOptions) error {
 	var orb OrbSchema
 	err = yaml.Unmarshal(final, &orb)
 	if err != nil {
-		return errors.Wrap(err, "Failed unmarshal YAML tree.")
+		return errors.Wrap(err, "Failed unmarshal YAML tree")
 	}
 
 	finalOrdered, err := yaml.Marshal(&orb)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal Orb YAML.")
+		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
 	}
 
 	fmt.Println(string(finalOrdered))
@@ -858,7 +858,7 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 			filepath := filepath.Join(orbRoot, includeMatches[1])
 			file, err := ioutil.ReadFile(filepath)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb.", filepath))
+				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb", filepath))
 			}
 
 			node.Value = string(file)
@@ -868,7 +868,10 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 		// then if we have a match we verify there is no closing tag for it.
 		maybeHeredocMatches := maybeHeredocRegex.FindAllString(node.Value, -1)
 		// View: https://regexr.com/57bh8
-		paramRegex, _ := regexp.Compile(`(?i)<<.+?>>`)
+		paramRegex, err := regexp.Compile(`(?i)<<.+?>>`)
+		if err != nil {
+			return err
+		}
 
 		if len(maybeHeredocMatches) > 0 {
 			for _, match := range maybeHeredocMatches {
