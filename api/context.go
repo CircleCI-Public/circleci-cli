@@ -105,7 +105,9 @@ func CreateContext(cl *client.Client, vcsType, orgName, contextName string) erro
 }
 
 func ListContexts(cl *client.Client, orgName, vcsType string) (*ContextsQueryResponse, error) {
-
+	// In theory we can lookup the organization by name and its contexts in
+	// the same query, but using separate requests to circumvent a bug in
+	// the API
 	org, err := getOrganization(cl, orgName, vcsType)
 
 	if err != nil {
