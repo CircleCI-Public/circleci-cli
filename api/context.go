@@ -106,9 +106,15 @@ func CreateContext(cl *client.Client, vcsType, orgName, contextName string) erro
 
 func ListContexts(cl *client.Client, orgName, vcsType string) (*ContextsQueryResponse, error) {
 
+	org, err := getOrganization(cl, orgName, vcsType)
+
+	if err != nil {
+		return nil, err
+	}
+
 	query := `
-	query ContextsQuery($orgName: String!, $vcsType: VCSType!) {
-		organization(name: $orgName, vcsType: $vcsType) {
+	query ContextsQuery($orgId: ID!) {
+		organization(id: $orgId) {
 			id
 			contexts {
 				edges {
@@ -151,11 +157,10 @@ func ListContexts(cl *client.Client, orgName, vcsType string) (*ContextsQueryRes
 	request := client.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	request.Var("orgName", orgName)
-	request.Var("vcsType", strings.ToUpper(vcsType))
+	request.Var("orgId", org.Organization.ID)
 
 	var response ContextsQueryResponse
-	err := cl.Run(request, &response)
+	err = cl.Run(request, &response)
 	return &response, errors.Wrapf(improveVcsTypeError(err), "failed to load context list")
 }
 
