@@ -11,6 +11,6 @@ Feature: Context integration tests
     """
     Error: please set a token with 'circleci setup'
     You can create a new personal API token here:
-    https://circleci.com/account/api`
+    https://circleci.com/account/api
     """
-    And the exit status should be 0
+    And the exit status should be 255
