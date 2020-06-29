@@ -843,8 +843,8 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 	if err != nil {
 		return err
 	}
-	// View: https://regexr.com/57b7a
-	maybeHeredocRegex, err := regexp.Compile(`(<<[\w\d\.>]*\S*)`)
+	// View: regexr.com/57hl9
+	maybeHeredocRegex, err := regexp.Compile(`(<<[\s\#\^\/]*[^<<]*)`)
 	if err != nil {
 		return err
 	}
@@ -868,7 +868,7 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 		// then if we have a match we verify there is no closing tag for it.
 		maybeHeredocMatches := maybeHeredocRegex.FindAllString(node.Value, -1)
 		// View: https://regexr.com/57bh8
-		paramRegex, err := regexp.Compile(`(?i)<<.+?>>`)
+		paramRegex, err := regexp.Compile(`(?iU)<<.+?>>`)
 		if err != nil {
 			return err
 		}
