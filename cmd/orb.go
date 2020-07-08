@@ -838,12 +838,12 @@ func packOrb(opts orbOptions) error {
 
 // Travel down a YAML node, replacing values as we go.
 func travelOrbTree(node *yaml.Node, orbRoot string) error {
-	// View: https://regexr.com/57bg7
-	includeRegex, err := regexp.Compile(`(?U)<<\s*include\((.*\/*[^\/]+)\)\s*?>>`)
+	// View: https://regexr.com/582gb
+	includeRegex, err := regexp.Compile(`(?U)^<<\s*include\((.*\/*[^\/]+)\)\s*?>>$`)
 	if err != nil {
 		return err
 	}
-	// View: regexr.com/57hl9
+	// View: https://regexr.com/57hl9
 	maybeHeredocRegex, err := regexp.Compile(`(<<[\s\#\^\/]*[^<<]*)`)
 	if err != nil {
 		return err
