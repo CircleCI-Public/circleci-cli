@@ -31,8 +31,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	listCommand := &cobra.Command{
-		Short:  "List all contexts",
-		Use:    "list <vcs-type> <org-name>",
+		Short:   "List all contexts",
+		Use:     "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listContexts(cl, args[0], args[1])
@@ -41,8 +41,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	showContextCommand := &cobra.Command{
-		Short:  "Show a context",
-		Use:    "show <vcs-type> <org-name> <context-name>",
+		Short:   "Show a context",
+		Use:     "show <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return showContext(cl, args[0], args[1], args[2])
@@ -51,8 +51,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	storeCommand := &cobra.Command{
-		Short:  "Store a new environment variable in the named context. The value is read from stdin.",
-		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Store a new environment variable in the named context. The value is read from stdin.",
+		Use:     "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return storeEnvVar(cl, args[0], args[1], args[2], args[3])
@@ -61,8 +61,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	removeCommand := &cobra.Command{
-		Short:  "Remove an environment variable from the named context",
-		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Remove an environment variable from the named context",
+		Use:     "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return removeEnvVar(cl, args[0], args[1], args[2], args[3])
@@ -71,8 +71,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createContextCommand := &cobra.Command{
-		Short:  "Create a new context",
-		Use:    "create <vcs-type> <org-name> <context-name>",
+		Short:   "Create a new context",
+		Use:     "create <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createContext(cl, args[0], args[1], args[2])
@@ -82,8 +82,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 	force := false
 	deleteContextCommand := &cobra.Command{
-		Short:  "Delete the named context",
-		Use:    "delete <vcs-type> <org-name> <context-name>",
+		Short:   "Delete the named context",
+		Use:     "delete <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return deleteContext(cl, force, args[0], args[1], args[2])
@@ -176,7 +176,13 @@ func readSecretValue() (string, error) {
 		return string(bytes), err
 	} else {
 		fmt.Print("Enter secret value and press enter: ")
-		reader := bufio.NewReader(os.Stdin)
+
+		buffSize, err := os.Stdin.Stat()
+		if err != nil {
+			return "", err
+		}
+
+		reader := bufio.NewReaderSize(os.Stdin, int(buffSize.Size()))
 		str, err := reader.ReadString('\n')
 		return strings.TrimRight(str, "\n"), err
 	}
