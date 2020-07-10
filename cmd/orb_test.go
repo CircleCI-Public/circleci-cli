@@ -2626,24 +2626,6 @@ https://circleci.com/orbs/registry/orb/my/orb
 `))
 			Eventually(session).Should(gexec.Exit(0))
 		})
-		It("Escapes a heredoc.", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("scripts", "script.sh"))
-			script.Write([]byte(`cat << EOF > test.txt
-this is some text.
-EOF`))
-			Eventually(session.Out).Should(gbytes.Say(`commands:
-    orb:
-        steps:
-            - run:
-                command: |
-                    cat \<< EOF > test.txt
-                    this is some text
-                    EOF
-                name: Say hello
-`))
-			Eventually(session).Should(gexec.Exit(0))
-		})
+
 	})
 })

@@ -760,7 +760,7 @@ https://circleci.com/orbs/registry/orb/%s
 }
 
 type OrbSchema struct {
-	Version     string                   `yaml:"version,omitempty"`
+	Version     float32                  `yaml:"version,omitempty"`
 	Description string                   `yaml:"description,omitempty"`
 	Display     interface{}              `yaml:"display,omitempty"`
 	Orbs        interface{}              `yaml:"orbs,omitempty"`
@@ -788,29 +788,28 @@ func packOrb(opts orbOptions) error {
 	// Non-YAML files will be ignored here.
 	_, err := os.Stat(filepath.Join(opts.args[0], "@orb.yml"))
 	if err != nil {
-		return errors.Wrap(err, "@orb.yml file not found, are you sure this is the Orb root?")
+		return errors.New("@orb.yml file not found, are you sure this is the Orb root?")
 	}
 
 	tree, err := filetree.NewTree(opts.args[0], "executors", "jobs", "commands", "examples")
 	if err != nil {
-		return errors.Wrap(err, "An error occurred trying to build the tree")
+		return errors.Wrap(err, "An unexpected error occurred")
 	}
-
+	tree.MarshalYAML()
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal the tree to YAML")
+		return errors.Wrap(err, "An unexpected error occurred")
 	}
 
-	// Create generic YAML node.
 	var node yaml.Node
 	err = yaml.Unmarshal(y, &node)
 	if err != nil {
-		return errors.Wrap(err, "Failed unmarshal YAML tree")
+		return errors.Wrap(err, "An unexpected error occurred")
 	}
 
-	err = travelOrbTree(&node, opts.args[0])
+	err = inlineIncludes(&node, opts.args[0])
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to travel Orb YAML")
+		return errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	final, err := yaml.Marshal(&node)
@@ -837,14 +836,9 @@ func packOrb(opts orbOptions) error {
 }
 
 // Travel down a YAML node, replacing values as we go.
-func travelOrbTree(node *yaml.Node, orbRoot string) error {
+func inlineIncludes(node *yaml.Node, orbRoot string) error {
 	// View: https://regexr.com/582gb
 	includeRegex, err := regexp.Compile(`(?U)^<<\s*include\((.*\/*[^\/]+)\)\s*?>>$`)
-	if err != nil {
-		return err
-	}
-	// View: https://regexr.com/57hl9
-	maybeHeredocRegex, err := regexp.Compile(`(<<[\s\#\^\/]*[^<<]*)`)
 	if err != nil {
 		return err
 	}
@@ -858,40 +852,17 @@ func travelOrbTree(node *yaml.Node, orbRoot string) error {
 			filepath := filepath.Join(orbRoot, includeMatches[1])
 			file, err := ioutil.ReadFile(filepath)
 			if err != nil {
-				return errors.Wrap(err, fmt.Sprintf("Could not open %s for inclusion in Orb", filepath))
+				return errors.New(fmt.Sprintf("Could not open %s for inclusion in Orb", filepath))
 			}
 
 			node.Value = string(file)
-		}
-
-		// Escape unclosed `<<` for heredocs. First we partially match the syntax,
-		// then if we have a match we verify there is no closing tag for it.
-		maybeHeredocMatches := maybeHeredocRegex.FindAllString(node.Value, -1)
-		// View: https://regexr.com/57bh8
-		paramRegex, err := regexp.Compile(`(?iU)<<.+?>>`)
-		if err != nil {
-			return err
-		}
-
-		if len(maybeHeredocMatches) > 0 {
-			// This is a little messier, hope to tweak soon.
-			// Loop through matches, if match has already been replaced we skip it,
-			// otherwise we replace it and mark it as having been done.
-			escaped := make(map[string]struct{})
-			for _, match := range maybeHeredocMatches {
-				isParam := len(paramRegex.FindStringSubmatch(match)) > 0
-				if _, done := escaped[match]; !done && !isParam {
-					node.Value = strings.Replace(node.Value, match, "\\"+match, -1)
-					escaped[match] = struct{}{}
-				}
-			}
 		}
 
 	} else {
 		// I am *slightly* worried about performance related to this approach, but don't have any
 		// larger Orbs to test against.
 		for _, child := range node.Content {
-			err := travelOrbTree(child, orbRoot)
+			err := inlineIncludes(child, orbRoot)
 			if err != nil {
 				return err
 			}
