@@ -3,7 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 
@@ -169,23 +169,27 @@ func showContext(client *client.Client, vcsType, orgName, contextName string) er
 	return nil
 }
 
-func readSecretValue() (string, error) {
+// ReadSecretValue reads a secret from a buffer
+func ReadSecretValue() (string, error) {
 	stat, _ := os.Stdin.Stat()
-	if (stat.Mode() & os.ModeCharDevice) == 0 {
-		bytes, err := ioutil.ReadAll(os.Stdin)
-		return string(bytes), err
-	} else {
-		fmt.Print("Enter secret value and press enter: ")
 
-		buffSize, err := os.Stdin.Stat()
-		if err != nil {
-			return "", err
-		}
-
-		reader := bufio.NewReaderSize(os.Stdin, int(buffSize.Size()))
-		str, err := reader.ReadString('\n')
-		return strings.TrimRight(str, "\n"), err
+	buffSize, err := os.Stdin.Stat()
+	if err != nil {
+		return "", err
 	}
+
+	reader := bufio.NewReaderSize(os.Stdin, int(buffSize.Size()))
+
+	if (stat.Mode() & os.ModeCharDevice) == 0 {
+		bytes := make([]byte, buffSize.Size())
+		_, err := io.ReadFull(reader, bytes)
+		return string(bytes), err
+	}
+
+	fmt.Print("Enter secret value and press enter: ")
+
+	str, err := reader.ReadString('\n')
+	return strings.TrimRight(str, "\n"), err
 }
 
 func createContext(client *client.Client, vcsType, orgName, contextName string) error {
@@ -207,7 +211,7 @@ func storeEnvVar(client *client.Client, vcsType, orgName, contextName, varName s
 	if err != nil {
 		return err
 	}
-	secretValue, err := readSecretValue()
+	secretValue, err := ReadSecretValue()
 
 	if err != nil {
 		return errors.Wrap(err, "Failed to read secret value from stdin")

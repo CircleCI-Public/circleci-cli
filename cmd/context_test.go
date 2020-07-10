@@ -1,9 +1,13 @@
 package cmd_test
 
 import (
+	"io/ioutil"
+	"log"
+	"os"
 	"os/exec"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -35,6 +39,31 @@ var _ = Describe("Context integration tests", func() {
 You can create a new personal API token here:
 https://circleci.com/account/api`))
 			Eventually(session).Should(clitest.ShouldFail())
+		})
+
+		It("ReadSecretValue should read correctly os.Stdin wihout given a error", func() {
+			By("running the command")
+			content := []byte("stdin mock!")
+			tempFile, err := ioutil.TempFile("", "stdin-mock")
+			if err != nil {
+				log.Fatalln(err)
+			}
+
+			if _, err := tempFile.Write(content); err != nil {
+				log.Fatal(err)
+			}
+
+			if _, err := tempFile.Seek(0, 0); err != nil {
+				log.Fatal(err)
+			}
+
+			defer os.Remove(tempFile.Name())
+
+			os.Stdin = tempFile
+			result, err := cmd.ReadSecretValue()
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(result).Should(Equal(string(content)))
 		})
 	})
 
