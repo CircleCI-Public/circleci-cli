@@ -795,7 +795,7 @@ func packOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "An unexpected error occurred")
 	}
-	tree.MarshalYAML()
+
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
 		return errors.Wrap(err, "An unexpected error occurred")
