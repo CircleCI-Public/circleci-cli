@@ -4,16 +4,22 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 
 	"github.com/spf13/cobra"
 )
@@ -240,6 +246,18 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 		Args: cobra.ExactArgs(1),
 	}
+
+	orbPack := &cobra.Command{
+		Use:   "pack <path>",
+		Short: "Pack an Orb with local scripts.",
+		Long:  ``,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return packOrb(opts)
+		},
+		Args:   cobra.ExactArgs(1),
+		Hidden: true,
+	}
+
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
 		panic(err)
@@ -269,6 +287,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(unlistCmd)
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
+	orbCommand.AddCommand(orbPack)
 
 	return orbCommand
 }
@@ -738,5 +757,112 @@ Learn more about this orb online in the CircleCI Orb Registry:
 https://circleci.com/orbs/registry/orb/%s
 `, orbRef)
 
+	return nil
+}
+
+type OrbSchema struct {
+	Version     float32                  `yaml:"version,omitempty"`
+	Description string                   `yaml:"description,omitempty"`
+	Display     yaml.Node                `yaml:"display,omitempty"`
+	Orbs        yaml.Node                `yaml:"orbs,omitempty"`
+	Commands    yaml.Node                `yaml:"commands,omitempty"`
+	Executors   yaml.Node                `yaml:"executors,omitempty"`
+	Jobs        yaml.Node                `yaml:"jobs,omitempty"`
+	Examples    map[string]ExampleSchema `yaml:"examples,omitempty"`
+}
+
+type ExampleUsageSchema struct {
+	Version   string      `yaml:"version,omitempty"`
+	Orbs      interface{} `yaml:"orbs,omitempty"`
+	Jobs      interface{} `yaml:"jobs,omitempty"`
+	Workflows interface{} `yaml:"workflows"`
+}
+
+type ExampleSchema struct {
+	Description string             `yaml:"description,omitempty"`
+	Usage       ExampleUsageSchema `yaml:"usage,omitempty"`
+	Result      ExampleUsageSchema `yaml:"result,omitempty"`
+}
+
+func packOrb(opts orbOptions) error {
+	// Travel our Orb and build a tree from the YAML files.
+	// Non-YAML files will be ignored here.
+	_, err := os.Stat(filepath.Join(opts.args[0], "@orb.yml"))
+	if err != nil {
+		return errors.New("@orb.yml file not found, are you sure this is the Orb root?")
+	}
+
+	tree, err := filetree.NewTree(opts.args[0], "executors", "jobs", "commands", "examples")
+	if err != nil {
+		return errors.Wrap(err, "An unexpected error occurred")
+	}
+
+	y, err := yaml.Marshal(&tree)
+	if err != nil {
+		return errors.Wrap(err, "An unexpected error occurred")
+	}
+
+	var orbSchema OrbSchema
+	err = yaml.Unmarshal(y, &orbSchema)
+	if err != nil {
+		return errors.Wrap(err, "An unexpected error occurred")
+	}
+
+	err = func(nodes ...*yaml.Node) error {
+		for _, node := range nodes {
+			err = inlineIncludes(node, opts.args[0])
+			if err != nil {
+				return errors.Wrap(err, "An unexpected error occurred")
+			}
+		}
+		return nil
+	}(&orbSchema.Jobs, &orbSchema.Commands, &orbSchema.Executors)
+	if err != nil {
+		return err
+	}
+
+	final, err := yaml.Marshal(&orbSchema)
+	if err != nil {
+		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
+	}
+
+	fmt.Println(string(final))
+
+	return nil
+}
+
+// Travel down a YAML node, replacing values as we go.
+func inlineIncludes(node *yaml.Node, orbRoot string) error {
+	// View: https://regexr.com/582gb
+	includeRegex, err := regexp.Compile(`(?U)^<<\s*include\((.*\/*[^\/]+)\)\s*?>>$`)
+	if err != nil {
+		return err
+	}
+
+	// If we're dealing with a ScalarNode, we can replace the contents.
+	// Otherwise, we recurse into the children of the Node in search of
+	// a matching regex.
+	if node.Kind == yaml.ScalarNode && node.Value != "" {
+		includeMatches := includeRegex.FindStringSubmatch(node.Value)
+		if len(includeMatches) > 0 {
+			filepath := filepath.Join(orbRoot, includeMatches[1])
+			file, err := ioutil.ReadFile(filepath)
+			if err != nil {
+				return errors.New(fmt.Sprintf("Could not open %s for inclusion in Orb", filepath))
+			}
+
+			node.Value = string(file)
+		}
+
+	} else {
+		// I am *slightly* worried about performance related to this approach, but don't have any
+		// larger Orbs to test against.
+		for _, child := range node.Content {
+			err := inlineIncludes(child, orbRoot)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 }
