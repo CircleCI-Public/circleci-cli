@@ -762,11 +762,11 @@ https://circleci.com/orbs/registry/orb/%s
 type OrbSchema struct {
 	Version     float32                  `yaml:"version,omitempty"`
 	Description string                   `yaml:"description,omitempty"`
-	Display     interface{}              `yaml:"display,omitempty"`
-	Orbs        interface{}              `yaml:"orbs,omitempty"`
-	Commands    interface{}              `yaml:"commands,omitempty"`
-	Executors   interface{}              `yaml:"executors,omitempty"`
-	Jobs        interface{}              `yaml:"jobs,omitempty"`
+	Display     yaml.Node                `yaml:"display,omitempty"`
+	Orbs        yaml.Node                `yaml:"orbs,omitempty"`
+	Commands    yaml.Node                `yaml:"commands,omitempty"`
+	Executors   yaml.Node                `yaml:"executors,omitempty"`
+	Jobs        yaml.Node                `yaml:"jobs,omitempty"`
 	Examples    map[string]ExampleSchema `yaml:"examples,omitempty"`
 }
 
@@ -801,36 +801,31 @@ func packOrb(opts orbOptions) error {
 		return errors.Wrap(err, "An unexpected error occurred")
 	}
 
-	var node yaml.Node
-	err = yaml.Unmarshal(y, &node)
+	var orbSchema OrbSchema
+	err = yaml.Unmarshal(y, &orbSchema)
 	if err != nil {
 		return errors.Wrap(err, "An unexpected error occurred")
 	}
 
-	err = inlineIncludes(&node, opts.args[0])
+	err = func(nodes ...*yaml.Node) error {
+		for _, node := range nodes {
+			err = inlineIncludes(node, opts.args[0])
+			if err != nil {
+				return errors.Wrap(err, "An unexpected error occurred")
+			}
+		}
+		return nil
+	}(&orbSchema.Jobs, &orbSchema.Commands, &orbSchema.Executors)
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return err
 	}
 
-	final, err := yaml.Marshal(&node)
-	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
-	}
-
-	// Unmarshal again into a struct so that it can be
-	// marhsalled again but with custom-ordered keys
-	var orb OrbSchema
-	err = yaml.Unmarshal(final, &orb)
-	if err != nil {
-		return errors.Wrap(err, "Failed unmarshal YAML tree")
-	}
-
-	finalOrdered, err := yaml.Marshal(&orb)
+	final, err := yaml.Marshal(&orbSchema)
 	if err != nil {
 		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
 	}
 
-	fmt.Println(string(finalOrdered))
+	fmt.Println(string(final))
 
 	return nil
 }
