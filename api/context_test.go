@@ -150,8 +150,13 @@ var _ = Describe("API", func() {
 			}
 
 			server, client := createSingleUseGraphQLServer(list, func(count uint64, req *graphQLRequst) {
-				Expect(req.Variables["orgName"]).To(Equal("test-org"))
-				Expect(req.Variables["vcsType"]).To(Equal("TEST-VCS"))
+				switch count {
+				case 1:
+					Expect(req.Variables["organizationName"]).To(Equal("test-org"))
+					Expect(req.Variables["organizationVcs"]).To(Equal("TEST-VCS"))
+				case 2:
+					Expect(req.Variables["orgId"]).To(Equal("C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"))
+				}
 			})
 			defer server.Close()
 

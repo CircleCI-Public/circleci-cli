@@ -2581,4 +2581,51 @@ https://circleci.com/orbs/registry/orb/my/orb
 			})
 		})
 	})
+
+	Describe("Orb pack", func() {
+		var (
+			tempSettings *clitest.TempSettings
+			orb          *clitest.TmpFile
+			script       *clitest.TmpFile
+			command      *exec.Cmd
+		)
+		BeforeEach(func() {
+			tempSettings = clitest.WithTempSettings()
+			orb = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("commands", "orb.yml"))
+			clitest.OpenTmpFile(tempSettings.Home, "@orb.yml")
+			orb.Write([]byte(`steps:
+    - run:
+        name: Say hello
+        command: <<include(scripts/script.sh)>>
+`))
+			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("scripts", "script.sh"))
+			script.Write([]byte(`echo Hello, world!`))
+			command = exec.Command(pathCLI,
+				"orb", "pack",
+				"--skip-update-check",
+				tempSettings.Home,
+			)
+		})
+
+		AfterEach(func() {
+			tempSettings.Close()
+			orb.Close()
+			script.Close()
+		})
+
+		It("Includes a script in the packed Orb file", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).Should(gbytes.Say(`commands:
+    orb:
+        steps:
+            - run:
+                command: echo Hello, world!
+                name: Say hello
+`))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
+	})
 })

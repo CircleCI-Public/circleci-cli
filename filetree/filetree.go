@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-yaml/yaml"
 	"github.com/mitchellh/mapstructure"
+	"gopkg.in/yaml.v3"
 )
 
 // This is a quick hack of a function to convert interfaces
@@ -172,7 +172,7 @@ func buildTree(absRootPath string, pathNodes PathNodes) *Node {
 	return rootNode
 }
 
-func collectNodes(absRootPath string) (PathNodes, error) {
+func collectNodes(absRootPath string, allowedDirs map[string]string) (PathNodes, error) {
 	pathNodes := PathNodes{}
 	pathNodes.Map = make(map[string]*Node)
 	pathNodes.Keys = []string{}
@@ -182,8 +182,12 @@ func collectNodes(absRootPath string) (PathNodes, error) {
 			return err
 		}
 
-		// Skip any dotfolders that aren't the root path
-		if absRootPath != path && dotfolder(info) {
+		// Skip any dotfolders or dirs not explicitly allowed, if available.
+		isAllowed := true
+		if len(allowedDirs) > 0 && info.IsDir() {
+			_, isAllowed = allowedDirs[info.Name()]
+		}
+		if absRootPath != path && (dotfolder(info) || !isAllowed) {
 			// Turn off logging to stdout in this package
 			//fmt.Printf("Skipping dotfolder: %+v\n", path)
 			return filepath.SkipDir
@@ -207,13 +211,19 @@ func collectNodes(absRootPath string) (PathNodes, error) {
 }
 
 // NewTree creates a new filetree starting at the root
-func NewTree(rootPath string) (*Node, error) {
+func NewTree(rootPath string, allowedDirectories ...string) (*Node, error) {
+	allowedDirs := make(map[string]string)
+
+	for _, dir := range allowedDirectories {
+		allowedDirs[dir] = "1"
+	}
+
 	absRootPath, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, err
 	}
 
-	pathNodes, err := collectNodes(absRootPath)
+	pathNodes, err := collectNodes(absRootPath, allowedDirs)
 	if err != nil {
 		return nil, err
 	}

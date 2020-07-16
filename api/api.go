@@ -14,8 +14,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"
-	"github.com/go-yaml/yaml"
 	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
 )
 
 // GQLErrorsCollection is a slice of errors returned by the GraphQL server.
