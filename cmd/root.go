@@ -131,7 +131,7 @@ func MakeCommands() *cobra.Command {
 	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
 	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
-	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", runningInCi(), "Skip the check for updates check run before every command.")
+	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
 
 	hidden := []string{"github-api", "debug", "endpoint"}
 
@@ -255,6 +255,6 @@ This project is the seed for CircleCI's new command-line application.`
 For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
 }
 
-func runningInCi() bool {
-	return os.Getenv("CI") == "true"
+func skipUpdateByDefault() bool {
+	return os.Getenv("CI") == "true" || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == "true"
 }
