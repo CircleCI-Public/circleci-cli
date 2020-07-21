@@ -24,7 +24,7 @@ func IncludeFile(template string, root string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("could not open %s for inclusion", filepath)
 		}
-		escaped := strings.ReplaceAll("<<", string(file), "\\<<")
+		escaped := strings.ReplaceAll(string(file), "<<", "\\<<")
 
 		return escaped, nil
 	}
