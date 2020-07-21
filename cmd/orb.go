@@ -850,8 +850,9 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 			if err != nil {
 				return errors.New(fmt.Sprintf("Could not open %s for inclusion in Orb", filepath))
 			}
+			escaped := strings.ReplaceAll("<<", string(file), "\\<<")
 
-			node.Value = string(file)
+			node.Value = string(escaped)
 		}
 
 	} else {
