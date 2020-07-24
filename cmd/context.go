@@ -6,9 +6,9 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/rest_client"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
@@ -17,11 +17,10 @@ import (
 )
 
 func newContextCommand(config *settings.Config) *cobra.Command {
+	var restClient *rest_client.Client
 
-	var cl *client.Client
-
-	initClient := func(cmd *cobra.Command, args []string) error {
-		cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+	initClient := func(cmd *cobra.Command, args []string) (e error) {
+		restClient = rest_client.NewClient(config.RestServer, config.Token)
 		return validateToken(config)
 	}
 
@@ -35,7 +34,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(cl, args[0], args[1])
+			return listContexts(restClient, args[0], args[1])
 		},
 		Args: cobra.ExactArgs(2),
 	}
@@ -45,7 +44,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "show <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return showContext(cl, args[0], args[1], args[2])
+			return showContext(restClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -55,7 +54,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return storeEnvVar(cl, args[0], args[1], args[2], args[3])
+			return storeEnvVar(restClient, args[0], args[1], args[2], args[3])
 		},
 		Args: cobra.ExactArgs(4),
 	}
@@ -65,7 +64,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return removeEnvVar(cl, args[0], args[1], args[2], args[3])
+			return removeEnvVar(restClient, args[0], args[1], args[2], args[3])
 		},
 		Args: cobra.ExactArgs(4),
 	}
@@ -75,7 +74,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "create <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(cl, args[0], args[1], args[2])
+			return createContext(restClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -86,7 +85,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "delete <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deleteContext(cl, force, args[0], args[1], args[2])
+			return deleteContext(restClient, force, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -103,9 +102,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listContexts(client *client.Client, vcs, org string) error {
-
-	contexts, err := api.ListContexts(client, org, vcs)
+func listContexts(restClient *rest_client.Client, vcs, org string) error {
+	contexts, err := restClient.Contexts(vcs, org)
 
 	if err != nil {
 		return err
@@ -116,13 +114,12 @@ func listContexts(client *client.Client, vcs, org string) error {
 
 	table.SetHeader([]string{"Provider", "Organization", "Name", "Created At"})
 
-	for _, context := range contexts.Organization.Contexts.Edges {
-
+	for _, context := range *contexts {
 		table.Append([]string{
 			vcs,
 			org,
-			context.Node.Name,
-			context.Node.CreatedAt,
+			context.Name,
+			context.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	table.Render()
@@ -130,27 +127,12 @@ func listContexts(client *client.Client, vcs, org string) error {
 	return nil
 }
 
-func contextByName(client *client.Client, vcsType, orgName, contextName string) (*api.CircleCIContext, error) {
-
-	contexts, err := api.ListContexts(client, orgName, vcsType)
-
+func showContext(client *rest_client.Client, vcsType, orgName, contextName string) error {
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	for _, c := range contexts.Organization.Contexts.Edges {
-		if c.Node.Name == contextName {
-			return &c.Node, nil
-		}
-	}
-
-	return nil, fmt.Errorf("Could not find a context named '%s' in the '%s' organization.", contextName, orgName)
-}
-
-func showContext(client *client.Client, vcsType, orgName, contextName string) error {
-
-	context, err := contextByName(client, vcsType, orgName, contextName)
-
+	envVars, err := client.EnvironmentVariables(context.ID)
 	if err != nil {
 		return err
 	}
@@ -161,8 +143,8 @@ func showContext(client *client.Client, vcsType, orgName, contextName string) er
 
 	table.SetHeader([]string{"Environment Variable", "Value"})
 
-	for _, envVar := range context.Resources {
-		table.Append([]string{envVar.Variable, "••••" + envVar.TruncatedValue})
+	for _, envVar := range *envVars {
+		table.Append([]string{envVar.Variable, "••••"})
 	}
 	table.Render()
 
@@ -182,21 +164,22 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client *client.Client, vcsType, orgName, contextName string) error {
-	return api.CreateContext(client, vcsType, orgName, contextName)
+func createContext(client *rest_client.Client, vcsType, orgName, contextName string) error {
+	_, err := client.CreateContext(vcsType, orgName, contextName)
+	return err
 }
 
-func removeEnvVar(client *client.Client, vcsType, orgName, contextName, varName string) error {
-	context, err := contextByName(client, vcsType, orgName, contextName)
+func removeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
 		return err
 	}
-	return api.DeleteEnvironmentVariable(client, context.ID, varName)
+	return client.DeleteEnvironmentVariable(context.ID, varName)
 }
 
-func storeEnvVar(client *client.Client, vcsType, orgName, contextName, varName string) error {
+func storeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
 
-	context, err := contextByName(client, vcsType, orgName, contextName)
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 
 	if err != nil {
 		return err
@@ -207,7 +190,8 @@ func storeEnvVar(client *client.Client, vcsType, orgName, contextName, varName s
 		return errors.Wrap(err, "Failed to read secret value from stdin")
 	}
 
-	return api.StoreEnvironmentVariable(client, context.ID, varName, secretValue)
+	_, err = client.CreateEnvironmentVariable(context.ID, varName, secretValue)
+	return err
 }
 
 func askForConfirmation(message string) bool {
@@ -219,9 +203,9 @@ func askForConfirmation(message string) bool {
 	return strings.HasPrefix(strings.ToLower(response), "y")
 }
 
-func deleteContext(client *client.Client, force bool, vcsType, orgName, contextName string) error {
+func deleteContext(client *rest_client.Client, force bool, vcsType, orgName, contextName string) error {
 
-	context, err := contextByName(client, vcsType, orgName, contextName)
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 
 	if err != nil {
 		return err
@@ -236,5 +220,5 @@ func deleteContext(client *client.Client, force bool, vcsType, orgName, contextN
 		return errors.New("OK, cancelling")
 	}
 
-	return api.DeleteContext(client, context.ID)
+	return client.DeleteContext(context.ID)
 }
