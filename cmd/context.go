@@ -6,9 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"context"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/rest_client"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
@@ -19,8 +22,13 @@ import (
 func newContextCommand(config *settings.Config) *cobra.Command {
 
 	var cl *client.Client
+	var restClient *rest_client.ClientWithResponses
 
-	initClient := func(cmd *cobra.Command, args []string) error {
+	initClient := func(cmd *cobra.Command, args []string) (e error) {
+		restClient, e = rest_client.NewAuthenticatedClient(config.RestServer, config.Token)
+		if e != nil {
+			return e
+		}
 		cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		return validateToken(config)
 	}
@@ -35,7 +43,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(cl, args[0], args[1])
+			return listContexts(restClient, args[0], args[1])
 		},
 		Args: cobra.ExactArgs(2),
 	}
@@ -103,29 +111,38 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listContexts(client *client.Client, vcs, org string) error {
+func listContexts(restClient *rest_client.ClientWithResponses, vcs, org string) error {
 
-	contexts, err := api.ListContexts(client, org, vcs)
+	slug := fmt.Sprintf("%s/%s", vcs, org)
+	resp, err := restClient.ListContextsWithResponse(
+		context.Background(),
+		&rest_client.ListContextsParams{
+			OwnerSlug: &slug,
+		},
+	)
 
 	if err != nil {
 		return err
 
 	}
-
-	table := tablewriter.NewWriter(os.Stdout)
-
-	table.SetHeader([]string{"Provider", "Organization", "Name", "Created At"})
-
-	for _, context := range contexts.Organization.Contexts.Edges {
-
-		table.Append([]string{
-			vcs,
-			org,
-			context.Node.Name,
-			context.Node.CreatedAt,
-		})
+	if resp.JSONDefault != nil {
+		return errors.New(*resp.JSONDefault.Message)
 	}
-	table.Render()
+	if resp.JSON200 != nil {
+		table := tablewriter.NewWriter(os.Stdout)
+
+		table.SetHeader([]string{"Provider", "Organization", "Name", "Created At"})
+
+		for _, context := range resp.JSON200.Items {
+			table.Append([]string{
+				vcs,
+				org,
+				context.Name,
+				context.CreatedAt.Format(time.RFC3339),
+			})
+		}
+		table.Render()
+	}
 
 	return nil
 }
