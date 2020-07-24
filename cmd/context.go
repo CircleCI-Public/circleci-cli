@@ -6,9 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/rest_client"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
@@ -19,8 +21,10 @@ import (
 func newContextCommand(config *settings.Config) *cobra.Command {
 
 	var cl *client.Client
+	var restClient *rest_client.Client
 
-	initClient := func(cmd *cobra.Command, args []string) error {
+	initClient := func(cmd *cobra.Command, args []string) (e error) {
+		restClient = rest_client.NewClient(config.RestServer, config.Token)
 		cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		return validateToken(config)
 	}
@@ -35,7 +39,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(cl, args[0], args[1])
+			return listContexts(restClient, args[0], args[1])
 		},
 		Args: cobra.ExactArgs(2),
 	}
@@ -86,7 +90,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "delete <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deleteContext(cl, force, args[0], args[1], args[2])
+			return deleteContext(restClient, force, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -103,9 +107,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listContexts(client *client.Client, vcs, org string) error {
-
-	contexts, err := api.ListContexts(client, org, vcs)
+func listContexts(restClient *rest_client.Client, vcs, org string) error {
+	contexts, err := restClient.Contexts(org, vcs)
 
 	if err != nil {
 		return err
@@ -116,13 +119,12 @@ func listContexts(client *client.Client, vcs, org string) error {
 
 	table.SetHeader([]string{"Provider", "Organization", "Name", "Created At"})
 
-	for _, context := range contexts.Organization.Contexts.Edges {
-
+	for _, context := range *contexts {
 		table.Append([]string{
 			vcs,
 			org,
-			context.Node.Name,
-			context.Node.CreatedAt,
+			context.Name,
+			context.CreatedAt.Format(time.RFC3339),
 		})
 	}
 	table.Render()
@@ -219,9 +221,9 @@ func askForConfirmation(message string) bool {
 	return strings.HasPrefix(strings.ToLower(response), "y")
 }
 
-func deleteContext(client *client.Client, force bool, vcsType, orgName, contextName string) error {
+func deleteContext(client *rest_client.Client, force bool, vcsType, orgName, contextName string) error {
 
-	context, err := contextByName(client, vcsType, orgName, contextName)
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 
 	if err != nil {
 		return err
@@ -236,5 +238,5 @@ func deleteContext(client *client.Client, force bool, vcsType, orgName, contextN
 		return errors.New("OK, cancelling")
 	}
 
-	return api.DeleteContext(client, context.ID)
+	return client.DeleteContext(context.ID)
 }
