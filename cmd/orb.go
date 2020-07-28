@@ -836,7 +836,7 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 	// Otherwise, we recurse into the children of the Node in search of
 	// a matching regex.
 	if node.Kind == yaml.ScalarNode && node.Value != "" {
-		v, err := process.IncludeFile(node.Value, orbRoot)
+		v, err := process.MaybeIncludeFile(node.Value, orbRoot)
 		if err != nil {
 			return err
 		}
