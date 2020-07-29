@@ -60,8 +60,40 @@ type ClientInterface interface {
 	DeleteEnvironmentVariable(contextID, variable string) error
 }
 
-func toSlug(vcs, org string) string {
-	return fmt.Sprintf("%s/%s", vcs, org)
+func toSlug(vcs, org string) *string {
+	slug := fmt.Sprintf("%s/%s", vcs, org)
+	return &slug
+}
+
+func (c *Client) CreateContext(vcs, org, name string) (*Context, error) {
+	req, err := c.newCreateContextRequest(vcs, org, name)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		return nil, errors.New(*dest.Message)
+	}
+	var dest Context
+	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+		return nil, err
+	}
+	return &dest, nil
 }
 
 func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error) {
@@ -122,20 +154,18 @@ func (c *Client) DeleteContext(contextID string) error {
 }
 
 func (c *Client) Contexts(vcs, org string) (*[]Context, error) {
-	slug := toSlug(vcs, org)
 	contexts, error := c.listAllContexts(
 		&listContextsParams{
-			OwnerSlug: &slug,
+			OwnerSlug: toSlug(vcs, org),
 		},
 	)
 	return &contexts, error
 }
 
 func (c *Client) ContextByName(vcs, org, name string) (*Context, error) {
-	slug := toSlug(vcs, org)
 	return c.getContextByName(
 		&listContextsParams{
-			OwnerSlug: &slug,
+			OwnerSlug: toSlug(vcs, org),
 		},
 		name,
 	)
@@ -214,6 +244,43 @@ func (c *Client) listContexts (params *listContextsParams) (*listContextsRespons
 		return nil, err
 	}
 	return &dest, nil
+}
+
+func (c *Client) newCreateContextRequest(vcs, org, name string) (*http.Request, error) {
+	var err error
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err = queryURL.Parse("context")
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyReader io.Reader
+
+	var body = struct {
+		Name  string `json:"name"`
+		Owner struct {
+			Slug *string `json:"slug,omitempty"`
+		} `json:"owner"`
+	}{
+		Name: name,
+		Owner: struct{
+			Slug *string `json:"slug,omitempty"`
+		}{
+			Slug: toSlug(vcs, org),
+		},
+	}
+	buf, err := json.Marshal(body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader = bytes.NewReader(buf)
+
+	return c.newHTTPRequest("POST", queryURL.String(), bodyReader)
 }
 
 func (c *Client) newCreateEnvironmentVariableRequest(contextID, variable, value string) (*http.Request, error) {

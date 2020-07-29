@@ -79,7 +79,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "create <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(cl, args[0], args[1], args[2])
+			return createContext(restClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -184,8 +184,9 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client *client.Client, vcsType, orgName, contextName string) error {
-	return api.CreateContext(client, vcsType, orgName, contextName)
+func createContext(client *rest_client.Client, vcsType, orgName, contextName string) error {
+	_, err := client.CreateContext(vcsType, orgName, contextName)
+	return err
 }
 
 func removeEnvVar(client *client.Client, vcsType, orgName, contextName, varName string) error {
