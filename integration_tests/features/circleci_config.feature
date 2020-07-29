@@ -38,7 +38,7 @@ Feature: Config checking
         steps: [checkout]
     """
     When I run `circleci config process --skip-update-check config.yml`
-    Then the output should contain exactly:
+    Then the output should match:
     """
     version: 2
     jobs:
@@ -46,6 +46,8 @@ Feature: Config checking
         machine: true
         steps:
         - checkout
+        environment:
+        - CIRCLE_COMPARE_URL: .*
     workflows:
       version: 2
       workflow:
