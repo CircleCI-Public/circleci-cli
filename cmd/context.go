@@ -69,7 +69,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return removeEnvVar(cl, args[0], args[1], args[2], args[3])
+			return removeEnvVar(restClient, args[0], args[1], args[2], args[3])
 		},
 		Args: cobra.ExactArgs(4),
 	}
@@ -189,12 +189,12 @@ func createContext(client *rest_client.Client, vcsType, orgName, contextName str
 	return err
 }
 
-func removeEnvVar(client *client.Client, vcsType, orgName, contextName, varName string) error {
-	context, err := contextByName(client, vcsType, orgName, contextName)
+func removeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
 		return err
 	}
-	return api.DeleteEnvironmentVariable(client, context.ID, varName)
+	return client.DeleteEnvironmentVariable(context.ID, varName)
 }
 
 func storeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
