@@ -1,6 +1,7 @@
 package rest_client
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -42,19 +43,55 @@ type listContextsParams struct {
 	PageToken *string
 }
 
+type EnvironmentVariable struct {
+	Variable string
+	ContextID string
+	CreatedAt string
+}
+
 type ClientInterface interface {
-	Contexts(org, vcs string) (*[]Context, error)
-	ContextByName(org, vcs, name string) (*Context, error)
+	Contexts(vcs, org string) (*[]Context, error)
+	ContextByName(vcs, org, name string) (*Context, error)
 	DeleteContext(contextID string) error
-	CreateContext(org, vcs, name string) (*Context, error)
+	CreateContext(vcs, org, name string) (*Context, error)
 
 	EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error)
 	CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error)
 	DeleteEnvironmentVariable(contextID, variable string) error
 }
 
-func toSlug(org, vcs string) string {
+func toSlug(vcs, org string) string {
 	return fmt.Sprintf("%s/%s", vcs, org)
+}
+
+func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error) {
+	req, err := c.newCreateEnvironmentVariableRequest(contextID, variable, value)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		return nil, errors.New(*dest.Message)
+	}
+	var dest EnvironmentVariable
+	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+		return nil, err
+	}
+	return &dest, nil
 }
 
 func (c *Client) DeleteContext(contextID string) error {
@@ -84,8 +121,8 @@ func (c *Client) DeleteContext(contextID string) error {
 	return nil
 }
 
-func (c *Client) Contexts(org, vcs string) (*[]Context, error) {
-	slug := toSlug(org, vcs)
+func (c *Client) Contexts(vcs, org string) (*[]Context, error) {
+	slug := toSlug(vcs, org)
 	contexts, error := c.listAllContexts(
 		&listContextsParams{
 			OwnerSlug: &slug,
@@ -94,8 +131,8 @@ func (c *Client) Contexts(org, vcs string) (*[]Context, error) {
 	return &contexts, error
 }
 
-func (c *Client) ContextByName(org, vcs, name string) (*Context, error) {
-	slug := toSlug(org, vcs)
+func (c *Client) ContextByName(vcs, org, name string) (*Context, error) {
+	slug := toSlug(vcs, org)
 	return c.getContextByName(
 		&listContextsParams{
 			OwnerSlug: &slug,
@@ -179,6 +216,34 @@ func (c *Client) listContexts (params *listContextsParams) (*listContextsRespons
 	return &dest, nil
 }
 
+func (c *Client) newCreateEnvironmentVariableRequest(contextID, variable, value string) (*http.Request, error) {
+	var err error
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err = queryURL.Parse(fmt.Sprintf("context/%s/environment-variable/%s", contextID, variable))
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyReader io.Reader
+	body := struct{
+		Value string `json:"value"`
+	}{
+		Value: value,
+	}
+	buf, err := json.Marshal(body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader = bytes.NewReader(buf)
+
+	return c.newHTTPRequest("PUT", queryURL.String(), bodyReader)
+}
+
 func (c *Client) newDeleteContextRequest(contextID string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -226,6 +291,7 @@ func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Reque
 	}
 	req.Header.Add("circle-token", c.token)
 	req.Header.Add("Accept", "application/json")
+	req.Header.Add("Content-Type", "application/json")
 	return req, nil
 }
 

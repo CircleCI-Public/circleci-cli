@@ -59,7 +59,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return storeEnvVar(cl, args[0], args[1], args[2], args[3])
+			return storeEnvVar(restClient, args[0], args[1], args[2], args[3])
 		},
 		Args: cobra.ExactArgs(4),
 	}
@@ -108,7 +108,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 }
 
 func listContexts(restClient *rest_client.Client, vcs, org string) error {
-	contexts, err := restClient.Contexts(org, vcs)
+	contexts, err := restClient.Contexts(vcs, org)
 
 	if err != nil {
 		return err
@@ -196,9 +196,9 @@ func removeEnvVar(client *client.Client, vcsType, orgName, contextName, varName 
 	return api.DeleteEnvironmentVariable(client, context.ID, varName)
 }
 
-func storeEnvVar(client *client.Client, vcsType, orgName, contextName, varName string) error {
+func storeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
 
-	context, err := contextByName(client, vcsType, orgName, contextName)
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 
 	if err != nil {
 		return err
@@ -209,7 +209,8 @@ func storeEnvVar(client *client.Client, vcsType, orgName, contextName, varName s
 		return errors.Wrap(err, "Failed to read secret value from stdin")
 	}
 
-	return api.StoreEnvironmentVariable(client, context.ID, varName, secretValue)
+	_, err = client.CreateEnvironmentVariable(context.ID, varName, secretValue)
+	return err
 }
 
 func askForConfirmation(message string) bool {
