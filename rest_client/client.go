@@ -25,6 +25,13 @@ type Context struct{
 	Name string `json:"name"`
 }
 
+type listEnvironmentVariablesResponse struct {
+	Items []EnvironmentVariable
+	NextPageToken *string
+	client *Client
+	params *listEnvironmentVariablesParams
+}
+
 type listContextsResponse struct {
 	Items []Context
 	NextPageToken *string `json:"next_page_token"`
@@ -40,6 +47,11 @@ type listContextsParams struct {
 	OwnerID *string
 	OwnerSlug *string
 	OwnerType *string
+	PageToken *string
+}
+
+type listEnvironmentVariablesParams struct {
+	ContextID *string
 	PageToken *string
 }
 
@@ -180,6 +192,15 @@ func (c *Client) DeleteContext(contextID string) error {
 	return nil
 }
 
+func (c *Client) EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error) {
+	envVars, error := c.listAllEnvironmentVariables(
+		&listEnvironmentVariablesParams{
+			ContextID: &contextID,
+		},
+	)
+	return &envVars, error
+}
+
 func (c *Client) Contexts(vcs, org string) (*[]Context, error) {
 	contexts, error := c.listAllContexts(
 		&listContextsParams{
@@ -196,6 +217,25 @@ func (c *Client) ContextByName(vcs, org, name string) (*Context, error) {
 		},
 		name,
 	)
+}
+
+func (c *Client) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) ([]EnvironmentVariable, error) {
+	resp, err := c.listEnvironmentVariables(params)
+	if err != nil {
+		return nil, err
+	}
+
+	envVars := resp.Items
+	if resp.NextPageToken != nil {
+		params.PageToken = resp.NextPageToken
+		after, err := c.listAllEnvironmentVariables(params)
+		if err != nil {
+			return nil, err
+		}
+		envVars = append(envVars, after...)
+	}
+	return envVars, nil
+
 }
 
 func (c *Client) listAllContexts(params *listContextsParams) ([]Context, error) {
@@ -236,6 +276,40 @@ func (c *Client) getContextByName(params *listContextsParams, name string) (*Con
 		return context, nil
 	}
 	return nil, fmt.Errorf("Cannot find context named '%s'", name)
+}
+
+func (c *Client) listEnvironmentVariables (params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
+	req, err := c.newListEnvironmentVariablesRequest(params)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if resp.StatusCode != 200 {
+		var dest ErrorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return nil, err
+		}
+		return nil, errors.New(*dest.Message)
+
+	}
+	dest := listEnvironmentVariablesResponse{
+		client: c,
+		params: params,
+	}
+	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+		return nil, err
+	}
+	return &dest, nil
 }
 
 func (c *Client) listContexts (params *listContextsParams) (*listContextsResponse, error) {
@@ -362,6 +436,25 @@ func (c *Client) newDeleteContextRequest(contextID string) (*http.Request, error
 		return nil, err
 	}
 	return c.newHTTPRequest("DELETE", queryURL.String(), nil)
+}
+
+func (c *Client) newListEnvironmentVariablesRequest(params *listEnvironmentVariablesParams) (*http.Request, error) {
+	var err error
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err = queryURL.Parse(fmt.Sprintf("context/%s/environment-variable", *params.ContextID))
+	if err != nil {
+		return nil, err
+	}
+	urlParams := url.Values{}
+	if params.PageToken != nil {
+		urlParams.Add("page-token", *params.PageToken)
+	}
+	queryURL.RawQuery = urlParams.Encode()
+
+	return c.newHTTPRequest("GET", queryURL.String(), nil)
 }
 
 func (c *Client) newListContextsRequest(params *listContextsParams) (*http.Request, error) {

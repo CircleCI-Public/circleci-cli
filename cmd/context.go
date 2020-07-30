@@ -8,8 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/rest_client"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -19,13 +17,10 @@ import (
 )
 
 func newContextCommand(config *settings.Config) *cobra.Command {
-
-	var cl *client.Client
 	var restClient *rest_client.Client
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
 		restClient = rest_client.NewClient(config.RestServer, config.Token)
-		cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		return validateToken(config)
 	}
 
@@ -49,7 +44,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "show <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return showContext(cl, args[0], args[1], args[2])
+			return showContext(restClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -132,27 +127,12 @@ func listContexts(restClient *rest_client.Client, vcs, org string) error {
 	return nil
 }
 
-func contextByName(client *client.Client, vcsType, orgName, contextName string) (*api.CircleCIContext, error) {
-
-	contexts, err := api.ListContexts(client, orgName, vcsType)
-
+func showContext(client *rest_client.Client, vcsType, orgName, contextName string) error {
+	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	for _, c := range contexts.Organization.Contexts.Edges {
-		if c.Node.Name == contextName {
-			return &c.Node, nil
-		}
-	}
-
-	return nil, fmt.Errorf("Could not find a context named '%s' in the '%s' organization.", contextName, orgName)
-}
-
-func showContext(client *client.Client, vcsType, orgName, contextName string) error {
-
-	context, err := contextByName(client, vcsType, orgName, contextName)
-
+	envVars, err := client.EnvironmentVariables(context.ID)
 	if err != nil {
 		return err
 	}
@@ -163,8 +143,8 @@ func showContext(client *client.Client, vcsType, orgName, contextName string) er
 
 	table.SetHeader([]string{"Environment Variable", "Value"})
 
-	for _, envVar := range context.Resources {
-		table.Append([]string{envVar.Variable, "••••" + envVar.TruncatedValue})
+	for _, envVar := range *envVars {
+		table.Append([]string{envVar.Variable, "••••"})
 	}
 	table.Render()
 
