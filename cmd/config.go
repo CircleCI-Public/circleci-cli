@@ -141,7 +141,7 @@ func validateConfig(opts configOptions) error {
 }
 
 func processConfig(opts configOptions) error {
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], nil)
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], pipeline.FabricatedValues())
 
 	if err != nil {
 		return err
