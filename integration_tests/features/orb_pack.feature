@@ -43,6 +43,6 @@ Feature: Orb pack
     When I run `circleci orb pack src`
     Then the output should contain:
     """
-    Error: An unexpected error occurred: Could not open src/script.sh for inclusion in Orb
+    Error: An unexpected error occurred: could not open src/script.sh for inclusion
     """
     And the exit status should be 255

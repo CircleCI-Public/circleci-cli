@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,6 +13,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
+	"github.com/CircleCI-Public/circleci-cli/process"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -833,27 +832,15 @@ func packOrb(opts orbOptions) error {
 
 // Travel down a YAML node, replacing values as we go.
 func inlineIncludes(node *yaml.Node, orbRoot string) error {
-	// View: https://regexr.com/582gb
-	includeRegex, err := regexp.Compile(`(?U)^<<\s*include\((.*\/*[^\/]+)\)\s*?>>$`)
-	if err != nil {
-		return err
-	}
-
 	// If we're dealing with a ScalarNode, we can replace the contents.
 	// Otherwise, we recurse into the children of the Node in search of
 	// a matching regex.
 	if node.Kind == yaml.ScalarNode && node.Value != "" {
-		includeMatches := includeRegex.FindStringSubmatch(node.Value)
-		if len(includeMatches) > 0 {
-			filepath := filepath.Join(orbRoot, includeMatches[1])
-			file, err := ioutil.ReadFile(filepath)
-			if err != nil {
-				return errors.New(fmt.Sprintf("Could not open %s for inclusion in Orb", filepath))
-			}
-
-			node.Value = string(file)
+		v, err := process.MaybeIncludeFile(node.Value, orbRoot)
+		if err != nil {
+			return err
 		}
-
+		node.Value = v
 	} else {
 		// I am *slightly* worried about performance related to this approach, but don't have any
 		// larger Orbs to test against.
