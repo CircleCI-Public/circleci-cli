@@ -20,7 +20,10 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	var restClient *rest_client.Client
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		restClient = rest_client.NewClient(config.RestServer, config.Token)
+		restClient, e  = rest_client.NewClient(config.Host, config.RestEndpoint, config.Token)
+		if e != nil {
+			return e
+		}
 		return validateToken(config)
 	}
 
