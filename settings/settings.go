@@ -17,7 +17,7 @@ type Config struct {
 	Host            string
 	Endpoint        string
 	Token           string
-	RestServer      string    `yaml:"rest_server"`
+	RestEndpoint    string    `yaml:"rest_endpoint"`
 	Data            *data.YML `yaml:"-"`
 	Debug           bool      `yaml:"-"`
 	Address         string    `yaml:"-"`
@@ -109,8 +109,8 @@ func (cfg *Config) LoadFromEnv(prefix string) {
 		cfg.Host = host
 	}
 
-	if restServer := ReadFromEnv(prefix, "rest_server"); restServer != "" {
-		cfg.RestServer = restServer
+	if restEndpoint := ReadFromEnv(prefix, "rest_endpoint"); restEndpoint != "" {
+		cfg.RestEndpoint = restEndpoint
 	}
 
 	if endpoint := ReadFromEnv(prefix, "endpoint"); endpoint != "" {
