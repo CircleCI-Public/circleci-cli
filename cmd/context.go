@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/rest_client"
+	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
@@ -17,10 +17,10 @@ import (
 )
 
 func newContextCommand(config *settings.Config) *cobra.Command {
-	var restClient *rest_client.Client
+	var restClient *api.Client
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		restClient, e  = rest_client.NewClient(config.Host, config.RestEndpoint, config.Token)
+		restClient, e  = api.NewClient(config.Host, config.RestEndpoint, config.Token)
 		if e != nil {
 			return e
 		}
@@ -105,7 +105,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listContexts(restClient *rest_client.Client, vcs, org string) error {
+func listContexts(restClient *api.Client, vcs, org string) error {
 	contexts, err := restClient.Contexts(vcs, org)
 
 	if err != nil {
@@ -130,7 +130,7 @@ func listContexts(restClient *rest_client.Client, vcs, org string) error {
 	return nil
 }
 
-func showContext(client *rest_client.Client, vcsType, orgName, contextName string) error {
+func showContext(client *api.Client, vcsType, orgName, contextName string) error {
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
 		return err
@@ -167,12 +167,12 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client *rest_client.Client, vcsType, orgName, contextName string) error {
+func createContext(client *api.Client, vcsType, orgName, contextName string) error {
 	_, err := client.CreateContext(vcsType, orgName, contextName)
 	return err
 }
 
-func removeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
+func removeEnvVar(client *api.Client, vcsType, orgName, contextName, varName string) error {
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
 		return err
@@ -180,7 +180,7 @@ func removeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, var
 	return client.DeleteEnvironmentVariable(context.ID, varName)
 }
 
-func storeEnvVar(client *rest_client.Client, vcsType, orgName, contextName, varName string) error {
+func storeEnvVar(client *api.Client, vcsType, orgName, contextName, varName string) error {
 
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 
@@ -206,7 +206,7 @@ func askForConfirmation(message string) bool {
 	return strings.HasPrefix(strings.ToLower(response), "y")
 }
 
-func deleteContext(client *rest_client.Client, force bool, vcsType, orgName, contextName string) error {
+func deleteContext(client *api.Client, force bool, vcsType, orgName, contextName string) error {
 
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 
