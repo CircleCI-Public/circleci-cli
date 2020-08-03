@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+type NotFoundError string
+
 type Client struct {
 	token string
 	server string
@@ -48,6 +50,10 @@ type listEnvironmentVariablesParams struct {
 	PageToken *string
 }
 
+func (e NotFoundError) Error() string {
+	return e
+}
+
 func toSlug(vcs, org string) *string {
 	slug := fmt.Sprintf("%s/%s", vcs, org)
 	return &slug
@@ -80,35 +86,35 @@ func (c *Client) DeleteEnvironmentVariable(contextID, variable string) error {
 	return nil
 }
 
-func (c *Client) CreateContext(vcs, org, name string) (*Context, error) {
+func (c *Client) CreateContext(vcs, org, name string) (error) {
 	req, err := c.newCreateContextRequest(vcs, org, name)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	resp, err := c.client.Do(req)
 
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if resp.StatusCode != 200 {
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+			return err
 		}
-		return nil, errors.New(*dest.Message)
+		return errors.New(*dest.Message)
 	}
 	var dest Context
 	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-		return nil, err
+		return err
 	}
-	return &dest, nil
+	return nil
 }
 
 func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error) {
@@ -308,6 +314,11 @@ func (c *Client) listContexts (params *listContextsParams) (*listContextsRespons
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
+
+		}
+		if resp.StatusCode == 404 {
+			// TODO: make this work
+			return nil, NotFoundError(err)
 		}
 		return nil, errors.New(*dest.Message)
 

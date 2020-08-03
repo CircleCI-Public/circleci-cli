@@ -4,10 +4,15 @@ package api
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/pkg/errors"
 )
+
+type GraphQLContextClient struct {
+	Client *client.Client
+}
 
 type Resource struct {
 	Variable       string
@@ -48,7 +53,7 @@ func improveVcsTypeError(err error) error {
 	return err
 }
 
-func CreateContext(cl *client.Client, vcsType, orgName, contextName string) error {
+func CreateContext(cl *client.Client, vcsType, orgName, contextName string) (error) {
 
 	org, err := getOrganization(cl, orgName, vcsType)
 
@@ -104,7 +109,8 @@ func CreateContext(cl *client.Client, vcsType, orgName, contextName string) erro
 	return nil
 }
 
-func ListContexts(cl *client.Client, orgName, vcsType string) (*ContextsQueryResponse, error) {
+func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, error) {
+	cl := c.Client
 	// In theory we can lookup the organization by name and its contexts in
 	// the same query, but using separate requests to circumvent a bug in
 	// the API
@@ -163,7 +169,24 @@ func ListContexts(cl *client.Client, orgName, vcsType string) (*ContextsQueryRes
 
 	var response ContextsQueryResponse
 	err = cl.Run(request, &response)
-	return &response, errors.Wrapf(improveVcsTypeError(err), "failed to load context list")
+	if err != nil {
+		return nil, errors.Wrapf(improveVcsTypeError(err), "failed to load context list")
+	}
+	var contexts []Context
+        for _, edge := range response.Organization.Contexts.Edges {
+		context := edge.Node
+		created_at, err := time.Parse(time.RFC3339, context.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		contexts = append(contexts, Context{
+			Name: context.Name,
+			ID: context.ID,
+			CreatedAt: created_at,
+		})
+	}
+
+	return &contexts, nil
 }
 
 func DeleteEnvironmentVariable(cl *client.Client, contextId, variableName string) error {

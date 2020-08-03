@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
@@ -18,12 +19,17 @@ import (
 
 func newContextCommand(config *settings.Config) *cobra.Command {
 	var restClient *api.Client
+	var graphQLContextClient *api.GraphQLContextClient
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
 		restClient, e  = api.NewClient(config.Host, config.RestEndpoint, config.Token)
 		if e != nil {
 			return e
 		}
+		graphQLContextClient = &api.GraphQLContextClient{
+			Client: client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug),
+		} 
+
 		return validateToken(config)
 	}
 
@@ -37,7 +43,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(restClient, args[0], args[1])
+			return listContexts(graphQLContextClient, args[0], args[1])
 		},
 		Args: cobra.ExactArgs(2),
 	}
@@ -105,12 +111,17 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listContexts(restClient *api.Client, vcs, org string) error {
+func listContexts(restClient, graphQLClient api.ClientInterface, vcs, org string) error {
 	contexts, err := restClient.Contexts(vcs, org)
 
 	if err != nil {
-		return err
-
+		_, is_not_found := err.(NotFoundError)
+		if ok {
+			contexts, err := graphQLClient.Contexts(vcs, org)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -168,7 +179,7 @@ func readSecretValue() (string, error) {
 }
 
 func createContext(client *api.Client, vcsType, orgName, contextName string) error {
-	_, err := client.CreateContext(vcsType, orgName, contextName)
+	err := client.CreateContext(vcsType, orgName, contextName)
 	return err
 }
 
