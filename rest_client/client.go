@@ -498,14 +498,23 @@ func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Reque
 	return req, nil
 }
 
-func NewClient(server, token string) (*Client) {
+func NewClient(host, endpoint, token string) (*Client, error) {
 	// Ensure server ends with a slash
-	if !strings.HasSuffix(server, "/") {
-		server += "/"
+	if !strings.HasSuffix(endpoint, "/") {
+		endpoint += "/"
+	}
+	serverURL, err := url.Parse(host)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err = serverURL.Parse(endpoint)
+	if err != nil {
+		return nil, err
 	}
 	return &Client{
 		token: token,
-		server: server,
+		server: serverURL.String(),
 		client: &http.Client{},
-	}
+	}, nil
 }

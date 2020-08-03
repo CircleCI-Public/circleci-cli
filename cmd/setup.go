@@ -250,6 +250,7 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Use the default endpoint since we don't expose that to users
 	config.Endpoint = defaultEndpoint
+	config.RestEndpoint = defaultRestEndpoint
 	config.Host = opts.host   // Set new host to flag
 	config.Token = opts.token // Set new token to flag
 
