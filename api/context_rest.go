@@ -1,4 +1,4 @@
-package rest_client
+package api
 
 import (
 	"bytes"
@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"encoding/json"
-	"time"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -17,12 +16,6 @@ type Client struct {
 	token string
 	server string
 	client *http.Client
-}
-
-type Context struct{
-	CreatedAt time.Time `json:"created_at"`
-	ID string `json:"id"`
-	Name string `json:"name"`
 }
 
 type listEnvironmentVariablesResponse struct {
@@ -53,23 +46,6 @@ type listContextsParams struct {
 type listEnvironmentVariablesParams struct {
 	ContextID *string
 	PageToken *string
-}
-
-type EnvironmentVariable struct {
-	Variable string
-	ContextID string
-	CreatedAt string
-}
-
-type ClientInterface interface {
-	Contexts(vcs, org string) (*[]Context, error)
-	ContextByName(vcs, org, name string) (*Context, error)
-	DeleteContext(contextID string) error
-	CreateContext(vcs, org, name string) (*Context, error)
-
-	EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error)
-	CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error)
-	DeleteEnvironmentVariable(contextID, variable string) error
 }
 
 func toSlug(vcs, org string) *string {
