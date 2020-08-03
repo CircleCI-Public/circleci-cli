@@ -7,7 +7,7 @@ import (
 type EnvironmentVariable struct {
 	Variable string
 	ContextID string
-	CreatedAt string
+	CreatedAt string // TODO: make this a time.Time
 }
 
 type Context struct{
@@ -20,9 +20,9 @@ type ClientInterface interface {
 	Contexts(vcs, org string) (*[]Context, error)
 	ContextByName(vcs, org, name string) (*Context, error)
 	DeleteContext(contextID string) error
-	CreateContext(vcs, org, name string) (*Context, error)
+	CreateContext(vcs, org, name string) (error)
 
 	EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error)
-	CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error)
+	CreateEnvironmentVariable(contextID, variable, value string) error
 	DeleteEnvironmentVariable(contextID, variable string) error
 }
