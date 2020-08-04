@@ -492,6 +492,25 @@ func (c *Client) Test() error {
 	if resp.StatusCode != 200 {
 		return errors.New("API v2 test request failed.")
 	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return err
+	}
+	var respBody struct{
+		Paths struct{
+			ContextEndpoint interface{} `json:"/context"`
+		}
+	}
+	if err := json.Unmarshal(bodyBytes, &respBody); err != nil {
+		return err
+	}
+
+	if respBody.Paths.ContextEndpoint == nil {
+		return errors.New("No context endpoint exists")
+	}
+
 	return nil
 }
 
