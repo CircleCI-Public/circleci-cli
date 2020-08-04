@@ -26,7 +26,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 			return e
 		}
 
-		if !config.UseRestAPI {
+		if !*config.UseRestAPI {
 			e = contextClient.(*api.Client).Test()
 			if e != nil {
 				contextClient = &api.GraphQLContextClient{
