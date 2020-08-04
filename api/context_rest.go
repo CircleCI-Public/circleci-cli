@@ -12,8 +12,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-type NotFoundError string
-
 type Client struct {
 	token string
 	server string
@@ -48,10 +46,6 @@ type listContextsParams struct {
 type listEnvironmentVariablesParams struct {
 	ContextID *string
 	PageToken *string
-}
-
-func (e NotFoundError) Error() string {
-	return e
 }
 
 func toSlug(vcs, org string) *string {
@@ -117,34 +111,30 @@ func (c *Client) CreateContext(vcs, org, name string) (error) {
 	return nil
 }
 
-func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) (*EnvironmentVariable, error) {
+func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) error {
 	req, err := c.newCreateEnvironmentVariableRequest(contextID, variable, value)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
-		return nil, err
+		return err
 	}
 	if resp.StatusCode != 200 {
 		var dest ErrorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-			return nil, err
+			return err
 		}
-		return nil, errors.New(*dest.Message)
+		return errors.New(*dest.Message)
 	}
-	var dest EnvironmentVariable
-	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
-		return nil, err
-	}
-	return &dest, nil
+	return nil
 }
 
 func (c *Client) DeleteContext(contextID string) error {
@@ -316,10 +306,6 @@ func (c *Client) listContexts (params *listContextsParams) (*listContextsRespons
 			return nil, err
 
 		}
-		if resp.StatusCode == 404 {
-			// TODO: make this work
-			return nil, NotFoundError(err)
-		}
 		return nil, errors.New(*dest.Message)
 
 	}
@@ -485,6 +471,30 @@ func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Reque
 	return req, nil
 }
 
+func (c *Client) Test() error {
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return err
+	}
+	queryURL, err = queryURL.Parse("openapi.json")
+	if err != nil {
+		return err
+	}
+	req, err := c.newHTTPRequest("GET", queryURL.String(), nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		return errors.New("API v2 test request failed.")
+	}
+	return nil
+}
+
 func NewClient(host, endpoint, token string) (*Client, error) {
 	// Ensure server ends with a slash
 	if !strings.HasSuffix(endpoint, "/") {
@@ -499,9 +509,12 @@ func NewClient(host, endpoint, token string) (*Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{
+
+	client := &Client{
 		token: token,
 		server: serverURL.String(),
 		client: &http.Client{},
-	}, nil
+	}
+
+	return client, nil
 }

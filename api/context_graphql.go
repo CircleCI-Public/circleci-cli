@@ -53,7 +53,8 @@ func improveVcsTypeError(err error) error {
 	return err
 }
 
-func CreateContext(cl *client.Client, vcsType, orgName, contextName string) (error) {
+func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName string) (error) {
+	cl := c.Client
 
 	org, err := getOrganization(cl, orgName, vcsType)
 
@@ -107,6 +108,49 @@ func CreateContext(cl *client.Client, vcsType, orgName, contextName string) (err
 	}
 
 	return nil
+}
+
+func (c *GraphQLContextClient) ContextByName(vcs, org, name string) (*Context, error) {
+	contexts , err := c.Contexts(vcs, org)
+	if err != nil {
+		return nil, err
+	}
+	for _, c := range *contexts {
+		if c.Name == name {
+			return &c, nil
+		}
+	}
+	return nil, errors.New("No context found with that name")
+}
+
+func (c *GraphQLContextClient) EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error) {
+	cl := c.Client
+	query := `
+	query Context($id: ID!) {
+		context(id: $id) {
+			resources {
+				variable
+				createdAt
+			}
+		}
+	}`
+	request := client.NewRequest(query)
+	request.SetToken(cl.Token)
+	request.Var("id", contextID)
+	var resp struct{
+		Context struct{
+			Resources []EnvironmentVariable
+		}
+	}
+	err := cl.Run(request, &resp)
+
+	if err != nil {
+		return nil, err
+	}
+	for _, ev := range resp.Context.Resources {
+		ev.ContextID = contextID
+	}
+	return &resp.Context.Resources, nil
 }
 
 func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, error) {
@@ -189,7 +233,8 @@ func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, er
 	return &contexts, nil
 }
 
-func DeleteEnvironmentVariable(cl *client.Client, contextId, variableName string) error {
+func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName string) error {
+	cl := c.Client
 	query := `
 	mutation DeleteEnvVar($input: RemoveEnvironmentVariableInput!) {
 		removeEnvironmentVariable(input: $input) {
@@ -230,7 +275,8 @@ func DeleteEnvironmentVariable(cl *client.Client, contextId, variableName string
 	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment varaible")
 }
 
-func StoreEnvironmentVariable(cl *client.Client, contextId, variableName, secretValue string) error {
+func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName, secretValue string) error {
+	cl := c.Client
 	query := `
 	mutation CreateEnvVar($input: StoreEnvironmentVariableInput!) {
 		storeEnvironmentVariable(input: $input) {
@@ -291,7 +337,8 @@ func StoreEnvironmentVariable(cl *client.Client, contextId, variableName, secret
 	return nil
 }
 
-func DeleteContext(cl *client.Client, contextId string) error {
+func (c *GraphQLContextClient) DeleteContext(contextId string) error {
+	cl := c.Client
 	query := `
 	mutation DeleteContext($input: DeleteContextInput!) {
 		deleteContext(input: $input) {

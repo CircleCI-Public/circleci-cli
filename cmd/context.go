@@ -18,17 +18,22 @@ import (
 )
 
 func newContextCommand(config *settings.Config) *cobra.Command {
-	var restClient *api.Client
-	var graphQLContextClient *api.GraphQLContextClient
+	var contextClient api.ClientInterface
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		restClient, e  = api.NewClient(config.Host, config.RestEndpoint, config.Token)
+		contextClient, e = api.NewClient(config.Host, config.RestEndpoint, config.Token)
 		if e != nil {
 			return e
 		}
-		graphQLContextClient = &api.GraphQLContextClient{
-			Client: client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug),
-		} 
+
+		if !config.UseRestAPI {
+			e = contextClient.(*api.Client).Test()
+			if e != nil {
+				contextClient = &api.GraphQLContextClient{
+					Client: client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug),
+				}
+			}
+		}
 
 		return validateToken(config)
 	}
@@ -43,7 +48,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(graphQLContextClient, args[0], args[1])
+			return listContexts(contextClient, args[0], args[1])
 		},
 		Args: cobra.ExactArgs(2),
 	}
@@ -53,7 +58,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "show <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return showContext(restClient, args[0], args[1], args[2])
+			return showContext(contextClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -63,7 +68,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return storeEnvVar(restClient, args[0], args[1], args[2], args[3])
+			return storeEnvVar(contextClient, args[0], args[1], args[2], args[3])
 		},
 		Args: cobra.ExactArgs(4),
 	}
@@ -73,7 +78,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return removeEnvVar(restClient, args[0], args[1], args[2], args[3])
+			return removeEnvVar(contextClient, args[0], args[1], args[2], args[3])
 		},
 		Args: cobra.ExactArgs(4),
 	}
@@ -83,7 +88,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "create <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(restClient, args[0], args[1], args[2])
+			return createContext(contextClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -94,7 +99,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:    "delete <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deleteContext(restClient, force, args[0], args[1], args[2])
+			return deleteContext(contextClient, force, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -111,17 +116,11 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listContexts(restClient, graphQLClient api.ClientInterface, vcs, org string) error {
-	contexts, err := restClient.Contexts(vcs, org)
+func listContexts(contextClient api.ClientInterface, vcs, org string) error {
+	contexts, err := contextClient.Contexts(vcs, org)
 
 	if err != nil {
-		_, is_not_found := err.(NotFoundError)
-		if ok {
-			contexts, err := graphQLClient.Contexts(vcs, org)
-		}
-		if err != nil {
-			return err
-		}
+		return err
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
@@ -141,7 +140,7 @@ func listContexts(restClient, graphQLClient api.ClientInterface, vcs, org string
 	return nil
 }
 
-func showContext(client *api.Client, vcsType, orgName, contextName string) error {
+func showContext(client api.ClientInterface, vcsType, orgName, contextName string) error {
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
 		return err
@@ -178,12 +177,12 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client *api.Client, vcsType, orgName, contextName string) error {
+func createContext(client api.ClientInterface, vcsType, orgName, contextName string) error {
 	err := client.CreateContext(vcsType, orgName, contextName)
 	return err
 }
 
-func removeEnvVar(client *api.Client, vcsType, orgName, contextName, varName string) error {
+func removeEnvVar(client api.ClientInterface, vcsType, orgName, contextName, varName string) error {
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 	if err != nil {
 		return err
@@ -191,7 +190,7 @@ func removeEnvVar(client *api.Client, vcsType, orgName, contextName, varName str
 	return client.DeleteEnvironmentVariable(context.ID, varName)
 }
 
-func storeEnvVar(client *api.Client, vcsType, orgName, contextName, varName string) error {
+func storeEnvVar(client api.ClientInterface, vcsType, orgName, contextName, varName string) error {
 
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 
@@ -204,7 +203,7 @@ func storeEnvVar(client *api.Client, vcsType, orgName, contextName, varName stri
 		return errors.Wrap(err, "Failed to read secret value from stdin")
 	}
 
-	_, err = client.CreateEnvironmentVariable(context.ID, varName, secretValue)
+	err = client.CreateEnvironmentVariable(context.ID, varName, secretValue)
 	return err
 }
 
@@ -217,7 +216,7 @@ func askForConfirmation(message string) bool {
 	return strings.HasPrefix(strings.ToLower(response), "y")
 }
 
-func deleteContext(client *api.Client, force bool, vcsType, orgName, contextName string) error {
+func deleteContext(client api.ClientInterface, force bool, vcsType, orgName, contextName string) error {
 
 	context, err := client.ContextByName(vcsType, orgName, contextName)
 
