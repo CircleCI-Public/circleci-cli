@@ -17,6 +17,28 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var TestRestAPIWarningFormatStr = `
+  The Rest API has been tested and is functional.
+  To avoid unnecessarily testing the Rest API in the future you can either:
+	- run "%s setup" from the command line
+	- add "use_rest_api: true" to your config file (%s)
+
+`
+
+func alwaysUseRestAPI(config *settings.Config) bool {
+	// set to true explicitly
+	if config.UseRestAPI != nil && *config.UseRestAPI {
+		return true
+	}
+
+	// not set, but using cloud
+	if config.UseRestAPI == nil && config.Host == defaultHost {
+		return true
+	}
+
+	return false
+}
+
 func newContextCommand(config *settings.Config) *cobra.Command {
 	var contextClient api.ClientInterface
 
@@ -25,14 +47,17 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		if e != nil {
 			return e
 		}
+		if alwaysUseRestAPI(config) {
+			return validateToken(config)
+		}
 
-		if !*config.UseRestAPI {
-			e = contextClient.(*api.Client).Test()
-			if e != nil {
-				contextClient = &api.GraphQLContextClient{
-					Client: client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug),
-				}
-			}
+		if contextClient.(*api.Client).Test() == nil {
+			fmt.Printf(TestRestAPIWarningFormatStr, cmd.Root().CommandPath(), config.FileUsed)
+			return validateToken(config)
+		}
+
+		contextClient = &api.GraphQLContextClient{
+			Client: client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug),
 		}
 
 		return validateToken(config)
