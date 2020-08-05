@@ -2,7 +2,6 @@ build/
 TODO
 circleci-cli
 coverage.txt
-dist/
 docs/
 out/
 vendor/
