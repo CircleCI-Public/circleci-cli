@@ -5,7 +5,7 @@ COPY --chown=circleci:circleci . .
 
 RUN make
 
-FROM debian:stable-slim
+FROM cimg/base:stable
 ENV CIRCLECI_CLI_SKIP_UPDATE_CHECK true
 COPY --from=builder /home/circleci/project/circleci-cli /usr/local/bin/circleci
 CMD ["circleci"]
