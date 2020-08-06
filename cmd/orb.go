@@ -26,7 +26,7 @@ import (
 
 type orbOptions struct {
 	cfg  *settings.Config
-	cl   *client.Client
+	cl   *graphql.Client
 	args []string
 
 	listUncertified bool
@@ -112,7 +112,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		}, "\n"),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processOrb(opts)
@@ -270,7 +270,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Long:  orbHelpLong(config),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.

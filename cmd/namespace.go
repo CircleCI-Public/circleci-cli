@@ -13,7 +13,7 @@ import (
 
 type namespaceOptions struct {
 	cfg  *settings.Config
-	cl   *client.Client
+	cl   *graphql.Client
 	args []string
 
 	// Allows user to skip y/n confirm when creating a namespace
@@ -61,7 +61,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 Please note that at this time all namespaces created in the registry are world-readable.`,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 
 			return validateToken(opts.cfg)
 		},

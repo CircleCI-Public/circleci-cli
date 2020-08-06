@@ -41,7 +41,7 @@ func UpdateBuildAgent() error {
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
 	processedArgs, configPath := buildAgentArguments(flags)
-	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	configResponse, err := api.ConfigQuery(cl, configPath, nil)
 
 	if err != nil {

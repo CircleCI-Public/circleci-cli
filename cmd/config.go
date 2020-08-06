@@ -17,7 +17,7 @@ import (
 
 type configOptions struct {
 	cfg  *settings.Config
-	cl   *client.Client
+	cl   *graphql.Client
 	args []string
 }
 
@@ -59,7 +59,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return validateConfig(opts)
@@ -78,7 +78,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processConfig(opts)

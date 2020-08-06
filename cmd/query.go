@@ -14,7 +14,7 @@ import (
 
 type queryOptions struct {
 	cfg  *settings.Config
-	cl   *client.Client
+	cl   *graphql.Client
 	args []string
 }
 
@@ -29,7 +29,7 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 		Hidden: true,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 
 			return validateToken(opts.cfg)
 		},
@@ -60,7 +60,7 @@ func query(opts queryOptions) error {
 		return errors.Wrap(err, "Unable to read query from stdin")
 	}
 
-	req := client.NewRequest(string(q))
+	req := graphql.NewRequest(string(q))
 	req.SetToken(opts.cl.Token)
 
 	err = opts.cl.Run(req, &resp)
