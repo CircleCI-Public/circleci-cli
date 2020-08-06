@@ -12,7 +12,7 @@ import (
 
 	"gotest.tools/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -1544,14 +1544,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1615,7 +1615,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -1772,14 +1772,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1858,14 +1858,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = false
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "test/here-we-go"
 				secondRequest.Variables["certifiedOnly"] = false
 
@@ -1970,7 +1970,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -2084,14 +2084,14 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["namespace"] = "circleci"
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "circleci/codecov-clojure"
 				secondRequest.Variables["namespace"] = "circleci"
 
@@ -2199,7 +2199,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 }
 `
 
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["namespace"] = "nonexist"
 
@@ -2281,7 +2281,7 @@ foo.bar/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewRequest(`query($orbVersionRef: String!) {
+				request := graphql.NewRequest(`query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -2331,7 +2331,7 @@ foo.bar/account/api`))
                                 source
 			    }
 		      }`
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2356,7 +2356,7 @@ foo.bar/account/api`))
 
 		Describe("when fetching an orb's meta-data", func() {
 			var (
-				request  *client.Request
+				request  *graphql.Request
 				query    string
 				expected bytes.Buffer
 				err      error
@@ -2393,7 +2393,7 @@ foo.bar/account/api`))
 			    }
 		      }`
 
-				request = client.NewRequest(query)
+				request = graphql.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err = request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
