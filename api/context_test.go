@@ -8,7 +8,8 @@ import (
 	"sync/atomic"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	. "github.com/onsi/ginkgo"
+	// we can't dot-import ginkgo because api.Context is a thing.
+	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
@@ -26,7 +27,7 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		atomic.AddUint64(&requestCount, 1)
-		defer GinkgoRecover()
+		defer ginkgo.GinkgoRecover()
 		var request graphQLRequst
 		Expect(json.NewDecoder(req.Body).Decode(&request)).To(Succeed())
 		requestAssertions(requestCount, &request)
@@ -39,9 +40,9 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 	return server, client
 }
 
-var _ = Describe("API", func() {
-	Describe("FooBar", func() {
-		It("improveVcsTypeError", func() {
+var _ = ginkgo.Describe("API", func() {
+	ginkgo.Describe("FooBar", func() {
+		ginkgo.It("improveVcsTypeError", func() {
 
 			unrelatedError := errors.New("foo")
 
@@ -62,9 +63,9 @@ var _ = Describe("API", func() {
 		})
 	})
 
-	Describe("Create Context", func() {
+	ginkgo.Describe("Create Context", func() {
 
-		It("can handles failure creating contexts", func() {
+		ginkgo.It("can handles failure creating contexts", func() {
 
 			var result struct {
 				CreateContext struct {
@@ -94,7 +95,7 @@ var _ = Describe("API", func() {
 
 	})
 
-	It("can handles success creating contexts", func() {
+	ginkgo.It("can handles success creating contexts", func() {
 
 		var result struct {
 			CreateContext struct {
@@ -124,9 +125,9 @@ var _ = Describe("API", func() {
 
 	})
 
-	Describe("List Contexts", func() {
+	ginkgo.Describe("List Contexts", func() {
 
-		It("can list contexts", func() {
+		ginkgo.It("can list contexts", func() {
 
 			ctx := CircleCIContext{
 				CreatedAt: "2018-04-24T19:38:37.212Z",
@@ -153,7 +154,7 @@ var _ = Describe("API", func() {
 			})
 			defer server.Close()
 
-			result, err := client.Contexts("test-org", "test-vcs")
+			result, err := client.Contexts("test-vcs", "test-org")
 			Expect(err).NotTo(HaveOccurred())
 			context := (*result)[0]
 			Expect(context.Name).To(Equal("Sheep"))
