@@ -193,7 +193,7 @@ func (c *ContextRestClient) ContextByName(vcs, org, name string) (*Context, erro
 
 func (c *ContextRestClient) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
 	var resp *listEnvironmentVariablesResponse
-	for true {
+	for {
 		resp, err = c.listEnvironmentVariables(params)
 		if err != nil {
 			return nil, err
@@ -212,7 +212,7 @@ func (c *ContextRestClient) listAllEnvironmentVariables (params *listEnvironment
 
 func (c *ContextRestClient) listAllContexts(params *listContextsParams) (contexts []Context, err error) {
 	var resp *listContextsResponse
-	for true {
+	for {
 		resp, err = c.listContexts(params)
 		if err != nil {
 			return nil, err
