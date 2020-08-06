@@ -472,7 +472,7 @@ func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (
 	return req, nil
 }
 
-func (c *ContextRestClient) Test() error {
+func (c *ContextRestClient) EnsureExists() error {
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
 		return err
