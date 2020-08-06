@@ -18,7 +18,6 @@ type Config struct {
 	Endpoint        string
 	Token           string
 	RestEndpoint    string    `yaml:"rest_endpoint"`
-	UseRestAPI      *bool     `yaml:"use_rest_api,omitempty"`
 	Data            *data.YML `yaml:"-"`
 	Debug           bool      `yaml:"-"`
 	Address         string    `yaml:"-"`
