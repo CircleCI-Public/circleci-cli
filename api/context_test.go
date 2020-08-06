@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
@@ -17,8 +17,8 @@ type graphQLRequst struct {
 	Variables map[string]interface{}
 }
 
-func createSingleUseGraphQLServer(result interface{}, requestAssertions func(requestCount uint64, req *graphQLRequst)) (*httptest.Server, *client.Client) {
-	response := client.Response{
+func createSingleUseGraphQLServer(result interface{}, requestAssertions func(requestCount uint64, req *graphQLRequst)) (*httptest.Server, *GraphQLContextClient) {
+	response := graphql.Response{
 		Data: result,
 	}
 
@@ -35,7 +35,7 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 		_, err = rw.Write(bytes)
 		Expect(err).ToNot(HaveOccurred())
 	}))
-	client := client.NewClient(server.URL, server.URL, "token", false)
+	client := NewContextGraphqlClient(server.URL, server.URL, "token", false)
 	return server, client
 }
 
@@ -47,8 +47,8 @@ var _ = Describe("API", func() {
 
 			Expect(unrelatedError).Should(Equal(improveVcsTypeError(unrelatedError)))
 
-			errors := []client.ResponseError{
-				client.ResponseError{
+			errors := []graphql.ResponseError{
+				graphql.ResponseError{
 					Message: "foo",
 				},
 			}
@@ -56,7 +56,7 @@ var _ = Describe("API", func() {
 			errors[0].Extensions.EnumType = "VCSType"
 			errors[0].Extensions.Value = "pear"
 			errors[0].Extensions.AllowedValues = []string{"apple", "banana"}
-			var vcsError client.ResponseErrorsCollection = errors
+			var vcsError graphql.ResponseErrorsCollection = errors
 			Expect("Invalid vcs-type 'pear' provided, expected one of apple, banana").Should(Equal(improveVcsTypeError(vcsError).Error()))
 
 		})
@@ -87,7 +87,7 @@ var _ = Describe("API", func() {
 				}
 			})
 			defer server.Close()
-			err := CreateContext(client, "test-vcs", "test-org", "foo-bar")
+			err := client.CreateContext("test-vcs", "test-org", "foo-bar")
 			Expect(err).To(MatchError("Error creating context: force-this-error"))
 
 		})
@@ -120,7 +120,7 @@ var _ = Describe("API", func() {
 		})
 		defer server.Close()
 
-		Expect(CreateContext(client, "test-vcs", "test-org", "foo-bar")).To(Succeed())
+		Expect(client.CreateContext( "test-vcs", "test-org", "foo-bar")).To(Succeed())
 
 	})
 
@@ -131,13 +131,6 @@ var _ = Describe("API", func() {
 			ctx := CircleCIContext{
 				CreatedAt: "2018-04-24T19:38:37.212Z",
 				Name:      "Sheep",
-				Resources: []Resource{
-					{
-						CreatedAt:      "2018-04-24T19:38:37.212Z",
-						Variable:       "CI",
-						TruncatedValue: "1234",
-					},
-				},
 			}
 
 			list := ContextsQueryResponse{}
@@ -160,16 +153,10 @@ var _ = Describe("API", func() {
 			})
 			defer server.Close()
 
-			result, err := ListContexts(client, "test-org", "test-vcs")
+			result, err := client.Contexts("test-org", "test-vcs")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Organization.Id).To(Equal("C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"))
-			context := result.Organization.Contexts.Edges[0].Node
+			context := (*result)[0]
 			Expect(context.Name).To(Equal("Sheep"))
-			Expect(context.Resources).To(HaveLen(1))
-			resource := context.Resources[0]
-			Expect(resource.Variable).To(Equal("CI"))
-			Expect(resource.TruncatedValue).To(Equal("1234"))
-
 		})
 	})
 })

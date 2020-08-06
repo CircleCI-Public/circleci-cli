@@ -10,7 +10,7 @@ import (
 
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"

@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/pkg/errors"
 )
 
@@ -26,7 +26,6 @@ type CircleCIContext struct {
 	CreatedAt string
 	Groups    struct {
 	}
-	Resources []Resource
 }
 
 type ContextsQueryResponse struct {

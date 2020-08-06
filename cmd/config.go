@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
