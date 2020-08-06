@@ -16,7 +16,7 @@ type Context struct{
 	Name string `json:"name"`
 }
 
-type ClientInterface interface {
+type ContextInterface interface {
 	Contexts(vcs, org string) (*[]Context, error)
 	ContextByName(vcs, org, name string) (*Context, error)
 	DeleteContext(contextID string) error

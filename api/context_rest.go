@@ -12,7 +12,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-type Client struct {
+type ContextRestClient struct {
 	token string
 	server string
 	client *http.Client
@@ -21,14 +21,14 @@ type Client struct {
 type listEnvironmentVariablesResponse struct {
 	Items []EnvironmentVariable
 	NextPageToken *string
-	client *Client
+	client *ContextRestClient
 	params *listEnvironmentVariablesParams
 }
 
 type listContextsResponse struct {
 	Items []Context
 	NextPageToken *string `json:"next_page_token"`
-	client *Client
+	client *ContextRestClient
 	params *listContextsParams
 }
 
@@ -53,7 +53,7 @@ func toSlug(vcs, org string) *string {
 	return &slug
 }
 
-func (c *Client) DeleteEnvironmentVariable(contextID, variable string) error {
+func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string) error {
 	req, err := c.newDeleteEnvironmentVariableRequest(contextID, variable)
 	if err != nil {
 		return err
@@ -80,7 +80,7 @@ func (c *Client) DeleteEnvironmentVariable(contextID, variable string) error {
 	return nil
 }
 
-func (c *Client) CreateContext(vcs, org, name string) (error) {
+func (c *ContextRestClient) CreateContext(vcs, org, name string) (error) {
 	req, err := c.newCreateContextRequest(vcs, org, name)
 	if err != nil {
 		return err
@@ -111,7 +111,7 @@ func (c *Client) CreateContext(vcs, org, name string) (error) {
 	return nil
 }
 
-func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) error {
+func (c *ContextRestClient) CreateEnvironmentVariable(contextID, variable, value string) error {
 	req, err := c.newCreateEnvironmentVariableRequest(contextID, variable, value)
 	if err != nil {
 		return err
@@ -137,7 +137,7 @@ func (c *Client) CreateEnvironmentVariable(contextID, variable, value string) er
 	return nil
 }
 
-func (c *Client) DeleteContext(contextID string) error {
+func (c *ContextRestClient) DeleteContext(contextID string) error {
 	req, err := c.newDeleteContextRequest(contextID)
 
 	if err != nil {
@@ -164,7 +164,7 @@ func (c *Client) DeleteContext(contextID string) error {
 	return nil
 }
 
-func (c *Client) EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error) {
+func (c *ContextRestClient) EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error) {
 	envVars, error := c.listAllEnvironmentVariables(
 		&listEnvironmentVariablesParams{
 			ContextID: &contextID,
@@ -173,7 +173,7 @@ func (c *Client) EnvironmentVariables(contextID string) (*[]EnvironmentVariable,
 	return &envVars, error
 }
 
-func (c *Client) Contexts(vcs, org string) (*[]Context, error) {
+func (c *ContextRestClient) Contexts(vcs, org string) (*[]Context, error) {
 	contexts, error := c.listAllContexts(
 		&listContextsParams{
 			OwnerSlug: toSlug(vcs, org),
@@ -182,7 +182,7 @@ func (c *Client) Contexts(vcs, org string) (*[]Context, error) {
 	return &contexts, error
 }
 
-func (c *Client) ContextByName(vcs, org, name string) (*Context, error) {
+func (c *ContextRestClient) ContextByName(vcs, org, name string) (*Context, error) {
 	return c.getContextByName(
 		&listContextsParams{
 			OwnerSlug: toSlug(vcs, org),
@@ -191,7 +191,7 @@ func (c *Client) ContextByName(vcs, org, name string) (*Context, error) {
 	)
 }
 
-func (c *Client) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
+func (c *ContextRestClient) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
 	var resp *listEnvironmentVariablesResponse
 	for true {
 		resp, err = c.listEnvironmentVariables(params)
@@ -210,7 +210,7 @@ func (c *Client) listAllEnvironmentVariables (params *listEnvironmentVariablesPa
 	return envVars, nil
 }
 
-func (c *Client) listAllContexts(params *listContextsParams) (contexts []Context, err error) {
+func (c *ContextRestClient) listAllContexts(params *listContextsParams) (contexts []Context, err error) {
 	var resp *listContextsResponse
 	for true {
 		resp, err = c.listContexts(params)
@@ -229,7 +229,7 @@ func (c *Client) listAllContexts(params *listContextsParams) (contexts []Context
 	return contexts, nil
 }
 
-func (c *Client) getContextByName(params *listContextsParams, name string) (*Context, error) {
+func (c *ContextRestClient) getContextByName(params *listContextsParams, name string) (*Context, error) {
 	resp, err := c.listContexts(params)
 	if err != nil {
 		return nil, err
@@ -251,7 +251,7 @@ func (c *Client) getContextByName(params *listContextsParams, name string) (*Con
 	return nil, fmt.Errorf("Cannot find context named '%s'", name)
 }
 
-func (c *Client) listEnvironmentVariables (params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
+func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
 	req, err := c.newListEnvironmentVariablesRequest(params)
 	if err != nil {
 		return nil, err
@@ -285,7 +285,7 @@ func (c *Client) listEnvironmentVariables (params *listEnvironmentVariablesParam
 	return &dest, nil
 }
 
-func (c *Client) listContexts (params *listContextsParams) (*listContextsResponse, error) {
+func (c *ContextRestClient) listContexts (params *listContextsParams) (*listContextsResponse, error) {
 	req, err := c.newListContextsRequest(params)
 	if err != nil {
 		return nil, err
@@ -321,7 +321,7 @@ func (c *Client) listContexts (params *listContextsParams) (*listContextsRespons
 	return &dest, nil
 }
 
-func (c *Client) newCreateContextRequest(vcs, org, name string) (*http.Request, error) {
+func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -358,7 +358,7 @@ func (c *Client) newCreateContextRequest(vcs, org, name string) (*http.Request, 
 	return c.newHTTPRequest("POST", queryURL.String(), bodyReader)
 }
 
-func (c *Client) newCreateEnvironmentVariableRequest(contextID, variable, value string) (*http.Request, error) {
+func (c *ContextRestClient) newCreateEnvironmentVariableRequest(contextID, variable, value string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -386,7 +386,7 @@ func (c *Client) newCreateEnvironmentVariableRequest(contextID, variable, value 
 	return c.newHTTPRequest("PUT", queryURL.String(), bodyReader)
 }
 
-func (c *Client) newDeleteEnvironmentVariableRequest(contextID, name string) (*http.Request, error) {
+func (c *ContextRestClient) newDeleteEnvironmentVariableRequest(contextID, name string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -399,7 +399,7 @@ func (c *Client) newDeleteEnvironmentVariableRequest(contextID, name string) (*h
 	return c.newHTTPRequest("DELETE", queryURL.String(), nil)
 }
 
-func (c *Client) newDeleteContextRequest(contextID string) (*http.Request, error) {
+func (c *ContextRestClient) newDeleteContextRequest(contextID string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -412,7 +412,7 @@ func (c *Client) newDeleteContextRequest(contextID string) (*http.Request, error
 	return c.newHTTPRequest("DELETE", queryURL.String(), nil)
 }
 
-func (c *Client) newListEnvironmentVariablesRequest(params *listEnvironmentVariablesParams) (*http.Request, error) {
+func (c *ContextRestClient) newListEnvironmentVariablesRequest(params *listEnvironmentVariablesParams) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -431,7 +431,7 @@ func (c *Client) newListEnvironmentVariablesRequest(params *listEnvironmentVaria
 	return c.newHTTPRequest("GET", queryURL.String(), nil)
 }
 
-func (c *Client) newListContextsRequest(params *listContextsParams) (*http.Request, error) {
+func (c *ContextRestClient) newListContextsRequest(params *listContextsParams) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -461,7 +461,7 @@ func (c *Client) newListContextsRequest(params *listContextsParams) (*http.Reque
 	return c.newHTTPRequest("GET", queryURL.String(), nil)
 }
 
-func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Request, error) {
+func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (*http.Request, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
@@ -472,7 +472,7 @@ func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Reque
 	return req, nil
 }
 
-func (c *Client) Test() error {
+func (c *ContextRestClient) Test() error {
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
 		return err
@@ -515,7 +515,7 @@ func (c *Client) Test() error {
 	return nil
 }
 
-func NewClient(host, endpoint, token string) (*Client, error) {
+func NewContextRestClient(host, endpoint, token string) (*ContextRestClient, error) {
 	// Ensure server ends with a slash
 	if !strings.HasSuffix(endpoint, "/") {
 		endpoint += "/"
@@ -530,7 +530,7 @@ func NewClient(host, endpoint, token string) (*Client, error) {
 		return nil, err
 	}
 
-	client := &Client{
+	client := &ContextRestClient{
 		token: token,
 		server: serverURL.String(),
 		client: &http.Client{},

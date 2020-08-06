@@ -363,3 +363,9 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 
 	return errors.Wrap(improveVcsTypeError(err), "failed to delete context")
 }
+
+func NewContextGraphqlClient(host, endpoint, token string, debug bool) *GraphQLContextClient {
+	return &GraphQLContextClient{
+		Client: graphql.NewClient(host, endpoint, token, debug),
+	}
+}

@@ -180,7 +180,7 @@ func setup(opts setupOptions) error {
 	}
 
 	// Test the rest client, if it works then record it so we know we can use it
-	client, err := api.NewClient(opts.cfg.Host, opts.cfg.RestEndpoint, opts.cfg.Token)
+	client, err := api.NewContextRestClient(opts.cfg.Host, opts.cfg.RestEndpoint, opts.cfg.Token)
 	if err == nil {
 		err = client.Test()
 		// only set UseRestAPI to true if it was not originally set (allow
