@@ -191,39 +191,40 @@ func (c *Client) ContextByName(vcs, org, name string) (*Context, error) {
 	)
 }
 
-func (c *Client) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) ([]EnvironmentVariable, error) {
-	resp, err := c.listEnvironmentVariables(params)
-	if err != nil {
-		return nil, err
-	}
-
-	envVars := resp.Items
-	if resp.NextPageToken != nil {
-		params.PageToken = resp.NextPageToken
-		after, err := c.listAllEnvironmentVariables(params)
+func (c *Client) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
+	var resp *listEnvironmentVariablesResponse
+	for true {
+		resp, err = c.listEnvironmentVariables(params)
 		if err != nil {
 			return nil, err
 		}
-		envVars = append(envVars, after...)
+
+		envVars = append(envVars, resp.Items...)
+
+		if resp.NextPageToken == nil {
+			break
+		}
+
+		params.PageToken = resp.NextPageToken
 	}
 	return envVars, nil
-
 }
 
-func (c *Client) listAllContexts(params *listContextsParams) ([]Context, error) {
-	resp, err := c.listContexts(params)
-	if err != nil {
-		return nil, err
-	}
-
-	contexts := resp.Items
-	if resp.NextPageToken != nil {
-		params.PageToken = resp.NextPageToken
-		after, err := c.listAllContexts(params)
+func (c *Client) listAllContexts(params *listContextsParams) (contexts []Context, err error) {
+	var resp *listContextsResponse
+	for true {
+		resp, err = c.listContexts(params)
 		if err != nil {
 			return nil, err
 		}
-		contexts = append(contexts, after...)
+
+		contexts = append(contexts, resp.Items...)
+
+		if resp.NextPageToken == nil {
+			break
+		}
+
+		params.PageToken = resp.NextPageToken
 	}
 	return contexts, nil
 }
