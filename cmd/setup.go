@@ -180,15 +180,15 @@ func setup(opts setupOptions) error {
 	}
 
 	// Test the rest client, if it works then record it so we know we can use it
-	client, err := api.NewContextRestClient(opts.cfg.Host, opts.cfg.RestEndpoint, opts.cfg.Token)
-	if err == nil {
-		err = client.Test()
-		// only set UseRestAPI to true if it was not originally set (allow
-		// explicit `false`)
-		if err == nil && opts.cfg.UseRestAPI == nil {
-			*opts.cfg.UseRestAPI = true
-		}
-	}
+	// client, err := api.NewContextRestClient(opts.cfg.Host, opts.cfg.RestEndpoint, opts.cfg.Token)
+	// if err == nil {
+	// 	err = client.Test()
+	// 	// only set UseRestAPI to true if it was not originally set (allow
+	// 	// explicit `false`)
+	// 	if err == nil && opts.cfg.UseRestAPI == nil {
+	// 		*opts.cfg.UseRestAPI = true
+	// 	}
+	// }
 
 	if err := opts.cfg.WriteToDisk(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")
