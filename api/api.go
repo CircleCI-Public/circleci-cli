@@ -10,7 +10,7 @@ import (
 
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/Masterminds/semver"
@@ -365,11 +365,11 @@ func loadYaml(path string) (string, error) {
 }
 
 // WhoamiQuery returns the result of querying the `/me` endpoint of the API
-func WhoamiQuery(cl *client.Client) (*WhoamiResponse, error) {
+func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 	response := WhoamiResponse{}
 	query := `query { me { name } }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	err := cl.Run(request, &response)
@@ -381,7 +381,7 @@ func WhoamiQuery(cl *client.Client) (*WhoamiResponse, error) {
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(cl *client.Client, configPath string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
+func ConfigQuery(cl *graphql.Client, configPath string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 
 	config, err := loadYaml(configPath)
@@ -399,7 +399,7 @@ func ConfigQuery(cl *client.Client, configPath string, pipelineValues pipeline.V
 			}
 		}`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.Var("config", config)
 	if pipelineValues != nil {
 		request.Var("pipelineValues", pipeline.PrepareForGraphQL(pipelineValues))
@@ -420,7 +420,7 @@ func ConfigQuery(cl *client.Client, configPath string, pipelineValues pipeline.V
 }
 
 // OrbQuery validated and processes an orb.
-func OrbQuery(cl *client.Client, configPath string) (*ConfigResponse, error) {
+func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 	var response OrbConfigResponse
 
 	config, err := loadYaml(configPath)
@@ -438,7 +438,7 @@ func OrbQuery(cl *client.Client, configPath string) (*ConfigResponse, error) {
 			}
 		}`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.Var("config", config)
 	request.SetToken(cl.Token)
 
@@ -456,7 +456,7 @@ func OrbQuery(cl *client.Client, configPath string) (*ConfigResponse, error) {
 }
 
 // OrbPublishByID publishes a new version of an orb by id
-func OrbPublishByID(cl *client.Client, configPath string, orbID string, orbVersion string) (*Orb, error) {
+func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVersion string) (*Orb, error) {
 	var response OrbPublishResponse
 
 	config, err := loadYaml(configPath)
@@ -479,7 +479,7 @@ func OrbPublishByID(cl *client.Client, configPath string, orbID string, orbVersi
 		}
 	`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("config", config)
@@ -500,7 +500,7 @@ func OrbPublishByID(cl *client.Client, configPath string, orbID string, orbVersi
 }
 
 // OrbID fetches an orb returning the ID
-func OrbID(cl *client.Client, namespace string, orb string) (*OrbIDResponse, error) {
+func OrbID(cl *graphql.Client, namespace string, orb string) (*OrbIDResponse, error) {
 	name := namespace + "/" + orb
 
 	var response OrbIDResponse
@@ -516,7 +516,7 @@ func OrbID(cl *client.Client, namespace string, orb string) (*OrbIDResponse, err
 	  }
 	  `
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("name", name)
@@ -538,7 +538,7 @@ func OrbID(cl *client.Client, namespace string, orb string) (*OrbIDResponse, err
 	return nil, fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
-func createNamespaceWithOwnerID(cl *client.Client, name string, ownerID string) (*CreateNamespaceResponse, error) {
+func createNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string) (*CreateNamespaceResponse, error) {
 	var response CreateNamespaceResponse
 
 	query := `
@@ -557,7 +557,7 @@ func createNamespaceWithOwnerID(cl *client.Client, name string, ownerID string) 
 				}
 			}`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("name", name)
@@ -576,7 +576,7 @@ func createNamespaceWithOwnerID(cl *client.Client, name string, ownerID string) 
 	return &response, nil
 }
 
-func getOrganization(cl *client.Client, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
+func getOrganization(cl *graphql.Client, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
 	var response GetOrganizationResponse
 
 	query := `query($organizationName: String!, $organizationVcs: VCSType!) {
@@ -588,7 +588,7 @@ func getOrganization(cl *client.Client, organizationName string, organizationVcs
 				}
 			}`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("organizationName", organizationName)
@@ -612,7 +612,7 @@ func organizationNotFound(name string, vcs string) error {
 }
 
 // CreateNamespace creates (reserves) a namespace for an organization
-func CreateNamespace(cl *client.Client, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
+func CreateNamespace(cl *graphql.Client, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
 	getOrgResponse, getOrgError := getOrganization(cl, organizationName, organizationVcs)
 
 	if getOrgError != nil {
@@ -628,7 +628,7 @@ func CreateNamespace(cl *client.Client, name string, organizationName string, or
 	return createNSResponse, nil
 }
 
-func getNamespace(cl *client.Client, name string) (*GetNamespaceResponse, error) {
+func getNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
 	var response GetNamespaceResponse
 
 	query := `
@@ -640,7 +640,7 @@ func getNamespace(cl *client.Client, name string) (*GetNamespaceResponse, error)
 					}
 			 }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("name", name)
@@ -656,7 +656,7 @@ func getNamespace(cl *client.Client, name string) (*GetNamespaceResponse, error)
 	return &response, nil
 }
 
-func createOrbWithNsID(cl *client.Client, name string, namespaceID string) (*CreateOrbResponse, error) {
+func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*CreateOrbResponse, error) {
 	var response CreateOrbResponse
 
 	query := `mutation($name: String!, $registryNamespaceId: UUID!){
@@ -674,7 +674,7 @@ func createOrbWithNsID(cl *client.Client, name string, namespaceID string) (*Cre
 				}
 }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("name", name)
@@ -694,7 +694,7 @@ func createOrbWithNsID(cl *client.Client, name string, namespaceID string) (*Cre
 }
 
 // CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(cl *client.Client, namespace string, name string) (*CreateOrbResponse, error) {
+func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
 	response, err := getNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
@@ -724,7 +724,7 @@ func incrementVersion(version string, segment string) (string, error) {
 }
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
-func OrbIncrementVersion(cl *client.Client, configPath string, namespace string, orb string, segment string) (*Orb, error) {
+func OrbIncrementVersion(cl *graphql.Client, configPath string, namespace string, orb string, segment string) (*Orb, error) {
 	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
 	id, err := OrbID(cl, namespace, orb)
 	if err != nil {
@@ -751,7 +751,7 @@ func OrbIncrementVersion(cl *client.Client, configPath string, namespace string,
 
 // OrbLatestVersion finds the latest published version of an orb and returns it.
 // If it doesn't find a version, it will return 0.0.0 for the orb's version
-func OrbLatestVersion(cl *client.Client, namespace string, orb string) (string, error) {
+func OrbLatestVersion(cl *graphql.Client, namespace string, orb string) (string, error) {
 	name := namespace + "/" + orb
 
 	var response OrbLatestVersionResponse
@@ -765,7 +765,7 @@ func OrbLatestVersion(cl *client.Client, namespace string, orb string) (string, 
 			    }
 		      }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("name", name)
@@ -783,7 +783,7 @@ func OrbLatestVersion(cl *client.Client, namespace string, orb string) (string, 
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(cl *client.Client, namespace string, orb string, label string, segment string) (*Orb, error) {
+func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, segment string) (*Orb, error) {
 	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
 	id, err := OrbID(cl, namespace, orb)
 
@@ -819,7 +819,7 @@ func OrbPromote(cl *client.Client, namespace string, orb string, label string, s
 		}
 	`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("orbId", id.Orb.ID)
@@ -840,7 +840,7 @@ func OrbPromote(cl *client.Client, namespace string, orb string, label string, s
 }
 
 // OrbSetOrbListStatus sets whether an orb can be listed in the registry or not.
-func OrbSetOrbListStatus(cl *client.Client, namespace string, orb string, list bool) (*bool, error) {
+func OrbSetOrbListStatus(cl *graphql.Client, namespace string, orb string, list bool) (*bool, error) {
 	id, err := OrbID(cl, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -863,7 +863,7 @@ func OrbSetOrbListStatus(cl *client.Client, namespace string, orb string, list b
 		}
 	`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("orbId", id.Orb.ID)
@@ -896,7 +896,7 @@ func orbVersionRef(orb string) string {
 }
 
 // OrbSource gets the source of an orb
-func OrbSource(cl *client.Client, orbRef string) (string, error) {
+func OrbSource(cl *graphql.Client, orbRef string) (string, error) {
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return "", err
 	}
@@ -916,7 +916,7 @@ func OrbSource(cl *client.Client, orbRef string) (string, error) {
 			    }
 		      }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -932,7 +932,7 @@ func OrbSource(cl *client.Client, orbRef string) (string, error) {
 }
 
 // OrbInfo gets the meta-data of an orb
-func OrbInfo(cl *client.Client, orbRef string) (*OrbVersion, error) {
+func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 	if err := references.IsOrbRefWithOptionalVersion(orbRef); err != nil {
 		return nil, err
 	}
@@ -966,7 +966,7 @@ func OrbInfo(cl *client.Client, orbRef string) (*OrbVersion, error) {
 			    }
 		      }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -997,7 +997,7 @@ func OrbInfo(cl *client.Client, orbRef string) (*OrbVersion, error) {
 
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data.
-func ListOrbs(cl *client.Client, uncertified bool) (*OrbsForListing, error) {
+func ListOrbs(cl *graphql.Client, uncertified bool) (*OrbsForListing, error) {
 	l := log.New(os.Stderr, "", 0)
 
 	query := `
@@ -1032,7 +1032,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 	currentCursor := ""
 
 	for {
-		request := client.NewRequest(query)
+		request := graphql.NewRequest(query)
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
@@ -1073,7 +1073,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
 // namespace.
 // Returns a collection of Orb objects containing their relevant data.
-func ListNamespaceOrbs(cl *client.Client, namespace string) (*OrbsForListing, error) {
+func ListNamespaceOrbs(cl *graphql.Client, namespace string) (*OrbsForListing, error) {
 	l := log.New(os.Stderr, "", 0)
 
 	query := `
@@ -1110,7 +1110,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	currentCursor := ""
 
 	for {
-		request := client.NewRequest(query)
+		request := graphql.NewRequest(query)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 		orbs.Namespace = namespace
@@ -1156,7 +1156,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 // IntrospectionQuery makes a query on the API asking for bits of the schema
 // This query isn't intended to get the entire schema, there are better tools for that.
-func IntrospectionQuery(cl *client.Client) (*IntrospectionResponse, error) {
+func IntrospectionQuery(cl *graphql.Client) (*IntrospectionResponse, error) {
 	var response IntrospectionResponse
 
 	query := `query IntrospectionQuery {
@@ -1178,7 +1178,7 @@ func IntrospectionQuery(cl *client.Client) (*IntrospectionResponse, error) {
 		    }
 		  }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	err := cl.Run(request, &response)

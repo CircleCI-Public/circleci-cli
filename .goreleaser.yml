@@ -7,7 +7,7 @@ archives:
       - goos: windows
         format: zip
     files:
-      - client/LICENSE
+      - api/graphql/LICENSE
       - md_docs/LICENSE
 
 before:

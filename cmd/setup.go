@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -13,7 +13,7 @@ import (
 
 type setupOptions struct {
 	cfg      *settings.Config
-	cl       *client.Client
+	cl       *graphql.Client
 	noPrompt bool
 	// Add host and token for use with --no-prompt
 	host  string
@@ -121,7 +121,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		Short: "Setup the CLI with your credentials",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if opts.integrationTesting {
@@ -180,15 +180,15 @@ func setup(opts setupOptions) error {
 	}
 
 	// Test the rest client, if it works then record it so we know we can use it
-	client, err := api.NewClient(opts.cfg.Host, opts.cfg.RestEndpoint, opts.cfg.Token)
-	if err == nil {
-		err = client.Test()
-		// only set UseRestAPI to true if it was not originally set (allow
-		// explicit `false`)
-		if err == nil && opts.cfg.UseRestAPI == nil {
-			*opts.cfg.UseRestAPI = true
-		}
-	}
+	// client, err := api.NewContextRestClient(opts.cfg.Host, opts.cfg.RestEndpoint, opts.cfg.Token)
+	// if err == nil {
+	// 	err = client.Test()
+	// 	// only set UseRestAPI to true if it was not originally set (allow
+	// 	// explicit `false`)
+	// 	if err == nil && opts.cfg.UseRestAPI == nil {
+	// 		*opts.cfg.UseRestAPI = true
+	// 	}
+	// }
 
 	if err := opts.cfg.WriteToDisk(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")

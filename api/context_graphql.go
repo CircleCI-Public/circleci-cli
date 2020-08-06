@@ -6,12 +6,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/pkg/errors"
 )
 
 type GraphQLContextClient struct {
-	Client *client.Client
+	Client *graphql.Client
 }
 
 type Resource struct {
@@ -26,7 +26,6 @@ type CircleCIContext struct {
 	CreatedAt string
 	Groups    struct {
 	}
-	Resources []Resource
 }
 
 type ContextsQueryResponse struct {
@@ -41,7 +40,7 @@ type ContextsQueryResponse struct {
 }
 
 func improveVcsTypeError(err error) error {
-	if responseErrors, ok := err.(client.ResponseErrorsCollection); ok {
+	if responseErrors, ok := err.(graphql.ResponseErrorsCollection); ok {
 		if len(responseErrors) > 0 {
 			details := responseErrors[0].Extensions
 			if details.EnumType == "VCSType" {
@@ -87,7 +86,7 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 	input.OwnerType = "ORGANIZATION"
 	input.ContextName = contextName
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 	request.Var("input", input)
 
@@ -134,7 +133,7 @@ func (c *GraphQLContextClient) EnvironmentVariables(contextID string) (*[]Enviro
 			}
 		}
 	}`
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 	request.Var("id", contextID)
 	var resp struct{
@@ -206,7 +205,7 @@ func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, er
 	}
 	`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	request.Var("orgId", org.Organization.ID)
@@ -261,7 +260,7 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 	input.ContextId = contextId
 	input.Variable = variableName
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 	request.Var("input", input)
 
@@ -302,7 +301,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 		}
 	  }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	var input struct {
@@ -346,7 +345,7 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 		}
 	  }`
 
-	request := client.NewRequest(query)
+	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
 	var input struct {
@@ -362,4 +361,10 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 	err := cl.Run(request, &response)
 
 	return errors.Wrap(improveVcsTypeError(err), "failed to delete context")
+}
+
+func NewContextGraphqlClient(host, endpoint, token string, debug bool) *GraphQLContextClient {
+	return &GraphQLContextClient{
+		Client: graphql.NewClient(host, endpoint, token, debug),
+	}
 }

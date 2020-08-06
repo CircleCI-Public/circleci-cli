@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -42,7 +42,7 @@ func UpdateBuildAgent() error {
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
 	processedArgs, configPath := buildAgentArguments(flags)
-	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	configResponse, err := api.ConfigQuery(cl, configPath, pipeline.FabricatedValues())
 
 	if err != nil {
