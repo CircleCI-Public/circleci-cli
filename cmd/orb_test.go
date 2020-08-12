@@ -12,6 +12,7 @@ import (
 
 	"gotest.tools/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/client"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
@@ -2377,7 +2378,11 @@ foo.bar/account/api`))
                                 orb {
                                     id
                                     createdAt
-                                    name
+																		name
+																		categories {
+																			id
+																			name
+																		}
 	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
@@ -2407,7 +2412,17 @@ foo.bar/account/api`))
 								"orb": {
 								        "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								        "createdAt": "2018-09-24T08:53:37.086Z",
-                                                                        "name": "my/orb",
+																																				"name": "my/orb",
+																																				"categories": [
+																																					{
+																																						"id": "cc604b45-b6b0-4b81-ad80-796f15eddf87",
+																																						"name": "Infra Automation"
+																																					},
+																																					{
+																																						"id": "dd604b45-b6b0-4b81-ad80-796f15eddf87",
+																																						"name": "Testing"
+																																					}
+																																				],
                                                                         "versions": [
                                                                             {
                                                                                 "version": "0.0.1",
@@ -2446,6 +2461,10 @@ Total-jobs: 0
 Builds: 0
 Projects: 0
 Orgs: 0
+
+## Categories:
+Infra Automation
+Testing
 
 Learn more about this orb online in the CircleCI Orb Registry:
 https://circleci.com/orbs/registry/orb/my/orb
@@ -2578,6 +2597,335 @@ https://circleci.com/orbs/registry/orb/my/orb
 				Eventually(session.Err).Should(gbytes.Say("no Orb 'my/orb@dev:foo' was found; please check that the Orb reference is correct"))
 
 				Eventually(session).Should(clitest.ShouldFail())
+			})
+		})
+
+		Describe("orb categories", func() {
+			Context("with mock server", func() {
+				DescribeTable("sends multiple requests when there are more than 1 page of orb categories",
+					func(json bool) {
+						argList := []string{"orb", "list-categories",
+							"--skip-update-check",
+							"--host", tempSettings.TestServer.URL()}
+						if json {
+							argList = append(argList, "--json")
+						}
+
+						command = exec.Command(pathCLI,
+							argList...,
+						)
+
+						query := `
+	query ListOrbCategories($after: String!) {
+		orbCategories(first: 20, after: $after) {
+			totalCount
+			edges {
+				cursor
+				node {
+					id
+					name
+				}
+			}
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+`
+
+						firstRequest := client.NewRequest(query)
+						firstRequest.Variables["after"] = ""
+
+						firstRequestEncoded, err := firstRequest.Encode()
+						Expect(err).ShouldNot(HaveOccurred())
+
+						secondRequest := client.NewRequest(query)
+						secondRequest.Variables["after"] = "Testing"
+
+						secondRequestEncoded, err := secondRequest.Encode()
+						Expect(err).ShouldNot(HaveOccurred())
+
+						tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/first_response.json"))
+						firstResponse := string(tmpBytes)
+
+						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/second_response.json"))
+						secondResponse := string(tmpBytes)
+
+						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/pretty_json_output.json"))
+						expectedOutput := string(tmpBytes)
+
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  firstRequestEncoded.String(),
+							Response: firstResponse,
+						})
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  secondRequestEncoded.String(),
+							Response: secondResponse,
+						})
+
+						By("running the command")
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(gexec.Exit(0))
+						Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
+
+						completeOutput := string(session.Wait().Out.Contents())
+						if json {
+							Expect(completeOutput).Should(MatchJSON(expectedOutput))
+						}
+					},
+					Entry("with --json", true),
+					Entry("without --json", false),
+				)
+			})
+		})
+
+		Describe("Add/remove orb categorization", func() {
+			var (
+				orbId            string
+				orbNamespaceName string
+				orbFullName      string
+				orbName          string
+				categoryId       string
+				categoryName     string
+			)
+
+			BeforeEach(func() {
+				orbId = "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+				orbNamespaceName = "bar-ns"
+				orbName = "foo-orb"
+				orbFullName = orbNamespaceName + "/" + orbName
+				categoryId = "cc604b45-b6b0-4b81-ad80-796f15eddf87"
+				categoryName = "Cloud Platform"
+			})
+
+			Context("with mock server", func() {
+				DescribeTable("add/remove orb categorization",
+					func(mockErrorResponse bool, updateType api.UpdateOrbCategorizationRequestType) {
+						commandName := "add-to-category"
+						operationName := "addCategorizationToOrb"
+						expectedOutputSegment := "added to"
+						if updateType == api.Remove {
+							commandName = "remove-from-category"
+							operationName = "removeCategorizationFromOrb"
+							expectedOutputSegment = "removed from"
+						}
+
+						command = exec.Command(pathCLI,
+							"orb", commandName,
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							orbFullName, categoryName)
+
+						gqlOrbIDResponse := fmt.Sprintf(`{
+						"orb": {
+								"id": "%s"
+						}
+					}`, orbId)
+
+						expectedOrbIDRequest := fmt.Sprintf(`{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+						"variables": {
+							"name": "%s",
+							"namespace": "%s"
+						}
+					}`, orbFullName, orbNamespaceName)
+
+						expectedCategoryIDRequest := fmt.Sprintf(`{
+							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}\n\t  ",
+							"variables": {
+								"name": "%s"
+							}
+						}`, categoryName)
+
+						gqlCategoryIDResponse := fmt.Sprintf(`{
+							"orbCategoryByName": {
+									"id": "%s"
+							}
+						}`, categoryId)
+
+						expectedOrbCategorizationRequest := fmt.Sprintf(`{
+							"query": "\n\t\tmutation($orbId: UUID!, $categoryId: UUID!) {\n\t%s(\n\t\t\t\torbId: $orbId,\n\t\t\t\tcategoryId: $categoryId\n\t\t\t) {\n\t\t\t\torbId\n\t\t\t\tcategoryId\n\t\t\t\terrors {\n\t\t\t\t\tmessage\n\t\t\t\t\ttype\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
+							"variables": {
+								"categoryId": "%s",
+								"orbId": "%s"
+							}
+						}`, operationName, categoryId, orbId)
+
+						gqlCategorizationResponse := fmt.Sprintf(`{
+							"%s": {
+								"orbId": "%s",
+								"categoryId": "%s",
+								"errors": []
+							}
+						}`, operationName, orbId, categoryId)
+
+						if mockErrorResponse {
+							gqlCategorizationResponse = fmt.Sprintf(`{
+								"%s": {
+									"orbId": "",
+									"categoryId": "",
+									"errors": [{
+										"message": "Mock error message",
+										"type": "Mock error from server"
+									}]
+								}
+							}`, operationName)
+						}
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedCategoryIDRequest,
+							Response: gqlCategoryIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbCategorizationRequest,
+							Response: gqlCategorizationResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						stdout := session.Wait().Out.Contents()
+						if mockErrorResponse {
+							Eventually(session).Should(clitest.ShouldFail())
+							errorMsg := fmt.Sprintf(`Error: Failed to add orb %s to category %s: Mock error message`, orbFullName, categoryName)
+							if updateType == api.Remove {
+								errorMsg = fmt.Sprintf(`Error: Failed to remove orb %s from category %s: Mock error message`, orbFullName, categoryName)
+							}
+							Eventually(session.Err).Should(gbytes.Say(errorMsg))
+						} else {
+							Eventually(session).Should(gexec.Exit(0))
+							Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`%s is successfully %s the "%s" category.`, orbFullName, expectedOutputSegment, categoryName)))
+						}
+					},
+					Entry("add categorization success", false, api.Add),
+					Entry("remove categorization success", false, api.Remove),
+					Entry("server error on adding categorization", true, api.Add),
+					Entry("server error on removing categorization", true, api.Remove),
+				)
+			})
+			Context("with mock server", func() {
+				DescribeTable("orb does not exist",
+					func(updateType api.UpdateOrbCategorizationRequestType) {
+						commandName := "add-to-category"
+						if updateType == api.Remove {
+							commandName = "remove-from-category"
+						}
+
+						command = exec.Command(pathCLI,
+							"orb", commandName,
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							orbFullName, categoryName)
+
+						expectedOrbIDRequest := fmt.Sprintf(`{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+						"variables": {
+							"name": "%s",
+							"namespace": "%s"
+						}
+					}`, orbFullName, orbNamespaceName)
+
+						gqlOrbIDResponse := `{
+						"orb": null,
+						"registryNamespace": {
+							"id": "eac63dee-9960-48c2-b763-612e1683194e"
+						}
+					}`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(clitest.ShouldFail())
+						errorMsg := fmt.Sprintf(`Error: Failed to add orb %s to category %s: the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?`, orbFullName, categoryName, orbName, orbNamespaceName)
+						if updateType == api.Remove {
+							errorMsg = fmt.Sprintf(`Error: Failed to remove orb %s from category %s: the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?`, orbFullName, categoryName, orbName, orbNamespaceName)
+						}
+						Eventually(session.Err).Should(gbytes.Say(errorMsg))
+					},
+					Entry("add categorization to non-existent orb", api.Add),
+					Entry("remove categorization to non-existent orb", api.Remove),
+				)
+			})
+			Context("with mock server", func() {
+				DescribeTable("category does not exist",
+					func(updateType api.UpdateOrbCategorizationRequestType) {
+						commandName := "add-to-category"
+						if updateType == api.Remove {
+							commandName = "remove-from-category"
+						}
+
+						command = exec.Command(pathCLI,
+							"orb", commandName,
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							orbFullName, categoryName)
+
+						expectedOrbIDRequest := fmt.Sprintf(`{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+						"variables": {
+							"name": "%s",
+							"namespace": "%s"
+						}
+					}`, orbFullName, orbNamespaceName)
+
+						gqlOrbIDResponse := fmt.Sprintf(`{
+							"orb": {
+									"id": "%s"
+							}
+						}`, orbId)
+
+						expectedCategoryIDRequest := fmt.Sprintf(`{
+							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}\n\t  ",
+							"variables": {
+								"name": "%s"
+							}
+						}`, categoryName)
+
+						gqlCategoryIDResponse := `{
+							"orbCategoryByName": null
+						}`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedCategoryIDRequest,
+							Response: gqlCategoryIDResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(clitest.ShouldFail())
+						errorCause := fmt.Sprintf(`the '%s' category does not exist. Did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'.`, categoryName)
+						errorMsg := fmt.Sprintf(`Error: Failed to add orb %s to category %s: %s`, orbFullName, categoryName, errorCause)
+						if updateType == api.Remove {
+							errorMsg = fmt.Sprintf(`Error: Failed to remove orb %s from category %s: %s`, orbFullName, categoryName, errorCause)
+						}
+						stderr := session.Wait().Err.Contents()
+						Expect(string(stderr)).To(ContainSubstring(errorMsg))
+					},
+					Entry("add orb to non-existent category", api.Add),
+					Entry("remove orb to non-existent category", api.Remove),
+				)
 			})
 		})
 	})
