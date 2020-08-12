@@ -12,6 +12,8 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ContextRestClient communicates with the CircleCI REST API to ask questions
+// about contexts. It satisfies api.ContextInterface.
 type ContextRestClient struct {
 	token string
 	server string
@@ -32,7 +34,7 @@ type listContextsResponse struct {
 	params *listContextsParams
 }
 
-type ErrorResponse struct {
+type errorResponse struct {
 	Message *string `json:"message"`
 }
 
@@ -53,6 +55,8 @@ func toSlug(vcs, org string) *string {
 	return &slug
 }
 
+// DeleteEnvironmentVariable deletes the environment variable in the context. It
+// does not return an error if the environment variable did not exist.
 func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string) error {
 	req, err := c.newDeleteEnvironmentVariableRequest(contextID, variable)
 	if err != nil {
@@ -71,7 +75,7 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 	}
 
 	if resp.StatusCode != 200 {
-		var dest ErrorResponse
+		var dest errorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return err
 		}
@@ -80,6 +84,7 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 	return nil
 }
 
+// CreateContext creates a new context in the supplied organization.
 func (c *ContextRestClient) CreateContext(vcs, org, name string) (error) {
 	req, err := c.newCreateContextRequest(vcs, org, name)
 	if err != nil {
@@ -98,7 +103,7 @@ func (c *ContextRestClient) CreateContext(vcs, org, name string) (error) {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		var dest ErrorResponse
+		var dest errorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return err
 		}
@@ -111,6 +116,7 @@ func (c *ContextRestClient) CreateContext(vcs, org, name string) (error) {
 	return nil
 }
 
+// CreateEnvironmentVariable creates OR UPDATES an environment variable.
 func (c *ContextRestClient) CreateEnvironmentVariable(contextID, variable, value string) error {
 	req, err := c.newCreateEnvironmentVariableRequest(contextID, variable, value)
 	if err != nil {
@@ -128,7 +134,7 @@ func (c *ContextRestClient) CreateEnvironmentVariable(contextID, variable, value
 		return err
 	}
 	if resp.StatusCode != 200 {
-		var dest ErrorResponse
+		var dest errorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return err
 		}
@@ -137,6 +143,7 @@ func (c *ContextRestClient) CreateEnvironmentVariable(contextID, variable, value
 	return nil
 }
 
+// DeleteContext deletes the context with the given ID.
 func (c *ContextRestClient) DeleteContext(contextID string) error {
 	req, err := c.newDeleteContextRequest(contextID)
 
@@ -155,7 +162,7 @@ func (c *ContextRestClient) DeleteContext(contextID string) error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		var dest ErrorResponse
+		var dest errorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return err
 		}
@@ -164,6 +171,9 @@ func (c *ContextRestClient) DeleteContext(contextID string) error {
 	return nil
 }
 
+// EnvironmentVariables returns all of the environment variables owned by the
+// given context. Note that pagination is not currently supported - we get all
+// pages of env vars and return them all.
 func (c *ContextRestClient) EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error) {
 	envVars, error := c.listAllEnvironmentVariables(
 		&listEnvironmentVariablesParams{
@@ -173,6 +183,9 @@ func (c *ContextRestClient) EnvironmentVariables(contextID string) (*[]Environme
 	return &envVars, error
 }
 
+// Contexts returns all of the contexts owned by the given org. Note that
+// pagination is not currently supported - we get all pages of contexts and
+// return them all.
 func (c *ContextRestClient) Contexts(vcs, org string) (*[]Context, error) {
 	contexts, error := c.listAllContexts(
 		&listContextsParams{
@@ -182,13 +195,26 @@ func (c *ContextRestClient) Contexts(vcs, org string) (*[]Context, error) {
 	return &contexts, error
 }
 
+// ContextByName finds a single context by its name and returns it.
 func (c *ContextRestClient) ContextByName(vcs, org, name string) (*Context, error) {
-	return c.getContextByName(
-		&listContextsParams{
-			OwnerSlug: toSlug(vcs, org),
-		},
-		name,
-	)
+	params := &listContextsParams{
+		OwnerSlug: toSlug(vcs, org),
+	}
+	for {
+		resp, err := c.listContexts(params)
+		if err != nil {
+			return nil, err
+		}
+		for _, context := range resp.Items {
+			if context.Name == name {
+				return &context, nil
+			}
+		}
+		if resp.NextPageToken == nil {
+			return nil, fmt.Errorf("Cannot find context named '%s'", name)
+		}
+		params.PageToken = resp.NextPageToken
+	}
 }
 
 func (c *ContextRestClient) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
@@ -229,28 +255,6 @@ func (c *ContextRestClient) listAllContexts(params *listContextsParams) (context
 	return contexts, nil
 }
 
-func (c *ContextRestClient) getContextByName(params *listContextsParams, name string) (*Context, error) {
-	resp, err := c.listContexts(params)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, context := range resp.Items {
-		if context.Name == name {
-			return &context, nil
-		}
-	}
-	if resp.NextPageToken != nil {
-		params.PageToken = resp.NextPageToken
-		context, err := c.getContextByName(params, name)
-		if err != nil {
-			return nil, err
-		}
-		return context, nil
-	}
-	return nil, fmt.Errorf("Cannot find context named '%s'", name)
-}
-
 func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
 	req, err := c.newListEnvironmentVariablesRequest(params)
 	if err != nil {
@@ -268,7 +272,7 @@ func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVar
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		var dest ErrorResponse
+		var dest errorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
@@ -302,7 +306,7 @@ func (c *ContextRestClient) listContexts (params *listContextsParams) (*listCont
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		var dest ErrorResponse
+		var dest errorResponse
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 
@@ -472,6 +476,8 @@ func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (
 	return req, nil
 }
 
+// EnsureExists verifies that the REST API exists and has the necessary
+// endpoints to interact with contexts and env vars.
 func (c *ContextRestClient) EnsureExists() error {
 	queryURL, err := url.Parse(c.server)
 	if err != nil {
@@ -515,6 +521,8 @@ func (c *ContextRestClient) EnsureExists() error {
 	return nil
 }
 
+// NewContextRestClient returns a new client satisfying the api.ContextInterface
+// interface via the REST API.
 func NewContextRestClient(host, endpoint, token string) (*ContextRestClient, error) {
 	// Ensure server ends with a slash
 	if !strings.HasSuffix(endpoint, "/") {

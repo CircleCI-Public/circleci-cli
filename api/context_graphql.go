@@ -14,13 +14,7 @@ type GraphQLContextClient struct {
 	Client *graphql.Client
 }
 
-type Resource struct {
-	Variable       string
-	CreatedAt      string
-	TruncatedValue string
-}
-
-type CircleCIContext struct {
+type circleCIContext struct {
 	ID        string
 	Name      string
 	CreatedAt string
@@ -28,12 +22,12 @@ type CircleCIContext struct {
 	}
 }
 
-type ContextsQueryResponse struct {
+type contextsQueryResponse struct {
 	Organization struct {
 		Id       string
 		Contexts struct {
 			Edges []struct {
-				Node CircleCIContext
+				Node circleCIContext
 			}
 		}
 	}
@@ -52,6 +46,7 @@ func improveVcsTypeError(err error) error {
 	return err
 }
 
+// CreateContext creates a new Context in the supplied organization.
 func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName string) (error) {
 	cl := c.Client
 
@@ -109,6 +104,8 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 	return nil
 }
 
+// ContextByName returns the Context in the given organization with the given
+// name.
 func (c *GraphQLContextClient) ContextByName(vcs, org, name string) (*Context, error) {
 	contexts , err := c.Contexts(vcs, org)
 	if err != nil {
@@ -122,6 +119,8 @@ func (c *GraphQLContextClient) ContextByName(vcs, org, name string) (*Context, e
 	return nil, errors.New("No context found with that name")
 }
 
+// EnvironmentVariables returns all of the environment variables in this
+// context.
 func (c *GraphQLContextClient) EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error) {
 	cl := c.Client
 	query := `
@@ -152,6 +151,7 @@ func (c *GraphQLContextClient) EnvironmentVariables(contextID string) (*[]Enviro
 	return &resp.Context.Resources, nil
 }
 
+// Contexts returns all of the Contexts owned by this organization.
 func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, error) {
 	cl := c.Client
 	// In theory we can lookup the organization by name and its contexts in
@@ -210,7 +210,7 @@ func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, er
 
 	request.Var("orgId", org.Organization.ID)
 
-	var response ContextsQueryResponse
+	var response contextsQueryResponse
 	err = cl.Run(request, &response)
 	if err != nil {
 		return nil, errors.Wrapf(improveVcsTypeError(err), "failed to load context list")
@@ -232,6 +232,9 @@ func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, er
 	return &contexts, nil
 }
 
+// DeleteEnvironmentVariable deletes the environment variable from the context.
+// It returns an error if one occurred. It does not return an error if the
+// environment variable did not exist.
 func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName string) error {
 	cl := c.Client
 	query := `
@@ -266,7 +269,7 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 
 	var response struct {
 		RemoveEnvironmentVariable struct {
-			Context CircleCIContext
+			Context circleCIContext
 		}
 	}
 
@@ -274,6 +277,9 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment varaible")
 }
 
+// CreateEnvironmentVariable creates a new environment variable in the given
+// context. Note that the GraphQL API does not support upsert, so an error will
+// be returned if the env var already exists.
 func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName, secretValue string) error {
 	cl := c.Client
 	query := `
@@ -318,7 +324,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 
 	var response struct {
 		StoreEnvironmentVariable struct {
-			Context CircleCIContext
+			Context circleCIContext
 			Error   struct {
 				Type string
 			}
@@ -336,6 +342,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 	return nil
 }
 
+// DeleteContext will delete the context with the given ID.
 func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 	cl := c.Client
 	query := `
@@ -363,6 +370,8 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 	return errors.Wrap(improveVcsTypeError(err), "failed to delete context")
 }
 
+// NewContextGraphqlClient returns a new client satisfying the
+// api.ContextInterface interface via the GraphQL API.
 func NewContextGraphqlClient(host, endpoint, token string, debug bool) *GraphQLContextClient {
 	return &GraphQLContextClient{
 		Client: graphql.NewClient(host, endpoint, token, debug),

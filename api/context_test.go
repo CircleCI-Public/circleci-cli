@@ -13,12 +13,12 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-type graphQLRequst struct {
+type graphQLRequest struct {
 	Query     string
 	Variables map[string]interface{}
 }
 
-func createSingleUseGraphQLServer(result interface{}, requestAssertions func(requestCount uint64, req *graphQLRequst)) (*httptest.Server, *GraphQLContextClient) {
+func createSingleUseGraphQLServer(result interface{}, requestAssertions func(requestCount uint64, req *graphQLRequest)) (*httptest.Server, *GraphQLContextClient) {
 	response := graphql.Response{
 		Data: result,
 	}
@@ -28,7 +28,7 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		atomic.AddUint64(&requestCount, 1)
 		defer ginkgo.GinkgoRecover()
-		var request graphQLRequst
+		var request graphQLRequest
 		Expect(json.NewDecoder(req.Body).Decode(&request)).To(Succeed())
 		requestAssertions(requestCount, &request)
 		bytes, err := json.Marshal(response)
@@ -77,7 +77,7 @@ var _ = ginkgo.Describe("API", func() {
 
 			result.CreateContext.Error.Type = "force-this-error"
 
-			server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequst) {
+			server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequest) {
 				switch count {
 				case 1:
 					Expect(req.Variables["organizationName"]).To(Equal("test-org"))
@@ -107,7 +107,7 @@ var _ = ginkgo.Describe("API", func() {
 
 		result.CreateContext.Error.Type = ""
 
-		server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequst) {
+		server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequest) {
 
 			switch count {
 			case 1:
@@ -129,21 +129,21 @@ var _ = ginkgo.Describe("API", func() {
 
 		ginkgo.It("can list contexts", func() {
 
-			ctx := CircleCIContext{
+			ctx := circleCIContext{
 				CreatedAt: "2018-04-24T19:38:37.212Z",
 				Name:      "Sheep",
 			}
 
-			list := ContextsQueryResponse{}
+			list := contextsQueryResponse{}
 
 			list.Organization.Id = "C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"
-			list.Organization.Contexts.Edges = []struct{ Node CircleCIContext }{
-				struct{ Node CircleCIContext }{
+			list.Organization.Contexts.Edges = []struct{ Node circleCIContext }{
+				struct{ Node circleCIContext }{
 					Node: ctx,
 				},
 			}
 
-			server, client := createSingleUseGraphQLServer(list, func(count uint64, req *graphQLRequst) {
+			server, client := createSingleUseGraphQLServer(list, func(count uint64, req *graphQLRequest) {
 				switch count {
 				case 1:
 					Expect(req.Variables["organizationName"]).To(Equal("test-org"))
