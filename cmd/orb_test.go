@@ -2651,11 +2651,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/second_response.json"))
 						secondResponse := string(tmpBytes)
 
-						expectedOutputPath := "gql_orb_category_list/text_output.txt"
-						if json {
-							expectedOutputPath = "gql_orb_category_list/pretty_json_output.json"
-						}
-						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash(expectedOutputPath))
+						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/pretty_json_output.json"))
 						expectedOutput := string(tmpBytes)
 
 						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
@@ -2680,7 +2676,24 @@ https://circleci.com/orbs/registry/orb/my/orb
 						if json {
 							Expect(displayedOutput).Should(MatchJSON(expectedOutput))
 						} else {
-							Expect(displayedOutput).To(Equal(expectedOutput))
+							Expect(displayedOutput).To(Equal(`Artifacts/Registry
+Build
+Cloud Platform
+Code Analysis
+Collaboration
+Containers
+Deployment
+Infra Automation
+Kubernetes
+Language/Framework
+Monitoring
+Notifications
+Reporting
+Security
+Testing
+Windows Server 2003
+Windows Server 2010
+`))
 						}
 					},
 					Entry("with --json", true),
