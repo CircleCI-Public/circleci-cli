@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/onsi/gomega/types"
@@ -77,8 +77,8 @@ func WithTempSettings() *TempSettings {
 }
 
 // NewFakeClient returns a new *client.Client with the TestServer set and the provided endpoint, token.
-func (tempSettings *TempSettings) NewFakeClient(endpoint, token string) *client.Client {
-	return client.NewClient(tempSettings.TestServer.URL(), endpoint, token, false)
+func (tempSettings *TempSettings) NewFakeClient(endpoint, token string) *graphql.Client {
+	return graphql.NewClient(tempSettings.TestServer.URL(), endpoint, token, false)
 }
 
 // MockRequestResponse is a helpful type for mocking HTTP handlers.

@@ -253,6 +253,7 @@ Your configuration has been saved to %s.
 					Expect(string(reread)).To(Equal(`host: https://zomg.com
 endpoint: graphql-unstable
 token: mytoken
+rest_endpoint: api/v2
 `))
 				})
 			})

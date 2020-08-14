@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -49,7 +49,7 @@ var _ = Describe("Diagnostic", func() {
 		    }
 		  }`
 
-		request := client.NewRequest(query)
+		request := graphql.NewRequest(query)
 		expected, err := request.Encode()
 		Expect(err).ShouldNot(HaveOccurred())
 
@@ -63,7 +63,7 @@ var _ = Describe("Diagnostic", func() {
 
 		// Stub any "me" queries regardless of token
 		query = `query { me { name } }`
-		request = client.NewRequest(query)
+		request = graphql.NewRequest(query)
 		expected, err = request.Encode()
 		Expect(err).ShouldNot(HaveOccurred())
 
@@ -191,7 +191,7 @@ token: mytoken
 		    }
 		  }`
 
-			request := client.NewRequest(query)
+			request := graphql.NewRequest(query)
 			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -205,7 +205,7 @@ token: mytoken
 
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
-			request = client.NewRequest(query)
+			request = graphql.NewRequest(query)
 			request.SetToken("mytoken")
 			Expect(err).ShouldNot(HaveOccurred())
 			expected, err = request.Encode()
