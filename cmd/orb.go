@@ -258,7 +258,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	listCategoriesCommand := &cobra.Command{
 		Use:   "list-categories",
-		Short: "List categories",
+		Short: "List orb categories",
 		Args:  cobra.ExactArgs(0),
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return listOrbCategories(opts)
@@ -505,7 +505,7 @@ func orbCategoryCollectionToString(orbCategoryCollection *api.OrbCategoriesForLi
 	if opts.listJSON {
 		orbCategoriesJSON, err := json.MarshalIndent(orbCategoryCollection, "", "  ")
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
+			return "", errors.Wrapf(err, "Failed to convert to JSON")
 		}
 		result = string(orbCategoriesJSON)
 	} else {
@@ -850,7 +850,7 @@ func addOrRemoveOrbCategorization(opts orbOptions, updateType api.UpdateOrbCateg
 		return err
 	}
 
-	err = api.OrbAddOrRemoveOrbCategorization(opts.cl, namespace, orb, opts.args[1], updateType)
+	err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orb, opts.args[1], updateType)
 
 	if err != nil {
 		var errorString = "Failed to add orb %s to category %s"

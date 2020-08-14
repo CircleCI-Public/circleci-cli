@@ -2378,11 +2378,11 @@ foo.bar/account/api`))
                                 orb {
                                     id
                                     createdAt
-																		name
-																		categories {
-																			id
-																			name
-																		}
+                                    name
+                                    categories {
+                                      id
+                                      name
+                                    }
 	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
@@ -2600,7 +2600,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 			})
 		})
 
-		Describe("orb categories", func() {
+		Describe("list orb categories", func() {
 			Context("with mock server", func() {
 				DescribeTable("sends multiple requests when there are more than 1 page of orb categories",
 					func(json bool) {
@@ -2651,7 +2651,11 @@ https://circleci.com/orbs/registry/orb/my/orb
 						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/second_response.json"))
 						secondResponse := string(tmpBytes)
 
-						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/pretty_json_output.json"))
+						expectedOutputPath := "gql_orb_category_list/text_output.txt"
+						if json {
+							expectedOutputPath = "gql_orb_category_list/pretty_json_output.json"
+						}
+						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash(expectedOutputPath))
 						expectedOutput := string(tmpBytes)
 
 						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
@@ -2672,9 +2676,11 @@ https://circleci.com/orbs/registry/orb/my/orb
 						Eventually(session).Should(gexec.Exit(0))
 						Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 
-						completeOutput := string(session.Wait().Out.Contents())
+						displayedOutput := string(session.Wait().Out.Contents())
 						if json {
-							Expect(completeOutput).Should(MatchJSON(expectedOutput))
+							Expect(displayedOutput).Should(MatchJSON(expectedOutput))
+						} else {
+							Expect(displayedOutput).To(Equal(expectedOutput))
 						}
 					},
 					Entry("with --json", true),
@@ -2703,7 +2709,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 			})
 
 			Context("with mock server", func() {
-				DescribeTable("add/remove orb categorization",
+				DescribeTable("add/remove a valid orb to/from a valid category",
 					func(mockErrorResponse bool, updateType api.UpdateOrbCategorizationRequestType) {
 						commandName := "add-to-category"
 						operationName := "addCategorizationToOrb"
@@ -2736,7 +2742,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 					}`, orbFullName, orbNamespaceName)
 
 						expectedCategoryIDRequest := fmt.Sprintf(`{
-							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}\n\t  ",
+							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}",
 							"variables": {
 								"name": "%s"
 							}
@@ -2749,7 +2755,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 						}`, categoryId)
 
 						expectedOrbCategorizationRequest := fmt.Sprintf(`{
-							"query": "\n\t\tmutation($orbId: UUID!, $categoryId: UUID!) {\n\t%s(\n\t\t\t\torbId: $orbId,\n\t\t\t\tcategoryId: $categoryId\n\t\t\t) {\n\t\t\t\torbId\n\t\t\t\tcategoryId\n\t\t\t\terrors {\n\t\t\t\t\tmessage\n\t\t\t\t\ttype\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
+							"query": "\n\t\tmutation($orbId: UUID!, $categoryId: UUID!) {\n\t\t\t%s(\n\t\t\t\torbId: $orbId,\n\t\t\t\tcategoryId: $categoryId\n\t\t\t) {\n\t\t\t\torbId\n\t\t\t\tcategoryId\n\t\t\t\terrors {\n\t\t\t\t\tmessage\n\t\t\t\t\ttype\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
 							"variables": {
 								"categoryId": "%s",
 								"orbId": "%s"
@@ -2782,7 +2788,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 							Request:  expectedOrbIDRequest,
 							Response: gqlOrbIDResponse})
 
-						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedCategoryIDRequest,
 							Response: gqlCategoryIDResponse})
@@ -2892,7 +2898,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 						}`, orbId)
 
 						expectedCategoryIDRequest := fmt.Sprintf(`{
-							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}\n\t  ",
+							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}",
 							"variables": {
 								"name": "%s"
 							}
@@ -2907,7 +2913,7 @@ https://circleci.com/orbs/registry/orb/my/orb
 							Request:  expectedOrbIDRequest,
 							Response: gqlOrbIDResponse})
 
-						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedCategoryIDRequest,
 							Response: gqlCategoryIDResponse})

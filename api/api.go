@@ -242,7 +242,7 @@ type AddOrRemoveOrbCategorizationData struct {
 	Errors     GQLErrorsCollection
 }
 
-// OrbListResponse type matches the result from GQL.
+// OrbCategoryListResponse type matches the result from GQL.
 // So that we can use mapstructure to convert from nested maps to a strongly typed struct.
 type OrbCategoryListResponse struct {
 	OrbCategories struct {
@@ -1001,11 +1001,11 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
                                 orb {
                                     id
                                     createdAt
-																		name
-																		categories {
-																			id
-																			name
-																		}
+                                    name
+                                    categories {
+                                      id
+                                      name
+                                    }
 	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
@@ -1250,11 +1250,9 @@ func OrbCategoryID(cl *graphql.Client, name string) (*OrbCategoryIDResponse, err
 		orbCategoryByName(name: $name) {
 		  id
 		}
-	}
-	  `
+	}`
 
 	request := graphql.NewRequest(query)
-	request.SetToken(cl.Token)
 
 	request.Var("name", name)
 
@@ -1268,8 +1266,8 @@ func OrbCategoryID(cl *graphql.Client, name string) (*OrbCategoryIDResponse, err
 	return nil, fmt.Errorf("the '%s' category does not exist. Did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'.", name)
 }
 
-// OrbAddOrRemoveOrbCategorization adds or removes an orb categorization
-func OrbAddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb string, categoryName string, updateType UpdateOrbCategorizationRequestType) error {
+// AddOrRemoveOrbCategorization adds or removes an orb categorization
+func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb string, categoryName string, updateType UpdateOrbCategorizationRequestType) error {
 	orbId, err := OrbID(cl, namespace, orb)
 	if err != nil {
 		return err
@@ -1293,9 +1291,9 @@ func OrbAddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb s
 		return fmt.Errorf("Internal error - invalid update type %d", updateType)
 	}
 
-	query := `
+	query := fmt.Sprintf(`
 		mutation($orbId: UUID!, $categoryId: UUID!) {
-	` + mutationName + `(
+			%s(
 				orbId: $orbId,
 				categoryId: $categoryId
 			) {
@@ -1307,7 +1305,7 @@ func OrbAddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb s
 				}
 			}
 		}
-	`
+	`, mutationName)
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
