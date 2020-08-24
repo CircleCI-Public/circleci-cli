@@ -256,6 +256,38 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Args: cobra.ExactArgs(1),
 	}
 
+	listCategoriesCommand := &cobra.Command{
+		Use:   "list-categories",
+		Short: "List orb categories",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return listOrbCategories(opts)
+		},
+	}
+
+	listCategoriesCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
+	if err := listCategoriesCommand.PersistentFlags().MarkHidden("json"); err != nil {
+		panic(err)
+	}
+
+	addCategorizationToOrbCommand := &cobra.Command{
+		Use:   "add-to-category <namespace>/<orb> \"<category-name>\"",
+		Short: "Add an orb to a category",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return addOrRemoveOrbCategorization(opts, api.Add)
+		},
+	}
+
+	removeCategorizationFromOrbCommand := &cobra.Command{
+		Use:   "remove-from-category <namespace>/<orb> \"<category-name>\"",
+		Short: "Remove an orb from a category",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return addOrRemoveOrbCategorization(opts, api.Remove)
+		},
+	}
+
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
 		panic(err)
@@ -286,6 +318,9 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
 	orbCommand.AddCommand(orbPack)
+	orbCommand.AddCommand(addCategorizationToOrbCommand)
+	orbCommand.AddCommand(removeCategorizationFromOrbCommand)
+	orbCommand.AddCommand(listCategoriesCommand)
 
 	return orbCommand
 }
@@ -455,6 +490,37 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 
 func logOrbs(orbCollection *api.OrbsForListing, opts orbOptions) error {
 	result, err := orbCollectionToString(orbCollection, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(result)
+
+	return nil
+}
+
+func orbCategoryCollectionToString(orbCategoryCollection *api.OrbCategoriesForListing, opts orbOptions) (string, error) {
+	var result string
+
+	if opts.listJSON {
+		orbCategoriesJSON, err := json.MarshalIndent(orbCategoryCollection, "", "  ")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to convert to JSON")
+		}
+		result = string(orbCategoriesJSON)
+	} else {
+		var categories []string = make([]string, 0, len(orbCategoryCollection.OrbCategories))
+		for _, orbCategory := range orbCategoryCollection.OrbCategories {
+			categories = append(categories, orbCategory.Name)
+		}
+		result = strings.Join(categories, "\n")
+	}
+
+	return result, nil
+}
+
+func logOrbCategories(orbCategoryCollection *api.OrbCategoriesForListing, opts orbOptions) error {
+	result, err := orbCategoryCollectionToString(orbCategoryCollection, opts)
 	if err != nil {
 		return err
 	}
@@ -748,12 +814,58 @@ func orbInfo(opts orbOptions) error {
 	fmt.Printf("Projects: %d\n", info.Orb.Statistics.Last30DaysProjectCount)
 	fmt.Printf("Orgs: %d\n", info.Orb.Statistics.Last30DaysOrganizationCount)
 
+	if len(info.Orb.Categories) > 0 {
+		fmt.Println("")
+		fmt.Println("## Categories:")
+		for _, category := range info.Orb.Categories {
+			fmt.Printf("%s\n", category.Name)
+		}
+	}
+
 	orbVersionSplit := strings.Split(ref, "@")
 	orbRef := orbVersionSplit[0]
 	fmt.Printf(`
 Learn more about this orb online in the CircleCI Orb Registry:
 https://circleci.com/orbs/registry/orb/%s
 `, orbRef)
+
+	return nil
+}
+
+func listOrbCategories(opts orbOptions) error {
+	orbCategories, err := api.ListOrbCategories(opts.cl)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orb categories")
+	}
+
+	return logOrbCategories(orbCategories, opts)
+}
+
+func addOrRemoveOrbCategorization(opts orbOptions, updateType api.UpdateOrbCategorizationRequestType) error {
+	var err error
+
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(opts.args[0])
+
+	if err != nil {
+		return err
+	}
+
+	err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orb, opts.args[1], updateType)
+
+	if err != nil {
+		var errorString = "Failed to add orb %s to category %s"
+		if updateType == api.Remove {
+			errorString = "Failed to remove orb %s from category %s"
+		}
+		return errors.Wrapf(err, errorString, opts.args[0], opts.args[1])
+	}
+
+	var output = `%s is successfully added to the "%s" category.` + "\n"
+	if updateType == api.Remove {
+		output = `%s is successfully removed from the "%s" category.` + "\n"
+	}
+
+	fmt.Printf(output, opts.args[0], opts.args[1])
 
 	return nil
 }
