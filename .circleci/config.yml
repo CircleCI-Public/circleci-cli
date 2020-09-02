@@ -1,0 +1,19 @@
+version: 2.1
+
+# This config does nothing; it only exists to avoid showing build errors for the gh-pages branch.
+
+jobs:
+  dummy:
+    docker:
+      - image: cimg/base:2020.08
+    steps:
+      - run: echo This job will never run
+
+workflows:
+  wf:
+    jobs:
+      - dummy:
+          filters:
+            branches:
+              ignore:
+                - gh-pages
