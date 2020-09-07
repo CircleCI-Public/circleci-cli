@@ -24,6 +24,7 @@ type Config struct {
 	FileUsed        string    `yaml:"-"`
 	GitHubAPI       string    `yaml:"-"`
 	SkipUpdateCheck bool      `yaml:"-"`
+	OrbNamespace    string    `yaml:"default_orb_namespace"`
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.

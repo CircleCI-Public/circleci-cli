@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -22,6 +24,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
 	"github.com/manifoldco/promptui"
 )
 
@@ -258,7 +261,6 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Args: cobra.ExactArgs(1),
 	}
 
-<<<<<<< HEAD
 	listCategoriesCommand := &cobra.Command{
 		Use:   "list-categories",
 		Short: "List orb categories",
@@ -289,7 +291,8 @@ Please note that at this time all orbs created in the registry are world-readabl
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return addOrRemoveOrbCategorization(opts, api.Remove)
 		},
-=======
+	}
+
 	orbInit := &cobra.Command{
 		Use:   "init <path>",
 		Short: "Initialize a new orb.",
@@ -298,7 +301,6 @@ Please note that at this time all orbs created in the registry are world-readabl
 			return initOrb(opts)
 		},
 		Args: cobra.ExactArgs(1),
->>>>>>> 177efd8... Add basic groundwork for orb init.
 	}
 
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
@@ -331,13 +333,10 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
 	orbCommand.AddCommand(orbPack)
-<<<<<<< HEAD
 	orbCommand.AddCommand(addCategorizationToOrbCommand)
 	orbCommand.AddCommand(removeCategorizationFromOrbCommand)
 	orbCommand.AddCommand(listCategoriesCommand)
-=======
 	orbCommand.AddCommand(orbInit)
->>>>>>> 177efd8... Add basic groundwork for orb init.
 
 	return orbCommand
 }
@@ -983,21 +982,21 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 }
 
 func initOrb(opts orbOptions) error {
-	orbName := opts.args[0]
+	orbPath := opts.args[0]
 	var err error
+
 	fullyAutomated := promptui.Select{
-		Label: "Would you like to perform an automated setup of this orb's CI/CD process? Note: This will push to a new GitHub repository and set up CircleCI.",
-		Items: []string{"Yes, set up my CI/CD for me.", "No, I'll set this up later."},
+		Label: "Would you like to perform an automated setup of this orb?",
+		Items: []string{"Yes, walk me through the process.", "No, I'll handle everything myself."},
 	}
 
-	_, result, err := fullyAutomated.Run()
-
+	index, _, err := fullyAutomated.Run()
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	fmt.Printf("Cloning github.com/CircleCI-Public/Orb-Project-Template into %s\n", orbName)
-	_, err = git.PlainClone(orbName, false, &git.CloneOptions{
+	fmt.Printf("Cloning github.com/CircleCI-Public/Orb-Project-Template into %s\n", orbPath)
+	_, err = git.PlainClone(orbPath, false, &git.CloneOptions{
 		URL: "https://github.com/CircleCI-Public/Orb-Project-Template.git",
 	})
 
@@ -1005,18 +1004,165 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	if result == "No" {
+	if index == 1 {
 		fmt.Println("Opted for manual setup, exiting")
 		return nil
 	}
 
-	repoType := promptui.Select{
-		Label: "Will this orb be under an individual or organization GitHub repository?",
-		Items: []string{"Individual", "Organization"},
+	defaultNamespace := opts.cfg.OrbNamespace
+	useDefault := "No"
+	if defaultNamespace != "" {
+		useDefaultNamespace := promptui.Select{
+			Label: fmt.Sprintf("%s is set as the deafult namespace, would you like to use it?", defaultNamespace),
+			Items: []string{"Yes, use this.", "No, use a different one."},
+		}
+		_, useDefault, err = useDefaultNamespace.Run()
+		if err != nil {
+			return errors.Wrap(err, "Unexpected error")
+		}
 	}
-	repoType.Run()
-	
-	ghUsername := 
+	fmt.Println("A few questions to get you up and running.")
+
+	ownerNameInput := promptui.Prompt{
+		Label: "Enter your GitHub username or organization",
+	}
+
+	ownerName, err := ownerNameInput.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	vcsSelect := promptui.Select{
+		Label: "Are you using GitHub or Bitbucket?",
+		Items: []string{"GitHub", "Bitbucket"},
+	}
+	vcs, _, err := vcsSelect.Run()
+	vcsProvider := "github"
+	if vcs == 1 {
+
+	}
+
+	namespace := ""
+	if useDefault == "No" || defaultNamespace == "" {
+		namespaceInput := promptui.Prompt{
+			Label: "Enter the namespace to use for this orb",
+		}
+		namespace, err = namespaceInput.Run()
+		if err != nil {
+			return errors.Wrap(err, "Unexpected error")
+		}
+
+		fmt.Printf("Saving namespace %s...\n", namespace)
+		opts.cfg.OrbNamespace = namespace
+		_, err := api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
+		if err != nil && err.Error() == fmt.Sprintf("Organizations may only create one namespace. This organization owns the following namespace: \"%s\"", namespace) {
+			fmt.Println("Namespace is already claimed by you! Moving on...")
+		} else if err != nil {
+			return err
+		}
+		opts.cfg.WriteToDisk()
+	} else {
+		namespace = defaultNamespace
+	}
+
+	orbPathSplit := strings.Split(orbPath, "/")
+	orbName := orbPathSplit[len(orbPathSplit)-1]
+	orbNamePrompt := promptui.Prompt{
+		Label:     "Orb name",
+		Default:   orbName,
+		AllowEdit: true,
+	}
+	orbName, err = orbNamePrompt.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	contextPrompt := promptui.Select{
+		Label: "Would you like to automatically set up a publishing context for your orb?",
+		Items: []string{"Yes, set up a publishing context with my API key.", "No, I'll do this later."},
+	}
+	shouldCreateContext, _, err := contextPrompt.Run()
+
+	fmt.Println("Thank you! Setting up your orb...")
+
+	if shouldCreateContext == 0 {
+		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
+		if err != nil {
+			return err
+		}
+	}
+
+	// Now draw the rest of the owl.
+	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	if err != nil {
+		return err
+	}
+
+	circle := string(circleConfig)
+	ioutil.WriteFile(path.Join(circle, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, namespace)), 0644)
+
+	readme, err := ioutil.ReadFile(path.Join(orbPath, "README.md"))
+	if err != nil {
+		return err
+	}
+	readmeString := string(readme)
+	ioutil.WriteFile(path.Join(circle, "README.md"), []byte(orbTemplate(readmeString, orbName, namespace)), 0644)
+
+	fmt.Printf("Done! Your orb %s has been initialized in %s.", namespace+"/"+orbName, orbPath)
+
+	gitActionPrompt := promptui.Select{
+		Label: "Commit and push your orb to a git repository?",
+		Items: []string{"Yes, commit and push for me.", "No, I'll do this later."},
+	}
+	gitAction, _, err := gitActionPrompt.Run()
+	if gitAction == 1 {
+		return nil
+	}
+
+	gitLocationPrompt := promptui.Prompt{
+		Label: "Enter the remote git repository",
+	}
+	gitLocation, err := gitLocationPrompt.Run()
+	r, err := git.PlainOpen(orbPath)
+	if err != nil {
+		return err
+	}
+
+	r.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{gitLocation},
+	})
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+	_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+	if err != nil {
+		return err
+	}
+	r.Push(&git.PushOptions{})
+
+	fmt.Printf("Your orb will be live at https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
+	fmt.Println("Learn more about orbs: https://circleci.com/docs/2.0/orb-author")
 
 	return nil
+}
+
+func orbTemplate(fileContents string, orbName string, namespace string) string {
+	x := strings.Replace(fileContents, "<orb-name>", orbName, -1)
+	x = strings.Replace(x, "<namespace>", namespace, -1)
+	x = strings.Replace(x, "<publishing-context>", "orb-publishing", -1)
+	x = strings.Replace(x, "<!---", "", -1)
+	x = strings.Replace(x, "--->", "", -1)
+
+	return x
 }
