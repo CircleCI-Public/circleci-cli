@@ -18,9 +18,11 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/spf13/cobra"
+	"github.com/go-git/go-git/v5"
+	"github.com/manifoldco/promptui"
 )
 
 type orbOptions struct {
@@ -256,6 +258,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Args: cobra.ExactArgs(1),
 	}
 
+<<<<<<< HEAD
 	listCategoriesCommand := &cobra.Command{
 		Use:   "list-categories",
 		Short: "List orb categories",
@@ -286,6 +289,16 @@ Please note that at this time all orbs created in the registry are world-readabl
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return addOrRemoveOrbCategorization(opts, api.Remove)
 		},
+=======
+	orbInit := &cobra.Command{
+		Use:   "init <path>",
+		Short: "Initialize a new orb.",
+		Long:  ``,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return initOrb(opts)
+		},
+		Args: cobra.ExactArgs(1),
+>>>>>>> 177efd8... Add basic groundwork for orb init.
 	}
 
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
@@ -318,9 +331,13 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
 	orbCommand.AddCommand(orbPack)
+<<<<<<< HEAD
 	orbCommand.AddCommand(addCategorizationToOrbCommand)
 	orbCommand.AddCommand(removeCategorizationFromOrbCommand)
 	orbCommand.AddCommand(listCategoriesCommand)
+=======
+	orbCommand.AddCommand(orbInit)
+>>>>>>> 177efd8... Add basic groundwork for orb init.
 
 	return orbCommand
 }
@@ -962,5 +979,44 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 			}
 		}
 	}
+	return nil
+}
+
+func initOrb(opts orbOptions) error {
+	orbName := opts.args[0]
+	var err error
+	fullyAutomated := promptui.Select{
+		Label: "Would you like to perform an automated setup of this orb's CI/CD process? Note: This will push to a new GitHub repository and set up CircleCI.",
+		Items: []string{"Yes, set up my CI/CD for me.", "No, I'll set this up later."},
+	}
+
+	_, result, err := fullyAutomated.Run()
+
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	fmt.Printf("Cloning github.com/CircleCI-Public/Orb-Project-Template into %s\n", orbName)
+	_, err = git.PlainClone(orbName, false, &git.CloneOptions{
+		URL: "https://github.com/CircleCI-Public/Orb-Project-Template.git",
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	if result == "No" {
+		fmt.Println("Opted for manual setup, exiting")
+		return nil
+	}
+
+	repoType := promptui.Select{
+		Label: "Will this orb be under an individual or organization GitHub repository?",
+		Items: []string{"Individual", "Organization"},
+	}
+	repoType.Run()
+	
+	ghUsername := 
+
 	return nil
 }
