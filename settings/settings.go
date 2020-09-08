@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/data"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // Config is used to represent the current state of a CLI instance.
@@ -17,6 +17,7 @@ type Config struct {
 	Host            string
 	Endpoint        string
 	Token           string
+	RestEndpoint    string    `yaml:"rest_endpoint"`
 	Data            *data.YML `yaml:"-"`
 	Debug           bool      `yaml:"-"`
 	Address         string    `yaml:"-"`
@@ -106,6 +107,10 @@ func (cfg *Config) WriteToDisk() error {
 func (cfg *Config) LoadFromEnv(prefix string) {
 	if host := ReadFromEnv(prefix, "host"); host != "" {
 		cfg.Host = host
+	}
+
+	if restEndpoint := ReadFromEnv(prefix, "rest_endpoint"); restEndpoint != "" {
+		cfg.RestEndpoint = restEndpoint
 	}
 
 	if endpoint := ReadFromEnv(prefix, "endpoint"); endpoint != "" {
