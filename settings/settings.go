@@ -17,14 +17,20 @@ type Config struct {
 	Host            string
 	Endpoint        string
 	Token           string
-	RestEndpoint    string    `yaml:"rest_endpoint"`
-	Data            *data.YML `yaml:"-"`
-	Debug           bool      `yaml:"-"`
-	Address         string    `yaml:"-"`
-	FileUsed        string    `yaml:"-"`
-	GitHubAPI       string    `yaml:"-"`
-	SkipUpdateCheck bool      `yaml:"-"`
-	OrbNamespace    string    `yaml:"default_orb_namespace"`
+	RestEndpoint    string            `yaml:"rest_endpoint"`
+	Data            *data.YML         `yaml:"-"`
+	Debug           bool              `yaml:"-"`
+	Address         string            `yaml:"-"`
+	FileUsed        string            `yaml:"-"`
+	GitHubAPI       string            `yaml:"-"`
+	SkipUpdateCheck bool              `yaml:"-"`
+	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
+}
+
+type OrbPublishingInfo struct {
+	DefaultNamespace   string `yaml:"default_namespace"`
+	DefaultVcsProvider string `yaml:"default_vcs_provider"`
+	DefaultOwner       string `yaml:"default_owner"`
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.

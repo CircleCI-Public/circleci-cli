@@ -997,7 +997,8 @@ func initOrb(opts orbOptions) error {
 
 	fmt.Printf("Cloning github.com/CircleCI-Public/Orb-Project-Template into %s\n", orbPath)
 	_, err = git.PlainClone(orbPath, false, &git.CloneOptions{
-		URL: "https://github.com/CircleCI-Public/Orb-Project-Template.git",
+		URL:   "https://github.com/CircleCI-Public/Orb-Project-Template.git",
+		Depth: 1,
 	})
 
 	if err != nil {
@@ -1009,12 +1010,12 @@ func initOrb(opts orbOptions) error {
 		return nil
 	}
 
-	defaultNamespace := opts.cfg.OrbNamespace
+	defaultNamespace := opts.cfg.OrbPublishing.DefaultNamespace
 	useDefault := "No"
 	if defaultNamespace != "" {
 		useDefaultNamespace := promptui.Select{
 			Label: fmt.Sprintf("%s is set as the deafult namespace, would you like to use it?", defaultNamespace),
-			Items: []string{"Yes, use this.", "No, use a different one."},
+			Items: []string{fmt.Sprintf("Yes, use \"%s\".", defaultNamespace), "No, use a different one."},
 		}
 		_, useDefault, err = useDefaultNamespace.Run()
 		if err != nil {
@@ -1024,7 +1025,8 @@ func initOrb(opts orbOptions) error {
 	fmt.Println("A few questions to get you up and running.")
 
 	ownerNameInput := promptui.Prompt{
-		Label: "Enter your GitHub username or organization",
+		Label:   "Enter your GitHub username or organization",
+		Default: opts.cfg.OrbPublishing.DefaultOwner,
 	}
 
 	ownerName, err := ownerNameInput.Run()
@@ -1032,14 +1034,37 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	vcsSelect := promptui.Select{
-		Label: "Are you using GitHub or Bitbucket?",
-		Items: []string{"GitHub", "Bitbucket"},
+	vcsProvider := ""
+	useDefaultVcs := false
+	if opts.cfg.OrbPublishing.DefaultVcsProvider != "" {
+		useDefaultVcsPrompt := promptui.Select{
+			Label: fmt.Sprintf("Use %s?", opts.cfg.OrbPublishing.DefaultVcsProvider),
+			Items: []string{fmt.Sprintf("Yes, use %s", opts.cfg.OrbPublishing.DefaultVcsProvider), "No, use a different provider."},
+		}
+		useDefault, _, err := useDefaultVcsPrompt.Run()
+		if err != nil {
+			return err
+		}
+		useDefaultVcs = useDefault == 0
+		if useDefaultVcs {
+			vcsProvider = opts.cfg.OrbPublishing.DefaultVcsProvider
+		}
 	}
-	vcs, _, err := vcsSelect.Run()
-	vcsProvider := "github"
-	if vcs == 1 {
 
+	if !useDefaultVcs {
+		vcsSelect := promptui.Select{
+			Label: "Are you using GitHub or Bitbucket?",
+			Items: []string{"GitHub", "Bitbucket"},
+		}
+		vcsOption, _, err := vcsSelect.Run()
+		if err != nil {
+			return err
+		}
+		if vcsOption == 0 {
+			vcsProvider = "github"
+		} else {
+			vcsProvider = "bitbucket"
+		}
 	}
 
 	namespace := ""
@@ -1053,14 +1078,13 @@ func initOrb(opts orbOptions) error {
 		}
 
 		fmt.Printf("Saving namespace %s...\n", namespace)
-		opts.cfg.OrbNamespace = namespace
+		opts.cfg.OrbPublishing.DefaultNamespace = namespace
 		_, err := api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
 		if err != nil && err.Error() == fmt.Sprintf("Organizations may only create one namespace. This organization owns the following namespace: \"%s\"", namespace) {
 			fmt.Println("Namespace is already claimed by you! Moving on...")
 		} else if err != nil {
 			return err
 		}
-		opts.cfg.WriteToDisk()
 	} else {
 		namespace = defaultNamespace
 	}
@@ -1120,11 +1144,12 @@ func initOrb(opts orbOptions) error {
 	fmt.Printf("Done! Your orb %s has been initialized in %s.", namespace+"/"+orbName, orbPath)
 
 	gitActionPrompt := promptui.Select{
-		Label: "Commit and push your orb to a git repository?",
-		Items: []string{"Yes, commit and push for me.", "No, I'll do this later."},
+		Label: "Would you like to set up your git project?",
+		Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
 	}
 	gitAction, _, err := gitActionPrompt.Run()
 	if gitAction == 1 {
+		finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
 		return nil
 	}
 
@@ -1137,10 +1162,19 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	r.CreateRemote(&config.RemoteConfig{
+	err = r.DeleteRemote("origin")
+	if err != nil {
+		return err
+	}
+
+	_, err = r.CreateRemote(&config.RemoteConfig{
 		Name: "origin",
 		URLs: []string{gitLocation},
 	})
+	if err != nil {
+		return err
+	}
+
 	w, err := r.Worktree()
 	if err != nil {
 		return err
@@ -1149,12 +1183,18 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
-	r.Push(&git.PushOptions{})
+	fmt.Println("An initial commit has been created - please run git push origin master to publish your first commit!")
+	finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+	return nil
+}
+
+func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orbName string, opts *orbOptions) {
+	opts.cfg.OrbPublishing.DefaultOwner = ownerName
+	opts.cfg.OrbPublishing.DefaultVcsProvider = vcsProvider
+	opts.cfg.WriteToDisk()
 
 	fmt.Printf("Your orb will be live at https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("Learn more about orbs: https://circleci.com/docs/2.0/orb-author")
-
-	return nil
 }
 
 func orbTemplate(fileContents string, orbName string, namespace string) string {
