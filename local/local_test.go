@@ -103,6 +103,12 @@ var _ = Describe("build", func() {
 				expectedArgs:       []string{"--env", "foo", "--env", "bar", "--env", "baz"},
 			}),
 
+			Entry("comma in env value (issue #440)", TestCase{
+				input:              []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
+				expectedConfigPath: ".circleci/config.yml",
+				expectedArgs:       []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
+			}),
+
 			Entry("args that are not flags", TestCase{
 				input:              []string{"a", "--debug", "b", "--config", "foo", "d"},
 				expectedConfigPath: "foo",
