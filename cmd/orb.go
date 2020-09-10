@@ -1,10 +1,13 @@
 package cmd
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -63,6 +66,10 @@ func (createOrbInteractiveUI) askUserToConfirm(message string) bool {
 
 type createOrbTestUI struct {
 	confirm bool
+}
+
+type orbProtectTemplateRelease struct {
+	ZipUrl string `json:"zipball_url"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -995,14 +1002,50 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	fmt.Printf("Cloning github.com/CircleCI-Public/Orb-Project-Template into %s\n", orbPath)
-	_, err = git.PlainClone(orbPath, false, &git.CloneOptions{
-		URL:   "https://github.com/CircleCI-Public/Orb-Project-Template.git",
-		Depth: 1,
-	})
-
+	fmt.Printf("Downloading Orb Project Template into %s\n", orbPath)
+	httpClient := http.Client{}
+	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Project-Template/tags")
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
+	}
+
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+	tags := []orbProtectTemplateRelease{}
+	err = json.Unmarshal(body, &tags)
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	latestTag := tags[0].ZipUrl
+	resp, err := http.Get(latestTag)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filepath.Join(os.TempDir(), "orb-project-template.zip"))
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	nested, err := unzip(filepath.Join(os.TempDir(), "orb-project-template.zip"), filepath.Join(os.TempDir(), "orb-project-template"))
+	if err != nil {
+		return err
+	}
+	err = os.Rename(filepath.Join(os.TempDir(), "orb-project-template", nested), orbPath)
+	if err != nil {
+		return err
 	}
 
 	if index == 1 {
@@ -1195,6 +1238,67 @@ func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orb
 
 	fmt.Printf("Your orb will be live at https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("Learn more about orbs: https://circleci.com/docs/2.0/orb-author")
+}
+
+// From https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
+func unzip(src, dest string) (string, error) {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	os.MkdirAll(dest, 0755)
+
+	// Closure to address file descriptors issue with all the deferred .Close() methods
+	extractAndWriteFile := func(f *zip.File) error {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := rc.Close(); err != nil {
+				panic(err)
+			}
+		}()
+
+		path := filepath.Join(dest, f.Name)
+
+		if f.FileInfo().IsDir() {
+			os.MkdirAll(path, f.Mode())
+		} else {
+			os.MkdirAll(filepath.Dir(path), f.Mode())
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+			}()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	nestedDir := r.File[0].Name
+	for _, f := range r.File {
+		err := extractAndWriteFile(f)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return nestedDir, nil
 }
 
 func orbTemplate(fileContents string, orbName string, namespace string) string {
