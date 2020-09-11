@@ -1043,6 +1043,9 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+	// This is neccesary because the zip downloaded from GitHub will have a
+	// directory with the actual template, rather than the template being
+	// top-level.
 	err = os.Rename(filepath.Join(os.TempDir(), "orb-project-template", nested), orbPath)
 	if err != nil {
 		return err
@@ -1053,18 +1056,6 @@ func initOrb(opts orbOptions) error {
 		return nil
 	}
 
-	defaultNamespace := opts.cfg.OrbPublishing.DefaultNamespace
-	useDefault := "No"
-	if defaultNamespace != "" {
-		useDefaultNamespace := promptui.Select{
-			Label: fmt.Sprintf("%s is set as the deafult namespace, would you like to use it?", defaultNamespace),
-			Items: []string{fmt.Sprintf("Yes, use \"%s\".", defaultNamespace), "No, use a different one."},
-		}
-		_, useDefault, err = useDefaultNamespace.Run()
-		if err != nil {
-			return errors.Wrap(err, "Unexpected error")
-		}
-	}
 	fmt.Println("A few questions to get you up and running.")
 
 	ownerNameInput := promptui.Prompt{
@@ -1110,26 +1101,23 @@ func initOrb(opts orbOptions) error {
 		}
 	}
 
-	namespace := ""
-	if useDefault == "No" || defaultNamespace == "" {
-		namespaceInput := promptui.Prompt{
-			Label: "Enter the namespace to use for this orb",
-		}
-		namespace, err = namespaceInput.Run()
-		if err != nil {
-			return errors.Wrap(err, "Unexpected error")
-		}
+	namespace := opts.cfg.OrbPublishing.DefaultNamespace
+	namespaceInput := promptui.Prompt{
+		Label:   "Enter the namespace to use for this orb",
+		Default: namespace,
+	}
+	namespace, err = namespaceInput.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
 
-		fmt.Printf("Saving namespace %s...\n", namespace)
-		opts.cfg.OrbPublishing.DefaultNamespace = namespace
-		_, err := api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
-		if err != nil && err.Error() == fmt.Sprintf("Organizations may only create one namespace. This organization owns the following namespace: \"%s\"", namespace) {
-			fmt.Println("Namespace is already claimed by you! Moving on...")
-		} else if err != nil {
-			return err
-		}
-	} else {
-		namespace = defaultNamespace
+	fmt.Printf("Saving namespace %s...\n", namespace)
+	opts.cfg.OrbPublishing.DefaultNamespace = namespace
+	_, err = api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
+	if err != nil && err.Error() == fmt.Sprintf("Organizations may only create one namespace. This organization owns the following namespace: \"%s\"", namespace) {
+		fmt.Println("Namespace is already claimed by you! Moving on...")
+	} else if err != nil {
+		return err
 	}
 
 	orbPathSplit := strings.Split(orbPath, "/")
@@ -1200,7 +1188,7 @@ func initOrb(opts orbOptions) error {
 		Label: "Enter the remote git repository",
 	}
 	gitLocation, err := gitLocationPrompt.Run()
-	r, err := git.PlainOpen(orbPath)
+	r, err := git.PlainInit(orbPath, false)
 	if err != nil {
 		return err
 	}
