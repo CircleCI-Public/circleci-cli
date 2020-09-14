@@ -83,7 +83,7 @@ func checkFromHomebrew(check *Options) error {
 		return errors.Wrap(err, "failed to parse output of `brew outdated --json=v2`")
 	}
 
-	for _, o := range outdated {
+	for _, o := range outdated.Formulae {
 		if o.Name == "circleci" {
 			if len(o.InstalledVersions) > 0 {
 				check.Current = semver.MustParse(o.InstalledVersions[0])
@@ -104,23 +104,28 @@ func checkFromHomebrew(check *Options) error {
 // HomebrewOutdated wraps the JSON output from running `brew outdated --json=v2`
 // We're specifically looking for this kind of structured data from the command:
 //
-//   [
-//     {
-//       "name": "circleci",
-//       "installed_versions": [
-//         "0.1.1248"
-//       ],
-//       "current_version": "0.1.3923",
-//       "pinned": false,
-//       "pinned_version": null
-//     },
-//   ]
-type HomebrewOutdated []struct {
-	Name              string   `json:"name"`
-	InstalledVersions []string `json:"installed_versions"`
-	CurrentVersion    string   `json:"current_version"`
-	Pinned            bool     `json:"pinned"`
-	PinnedVersion     string   `json:"pinned_version"`
+//   {
+//     "formulae": [
+//       {
+//         "name": "circleci",
+//         "installed_versions": [
+//           "0.1.1248"
+//         ],
+//         "current_version": "0.1.3923",
+//         "pinned": false,
+//         "pinned_version": null
+//       }
+//     ],
+//     "casks": []
+//   }
+type HomebrewOutdated struct {
+	Formulae []struct {
+		Name              string   `json:"name"`
+		InstalledVersions []string `json:"installed_versions"`
+		CurrentVersion    string   `json:"current_version"`
+		Pinned            bool     `json:"pinned"`
+		PinnedVersion     string   `json:"pinned_version"`
+	} `json:"formulae"`
 }
 
 // Options contains everything we need to check for or perform updates of the CLI.
