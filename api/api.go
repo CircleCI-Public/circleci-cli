@@ -679,7 +679,7 @@ func CreateNamespace(cl *graphql.Client, name string, organizationName string, o
 	return createNSResponse, nil
 }
 
-func getNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
+func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
 	var response GetNamespaceResponse
 
 	query := `
@@ -746,7 +746,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
-	response, err := getNamespace(cl, namespace)
+	response, err := GetNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
 	}
