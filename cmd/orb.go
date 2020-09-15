@@ -1139,6 +1139,9 @@ func initOrb(opts orbOptions) error {
 		Items: []string{"Yes, set up a publishing context with my API key.", "No, I'll do this later."},
 	}
 	shouldCreateContext, _, err := contextPrompt.Run()
+	if err != nil {
+		return err
+	}
 
 	fmt.Println("Thank you! Setting up your orb...")
 
@@ -1165,14 +1168,20 @@ func initOrb(opts orbOptions) error {
 	}
 
 	circle := string(circleConfig)
-	ioutil.WriteFile(path.Join(circle, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(circle, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
 
 	readme, err := ioutil.ReadFile(path.Join(orbPath, "README.md"))
 	if err != nil {
 		return err
 	}
 	readmeString := string(readme)
-	ioutil.WriteFile(path.Join(circle, "README.md"), []byte(orbTemplate(readmeString, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(circle, "README.md"), []byte(orbTemplate(readmeString, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
 
 	fmt.Printf("Done! Your orb %s has been initialized in %s.", namespace+"/"+orbName, orbPath)
 
@@ -1181,8 +1190,14 @@ func initOrb(opts orbOptions) error {
 		Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
 	}
 	gitAction, _, err := gitActionPrompt.Run()
+	if err != nil {
+		return err
+	}
 	if gitAction == 1 {
-		finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+		err = finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+		if err != nil {
+			return err
+		}
 		return nil
 	}
 
@@ -1190,6 +1205,9 @@ func initOrb(opts orbOptions) error {
 		Label: "Enter the remote git repository",
 	}
 	gitLocation, err := gitLocationPrompt.Run()
+	if err != nil {
+		return err
+	}
 	r, err := git.PlainInit(orbPath, false)
 	if err != nil {
 		return err
@@ -1220,17 +1238,23 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
-	finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+	err = finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orbName string, opts *orbOptions) {
+func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orbName string, opts *orbOptions) error {
 	opts.cfg.OrbPublishing.DefaultOwner = ownerName
 	opts.cfg.OrbPublishing.DefaultVcsProvider = vcsProvider
-	opts.cfg.WriteToDisk()
-
+	err := opts.cfg.WriteToDisk()
+	if err != nil {
+		return err
+	}
 	fmt.Printf("Your orb will be live at https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("Learn more about orbs: https://circleci.com/docs/2.0/orb-author")
+	return nil
 }
 
 // From https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
@@ -1245,8 +1269,10 @@ func unzip(src, dest string) (string, error) {
 		}
 	}()
 
-	os.MkdirAll(dest, 0755)
-
+	err = os.MkdirAll(dest, 0755)
+	if err != nil {
+		return "", err
+	}
 	// Closure to address file descriptors issue with all the deferred .Close() methods
 	extractAndWriteFile := func(f *zip.File) error {
 		rc, err := f.Open()
@@ -1262,9 +1288,15 @@ func unzip(src, dest string) (string, error) {
 		path := filepath.Join(dest, f.Name)
 
 		if f.FileInfo().IsDir() {
-			os.MkdirAll(path, f.Mode())
+			err = os.MkdirAll(path, f.Mode())
+			if err != nil {
+				return err
+			}
 		} else {
-			os.MkdirAll(filepath.Dir(path), f.Mode())
+			err = os.MkdirAll(filepath.Dir(path), f.Mode())
+			if err != nil {
+				return err
+			}
 			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
 			if err != nil {
 				return err

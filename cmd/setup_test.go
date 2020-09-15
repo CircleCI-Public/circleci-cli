@@ -255,9 +255,9 @@ endpoint: graphql-unstable
 token: mytoken
 rest_endpoint: api/v2
 orb_publishing:
-    default_namespace:
-    default_vcs_provider:
-    default_owner:
+    default_namespace: ""
+    default_vcs_provider: ""
+    default_owner: ""
 `))
 				})
 			})
