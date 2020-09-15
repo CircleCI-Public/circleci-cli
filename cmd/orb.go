@@ -1111,13 +1111,15 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	fmt.Printf("Saving namespace %s...\n", namespace)
+	fmt.Printf("Saving namespace %s as default.\n", namespace)
 	opts.cfg.OrbPublishing.DefaultNamespace = namespace
-	_, err = api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
-	if err != nil && err.Error() == fmt.Sprintf("Organizations may only create one namespace. This organization owns the following namespace: \"%s\"", namespace) {
-		fmt.Println("Namespace is already claimed by you! Moving on...")
-	} else if err != nil {
-		return err
+	_, err = api.GetNamespace(opts.cl, namespace)
+	if err != nil {
+		fmt.Println("Namespace does not exist, attempting to create it...")
+		_, err = api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
+		if err != nil {
+			return err
+		}
 	}
 
 	orbPathSplit := strings.Split(orbPath, "/")
@@ -1193,11 +1195,6 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	err = r.DeleteRemote("origin")
-	if err != nil {
-		return err
-	}
-
 	_, err = r.CreateRemote(&config.RemoteConfig{
 		Name: "origin",
 		URLs: []string{gitLocation},
@@ -1215,6 +1212,14 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	fmt.Println("An initial commit has been created - please run git push origin master to publish your first commit!")
+	confirmGitPush := promptui.Select{
+		Label: "I have pushed to my git repository using the above command.",
+		Items: []string{"Done"},
+	}
+	_, _, err = confirmGitPush.Run()
+	if err != nil {
+		return err
+	}
 	finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
 	return nil
 }
