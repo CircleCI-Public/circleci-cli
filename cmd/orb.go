@@ -1213,7 +1213,7 @@ func initOrb(opts orbOptions) error {
 	}
 	fmt.Println("An initial commit has been created - please run git push origin master to publish your first commit!")
 	confirmGitPush := promptui.Select{
-		Label: "I have pushed to my git repository using the above command.",
+		Label: "I have pushed to my git repository using the above command",
 		Items: []string{"Done"},
 	}
 	_, _, err = confirmGitPush.Run()
