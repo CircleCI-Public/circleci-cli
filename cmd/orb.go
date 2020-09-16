@@ -1263,6 +1263,11 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+	_, err = w.Add(orbPath)
+	if err != nil {
+		return err
+	}
+
 	_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
 	if err != nil {
 		return err
