@@ -1206,7 +1206,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	circle := string(circleConfig)
-	err = ioutil.WriteFile(path.Join(circle, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1216,7 +1216,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	readmeString := string(readme)
-	err = ioutil.WriteFile(path.Join(circle, "README.md"), []byte(orbTemplate(readmeString, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
