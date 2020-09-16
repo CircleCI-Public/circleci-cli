@@ -1052,6 +1052,44 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if index == 1 {
+		gitActionPrompt := promptui.Select{
+			Label: "Would you like to set up your git project?",
+			Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
+		}
+		gitAction, _, err := gitActionPrompt.Run()
+		if err != nil {
+			return err
+		}
+		if gitAction == 0 {
+			gitLocationPrompt := promptui.Prompt{
+				Label: "Enter the remote git repository",
+			}
+			gitLocation, err := gitLocationPrompt.Run()
+			if err != nil {
+				return err
+			}
+			r, err := git.PlainInit(orbPath, false)
+			if err != nil {
+				return err
+			}
+
+			_, err = r.CreateRemote(&config.RemoteConfig{
+				Name: "origin",
+				URLs: []string{gitLocation},
+			})
+			if err != nil {
+				return err
+			}
+
+			w, err := r.Worktree()
+			if err != nil {
+				return err
+			}
+			_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+			if err != nil {
+				return err
+			}
+		}
 		fmt.Println("Opted for manual setup, exiting")
 		return nil
 	}
