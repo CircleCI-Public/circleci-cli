@@ -1258,16 +1258,23 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+	err = r.CreateBranch(&config.Branch{
+		Name:   "master",
+		Remote: "origin",
+	})
+
+	if err != nil {
+		return errors.Wrap(err, "Git error")
+	}
 
 	w, err := r.Worktree()
 	if err != nil {
 		return err
 	}
-	_, err = w.Add(orbPath)
+	_, err = w.Add(".")
 	if err != nil {
 		return err
 	}
-
 	_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
 	if err != nil {
 		return err
