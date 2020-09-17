@@ -1402,6 +1402,9 @@ func FollowProject(vcs string, owner string, projectName string) (FollowedProjec
 
 	var fr FollowedProject
 	err = json.NewDecoder(response.Body).Decode(&fr)
+	if err != nil {
+		return FollowedProject{}, err
+	}
 
 	return fr, nil
 }
