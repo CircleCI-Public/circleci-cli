@@ -1305,6 +1305,8 @@ func initOrb(opts orbOptions) error {
 	}
 	if fr.Followed {
 		fmt.Println("Project has been followed on CircleCI.")
+	} else if fr.Message == "Project not found" {
+		fmt.Println("Unable to determine project slug for CircleCI (slug is case sensitive).")
 	}
 
 	err = finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)

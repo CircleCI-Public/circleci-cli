@@ -400,7 +400,8 @@ type OrbCategory struct {
 }
 
 type FollowedProject struct {
-	Followed bool `json:"followed"`
+	Followed bool   `json:"followed"`
+	Message  string `json:"message"`
 }
 
 // #nosec
@@ -1398,12 +1399,7 @@ func FollowProject(vcs string, owner string, projectName string) (FollowedProjec
 	if err != nil {
 		return FollowedProject{}, err
 	}
-	bodyBytes, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Fatal(err)
-	}
-	bodyString := string(bodyBytes)
-	fmt.Println(bodyString)
+
 	var fr FollowedProject
 	err = json.NewDecoder(response.Body).Decode(&fr)
 
