@@ -1385,7 +1385,6 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 }
 
 func FollowProject(vcs string, owner string, projectName string) (FollowedProject, error) {
-	// https://circleci.com/api/v1.1/project/:vcs-type/:username/:project/follow
 	requestPath := fmt.Sprintf("https://circleci.com/api/v1.1/project/%s/%s/%s/follow", vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
 	if err != nil {
