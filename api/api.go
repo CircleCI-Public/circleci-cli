@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -396,6 +397,10 @@ type OrbVersion struct {
 type OrbCategory struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+type FollowedProject struct {
+	Followed bool `json:"followed"`
 }
 
 // #nosec
@@ -1376,4 +1381,31 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 	}
 	return &orbCategories, nil
+}
+
+func FollowProject(vcs string, owner string, projectName string) (FollowedProject, error) {
+	// https://circleci.com/api/v1.1/project/:vcs-type/:username/:project/follow
+	requestPath := fmt.Sprintf("https://circleci.com/api/v1.1/project/%s/%s/%s/follow", vcs, owner, projectName)
+	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+
+	client := http.Client{}
+	response, err := client.Do(r)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+	bodyBytes, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		log.Fatal(err)
+	}
+	bodyString := string(bodyBytes)
+	fmt.Println(bodyString)
+	var fr FollowedProject
+	err = json.NewDecoder(response.Body).Decode(&fr)
+
+	return fr, nil
 }

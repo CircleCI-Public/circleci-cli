@@ -307,7 +307,8 @@ Please note that at this time all orbs created in the registry are world-readabl
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return initOrb(opts)
 		},
-		Args: cobra.ExactArgs(1),
+		Hidden: true,
+		Args:   cobra.ExactArgs(1),
 	}
 
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
@@ -1288,6 +1289,24 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+
+	projectName, vcsShort := func() (string, string) {
+		x := strings.Split(gitLocation, "/")
+		y := strings.Split(x[len(x)-1], ".")
+		vcs := "gh"
+		if vcsProvider == "bitbucket" {
+			vcs = "bb"
+		}
+		return y[0], vcs
+	}()
+	fr, err := api.FollowProject(vcsShort, ownerName, projectName)
+	if err != nil {
+		return err
+	}
+	if fr.Followed {
+		fmt.Println("Project has been followed on CircleCI.")
+	}
+
 	err = finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
 	if err != nil {
 		return err
