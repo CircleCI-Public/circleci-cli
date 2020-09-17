@@ -1081,6 +1081,14 @@ func initOrb(opts orbOptions) error {
 			if err != nil {
 				return err
 			}
+			err = r.CreateBranch(&config.Branch{
+				Name:   "master",
+				Remote: "origin",
+			})
+
+			if err != nil {
+				return errors.Wrap(err, "Git error")
+			}
 
 			w, err := r.Worktree()
 			if err != nil {
