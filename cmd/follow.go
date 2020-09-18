@@ -5,11 +5,16 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/git"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
-func followProject() error {
+type options struct {
+	cfg *settings.Config
+}
+
+func followProject(opts options) error {
 
 	remote, err := git.InferProjectFromGitRemotes()
 
@@ -21,7 +26,7 @@ func followProject() error {
 	if remote.VcsType == "BITBUCKET" {
 		vcsShort = "bb"
 	}
-	res, err := api.FollowProject(vcsShort, remote.Organization, remote.Project)
+	res, err := api.FollowProject(vcsShort, remote.Organization, remote.Project, opts.cfg.Token)
 	if err != nil {
 		return err
 	}
@@ -34,13 +39,15 @@ func followProject() error {
 	return nil
 }
 
-func followProjectCommand() *cobra.Command {
-
+func followProjectCommand(config *settings.Config) *cobra.Command {
+	opts := options{
+		cfg: config,
+	}
 	followCommand := &cobra.Command{
 		Use:   "follow",
 		Short: "Attempt to follow the project for the current git repository.",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return followProject()
+			return followProject(opts)
 		},
 	}
 	return followCommand

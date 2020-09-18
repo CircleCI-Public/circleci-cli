@@ -1307,7 +1307,7 @@ func initOrb(opts orbOptions) error {
 		}
 		return y[0], vcs
 	}()
-	fr, err := api.FollowProject(vcsShort, ownerName, projectName)
+	fr, err := api.FollowProject(vcsShort, ownerName, projectName, opts.cfg.Token)
 	if err != nil {
 		return err
 	}
