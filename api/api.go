@@ -1401,8 +1401,6 @@ func FollowProject(vcs string, owner string, projectName string, cciToken string
 		return FollowedProject{}, err
 	}
 
-	body, _ := ioutil.ReadAll(response.Body)
-	fmt.Println(string(body))
 	var fr FollowedProject
 	err = json.NewDecoder(response.Body).Decode(&fr)
 	if err != nil {
