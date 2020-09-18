@@ -263,7 +263,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Short: "Pack an Orb with local scripts.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return packOrb(opts)
+			return packOrbCommand(opts)
 		},
 		Args: cobra.ExactArgs(1),
 	}
@@ -918,33 +918,44 @@ type ExampleSchema struct {
 	Result      ExampleUsageSchema `yaml:"result,omitempty"`
 }
 
-func packOrb(opts orbOptions) error {
-	// Travel our Orb and build a tree from the YAML files.
-	// Non-YAML files will be ignored here.
-	_, err := os.Stat(filepath.Join(opts.args[0], "@orb.yml"))
+func packOrbCommand(opts orbOptions) error {
+	result, err := packOrb(opts.args[0])
 	if err != nil {
-		return errors.New("@orb.yml file not found, are you sure this is the Orb root?")
+		return err
 	}
 
-	tree, err := filetree.NewTree(opts.args[0], "executors", "jobs", "commands", "examples")
+	fmt.Println(result)
+
+	return nil
+}
+
+func packOrb(path string) (string, error) {
+	// Travel our Orb and build a tree from the YAML files.
+	// Non-YAML files will be ignored here.
+	_, err := os.Stat(filepath.Join(path, "@orb.yml"))
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return "", errors.New("@orb.yml file not found, are you sure this is the Orb root?")
+	}
+
+	tree, err := filetree.NewTree(path, "executors", "jobs", "commands", "examples")
+	if err != nil {
+		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	var orbSchema OrbSchema
 	err = yaml.Unmarshal(y, &orbSchema)
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	err = func(nodes ...*yaml.Node) error {
 		for _, node := range nodes {
-			err = inlineIncludes(node, opts.args[0])
+			err = inlineIncludes(node, path)
 			if err != nil {
 				return errors.Wrap(err, "An unexpected error occurred")
 			}
@@ -952,17 +963,15 @@ func packOrb(opts orbOptions) error {
 		return nil
 	}(&orbSchema.Jobs, &orbSchema.Commands, &orbSchema.Executors)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	final, err := yaml.Marshal(&orbSchema)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
+		return "", errors.Wrap(err, "Failed trying to marshal Orb YAML")
 	}
 
-	fmt.Println(string(final))
-
-	return nil
+	return string(final), nil
 }
 
 // Travel down a YAML node, replacing values as we go.
@@ -1288,6 +1297,28 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+
+	// Push a dev version of the orb.
+	newOrb, err := api.CreateOrb(opts.cl, namespace, orbName)
+	if err != nil {
+		return errors.Wrap(err, "Unable to create orb")
+	}
+	packedOrb, err := packOrb(orbPath)
+	if err != nil {
+		return err
+	}
+
+	tempOrbFile := filepath.Join(os.TempDir(), "_packed_orb_"+orbName, "orb.yml")
+	err = ioutil.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
+	if err != nil {
+		return err
+	}
+
+	_, err = api.OrbPublishByID(opts.cl, tempOrbFile, newOrb.CreateOrb.Orb.ID, "dev:alpha")
+	if err != nil {
+		return err
+	}
+
 	fmt.Println("An initial commit has been created - please run git push origin master to publish your first commit!")
 	confirmGitPush := promptui.Select{
 		Label: "I have pushed to my git repository using the above command",
@@ -1324,6 +1355,10 @@ func initOrb(opts orbOptions) error {
 	return nil
 }
 
+// Your orb project is building here: <link to project on circleci>
+// When you publish your first public version update, you'll be able to find your orb listed on the Orb Registry here: <orb registry link>
+// You are now working in the alpha branch.
+// View orb publishing docs: <link to docs>
 func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orbName string, opts *orbOptions) error {
 	opts.cfg.OrbPublishing.DefaultOwner = ownerName
 	opts.cfg.OrbPublishing.DefaultVcsProvider = vcsProvider
