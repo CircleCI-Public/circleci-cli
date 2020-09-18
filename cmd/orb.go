@@ -1331,6 +1331,7 @@ func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orb
 	if err != nil {
 		return err
 	}
+
 	fmt.Printf("Your orb will be live at https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("Learn more about orbs: https://circleci.com/docs/2.0/orb-author")
 	return nil
@@ -1409,6 +1410,8 @@ func orbTemplate(fileContents string, orbName string, namespace string) string {
 	x := strings.Replace(fileContents, "<orb-name>", orbName, -1)
 	x = strings.Replace(x, "<namespace>", namespace, -1)
 	x = strings.Replace(x, "<publishing-context>", "orb-publishing", -1)
+	x = strings.Replace(x, "<project-name>", "", -1)
+	x = strings.Replace(x, "<organization>", "", -1)
 	x = strings.Replace(x, "<!---", "", -1)
 	x = strings.Replace(x, "--->", "", -1)
 

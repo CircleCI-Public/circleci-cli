@@ -1384,6 +1384,8 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 	return &orbCategories, nil
 }
 
+// FollowProject initiates an API request to follow a specific project on
+// CircleCI. Project slugs are case-sensitive.
 func FollowProject(vcs string, owner string, projectName string) (FollowedProject, error) {
 	requestPath := fmt.Sprintf("https://circleci.com/api/v1.1/project/%s/%s/%s/follow", vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
@@ -1399,6 +1401,8 @@ func FollowProject(vcs string, owner string, projectName string) (FollowedProjec
 		return FollowedProject{}, err
 	}
 
+	body, _ := ioutil.ReadAll(response.Body)
+	fmt.Println(string(body))
 	var fr FollowedProject
 	err = json.NewDecoder(response.Body).Decode(&fr)
 	if err != nil {
