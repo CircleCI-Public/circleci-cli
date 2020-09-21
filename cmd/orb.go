@@ -1358,7 +1358,10 @@ func initOrb(opts orbOptions) error {
 	} else if fr.Message == "Project not found" {
 		fmt.Println("Unable to determine project slug for CircleCI (slug is case sensitive).")
 	}
-
+	w.Checkout(&git.CheckoutOptions{
+		Branch: "alpha",
+		Create: true,
+	})
 	err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, projectName, &opts)
 	if err != nil {
 		return err
