@@ -1114,16 +1114,6 @@ func initOrb(opts orbOptions) error {
 
 	fmt.Println("A few questions to get you up and running.")
 
-	ownerNameInput := promptui.Prompt{
-		Label:   "Enter your GitHub username or organization",
-		Default: opts.cfg.OrbPublishing.DefaultOwner,
-	}
-
-	ownerName, err := ownerNameInput.Run()
-	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
-	}
-
 	vcsProvider := ""
 	useDefaultVcs := false
 	if opts.cfg.OrbPublishing.DefaultVcsProvider != "" {
@@ -1157,7 +1147,19 @@ func initOrb(opts orbOptions) error {
 		}
 	}
 
-	namespace := opts.cfg.OrbPublishing.DefaultNamespace
+	ownerNameInput := promptui.Prompt{
+		Label:   fmt.Sprintf("Enter your %s username or organization", vcsProvider),
+		Default: opts.cfg.OrbPublishing.DefaultOwner,
+	}
+	ownerName, err := ownerNameInput.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	namespace := ownerName
+	if opts.cfg.OrbPublishing.DefaultNamespace != "" {
+		namespace = opts.cfg.OrbPublishing.DefaultNamespace
+	}
 	namespaceInput := promptui.Prompt{
 		Label:   "Enter the namespace to use for this orb",
 		Default: namespace,
@@ -1250,7 +1252,14 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	if gitAction == 1 {
-		err = finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+		vcsShort := func() string {
+			vcs := "gh"
+			if vcsProvider == "bitbucket" {
+				vcs = "bb"
+			}
+			return vcs
+		}()
+		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
 			return err
 		}
@@ -1303,15 +1312,17 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
-	packedOrb, err := packOrb(orbPath)
+	packedOrb, err := packOrb(filepath.Join(orbPath, "src"))
 	if err != nil {
 		return err
 	}
 
-	tempOrbFile := filepath.Join(os.TempDir(), "_packed_orb_"+orbName, "orb.yml")
+	tempOrbDir := filepath.Join(os.TempDir(), "_packed_orb_"+orbName)
+	os.Mkdir(tempOrbDir, 0755)
+	tempOrbFile := filepath.Join(tempOrbDir, "orb.yml")
 	err = ioutil.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Unable to write packed orb")
 	}
 
 	_, err = api.OrbPublishByID(opts.cl, tempOrbFile, newOrb.CreateOrb.Orb.ID, "dev:alpha")
@@ -1348,27 +1359,26 @@ func initOrb(opts orbOptions) error {
 		fmt.Println("Unable to determine project slug for CircleCI (slug is case sensitive).")
 	}
 
-	err = finalizeOrbInit(ownerName, vcsProvider, namespace, orbName, &opts)
+	err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, projectName, &opts)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-// Your orb project is building here: <link to project on circleci>
-// When you publish your first public version update, you'll be able to find your orb listed on the Orb Registry here: <orb registry link>
-// You are now working in the alpha branch.
-// View orb publishing docs: <link to docs>
-func finalizeOrbInit(ownerName string, vcsProvider string, namespace string, orbName string, opts *orbOptions) error {
+func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, namespace string, orbName string, projectName string, opts *orbOptions) error {
 	opts.cfg.OrbPublishing.DefaultOwner = ownerName
 	opts.cfg.OrbPublishing.DefaultVcsProvider = vcsProvider
 	err := opts.cfg.WriteToDisk()
 	if err != nil {
 		return err
 	}
-
-	fmt.Printf("Your orb will be live at https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
-	fmt.Println("Learn more about orbs: https://circleci.com/docs/2.0/orb-author")
+	if projectName != "" {
+		fmt.Printf("Your orb project is building here: https://circleci/%s/%s/%s\n", vcsShort, ownerName, orbName)
+	}
+	fmt.Printf("When you publish your first public version update, you'll be able to find your orb listed on the Orb Registry here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
+	fmt.Println("You are now working in the alpha branch.")
+	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
 	return nil
 }
 
