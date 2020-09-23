@@ -1004,7 +1004,7 @@ func initOrb(opts orbOptions) error {
 
 	fullyAutomated := promptui.Select{
 		Label: "Would you like to perform an automated setup of this orb?",
-		Items: []string{"Yes, walk me through the process.", "No, I'll handle everything myself."},
+		Items: []string{"Yes, walk me through the process.", "No, just download the template."},
 	}
 
 	index, _, err := fullyAutomated.Run()
@@ -1062,53 +1062,8 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if index == 1 {
-		gitActionPrompt := promptui.Select{
-			Label: "Would you like to set up your git project?",
-			Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
-		}
-		gitAction, _, err := gitActionPrompt.Run()
-		if err != nil {
-			return err
-		}
-		if gitAction == 0 {
-			gitLocationPrompt := promptui.Prompt{
-				Label: "Enter the remote git repository",
-			}
-			gitLocation, err := gitLocationPrompt.Run()
-			if err != nil {
-				return err
-			}
-			r, err := git.PlainInit(orbPath, false)
-			if err != nil {
-				return err
-			}
-
-			_, err = r.CreateRemote(&config.RemoteConfig{
-				Name: "origin",
-				URLs: []string{gitLocation},
-			})
-			if err != nil {
-				return err
-			}
-			err = r.CreateBranch(&config.Branch{
-				Name:   "master",
-				Remote: "origin",
-			})
-
-			if err != nil {
-				return errors.Wrap(err, "Git error")
-			}
-
-			w, err := r.Worktree()
-			if err != nil {
-				return err
-			}
-			_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
-			if err != nil {
-				return err
-			}
-		}
 		fmt.Println("Opted for manual setup, exiting")
+		fmt.Printf("The Orb Project Template has been extracted to %s\n", orbPath)
 		return nil
 	}
 
@@ -1169,7 +1124,7 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	fmt.Printf("Saving namespace %s as default.\n", namespace)
+	fmt.Printf("Saving namespace %s as default\n", namespace)
 	opts.cfg.OrbPublishing.DefaultNamespace = namespace
 	_, err = api.GetNamespace(opts.cl, namespace)
 	if err != nil {
@@ -1201,48 +1156,6 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Println("Thank you! Setting up your orb...")
-
-	if shouldCreateContext == 0 {
-		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
-		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
-		if err != nil {
-			return err
-		}
-		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
-		if err != nil {
-			return err
-		}
-		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Now draw the rest of the owl.
-	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
-	if err != nil {
-		return err
-	}
-
-	circle := string(circleConfig)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, namespace)), 0644)
-	if err != nil {
-		return err
-	}
-
-	readme, err := ioutil.ReadFile(path.Join(orbPath, "README.md"))
-	if err != nil {
-		return err
-	}
-	readmeString := string(readme)
-	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, orbName, namespace)), 0644)
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Done! Your orb %s has been initialized in %s.", namespace+"/"+orbName, orbPath)
-
 	gitActionPrompt := promptui.Select{
 		Label: "Would you like to set up your git project?",
 		Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
@@ -1251,6 +1164,7 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+
 	if gitAction == 1 {
 		vcsShort := func() string {
 			vcs := "gh"
@@ -1273,6 +1187,55 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+	fmt.Println("Thank you! Setting up your orb...")
+
+	if shouldCreateContext == 0 {
+		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
+		if err != nil {
+			return err
+		}
+	}
+
+	projectName, vcsShort := func() (string, string) {
+		x := strings.Split(gitLocation, "/")
+		y := strings.Split(x[len(x)-1], ".")
+		vcs := "gh"
+		if vcsProvider == "bitbucket" {
+			vcs = "bb"
+		}
+		return y[0], vcs
+	}()
+
+	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	if err != nil {
+		return err
+	}
+
+	circle := string(circleConfig)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, projectName, ownerName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	readme, err := ioutil.ReadFile(path.Join(orbPath, "README.md"))
+	if err != nil {
+		return err
+	}
+	readmeString := string(readme)
+	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, orbName, projectName, ownerName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
 	r, err := git.PlainInit(orbPath, false)
 	if err != nil {
 		return err
@@ -1340,15 +1303,6 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	projectName, vcsShort := func() (string, string) {
-		x := strings.Split(gitLocation, "/")
-		y := strings.Split(x[len(x)-1], ".")
-		vcs := "gh"
-		if vcsProvider == "bitbucket" {
-			vcs = "bb"
-		}
-		return y[0], vcs
-	}()
 	fr, err := api.FollowProject(vcsShort, ownerName, projectName, opts.cfg.Token)
 	if err != nil {
 		return err
@@ -1377,9 +1331,9 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 		return err
 	}
 	if projectName != "" {
-		fmt.Printf("Your orb project is building here: https://circleci/%s/%s/%s\n", vcsShort, ownerName, orbName)
+		fmt.Printf("Your orb project is building here: https://circleci/%s/%s/%s\n", vcsShort, ownerName, projectName)
 	}
-	fmt.Printf("When you publish your first public version update, you'll be able to find your orb listed on the Orb Registry here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
+	fmt.Printf("Once the first public version is published, you'll be able to here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("You are now working in the alpha branch.")
 	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
 	return nil
@@ -1454,7 +1408,7 @@ func unzip(src, dest string) (string, error) {
 	return nestedDir, nil
 }
 
-func orbTemplate(fileContents string, orbName string, namespace string) string {
+func orbTemplate(fileContents string, projectName string, orgName string, orbName string, namespace string) string {
 	x := strings.Replace(fileContents, "<orb-name>", orbName, -1)
 	x = strings.Replace(x, "<namespace>", namespace, -1)
 	x = strings.Replace(x, "<publishing-context>", "orb-publishing", -1)
