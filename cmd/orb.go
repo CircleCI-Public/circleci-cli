@@ -28,6 +28,7 @@ import (
 
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/manifoldco/promptui"
 )
 
@@ -1165,14 +1166,15 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
+	vcsShort := func() string {
+		vcs := "gh"
+		if vcsProvider == "bitbucket" {
+			vcs = "bb"
+		}
+		return vcs
+	}()
+
 	if gitAction == 1 {
-		vcsShort := func() string {
-			vcs := "gh"
-			if vcsProvider == "bitbucket" {
-				vcs = "bb"
-			}
-			return vcs
-		}()
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
 			return err
@@ -1205,14 +1207,10 @@ func initOrb(opts orbOptions) error {
 		}
 	}
 
-	projectName, vcsShort := func() (string, string) {
+	projectName := func() string {
 		x := strings.Split(gitLocation, "/")
 		y := strings.Split(x[len(x)-1], ".")
-		vcs := "gh"
-		if vcsProvider == "bitbucket" {
-			vcs = "bb"
-		}
-		return y[0], vcs
+		return y[0]
 	}()
 
 	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
@@ -1261,6 +1259,7 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = w.Add(".")
 	if err != nil {
 		return err
@@ -1312,10 +1311,13 @@ func initOrb(opts orbOptions) error {
 	} else if fr.Message == "Project not found" {
 		fmt.Println("Unable to determine project slug for CircleCI (slug is case sensitive).")
 	}
-	w.Checkout(&git.CheckoutOptions{
-		Branch: "alpha",
+	err = w.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("alpha"),
 		Create: true,
 	})
+	if err != nil {
+		return errors.Wrap(err, "Unable to create alpha branch")
+	}
 	err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, projectName, &opts)
 	if err != nil {
 		return err
@@ -1332,9 +1334,9 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 	}
 	if projectName != "" {
 		fmt.Printf("Your orb project is building here: https://circleci/%s/%s/%s\n", vcsShort, ownerName, projectName)
+		fmt.Println("You are now working in the alpha branch.")
 	}
 	fmt.Printf("Once the first public version is published, you'll be able to here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
-	fmt.Println("You are now working in the alpha branch.")
 	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
 	return nil
 }
