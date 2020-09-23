@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -1219,7 +1220,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	circle := string(circleConfig)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, orbName, projectName, ownerName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1229,7 +1230,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	readmeString := string(readme)
-	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, orbName, projectName, ownerName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1250,7 +1251,6 @@ func initOrb(opts orbOptions) error {
 		Name:   "master",
 		Remote: "origin",
 	})
-
 	if err != nil {
 		return errors.Wrap(err, "Git error")
 	}
@@ -1414,10 +1414,12 @@ func orbTemplate(fileContents string, projectName string, orgName string, orbNam
 	x := strings.Replace(fileContents, "<orb-name>", orbName, -1)
 	x = strings.Replace(x, "<namespace>", namespace, -1)
 	x = strings.Replace(x, "<publishing-context>", "orb-publishing", -1)
-	x = strings.Replace(x, "<project-name>", "", -1)
-	x = strings.Replace(x, "<organization>", "", -1)
+	x = strings.Replace(x, "<project-name>", projectName, -1)
+	x = strings.Replace(x, "<organization>", orgName, -1)
 	x = strings.Replace(x, "<!---", "", -1)
 	x = strings.Replace(x, "--->", "", -1)
+	var re = regexp.MustCompile(`\*\*Meta\*\*.*`)
+	x = re.ReplaceAllString(x, "")
 
 	return x
 }
