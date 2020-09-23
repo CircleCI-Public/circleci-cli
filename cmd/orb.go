@@ -1280,7 +1280,11 @@ func initOrb(opts orbOptions) error {
 	}
 
 	tempOrbDir := filepath.Join(os.TempDir(), "_packed_orb_"+orbName)
-	os.Mkdir(tempOrbDir, 0755)
+	err = os.Mkdir(tempOrbDir, 0755)
+	if err != nil {
+		return err
+	}
+
 	tempOrbFile := filepath.Join(tempOrbDir, "orb.yml")
 	err = ioutil.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
 	if err != nil {
