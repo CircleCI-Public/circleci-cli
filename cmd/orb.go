@@ -1003,6 +1003,7 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 func initOrb(opts orbOptions) error {
 	orbPath := opts.args[0]
 	var err error
+	fmt.Println("Note: This command is in beta. Please report any bugs! http://github.com/CircleCI-Public/circleci-cli")
 
 	fullyAutomated := promptui.Select{
 		Label: "Would you like to perform an automated setup of this orb?",
@@ -1282,7 +1283,7 @@ func initOrb(opts orbOptions) error {
 	tempOrbDir := filepath.Join(os.TempDir(), "_packed_orb_"+orbName)
 	err = os.Mkdir(tempOrbDir, 0755)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "Unable to write packed orb")
 	}
 
 	tempOrbFile := filepath.Join(tempOrbDir, "orb.yml")
