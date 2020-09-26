@@ -113,7 +113,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
-	flags.StringSliceP("volume", "v", nil, "Volume bind-mounting")
+	flags.StringArrayP("volume", "v", nil, "Volume bind-mounting")
 	flags.String("checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
