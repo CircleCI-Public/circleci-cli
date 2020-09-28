@@ -1003,7 +1003,7 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 func initOrb(opts orbOptions) error {
 	orbPath := opts.args[0]
 	var err error
-	fmt.Println("Note: This command is in preview. Please report any bugs! http://github.com/CircleCI-Public/circleci-cli")
+	fmt.Println("Note: This command is in preview. Please report any bugs! https://github.com/CircleCI-Public/circleci-cli/issues/new/choose")
 
 	fullyAutomated := promptui.Select{
 		Label: "Would you like to perform an automated setup of this orb?",
