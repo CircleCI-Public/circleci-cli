@@ -1297,7 +1297,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Println("An initial commit has been created - please run git push origin master to publish your first commit!")
+	fmt.Println("An initial commit has been created - please run \033[1;34m'git push origin master'\033[0m to publish your first commit!")
 	confirmGitPush := promptui.Select{
 		Label: "I have pushed to my git repository using the above command",
 		Items: []string{"Done"},
@@ -1307,7 +1307,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fr, err := api.FollowProject(vcsShort, ownerName, projectName, opts.cfg.Token)
+	fr, err := api.FollowProject(opts.cfg.Host, vcsShort, ownerName, projectName, opts.cfg.Token)
 	if err != nil {
 		return err
 	}
@@ -1341,7 +1341,7 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 		fmt.Printf("Your orb project is building here: https://circleci/%s/%s/%s\n", vcsShort, ownerName, projectName)
 		fmt.Println("You are now working in the alpha branch.")
 	}
-	fmt.Printf("Once the first public version is published, you'll be able to here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
+	fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
 	return nil
 }
