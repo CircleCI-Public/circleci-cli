@@ -15,7 +15,7 @@ var _ = Describe("Root", func() {
 	Describe("subcommands", func() {
 		It("can create commands", func() {
 			commands := cmd.MakeCommands()
-			Expect(len(commands.Commands())).To(Equal(17))
+			Expect(len(commands.Commands())).To(Equal(18))
 		})
 	})
 
