@@ -84,7 +84,7 @@ func TestDoJSON(t *testing.T) {
 	}
 
 	if calls != 1 {
-		t.Errorf("expected %s", string(calls))
+		t.Errorf("expected %d", calls)
 	}
 
 	if resp.Something != "yes" {
@@ -133,7 +133,7 @@ func TestQueryJSON(t *testing.T) {
 	}
 
 	if calls != 1 {
-		t.Errorf("expected %s", string(calls))
+		t.Errorf("expected %d", calls)
 	}
 
 	if resp.Value != "some data" {
@@ -212,7 +212,7 @@ func TestHeader(t *testing.T) {
 	}
 
 	if calls != 1 {
-		t.Errorf("expected %s", string(calls))
+		t.Errorf("expected %d", calls)
 	}
 
 	if resp.Value != "some data" {
@@ -246,7 +246,7 @@ func TestStatusCode200(t *testing.T) {
 	}
 
 	if calls != 1 {
-		t.Errorf("expected %s", string(calls))
+		t.Errorf("expected %d", calls)
 	}
 }
 
@@ -280,7 +280,7 @@ func TestStatusCode500(t *testing.T) {
 	}
 
 	if calls != 1 {
-		t.Errorf("expected %s", string(calls))
+		t.Errorf("expected %d", calls)
 	}
 }
 
@@ -314,6 +314,6 @@ func TestStatusCode413(t *testing.T) {
 	}
 
 	if calls != 1 {
-		t.Errorf("expected %s", string(calls))
+		t.Errorf("expected %d", calls)
 	}
 }

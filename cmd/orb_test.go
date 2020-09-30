@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
