@@ -31,10 +31,8 @@ require (
 	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
 	github.com/ulikunitz/xz v0.5.4 // indirect
 	golang.org/x/oauth2 v0.0.0-20180724155351-3d292e4d0cdc // indirect
-	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4 // indirect
-	golang.org/x/tools v0.0.0-20181221235234-d00ac6d27372 // indirect
 	gopkg.in/yaml.v3 v3.0.0-20200605160147-a5ece683394c
-	gotest.tools v2.1.0+incompatible
+	gotest.tools/v3 v3.0.2
 )
 
 go 1.12

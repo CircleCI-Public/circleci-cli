@@ -12,7 +12,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Diagnostic", func() {
