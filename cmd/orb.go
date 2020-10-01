@@ -309,8 +309,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return initOrb(opts)
 		},
-		Hidden: true,
-		Args:   cobra.ExactArgs(1),
+		Args: cobra.ExactArgs(1),
 	}
 
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
