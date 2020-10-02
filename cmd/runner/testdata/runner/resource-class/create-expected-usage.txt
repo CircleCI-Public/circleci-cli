@@ -1,0 +1,2 @@
+Usage:
+  runner resource-class create <resource-class> <description>

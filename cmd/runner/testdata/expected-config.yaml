@@ -1,0 +1,8 @@
+api:
+    auth_token: 1a34e5519976717fb808ad8900cadbecc686facee3f9ca56c5ba1ad30e50cab7e5fa328409065c64
+runner:
+    name: the-nickname
+    resource_class: the-namespace/the-resource-class
+    command_prefix: [/opt/circleci/launch-task]
+    working_directory: /opt/circleci/workdir/%s
+    cleanup_working_directory: true
