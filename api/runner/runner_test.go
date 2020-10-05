@@ -328,6 +328,98 @@ func TestRunner_DeleteToken_PathEscaping(t *testing.T) {
 	})
 }
 
+func TestRunner_GetRunnerInstances_ByNamespace(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(
+		http.StatusOK,
+		`
+{
+	"items": [
+		{
+			"resource_class": "the-namespace/the-resource-class",
+			"hostname": "the-hostname-1",
+			"name": "the-name-1",
+			"first_connected": "2020-10-01T09:55:00.000000Z",
+			"last_connected": "2020-10-01T09:55:00.000000Z",
+			"last_used": "2020-10-01T09:55:00.000000Z",
+			"ip": "1.2.3.4",
+			"version": "2.10.32"
+		},
+		{
+			"resource_class": "the-namespace/the-resource-class",
+			"hostname": "the-hostname-2",
+			"name": "the-name-2",
+			"first_connected": "2020-10-01T09:55:00.000000Z",
+			"last_connected": "2020-10-01T09:55:00.000000Z",
+			"last_used": "2020-10-01T09:55:00.000000Z",
+			"ip": "1.2.3.5",
+			"version": "2.10.33"
+		}
+	]
+}`,
+	)
+	defer cleanup()
+
+	t.Run("Check instance list", func(t *testing.T) {
+		token, err := runner.GetRunnerInstances("the-namespace")
+		assert.NilError(t, err)
+		d := time.Date(2020, 10, 1, 9, 55, 0, 0, time.UTC)
+		assert.Check(t, cmp.DeepEqual(token, []RunnerInstance{
+			{
+				ResourceClass:  "the-namespace/the-resource-class",
+				Hostname:       "the-hostname-1",
+				Name:           "the-name-1",
+				FirstConnected: &d,
+				LastConnected:  &d,
+				LastUsed:       &d,
+				IP:             "1.2.3.4",
+				Version:        "2.10.32",
+			},
+			{
+				ResourceClass:  "the-namespace/the-resource-class",
+				Hostname:       "the-hostname-2",
+				Name:           "the-name-2",
+				FirstConnected: &d,
+				LastConnected:  &d,
+				LastUsed:       &d,
+				IP:             "1.2.3.5",
+				Version:        "2.10.33",
+			},
+		}))
+	})
+
+	t.Run("Check request", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner", RawQuery: "namespace=the-namespace"}))
+		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+			"Accept-Encoding": {"gzip"},
+			"Accept-Type":     {"application/json"},
+			"Circle-Token":    {"fake-token"},
+			"User-Agent":      {version.UserAgent()},
+		}))
+		assert.Check(t, cmp.Equal(fix.Body(), ""))
+	})
+}
+
+func TestRunner_GetRunnerInstances_ByResourceClass(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(
+		http.StatusOK,
+		`{"items": []}`,
+	)
+	defer cleanup()
+
+	t.Run("Check instance list", func(t *testing.T) {
+		token, err := runner.GetRunnerInstances("the-namespace/the-resource-class")
+		assert.NilError(t, err)
+		assert.Check(t, cmp.DeepEqual(token, []RunnerInstance{}))
+	})
+
+	t.Run("Check request", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner", RawQuery: "resource-class=the-namespace%2Fthe-resource-class"}))
+	})
+}
+
 type fixture struct {
 	mu     sync.Mutex
 	url    url.URL

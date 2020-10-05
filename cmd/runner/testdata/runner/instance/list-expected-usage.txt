@@ -1,0 +1,9 @@
+Usage:
+  runner instance list <namespace or resource-class>
+
+Aliases:
+  list, ls
+
+Examples:
+  circleci runner instance ls my-namespace
+  circleci runner instance ls my-namespace/my-resource-class
