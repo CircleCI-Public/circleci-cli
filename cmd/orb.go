@@ -1337,7 +1337,7 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 		return err
 	}
 	if projectName != "" {
-		fmt.Printf("Your orb project is building here: https://circleci/%s/%s/%s\n", vcsShort, ownerName, projectName)
+		fmt.Printf("Your orb project is building here: https://circleci.com/%s/%s/%s\n", vcsShort, ownerName, projectName)
 		fmt.Println("You are now working in the alpha branch.")
 	}
 	fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
