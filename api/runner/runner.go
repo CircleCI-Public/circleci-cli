@@ -63,7 +63,7 @@ func (r *Runner) GetResourceClassByName(resourceClass string) (rc *ResourceClass
 
 func (r *Runner) GetResourceClassesByNamespace(namespace string) ([]ResourceClass, error) {
 	query := url.Values{}
-	query.Add("namespace", namespace)
+	query.Set("namespace", namespace)
 	req, err := r.rc.NewRequest("GET", &url.URL{Path: "runner/resource", RawQuery: query.Encode()}, nil)
 	if err != nil {
 		return nil, err
@@ -115,7 +115,7 @@ func (r *Runner) CreateToken(resourceClass, nickname string) (token *Token, err 
 
 func (r *Runner) GetRunnerTokensByResourceClass(resourceClass string) ([]Token, error) {
 	query := url.Values{}
-	query.Add("resource-class", resourceClass)
+	query.Set("resource-class", resourceClass)
 	req, err := r.rc.NewRequest("GET", &url.URL{Path: "runner/token", RawQuery: query.Encode()}, nil)
 	if err != nil {
 		return nil, err
@@ -136,4 +136,37 @@ func (r *Runner) DeleteToken(id string) error {
 
 	_, err = r.rc.DoRequest(req, nil)
 	return err
+}
+
+type RunnerInstance struct {
+	ResourceClass  string     `json:"resource_class,omitempty"`
+	Hostname       string     `json:"hostname"`
+	Name           string     `json:"name"`
+	FirstConnected *time.Time `json:"first_connected"`
+	LastConnected  *time.Time `json:"last_connected"`
+	LastUsed       *time.Time `json:"last_used"`
+	IP             string     `json:"ip,omitempty"`
+	Version        string     `json:"version"`
+}
+
+func runnerQueryFromString(query string) url.Values {
+	switch {
+	default:
+		return url.Values{"namespace": []string{query}}
+	case strings.Contains(query, "/"):
+		return url.Values{"resource-class": []string{query}}
+	}
+}
+
+func (r *Runner) GetRunnerInstances(query string) ([]RunnerInstance, error) {
+	req, err := r.rc.NewRequest("GET", &url.URL{Path: "runner", RawQuery: runnerQueryFromString(query).Encode()}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp := struct {
+		Items []RunnerInstance `json:"items"`
+	}{}
+	_, err = r.rc.DoRequest(req, &resp)
+	return resp.Items, err
 }

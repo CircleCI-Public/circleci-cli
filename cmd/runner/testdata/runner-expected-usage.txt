@@ -2,6 +2,7 @@ Usage:
   runner [command]
 
 Available Commands:
+  instance       Operate on runner instances
   resource-class Operate on runner resource-classes
   token          Operate on runner tokens
 

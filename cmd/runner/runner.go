@@ -17,6 +17,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}
 	cmd.AddCommand(newResourceClassCommand(r, preRunE))
 	cmd.AddCommand(newTokenCommand(r, preRunE))
+	cmd.AddCommand(newRunnerInstanceCommand(r, preRunE))
 	return cmd
 }
 
