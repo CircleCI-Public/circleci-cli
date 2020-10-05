@@ -1,7 +1,9 @@
 package runner
 
 import (
+	"fmt"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
@@ -36,6 +38,27 @@ func (r *Runner) CreateResourceClass(resourceClass, desc string) (rc *ResourceCl
 	rc = &ResourceClass{}
 	_, err = r.rc.DoRequest(req, rc)
 	return rc, err
+}
+
+func (r *Runner) GetResourceClassByName(resourceClass string) (rc *ResourceClass, err error) {
+	s := strings.SplitN(resourceClass, "/", 2)
+	if len(s) != 2 {
+		return nil, fmt.Errorf("bad resource class: %q", resourceClass)
+	}
+
+	namespace := s[0]
+	rcs, err := r.GetResourceClassesByNamespace(namespace)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, rc := range rcs {
+		if rc.ResourceClass == resourceClass {
+			return &rc, nil
+		}
+	}
+
+	return nil, fmt.Errorf("resource class %q not found", resourceClass)
 }
 
 func (r *Runner) GetResourceClassesByNamespace(namespace string) ([]ResourceClass, error) {

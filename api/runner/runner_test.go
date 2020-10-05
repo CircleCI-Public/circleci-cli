@@ -55,6 +55,51 @@ func TestRunner_CreateResourceClass(t *testing.T) {
 	})
 }
 
+func TestRunner_GetResourceClassByName(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(
+		http.StatusOK,
+		`
+{
+	"items": [
+		{"id": "7101f2a4-1617-4ef9-8fd4-f72de73896bd", "resource_class": "the-namespace/the-resource-class-1", "description": "the-description-1"},
+		{"id": "b2713ad1-13b9-44f6-9b0d-1bf5f38571db", "resource_class": "the-namespace/the-resource-class-2", "description": "the-one-we-want"},
+		{"id": "aa8cdb84-bc8e-4e42-a04a-8e719b586069", "resource_class": "the-namespace/the-resource-class-3", "description": "the-description-3"}
+	]
+}`,
+	)
+	defer cleanup()
+
+	t.Run("Check resource-class list results", func(t *testing.T) {
+		rc, err := runner.GetResourceClassByName("the-namespace/the-resource-class-2")
+		assert.NilError(t, err)
+		assert.Check(t, cmp.DeepEqual(rc, &ResourceClass{
+			ID:            "b2713ad1-13b9-44f6-9b0d-1bf5f38571db",
+			ResourceClass: "the-namespace/the-resource-class-2",
+			Description:   "the-one-we-want",
+		}))
+	})
+
+	t.Run("Check request", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource", RawQuery: "namespace=the-namespace"}))
+		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+			"Accept-Encoding": {"gzip"},
+			"Accept-Type":     {"application/json"},
+			"Circle-Token":    {"fake-token"},
+			"User-Agent":      {version.UserAgent()},
+		}))
+		assert.Check(t, cmp.Equal(fix.Body(), ``))
+	})
+}
+
+func TestRunner_GetResourceClassByName_BadResourceClass(t *testing.T) {
+	r := Runner{}
+	rc, err := r.GetResourceClassByName("there-is-no-slash")
+	assert.Check(t, cmp.Nil(rc))
+	assert.ErrorContains(t, err, "bad resource class")
+}
+
 func TestRunner_GetResourceClassesByNamespace(t *testing.T) {
 	fix := fixture{}
 	runner, cleanup := fix.Run(
