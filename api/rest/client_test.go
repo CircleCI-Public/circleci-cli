@@ -11,6 +11,8 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
 func TestClient_DoRequest(t *testing.T) {
@@ -47,7 +49,7 @@ func TestClient_DoRequest(t *testing.T) {
 				"Circle-Token":    {"fake-token"},
 				"Content-Length":  {"20"},
 				"Content-Type":    {"application/json"},
-				"User-Agent":      {"circleci-cli"},
+				"User-Agent":      {version.UserAgent()},
 			}))
 			assert.Check(t, cmp.Equal(fix.Body(), `{"A":"aaa","B":123}`+"\n"))
 		})
@@ -76,7 +78,7 @@ func TestClient_DoRequest(t *testing.T) {
 				"Accept-Encoding": {"gzip"},
 				"Accept-Type":     {"application/json"},
 				"Circle-Token":    {"fake-token"},
-				"User-Agent":      {"circleci-cli"},
+				"User-Agent":      {version.UserAgent()},
 			}))
 			assert.Check(t, cmp.Equal(fix.Body(), ""))
 		})
@@ -108,7 +110,7 @@ func TestClient_DoRequest(t *testing.T) {
 				"Accept-Encoding": {"gzip"},
 				"Accept-Type":     {"application/json"},
 				"Circle-Token":    {"fake-token"},
-				"User-Agent":      {"circleci-cli"},
+				"User-Agent":      {version.UserAgent()},
 			}))
 			assert.Check(t, cmp.Equal(fix.Body(), ""))
 		})

@@ -54,7 +54,7 @@ func (r *Runner) GetResourceClassesByNamespace(namespace string) ([]ResourceClas
 }
 
 func (r *Runner) DeleteResourceClass(id string) error {
-	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: "runner/resource/" + url.QueryEscape(id)}, nil)
+	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: "runner/resource/" + url.PathEscape(id)}, nil)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func (r *Runner) GetRunnerTokensByResourceClass(resourceClass string) ([]Token, 
 }
 
 func (r *Runner) DeleteToken(id string) error {
-	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: "runner/token/" + url.QueryEscape(id)}, nil)
+	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: "runner/token/" + url.PathEscape(id)}, nil)
 	if err != nil {
 		return err
 	}

@@ -14,6 +14,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
 func TestRunner_CreateResourceClass(t *testing.T) {
@@ -48,7 +49,7 @@ func TestRunner_CreateResourceClass(t *testing.T) {
 			"Circle-Token":    {"fake-token"},
 			"Content-Length":  {"86"},
 			"Content-Type":    {"application/json"},
-			"User-Agent":      {"circleci-cli"},
+			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), `{"resource_class":"the-namespace/the-resource-class","description":"the-description"}`+"\n"))
 	})
@@ -92,7 +93,7 @@ func TestRunner_GetResourceClassesByNamespace(t *testing.T) {
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
 			"Circle-Token":    {"fake-token"},
-			"User-Agent":      {"circleci-cli"},
+			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), ``))
 	})
@@ -115,9 +116,24 @@ func TestRunner_DeleteResourceClass(t *testing.T) {
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
 			"Circle-Token":    {"fake-token"},
-			"User-Agent":      {"circleci-cli"},
+			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), ``))
+	})
+}
+
+func TestRunner_DeleteResourceClass_PathEscaping(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(http.StatusOK, ``)
+	defer cleanup()
+
+	t.Run("Check resource-class is deleted", func(t *testing.T) {
+		err := runner.DeleteResourceClass("escape~,/;?~noescape~$&+:=@")
+		assert.NilError(t, err)
+	})
+
+	t.Run("Check request", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource/escape~%2C%2F%3B%3F~noescape~$&+:=@"}))
 	})
 }
 
@@ -155,7 +171,7 @@ func TestRunner_CreateToken(t *testing.T) {
 			"Circle-Token":    {"fake-token"},
 			"Content-Length":  {"80"},
 			"Content-Type":    {"application/json"},
-			"User-Agent":      {"circleci-cli"},
+			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), `{"resource_class":"the-namespace/the-resource-class","nickname":"the-nickname"}`+"\n"))
 	})
@@ -223,7 +239,7 @@ func TestRunner_GetRunnerTokensByResourceClass(t *testing.T) {
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
 			"Circle-Token":    {"fake-token"},
-			"User-Agent":      {"circleci-cli"},
+			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), ""))
 	})
@@ -246,9 +262,24 @@ func TestRunner_DeleteToken(t *testing.T) {
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
 			"Circle-Token":    {"fake-token"},
-			"User-Agent":      {"circleci-cli"},
+			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), ``))
+	})
+}
+
+func TestRunner_DeleteToken_PathEscaping(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(http.StatusOK, ``)
+	defer cleanup()
+
+	t.Run("Check token is deleted", func(t *testing.T) {
+		err := runner.DeleteToken("escape~,/;?~noescape~$&+:=@")
+		assert.NilError(t, err)
+	})
+
+	t.Run("Check request", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/token/escape~%2C%2F%3B%3F~noescape~$&+:=@"}))
 	})
 }
 
