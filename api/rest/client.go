@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
 type Client struct {
@@ -52,7 +54,7 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 
 	req.Header.Set("Circle-Token", c.circleToken)
 	req.Header.Set("Accept-Type", "application/json")
-	req.Header.Set("User-Agent", "circleci-cli")
+	req.Header.Set("User-Agent", version.UserAgent())
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

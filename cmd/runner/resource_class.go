@@ -39,7 +39,11 @@ func newResourceClassCommand(r *runner.Runner, preRunE validator) *cobra.Command
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			return r.DeleteResourceClass(args[0])
+			rc, err := r.GetResourceClassByName(args[0])
+			if err != nil {
+				return err
+			}
+			return r.DeleteResourceClass(rc.ID)
 		},
 	})
 
@@ -70,10 +74,10 @@ func newResourceClassCommand(r *runner.Runner, preRunE validator) *cobra.Command
 
 func newResourceClassTable() *tablewriter.Table {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"ID", "Resource Class", "Description"})
+	table.SetHeader([]string{"Resource Class", "Description"})
 	return table
 }
 
 func appendResourceClass(table *tablewriter.Table, rc runner.ResourceClass) {
-	table.Append([]string{rc.ID, rc.ResourceClass, rc.Description})
+	table.Append([]string{rc.ResourceClass, rc.Description})
 }
