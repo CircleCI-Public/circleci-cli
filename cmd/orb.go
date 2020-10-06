@@ -507,7 +507,7 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 			}
 		}
 		result += "\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n"
-		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"
+		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"
 	}
 
 	return result, nil
@@ -851,7 +851,7 @@ func orbInfo(opts orbOptions) error {
 	orbRef := orbVersionSplit[0]
 	fmt.Printf(`
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/%s
+https://circleci.com/developer/orbs/orb/%s
 `, orbRef)
 
 	return nil
@@ -1340,7 +1340,7 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 		fmt.Printf("Your orb project is building here: https://circleci.com/%s/%s/%s\n", vcsShort, ownerName, projectName)
 		fmt.Println("You are now working in the alpha branch.")
 	}
-	fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/orbs/registry/orb/%s/%s\n", namespace, orbName)
+	fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/developer/orbs/orb/%s/%s\n", namespace, orbName)
 	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
 	return nil
 }
