@@ -4,7 +4,7 @@ GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
 build: always
-	GO111MODULE=on .circleci/pack.sh
+	.circleci/pack
 	go build -o build/$(GOOS)/$(GOARCH)/circleci
 
 build-all: build/linux/amd64/circleci build/darwin/amd64/circleci
@@ -16,7 +16,7 @@ build/%/amd64/circleci: always
 clean:
 	GO111MODULE=off go clean -i
 	rm -rf build out docs dist
-	.circleci/pack.sh clean
+	.circleci/pack clean
 
 .PHONY: test
 test:
@@ -40,7 +40,7 @@ install-packr:
 
 .PHONY: pack
 pack:
-	bash .circleci/pack.sh
+	bash .circleci/pack
 
 .PHONY: install-lint
 install-lint:

@@ -1,0 +1,13 @@
+version: '3.8'
+services:
+  dev: &dev
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+  interactive:
+    <<: *dev
+    volumes:
+      - .:/project
+  test:
+    <<: *dev
+    command: ['test']

@@ -1,0 +1,27 @@
+FROM golang:1.12.17-buster@sha256:d9d06cb747d49db5d5703610ecdef837c0432efcaccc4a5959155dd61fe42f4a AS deps
+
+RUN apt-get -qq update && \
+      apt-get -qq install --no-install-recommends git && \
+      rm -rf /var/lib/apt/lists/*
+
+WORKDIR /project
+
+COPY go.mod go.sum ./
+
+RUN go mod download
+
+RUN apt-get -qq update && \
+      apt-get -qq install --no-install-recommends make bash && \
+      rm -rf /var/lib/apt/lists/*
+
+COPY . ./
+
+RUN make
+
+ENTRYPOINT ["make"]
+
+FROM golang:1.12.17-buster@sha256:d9d06cb747d49db5d5703610ecdef837c0432efcaccc4a5959155dd61fe42f4a
+
+COPY --from=deps /project/build/linux/amd64/circleci /usr/local/bin/circleci
+
+ENTRYPOINT ["circleci"]
