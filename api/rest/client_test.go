@@ -66,7 +66,7 @@ func TestClient_DoRequest(t *testing.T) {
 
 			resp := make(map[string]interface{})
 			statusCode, err := c.DoRequest(r, &resp)
-			assert.Error(t, err, "the error message (400-Bad Request)")
+			assert.Error(t, err, "the error message")
 			assert.Equal(t, statusCode, http.StatusBadRequest)
 			assert.Check(t, cmp.DeepEqual(resp, map[string]interface{}{}))
 		})
