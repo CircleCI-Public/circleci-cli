@@ -77,7 +77,7 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 		if err != nil {
 			return httpResp.StatusCode, err
 		}
-		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Err: errors.New(httpError.Message)}
+		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: httpError.Message}
 	}
 
 	if resp != nil {
@@ -95,19 +95,15 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 
 type HTTPError struct {
 	Code int
-	Err  error
+	Message  string
 }
 
 func (e *HTTPError) Error() string {
 	if e.Code == 0 {
 		e.Code = http.StatusInternalServerError
 	}
-	if e.Err != nil {
-		return fmt.Sprintf("%v (%d-%s)", e.Err, e.Code, http.StatusText(e.Code))
+	if e.Message != "" {
+		return e.Message
 	}
 	return fmt.Sprintf("response %d (%s)", e.Code, http.StatusText(e.Code))
-}
-
-func (e *HTTPError) Unwrap() error {
-	return e.Err
 }
