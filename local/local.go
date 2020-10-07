@@ -10,6 +10,8 @@ import (
 	"path"
 	"regexp"
 	"syscall"
+	"log"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -96,6 +98,13 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	if err != nil {
 		return errors.Wrap(err, "Could not find a `docker` executable on $PATH; please ensure that docker installed")
 	}
+
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		fmt.Fprintf(os.Stderr, "%s=%s", pair[0], pair[1])
+	}
+
+	log.Fatal("Boom")
 
 	err = syscall.Exec(dockerPath, arguments, os.Environ()) // #nosec
 	return errors.Wrap(err, "failed to execute docker")
