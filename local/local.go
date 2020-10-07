@@ -10,7 +10,6 @@ import (
 	"path"
 	"regexp"
 	"syscall"
-	"log"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -89,7 +88,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	arguments := generateDockerCommand(processedConfigPath, image, pwd, processedArgs...)
 
 	if cfg.Debug {
-		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
+		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s\n", arguments)
 		if err != nil {
 			return err
 		}
@@ -101,10 +100,8 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
 	for _, e := range os.Environ() {
 		pair := strings.SplitN(e, "=", 2)
-		fmt.Fprintf(os.Stderr, "%s=%s", pair[0], pair[1])
+		fmt.Fprintf(os.Stderr, "%s=%s\n", pair[0], pair[1])
 	}
-
-	log.Fatal("Boom")
 
 	err = syscall.Exec(dockerPath, arguments, os.Environ()) // #nosec
 	return errors.Wrap(err, "failed to execute docker")

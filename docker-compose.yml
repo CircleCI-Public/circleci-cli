@@ -4,18 +4,21 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.dev
-    # HERE docker-ce is installed on the image and daemon appears to start
-    # but picard fails to be found.
-    #
-    # Downloading latest CircleCI build agent...
-    # INFO[2020-10-07T13:27:18.978990600Z] Attempting next endpoint for pull after error: failed to register layer: ApplyLayer exit status 1 stdout:  stderr: Error creating mount namespace before pivot: operation not permitted
-    # Error: Could not find picard image: failed to pull latest docker image: exit status 1
+    # HERE Most of the way there but now we're in trouble because we're
+    # running Docker for Mac. I think we should just forget it and go with
+    # a Vagrantfile that sets up docker.
     volumes:
+      - ~/.circleci:/root/.circleci
       - /var/run/docker.sock:/var/run/docker.sock
   interactive:
     <<: *dev
+    working_dir: /tmp/project
+    entrypoint: ''
+    command: bash
     volumes:
-      - .:/project
+      - ~/.circleci:/root/.circleci
+      - /var/run/docker.sock:/var/run/docker.sock
+      - .:/tmp/project
   test:
     <<: *dev
     command: ['test']
