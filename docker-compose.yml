@@ -10,8 +10,8 @@ services:
     # Downloading latest CircleCI build agent...
     # INFO[2020-10-07T13:27:18.978990600Z] Attempting next endpoint for pull after error: failed to register layer: ApplyLayer exit status 1 stdout:  stderr: Error creating mount namespace before pivot: operation not permitted
     # Error: Could not find picard image: failed to pull latest docker image: exit status 1
-    cap_add:
-      - NET_ADMIN
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
   interactive:
     <<: *dev
     volumes:

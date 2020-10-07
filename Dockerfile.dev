@@ -27,14 +27,12 @@ RUN apt-get -qq update && \
                                                   ca-certificates \
                                                   curl \
                                                   gnupg-agent \
-                                                  software-properties-common \
-                                                  lxc \
-                                                  iptables && \
+                                                  software-properties-common && \
       curl -fsSL https://download.docker.com/linux/debian/gpg | \
         APT_KEY_DONT_WARN_ON_DANGEROUS_USAGE=true apt-key add - && \
       add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" && \
       apt-get -qq update && \
-      apt-get -qq install --no-install-recommends docker-ce && \
+      apt-get -qq install --no-install-recommends docker-ce-cli && \
       add-apt-repository --remove "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable" && \
       apt-get -qq purge apt-transport-https \
                         curl \
@@ -42,14 +40,8 @@ RUN apt-get -qq update && \
                         software-properties-common && \
       rm -rf /var/lib/apt/list/*
 
-VOLUME /var/lib/docker
-
 COPY --from=deps /project/build/linux/amd64/circleci /usr/local/bin/circleci
-
-COPY bin/dev-entrypoint /usr/local/bin/
-
-RUN chmod +x /usr/local/bin/dev-entrypoint
 
 ENV CIRCLECI_CLI_SKIP_UPDATE_CHECK true
 
-ENTRYPOINT ["dev-entrypoint"]
+ENTRYPOINT ["circleci"]
