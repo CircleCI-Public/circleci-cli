@@ -42,3 +42,13 @@ then
   sudo -u vagrant tee -a <<<'HISTFILE=/vagrant/bash_history' ~vagrant/.bashrc ||
     exit
 fi
+
+if ! sudo -u vagrant -i go version
+then
+  curl --silent --show-error --fail --location \
+       "https://golang.org/dl/go1.15.2.linux-amd64.tar.gz" |
+    tar -C /usr/local -xz &&
+    sudo -u vagrant tee -a <<<'export PATH=$PATH:/usr/local/go/bin' ~vagrant/.bash_profile &&
+    sudo -u vagrant -i go version ||
+      exit 1
+fi
