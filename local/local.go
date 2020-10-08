@@ -317,8 +317,6 @@ func generateDockerCommand(configPath, image, pwd string, arguments ...string) [
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
 		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
-		// HERE env args needs to go here _before_ image …
-		// HERE volumes appear not to be being passed?
 		image, "circleci", "build", "--config", configPathInsideContainer}
 	return append(core, arguments...)
 }
