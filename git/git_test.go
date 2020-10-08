@@ -8,7 +8,6 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-// TODO These are broken when not run from a git repo
 var _ = Describe("Dealing with git", func() {
 
 	Context("running commands", func() {
