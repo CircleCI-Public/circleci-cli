@@ -20,7 +20,7 @@ clean:
 
 .PHONY: test
 test:
-	go test -v ./...
+	test_env_var=test_env_var_value go test -v ./...
 
 .PHONY: cover
 cover:

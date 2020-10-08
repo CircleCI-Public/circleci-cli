@@ -67,7 +67,7 @@ var _ = Describe("build", func() {
 			if testCase.expectedError != "" {
 				Expect(err).To(MatchError(testCase.expectedError))
 			}
-			args, configPath := buildAgentArguments(flags)
+			args, configPath, err := buildAgentArguments(flags)
 			Expect(args).To(Equal(testCase.expectedArgs))
 			Expect(configPath).To(Equal(testCase.expectedConfigPath))
 
@@ -98,15 +98,21 @@ var _ = Describe("build", func() {
 			}),
 
 			Entry("many args, multiple envs", TestCase{
-				input:              []string{"--env", "foo", "--env", "bar", "--env", "baz"},
+				input:              []string{"--env", "foo=foo", "--env", "bar=bar", "--env", "baz=baz"},
 				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{"--env", "foo", "--env", "bar", "--env", "baz"},
+				expectedArgs:       []string{"--env", "foo=foo", "--env", "bar=bar", "--env", "baz=baz"},
 			}),
 
 			Entry("comma in env value (issue #440)", TestCase{
-				input:              []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
+				input:              []string{"--env", "JSON={\"json\":[\"like\",\"value\"]}"},
 				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
+				expectedArgs:       []string{"--env", "JSON={\"json\":[\"like\",\"value\"]}"},
+			}),
+
+			Entry("bare env value (issue #440)", TestCase{
+				input:              []string{"--env", "test_env_var"},
+				expectedConfigPath: ".circleci/config.yml",
+				expectedArgs:       []string{"--env", "test_env_var=test_env_var_value"},
 			}),
 
 			Entry("args that are not flags", TestCase{

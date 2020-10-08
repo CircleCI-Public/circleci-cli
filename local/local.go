@@ -42,7 +42,11 @@ func UpdateBuildAgent() error {
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
-	processedArgs, configPath := buildAgentArguments(flags)
+	processedArgs, configPath, err := buildAgentArguments(flags)
+	if err != nil {
+		return err
+	}
+
 	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	configResponse, err := api.ConfigQuery(cl, configPath, pipeline.FabricatedValues())
 
@@ -135,21 +139,33 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 // GraphQL API, and feed the result of that into `build-agent`. The first step of
 // that process is to find the local path to the config file. This is supplied with
 // the `config` flag.
-func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
+func buildAgentArguments(flags *pflag.FlagSet) ([]string, string, error) {
 
 	var result []string = []string{}
+	var outerErr error
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
 		if flag.Name != "config" && flag.Name != "debug" {
-			result = append(result, unparseFlag(flags, flag)...)
+			unparsedFlag, err := unparseFlag(flags, flag)
+
+			if err != nil {
+				outerErr = errors.Wrap(err, "Failed to build agent arguments")
+			}
+
+			result = append(result, unparsedFlag...)
 		}
 	})
+
+	if outerErr != nil {
+		return nil, "", outerErr
+	}
+
 	result = append(result, flags.Args()...)
 
 	configPath, _ := flags.GetString("config")
 
-	return result, configPath
+	return result, configPath, nil
 }
 
 func picardImage(output io.Writer) (string, error) {
@@ -310,7 +326,7 @@ func generateDockerCommand(configPath, image, pwd string, arguments ...string) [
 // Convert the given flag back into a list of strings suitable to be passed on
 // the command line to run docker.
 // https://github.com/CircleCI-Public/circleci-cli/issues/391
-func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
+func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) ([]string, error) {
 	flagName := "--" + flag.Name
 	result := []string{}
 	switch flag.Value.Type() {
@@ -318,10 +334,22 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 	// `--foo 1 --foo 2` will result in a single `foo` flag with an array of values.
 	case "stringArray":
 		for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
+			if flag.Name == "env" && ! strings.Contains(value, "=") {
+				// Bare env arg passed. Resolve from environment.
+				variableValue, ok := os.LookupEnv(value)
+				if !ok {
+					return nil, errors.New(fmt.Sprintf(
+						"Failed to resolve environment variable ‘%s’ in the environment.\n",
+						value,
+					))
+				} else {
+					value = fmt.Sprintf("%s=%s", value, variableValue)
+				}
+			}
 			result = append(result, flagName, value)
 		}
 	default:
 		result = append(result, flagName, flag.Value.String())
 	}
-	return result
+	return result, nil
 }

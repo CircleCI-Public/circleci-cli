@@ -52,3 +52,11 @@ then
     sudo -u vagrant -i go version ||
       exit 1
 fi
+
+if ! dpkg-query -s build-essential
+then
+  apt_update &&
+    apt-get -qq install build-essential &&
+    dpkg-query -s build-essential ||
+      exit
+fi
