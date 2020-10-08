@@ -24,7 +24,7 @@ test:
 
 .PHONY: cover
 cover:
-	go test -race -coverprofile=coverage.txt ./...
+	test_env_var=test_env_var_value go test -race -coverprofile=coverage.txt ./...
 
 .PHONY: lint
 lint:
