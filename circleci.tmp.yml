@@ -5,3 +5,5 @@ jobs:
       - image: bash
     steps:
       - run: echo "$CHARNOCK"
+      - run: >-
+          while date; do sleep 60; done

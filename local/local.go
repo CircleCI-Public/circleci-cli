@@ -10,6 +10,7 @@ import (
 	"path"
 	"regexp"
 	"syscall"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -97,6 +98,11 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 		return errors.Wrap(err, "Could not find a `docker` executable on $PATH; please ensure that docker installed")
 	}
 
+	for _, e := range os.Environ() {
+		pair := strings.SplitN(e, "=", 2)
+		fmt.Fprintf(os.Stderr, "%s=%s\n", pair[0], pair[1])
+	}
+
 	err = syscall.Exec(dockerPath, arguments, os.Environ()) // #nosec
 	return errors.Wrap(err, "failed to execute docker")
 }
@@ -118,7 +124,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL` or `-e VAR`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -295,6 +301,8 @@ func generateDockerCommand(configPath, image, pwd string, arguments ...string) [
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
 		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
+		// HERE env args needs to go here _before_ image …
+		// HERE volumes appear not to be being passed?
 		image, "circleci", "build", "--config", configPathInsideContainer}
 	return append(core, arguments...)
 }
