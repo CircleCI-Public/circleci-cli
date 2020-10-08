@@ -1,9 +1,0 @@
-version: '2.1'
-jobs:
-  build:
-    docker:
-      - image: bash
-    steps:
-      - run: echo "$CHARNOCK"
-      - run: >-
-          while date; do sleep 60; done
