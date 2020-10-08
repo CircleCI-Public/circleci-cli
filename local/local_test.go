@@ -67,7 +67,7 @@ var _ = Describe("build", func() {
 			if testCase.expectedError != "" {
 				Expect(err).To(MatchError(testCase.expectedError))
 			}
-			args, configPath, err := buildAgentArguments(flags)
+			args, configPath, _ := buildAgentArguments(flags)
 			Expect(args).To(Equal(testCase.expectedArgs))
 			Expect(configPath).To(Equal(testCase.expectedConfigPath))
 
