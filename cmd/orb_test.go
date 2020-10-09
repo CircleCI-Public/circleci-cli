@@ -1657,7 +1657,7 @@ first (0.7.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -1684,7 +1684,7 @@ second (0.8.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -1711,7 +1711,7 @@ third (0.9.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -1904,7 +1904,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
 
 				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
-				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"))
+				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -2013,7 +2013,7 @@ foo/test (0.7.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
@@ -2467,7 +2467,7 @@ Infra Automation
 Testing
 
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/my/orb
+https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2527,7 +2527,7 @@ Projects: 777
 Orgs: 999
 
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/my/orb
+https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2574,7 +2574,7 @@ Projects: 0
 Orgs: 0
 
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/my/orb
+https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
