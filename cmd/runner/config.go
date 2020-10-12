@@ -8,38 +8,26 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
 )
 
-type AgentConfig struct {
-	API    APIConfig    `yaml:"api"`
-	Runner RunnerConfig `yaml:"runner"`
-}
-
-func NewAgentConfig(t runner.Token) *AgentConfig {
-	return &AgentConfig{
-		API: APIConfig{
+func generateConfig(t runner.Token, w io.Writer) (err error) {
+	return yaml.NewEncoder(w).Encode(&agentConfig{
+		API: apiConfig{
 			AuthToken: t.Token,
 		},
-		Runner: RunnerConfig{
-			Name:                    t.Nickname,
-			ResourceClass:           t.ResourceClass,
-			CommandPrefix:           []string{"/opt/circleci/launch-task"},
-			WorkingDirectory:        "/opt/circleci/workdir/%s",
-			CleanupWorkingDirectory: true,
+		Runner: runnerConfig{
+			Name: t.Nickname,
 		},
-	}
+	})
 }
 
-func (c *AgentConfig) WriteYaml(w io.Writer) error {
-	return yaml.NewEncoder(w).Encode(c)
+type agentConfig struct {
+	API    apiConfig    `yaml:"api"`
+	Runner runnerConfig `yaml:"runner"`
 }
 
-type APIConfig struct {
+type apiConfig struct {
 	AuthToken string `yaml:"auth_token"`
 }
 
-type RunnerConfig struct {
-	Name                    string   `yaml:"name"`
-	ResourceClass           string   `yaml:"resource_class"`
-	CommandPrefix           []string `yaml:"command_prefix,flow"`
-	WorkingDirectory        string   `yaml:"working_directory"`
-	CleanupWorkingDirectory bool     `yaml:"cleanup_working_directory"`
+type runnerConfig struct {
+	Name string `yaml:"name"`
 }

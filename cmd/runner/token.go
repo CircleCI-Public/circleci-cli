@@ -16,10 +16,7 @@ func newTokenCommand(r *runner.Runner, preRunE validator) *cobra.Command {
 		Short: "Operate on runner tokens",
 	}
 
-	createOpts := struct {
-		config bool
-	}{}
-	createCmd := &cobra.Command{
+	cmd.AddCommand(&cobra.Command{
 		Use:     "create <resource-class> <nickname>",
 		Short:   "Create a token for a resource-class",
 		Args:    cobra.ExactArgs(2),
@@ -29,20 +26,9 @@ func newTokenCommand(r *runner.Runner, preRunE validator) *cobra.Command {
 			if err != nil {
 				return err
 			}
-
-			if createOpts.config {
-				return NewAgentConfig(*token).WriteYaml(os.Stdout)
-			}
-
-			table := tablewriter.NewWriter(os.Stdout)
-			defer table.Render()
-			table.SetHeader([]string{"ID", "Token", "Nickname", "Created At"})
-			table.Append([]string{token.ID, token.Token, token.Nickname, token.CreatedAt.Format(time.RFC3339)})
-			return nil
+			return generateConfig(*token, os.Stdout)
 		},
-	}
-	createCmd.Flags().BoolVar(&createOpts.config, "config", false, "'true' to emit a CircleCI runner config template with the token")
-	cmd.AddCommand(createCmd)
+	})
 
 	cmd.AddCommand(&cobra.Command{
 		Use:     "delete <token-id>",
