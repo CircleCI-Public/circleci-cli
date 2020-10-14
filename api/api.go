@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -398,6 +399,11 @@ type OrbCategory struct {
 	Name string `json:"name"`
 }
 
+type FollowedProject struct {
+	Followed bool   `json:"followed"`
+	Message  string `json:"message"`
+}
+
 // #nosec
 func loadYaml(path string) (string, error) {
 	var err error
@@ -679,7 +685,7 @@ func CreateNamespace(cl *graphql.Client, name string, organizationName string, o
 	return createNSResponse, nil
 }
 
-func getNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
+func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
 	var response GetNamespaceResponse
 
 	query := `
@@ -746,7 +752,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
-	response, err := getNamespace(cl, namespace)
+	response, err := GetNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -1376,4 +1382,30 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 	}
 	return &orbCategories, nil
+}
+
+// FollowProject initiates an API request to follow a specific project on
+// CircleCI. Project slugs are case-sensitive.
+func FollowProject(restEndpoint string, vcs string, owner string, projectName string, cciToken string) (FollowedProject, error) {
+	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", restEndpoint, vcs, owner, projectName)
+	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+	r.Header.Set("Circle-Token", cciToken)
+	client := http.Client{}
+	response, err := client.Do(r)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+
+	var fr FollowedProject
+	err = json.NewDecoder(response.Body).Decode(&fr)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+
+	return fr, nil
 }
