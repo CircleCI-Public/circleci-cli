@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
@@ -25,6 +26,98 @@ var _ = Describe("Namespace integration tests", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
+	})
+
+	Describe("deleting namespace aliases", func() {
+		BeforeEach(func() {
+			command = exec.Command(pathCLI,
+				"namespace",
+				"delete-alias",
+				"--skip-update-check",
+				"--token", token,
+				"--host", tempSettings.TestServer.URL(),
+				"foo-ns",
+			)
+		})
+
+		It("returns message for when deletion unexpectedly failed", func() {
+			gqlDeleteNsAliasResponse := `{
+				"deleteNamespaceAlias": {
+					"errors": [],
+					"deleted": false
+				}
+			}`
+			expectedDeleteNsAliasRequest := `{
+				"query": "\nmutation($name: String!) {\n  deleteNamespaceAlias(name: $name) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
+				"variables": {
+					"name": "foo-ns"
+				}
+			}`
+
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expectedDeleteNsAliasRequest,
+				Response: gqlDeleteNsAliasResponse})
+
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err).Should(gbytes.Say("Namespace alias deletion failed for unknown reasons."))
+			Eventually(session).ShouldNot(gexec.Exit(0))
+		})
+
+		It("returns all errors returned by the GraphQL API", func() {
+			gqlDeleteNsAliasResponse := `{
+				"deleteNamespaceAlias": {
+					"errors": [{"message": "error1"}],
+					"deleted": false
+				}
+			}`
+			expectedDeleteNsAliasRequest := `{
+				"query": "\nmutation($name: String!) {\n  deleteNamespaceAlias(name: $name) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
+				"variables": {
+					"name": "foo-ns"
+				}
+			}`
+
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expectedDeleteNsAliasRequest,
+				Response: gqlDeleteNsAliasResponse})
+
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err).Should(gbytes.Say("Error: error1"))
+			Eventually(session).ShouldNot(gexec.Exit(0))
+		})
+
+		It("works given an alias name", func() {
+			By("setting up a mock server")
+			gqlDeleteNsAliasResponse := `{
+				"deleteNamespaceAlias": {
+					"errors": [],
+					"deleted": true
+				}
+			}`
+			expectedDeleteNsAliasRequest := `{
+				"query": "\nmutation($name: String!) {\n  deleteNamespaceAlias(name: $name) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
+				"variables": {
+					"name": "foo-ns"
+				}
+			}`
+
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expectedDeleteNsAliasRequest,
+				Response: gqlDeleteNsAliasResponse})
+
+			By("running the command")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session, time.Second * 5).Should(gexec.Exit(0))
+		})
 	})
 
 	Context("create, skipping prompts", func() {
