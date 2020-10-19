@@ -1,11 +1,17 @@
 package cmd
 
 import (
+	"archive/zip"
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"path"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,9 +24,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
-	"github.com/spf13/cobra"
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/config"
+	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/manifoldco/promptui"
 )
 
 type orbOptions struct {
@@ -58,6 +68,10 @@ func (createOrbInteractiveUI) askUserToConfirm(message string) bool {
 
 type createOrbTestUI struct {
 	confirm bool
+}
+
+type orbProtectTemplateRelease struct {
+	ZipUrl string `json:"zipball_url"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -251,7 +265,49 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Short: "Pack an Orb with local scripts.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return packOrb(opts)
+			return packOrbCommand(opts)
+		},
+		Args: cobra.ExactArgs(1),
+	}
+
+	listCategoriesCommand := &cobra.Command{
+		Use:   "list-categories",
+		Short: "List orb categories",
+		Args:  cobra.ExactArgs(0),
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return listOrbCategories(opts)
+		},
+	}
+
+	listCategoriesCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
+	if err := listCategoriesCommand.PersistentFlags().MarkHidden("json"); err != nil {
+		panic(err)
+	}
+
+	addCategorizationToOrbCommand := &cobra.Command{
+		Use:   "add-to-category <namespace>/<orb> \"<category-name>\"",
+		Short: "Add an orb to a category",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return addOrRemoveOrbCategorization(opts, api.Add)
+		},
+	}
+
+	removeCategorizationFromOrbCommand := &cobra.Command{
+		Use:   "remove-from-category <namespace>/<orb> \"<category-name>\"",
+		Short: "Remove an orb from a category",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return addOrRemoveOrbCategorization(opts, api.Remove)
+		},
+	}
+
+	orbInit := &cobra.Command{
+		Use:   "init <path>",
+		Short: "Initialize a new orb.",
+		Long:  ``,
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return initOrb(opts)
 		},
 		Args: cobra.ExactArgs(1),
 	}
@@ -286,6 +342,10 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(sourceCommand)
 	orbCommand.AddCommand(orbInfoCmd)
 	orbCommand.AddCommand(orbPack)
+	orbCommand.AddCommand(addCategorizationToOrbCommand)
+	orbCommand.AddCommand(removeCategorizationFromOrbCommand)
+	orbCommand.AddCommand(listCategoriesCommand)
+	orbCommand.AddCommand(orbInit)
 
 	return orbCommand
 }
@@ -447,7 +507,7 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 			}
 		}
 		result += "\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n"
-		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"
+		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"
 	}
 
 	return result, nil
@@ -455,6 +515,37 @@ func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (
 
 func logOrbs(orbCollection *api.OrbsForListing, opts orbOptions) error {
 	result, err := orbCollectionToString(orbCollection, opts)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(result)
+
+	return nil
+}
+
+func orbCategoryCollectionToString(orbCategoryCollection *api.OrbCategoriesForListing, opts orbOptions) (string, error) {
+	var result string
+
+	if opts.listJSON {
+		orbCategoriesJSON, err := json.MarshalIndent(orbCategoryCollection, "", "  ")
+		if err != nil {
+			return "", errors.Wrapf(err, "Failed to convert to JSON")
+		}
+		result = string(orbCategoriesJSON)
+	} else {
+		var categories []string = make([]string, 0, len(orbCategoryCollection.OrbCategories))
+		for _, orbCategory := range orbCategoryCollection.OrbCategories {
+			categories = append(categories, orbCategory.Name)
+		}
+		result = strings.Join(categories, "\n")
+	}
+
+	return result, nil
+}
+
+func logOrbCategories(orbCategoryCollection *api.OrbCategoriesForListing, opts orbOptions) error {
+	result, err := orbCategoryCollectionToString(orbCategoryCollection, opts)
 	if err != nil {
 		return err
 	}
@@ -748,12 +839,58 @@ func orbInfo(opts orbOptions) error {
 	fmt.Printf("Projects: %d\n", info.Orb.Statistics.Last30DaysProjectCount)
 	fmt.Printf("Orgs: %d\n", info.Orb.Statistics.Last30DaysOrganizationCount)
 
+	if len(info.Orb.Categories) > 0 {
+		fmt.Println("")
+		fmt.Println("## Categories:")
+		for _, category := range info.Orb.Categories {
+			fmt.Printf("%s\n", category.Name)
+		}
+	}
+
 	orbVersionSplit := strings.Split(ref, "@")
 	orbRef := orbVersionSplit[0]
 	fmt.Printf(`
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/%s
+https://circleci.com/developer/orbs/orb/%s
 `, orbRef)
+
+	return nil
+}
+
+func listOrbCategories(opts orbOptions) error {
+	orbCategories, err := api.ListOrbCategories(opts.cl)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orb categories")
+	}
+
+	return logOrbCategories(orbCategories, opts)
+}
+
+func addOrRemoveOrbCategorization(opts orbOptions, updateType api.UpdateOrbCategorizationRequestType) error {
+	var err error
+
+	namespace, orb, err := references.SplitIntoOrbAndNamespace(opts.args[0])
+
+	if err != nil {
+		return err
+	}
+
+	err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orb, opts.args[1], updateType)
+
+	if err != nil {
+		var errorString = "Failed to add orb %s to category %s"
+		if updateType == api.Remove {
+			errorString = "Failed to remove orb %s from category %s"
+		}
+		return errors.Wrapf(err, errorString, opts.args[0], opts.args[1])
+	}
+
+	var output = `%s is successfully added to the "%s" category.` + "\n"
+	if updateType == api.Remove {
+		output = `%s is successfully removed from the "%s" category.` + "\n"
+	}
+
+	fmt.Printf(output, opts.args[0], opts.args[1])
 
 	return nil
 }
@@ -782,33 +919,44 @@ type ExampleSchema struct {
 	Result      ExampleUsageSchema `yaml:"result,omitempty"`
 }
 
-func packOrb(opts orbOptions) error {
-	// Travel our Orb and build a tree from the YAML files.
-	// Non-YAML files will be ignored here.
-	_, err := os.Stat(filepath.Join(opts.args[0], "@orb.yml"))
+func packOrbCommand(opts orbOptions) error {
+	result, err := packOrb(opts.args[0])
 	if err != nil {
-		return errors.New("@orb.yml file not found, are you sure this is the Orb root?")
+		return err
 	}
 
-	tree, err := filetree.NewTree(opts.args[0], "executors", "jobs", "commands", "examples")
+	fmt.Println(result)
+
+	return nil
+}
+
+func packOrb(path string) (string, error) {
+	// Travel our Orb and build a tree from the YAML files.
+	// Non-YAML files will be ignored here.
+	_, err := os.Stat(filepath.Join(path, "@orb.yml"))
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return "", errors.New("@orb.yml file not found, are you sure this is the Orb root?")
+	}
+
+	tree, err := filetree.NewTree(path, "executors", "jobs", "commands", "examples")
+	if err != nil {
+		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	var orbSchema OrbSchema
 	err = yaml.Unmarshal(y, &orbSchema)
 	if err != nil {
-		return errors.Wrap(err, "An unexpected error occurred")
+		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	err = func(nodes ...*yaml.Node) error {
 		for _, node := range nodes {
-			err = inlineIncludes(node, opts.args[0])
+			err = inlineIncludes(node, path)
 			if err != nil {
 				return errors.Wrap(err, "An unexpected error occurred")
 			}
@@ -816,17 +964,15 @@ func packOrb(opts orbOptions) error {
 		return nil
 	}(&orbSchema.Jobs, &orbSchema.Commands, &orbSchema.Executors)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	final, err := yaml.Marshal(&orbSchema)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal Orb YAML")
+		return "", errors.Wrap(err, "Failed trying to marshal Orb YAML")
 	}
 
-	fmt.Println(string(final))
-
-	return nil
+	return string(final), nil
 }
 
 // Travel down a YAML node, replacing values as we go.
@@ -851,4 +997,433 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 		}
 	}
 	return nil
+}
+
+func initOrb(opts orbOptions) error {
+	orbPath := opts.args[0]
+	var err error
+	fmt.Println("Note: This command is in preview. Please report any bugs! https://github.com/CircleCI-Public/circleci-cli/issues/new/choose")
+
+	fullyAutomated := promptui.Select{
+		Label: "Would you like to perform an automated setup of this orb?",
+		Items: []string{"Yes, walk me through the process.", "No, just download the template."},
+	}
+
+	index, _, err := fullyAutomated.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	fmt.Printf("Downloading Orb Project Template into %s\n", orbPath)
+	httpClient := http.Client{}
+	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Project-Template/tags")
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	body, err := ioutil.ReadAll(req.Body)
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+	tags := []orbProtectTemplateRelease{}
+	err = json.Unmarshal(body, &tags)
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	latestTag := tags[0].ZipUrl
+	resp, err := http.Get(latestTag)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	// Create the file
+	out, err := os.Create(filepath.Join(os.TempDir(), "orb-project-template.zip"))
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	nested, err := unzip(filepath.Join(os.TempDir(), "orb-project-template.zip"), filepath.Join(os.TempDir(), "orb-project-template"))
+	if err != nil {
+		return err
+	}
+	// This is neccesary because the zip downloaded from GitHub will have a
+	// directory with the actual template, rather than the template being
+	// top-level.
+	err = os.Rename(filepath.Join(os.TempDir(), "orb-project-template", nested), orbPath)
+	if err != nil {
+		return err
+	}
+
+	if index == 1 {
+		fmt.Println("Opted for manual setup, exiting")
+		fmt.Printf("The Orb Project Template has been extracted to %s\n", orbPath)
+		return nil
+	}
+
+	fmt.Println("A few questions to get you up and running.")
+
+	vcsProvider := ""
+	useDefaultVcs := false
+	if opts.cfg.OrbPublishing.DefaultVcsProvider != "" {
+		useDefaultVcsPrompt := promptui.Select{
+			Label: fmt.Sprintf("Use %s?", opts.cfg.OrbPublishing.DefaultVcsProvider),
+			Items: []string{fmt.Sprintf("Yes, use %s", opts.cfg.OrbPublishing.DefaultVcsProvider), "No, use a different provider."},
+		}
+		useDefault, _, err := useDefaultVcsPrompt.Run()
+		if err != nil {
+			return err
+		}
+		useDefaultVcs = useDefault == 0
+		if useDefaultVcs {
+			vcsProvider = opts.cfg.OrbPublishing.DefaultVcsProvider
+		}
+	}
+
+	if !useDefaultVcs {
+		vcsSelect := promptui.Select{
+			Label: "Are you using GitHub or Bitbucket?",
+			Items: []string{"GitHub", "Bitbucket"},
+		}
+		vcsOption, _, err := vcsSelect.Run()
+		if err != nil {
+			return err
+		}
+		if vcsOption == 0 {
+			vcsProvider = "github"
+		} else {
+			vcsProvider = "bitbucket"
+		}
+	}
+
+	ownerNameInput := promptui.Prompt{
+		Label:   fmt.Sprintf("Enter your %s username or organization", vcsProvider),
+		Default: opts.cfg.OrbPublishing.DefaultOwner,
+	}
+	ownerName, err := ownerNameInput.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	namespace := ownerName
+	if opts.cfg.OrbPublishing.DefaultNamespace != "" {
+		namespace = opts.cfg.OrbPublishing.DefaultNamespace
+	}
+	namespaceInput := promptui.Prompt{
+		Label:   "Enter the namespace to use for this orb",
+		Default: namespace,
+	}
+	namespace, err = namespaceInput.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	fmt.Printf("Saving namespace %s as default\n", namespace)
+	opts.cfg.OrbPublishing.DefaultNamespace = namespace
+	_, err = api.GetNamespace(opts.cl, namespace)
+	if err != nil {
+		fmt.Println("Namespace does not exist, attempting to create it...")
+		_, err = api.CreateNamespace(opts.cl, namespace, ownerName, vcsProvider)
+		if err != nil {
+			return err
+		}
+	}
+
+	orbPathSplit := strings.Split(orbPath, "/")
+	orbName := orbPathSplit[len(orbPathSplit)-1]
+	orbNamePrompt := promptui.Prompt{
+		Label:     "Orb name",
+		Default:   orbName,
+		AllowEdit: true,
+	}
+	orbName, err = orbNamePrompt.Run()
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
+
+	contextPrompt := promptui.Select{
+		Label: "Would you like to automatically set up a publishing context for your orb?",
+		Items: []string{"Yes, set up a publishing context with my API key.", "No, I'll do this later."},
+	}
+	shouldCreateContext, _, err := contextPrompt.Run()
+	if err != nil {
+		return err
+	}
+
+	gitActionPrompt := promptui.Select{
+		Label: "Would you like to set up your git project?",
+		Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
+	}
+	gitAction, _, err := gitActionPrompt.Run()
+	if err != nil {
+		return err
+	}
+
+	vcsShort := func() string {
+		vcs := "gh"
+		if vcsProvider == "bitbucket" {
+			vcs = "bb"
+		}
+		return vcs
+	}()
+
+	if gitAction == 1 {
+		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	gitLocationPrompt := promptui.Prompt{
+		Label: "Enter the remote git repository",
+	}
+	gitLocation, err := gitLocationPrompt.Run()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Thank you! Setting up your orb...")
+
+	if shouldCreateContext == 0 {
+		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
+		if err != nil {
+			return err
+		}
+	}
+
+	projectName := func() string {
+		x := strings.Split(gitLocation, "/")
+		y := strings.Split(x[len(x)-1], ".")
+		return y[0]
+	}()
+
+	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	if err != nil {
+		return err
+	}
+
+	circle := string(circleConfig)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	readme, err := ioutil.ReadFile(path.Join(orbPath, "README.md"))
+	if err != nil {
+		return err
+	}
+	readmeString := string(readme)
+	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	r, err := git.PlainInit(orbPath, false)
+	if err != nil {
+		return err
+	}
+
+	_, err = r.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{gitLocation},
+	})
+	if err != nil {
+		return err
+	}
+	err = r.CreateBranch(&config.Branch{
+		Name:   "master",
+		Remote: "origin",
+	})
+	if err != nil {
+		return errors.Wrap(err, "Git error")
+	}
+
+	w, err := r.Worktree()
+	if err != nil {
+		return err
+	}
+
+	_, err = w.Add(".")
+	if err != nil {
+		return err
+	}
+	_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+	if err != nil {
+		return err
+	}
+
+	// Push a dev version of the orb.
+	newOrb, err := api.CreateOrb(opts.cl, namespace, orbName)
+	if err != nil {
+		return errors.Wrap(err, "Unable to create orb")
+	}
+	packedOrb, err := packOrb(filepath.Join(orbPath, "src"))
+	if err != nil {
+		return err
+	}
+
+	tempOrbDir := filepath.Join(os.TempDir(), "_packed_orb_"+orbName)
+	err = os.Mkdir(tempOrbDir, 0755)
+	if err != nil {
+		return errors.Wrap(err, "Unable to write packed orb")
+	}
+
+	tempOrbFile := filepath.Join(tempOrbDir, "orb.yml")
+	err = ioutil.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
+	if err != nil {
+		return errors.Wrap(err, "Unable to write packed orb")
+	}
+
+	_, err = api.OrbPublishByID(opts.cl, tempOrbFile, newOrb.CreateOrb.Orb.ID, "dev:alpha")
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("An initial commit has been created - please run \033[1;34m'git push origin master'\033[0m to publish your first commit!")
+	confirmGitPush := promptui.Select{
+		Label: "I have pushed to my git repository using the above command",
+		Items: []string{"Done"},
+	}
+	_, _, err = confirmGitPush.Run()
+	if err != nil {
+		return err
+	}
+
+	fr, err := api.FollowProject(opts.cfg.Host, vcsShort, ownerName, projectName, opts.cfg.Token)
+	if err != nil {
+		return err
+	}
+	if fr.Followed {
+		fmt.Println("Project has been followed on CircleCI.")
+	} else if fr.Message == "Project not found" {
+		fmt.Println("Unable to determine project slug for CircleCI (slug is case sensitive).")
+	}
+	err = w.Checkout(&git.CheckoutOptions{
+		Branch: plumbing.NewBranchReferenceName("alpha"),
+		Create: true,
+	})
+	if err != nil {
+		return errors.Wrap(err, "Unable to create alpha branch")
+	}
+	err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, projectName, &opts)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, namespace string, orbName string, projectName string, opts *orbOptions) error {
+	opts.cfg.OrbPublishing.DefaultOwner = ownerName
+	opts.cfg.OrbPublishing.DefaultVcsProvider = vcsProvider
+	err := opts.cfg.WriteToDisk()
+	if err != nil {
+		return err
+	}
+	if projectName != "" {
+		fmt.Printf("Your orb project is building here: https://circleci.com/%s/%s/%s\n", vcsShort, ownerName, projectName)
+		fmt.Println("You are now working in the alpha branch.")
+	}
+	fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/developer/orbs/orb/%s/%s\n", namespace, orbName)
+	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
+	return nil
+}
+
+// From https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
+func unzip(src, dest string) (string, error) {
+	r, err := zip.OpenReader(src)
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			panic(err)
+		}
+	}()
+
+	err = os.MkdirAll(dest, 0755)
+	if err != nil {
+		return "", err
+	}
+	// Closure to address file descriptors issue with all the deferred .Close() methods
+	extractAndWriteFile := func(f *zip.File) error {
+		rc, err := f.Open()
+		if err != nil {
+			return err
+		}
+		defer func() {
+			if err := rc.Close(); err != nil {
+				panic(err)
+			}
+		}()
+
+		path := filepath.Join(dest, f.Name)
+
+		if f.FileInfo().IsDir() {
+			err = os.MkdirAll(path, f.Mode())
+			if err != nil {
+				return err
+			}
+		} else {
+			err = os.MkdirAll(filepath.Dir(path), f.Mode())
+			if err != nil {
+				return err
+			}
+			f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, f.Mode())
+			if err != nil {
+				return err
+			}
+			defer func() {
+				if err := f.Close(); err != nil {
+					panic(err)
+				}
+			}()
+
+			_, err = io.Copy(f, rc)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	nestedDir := r.File[0].Name
+	for _, f := range r.File {
+		err := extractAndWriteFile(f)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return nestedDir, nil
+}
+
+func orbTemplate(fileContents string, projectName string, orgName string, orbName string, namespace string) string {
+	x := strings.Replace(fileContents, "<orb-name>", orbName, -1)
+	x = strings.Replace(x, "<namespace>", namespace, -1)
+	x = strings.Replace(x, "<publishing-context>", "orb-publishing", -1)
+	x = strings.Replace(x, "<project-name>", projectName, -1)
+	x = strings.Replace(x, "<organization>", orgName, -1)
+	x = strings.Replace(x, "<!---", "", -1)
+	x = strings.Replace(x, "--->", "", -1)
+	var re = regexp.MustCompile(`\*\*Meta\*\*.*`)
+	x = re.ReplaceAllString(x, "")
+
+	return x
 }

@@ -93,6 +93,7 @@ jobs:
   test_windows:
     executor: windows/default
     steps:
+      - run: git config --global core.autocrlf false
       - checkout
       - run: setx GOPATH %USERPROFILE%\go
       - run: go get gotest.tools/gotestsum

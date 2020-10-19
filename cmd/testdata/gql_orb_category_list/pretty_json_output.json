@@ -1,0 +1,72 @@
+{
+  "orbCategories": [
+    {
+      "id": "bd82f99e-cc7a-4cb6-be89-f1e347cfee0c",
+      "name": "Artifacts/Registry"
+    },
+    {
+      "id": "6b6c1c5f-5e59-48b1-9352-79c54a081391",
+      "name": "Build"
+    },
+    {
+      "id": "85807118-bb81-45c6-99ae-143d4eacc1e6",
+      "name": "Cloud Platform"
+    },
+    {
+      "id": "2861f288-eca8-4c46-b3e4-4b242826f880",
+      "name": "Code Analysis"
+    },
+    {
+      "id": "5e916839-7a4b-4483-97b9-242fd5faf997",
+      "name": "Collaboration"
+    },
+    {
+      "id": "ce8e1764-1adc-4b23-9be3-5c31a1064a88",
+      "name": "Containers"
+    },
+    {
+      "id": "c89bb286-f3bc-4e15-a6c1-2618ec41d3e9",
+      "name": "Deployment"
+    },
+    {
+      "id": "66d32498-7965-412f-8bf0-a717092f7807",
+      "name": "Infra Automation"
+    },
+    {
+      "id": "36fa1dd0-9a9f-46ef-a332-003e17c01bb1",
+      "name": "Kubernetes"
+    },
+    {
+      "id": "ca67b176-28d4-42a5-b38f-70e28a644343",
+      "name": "Language/Framework"
+    },
+    {
+      "id": "7a255857-9bbc-47b6-be2c-0756528f5077",
+      "name": "Monitoring"
+    },
+    {
+      "id": "4486aa87-2fbf-4864-b048-7a0b82838a74",
+      "name": "Notifications"
+    },
+    {
+      "id": "ae3378d5-3b6a-43bb-aa59-9564e919b8b5",
+      "name": "Reporting"
+    },
+    {
+      "id": "a736f168-ce98-4c3e-afb8-b93a6c8ebeac",
+      "name": "Security"
+    },
+    {
+      "id": "50c0078b-447d-49ad-9a8e-f4c1b09c7651",
+      "name": "Testing"
+    },
+    {
+      "id": "ed82f99e-cc7a-4cb6-be89-f1e347cfee0c",
+      "name": "Windows Server 2003"
+    },
+    {
+      "id": "7b6c1c5f-5e59-48b1-9352-79c54a081391",
+      "name": "Windows Server 2010"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+Usage:
+  runner token list <resource-class>
+
+Aliases:
+  list, ls

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"log"
+	"net/http"
 	"os"
 	"sort"
 	"strings"
@@ -16,6 +17,13 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
+)
+
+type UpdateOrbCategorizationRequestType int
+
+const (
+	Add UpdateOrbCategorizationRequestType = iota
+	Remove
 )
 
 // GQLErrorsCollection is a slice of errors returned by the GraphQL server.
@@ -218,6 +226,43 @@ type OrbsForListing struct {
 	Namespace string        `json:"namespace,omitempty"`
 }
 
+// OrbCategoryIDResponse matches the GQL response for fetching an Orb category's id
+type OrbCategoryIDResponse struct {
+	OrbCategoryByName struct {
+		ID string
+	}
+}
+
+// AddOrRemoveOrbCategorizationResponse type matches the data shape of the GQL response for
+// adding or removing an orb categorization
+type AddOrRemoveOrbCategorizationResponse map[string]AddOrRemoveOrbCategorizationData
+
+type AddOrRemoveOrbCategorizationData struct {
+	CategoryId string
+	OrbId      string
+	Errors     GQLErrorsCollection
+}
+
+// OrbCategoryListResponse type matches the result from GQL.
+// So that we can use mapstructure to convert from nested maps to a strongly typed struct.
+type OrbCategoryListResponse struct {
+	OrbCategories struct {
+		TotalCount int
+		Edges      []struct {
+			Cursor string
+			Node   OrbCategory
+		}
+		PageInfo struct {
+			HasNextPage bool
+		}
+	}
+}
+
+// OrbCategoriesForListing is a container type for multiple orb categories for deserializing back into JSON.
+type OrbCategoriesForListing struct {
+	OrbCategories []OrbCategory `json:"orbCategories"`
+}
+
 // SortBy allows us to sort a collection of orbs by builds, projects, or orgs from the last 30 days of data.
 func (orbs *OrbsForListing) SortBy(sortBy string) {
 	switch sortBy {
@@ -336,6 +381,8 @@ type Orb struct {
 	Jobs      map[string]OrbElement
 	Executors map[string]OrbElement
 	Versions  []OrbVersion
+
+	Categories []OrbCategory
 }
 
 // OrbVersion wraps the GQL result used by OrbSource and OrbInfo
@@ -345,6 +392,16 @@ type OrbVersion struct {
 	Orb       Orb
 	Source    string
 	CreatedAt string
+}
+
+type OrbCategory struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type FollowedProject struct {
+	Followed bool   `json:"followed"`
+	Message  string `json:"message"`
 }
 
 // #nosec
@@ -628,7 +685,7 @@ func CreateNamespace(cl *graphql.Client, name string, organizationName string, o
 	return createNSResponse, nil
 }
 
-func getNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
+func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error) {
 	var response GetNamespaceResponse
 
 	query := `
@@ -695,7 +752,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 
 // CreateOrb creates (reserves) an orb within a namespace
 func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
-	response, err := getNamespace(cl, namespace)
+	response, err := GetNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
 	}
@@ -951,6 +1008,10 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
                                     id
                                     createdAt
                                     name
+                                    categories {
+                                      id
+                                      name
+                                    }
 	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
@@ -1184,4 +1245,167 @@ func IntrospectionQuery(cl *graphql.Client) (*IntrospectionResponse, error) {
 	err := cl.Run(request, &response)
 
 	return &response, err
+}
+
+// OrbCategoryID fetches an orb returning the ID
+func OrbCategoryID(cl *graphql.Client, name string) (*OrbCategoryIDResponse, error) {
+	var response OrbCategoryIDResponse
+
+	query := `
+	query ($name: String!) {
+		orbCategoryByName(name: $name) {
+		  id
+		}
+	}`
+
+	request := graphql.NewRequest(query)
+
+	request.Var("name", name)
+
+	err := cl.Run(request, &response)
+
+	// If there is an error, or the request was successful, return now.
+	if err != nil || response.OrbCategoryByName.ID != "" {
+		return &response, err
+	}
+
+	return nil, fmt.Errorf("the '%s' category does not exist. Did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'.", name)
+}
+
+// AddOrRemoveOrbCategorization adds or removes an orb categorization
+func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb string, categoryName string, updateType UpdateOrbCategorizationRequestType) error {
+	orbId, err := OrbID(cl, namespace, orb)
+	if err != nil {
+		return err
+	}
+
+	categoryId, err := OrbCategoryID(cl, categoryName)
+	if err != nil {
+		return err
+	}
+
+	var response AddOrRemoveOrbCategorizationResponse
+
+	var mutationName string
+	if updateType == Add {
+		mutationName = "addCategorizationToOrb"
+	} else if updateType == Remove {
+		mutationName = "removeCategorizationFromOrb"
+	}
+
+	if mutationName == "" {
+		return fmt.Errorf("Internal error - invalid update type %d", updateType)
+	}
+
+	query := fmt.Sprintf(`
+		mutation($orbId: UUID!, $categoryId: UUID!) {
+			%s(
+				orbId: $orbId,
+				categoryId: $categoryId
+			) {
+				orbId
+				categoryId
+				errors {
+					message
+					type
+				}
+			}
+		}
+	`, mutationName)
+
+	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
+
+	request.Var("orbId", orbId.Orb.ID)
+	request.Var("categoryId", categoryId.OrbCategoryByName.ID)
+
+	err = cl.Run(request, &response)
+
+	responseData := response[mutationName]
+
+	if len(responseData.Errors) > 0 {
+		return &responseData.Errors
+	}
+
+	if err != nil {
+		return errors.Wrap(err, "Unable to add/remove orb categorization")
+	}
+
+	return nil
+}
+
+// ListOrbCategories queries the API to find all categories.
+// Returns a collection of OrbCategory objects containing their relevant data.
+func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
+
+	query := `
+	query ListOrbCategories($after: String!) {
+		orbCategories(first: 20, after: $after) {
+			totalCount
+			edges {
+				cursor
+				node {
+					id
+					name
+				}
+			}
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+`
+
+	var orbCategories OrbCategoriesForListing
+
+	var result OrbCategoryListResponse
+	currentCursor := ""
+
+	for {
+		request := graphql.NewRequest(query)
+		request.Var("after", currentCursor)
+
+		err := cl.Run(request, &result)
+		if err != nil {
+			return nil, errors.Wrap(err, "GraphQL query failed")
+		}
+
+		for i := range result.OrbCategories.Edges {
+			edge := result.OrbCategories.Edges[i]
+			currentCursor = edge.Cursor
+			orbCategories.OrbCategories = append(orbCategories.OrbCategories, edge.Node)
+		}
+
+		if !result.OrbCategories.PageInfo.HasNextPage {
+			break
+		}
+
+	}
+	return &orbCategories, nil
+}
+
+// FollowProject initiates an API request to follow a specific project on
+// CircleCI. Project slugs are case-sensitive.
+func FollowProject(restEndpoint string, vcs string, owner string, projectName string, cciToken string) (FollowedProject, error) {
+	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", restEndpoint, vcs, owner, projectName)
+	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+	r.Header.Set("Circle-Token", cciToken)
+	client := http.Client{}
+	response, err := client.Do(r)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+
+	var fr FollowedProject
+	err = json.NewDecoder(response.Body).Decode(&fr)
+	if err != nil {
+		return FollowedProject{}, err
+	}
+
+	return fr, nil
 }

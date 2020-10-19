@@ -1,0 +1,9 @@
+Usage:
+  runner token [command]
+
+Available Commands:
+  create      Create a token for a resource-class
+  delete      Delete a token
+  list        List tokens for a resource-class
+
+Use "runner token [command] --help" for more information about a command.
