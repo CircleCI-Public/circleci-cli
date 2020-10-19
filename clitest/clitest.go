@@ -111,7 +111,7 @@ func (tempSettings *TempSettings) AppendPostHandler(authToken string, combineHan
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 						err = req.Body.Close()
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-						gomega.Expect(body).Should(gomega.MatchJSON(handler.Request), "JSON Mismatch")
+						gomega.Expect(handler.Request).Should(gomega.MatchJSON(body), "JSON Mismatch")
 					},
 					ghttp.RespondWith(handler.Status, responseBody),
 				),

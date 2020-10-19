@@ -2378,7 +2378,10 @@ foo.bar/account/api`))
                                 orb {
                                     id
                                     createdAt
-                                    name
+									name
+									namespace {
+									  name
+									}
                                     categories {
                                       id
                                       name
