@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -23,6 +24,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -30,6 +32,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/manifoldco/promptui"
 )
 
@@ -1269,9 +1272,24 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
-	_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
-	if err != nil {
-		return err
+
+	if version.PackageManager() != "snap" {
+		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("We detected you installed the CLI via snap\nThe commit generated will not match your actual git username or email due to sandboxing.")
+		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{
+			Author: &object.Signature{
+				Name:  "CircleCI",
+				Email: "community-partner@circleci.com",
+				When:  time.Now(),
+			},
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// Push a dev version of the orb.
@@ -1351,7 +1369,7 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 }
 
 // From https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
-func unzipToOrbPath(src, dest string) (error) {
+func unzipToOrbPath(src, dest string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
 		return err
