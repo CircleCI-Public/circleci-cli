@@ -13,7 +13,7 @@ import (
 // the <<include()>> parameter is the string passed.
 func MaybeIncludeFile(s string, orbDirectory string) (string, error) {
 	// View: https://regexr.com/599mq
-	includeRegex := regexp.MustCompile(`<<[\s]*include\(([\w\/\.]+)\)?[\s]*>>`)
+	includeRegex := regexp.MustCompile(`<<[\s]*include\(([-\w\/\.]+)\)?[\s]*>>`)
 
 	// only find up to 2 matches, because we throw an error if we find >1
 	includeMatches := includeRegex.FindAllStringSubmatch(s, 2)
