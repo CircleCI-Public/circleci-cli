@@ -22,6 +22,42 @@ Feature: Orb pack
     And the exit status should be 0
 
   @mocked_home_directory
+  Scenario: Orb pack with multiple includes fails
+    Given a file named "src/@orb.yml" with:
+    """
+    commands:
+        test:
+          steps:
+            - run:
+                command: <<include(script.sh)>> <<include(script.sh)>>
+    """
+    Given a file named "src/script.sh" with "echo Hello, world!"
+    When I run `circleci orb pack src`
+    Then the output should contain:
+    """
+    Error: An unexpected error occurred: multiple include statements: '<<include(script.sh)>> <<include(script.sh)>>'
+    """
+    And the exit status should be 255
+
+  @mocked_home_directory
+  Scenario: Orb pack with include statement in bigger string
+    Given a file named "src/@orb.yml" with:
+    """
+    commands:
+        test:
+          steps:
+            - run:
+                command: include <<include(script.sh)>>
+    """
+    Given a file named "src/script.sh" with "echo Hello, world!"
+    When I run `circleci orb pack src`
+    Then the output should contain:
+    """
+    Error: An unexpected error occurred: entire string must be include statement: 'include <<include(script.sh)>>'
+    """
+    And the exit status should be 255
+
+  @mocked_home_directory
   Scenario: Missing @orb.yml for orb packing
     When I run `circleci orb pack src`
     Then the output should contain:
