@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -23,6 +24,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -30,6 +32,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/manifoldco/promptui"
 )
 
@@ -1063,14 +1066,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	nested, err := unzip(filepath.Join(os.TempDir(), "orb-project-template.zip"), filepath.Join(os.TempDir(), "orb-project-template"))
-	if err != nil {
-		return err
-	}
-	// This is neccesary because the zip downloaded from GitHub will have a
-	// directory with the actual template, rather than the template being
-	// top-level.
-	err = os.Rename(filepath.Join(os.TempDir(), "orb-project-template", nested), orbPath)
+	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-project-template.zip"), orbPath)
 	if err != nil {
 		return err
 	}
@@ -1276,9 +1272,24 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
-	_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
-	if err != nil {
-		return err
+
+	if version.PackageManager() != "snap" {
+		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+		if err != nil {
+			return err
+		}
+	} else {
+		fmt.Println("We detected you installed the CLI via snap\nThe commit generated will not match your actual git username or email due to sandboxing.")
+		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{
+			Author: &object.Signature{
+				Name:  "CircleCI",
+				Email: "community-partner@circleci.com",
+				When:  time.Now(),
+			},
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	// Push a dev version of the orb.
@@ -1358,10 +1369,10 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 }
 
 // From https://stackoverflow.com/questions/20357223/easy-way-to-unzip-file-with-golang
-func unzip(src, dest string) (string, error) {
+func unzipToOrbPath(src, dest string) error {
 	r, err := zip.OpenReader(src)
 	if err != nil {
-		return "", err
+		return err
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
@@ -1371,7 +1382,7 @@ func unzip(src, dest string) (string, error) {
 
 	err = os.MkdirAll(dest, 0755)
 	if err != nil {
-		return "", err
+		return err
 	}
 	// Closure to address file descriptors issue with all the deferred .Close() methods
 	extractAndWriteFile := func(f *zip.File) error {
@@ -1385,7 +1396,12 @@ func unzip(src, dest string) (string, error) {
 			}
 		}()
 
-		path := filepath.Join(dest, f.Name)
+		// This is neccesary because the zip downloaded from GitHub will have a
+		// directory with the actual template, rather than the template being
+		// top-level.
+		pathParts := strings.Split(f.Name, string(os.PathSeparator))
+		pathParts = append([]string{dest}, pathParts[1:]...)
+		path := filepath.Join(pathParts...)
 
 		if f.FileInfo().IsDir() {
 			err = os.MkdirAll(path, f.Mode())
@@ -1415,15 +1431,14 @@ func unzip(src, dest string) (string, error) {
 		return nil
 	}
 
-	nestedDir := r.File[0].Name
 	for _, f := range r.File {
 		err := extractAndWriteFile(f)
 		if err != nil {
-			return "", err
+			return err
 		}
 	}
 
-	return nestedDir, nil
+	return nil
 }
 
 func orbTemplate(fileContents string, projectName string, orgName string, orbName string, namespace string) string {
