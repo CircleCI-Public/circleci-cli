@@ -27,7 +27,7 @@ var _ = Describe("Namespace integration tests", func() {
 		tempSettings.Close()
 	})
 
-	Context("skipping prompts", func() {
+	Context("create, skipping prompts", func() {
 		Describe("registering a namespace", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
@@ -218,7 +218,7 @@ var _ = Describe("Namespace integration tests", func() {
 		})
 	})
 
-	Context("with interactive prompts", func() {
+	Context("create, with interactive prompts", func() {
 		Describe("registering a namespace", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
@@ -424,6 +424,85 @@ Please note that any orbs you publish in this namespace are open orbs and are wo
 				Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 				Eventually(session).ShouldNot(gexec.Exit(0))
 			})
+		})
+	})
+
+	Describe("renaming a namespace", func() {
+		var (
+			gqlGetNsResponse string
+			expectedGetNsRequest string
+			expectedRenameRequest string
+		)
+		BeforeEach(func () {
+			command = exec.Command(pathCLI,
+				"namespace", "rename",
+				"ns-0", "ns-1",
+				"--skip-update-check",
+				"--token", token,
+				"--host", tempSettings.TestServer.URL(),
+				"--no-prompt",
+			)
+			gqlGetNsResponse = `{
+					"errors": [],
+					"registryNamespace": {
+						"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+					}
+				}`
+			expectedGetNsRequest = `{
+				"query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+				"variables": {
+					"name": "ns-0"
+				}
+			}`
+			expectedRenameRequest = `{
+		"query": "\n\t\tmutation($namespaceId: UUID!, $newName: String!){\n\t\t\trenameNamespace(\n\t\t\t\tnamespaceId: $namespaceId,\n\t\t\t\tnewName: $newName\n\t\t\t){\n\t\t\t\tnamespace {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t\terrors {\n\t\t\t\t\tmessage\n\t\t\t\t\ttype\n\t\t\t\t}\n\t\t\t}\n\t\t}",
+		"variables": {"newName": "ns-1", "namespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"}
+}`
+		})
+
+		It("works in the basic case", func () {
+			By("setting up a mock server")
+			gqlRenameResponse := `{"data":{"renameNamespace":{"namespace":{"id":"4e377fe3-330d-4e4c-af62-821850fe9595"},"errors":[]}}}`		
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:http.StatusOK,
+				Request: expectedGetNsRequest,
+				Response: gqlGetNsResponse})
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:http.StatusOK,
+				Request: expectedRenameRequest,
+				Response: gqlRenameResponse})
+
+			By("running the command")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Out, "5s").Should(gbytes.Say("`ns-0` renamed to `ns-1`"))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
+		It("returns an error when renaming a namespace fails", func() {
+			By("setting up a mock server")
+			gqlRenameResponse := `{
+			        "renameNamespace": {
+					"errors": [
+						{"message": "error1"},
+						{"message": "error2"}
+					],
+					"namespace": null
+				}
+			}`
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:http.StatusOK,
+				Request: expectedGetNsRequest,
+				Response: gqlGetNsResponse})
+			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				Status:http.StatusOK,
+				Request: expectedRenameRequest,
+				Response: gqlRenameResponse})
+			By("running the command")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
+			Eventually(session).ShouldNot(gexec.Exit(0))
 		})
 	})
 })

@@ -162,6 +162,17 @@ type ImportNamespaceResponse struct {
 	}
 }
 
+type RenameNamespaceResponse struct {
+	RenameNamespace struct {
+		Namespace struct {
+			CreatedAt string
+			ID        string
+		}
+
+		Errors GQLErrorsCollection
+	}
+}
+
 // GetOrganizationResponse type wraps the GQL response for fetching an organization and ID.
 type GetOrganizationResponse struct {
 	Organization struct {
@@ -889,6 +900,52 @@ func NamespaceExists(cl *graphql.Client, namespace string) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func renameNamespaceWithNsID(cl *graphql.Client, id, newName string) (*RenameNamespaceResponse, error) {
+	var response RenameNamespaceResponse
+
+	query := `
+		mutation($namespaceId: UUID!, $newName: String!){
+			renameNamespace(
+				namespaceId: $namespaceId,
+				newName: $newName
+			){
+				namespace {
+					id
+				}
+				errors {
+					message
+					type
+				}
+			}
+		}`
+
+	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
+
+	request.Var("namespaceId", id)
+	request.Var("newName", newName)
+
+	err := cl.Run(request, &response)
+
+	if len(response.RenameNamespace.Errors) > 0 {
+		return nil, response.RenameNamespace.Errors
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &response, nil
+}
+
+func RenameNamespace(cl *graphql.Client, oldName, newName string) (*RenameNamespaceResponse, error) {
+	getNamespaceResponse, err := GetNamespace(cl, oldName)
+	if err != nil {
+		return nil, err
+	}
+	return renameNamespaceWithNsID(cl, getNamespaceResponse.RegistryNamespace.ID, newName)
 }
 
 func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*CreateOrbResponse, error) {

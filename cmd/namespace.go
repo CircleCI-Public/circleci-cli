@@ -88,7 +88,29 @@ Please note that at this time all namespaces created in the registry are world-r
 	}
 	createCmd.Flags().BoolVar(&opts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
+	renameCmd := &cobra.Command{
+		Use: "rename <old-name> <new-name>",
+		Short: "(server admin only) rename a namespace",
+		PreRunE: func(_ *cobra.Command, args []string) error {
+			opts.args = args
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+
+			return validateToken(opts.cfg)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return renameNamespace(opts)
+		},
+		Args: cobra.ExactArgs(2),
+		Annotations: make(map[string]string),
+		Hidden: true,
+	}
+	renameCmd.Flags().BoolVar(&opts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
+
+	renameCmd.Annotations["<old-name>"] = "The current name of the namespace"
+	renameCmd.Annotations["<new-name>"] = "The new name you want to give the namespace"
+
 	namespaceCmd.AddCommand(createCmd)
+	namespaceCmd.AddCommand(renameCmd)
 
 	return namespaceCmd
 }
@@ -118,5 +140,22 @@ To change the namespace, you will have to contact CircleCI customer support.
 		fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
 	}
 
+	return nil
+}
+
+func renameNamespace(opts namespaceOptions) error {
+	oldName := opts.args[0]
+	newName := opts.args[1]
+
+	confirm := fmt.Sprintf("Are you sure you wish to rename the namespace `%s` to `%s`?", oldName, newName)
+	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
+		_, err := api.RenameNamespace(opts.cl, oldName, newName)
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Namespace `%s` renamed to `%s`. `%s` is an alias for `%s` so existing usages will continue to work, unless you delete the %s alias with `namespace delete-alias %s`", oldName, newName, oldName, newName, oldName, oldName)
+	}
 	return nil
 }
