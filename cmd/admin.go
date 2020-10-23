@@ -22,8 +22,7 @@ func newAdminCommand(config *settings.Config) *cobra.Command {
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return importOrb(orbOpts)
 		},
-		Args:   cobra.MinimumNArgs(1),
-		Hidden: true,
+		Args: cobra.MinimumNArgs(1),
 	}
 	importOrbCommand.Flags().BoolVar(&orbOpts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 
@@ -41,7 +40,6 @@ func newAdminCommand(config *settings.Config) *cobra.Command {
 		},
 		Args:        cobra.ExactArgs(2),
 		Annotations: make(map[string]string),
-		Hidden:      true,
 	}
 	renameCommand.Flags().BoolVar(&nsOpts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
@@ -67,7 +65,6 @@ Example:
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
-		Hidden:      true,
 	}
 
 	deleteAliasCommand.Annotations["<name>"] = "The name of the alias to delete"
@@ -86,6 +83,7 @@ Example:
 			// As of writing this comment, that is only for daily update checks.
 			return rootCmdPreRun(rootOptions)
 		},
+		Hidden: true,
 	}
 
 	adminCommand.AddCommand(importOrbCommand)
