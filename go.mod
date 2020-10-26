@@ -1,12 +1,10 @@
 module github.com/CircleCI-Public/circleci-cli
 
 require (
+	github.com/AlecAivazis/survey/v2 v2.1.1
 	github.com/Masterminds/semver v1.4.2
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/briandowns/spinner v0.0.0-20181018151057-dd69c579ff20
-	github.com/chzyer/logex v1.1.10 // indirect
-	github.com/chzyer/readline v0.0.0-20180603132655-2972be24d48e // indirect
-	github.com/chzyer/test v0.0.0-20180213035817-a1ea475d72b1 // indirect
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/gobuffalo/buffalo-plugins v1.9.3 // indirect
@@ -15,9 +13,6 @@ require (
 	github.com/google/go-github v15.0.0+incompatible // indirect
 	github.com/google/go-querystring v0.0.0-20170111101155-53e6ce116135 // indirect
 	github.com/inconshreveable/go-update v0.0.0-20160112193335-8152e7eb6ccf // indirect
-	github.com/juju/ansiterm v0.0.0-20180109212912-720a0952cc2a // indirect
-	github.com/lunixbochs/vtclean v0.0.0-20170504063817-d14193dfc626 // indirect
-	github.com/manifoldco/promptui v0.3.0
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/olekukonko/tablewriter v0.0.4
