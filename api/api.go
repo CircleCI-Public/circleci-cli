@@ -829,6 +829,44 @@ func organizationNotFound(name string, vcs string) error {
 	return fmt.Errorf("the organization '%s' under '%s' VCS-type does not exist. Did you misspell the organization or VCS?", name, vcs)
 }
 
+func DeleteNamespaceAlias(cl *graphql.Client, name string) error {
+	var response struct{
+		DeleteNamespaceAlias struct{
+			Deleted bool
+			Errors GQLErrorsCollection
+		}
+	}
+	query := `
+mutation($name: String!) {
+  deleteNamespaceAlias(name: $name) {
+    deleted
+    errors {
+      type
+      message
+    }
+  }
+}
+`
+	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
+
+	request.Var("name", name)
+	err := cl.Run(request, &response)
+	if err != nil {
+		return err
+	}
+
+	if len(response.DeleteNamespaceAlias.Errors) > 0 {
+		return response.DeleteNamespaceAlias.Errors
+	}
+
+	if !response.DeleteNamespaceAlias.Deleted {
+		return errors.New("Namespace alias deletion failed for unknown reasons.")
+	}
+
+	return nil
+}
+
 // CreateNamespace creates (reserves) a namespace for an organization
 func CreateNamespace(cl *graphql.Client, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
 	getOrgResponse, getOrgError := getOrganization(cl, organizationName, organizationVcs)

@@ -54,6 +54,35 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 		Short: "Operate on namespaces",
 	}
 
+	deleteAliasCmd := &cobra.Command{
+		Use:   "delete-alias <name>",
+		Short: "(Server only) Delete a namespace alias",
+		Long: `Delete a namespace alias.
+
+A namespace can have multiple aliases (names). This command deletes an alias left behind by a rename. The most recent alias cannot be deleted.
+
+Example:
+- namespace A is renamed to B
+- alias B is created, coexisting with alias A
+- after migrating config accordingly, we can delete the A alias.
+
+This requires install admin privileges, because it will break existing builds using the deleted alias.`,
+		PreRunE: func(_ *cobra.Command, args []string) error {
+			opts.args = args
+			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+
+			return validateToken(opts.cfg)
+		},
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return deleteNamespaceAlias(opts)
+		},
+		Args:        cobra.ExactArgs(1),
+		Annotations: make(map[string]string),
+		Hidden: true,
+	}
+
+	deleteAliasCmd.Annotations["<name>"] = "The name of the alias to delete"
+
 	createCmd := &cobra.Command{
 		Use:   "create <name> <vcs-type> <org-name>",
 		Short: "Create a namespace",
@@ -109,10 +138,17 @@ Please note that at this time all namespaces created in the registry are world-r
 	renameCmd.Annotations["<old-name>"] = "The current name of the namespace"
 	renameCmd.Annotations["<new-name>"] = "The new name you want to give the namespace"
 
+	namespaceCmd.AddCommand(deleteAliasCmd)
 	namespaceCmd.AddCommand(createCmd)
 	namespaceCmd.AddCommand(renameCmd)
 
 	return namespaceCmd
+}
+
+func deleteNamespaceAlias(opts namespaceOptions) error {
+	aliasName := opts.args[0]
+	err := api.DeleteNamespaceAlias(opts.cl, aliasName)
+	return err
 }
 
 func createNamespace(opts namespaceOptions) error {
