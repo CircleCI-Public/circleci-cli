@@ -1024,7 +1024,10 @@ func initOrb(opts orbOptions) error {
 		Message: "Would you like to perform an automated setup of this orb?",
 		Options: []string{"Yes, walk me through the process.", "No, just download the template."},
 	}
-	survey.AskOne(prompt, &fullyAutomated)
+	err = survey.AskOne(prompt, &fullyAutomated)
+	if err != nil {
+		return errors.Wrap(err, "Unexpected error")
+	}
 
 	fmt.Printf("Downloading Orb Project Template into %s\n", orbPath)
 	httpClient := http.Client{}
@@ -1083,9 +1086,12 @@ func initOrb(opts orbOptions) error {
 			Message: fmt.Sprintf("Use %s?", opts.cfg.OrbPublishing.DefaultVcsProvider),
 			Default: true,
 		}
-		survey.AskOne(prompt, &useDefaultVcs)
+		err = survey.AskOne(prompt, &useDefaultVcs)
 		if useDefaultVcs {
 			vcsProvider = opts.cfg.OrbPublishing.DefaultVcsProvider
+		}
+		if err != nil {
+			return errors.Wrap(err, "Unexpected error")
 		}
 	}
 
