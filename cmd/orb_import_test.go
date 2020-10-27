@@ -910,7 +910,7 @@ The following orb versions already exist:
 
 			orbPublishResp := `{
 					"publishOrb": {
-						"errors": [{"message": "testerror"}]
+						"errors": [{"message": "ERROR IN CONFIG FILE:\ntesterror"}]
 					}
 				}`
 
@@ -926,7 +926,7 @@ The following orb versions already exist:
 			})
 
 			err := applyPlan(opts, plan)
-			Expect(err).To(MatchError("unable to publish 'namespace1/orb@0.0.1' with source: testerror"))
+			Expect(err).To(MatchError("unable to publish 'namespace1/orb@0.0.1': ERROR IN CONFIG FILE:\ntesterror\nThis can be caused by an orb using syntax that is not supported on your server version."))
 		})
 
 		It("fails to publish an orb version with source", func() {
