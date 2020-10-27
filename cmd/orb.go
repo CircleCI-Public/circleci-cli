@@ -263,17 +263,6 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Args: cobra.ExactArgs(1),
 	}
 
-	importOrbCommand := &cobra.Command{
-		Use:   "import <namespace>[/<orb>[@<version>]]",
-		Short: "(Server only) Import an orb version from circleci.com into a CircleCI Server installation",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return importOrb(opts)
-		},
-		Args:   cobra.MinimumNArgs(1),
-		Hidden: true,
-	}
-	importOrbCommand.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
-
 	orbPack := &cobra.Command{
 		Use:   "pack <path>",
 		Short: "Pack an Orb with local scripts.",
@@ -349,7 +338,6 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	orbCommand.AddCommand(listCommand)
 	orbCommand.AddCommand(orbCreate)
-	orbCommand.AddCommand(importOrbCommand)
 	orbCommand.AddCommand(validateCommand)
 	orbCommand.AddCommand(processCommand)
 	orbCommand.AddCommand(publishCommand)
