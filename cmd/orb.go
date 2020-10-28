@@ -1389,7 +1389,7 @@ func unzipToOrbPath(src, dest string) error {
 		// This is neccesary because the zip downloaded from GitHub will have a
 		// directory with the actual template, rather than the template being
 		// top-level.
-		pathParts := strings.Split(f.Name, string(os.PathSeparator))
+		pathParts := strings.Split(f.Name, "/")
 		pathParts = append([]string{dest}, pathParts[1:]...)
 		path := filepath.Join(pathParts...)
 
