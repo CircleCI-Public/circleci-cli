@@ -155,7 +155,11 @@ func applyPlan(opts orbOptions, plan orbImportPlan) error {
 
 		_, err = api.OrbImportVersion(opts.cl, v.Source, resp.Orb.ID, v.Version)
 		if err != nil {
-			return fmt.Errorf("unable to publish '%s@%s' with source: %s", v.Orb.Name, v.Version, err.Error())
+			additionalMessage := ""
+			if strings.HasPrefix(err.Error(), "ERROR IN CONFIG FILE") {
+				additionalMessage = "\nThis can be caused by an orb using syntax that is not supported on your server version."
+			}
+			return fmt.Errorf("unable to publish '%s@%s': %s%s", v.Orb.Name, v.Version, err.Error(), additionalMessage)
 		}
 	}
 
