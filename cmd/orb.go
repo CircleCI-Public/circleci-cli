@@ -29,11 +29,11 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	"github.com/AlecAivazis/survey/v2"
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
-	"github.com/manifoldco/promptui"
 )
 
 type orbOptions struct {
@@ -1007,12 +1007,12 @@ func initOrb(opts orbOptions) error {
 	var err error
 	fmt.Println("Note: This command is in preview. Please report any bugs! https://github.com/CircleCI-Public/circleci-cli/issues/new/choose")
 
-	fullyAutomated := promptui.Select{
-		Label: "Would you like to perform an automated setup of this orb?",
-		Items: []string{"Yes, walk me through the process.", "No, just download the template."},
+	fullyAutomated := 0
+	prompt := &survey.Select{
+		Message: "Would you like to perform an automated setup of this orb?",
+		Options: []string{"Yes, walk me through the process.", "No, just download the template."},
 	}
-
-	index, _, err := fullyAutomated.Run()
+	err = survey.AskOne(prompt, &fullyAutomated)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
@@ -1059,7 +1059,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	if index == 1 {
+	if fullyAutomated == 1 {
 		fmt.Println("Opted for manual setup, exiting")
 		fmt.Printf("The Orb Project Template has been extracted to %s\n", orbPath)
 		return nil
@@ -1070,54 +1070,51 @@ func initOrb(opts orbOptions) error {
 	vcsProvider := ""
 	useDefaultVcs := false
 	if opts.cfg.OrbPublishing.DefaultVcsProvider != "" {
-		useDefaultVcsPrompt := promptui.Select{
-			Label: fmt.Sprintf("Use %s?", opts.cfg.OrbPublishing.DefaultVcsProvider),
-			Items: []string{fmt.Sprintf("Yes, use %s", opts.cfg.OrbPublishing.DefaultVcsProvider), "No, use a different provider."},
+		prompt := &survey.Confirm{
+			Message: fmt.Sprintf("Use %s?", opts.cfg.OrbPublishing.DefaultVcsProvider),
+			Default: true,
 		}
-		useDefault, _, err := useDefaultVcsPrompt.Run()
-		if err != nil {
-			return err
-		}
-		useDefaultVcs = useDefault == 0
+		err = survey.AskOne(prompt, &useDefaultVcs)
 		if useDefaultVcs {
 			vcsProvider = opts.cfg.OrbPublishing.DefaultVcsProvider
+		}
+		if err != nil {
+			return errors.Wrap(err, "Unexpected error")
 		}
 	}
 
 	if !useDefaultVcs {
-		vcsSelect := promptui.Select{
-			Label: "Are you using GitHub or Bitbucket?",
-			Items: []string{"GitHub", "Bitbucket"},
+		vcsSelect := "github"
+		prompt = &survey.Select{
+			Message: "Are you using GitHub or Bitbucket?",
+			Options: []string{"GitHub", "Bitbucket"},
 		}
-		vcsOption, _, err := vcsSelect.Run()
+		err = survey.AskOne(prompt, &vcsSelect)
 		if err != nil {
 			return err
 		}
-		if vcsOption == 0 {
-			vcsProvider = "github"
-		} else {
-			vcsProvider = "bitbucket"
-		}
+		vcsProvider = strings.ToLower(vcsSelect)
 	}
 
-	ownerNameInput := promptui.Prompt{
-		Label:   fmt.Sprintf("Enter your %s username or organization", vcsProvider),
+	ownerName := ""
+	iprompt := &survey.Input{
+		Message: fmt.Sprintf("Enter your %s username or organization", vcsProvider),
 		Default: opts.cfg.OrbPublishing.DefaultOwner,
 	}
-	ownerName, err := ownerNameInput.Run()
+	err = survey.AskOne(iprompt, &ownerName)
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return err
 	}
 
 	namespace := ownerName
 	if opts.cfg.OrbPublishing.DefaultNamespace != "" {
 		namespace = opts.cfg.OrbPublishing.DefaultNamespace
 	}
-	namespaceInput := promptui.Prompt{
-		Label:   "Enter the namespace to use for this orb",
+	iprompt = &survey.Input{
+		Message: "Enter the namespace to use for this orb",
 		Default: namespace,
 	}
-	namespace, err = namespaceInput.Run()
+	err = survey.AskOne(iprompt, &namespace)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
@@ -1135,30 +1132,51 @@ func initOrb(opts orbOptions) error {
 
 	orbPathSplit := strings.Split(orbPath, "/")
 	orbName := orbPathSplit[len(orbPathSplit)-1]
-	orbNamePrompt := promptui.Prompt{
-		Label:     "Orb name",
-		Default:   orbName,
-		AllowEdit: true,
+	iprompt = &survey.Input{
+		Message: "Orb name",
+		Default: orbName,
 	}
-	orbName, err = orbNamePrompt.Run()
+	err = survey.AskOne(iprompt, &orbName)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	contextPrompt := promptui.Select{
-		Label: "Would you like to automatically set up a publishing context for your orb?",
-		Items: []string{"Yes, set up a publishing context with my API key.", "No, I'll do this later."},
+	createContext := 0
+	prompt = &survey.Select{
+		Message: "Automatically set up a publishing context for your orb?",
+		Options: []string{"Yes, set up a publishing context with my API key.", "No, I'll do this later."},
 	}
-	shouldCreateContext, _, err := contextPrompt.Run()
+	err = survey.AskOne(prompt, &createContext)
 	if err != nil {
 		return err
 	}
 
-	gitActionPrompt := promptui.Select{
-		Label: "Would you like to set up your git project?",
-		Items: []string{"Yes, set up the git project.", "No, I'll do this later."},
+	if createContext == 0 {
+		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			if strings.Contains(err.Error(), "A context named orb-publishing already exists") {
+				fmt.Println("`orb-publishing` context already exists, continuing on")
+			} else {
+				return err
+			}
+		}
+		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
+		if err != nil {
+			return err
+		}
+		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
+		if err != nil && !strings.Contains(err.Error(), "ALREADY_EXISTS") {
+			return err
+		}
 	}
-	gitAction, _, err := gitActionPrompt.Run()
+
+	gitAction := false
+	yprompt := &survey.Confirm{
+		Message: "Would you like to set up your git project?",
+		Default: true,
+	}
+	err = survey.AskOne(yprompt, &gitAction)
 	if err != nil {
 		return err
 	}
@@ -1171,7 +1189,7 @@ func initOrb(opts orbOptions) error {
 		return vcs
 	}()
 
-	if gitAction == 1 {
+	if !gitAction {
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
 			return err
@@ -1179,30 +1197,15 @@ func initOrb(opts orbOptions) error {
 		return nil
 	}
 
-	gitLocationPrompt := promptui.Prompt{
-		Label: "Enter the remote git repository",
+	gitLocation := ""
+	iprompt = &survey.Input{
+		Message: "Enter the remote git repository",
 	}
-	gitLocation, err := gitLocationPrompt.Run()
+	err = survey.AskOne(iprompt, &gitLocation)
 	if err != nil {
 		return err
 	}
 	fmt.Println("Thank you! Setting up your orb...")
-
-	if shouldCreateContext == 0 {
-		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
-		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
-		if err != nil {
-			return err
-		}
-		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
-		if err != nil {
-			return err
-		}
-		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
-		if err != nil {
-			return err
-		}
-	}
 
 	projectName := func() string {
 		x := strings.Split(gitLocation, "/")
@@ -1308,11 +1311,10 @@ func initOrb(opts orbOptions) error {
 	}
 
 	fmt.Println("An initial commit has been created - please run \033[1;34m'git push origin master'\033[0m to publish your first commit!")
-	confirmGitPush := promptui.Select{
-		Label: "I have pushed to my git repository using the above command",
-		Items: []string{"Done"},
+	yprompt = &survey.Confirm{
+		Message: "I have pushed to my git repository using the above command",
 	}
-	_, _, err = confirmGitPush.Run()
+	err = survey.AskOne(yprompt, nil)
 	if err != nil {
 		return err
 	}
@@ -1387,7 +1389,7 @@ func unzipToOrbPath(src, dest string) error {
 		// This is neccesary because the zip downloaded from GitHub will have a
 		// directory with the actual template, rather than the template being
 		// top-level.
-		pathParts := strings.Split(f.Name, "/")
+		pathParts := strings.Split(f.Name, string(os.PathSeparator))
 		pathParts = append([]string{dest}, pathParts[1:]...)
 		path := filepath.Join(pathParts...)
 
