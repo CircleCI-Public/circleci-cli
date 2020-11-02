@@ -799,7 +799,7 @@ The following orb versions already exist:
 					}
 				}`
 
-			createOrbReq := `{
+			importOrbReq := `{
 					"query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\timportOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
 					"variables": {
 					  "name": "orb",
@@ -807,8 +807,8 @@ The following orb versions already exist:
 					}
 				  }`
 
-			createOrbResp := `{
-					"createOrb": {
+			importOrbResp := `{
+					"importOrb": {
 						"errors": [{"message": "testerror"}]
 					}
 				}`
@@ -820,8 +820,8 @@ The following orb versions already exist:
 			})
 			cli.AppendPostHandler("", clitest.MockRequestResponse{
 				Status:   http.StatusOK,
-				Request:  createOrbReq,
-				Response: createOrbResp,
+				Request:  importOrbReq,
+				Response: importOrbResp,
 			})
 
 			err := applyPlan(opts, plan)

@@ -203,6 +203,15 @@ type CreateOrbResponse struct {
 	}
 }
 
+// ImportOrbResponse type matches the data shape of the GQL response for
+// creating an orb
+type ImportOrbResponse struct {
+	ImportOrb struct {
+		Orb    Orb
+		Errors GQLErrorsCollection
+	}
+}
+
 // NamespaceOrbResponse type matches the result from GQL.
 // So that we can use mapstructure to convert from nested maps to a strongly typed struct.
 type NamespaceOrbResponse struct {
@@ -830,10 +839,10 @@ func organizationNotFound(name string, vcs string) error {
 }
 
 func DeleteNamespaceAlias(cl *graphql.Client, name string) error {
-	var response struct{
-		DeleteNamespaceAlias struct{
+	var response struct {
+		DeleteNamespaceAlias struct {
 			Deleted bool
-			Errors GQLErrorsCollection
+			Errors  GQLErrorsCollection
 		}
 	}
 	query := `
@@ -1034,13 +1043,13 @@ func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbRes
 }
 
 // CreateImportedOrb creates (reserves) an imported orb within the provided namespace.
-func CreateImportedOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
+func CreateImportedOrb(cl *graphql.Client, namespace string, name string) (*ImportOrbResponse, error) {
 	res, err := GetNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	var response CreateOrbResponse
+	var response ImportOrbResponse
 
 	query := `mutation($name: String!, $registryNamespaceId: UUID!){
 				importOrb(
@@ -1068,8 +1077,8 @@ func CreateImportedOrb(cl *graphql.Client, namespace string, name string) (*Crea
 		return nil, err
 	}
 
-	if len(response.CreateOrb.Errors) > 0 {
-		return nil, response.CreateOrb.Errors
+	if len(response.ImportOrb.Errors) > 0 {
+		return nil, response.ImportOrb.Errors
 	}
 
 	return &response, nil
