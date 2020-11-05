@@ -22,7 +22,7 @@ type ContextRestClient struct {
 
 type listEnvironmentVariablesResponse struct {
 	Items []EnvironmentVariable
-	NextPageToken *string
+	NextPageToken *string `json:"next_page_token"`
 	client *ContextRestClient
 	params *listEnvironmentVariablesParams
 }
