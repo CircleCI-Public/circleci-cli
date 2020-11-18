@@ -25,6 +25,10 @@ func newAdminCommand(config *settings.Config) *cobra.Command {
 		Args: cobra.MinimumNArgs(1),
 	}
 	importOrbCommand.Flags().BoolVar(&orbOpts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
+	if err := importOrbCommand.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
+	importOrbCommand.Flags().BoolVar(&orbOpts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
 	renameCommand := &cobra.Command{
 		Use:   "rename-namespace <old-name> <new-name>",
@@ -68,6 +72,7 @@ Example:
 	}
 
 	deleteAliasCommand.Annotations["<name>"] = "The name of the alias to delete"
+	deleteAliasCommand.Flags().BoolVar(&nsOpts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
 	adminCommand := &cobra.Command{
 		Use:   "admin",
