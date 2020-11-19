@@ -95,8 +95,12 @@ Please note that at this time all namespaces created in the registry are world-r
 
 func deleteNamespaceAlias(opts namespaceOptions) error {
 	aliasName := opts.args[0]
-	err := api.DeleteNamespaceAlias(opts.cl, aliasName)
-	return err
+	confirm := fmt.Sprintf("Are you sure you wish to delete the namespace alias %s? You should make sure that all configs and orbs that refer to it this way are updated to the new name first.", aliasName)
+	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
+		err := api.DeleteNamespaceAlias(opts.cl, aliasName)
+		return err
+	}
+	return nil
 }
 
 func createNamespace(opts namespaceOptions) error {

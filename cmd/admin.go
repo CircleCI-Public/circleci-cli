@@ -65,6 +65,11 @@ Example:
 			return validateToken(nsOpts.cfg)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
+			if nsOpts.integrationTesting {
+				nsOpts.tty = createNamespaceTestUI{
+					confirm: true,
+				}
+			}
 			return deleteNamespaceAlias(nsOpts)
 		},
 		Args:        cobra.ExactArgs(1),
@@ -73,6 +78,10 @@ Example:
 
 	deleteAliasCommand.Annotations["<name>"] = "The name of the alias to delete"
 	deleteAliasCommand.Flags().BoolVar(&nsOpts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
+	deleteAliasCommand.Flags().BoolVar(&nsOpts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
+	if err := deleteAliasCommand.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
 
 	adminCommand := &cobra.Command{
 		Use:   "admin",
