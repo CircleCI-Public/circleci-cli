@@ -35,6 +35,7 @@ var _ = Describe("Namespace integration tests", func() {
 				"--skip-update-check",
 				"--token", token,
 				"--host", tempSettings.TestServer.URL(),
+				"--integration-testing",
 				"foo-ns",
 			)
 		})
