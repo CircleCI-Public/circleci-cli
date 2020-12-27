@@ -1,0 +1,24 @@
+{
+  "orbCategories": {
+    "totalCount": 22,
+    "edges": [
+      {
+        "cursor": "Windows Server 2003",
+        "node": {
+          "id": "ed82f99e-cc7a-4cb6-be89-f1e347cfee0c",
+          "name": "Windows Server 2003"
+        }
+      },
+      {
+        "cursor": "Windows Server 2010",
+        "node": {
+          "id": "7b6c1c5f-5e59-48b1-9352-79c54a081391",
+          "name": "Windows Server 2010"
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": false
+    }
+  }
+}

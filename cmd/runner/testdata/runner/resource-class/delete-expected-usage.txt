@@ -1,0 +1,5 @@
+Usage:
+  runner resource-class delete <resource-class>
+
+Aliases:
+  delete, rm

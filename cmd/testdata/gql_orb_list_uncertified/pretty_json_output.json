@@ -2,6 +2,11 @@
   "orbs": [
     {
       "name": "circleci/codecov-clojure",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.4",
       "versions": [
         {
@@ -12,6 +17,11 @@
     },
     {
       "name": "circleci/gradle",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.1",
       "versions": [
         {
@@ -22,6 +32,11 @@
     },
     {
       "name": "circleci/rollbar",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.1",
       "versions": [
         {
@@ -32,6 +47,11 @@
     },
     {
       "name": "eric-hu/delivery-test",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "1.0.4",
       "versions": [
         {
@@ -42,6 +62,11 @@
     },
     {
       "name": "hannah/foo",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.0",
       "versions": [
         {
@@ -52,6 +77,11 @@
     },
     {
       "name": "hannah/new-orb",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.1",
       "versions": [
         {
@@ -62,6 +92,11 @@
     },
     {
       "name": "hannah/so-fly",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.0",
       "versions": [
         {
@@ -72,6 +107,11 @@
     },
     {
       "name": "ndintenfass/build-utils",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.2",
       "versions": [
         {
@@ -82,6 +122,11 @@
     },
     {
       "name": "test/test",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.0.3",
       "versions": [
         {
@@ -92,6 +137,11 @@
     },
     {
       "name": "zzak/test4",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.1.0",
       "versions": [
         {
@@ -102,6 +152,11 @@
     },
     {
       "name": "zzak/testing",
+      "statistics": {
+        "last30DaysBuildCount": 0,
+        "last30DaysProjectCount": 0,
+        "last30DaysOrganizationCount": 0
+      },
       "version": "0.2.0",
       "versions": [
         {

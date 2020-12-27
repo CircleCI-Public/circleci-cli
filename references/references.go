@@ -21,10 +21,6 @@ func SplitIntoOrbNamespaceAndVersion(ref string) (namespace, orb, version string
 
 	errorMessage := fmt.Errorf("Invalid orb reference '%s': Expected a namespace, orb and version in the format 'namespace/orb@version'", ref)
 
-	if len(strings.Split(ref, "/")) != 2 {
-		return "", "", "", errorMessage
-	}
-
 	re := regexp.MustCompile("^(.+)/(.+)@(.+)$")
 
 	matches := re.FindStringSubmatch(ref)

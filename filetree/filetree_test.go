@@ -9,7 +9,7 @@ import (
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 )
@@ -17,6 +17,7 @@ import (
 var _ = Describe("filetree", func() {
 	var (
 		tempRoot string
+		subDir   string
 	)
 
 	BeforeEach(func() {
@@ -30,7 +31,7 @@ var _ = Describe("filetree", func() {
 	})
 
 	Describe("NewTree", func() {
-		var subDir, subDirFile, emptyDir string
+		var subDirFile, emptyDir string
 
 		BeforeEach(func() {
 			subDir = filepath.Join(tempRoot, "sub_dir")
@@ -86,6 +87,20 @@ var _ = Describe("filetree", func() {
 			Expect(err).ToNot(HaveOccurred())
 			Expect(out).To(MatchYAML(`empty_dir: {}
 sub_dir:
+  sub_dir_file:
+    foo:
+      bar:
+        baz
+`))
+		})
+
+		It("Only checks specified directories", func() {
+			tree, err := filetree.NewTree(tempRoot, "sub_dir")
+			Expect(err).ToNot(HaveOccurred())
+
+			out, err := yaml.Marshal(tree)
+			Expect(err).ToNot(HaveOccurred())
+			Expect(out).To(MatchYAML(`sub_dir:
   sub_dir_file:
     foo:
       bar:

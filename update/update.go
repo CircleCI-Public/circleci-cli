@@ -3,14 +3,12 @@ package update
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"os/exec"
 	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/blang/semver"
-	"github.com/google/go-github/github"
 	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
@@ -72,20 +70,20 @@ func checkFromHomebrew(check *Options) error {
 		return errors.Wrap(err, "Expected to find `brew` in your $PATH but wasn't able to find it")
 	}
 
-	command := exec.Command(brew, "outdated", "--json=v1") // #nosec
+	command := exec.Command(brew, "outdated", "--json=v2") // #nosec
 	out, err := command.Output()
 	if err != nil {
-		return errors.Wrap(err, "failed to check for updates via `brew`")
+		return errors.Wrap(err, "failed to check for updates. `brew outdated --json=v2` returned an error")
 	}
 
 	var outdated HomebrewOutdated
 
 	err = json.Unmarshal(out, &outdated)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse output of `brew outdated --json=v1`")
+		return errors.Wrap(err, "failed to parse output of `brew outdated --json=v2`")
 	}
 
-	for _, o := range outdated {
+	for _, o := range outdated.Formulae {
 		if o.Name == "circleci" {
 			if len(o.InstalledVersions) > 0 {
 				check.Current = semver.MustParse(o.InstalledVersions[0])
@@ -103,26 +101,31 @@ func checkFromHomebrew(check *Options) error {
 	return nil
 }
 
-// HomebrewOutdated wraps the JSON output from running `brew outdated --json=v1`
+// HomebrewOutdated wraps the JSON output from running `brew outdated --json=v2`
 // We're specifically looking for this kind of structured data from the command:
 //
-//   [
-//     {
-//       "name": "circleci",
-//       "installed_versions": [
-//         "0.1.1248"
-//       ],
-//       "current_version": "0.1.3923",
-//       "pinned": false,
-//       "pinned_version": null
-//     },
-//   ]
-type HomebrewOutdated []struct {
-	Name              string   `json:"name"`
-	InstalledVersions []string `json:"installed_versions"`
-	CurrentVersion    string   `json:"current_version"`
-	Pinned            bool     `json:"pinned"`
-	PinnedVersion     string   `json:"pinned_version"`
+//   {
+//     "formulae": [
+//       {
+//         "name": "circleci",
+//         "installed_versions": [
+//           "0.1.1248"
+//         ],
+//         "current_version": "0.1.3923",
+//         "pinned": false,
+//         "pinned_version": null
+//       }
+//     ],
+//     "casks": []
+//   }
+type HomebrewOutdated struct {
+	Formulae []struct {
+		Name              string   `json:"name"`
+		InstalledVersions []string `json:"installed_versions"`
+		CurrentVersion    string   `json:"current_version"`
+		Pinned            bool     `json:"pinned"`
+		PinnedVersion     string   `json:"pinned_version"`
+	} `json:"formulae"`
 }
 
 // Options contains everything we need to check for or perform updates of the CLI.
@@ -145,11 +148,23 @@ func latestRelease(opts *Options) error {
 	opts.Found = found
 
 	if err != nil {
-		if errResponse, ok := err.(*github.ErrorResponse); ok && errResponse.Response.StatusCode == http.StatusUnauthorized {
-			return errors.Wrap(err, "Your Github token is invalid. Check the [github] section in ~/.gitconfig\n")
-		}
+		return errors.Wrap(err, `Failed to query the GitHub API for updates.
 
-		return errors.Wrap(err, "error finding latest release")
+This is most likely due to GitHub rate-limiting on unauthenticated requests.
+
+To have the circleci-cli make authenticated requests please:
+
+  1. Generate a token at https://github.com/settings/tokens
+  2. Set the token by either adding it to your ~/.gitconfig or
+     setting the GITHUB_TOKEN environment variable.
+
+Instructions for generating a token can be found at:
+https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
+
+We call the GitHub releases API to look for new releases.
+More information about that API can be found here: https://developer.github.com/v3/repos/releases/
+
+`)
 	}
 
 	return nil

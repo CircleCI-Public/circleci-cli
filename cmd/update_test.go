@@ -5,23 +5,24 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Update", func() {
 	var (
-		command    *exec.Cmd
-		response   string
-		testServer *ghttp.Server
+		command      *exec.Cmd
+		response     string
+		tempSettings *clitest.TempSettings
 	)
 
 	BeforeEach(func() {
-		testServer = ghttp.NewServer()
+		tempSettings = clitest.WithTempSettings()
 
 		response = `
 [
@@ -37,13 +38,27 @@ var _ = Describe("Update", func() {
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
+      },
+	  {
+        "id": 1,
+        "name": "darwin_amd64.tar.gz",
+		"label": "short description",
+        "content_type": "application/zip",
+		"size": 1024
+      },
+      {
+        "id": 1,
+        "name": "windows_amd64.tar.gz",
+        "label": "short description",
+        "content_type": "application/zip",
+        "size": 1024
       }
     ]
   }
 ]
 `
 
-		testServer.AppendHandlers(
+		tempSettings.TestServer.AppendHandlers(
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 				ghttp.RespondWith(http.StatusOK, response),
@@ -52,14 +67,14 @@ var _ = Describe("Update", func() {
 	})
 
 	AfterEach(func() {
-		testServer.Close()
+		tempSettings.Close()
 	})
 
 	Describe("update --check", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"update", "--check",
-				"--github-api", testServer.URL(),
+				"--github-api", tempSettings.TestServer.URL(),
 			)
 		})
 
@@ -83,7 +98,7 @@ var _ = Describe("Update", func() {
 		BeforeEach(func() {
 			command = exec.Command(pathCLI,
 				"update", "check",
-				"--github-api", testServer.URL(),
+				"--github-api", tempSettings.TestServer.URL(),
 			)
 		})
 
@@ -109,13 +124,13 @@ var _ = Describe("Update", func() {
 
 			command = exec.Command(updateCLI,
 				"update",
-				"--github-api", testServer.URL(),
+				"--github-api", tempSettings.TestServer.URL(),
 			)
 
 			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
 			assetResponse := string(assetBytes)
 
-			testServer.AppendHandlers(
+			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
@@ -138,6 +153,52 @@ var _ = Describe("Update", func() {
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 			Eventually(session).Should(gexec.Exit(0))
+		})
+	})
+
+	Describe("When Github returns a 403 error", func() {
+		BeforeEach(func() {
+			command = exec.Command(pathCLI,
+				"update", "check",
+				"--github-api", tempSettings.TestServer.URL(),
+			)
+
+			tempSettings.TestServer.Reset()
+			tempSettings.TestServer.AppendHandlers(
+				ghttp.CombineHandlers(
+					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.RespondWith(http.StatusForbidden, []byte("Forbidden")),
+				),
+			)
+		})
+
+		It("should print a helpful error message & exit 255", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session).Should(clitest.ShouldFail())
+
+			// TODO: This should exit with error status 1, since 255 is a
+			// special error status for: "exit status outside of range".
+			//
+			// However this may be difficult to change, since all commands that return
+			// an error after executing cause the program to exit with a non-zero code:
+			// https://github.com/CircleCI-Public/circleci-cli/blob/5896baa95dad1b66f9c4a5b0a14571717c92aa55/cmd/root.go#L38
+			stderr := session.Wait().Err.Contents()
+			Expect(string(stderr)).To(ContainSubstring(`Error: Failed to query the GitHub API for updates.
+
+This is most likely due to GitHub rate-limiting on unauthenticated requests.
+
+To have the circleci-cli make authenticated requests please:
+
+  1. Generate a token at https://github.com/settings/tokens
+  2. Set the token by either adding it to your ~/.gitconfig or
+     setting the GITHUB_TOKEN environment variable.
+
+Instructions for generating a token can be found at:
+https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
+
+We call the GitHub releases API to look for new releases.
+More information about that API can be found here: https://developer.github.com/v3/repos/releases/`))
 		})
 	})
 })

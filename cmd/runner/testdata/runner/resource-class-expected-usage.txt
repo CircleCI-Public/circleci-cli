@@ -1,0 +1,9 @@
+Usage:
+  runner resource-class [command]
+
+Available Commands:
+  create      Create a resource-class
+  delete      Delete a resource-class
+  list        List resource-classes for a namespace
+
+Use "runner resource-class [command] --help" for more information about a command.

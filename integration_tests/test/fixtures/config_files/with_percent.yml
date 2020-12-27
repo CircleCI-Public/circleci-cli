@@ -1,0 +1,9 @@
+version: 2.1
+jobs:
+  build:
+    jobs:
+    docker:
+    - image: circleci/node:10
+    steps:
+    - run:
+        command: date '+%Y-%m-%dT%T%z'

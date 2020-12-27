@@ -1,6 +1,7 @@
 package filetree
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -8,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
-	yaml "gopkg.in/yaml.v2"
+	"gopkg.in/yaml.v3"
 )
 
 // This is a quick hack of a function to convert interfaces
@@ -17,6 +18,7 @@ func mergeTree(trees ...interface{}) map[string]interface{} {
 	result := make(map[string]interface{})
 	for _, tree := range trees {
 		kvp := make(map[string]interface{})
+
 		if err := mapstructure.Decode(tree, &kvp); err != nil {
 			panic(err)
 		}
@@ -68,19 +70,25 @@ func (n Node) marshalParent() (interface{}, error) {
 	subtree := map[string]interface{}{}
 	for _, child := range n.Children {
 		c, err := child.MarshalYAML()
-		if err != nil {
-			return subtree, err
-		}
 
-		if child.rootFile() {
-			merged := mergeTree(subtree, c)
-			subtree = merged
-		} else if child.specialCase() {
-			merged := mergeTree(subtree, subtree[child.Parent.name()], c)
-			subtree = merged
-		} else {
-			merged := mergeTree(subtree[child.name()], c)
-			subtree[child.name()] = merged
+		switch c.(type) {
+		case map[string]interface{}, map[interface{}]interface{}, nil:
+			if err != nil {
+				return subtree, err
+			}
+
+			if child.rootFile() {
+				merged := mergeTree(subtree, c)
+				subtree = merged
+			} else if child.specialCase() {
+				merged := mergeTree(subtree, subtree[child.Parent.name()], c)
+				subtree = merged
+			} else {
+				merged := mergeTree(subtree[child.name()], c)
+				subtree[child.name()] = merged
+			}
+		default:
+			return nil, fmt.Errorf("expected a map, got a `%T` which is not supported at this time for \"%s\"", c, child.FullPath)
 		}
 	}
 
@@ -164,7 +172,7 @@ func buildTree(absRootPath string, pathNodes PathNodes) *Node {
 	return rootNode
 }
 
-func collectNodes(absRootPath string) (PathNodes, error) {
+func collectNodes(absRootPath string, allowedDirs map[string]string) (PathNodes, error) {
 	pathNodes := PathNodes{}
 	pathNodes.Map = make(map[string]*Node)
 	pathNodes.Keys = []string{}
@@ -174,8 +182,12 @@ func collectNodes(absRootPath string) (PathNodes, error) {
 			return err
 		}
 
-		// Skip any dotfolders that aren't the root path
-		if absRootPath != path && dotfolder(info) {
+		// Skip any dotfolders or dirs not explicitly allowed, if available.
+		isAllowed := true
+		if len(allowedDirs) > 0 && info.IsDir() {
+			_, isAllowed = allowedDirs[info.Name()]
+		}
+		if absRootPath != path && (dotfolder(info) || !isAllowed) {
 			// Turn off logging to stdout in this package
 			//fmt.Printf("Skipping dotfolder: %+v\n", path)
 			return filepath.SkipDir
@@ -199,13 +211,19 @@ func collectNodes(absRootPath string) (PathNodes, error) {
 }
 
 // NewTree creates a new filetree starting at the root
-func NewTree(rootPath string) (*Node, error) {
+func NewTree(rootPath string, allowedDirectories ...string) (*Node, error) {
+	allowedDirs := make(map[string]string)
+
+	for _, dir := range allowedDirectories {
+		allowedDirs[dir] = "1"
+	}
+
 	absRootPath, err := filepath.Abs(rootPath)
 	if err != nil {
 		return nil, err
 	}
 
-	pathNodes, err := collectNodes(absRootPath)
+	pathNodes, err := collectNodes(absRootPath, allowedDirs)
 	if err != nil {
 		return nil, err
 	}

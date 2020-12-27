@@ -1,14 +1,15 @@
 package cmd
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/logger"
+	"fmt"
+
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/spf13/cobra"
 )
 
 type disableOptions struct {
 	cfg     *settings.Config
-	log     *logger.Logger
 	command string
 	args    []string
 }
@@ -28,7 +29,6 @@ func newDisabledCommand(config *settings.Config, command string) *cobra.Command 
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		Run: func(_ *cobra.Command, _ []string) {
 			disableCommand(opts)
@@ -39,9 +39,9 @@ func newDisabledCommand(config *settings.Config, command string) *cobra.Command 
 }
 
 func disableCommand(opts disableOptions) {
-	opts.log.Infof("`%s` is not available because this tool was installed using `%s`.", opts.command, PackageManager)
+	fmt.Printf("`%s` is not available because this tool was installed using `%s`.\n", opts.command, version.PackageManager())
 
 	if opts.command == "update" {
-		opts.log.Info("Please consult the package manager's documentation on how to update the CLI.")
+		fmt.Println("Please consult the package manager's documentation on how to update the CLI.")
 	}
 }

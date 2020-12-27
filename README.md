@@ -1,6 +1,6 @@
 # circleci-cli
 
-This project is the seed for CircleCI's new command-line application.
+This is CircleCI's command-line application.
 
 [Documentation](https://circleci-public.github.io/circleci-cli) |
 [Code of Conduct](./CODE_OF_CONDUCT.md) |
@@ -15,22 +15,9 @@ This project is the seed for CircleCI's new command-line application.
 
 ## Getting Started
 
-### From Scratch
+### Installation
 
-#### Install script
-
-If you're installing the new `circleci` CLI for the first time, run the following command:
-
-```
-curl -fLSs https://circle.ci/cli | bash
-```
-
-By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`. Alternatively, you can install to an alternate location by defining the `DESTDIR` environment variable when invoking `bash`:
-
-```
-curl -fLSs https://circle.ci/cli | DESTDIR=/opt/bin bash
-```
-
+CircleCI CLI is available on the following package managers:
 
 #### Homebrew
 
@@ -38,31 +25,48 @@ curl -fLSs https://circle.ci/cli | DESTDIR=/opt/bin bash
 brew install circleci
 ```
 
-#### Snapcraft
+#### Snap
 
 ```
 sudo snap install circleci
 ```
 
-### Upgrade from existing CLI
-
-If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
+#### Chocolatey
 
 ```
-circleci update
-circleci switch
+choco install circleci-cli -y
 ```
 
-This command may require `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`. Otherwise, you may see the following error:
+### Install script
+
+You can also install the CLI binary by running our install script on most Unix platforms:
 
 ```
-mv: cannot move 'circleci' to '/usr/local/bin/circleci': Permission denied
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | bash
 ```
 
+By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`:
 
-### Updating after install
+```
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+```
 
-The CLI comes with a built in version managment system. You can check if there any updates pending and update if so using the following commands:
+Alternatively, you can install to an alternate location by defining the `DESTDIR` environment variable when invoking `bash`:
+
+```
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | DESTDIR=/opt/bin bash
+```
+
+You can also set a specific version of the CLI to install with the `VERSION` environment variable:
+
+```
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | VERSION=0.1.5222 sudo bash
+```
+
+### Updating
+
+If you installed the CLI without a package manager, you can use its built-in update command to check for pending updates and download them:
+
 ```
 circleci update check
 circleci update install
@@ -70,7 +74,7 @@ circleci update install
 
 ## Configure the CLI
 
-After installing the latest version of our CLI, you must run setup to configure the tool.
+After installing the CLI, you must run setup to configure the tool.
 
 ```
 $ circleci setup
@@ -80,7 +84,7 @@ You should be prompted to enter the _CircleCI API Token_ you generated from the 
 
 
 ```
-✔ CircleCI API Token: 
+✔ CircleCI API Token:
 
 API token has been set.
 
@@ -117,6 +121,37 @@ The CLI may also be used without installation by using Docker.
 ```
 docker run --rm -v $(pwd):/data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
 ```
+
+## circleci-agent
+
+In order to maintain backwards compatibility with the `circleci` binary present in builds, some commands are proxied to a program called `circleci-agent`.
+
+This program must exist in your `$PATH` as is the case inside of a job.
+
+The following commands are affected:
+
+* `circleci tests split`
+* `circleci step halt`
+* `circleci config migrate`
+
+## Platforms, Deployment and Package Managers
+
+The tool is deployed through a number of channels. The primary release channel is through [GitHub Releases](https://github.com/CircleCI-Public/circleci-cli/releases). Green builds on the `master` branch will publish a new GitHub release. These releases contain binaries for macOS, Linux and Windows. These releases are published from (CircleCI)[https://app.circleci.com/pipelines/github/CircleCI-Public/circleci-cli] using (GoReleaser)[https://goreleaser.com/].
+
+### Homebrew
+
+We publish the tool to [Homebrew](https://brew.sh/). The tool is [part of `homebrew-core`](https://github.com/Homebrew/homebrew-core/blob/master/Formula/circleci.rb), and therefore the maintainers of the tool are obligated to follow the guidelines for acceptable Homebrew formulae. You should [familairise yourself with the guidelines](https://docs.brew.sh/Acceptable-Formulae#we-dont-like-tools-that-upgrade-themselves) before making changes to the Homebrew deployment system.
+
+The particular considerations that we make are:
+
+1. Since Homebrew [doesn't "like tools that upgrade themselves"](https://docs.brew.sh/Acceptable-Formulae#we-dont-like-tools-that-upgrade-themselves), we disable the `circleci update` command when the tool is released through homebrew. We do this by [defining the PackageManager](https://github.com/Homebrew/homebrew-core/blob/eb1fdb84e2924289bcc8c85ee45081bf83dc024d/Formula/circleci.rb#L28) constant to `homebrew`, which allows us to [disable the `update` command at runtime](https://github.com/CircleCI-Public/circleci-cli/blob/67c7d52bace63846f87a1ed79f67f257c94a55b4/cmd/root.go#L119-L123).
+1. We want to avoid every push to `master` from creating a Pull Request to the `circleci` formula on Homebrew. We want to avoid overloading the Homebrew team with pull requests to update our formula for small changes (changes to docs or other files that don't change functionality in the tool).
+
+### Snap
+
+We publish Linux builds of the tool to the Snap package manager.
+
+Further [package information is available on Snap website](https://snapcraft.io/circleci).
 
 ## Contributing
 

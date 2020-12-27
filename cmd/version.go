@@ -1,7 +1,8 @@
 package cmd
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/logger"
+	"fmt"
+
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/spf13/cobra"
@@ -9,7 +10,6 @@ import (
 
 type versionOptions struct {
 	cfg  *settings.Config
-	log  *logger.Logger
 	args []string
 }
 
@@ -26,10 +26,9 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.log = logger.NewLogger(config.Debug)
 		},
 		Run: func(_ *cobra.Command, _ []string) {
-			opts.log.Infof("%s+%s", version.Version, version.Commit)
+			fmt.Printf("%s+%s (%s)\n", version.Version, version.Commit, version.PackageManager())
 		},
 	}
 }

@@ -10,7 +10,7 @@ parts:
     plugin: nil
     override-build: |
       snapcraftctl build
-      cp dist/linux_amd64/circleci $SNAPCRAFT_PART_INSTALL
+      cp dist/circleci-cli_linux_amd64/circleci $SNAPCRAFT_PART_INSTALL
       chmod +x $SNAPCRAFT_PART_INSTALL/circleci
     stage-packages: [docker.io]
 apps:

@@ -2,12 +2,10 @@ package cmd_test
 
 import (
 	"bytes"
-	"fmt"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"os/exec"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -16,36 +14,27 @@ import (
 
 var _ = Describe("Query", func() {
 	var (
-		server   *ghttp.Server
-		token    string
-		tempHome string
-		stdin    bytes.Buffer
-		command  *exec.Cmd
+		token        string
+		tempSettings *clitest.TempSettings
+		stdin        bytes.Buffer
+		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
-		server = ghttp.NewServer()
-
-		var err error
-		tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-		Expect(err).ToNot(HaveOccurred())
+		tempSettings = clitest.WithTempSettings()
 
 		token = "mytoken"
-		command = exec.Command(pathCLI, "query", "-",
+		command = commandWithHome(pathCLI, tempSettings.Home,
+			"query", "-",
 			"--skip-update-check",
 			"--token", token,
-			"--host", server.URL(),
+			"--host", tempSettings.TestServer.URL(),
 		)
 		command.Stdin = &stdin
-		command.Env = append(os.Environ(),
-			fmt.Sprintf("HOME=%s", tempHome),
-			fmt.Sprintf("USERPROFILE=%s", tempHome), // windows
-		)
 	})
 
 	AfterEach(func() {
-		server.Close()
-		Expect(os.RemoveAll(tempHome)).To(Succeed())
+		tempSettings.Close()
 	})
 
 	Describe("query provided to STDIN", func() {
@@ -79,7 +68,7 @@ var _ = Describe("Query", func() {
 }
 `
 
-			server.AppendHandlers(
+			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/graphql-unstable"),
 					ghttp.VerifyHeader(http.Header{

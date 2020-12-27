@@ -36,4 +36,12 @@ var _ = Describe("Parsing Orbs", func() {
 		Expect(err).Should(MatchError("Invalid orb catdog. Expected a namespace and orb in the form 'namespace/orb'"))
 
 	})
+
+	It("Should split correctly when dev label contains a fwslash", func() {
+		ns, orb, version, err := references.SplitIntoOrbNamespaceAndVersion("foo/bar@dev:bah/bah")
+		Expect(ns).To(Equal("foo"))
+		Expect(orb).To(Equal("bar"))
+		Expect(version).To(Equal("dev:bah/bah"))
+		Expect(err).ShouldNot(HaveOccurred())
+	})
 })

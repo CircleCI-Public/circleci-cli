@@ -1,0 +1,5 @@
+Usage:
+  runner resource-class list <namespace>
+
+Aliases:
+  list, ls

@@ -11,22 +11,24 @@ Second, it's written in Go. If you are new to Go, we recommend the following res
 
 ## Requirements
 
-* Go 1.10+
+* Go 1.12+
 * Make
 * ...
 
 ## Getting setup
 
-You should already have [installed Go](https://golang.org/doc/install) and setup your [workspace](https://golang.org/doc/code.html#Workspaces).
-
-This includes setting a valid `$GOPATH`.
+You should already have [installed Go](https://golang.org/doc/install).
 
 ### 1. Get the repo
 
+Clone the repo.
+
 ```
-$ go get -u github.com/CircleCI-Public/circleci-cli
-$ cd $GOPATH/src/github.com/CircleCI-Public/circleci-cli
+$ git clone github.com/CircleCI-Public/circleci-cli
+$ cd circleci-cli
 ```
+
+If you cloned the repo inside of your `$GOPATH`, you can use `GO111MODULE=on` in order to use Go modules. We recommend cloning the repo outside of `$GOPATH` as you would any other source code project, for example `~/code/circleci-cli`.
 
 ### 2. Build the binary
 
@@ -54,44 +56,28 @@ $
 
 ## Managing Dependencies
 
-We use `dep` for vendoring our depencencies:
-https://github.com/golang/dep
+We use Go 1.11 Modules for managing our dependencies.
 
-If you want to update or modify any dependencies you will need to install it.
-
-You can do so on MacOS:
-
-```
-$ brew install dep
-$ brew upgrade dep
-```
-
-Or on Linux, etc:
-
-```
-$ curl https://raw.githubusercontent.com/golang/dep/master/install.sh | sh
-```
-
-To make sure dependencies are installed:
-
-```
-$ dep ensure
-```
+You can read more about it on the wiki:
+https://github.com/golang/go/wiki/Modules
 
 ## Linting your code
 
 We use [`gometalinter`](github.com/alecthomas/gometalinter) for linting.
 
-You can install it via `$ make dev` or manually with:
+However, since we updated to Go 1.11 modules this doesn't work.
 
-```
-$ go get -u github.com/alecthomas/gometalinter
-$ gometalinter --install
-```
+You will have to run our `lint` job inside a local build in order to lint your code changes.
 
-Then you can run it with `$ make lint`.
+This requires docker and may fail if the docker is not available on your machine.
+
+Once you have installed Docker, you can execute the `lint` job locally with `$ make lint`.
+
+## Code coverage
 
 There is also a `coverage` job as part of the build which will lint any code you commit.
+
+This can be run manually with `$ make cover`.
 
 ## Editor support
 

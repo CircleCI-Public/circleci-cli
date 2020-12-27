@@ -34,7 +34,7 @@ func checkForUpdates(opts *settings.Config) error {
 		spr.Suffix = " Checking for updates..."
 		spr.Start()
 
-		check, err := update.CheckForUpdates(opts.GitHubAPI, slug, version.Version, PackageManager)
+		check, err := update.CheckForUpdates(opts.GitHubAPI, slug, version.Version, version.PackageManager())
 
 		if err != nil {
 			spr.Stop()

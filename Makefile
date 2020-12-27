@@ -4,6 +4,7 @@ GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
 build: always
+	GO111MODULE=on .circleci/pack.sh
 	go build -o build/$(GOOS)/$(GOARCH)/circleci
 
 build-all: build/linux/amd64/circleci build/darwin/amd64/circleci
@@ -13,8 +14,9 @@ build/%/amd64/circleci: always
 
 .PHONY: clean
 clean:
-	go clean -i
-	rm -rf build
+	GO111MODULE=off go clean -i
+	rm -rf build out docs dist
+	.circleci/pack.sh clean
 
 .PHONY: test
 test:
@@ -26,17 +28,24 @@ cover:
 
 .PHONY: lint
 lint:
-	gometalinter ./...
+	bash .circleci/lint.sh
 
 .PHONY: doc
 doc:
 	godoc -http=:6060
 
-.PHONY: dev
-dev:
-	go get golang.org/x/tools/cmd/godoc
-	go get -u github.com/alecthomas/gometalinter
-	gometalinter --install
+.PHONY: install-packr
+install-packr:
+	bash .circleci/install-packr.sh
+
+.PHONY: pack
+pack:
+	bash .circleci/pack.sh
+
+.PHONY: install-lint
+install-lint:
+	bash .circleci/install-lint.sh
+
 
 .PHONY: always
 always:

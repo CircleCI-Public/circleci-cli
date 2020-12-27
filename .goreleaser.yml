@@ -1,21 +1,24 @@
 project_name: circleci-cli
 
-git:
-  short_hash: true
+archives:
+  - id: primary
+    wrap_in_directory: true
+    format_overrides:
+      - goos: windows
+        format: zip
+    files:
+      - api/graphql/LICENSE
+      - md_docs/LICENSE
 
-archive:
-  wrap_in_directory: true
-  format_overrides:
-    - goos: windows
-      format: zip
-  files:
-    - client/LICENSE
-    - md_docs/LICENSE
+before:
+  hooks:
+  - make pack
 
 builds:
   - binary: circleci
     env:
       - CGO_ENABLED=0
+      - GO111MODULE=on
     goos:
       - windows
       - darwin
@@ -27,4 +30,4 @@ builds:
       # -w Omit the DWARF symbol table.
       # These are the defaults specified by goreleaser:
       # https://github.com/goreleaser/goreleaser/blob/682c811106f56ffe06c4212de546aec62161fb9d/internal/builders/golang/build.go#L46
-      - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.Commit}} -X github.com/CircleCI-Public/circleci-cli/cmd.PackageManager=release
+      - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.ShortCommit}} -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release

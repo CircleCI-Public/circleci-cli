@@ -5,7 +5,11 @@ coverage.txt
 dist/
 docs/
 out/
+vendor/
 .vscode
+
+# For supporting generated config of 2.1 syntax for local testing
+.circleci/processed.yml
 
 # Snapcraft Related
 parts/
@@ -13,3 +17,13 @@ prime/
 snap/.snapcraft/
 stage/
 *.snap
+
+# packr related
+*/*-packr.go
+packrd/
+
+# golangci-lint
+# We expect to install the binary each time in CI
+bin/golangci-lint
+integration_tests/tmp
+*.exe
