@@ -12,7 +12,7 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -42,7 +42,7 @@ func UpdateBuildAgent() error {
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
 	processedArgs, configPath := buildAgentArguments(flags)
-	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	configResponse, err := api.ConfigQuery(cl, configPath, pipeline.FabricatedValues())
 
 	if err != nil {
@@ -113,12 +113,12 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
-	flags.StringSliceP("volume", "v", nil, "Volume bind-mounting")
+	flags.StringArrayP("volume", "v", nil, "Volume bind-mounting")
 	flags.String("checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringSliceP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -308,7 +308,7 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 	switch flag.Value.Type() {
 	// A stringArray type argument is collapsed into a single flag:
 	// `--foo 1 --foo 2` will result in a single `foo` flag with an array of values.
-	case "stringSlice":
+	case "stringArray":
 		for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
 			result = append(result, flagName, value)
 		}

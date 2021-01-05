@@ -15,34 +15,9 @@ This is CircleCI's command-line application.
 
 ## Getting Started
 
-### From Scratch
+### Installation
 
-#### Install script
-
-If you're installing the new `circleci` CLI for the first time, run the following command:
-
-```
-curl -fLSs https://circle.ci/cli | bash
-```
-
-By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`:
-
-```
-curl -fLSs https://circle.ci/cli | sudo bash
-```
-
-Alternatively, you can install to an alternate location by defining the `DESTDIR` environment variable when invoking `bash`:
-
-```
-curl -fLSs https://circle.ci/cli | DESTDIR=/opt/bin bash
-```
-
-You can also set a specific version of the CLI to install with the `VERSION` environment variable:
-
-```
-curl -fLSs https://circle.ci/cli | VERSION=0.1.5222 sudo bash
-```
-
+CircleCI CLI is available on the following package managers:
 
 #### Homebrew
 
@@ -56,31 +31,42 @@ brew install circleci
 sudo snap install circleci
 ```
 
-### Chocolatey
+#### Chocolatey
 
 ```
 choco install circleci-cli -y
 ```
 
-### Upgrade from existing CLI
+### Install script
 
-If you installed the old CLI before, and you're on version less than `0.1.6`, you need to run the following commands:
-
-```
-circleci update
-circleci switch
-```
-
-This command may require `sudo` if your user doesn't have write permissions to the install directory, `/usr/local/bin`. Otherwise, you may see the following error:
+You can also install the CLI binary by running our install script on most Unix platforms:
 
 ```
-mv: cannot move 'circleci' to '/usr/local/bin/circleci': Permission denied
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | bash
 ```
 
+By default, the `circleci` app will be installed to the ``/usr/local/bin`` directory. If you do not have write permissions to `/usr/local/bin`, you may need to run the above command with `sudo`:
 
-### Updating after install
+```
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | sudo bash
+```
 
-The CLI comes with a built in version managment system. You can check if there any updates pending and update if so using the following commands:
+Alternatively, you can install to an alternate location by defining the `DESTDIR` environment variable when invoking `bash`:
+
+```
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | DESTDIR=/opt/bin bash
+```
+
+You can also set a specific version of the CLI to install with the `VERSION` environment variable:
+
+```
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/install.sh | VERSION=0.1.5222 sudo bash
+```
+
+### Updating
+
+If you installed the CLI without a package manager, you can use its built-in update command to check for pending updates and download them:
+
 ```
 circleci update check
 circleci update install
@@ -88,7 +74,7 @@ circleci update install
 
 ## Configure the CLI
 
-After installing the latest version of our CLI, you must run setup to configure the tool.
+After installing the CLI, you must run setup to configure the tool.
 
 ```
 $ circleci setup

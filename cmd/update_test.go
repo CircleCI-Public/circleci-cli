@@ -11,7 +11,7 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Update", func() {
