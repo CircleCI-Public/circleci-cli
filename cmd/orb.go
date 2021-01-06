@@ -44,6 +44,7 @@ type orbOptions struct {
 	listUncertified bool
 	listJSON        bool
 	listDetails     bool
+	selectPrivate   bool
 	sortBy          string
 	// Allows user to skip y/n confirm when creating an orb
 	noPrompt bool
@@ -262,6 +263,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 		Args: cobra.ExactArgs(1),
 	}
+	orbCreate.PersistentFlags().BoolVarP(&opts.selectPrivate, "private", "", false, "target private orbs") // TODO: more detailed description
 
 	orbPack := &cobra.Command{
 		Use:   "pack <path>",
@@ -766,7 +768,7 @@ func promoteOrb(opts orbOptions) error {
 func createOrb(opts orbOptions) error {
 	var err error
 
-	namespace, orb, err := references.SplitIntoOrbAndNamespace(opts.args[0])
+	namespace, orbName, err := references.SplitIntoOrbAndNamespace(opts.args[0])
 
 	if err != nil {
 		return err
@@ -779,13 +781,13 @@ You will not be able to change the name of this orb.
 
 If you change your mind about the name, you will have to create a new orb with the new name.
 
-`, namespace, orb)
+`, namespace, orbName)
 	}
 
-	confirm := fmt.Sprintf("Are you sure you wish to create the orb: `%s/%s`", namespace, orb)
+	confirm := fmt.Sprintf("Are you sure you wish to create the orb: `%s/%s`", namespace, orbName)
 
 	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
-		_, err = api.CreateOrb(opts.cl, namespace, orb)
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.selectPrivate)
 
 		if err != nil {
 			return err
@@ -1284,7 +1286,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	// Push a dev version of the orb.
-	newOrb, err := api.CreateOrb(opts.cl, namespace, orbName)
+	newOrb, err := api.CreateOrb(opts.cl, namespace, orbName, false)
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
