@@ -168,8 +168,10 @@ var _ = Describe("Namespace integration tests", func() {
 			By("running the command")
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Out, "5s").Should(gbytes.Say("`ns-0` renamed to `ns-1`"))
 			Eventually(session).Should(gexec.Exit(0))
+
+			stdout := session.Wait().Out.Contents()
+			Expect(string(stdout)).To(ContainSubstring("Namespace `ns-0` renamed to `ns-1`. `ns-0` is an alias for `ns-1` so existing usages will continue to work, unless you delete the `ns-0` alias with `delete-namespace-alias ns-0`"))
 		})
 
 		It("returns an error when renaming a namespace fails", func() {

@@ -143,7 +143,7 @@ func renameNamespace(opts namespaceOptions) error {
 			return err
 		}
 
-		fmt.Printf("Namespace `%s` renamed to `%s`. `%s` is an alias for `%s` so existing usages will continue to work, unless you delete the %s alias with `namespace delete-alias %s`", oldName, newName, oldName, newName, oldName, oldName)
+		fmt.Printf("Namespace `%s` renamed to `%s`. `%s` is an alias for `%s` so existing usages will continue to work, unless you delete the `%s` alias with `delete-namespace-alias %s`", oldName, newName, oldName, newName, oldName, oldName)
 	}
 	return nil
 }
