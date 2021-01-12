@@ -99,6 +99,16 @@ type OrbPublishResponse struct {
 	}
 }
 
+// The OrbImportVersionResponse type matches the data shape of the GQL response for
+// importing an orb version.
+type OrbImportVersionResponse struct {
+	ImportOrbVersion struct {
+		Orb Orb
+
+		Errors GQLErrorsCollection
+	}
+}
+
 // The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
 type OrbPromoteResponse struct {
@@ -579,7 +589,7 @@ func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 
 // OrbImportVersion publishes a new version of an orb using the provided source and id.
 func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersion string) (*Orb, error) {
-	var response OrbPublishResponse
+	var response OrbImportVersionResponse
 
 	query := `
 		mutation($config: String!, $orbId: UUID!, $version: String!) {
@@ -608,11 +618,11 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 		return nil, errors.Wrap(err, "unable to import orb version")
 	}
 
-	if len(response.PublishOrb.Errors) > 0 {
-		return nil, response.PublishOrb.Errors
+	if len(response.ImportOrbVersion.Errors) > 0 {
+		return nil, response.ImportOrbVersion.Errors
 	}
 
-	return &response.PublishOrb.Orb, nil
+	return &response.ImportOrbVersion.Orb, nil
 }
 
 // OrbPublishByID publishes a new version of an orb by id
