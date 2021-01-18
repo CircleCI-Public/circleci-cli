@@ -625,10 +625,9 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 	return &response.ImportOrbVersion.Orb, nil
 }
 
-// OrbPublishByID publishes a new version of an orb by id.
-// TODO (kelvin): For backwards compatibility, this function has been refactored to pass in both the orb's ID, as well as its namespace/name.
-// Once api-service no longer exclusively uses orb IDs, this function can be replaced by 'OrbPublishByName'.
-func OrbPublishByID(cl *graphql.Client, configPath, orbID, orbName, namespaceName, orbVersion string) (*Orb, error) {
+// OrbPublishByName publishes a new version of an orb using the provided orb's name and namespace, returning any
+// error encountered.
+func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, orbVersion string) (*Orb, error) {
 	var response OrbPublishResponse
 
 	config, err := loadYaml(configPath)
@@ -637,9 +636,8 @@ func OrbPublishByID(cl *graphql.Client, configPath, orbID, orbName, namespaceNam
 	}
 
 	query := `
-		mutation($config: String!, $orbId: UUID!, $orbName: String!, $namespaceName: String!, $version: String!) {
+		mutation($config: String!, $orbName: String!, $namespaceName: String!, $version: String!) {
 			publishOrb(
-				orbId: $orbId,
 				orbName: $orbName,
 				namespaceName: $namespaceName,
 				orbYaml: $config,
@@ -657,7 +655,6 @@ func OrbPublishByID(cl *graphql.Client, configPath, orbID, orbName, namespaceNam
 	request.SetToken(cl.Token)
 
 	request.Var("config", config)
-	request.Var("orbId", orbID)
 	request.Var("orbName", orbName)
 	request.Var("namespaceName", namespaceName)
 	request.Var("version", orbVersion)
@@ -1122,12 +1119,6 @@ func incrementVersion(version string, segment string) (string, error) {
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
 func OrbIncrementVersion(cl *graphql.Client, configPath string, namespace string, orb string, segment string) (*Orb, error) {
-	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
-	id, err := OrbID(cl, namespace, orb)
-	if err != nil {
-		return nil, err
-	}
-
 	v, err := OrbLatestVersion(cl, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -1138,7 +1129,7 @@ func OrbIncrementVersion(cl *graphql.Client, configPath string, namespace string
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(cl, configPath, id.Orb.ID, orb, namespace, v2)
+	response, err := OrbPublishByName(cl, configPath, orb, namespace, v2)
 	if err != nil {
 		return nil, err
 	}
@@ -1179,18 +1170,9 @@ func OrbLatestVersion(cl *graphql.Client, namespace string, orb string) (string,
 	return response.Orb.Versions[0].Version, nil
 }
 
-// OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-// TODO (kelvin): For backwards compatibility, this function has been refactored to pass in both the orb's ID, as well as its namespace/name.
-// Once api-service no longer exclusively uses orb IDs, this function can be replaced by 'OrbPromoteByName'.
-func OrbPromote(cl *graphql.Client, namespace, orb, label, segment string) (*Orb, error) {
-	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
-	id, err := OrbID(cl, namespace, orb)
-
-	if err != nil {
-		return nil, err
-	}
-
-	v, err := OrbLatestVersion(cl, namespace, orb)
+// OrbPromoteByName utilizes the given orb's name, namespace, development version, and segment to increment a semantic release.
+func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment string) (*Orb, error) {
+	v, err := OrbLatestVersion(cl, namespaceName, orbName)
 	if err != nil {
 		return nil, err
 	}
@@ -1205,7 +1187,6 @@ func OrbPromote(cl *graphql.Client, namespace, orb, label, segment string) (*Orb
 	query := `
 		mutation($orbId: UUID!, $orbName: String!, $namespaceName: String!, $devVersion: String!, $semanticVersion: String!) {
 			promoteOrb(
-				orbId: $orbId,
 				orbName: $orbName,
 				namespaceName: $namespaceName,
 				devVersion: $devVersion,
@@ -1223,9 +1204,8 @@ func OrbPromote(cl *graphql.Client, namespace, orb, label, segment string) (*Orb
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	request.Var("orbId", id.Orb.ID)
-	request.Var("orbName", orb)
-	request.Var("namespaceName", namespace)
+	request.Var("orbName", orbName)
+	request.Var("namespaceName", namespaceName)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
