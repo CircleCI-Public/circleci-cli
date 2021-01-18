@@ -647,12 +647,7 @@ func publishOrb(opts orbOptions) error {
 		return err
 	}
 
-	id, err := api.OrbID(opts.cl, namespace, orb)
-	if err != nil {
-		return err
-	}
-
-	_, err = api.OrbPublishByID(opts.cl, path, id.Orb.ID, version)
+	_, err = api.OrbPublishByName(opts.cl, path, orb, namespace, version)
 	if err != nil {
 		return err
 	}
@@ -755,7 +750,7 @@ func promoteOrb(opts orbOptions) error {
 		return fmt.Errorf("The version '%s' must be a dev version (the string should begin `dev:`)", version)
 	}
 
-	response, err := api.OrbPromote(opts.cl, namespace, orb, version, segment)
+	response, err := api.OrbPromoteByName(opts.cl, namespace, orb, version, segment)
 	if err != nil {
 		return err
 	}
@@ -1286,7 +1281,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	// Push a dev version of the orb.
-	newOrb, err := api.CreateOrb(opts.cl, namespace, orbName, false)
+	_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
@@ -1307,7 +1302,7 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unable to write packed orb")
 	}
 
-	_, err = api.OrbPublishByID(opts.cl, tempOrbFile, newOrb.CreateOrb.Orb.ID, "dev:alpha")
+	_, err = api.OrbPublishByName(opts.cl, tempOrbFile, orbName, namespace, "dev:alpha")
 	if err != nil {
 		return err
 	}
