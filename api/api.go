@@ -625,8 +625,10 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 	return &response.ImportOrbVersion.Orb, nil
 }
 
-// OrbPublishByID publishes a new version of an orb by id
-func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVersion string) (*Orb, error) {
+// OrbPublishByID publishes a new version of an orb by id.
+// TODO (kelvin): For backwards compatibility, this function has been refactored to pass in both the orb's ID, as well as its namespace/name.
+// Once api-service no longer exclusively uses orb IDs, this function can be replaced by 'OrbPublishByName'.
+func OrbPublishByID(cl *graphql.Client, configPath, orbID, orbName, namespaceName, orbVersion string) (*Orb, error) {
 	var response OrbPublishResponse
 
 	config, err := loadYaml(configPath)
@@ -635,9 +637,11 @@ func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVers
 	}
 
 	query := `
-		mutation($config: String!, $orbId: UUID!, $version: String!) {
+		mutation($config: String!, $orbId: UUID!, $orbName: String!, $namespaceName: String!, $version: String!) {
 			publishOrb(
 				orbId: $orbId,
+				orbName: $orbName,
+				namespaceName: $namespaceName,
 				orbYaml: $config,
 				version: $version
 			) {
@@ -654,6 +658,8 @@ func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVers
 
 	request.Var("config", config)
 	request.Var("orbId", orbID)
+	request.Var("orbName", orbName)
+	request.Var("namespaceName", namespaceName)
 	request.Var("version", orbVersion)
 
 	err = cl.Run(request, &response)
@@ -1132,7 +1138,7 @@ func OrbIncrementVersion(cl *graphql.Client, configPath string, namespace string
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(cl, configPath, id.Orb.ID, v2)
+	response, err := OrbPublishByID(cl, configPath, id.Orb.ID, orb, namespace, v2)
 	if err != nil {
 		return nil, err
 	}
@@ -1174,7 +1180,9 @@ func OrbLatestVersion(cl *graphql.Client, namespace string, orb string) (string,
 }
 
 // OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, segment string) (*Orb, error) {
+// TODO (kelvin): For backwards compatibility, this function has been refactored to pass in both the orb's ID, as well as its namespace/name.
+// Once api-service no longer exclusively uses orb IDs, this function can be replaced by 'OrbPromoteByName'.
+func OrbPromote(cl *graphql.Client, namespace, orb, label, segment string) (*Orb, error) {
 	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
 	id, err := OrbID(cl, namespace, orb)
 
@@ -1195,9 +1203,11 @@ func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, 
 	var response OrbPromoteResponse
 
 	query := `
-		mutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {
+		mutation($orbId: UUID!, $orbName: String!, $namespaceName: String!, $devVersion: String!, $semanticVersion: String!) {
 			promoteOrb(
 				orbId: $orbId,
+				orbName: $orbName,
+				namespaceName: $namespaceName,
 				devVersion: $devVersion,
 				semanticVersion: $semanticVersion
 			) {
@@ -1214,6 +1224,8 @@ func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, 
 	request.SetToken(cl.Token)
 
 	request.Var("orbId", id.Orb.ID)
+	request.Var("orbName", orb)
+	request.Var("namespaceName", namespace)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 

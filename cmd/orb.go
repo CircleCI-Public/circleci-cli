@@ -650,7 +650,7 @@ func publishOrb(opts orbOptions) error {
 		return err
 	}
 
-	_, err = api.OrbPublishByID(opts.cl, path, id.Orb.ID, version)
+	_, err = api.OrbPublishByID(opts.cl, path, id.Orb.ID, orb, namespace, version)
 	if err != nil {
 		return err
 	}
@@ -1305,7 +1305,7 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unable to write packed orb")
 	}
 
-	_, err = api.OrbPublishByID(opts.cl, tempOrbFile, newOrb.CreateOrb.Orb.ID, "dev:alpha")
+	_, err = api.OrbPublishByID(opts.cl, tempOrbFile, newOrb.CreateOrb.Orb.ID, orbName, namespace, "dev:alpha")
 	if err != nil {
 		return err
 	}
