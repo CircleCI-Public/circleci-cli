@@ -962,8 +962,9 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 								   }`
 
 					expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+              "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1020,8 +1021,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 					gqlErrors := `[ { "message": "ignored error" } ]`
 
 					expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1087,8 +1089,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 								   }`
 
 						expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1153,8 +1156,9 @@ You can now register versions of %s using %s.`,
 						gqlErrors := `[ { "message": "ignored error" } ]`
 
 						expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }

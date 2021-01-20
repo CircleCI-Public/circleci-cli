@@ -1005,13 +1005,14 @@ func RenameNamespace(cl *graphql.Client, oldName, newName string) (*RenameNamesp
 	return renameNamespaceWithNsID(cl, getNamespaceResponse.RegistryNamespace.ID, newName)
 }
 
-func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*CreateOrbResponse, error) {
+func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string, isPrivate bool) (*CreateOrbResponse, error) {
 	var response CreateOrbResponse
 
-	query := `mutation($name: String!, $registryNamespaceId: UUID!){
+	query := `mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){
 				createOrb(
 					name: $name,
-					registryNamespaceId: $registryNamespaceId
+					registryNamespaceId: $registryNamespaceId,
+					isPrivate: $isPrivate
 				){
 				    orb {
 				      id
@@ -1028,6 +1029,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
+	request.Var("isPrivate", isPrivate)
 
 	err := cl.Run(request, &response)
 
@@ -1043,13 +1045,13 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 }
 
 // CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
+func CreateOrb(cl *graphql.Client, namespace string, name string, isPrivate bool) (*CreateOrbResponse, error) {
 	response, err := GetNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	return createOrbWithNsID(cl, name, response.RegistryNamespace.ID)
+	return createOrbWithNsID(cl, name, response.RegistryNamespace.ID, isPrivate)
 }
 
 // CreateImportedOrb creates (reserves) an imported orb within the provided namespace.
