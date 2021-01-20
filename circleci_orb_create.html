@@ -16,11 +16,12 @@
 <h2 id="circleci-orb-create">circleci orb create</h2>
 <p>Create an orb in the specified namespace</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>Create an orb in the specified namespace Please note that at this time all orbs created in the registry are world-readable.</p>
+<p>Create an orb in the specified namespace Please note that at this time all orbs created in the registry are world-readable unless set as private using the optional flag.</p>
 <pre><code>circleci orb create &lt;namespace&gt;/&lt;orb&gt; [flags]</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>  -h, --help        help for create
-      --no-prompt   Disable prompt to bypass interactive UI.</code></pre>
+      --no-prompt   Disable prompt to bypass interactive UI.
+      --private     Specify that this orb is for private use within your org, unlisted from the public registry.</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
