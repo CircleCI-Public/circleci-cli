@@ -104,6 +104,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 	listCommand.PersistentFlags().BoolVarP(&opts.listUncertified, "uncertified", "u", false, "include uncertified orbs")
 	listCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
 	listCommand.PersistentFlags().BoolVarP(&opts.listDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
+	listCommand.PersistentFlags().BoolVarP(&opts.private, "private", "", false, "exclusively list private orbs within a namespace")
 	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
 		panic(err)
 	}
@@ -488,38 +489,47 @@ func orbToSimpleString(orb api.OrbWithData) string {
 	return buffer.String()
 }
 
-func orbCollectionToString(orbCollection *api.OrbsForListing, opts orbOptions) (string, error) {
-	var result string
-
+func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, error) {
 	if opts.listJSON {
-		orbJSON, err := json.MarshalIndent(orbCollection, "", "  ")
+		orbJSON, err := json.MarshalIndent(list, "", "  ")
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to convert to convert to JSON")
+			return "", errors.Wrapf(err, "Failed to convert to JSON")
 		}
-		result = string(orbJSON)
-	} else {
-		result += fmt.Sprintf("Orbs found: %d. ", len(orbCollection.Orbs))
-		if opts.listUncertified {
-			result += "Includes all certified and uncertified orbs.\n\n"
-		} else {
-			result += "Showing only certified orbs.\nAdd --uncertified for a list of all orbs.\n\n"
-		}
-		for _, orb := range orbCollection.Orbs {
-			if opts.listDetails {
-				result += (orbToDetailedString(orb))
-			} else {
-				result += (orbToSimpleString(orb))
-			}
-		}
-		result += "\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n"
-		result += "\nSearch, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"
+
+		return string(orbJSON), nil
 	}
 
-	return result, nil
+	// Construct messaging based on provided options.
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("Orbs found: %d. ", len(list.Orbs)))
+
+	switch {
+	case opts.private:
+		b.WriteString("Showing only private orbs.\n\n")
+	case opts.listUncertified:
+		b.WriteString("Includes all certified and uncertified orbs.\n\n")
+	default:
+		b.WriteString("Showing only certified orbs.\nAdd --uncertified for a list of all orbs.\n\n")
+	}
+
+	for _, o := range list.Orbs {
+		if opts.listDetails {
+			b.WriteString(orbToDetailedString(o))
+		} else {
+			b.WriteString(orbToSimpleString(o))
+		}
+	}
+
+	if !opts.private {
+		b.WriteString("\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n")
+		b.WriteString("\nSearch, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/")
+	}
+
+	return b.String(), nil
 }
 
-func logOrbs(orbCollection *api.OrbsForListing, opts orbOptions) error {
-	result, err := orbCollectionToString(orbCollection, opts)
+func logOrbs(orbCollection api.OrbsForListing, opts orbOptions) error {
+	result, err := formatListOrbsResult(orbCollection, opts)
 	if err != nil {
 		return err
 	}
@@ -584,6 +594,10 @@ func listOrbs(opts orbOptions) error {
 		return listNamespaceOrbs(opts)
 	}
 
+	if opts.private {
+		return errors.New("Namespace must be provided when listing private orbs")
+	}
+
 	orbs, err := api.ListOrbs(opts.cl, opts.listUncertified)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs")
@@ -593,13 +607,13 @@ func listOrbs(opts orbOptions) error {
 		orbs.SortBy(opts.sortBy)
 	}
 
-	return logOrbs(orbs, opts)
+	return logOrbs(*orbs, opts)
 }
 
 func listNamespaceOrbs(opts orbOptions) error {
 	namespace := opts.args[0]
 
-	orbs, err := api.ListNamespaceOrbs(opts.cl, namespace)
+	orbs, err := api.ListNamespaceOrbs(opts.cl, namespace, opts.private)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
@@ -608,7 +622,7 @@ func listNamespaceOrbs(opts orbOptions) error {
 		orbs.SortBy(opts.sortBy)
 	}
 
-	return logOrbs(orbs, opts)
+	return logOrbs(*orbs, opts)
 }
 
 func validateOrb(opts orbOptions) error {

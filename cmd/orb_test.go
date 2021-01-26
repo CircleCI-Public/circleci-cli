@@ -1990,11 +1990,11 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/dev
 				By("setting up a mock server")
 
 				query := `
-query namespaceOrbs ($namespace: String, $after: String!) {
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
 	registryNamespace(name: $namespace) {
 		name
                 id
-		orbs(first: 20, after: $after) {
+		orbs(first: 20, after: $after, view: $view) {
 			edges {
 				cursor
 				node {
@@ -2021,6 +2021,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["namespace"] = "circleci"
+				firstRequest.Variables["view"] = "PUBLIC_ONLY"
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2028,6 +2029,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "circleci/codecov-clojure"
 				secondRequest.Variables["namespace"] = "circleci"
+				secondRequest.Variables["view"] = "PUBLIC_ONLY"
 
 				secondRequestEncoded, err := secondRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2104,11 +2106,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				By("setting up a mock server")
 
 				query := `
-query namespaceOrbs ($namespace: String, $after: String!) {
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
 	registryNamespace(name: $namespace) {
 		name
                 id
-		orbs(first: 20, after: $after) {
+		orbs(first: 20, after: $after, view: $view) {
 			edges {
 				cursor
 				node {
@@ -2136,6 +2138,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["namespace"] = "nonexist"
+				request.Variables["view"] = "PUBLIC_ONLY"
 
 				encodedRequest, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2158,7 +2161,100 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				Eventually(session).Should(clitest.ShouldFail())
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 			})
+		})
 
+		Describe("when listing private orbs", func() {
+			BeforeEach(func() {
+				By("setting up a mock server")
+
+				query := `
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
+	registryNamespace(name: $namespace) {
+		name
+                id
+		orbs(first: 20, after: $after, view: $view) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+	                                statistics {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+
+				request := graphql.NewRequest(query)
+				request.Variables["after"] = ""
+				request.Variables["namespace"] = "circleci"
+				request.Variables["view"] = "PRIVATE_ONLY"
+
+				encodedRequest, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_response.json"))
+				mockResponse := string(tmpBytes)
+
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  encodedRequest.String(),
+					Response: mockResponse,
+				})
+			})
+
+			It("returns an error when private is provided without a namespace", func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--private",
+					"--skip-update-check",
+					"--host", tempSettings.TestServer.URL(),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Namespace must be provided when listing private orbs"))
+				Eventually(session).Should(clitest.ShouldFail())
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(0))
+			})
+			It("successfully returns private orbs within a given namespace", func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", "circleci",
+					"--private",
+					"--skip-update-check",
+					"--host", tempSettings.TestServer.URL(),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`Orbs found: 5. Showing only private orbs.
+
+circleci/delete-me (Not published)
+circleci/delete-me-too (Not published)
+circleci/gradle (0.0.1)
+circleci/heroku (Not published)
+circleci/rollbar (0.0.1)
+
+`))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
+			})
 		})
 
 		Describe("when creating an orb without a token", func() {
