@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
+	"github.com/spf13/pflag"
 )
 
 type configOptions struct {
@@ -61,8 +62,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return validateConfig(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return validateConfig(opts, cmd.Flags())
 		},
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: make(map[string]string),
@@ -72,6 +73,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
 		panic(err)
 	}
+	validateCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
 
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
@@ -80,13 +82,14 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return processConfig(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return processConfig(opts, cmd.Flags())
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
+	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
@@ -113,7 +116,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 }
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
-func validateConfig(opts configOptions) error {
+func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
@@ -125,7 +128,9 @@ func validateConfig(opts configOptions) error {
 		path = opts.args[0]
 	}
 
-	_, err := api.ConfigQuery(opts.cl, path, pipeline.FabricatedValues())
+	orgSlug, _ := flags.GetString("org-slug")
+
+	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.FabricatedValues())
 
 	if err != nil {
 		return err
@@ -140,8 +145,10 @@ func validateConfig(opts configOptions) error {
 	return nil
 }
 
-func processConfig(opts configOptions) error {
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], pipeline.FabricatedValues())
+func processConfig(opts configOptions, flags *pflag.FlagSet) error {
+	orgSlug, _ := flags.GetString("org-slug")
+
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.FabricatedValues())
 
 	if err != nil {
 		return err

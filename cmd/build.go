@@ -17,10 +17,12 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 	}
 
 	local.AddFlagsForDocumentation(buildCommand.Flags())
+	buildCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
 
 	return buildCommand
 }
 
+// hidden command for backwards compatibility
 func newBuildCommand(config *settings.Config) *cobra.Command {
 	cmd := newLocalExecuteCommand(config)
 	cmd.Hidden = true
