@@ -1214,7 +1214,7 @@ func initOrb(opts orbOptions) error {
 		if err != nil {
 			return errors.Wrap(err, "Unable to create orb")
 		}
-		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orb, opts.args[1], updateType)
+		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, opts.args[1], api.Add)
 		if err != nil {
 			return err
 		}
