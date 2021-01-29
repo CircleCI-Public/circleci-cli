@@ -1311,7 +1311,10 @@ func initOrb(opts orbOptions) error {
 	yprompt = &survey.Confirm{
 		Message: "I have pushed to my git repository using the above command",
 	}
-	err = survey.AskOne(yprompt, nil)
+	// We don't use this anywhere, but AskOne will fail if we don't give it a
+	// place to put the result.
+	confirm := false
+	err = survey.AskOne(yprompt, &confirm)
 	if err != nil {
 		return err
 	}
