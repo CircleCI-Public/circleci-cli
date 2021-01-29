@@ -1138,6 +1138,29 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
+	registryCategories, err := api.ListOrbCategories(opts.cl)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orb categories")
+	}
+	c := func() []string {
+		var x []string
+		for _, v := range registryCategories.OrbCategories {
+			x = append(x, v.Name)
+		}
+
+		return  x
+	}()
+
+	var categories []string
+	cPrompt := &survey.MultiSelect{
+		Message: "What categories will this orb belong to?",
+		Options: c,
+	}
+	err = survey.AskOne(cPrompt, &categories)
+	if err != nil {
+		return err
+	}
+
 	createContext := 0
 	prompt = &survey.Select{
 		Message: "Automatically set up a publishing context for your orb?",
@@ -1187,6 +1210,14 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
+		if err != nil {
+			return errors.Wrap(err, "Unable to create orb")
+		}
+		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orb, opts.args[1], updateType)
+		if err != nil {
+			return err
+		}
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
 			return err
@@ -1295,6 +1326,13 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
+	for _, v := range categories {
+		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
+		if err != nil {
+			return err
+		}
+	}
+
 	packedOrb, err := packOrb(filepath.Join(orbPath, "src"))
 	if err != nil {
 		return err
