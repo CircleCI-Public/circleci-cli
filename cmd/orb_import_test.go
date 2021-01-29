@@ -909,7 +909,7 @@ The following orb versions already exist:
 				  }`
 
 			orbPublishResp := `{
-					"publishOrb": {
+					"importOrbVersion": {
 						"errors": [{"message": "ERROR IN CONFIG FILE:\ntesterror"}]
 					}
 				}`

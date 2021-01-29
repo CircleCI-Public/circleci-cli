@@ -380,20 +380,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("works", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlPublishResponse := `{
 					"publishOrb": {
 						"errors": [],
@@ -404,18 +390,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.0.1"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.0.1"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
@@ -433,20 +416,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlPublishResponse := `{
 					"publishOrb": {
 								"errors": [
@@ -458,18 +427,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.0.1"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.0.1"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
@@ -500,20 +466,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("works", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlPublishResponse := `{
 					"publishOrb": {
 						"errors": [],
@@ -524,18 +476,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:foo"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "dev:foo"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
@@ -553,20 +502,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlPublishResponse := `{
 					"publishOrb": {
 								"errors": [
@@ -578,18 +513,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:foo"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "dev:foo"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
@@ -620,20 +552,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("works", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlVersionResponse := `{
 					"orb": {
 						"versions": [
@@ -659,18 +577,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -691,20 +606,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlVersionResponse := `{
 					"orb": {
@@ -732,18 +633,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -778,20 +676,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("works", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlVersionResponse := `{
 					"orb": {
 						"versions": [
@@ -818,18 +702,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPromoteRequest := `{
-                                        "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:foo",
-						"semanticVersion": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($orbName: String, $namespaceName: String, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "devVersion": "dev:foo",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "semanticVersion": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -850,20 +731,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlVersionResponse := `{
 					"orb": {
@@ -891,18 +758,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPromoteRequest := `{
-                                        "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:foo",
-						"semanticVersion": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($orbName: String, $namespaceName: String, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "devVersion": "dev:foo",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "semanticVersion": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -962,8 +826,9 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 								   }`
 
 					expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+              "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1020,8 +885,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 					gqlErrors := `[ { "message": "ignored error" } ]`
 
 					expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1087,8 +953,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 								   }`
 
 						expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1153,8 +1020,9 @@ You can now register versions of %s using %s.`,
 						gqlErrors := `[ { "message": "ignored error" } ]`
 
 						expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }

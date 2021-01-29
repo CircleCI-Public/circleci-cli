@@ -99,6 +99,16 @@ type OrbPublishResponse struct {
 	}
 }
 
+// The OrbImportVersionResponse type matches the data shape of the GQL response for
+// importing an orb version.
+type OrbImportVersionResponse struct {
+	ImportOrbVersion struct {
+		Orb Orb
+
+		Errors GQLErrorsCollection
+	}
+}
+
 // The OrbPromoteResponse type matches the data shape of the GQL response for
 // promoting an orb.
 type OrbPromoteResponse struct {
@@ -579,7 +589,7 @@ func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 
 // OrbImportVersion publishes a new version of an orb using the provided source and id.
 func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersion string) (*Orb, error) {
-	var response OrbPublishResponse
+	var response OrbImportVersionResponse
 
 	query := `
 		mutation($config: String!, $orbId: UUID!, $version: String!) {
@@ -608,15 +618,16 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 		return nil, errors.Wrap(err, "unable to import orb version")
 	}
 
-	if len(response.PublishOrb.Errors) > 0 {
-		return nil, response.PublishOrb.Errors
+	if len(response.ImportOrbVersion.Errors) > 0 {
+		return nil, response.ImportOrbVersion.Errors
 	}
 
-	return &response.PublishOrb.Orb, nil
+	return &response.ImportOrbVersion.Orb, nil
 }
 
-// OrbPublishByID publishes a new version of an orb by id
-func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVersion string) (*Orb, error) {
+// OrbPublishByName publishes a new version of an orb using the provided orb's name and namespace, returning any
+// error encountered.
+func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, orbVersion string) (*Orb, error) {
 	var response OrbPublishResponse
 
 	config, err := loadYaml(configPath)
@@ -625,9 +636,10 @@ func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVers
 	}
 
 	query := `
-		mutation($config: String!, $orbId: UUID!, $version: String!) {
+		mutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {
 			publishOrb(
-				orbId: $orbId,
+				orbName: $orbName,
+				namespaceName: $namespaceName,
 				orbYaml: $config,
 				version: $version
 			) {
@@ -643,7 +655,8 @@ func OrbPublishByID(cl *graphql.Client, configPath string, orbID string, orbVers
 	request.SetToken(cl.Token)
 
 	request.Var("config", config)
-	request.Var("orbId", orbID)
+	request.Var("orbName", orbName)
+	request.Var("namespaceName", namespaceName)
 	request.Var("version", orbVersion)
 
 	err = cl.Run(request, &response)
@@ -995,13 +1008,14 @@ func RenameNamespace(cl *graphql.Client, oldName, newName string) (*RenameNamesp
 	return renameNamespaceWithNsID(cl, getNamespaceResponse.RegistryNamespace.ID, newName)
 }
 
-func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*CreateOrbResponse, error) {
+func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string, isPrivate bool) (*CreateOrbResponse, error) {
 	var response CreateOrbResponse
 
-	query := `mutation($name: String!, $registryNamespaceId: UUID!){
+	query := `mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){
 				createOrb(
 					name: $name,
-					registryNamespaceId: $registryNamespaceId
+					registryNamespaceId: $registryNamespaceId,
+					isPrivate: $isPrivate
 				){
 				    orb {
 				      id
@@ -1018,6 +1032,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
+	request.Var("isPrivate", isPrivate)
 
 	err := cl.Run(request, &response)
 
@@ -1033,13 +1048,13 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string) (*Cr
 }
 
 // CreateOrb creates (reserves) an orb within a namespace
-func CreateOrb(cl *graphql.Client, namespace string, name string) (*CreateOrbResponse, error) {
+func CreateOrb(cl *graphql.Client, namespace string, name string, isPrivate bool) (*CreateOrbResponse, error) {
 	response, err := GetNamespace(cl, namespace)
 	if err != nil {
 		return nil, err
 	}
 
-	return createOrbWithNsID(cl, name, response.RegistryNamespace.ID)
+	return createOrbWithNsID(cl, name, response.RegistryNamespace.ID, isPrivate)
 }
 
 // CreateImportedOrb creates (reserves) an imported orb within the provided namespace.
@@ -1106,12 +1121,6 @@ func incrementVersion(version string, segment string) (string, error) {
 
 // OrbIncrementVersion accepts an orb and segment to increment the orb.
 func OrbIncrementVersion(cl *graphql.Client, configPath string, namespace string, orb string, segment string) (*Orb, error) {
-	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
-	id, err := OrbID(cl, namespace, orb)
-	if err != nil {
-		return nil, err
-	}
-
 	v, err := OrbLatestVersion(cl, namespace, orb)
 	if err != nil {
 		return nil, err
@@ -1122,7 +1131,7 @@ func OrbIncrementVersion(cl *graphql.Client, configPath string, namespace string
 		return nil, err
 	}
 
-	response, err := OrbPublishByID(cl, configPath, id.Orb.ID, v2)
+	response, err := OrbPublishByName(cl, configPath, orb, namespace, v2)
 	if err != nil {
 		return nil, err
 	}
@@ -1163,16 +1172,9 @@ func OrbLatestVersion(cl *graphql.Client, namespace string, orb string) (string,
 	return response.Orb.Versions[0].Version, nil
 }
 
-// OrbPromote takes an orb and a development version and increments a semantic release with the given segment.
-func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, segment string) (*Orb, error) {
-	// TODO(zzak): We can squash OrbID and OrbLatestVersion to a single query
-	id, err := OrbID(cl, namespace, orb)
-
-	if err != nil {
-		return nil, err
-	}
-
-	v, err := OrbLatestVersion(cl, namespace, orb)
+// OrbPromoteByName utilizes the given orb's name, namespace, development version, and segment to increment a semantic release.
+func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment string) (*Orb, error) {
+	v, err := OrbLatestVersion(cl, namespaceName, orbName)
 	if err != nil {
 		return nil, err
 	}
@@ -1185,9 +1187,10 @@ func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, 
 	var response OrbPromoteResponse
 
 	query := `
-		mutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {
+		mutation($orbName: String, $namespaceName: String, $devVersion: String!, $semanticVersion: String!) {
 			promoteOrb(
-				orbId: $orbId,
+				orbName: $orbName,
+				namespaceName: $namespaceName,
 				devVersion: $devVersion,
 				semanticVersion: $semanticVersion
 			) {
@@ -1203,7 +1206,8 @@ func OrbPromote(cl *graphql.Client, namespace string, orb string, label string, 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	request.Var("orbId", id.Orb.ID)
+	request.Var("orbName", orbName)
+	request.Var("namespaceName", namespaceName)
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 

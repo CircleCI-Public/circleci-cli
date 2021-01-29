@@ -9,7 +9,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: circleci/golang:1.12.15
+      - image: circleci/golang:1.14.7
     environment:
       CGO_ENABLED: 0
   mac:
