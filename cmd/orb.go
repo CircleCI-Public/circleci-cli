@@ -1025,7 +1025,7 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
-	tags := []orbProtectTemplateRelease{}
+	var tags []orbProtectTemplateRelease
 	err = json.Unmarshal(body, &tags)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
@@ -1194,6 +1194,16 @@ func initOrb(opts orbOptions) error {
 		return nil
 	}
 
+	gitBranch := "main"
+	bPrompt := &survey.Input{
+		Message: "Enter your primary git branch.",
+		Default: gitBranch,
+	}
+	err = survey.AskOne(bPrompt, &gitBranch)
+	if err != nil {
+		return err
+	}
+
 	gitLocation := ""
 	iprompt = &survey.Input{
 		Message: "Enter the remote git repository",
@@ -1244,7 +1254,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	err = r.CreateBranch(&config.Branch{
-		Name:   "master",
+		Name:   gitBranch,
 		Remote: "origin",
 	})
 	if err != nil {
@@ -1307,7 +1317,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Println("An initial commit has been created - please run \033[1;34m'git push origin master'\033[0m to publish your first commit!")
+	fmt.Printf("An initial commit has been created - please run \033[1;34m'git push origin %v'\033[0m to publish your first commit!\n", gitBranch)
 	yprompt = &survey.Confirm{
 		Message: "I have pushed to my git repository using the above command",
 	}
