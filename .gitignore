@@ -27,3 +27,6 @@ packrd/
 bin/golangci-lint
 integration_tests/tmp
 *.exe
+/issues
+/.vagrant
+/bash_history

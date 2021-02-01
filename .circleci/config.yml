@@ -100,6 +100,8 @@ jobs:
       - run: mkdir test_results
       - run:
           name: Run tests
+          environment:
+            test_env_var: test_env_var_value
           command: |
             C:\Users\circleci\go\bin\gotestsum.exe --junitfile test_results/windows.xml
       - store_test_results:
