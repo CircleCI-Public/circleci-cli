@@ -856,6 +856,71 @@ Please note that any versions you publish of this orb are world-readable.
 You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 				})
 
+				It("works for private orbs", func() {
+					By("setting up a mock server")
+
+					gqlNamespaceResponse := `{
+    											"registryNamespace": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+					expectedNamespaceRequest := `{
+            "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+            "variables": {
+              "name": "bar-ns"
+            }
+          }`
+
+					gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [],
+										 "orb": {
+											"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										 }
+									 }
+								   }`
+
+					expectedOrbRequest := `{
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "variables": {
+              "isPrivate": true,
+              "name": "foo-orb",
+              "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedNamespaceRequest,
+						Response: gqlNamespaceResponse})
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbRequest,
+						Response: gqlOrbResponse})
+
+					By("running the command")
+					command = exec.Command(pathCLI,
+						"orb", "create",
+						"--private",
+						"--skip-update-check",
+						"--token", token,
+						"--host", tempSettings.TestServer.URL(),
+						"--no-prompt",
+						"bar-ns/foo-orb",
+					)
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(0))
+
+					stdout := session.Wait().Out.Contents()
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
+This orb will not be listed on the registry and is usable only by org users.
+You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
+				})
+
 				It("prints all in-band errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
 
