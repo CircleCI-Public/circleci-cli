@@ -788,8 +788,13 @@ If you change your mind about the name, you will have to create a new orb with t
 			return err
 		}
 
+		confirmationString := "Please note that any versions you publish of this orb are world-readable."
+		if opts.private {
+			confirmationString = "This orb will not be listed on the registry and is usable only by org users."
+		}
+
 		fmt.Printf("Orb `%s` created.\n", opts.args[0])
-		fmt.Println("Please note that any versions you publish of this orb are world-readable.")
+		fmt.Println(confirmationString)
 		fmt.Printf("You can now register versions of `%s` using `circleci orb publish`.\n", opts.args[0])
 	}
 
