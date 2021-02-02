@@ -7,7 +7,6 @@ import (
 )
 
 func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
-
 	buildCommand := &cobra.Command{
 		Use:   "execute",
 		Short: "Run a job in a container on the local machine",

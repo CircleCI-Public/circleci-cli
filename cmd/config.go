@@ -12,8 +12,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
 )
 
 type configOptions struct {

@@ -40,7 +40,6 @@ func UpdateBuildAgent() error {
 }
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
-
 	processedArgs, configPath := buildAgentArguments(flags)
 	orgSlug, _ := flags.GetString("org-slug")
 	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)

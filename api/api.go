@@ -523,25 +523,23 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipeline
 	}
 
 	if orgSlug != "" {
-	    query = `
-		    query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String!) {
-			    buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
-				    valid,
-				    errors { message },
-				    sourceYaml,
-				    outputYaml
-			    }
-		    }`
+		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+					buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
 	} else {
-	    query = `
-		    query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
-			    buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
-				    valid,
-				    errors { message },
-				    sourceYaml,
-				    outputYaml
-			    }
-		    }`
+		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
+					buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
 	}
 
 	request := graphql.NewRequest(query)
