@@ -304,8 +304,6 @@ jobs:
           command: .\update-version.ps1
       - run: choco pack circleci-cli\circleci-cli.nuspec
       - run: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
-      - store_artifacts:
-          path: circleci-cli.nupkg
       - run:
           name: Push to Chocolatey package repository
           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
