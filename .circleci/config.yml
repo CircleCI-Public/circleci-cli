@@ -294,19 +294,19 @@ jobs:
       - run: ./.circleci/brew-deploy.sh
       - slack-notify-on-failure
 
-  trigger-chocolatey-deploy:
-    docker:
-      - image: cimg/base:edge
+  chocolatey-deploy:
+    executor: windows/default
+    working_directory: chocolatey
     steps:
+      - checkout
       - run:
-          name: Trigger Chocolatey repository build
-          command: |
-            curl -X POST https://circleci.com/api/v2/project/gh/CircleCI-Public/chocolatey-circleci-cli/pipeline \
-              --fail --silent \
-              -H 'Content-Type: application/json' \
-              -H 'Accept: application/json' \
-              -H "Circle-Token: $CIRCLE_TOKEN" \
-              --data '{ "parameters": { "deploy-production": true } }'
+          name: Run update script
+          command: .\update-version.ps1
+      - run: choco pack circleci-cli\circleci-cli.nuspec
+      - run: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
+      - run:
+          name: Push to Chocolatey package repository
+          command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
 
 workflows:
   ci:
@@ -328,6 +328,9 @@ workflows:
       - snap:
           requires:
             - deploy
+      - chocolatey-deploy:
+          requires:
+            - deploy
       # Only deploy to homebrew after manual approval.
       - run-brew-deploy-gate:
           type: approval
@@ -347,9 +350,4 @@ workflows:
           filters:
             branches:
               only: master
-      - trigger-chocolatey-deploy:
-          requires:
-            - deploy
-          filters:
-            branches:
-              only: master
+
