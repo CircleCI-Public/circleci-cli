@@ -296,17 +296,22 @@ jobs:
 
   chocolatey-deploy:
     executor: windows/default
-    working_directory: chocolatey
     steps:
       - checkout
       - run:
+          working_directory: chocolatey
           name: Run update script
           command: .\update-version.ps1
-      - run: choco pack circleci-cli\circleci-cli.nuspec
-      - run: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
+      - run:
+          command: choco pack circleci-cli\circleci-cli.nuspec
+          working_directory: chocolatey
+      - run:
+          command: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
+          working_directory: chocolatey
       - run:
           name: Push to Chocolatey package repository
           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
+          working_directory: chocolatey
 
 workflows:
   ci:
