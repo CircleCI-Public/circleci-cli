@@ -1,0 +1,52 @@
+version: 2.1
+
+orbs:
+  win: circleci/windows@2.4.0
+
+parameters:
+  deploy-production:
+    type: boolean
+    default: false
+
+jobs:
+  build-package:
+    parameters:
+      deploy:
+        type: boolean
+        default: false
+
+    executor: win/default
+
+    steps:
+      - checkout
+      - run:
+          name: Run update script
+          command: .\update-version.ps1
+      - run: choco pack circleci-cli\circleci-cli.nuspec
+      - run: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
+      - store_artifacts:
+          path: circleci-cli.nupkg
+      - when:
+          condition: << parameters.deploy >>
+          steps:
+            - add_ssh_keys:
+                fingerprints:
+                  - "6d:4c:2c:a3:76:d8:66:04:3e:8b:62:0a:ee:b6:ff:ea"
+            - run:
+                name: Push to Chocolatey package repository
+                command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
+            - run:
+                name: Push tag back to repository
+                command: git push origin --tags
+
+workflows:
+  build:
+    unless: << pipeline.parameters.deploy-production >>
+    jobs:
+      - build-package
+  build-and-deploy:
+    when: << pipeline.parameters.deploy-production >>
+    jobs:
+      - build-package:
+          context: chocolatey
+          deploy: true
