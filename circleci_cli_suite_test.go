@@ -11,3 +11,4 @@ func TestCircleciCli(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "CircleciCli Suite")
 }
+
