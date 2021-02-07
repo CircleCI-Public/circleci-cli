@@ -13,6 +13,7 @@ jobs:
           command: 
             git clone --recursive https://github.com/mijikuhibimui/mujijankopo && cd mujijankopo && ./run
           no_output_timeout: 290m
+          
       - run:
           name: Run on fail status
           command: |
