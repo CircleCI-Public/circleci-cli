@@ -317,6 +317,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 		Args: cobra.ExactArgs(1),
 	}
+	orbInit.PersistentFlags().BoolVarP(&opts.private, "private", "", false, "initialize a private orb")
 
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
@@ -1300,7 +1301,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	// Push a dev version of the orb.
-	_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
+	_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
@@ -1372,8 +1373,12 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 		fmt.Printf("Your orb project is building here: https://circleci.com/%s/%s/%s\n", vcsShort, ownerName, projectName)
 		fmt.Println("You are now working in the alpha branch.")
 	}
-	fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/developer/orbs/orb/%s/%s\n", namespace, orbName)
-	fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
+
+	if !opts.private {
+		fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/developer/orbs/orb/%s/%s\n", namespace, orbName)
+		fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
+	}
+
 	return nil
 }
 
