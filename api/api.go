@@ -513,28 +513,42 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(cl *graphql.Client, configPath string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
+func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
+	var query string
 
 	config, err := loadYaml(configPath)
 	if err != nil {
 		return nil, err
 	}
 
-	query := `
-		query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
+	if orgSlug != "" {
+		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+					buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
+	} else {
+		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
+					buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
+	}
 
 	request := graphql.NewRequest(query)
 	request.Var("config", config)
 	if pipelineValues != nil {
 		request.Var("pipelineValues", pipeline.PrepareForGraphQL(pipelineValues))
+	}
+	if orgSlug != "" {
+		request.Var("orgSlug", orgSlug)
 	}
 	request.SetToken(cl.Token)
 
@@ -1550,15 +1564,15 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
 // namespace.
 // Returns a collection of Orb objects containing their relevant data.
-func ListNamespaceOrbs(cl *graphql.Client, namespace string) (*OrbsForListing, error) {
+func ListNamespaceOrbs(cl *graphql.Client, namespace string, isPrivate bool) (*OrbsForListing, error) {
 	l := log.New(os.Stderr, "", 0)
 
 	query := `
-query namespaceOrbs ($namespace: String, $after: String!) {
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
 	registryNamespace(name: $namespace) {
 		name
                 id
-		orbs(first: 20, after: $after) {
+		orbs(first: 20, after: $after, view: $view) {
 			edges {
 				cursor
 				node {
@@ -1586,10 +1600,18 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	var result NamespaceOrbResponse
 	currentCursor := ""
 
+	view := "PUBLIC_ONLY"
+	if isPrivate {
+		view = "PRIVATE_ONLY"
+	}
+
 	for {
 		request := graphql.NewRequest(query)
+		request.SetToken(cl.Token)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
+		request.Var("view", view)
+
 		orbs.Namespace = namespace
 
 		err := cl.Run(request, &result)

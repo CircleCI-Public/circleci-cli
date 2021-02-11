@@ -40,10 +40,10 @@ func UpdateBuildAgent() error {
 }
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
-
 	processedArgs, configPath := buildAgentArguments(flags)
+	orgSlug, _ := flags.GetString("org-slug")
 	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	configResponse, err := api.ConfigQuery(cl, configPath, pipeline.FabricatedValues())
+	configResponse, err := api.ConfigQuery(cl, configPath, orgSlug, pipeline.FabricatedValues())
 
 	if err != nil {
 		return err
@@ -102,7 +102,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 }
 
 // The `local execute` command proxies execution to the picard docker container,
-// and ultimately to `build-agent`. We want to pass all arguments passed to the
+// and ultimately to `build-agent`. We want to pass most arguments passed to the
 // `local execute` command on to build-agent
 // These options are here to retain a mock of the flags used by `build-agent`.
 // They don't reflect the entire structure or available flags, only those which
@@ -123,7 +123,8 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 
 // Given the full set of flags that were passed to this command, return the path
 // to the config file, and the list of supplied args _except_ for the `--config`
-// or `-c` argument.
+// or `-c` argument, and except for --debug and --org-slug which are consumed by
+// this program.
 // The `build-agent` can only deal with config version 2.0. In order to feed
 // version 2.0 config to it, we need to process the supplied config file using the
 // GraphQL API, and feed the result of that into `build-agent`. The first step of
@@ -135,7 +136,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})

@@ -2,23 +2,29 @@ package cmd_test
 
 import (
 	"fmt"
+	"io"
+	"net/http"
 	"os/exec"
 	"path/filepath"
+	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Config", func() {
-
 	Describe("pack", func() {
 		var (
 			command      *exec.Cmd
 			results      []byte
 			tempSettings *clitest.TempSettings
+			token        string = "testtoken"
 		)
 
 		BeforeEach(func() {
@@ -137,6 +143,161 @@ var _ = Describe("Config", func() {
 				stderr := session.Wait().Err.Contents()
 				Expect(string(stderr)).To(Equal(expected))
 				Eventually(session).Should(clitest.ShouldFail())
+			})
+		})
+
+		Describe("validating configs", func() {
+			config := "version: 2.1"
+			var expReq string
+
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"config", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"-",
+				)
+
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				_, err = io.WriteString(stdin, config)
+				Expect(err).ToNot(HaveOccurred())
+				stdin.Close()
+
+				query := `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
+					buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
+
+				r := graphql.NewRequest(query)
+				r.Variables["config"] = config
+				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.FabricatedValues())
+
+				req, err := r.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+				expReq = req.String()
+			})
+
+			It("returns an error when validating a config", func() {
+				expResp := `{
+					"buildConfig": {
+								"errors": [
+									{"message": "error1"}
+								]
+					}
+				}`
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err, time.Second*3).Should(gbytes.Say("Error: error1"))
+				Eventually(session).Should(clitest.ShouldFail())
+			})
+
+			It("returns successfully when validating a config", func() {
+				expResp := `{
+					"buildConfig": {}
+				}`
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out, time.Second*3).Should(gbytes.Say("Config input is valid."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
+		Describe("validating configs with private orbs", func() {
+			config := "version: 2.1"
+			orgSlug := "circleci"
+			var expReq string
+
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"config", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--org-slug", orgSlug,
+					"-",
+				)
+
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				_, err = io.WriteString(stdin, config)
+				Expect(err).ToNot(HaveOccurred())
+				stdin.Close()
+
+				query := `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+					buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
+
+				r := graphql.NewRequest(query)
+				r.Variables["config"] = config
+				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.FabricatedValues())
+				r.Variables["orgSlug"] = orgSlug
+
+				req, err := r.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+				expReq = req.String()
+			})
+
+			It("returns an error when validating a config with a private orb", func() {
+				expResp := `{
+					"buildConfig": {
+								"errors": [
+									{"message": "permission denied"}
+								]
+					}
+				}`
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err, time.Second*3).Should(gbytes.Say("Error: permission denied"))
+				Eventually(session).Should(clitest.ShouldFail())
+			})
+
+			It("returns successfully when validating a config with private orbs", func() {
+				expResp := `{
+					"buildConfig": {}
+				}`
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out, time.Second*3).Should(gbytes.Say("Config input is valid."))
+				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 	})
