@@ -5,11 +5,12 @@
 (defn -main
   "Main entrypoint to run all of the integration tests."
   [& args]
-  (runner/run-tests!
-   ;; Component system, which currently contains nothing
-   (constantly {})
-   ;; All the tests we want to run
-   (runner/find-tests)
-   ;; Options, like parallelism
-   {})
-  (shutdown-agents))
+  (if (runner/run-tests!
+       ;; Component system, which currently contains nothing
+       (constantly {})
+       ;; All the tests we want to run
+       (runner/find-tests)
+       ;; Options, like parallelism
+       {})
+    (shutdown-agents)
+    (System/exit 1)))
