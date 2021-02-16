@@ -56,7 +56,7 @@
     result))
 
 (defn shell!
-  "Convenience function to create a step that runs a CLI command and validates its output."
+  "Convenience function to create a step that runs a shell command and validates its output."
   [args verify-opts]
   #::step
   {:title (str/join " " args)
