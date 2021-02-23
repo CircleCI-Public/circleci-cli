@@ -12,7 +12,8 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -39,10 +40,10 @@ func UpdateBuildAgent() error {
 }
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
-
 	processedArgs, configPath := buildAgentArguments(flags)
-	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	configResponse, err := api.ConfigQuery(cl, configPath, nil)
+	orgSlug, _ := flags.GetString("org-slug")
+	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	configResponse, err := api.ConfigQuery(cl, configPath, orgSlug, pipeline.FabricatedValues())
 
 	if err != nil {
 		return err
@@ -101,7 +102,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 }
 
 // The `local execute` command proxies execution to the picard docker container,
-// and ultimately to `build-agent`. We want to pass all arguments passed to the
+// and ultimately to `build-agent`. We want to pass most arguments passed to the
 // `local execute` command on to build-agent
 // These options are here to retain a mock of the flags used by `build-agent`.
 // They don't reflect the entire structure or available flags, only those which
@@ -112,17 +113,18 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
-	flags.StringSliceP("volume", "v", nil, "Volume bind-mounting")
+	flags.StringArrayP("volume", "v", nil, "Volume bind-mounting")
 	flags.String("checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringSliceP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
 // to the config file, and the list of supplied args _except_ for the `--config`
-// or `-c` argument.
+// or `-c` argument, and except for --debug and --org-slug which are consumed by
+// this program.
 // The `build-agent` can only deal with config version 2.0. In order to feed
 // version 2.0 config to it, we need to process the supplied config file using the
 // GraphQL API, and feed the result of that into `build-agent`. The first step of
@@ -134,7 +136,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -307,7 +309,7 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 	switch flag.Value.Type() {
 	// A stringArray type argument is collapsed into a single flag:
 	// `--foo 1 --foo 2` will result in a single `foo` flag with an array of values.
-	case "stringSlice":
+	case "stringArray":
 		for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
 			result = append(result, flagName, value)
 		}

@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/data"
-	yaml "gopkg.in/yaml.v2"
+	yaml "gopkg.in/yaml.v3"
 )
 
 // Config is used to represent the current state of a CLI instance.
@@ -17,12 +17,20 @@ type Config struct {
 	Host            string
 	Endpoint        string
 	Token           string
-	Data            *data.YML `yaml:"-"`
-	Debug           bool      `yaml:"-"`
-	Address         string    `yaml:"-"`
-	FileUsed        string    `yaml:"-"`
-	GitHubAPI       string    `yaml:"-"`
-	SkipUpdateCheck bool      `yaml:"-"`
+	RestEndpoint    string            `yaml:"rest_endpoint"`
+	Data            *data.YML         `yaml:"-"`
+	Debug           bool              `yaml:"-"`
+	Address         string            `yaml:"-"`
+	FileUsed        string            `yaml:"-"`
+	GitHubAPI       string            `yaml:"-"`
+	SkipUpdateCheck bool              `yaml:"-"`
+	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
+}
+
+type OrbPublishingInfo struct {
+	DefaultNamespace   string `yaml:"default_namespace"`
+	DefaultVcsProvider string `yaml:"default_vcs_provider"`
+	DefaultOwner       string `yaml:"default_owner"`
 }
 
 // UpdateCheck is used to represent settings for checking for updates of the CLI.
@@ -106,6 +114,10 @@ func (cfg *Config) WriteToDisk() error {
 func (cfg *Config) LoadFromEnv(prefix string) {
 	if host := ReadFromEnv(prefix, "host"); host != "" {
 		cfg.Host = host
+	}
+
+	if restEndpoint := ReadFromEnv(prefix, "rest_endpoint"); restEndpoint != "" {
+		cfg.RestEndpoint = restEndpoint
 	}
 
 	if endpoint := ReadFromEnv(prefix, "endpoint"); endpoint != "" {

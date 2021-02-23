@@ -1,0 +1,115 @@
+{
+  "orbCategories": {
+    "totalCount": 22,
+    "edges": [
+      {
+        "cursor": "Artifacts/Registry",
+        "node": {
+          "id": "bd82f99e-cc7a-4cb6-be89-f1e347cfee0c",
+          "name": "Artifacts/Registry"
+        }
+      },
+      {
+        "cursor": "Build",
+        "node": {
+          "id": "6b6c1c5f-5e59-48b1-9352-79c54a081391",
+          "name": "Build"
+        }
+      },
+      {
+        "cursor": "Cloud Platform",
+        "node": {
+          "id": "85807118-bb81-45c6-99ae-143d4eacc1e6",
+          "name": "Cloud Platform"
+        }
+      },
+      {
+        "cursor": "Code Analysis",
+        "node": {
+          "id": "2861f288-eca8-4c46-b3e4-4b242826f880",
+          "name": "Code Analysis"
+        }
+      },
+      {
+        "cursor": "Collaboration",
+        "node": {
+          "id": "5e916839-7a4b-4483-97b9-242fd5faf997",
+          "name": "Collaboration"
+        }
+      },
+      {
+        "cursor": "Containers",
+        "node": {
+          "id": "ce8e1764-1adc-4b23-9be3-5c31a1064a88",
+          "name": "Containers"
+        }
+      },
+      {
+        "cursor": "Deployment",
+        "node": {
+          "id": "c89bb286-f3bc-4e15-a6c1-2618ec41d3e9",
+          "name": "Deployment"
+        }
+      },
+      {
+        "cursor": "Infra Automation",
+        "node": {
+          "id": "66d32498-7965-412f-8bf0-a717092f7807",
+          "name": "Infra Automation"
+        }
+      },
+      {
+        "cursor": "Kubernetes",
+        "node": {
+          "id": "36fa1dd0-9a9f-46ef-a332-003e17c01bb1",
+          "name": "Kubernetes"
+        }
+      },
+      {
+        "cursor": "Language/Framework",
+        "node": {
+          "id": "ca67b176-28d4-42a5-b38f-70e28a644343",
+          "name": "Language/Framework"
+        }
+      },
+      {
+        "cursor": "Monitoring",
+        "node": {
+          "id": "7a255857-9bbc-47b6-be2c-0756528f5077",
+          "name": "Monitoring"
+        }
+      },
+      {
+        "cursor": "Notifications",
+        "node": {
+          "id": "4486aa87-2fbf-4864-b048-7a0b82838a74",
+          "name": "Notifications"
+        }
+      },
+      {
+        "cursor": "Reporting",
+        "node": {
+          "id": "ae3378d5-3b6a-43bb-aa59-9564e919b8b5",
+          "name": "Reporting"
+        }
+      },
+      {
+        "cursor": "Security",
+        "node": {
+          "id": "a736f168-ce98-4c3e-afb8-b93a6c8ebeac",
+          "name": "Security"
+        }
+      },
+      {
+        "cursor": "Testing",
+        "node": {
+          "id": "50c0078b-447d-49ad-9a8e-f4c1b09c7651",
+          "name": "Testing"
+        }
+      }
+    ],
+    "pageInfo": {
+      "hasNextPage": true
+    }
+  }
+}

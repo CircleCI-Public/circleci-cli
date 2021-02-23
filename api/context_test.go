@@ -7,18 +7,19 @@ import (
 	"net/http/httptest"
 	"sync/atomic"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
-	. "github.com/onsi/ginkgo"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	// we can't dot-import ginkgo because api.Context is a thing.
+	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-type graphQLRequst struct {
+type graphQLRequest struct {
 	Query     string
 	Variables map[string]interface{}
 }
 
-func createSingleUseGraphQLServer(result interface{}, requestAssertions func(requestCount uint64, req *graphQLRequst)) (*httptest.Server, *client.Client) {
-	response := client.Response{
+func createSingleUseGraphQLServer(result interface{}, requestAssertions func(requestCount uint64, req *graphQLRequest)) (*httptest.Server, *GraphQLContextClient) {
+	response := graphql.Response{
 		Data: result,
 	}
 
@@ -26,8 +27,8 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 
 	server := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
 		atomic.AddUint64(&requestCount, 1)
-		defer GinkgoRecover()
-		var request graphQLRequst
+		defer ginkgo.GinkgoRecover()
+		var request graphQLRequest
 		Expect(json.NewDecoder(req.Body).Decode(&request)).To(Succeed())
 		requestAssertions(requestCount, &request)
 		bytes, err := json.Marshal(response)
@@ -35,20 +36,20 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 		_, err = rw.Write(bytes)
 		Expect(err).ToNot(HaveOccurred())
 	}))
-	client := client.NewClient(server.URL, server.URL, "token", false)
+	client := NewContextGraphqlClient(server.URL, server.URL, "token", false)
 	return server, client
 }
 
-var _ = Describe("API", func() {
-	Describe("FooBar", func() {
-		It("improveVcsTypeError", func() {
+var _ = ginkgo.Describe("API", func() {
+	ginkgo.Describe("FooBar", func() {
+		ginkgo.It("improveVcsTypeError", func() {
 
 			unrelatedError := errors.New("foo")
 
 			Expect(unrelatedError).Should(Equal(improveVcsTypeError(unrelatedError)))
 
-			errors := []client.ResponseError{
-				client.ResponseError{
+			errors := []graphql.ResponseError{
+				graphql.ResponseError{
 					Message: "foo",
 				},
 			}
@@ -56,15 +57,15 @@ var _ = Describe("API", func() {
 			errors[0].Extensions.EnumType = "VCSType"
 			errors[0].Extensions.Value = "pear"
 			errors[0].Extensions.AllowedValues = []string{"apple", "banana"}
-			var vcsError client.ResponseErrorsCollection = errors
+			var vcsError graphql.ResponseErrorsCollection = errors
 			Expect("Invalid vcs-type 'pear' provided, expected one of apple, banana").Should(Equal(improveVcsTypeError(vcsError).Error()))
 
 		})
 	})
 
-	Describe("Create Context", func() {
+	ginkgo.Describe("Create Context", func() {
 
-		It("can handles failure creating contexts", func() {
+		ginkgo.It("can handles failure creating contexts", func() {
 
 			var result struct {
 				CreateContext struct {
@@ -76,7 +77,7 @@ var _ = Describe("API", func() {
 
 			result.CreateContext.Error.Type = "force-this-error"
 
-			server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequst) {
+			server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequest) {
 				switch count {
 				case 1:
 					Expect(req.Variables["organizationName"]).To(Equal("test-org"))
@@ -87,14 +88,14 @@ var _ = Describe("API", func() {
 				}
 			})
 			defer server.Close()
-			err := CreateContext(client, "test-vcs", "test-org", "foo-bar")
+			err := client.CreateContext("test-vcs", "test-org", "foo-bar")
 			Expect(err).To(MatchError("Error creating context: force-this-error"))
 
 		})
 
 	})
 
-	It("can handles success creating contexts", func() {
+	ginkgo.It("can handles success creating contexts", func() {
 
 		var result struct {
 			CreateContext struct {
@@ -106,7 +107,7 @@ var _ = Describe("API", func() {
 
 		result.CreateContext.Error.Type = ""
 
-		server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequst) {
+		server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequest) {
 
 			switch count {
 			case 1:
@@ -120,51 +121,43 @@ var _ = Describe("API", func() {
 		})
 		defer server.Close()
 
-		Expect(CreateContext(client, "test-vcs", "test-org", "foo-bar")).To(Succeed())
+		Expect(client.CreateContext( "test-vcs", "test-org", "foo-bar")).To(Succeed())
 
 	})
 
-	Describe("List Contexts", func() {
+	ginkgo.Describe("List Contexts", func() {
 
-		It("can list contexts", func() {
+		ginkgo.It("can list contexts", func() {
 
-			ctx := CircleCIContext{
+			ctx := circleCIContext{
 				CreatedAt: "2018-04-24T19:38:37.212Z",
 				Name:      "Sheep",
-				Resources: []Resource{
-					{
-						CreatedAt:      "2018-04-24T19:38:37.212Z",
-						Variable:       "CI",
-						TruncatedValue: "1234",
-					},
-				},
 			}
 
-			list := ContextsQueryResponse{}
+			list := contextsQueryResponse{}
 
 			list.Organization.Id = "C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"
-			list.Organization.Contexts.Edges = []struct{ Node CircleCIContext }{
-				struct{ Node CircleCIContext }{
+			list.Organization.Contexts.Edges = []struct{ Node circleCIContext }{
+				struct{ Node circleCIContext }{
 					Node: ctx,
 				},
 			}
 
-			server, client := createSingleUseGraphQLServer(list, func(count uint64, req *graphQLRequst) {
-				Expect(req.Variables["orgName"]).To(Equal("test-org"))
-				Expect(req.Variables["vcsType"]).To(Equal("TEST-VCS"))
+			server, client := createSingleUseGraphQLServer(list, func(count uint64, req *graphQLRequest) {
+				switch count {
+				case 1:
+					Expect(req.Variables["organizationName"]).To(Equal("test-org"))
+					Expect(req.Variables["organizationVcs"]).To(Equal("TEST-VCS"))
+				case 2:
+					Expect(req.Variables["orgId"]).To(Equal("C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"))
+				}
 			})
 			defer server.Close()
 
-			result, err := ListContexts(client, "test-org", "test-vcs")
+			result, err := client.Contexts("test-vcs", "test-org")
 			Expect(err).NotTo(HaveOccurred())
-			Expect(result.Organization.Id).To(Equal("C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"))
-			context := result.Organization.Contexts.Edges[0].Node
+			context := (*result)[0]
 			Expect(context.Name).To(Equal("Sheep"))
-			Expect(context.Resources).To(HaveLen(1))
-			resource := context.Resources[0]
-			Expect(resource.Variable).To(Equal("CI"))
-			Expect(resource.TruncatedValue).To(Equal("1234"))
-
 		})
 	})
 })
