@@ -5,6 +5,7 @@ orbs:
   shellcheck: circleci/shellcheck@1.2.0
   slack: circleci/slack@0.1.14
   windows: circleci/windows@2.2.0
+  nancy: sonatype-nexus-community/circleci-nancy-orb@0
 
 executors:
   go:
@@ -150,6 +151,13 @@ jobs:
       - gomod
       - run: make test
       - slack-notify-on-failure
+
+  scan:
+    executor: go
+    steps:
+      - checkout
+      - nancy/install-nancy
+      - nancy/run-nancy
 
   coverage:
     executor: go
@@ -326,6 +334,7 @@ workflows:
       - test_windows
       - coverage
       - lint
+      - scan
       - deploy-test
       - docs:
           requires:
@@ -350,6 +359,7 @@ workflows:
             - test_mac
             - coverage
             - lint
+            - scan
             - deploy-test
             - shellcheck/check
           filters:
