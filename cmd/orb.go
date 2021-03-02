@@ -490,6 +490,20 @@ func orbToSimpleString(orb api.OrbWithData) string {
 	return buffer.String()
 }
 
+func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) (bool) {
+	// TODO: make a separate api func to query for the orb's isPrivate field
+	// when available in the schema
+	orbExists, err := api.OrbExists(cl, namespace, orbName)
+
+	// we can ignore any errors with the call
+	if err != nil {
+		return false
+	}
+
+	// orbExists will also be false if it is a private orb
+	return orbExists
+}
+
 func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, error) {
 	if opts.listJSON {
 		orbJSON, err := json.MarshalIndent(list, "", "  ")
@@ -673,6 +687,11 @@ func publishOrb(opts orbOptions) error {
 		fmt.Printf("Note that your dev label `%s` can be overwritten by anyone in your organization.\n", version)
 		fmt.Printf("Your dev orb will expire in 90 days unless a new version is published on the label `%s`.\n", version)
 	}
+
+	if orbIsOpenSource(opts.cl, namespace, orb) {
+		fmt.Println("Please note that this is an open orb and is world-readable.")
+	}
+
 	return nil
 }
 
@@ -743,6 +762,11 @@ func incrementOrb(opts orbOptions) error {
 	}
 
 	fmt.Printf("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+
+	if orbIsOpenSource(opts.cl, namespace, orb) {
+		fmt.Println("Please note that this is an open orb and is world-readable.")
+	}
+
 	return nil
 }
 
@@ -769,6 +793,11 @@ func promoteOrb(opts orbOptions) error {
 	}
 
 	fmt.Printf("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+
+
+	if orbIsOpenSource(opts.cl, namespace, orb) {
+		fmt.Println("Please note that this is an open orb and is world-readable.")
+	}
 	return nil
 }
 
