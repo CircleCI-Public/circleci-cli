@@ -495,7 +495,8 @@ func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) (bool
 	// when available in the schema
 	orbExists, err := api.OrbExists(cl, namespace, orbName)
 
-	// we can ignore any errors with the call
+	// we are don't want to output errors as they've already
+	// published a version of the orb successfully
 	if err != nil {
 		return false
 	}
