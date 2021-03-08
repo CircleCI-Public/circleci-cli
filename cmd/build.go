@@ -16,6 +16,7 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 	}
 
 	local.AddFlagsForDocumentation(buildCommand.Flags())
+	buildCommand.Flags().Bool("rm", true, "remove containers automatically")
 	buildCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
 
 	return buildCommand

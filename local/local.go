@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path"
 	"regexp"
+	"strconv"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -84,7 +85,11 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 		return errors.Wrap(err, "Could not find picard image")
 	}
 
-	arguments := generateDockerCommand(processedConfigPath, image, pwd, processedArgs...)
+	rm, err := flags.GetBool("rm")
+	if err != nil {
+		return err
+	}
+	arguments := generateDockerCommand(processedConfigPath, image, pwd, rm, processedArgs...)
 
 	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
@@ -136,7 +141,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "rm" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -288,9 +293,9 @@ func writeStringToTempFile(data string) (string, error) {
 	return f.Name(), nil
 }
 
-func generateDockerCommand(configPath, image, pwd string, arguments ...string) []string {
+func generateDockerCommand(configPath, image, pwd string, rm bool, arguments ...string) []string {
 	const configPathInsideContainer = "/tmp/local_build_config.yml"
-	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
+	core := []string{"docker", "run", "--interactive", "--tty", "--rm=" + strconv.FormatBool(rm),
 		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
 		"--volume", fmt.Sprintf("%s:%s", configPath, configPathInsideContainer),
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
