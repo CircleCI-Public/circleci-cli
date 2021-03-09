@@ -1072,7 +1072,7 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
-	tags := []orbProtectTemplateRelease{}
+	var tags []orbProtectTemplateRelease
 	err = json.Unmarshal(body, &tags)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
@@ -1185,6 +1185,29 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
+	registryCategories, err := api.ListOrbCategories(opts.cl)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orb categories")
+	}
+	c := func() []string {
+		var x []string
+		for _, v := range registryCategories.OrbCategories {
+			x = append(x, v.Name)
+		}
+
+		return  x
+	}()
+
+	var categories []string
+	cPrompt := &survey.MultiSelect{
+		Message: "What categories will this orb belong to?",
+		Options: c,
+	}
+	err = survey.AskOne(cPrompt, &categories)
+	if err != nil {
+		return err
+	}
+
 	createContext := 0
 	prompt = &survey.Select{
 		Message: "Automatically set up a publishing context for your orb?",
@@ -1234,11 +1257,29 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
+		if err != nil {
+			return errors.Wrap(err, "Unable to create orb")
+		}
+		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, opts.args[1], api.Add)
+		if err != nil {
+			return err
+		}
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
 			return err
 		}
 		return nil
+	}
+
+	gitBranch := "main"
+	bPrompt := &survey.Input{
+		Message: "Enter your primary git branch.",
+		Default: gitBranch,
+	}
+	err = survey.AskOne(bPrompt, &gitBranch)
+	if err != nil {
+		return err
 	}
 
 	gitLocation := ""
@@ -1291,7 +1332,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	err = r.CreateBranch(&config.Branch{
-		Name:   "master",
+		Name:   gitBranch,
 		Remote: "origin",
 	})
 	if err != nil {
@@ -1332,6 +1373,13 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
+	for _, v := range categories {
+		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
+		if err != nil {
+			return err
+		}
+	}
+
 	packedOrb, err := packOrb(filepath.Join(orbPath, "src"))
 	if err != nil {
 		return err
@@ -1354,7 +1402,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Println("An initial commit has been created - please run \033[1;34m'git push origin master'\033[0m to publish your first commit!")
+	fmt.Printf("An initial commit has been created - please run \033[1;34m'git push origin %v'\033[0m to publish your first commit!\n", gitBranch)
 	yprompt = &survey.Confirm{
 		Message: "I have pushed to my git repository using the above command",
 	}
