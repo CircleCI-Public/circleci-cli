@@ -1,0 +1,8 @@
+Usage:
+  pipeline [command]
+
+Available Commands:
+  list        List all pipelines for the current project
+  trigger     Trigger a pipeline for the current project
+
+Use "pipeline [command] --help" for more information about a command.

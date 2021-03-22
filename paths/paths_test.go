@@ -1,4 +1,4 @@
-package cmd
+package paths
 
 import (
 	"github.com/CircleCI-Public/circleci-cli/git"
@@ -8,7 +8,7 @@ import (
 
 var _ = Describe("open", func() {
 	It("can build urls", func() {
-		Expect(projectUrl(&git.Remote{
+		Expect(ProjectUrl(&git.Remote{
 			Project:      "foo",
 			Organization: "bar",
 			VcsType:      git.GitHub,
@@ -16,7 +16,7 @@ var _ = Describe("open", func() {
 	})
 
 	It("escapes garbage", func() {
-		Expect(projectUrl(&git.Remote{
+		Expect(ProjectUrl(&git.Remote{
 			Project:      "/one/two",
 			Organization: "%^&*()[]",
 			VcsType:      git.Bitbucket,
