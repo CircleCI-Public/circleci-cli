@@ -9,7 +9,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
 )
 
-func newResourceClassCommand(r *runner.Runner, preRunE validator) *cobra.Command {
+func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resource-class",
 		Short: "Operate on runner resource-classes",
@@ -21,7 +21,7 @@ func newResourceClassCommand(r *runner.Runner, preRunE validator) *cobra.Command
 		Args:    cobra.ExactArgs(2),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			rc, err := r.CreateResourceClass(args[0], args[1])
+			rc, err := o.r.CreateResourceClass(args[0], args[1])
 			if err != nil {
 				return err
 			}
@@ -39,11 +39,11 @@ func newResourceClassCommand(r *runner.Runner, preRunE validator) *cobra.Command
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			rc, err := r.GetResourceClassByName(args[0])
+			rc, err := o.r.GetResourceClassByName(args[0])
 			if err != nil {
 				return err
 			}
-			return r.DeleteResourceClass(rc.ID)
+			return o.r.DeleteResourceClass(rc.ID)
 		},
 	})
 
@@ -54,7 +54,7 @@ func newResourceClassCommand(r *runner.Runner, preRunE validator) *cobra.Command
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			rcs, err := r.GetResourceClassesByNamespace(args[0])
+			rcs, err := o.r.GetResourceClassesByNamespace(args[0])
 			if err != nil {
 				return err
 			}
