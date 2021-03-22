@@ -10,7 +10,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
 )
 
-func newRunnerInstanceCommand(r *runner.Runner, preRunE validator) *cobra.Command {
+func newRunnerInstanceCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "instance",
 		Short: "Operate on runner instances",
@@ -25,7 +25,7 @@ func newRunnerInstanceCommand(r *runner.Runner, preRunE validator) *cobra.Comman
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			runners, err := r.GetRunnerInstances(args[0])
+			runners, err := o.r.GetRunnerInstances(args[0])
 			if err != nil {
 				return err
 			}
