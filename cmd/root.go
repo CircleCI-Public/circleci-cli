@@ -135,6 +135,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newStepCommand(rootOptions))
 	rootCmd.AddCommand(newSwitchCommand(rootOptions))
 	rootCmd.AddCommand(newAdminCommand(rootOptions))
+	rootCmd.AddCommand(newCompletionCommand())
 
 	flags := rootCmd.PersistentFlags()
 
