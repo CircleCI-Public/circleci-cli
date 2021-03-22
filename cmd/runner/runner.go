@@ -8,16 +8,22 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
+type runnerOpts struct {
+	r *runner.Runner
+}
+
 func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
-	r := runner.New(rest.New(config.Host, config.RestEndpoint, config.Token))
+	var opts runnerOpts
 	cmd := &cobra.Command{
-		Use:    "runner",
-		Short:  "Operate on runners",
-		Hidden: true,
+		Use:   "runner",
+		Short: "Operate on runners",
+		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			opts.r = runner.New(rest.New(config.Host, config.RestEndpoint, config.Token))
+		},
 	}
-	cmd.AddCommand(newResourceClassCommand(r, preRunE))
-	cmd.AddCommand(newTokenCommand(r, preRunE))
-	cmd.AddCommand(newRunnerInstanceCommand(r, preRunE))
+	cmd.AddCommand(newResourceClassCommand(&opts, preRunE))
+	cmd.AddCommand(newTokenCommand(&opts, preRunE))
+	cmd.AddCommand(newRunnerInstanceCommand(&opts, preRunE))
 	return cmd
 }
 
