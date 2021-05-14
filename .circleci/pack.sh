@@ -17,6 +17,9 @@ function get_arch_type() {
         echo "386"
     elif [[ $(uname -m) == "x86_64" ]]; then
         echo "amd64"
+    # use rosetta until packr is released for arm
+    elif [[ $(uname -m) == "arm64" && "$OSTYPE" == "darwin"* ]]; then
+        echo "amd64"
     fi
 }
 
