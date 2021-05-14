@@ -27,3 +27,4 @@ packrd/
 bin/golangci-lint
 integration_tests/tmp
 *.exe
+bin/packr2

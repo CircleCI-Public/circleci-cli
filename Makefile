@@ -3,7 +3,7 @@ default: build
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
-build: always
+build: install-packr always
 	GO111MODULE=on .circleci/pack.sh
 	go build -o build/$(GOOS)/$(GOARCH)/circleci
 
