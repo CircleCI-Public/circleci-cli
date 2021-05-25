@@ -2,36 +2,38 @@ package api
 
 import (
 	"bytes"
-	"fmt"
-	"net/http"
-	"net/url"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
+	"net/http"
+	"net/url"
 	"strings"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 )
 
 // ContextRestClient communicates with the CircleCI REST API to ask questions
 // about contexts. It satisfies api.ContextInterface.
 type ContextRestClient struct {
-	token string
+	token  string
 	server string
 	client *http.Client
 }
 
 type listEnvironmentVariablesResponse struct {
-	Items []EnvironmentVariable
+	Items         []EnvironmentVariable
 	NextPageToken *string `json:"next_page_token"`
-	client *ContextRestClient
-	params *listEnvironmentVariablesParams
+	client        *ContextRestClient
+	params        *listEnvironmentVariablesParams
 }
 
 type listContextsResponse struct {
-	Items []Context
+	Items         []Context
 	NextPageToken *string `json:"next_page_token"`
-	client *ContextRestClient
-	params *listContextsParams
+	client        *ContextRestClient
+	params        *listContextsParams
 }
 
 type errorResponse struct {
@@ -39,7 +41,7 @@ type errorResponse struct {
 }
 
 type listContextsParams struct {
-	OwnerID *string
+	OwnerID   *string
 	OwnerSlug *string
 	OwnerType *string
 	PageToken *string
@@ -85,7 +87,7 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 }
 
 // CreateContext creates a new context in the supplied organization.
-func (c *ContextRestClient) CreateContext(vcs, org, name string) (error) {
+func (c *ContextRestClient) CreateContext(vcs, org, name string) error {
 	req, err := c.newCreateContextRequest(vcs, org, name)
 	if err != nil {
 		return err
@@ -217,7 +219,7 @@ func (c *ContextRestClient) ContextByName(vcs, org, name string) (*Context, erro
 	}
 }
 
-func (c *ContextRestClient) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
+func (c *ContextRestClient) listAllEnvironmentVariables(params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
 	var resp *listEnvironmentVariablesResponse
 	for {
 		resp, err = c.listEnvironmentVariables(params)
@@ -255,7 +257,7 @@ func (c *ContextRestClient) listAllContexts(params *listContextsParams) (context
 	return contexts, nil
 }
 
-func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
+func (c *ContextRestClient) listEnvironmentVariables(params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
 	req, err := c.newListEnvironmentVariablesRequest(params)
 	if err != nil {
 		return nil, err
@@ -289,7 +291,7 @@ func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVar
 	return &dest, nil
 }
 
-func (c *ContextRestClient) listContexts (params *listContextsParams) (*listContextsResponse, error) {
+func (c *ContextRestClient) listContexts(params *listContextsParams) (*listContextsResponse, error) {
 	req, err := c.newListContextsRequest(params)
 	if err != nil {
 		return nil, err
@@ -345,7 +347,7 @@ func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*htt
 		} `json:"owner"`
 	}{
 		Name: name,
-		Owner: struct{
+		Owner: struct {
 			Slug *string `json:"slug,omitempty"`
 		}{
 			Slug: toSlug(vcs, org),
@@ -374,7 +376,7 @@ func (c *ContextRestClient) newCreateEnvironmentVariableRequest(contextID, varia
 	}
 
 	var bodyReader io.Reader
-	body := struct{
+	body := struct {
 		Value string `json:"value"`
 	}{
 		Value: value,
@@ -505,8 +507,8 @@ func (c *ContextRestClient) EnsureExists() error {
 	if err != nil {
 		return err
 	}
-	var respBody struct{
-		Paths struct{
+	var respBody struct {
+		Paths struct {
 			ContextEndpoint interface{} `json:"/context"`
 		}
 	}
@@ -523,25 +525,25 @@ func (c *ContextRestClient) EnsureExists() error {
 
 // NewContextRestClient returns a new client satisfying the api.ContextInterface
 // interface via the REST API.
-func NewContextRestClient(host, endpoint, token string) (*ContextRestClient, error) {
+func NewContextRestClient(config settings.Config) (*ContextRestClient, error) {
 	// Ensure server ends with a slash
-	if !strings.HasSuffix(endpoint, "/") {
-		endpoint += "/"
+	if !strings.HasSuffix(config.Endpoint, "/") {
+		config.Endpoint += "/"
 	}
-	serverURL, err := url.Parse(host)
+	serverURL, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, err
 	}
 
-	serverURL, err = serverURL.Parse(endpoint)
+	serverURL, err = serverURL.Parse(config.Endpoint)
 	if err != nil {
 		return nil, err
 	}
 
 	client := &ContextRestClient{
-		token: token,
+		token:  config.Token,
 		server: serverURL.String(),
-		client: &http.Client{},
+		client: config.HTTPClient,
 	}
 
 	return client, nil

@@ -1,7 +1,11 @@
 package settings
 
 import (
+	"crypto/tls"
+	"crypto/x509"
+	"fmt"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -14,10 +18,13 @@ import (
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	Host            string
-	Endpoint        string
-	Token           string
+	Host            string            `yaml:"host"`
+	Endpoint        string            `yaml:"endpoint"`
+	Token           string            `yaml:"token"`
 	RestEndpoint    string            `yaml:"rest_endpoint"`
+	TLSCert         string            `yaml:"tls_cert"`
+	TLSInsecure     bool              `yaml:"tls_insecure"`
+	HTTPClient      *http.Client      `yaml:"-"`
 	Data            *data.YML         `yaml:"-"`
 	Debug           bool              `yaml:"-"`
 	Address         string            `yaml:"-"`
@@ -96,7 +103,11 @@ func (cfg *Config) LoadFromDisk() error {
 	}
 
 	err = yaml.Unmarshal(content, &cfg)
-	return err
+	if err != nil {
+		return nil
+	}
+
+	return cfg.WithHTTPClient()
 }
 
 // WriteToDisk will write the runtime config instance to disk by serializing the YAML
@@ -183,4 +194,38 @@ func ensureSettingsFileExists(path string) error {
 	err = os.Chmod(path, 0600)
 
 	return err
+}
+
+func (cfg *Config) WithHTTPClient() error {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: cfg.TLSInsecure,
+	}
+
+	if cfg.TLSCert != "" {
+		// TODO: may need to use less abstraction to check for world-readable files.
+		pemData, err := ioutil.ReadFile(cfg.TLSCert)
+		if err != nil {
+			return fmt.Errorf("unable to read tls cert: %s", err.Error())
+		}
+
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pemData) {
+			return fmt.Errorf("invalid certificate: %s", err.Error())
+		}
+
+		tlsConfig.RootCAs = pool
+	}
+
+	cfg.HTTPClient = &http.Client{
+		Timeout: 30 * time.Second,
+		Transport: &http.Transport{
+			ExpectContinueTimeout: 1 * time.Second,
+			IdleConnTimeout:       90 * time.Second,
+			MaxIdleConns:          10,
+			TLSHandshakeTimeout:   10 * time.Second,
+			TLSClientConfig:       tlsConfig,
+		},
+	}
+
+	return nil
 }

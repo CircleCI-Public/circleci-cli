@@ -26,7 +26,7 @@ type Client struct {
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(host, endpoint, token string, debug bool) *Client {
+func NewClient(httpClient *http.Client, host, endpoint, token string, debug bool) *Client {
 	return &Client{
 		httpClient: http.DefaultClient,
 		Endpoint:   endpoint,
