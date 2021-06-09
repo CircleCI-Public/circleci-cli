@@ -3,12 +3,14 @@ package settings
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -202,7 +204,11 @@ func (cfg *Config) WithHTTPClient() error {
 	}
 
 	if cfg.TLSCert != "" {
-		// TODO: may need to use less abstraction to check for world-readable files.
+		err := validateTLSCertPath(cfg.TLSCert)
+		if err != nil {
+			return fmt.Errorf("invalid tls cert provided: %s", err.Error())
+		}
+
 		pemData, err := ioutil.ReadFile(cfg.TLSCert)
 		if err != nil {
 			return fmt.Errorf("unable to read tls cert: %s", err.Error())
@@ -210,7 +216,7 @@ func (cfg *Config) WithHTTPClient() error {
 
 		pool := x509.NewCertPool()
 		if !pool.AppendCertsFromPEM(pemData) {
-			return fmt.Errorf("invalid certificate: %s", err.Error())
+			return errors.New("unable to parse certificates")
 		}
 
 		tlsConfig.RootCAs = pool
@@ -228,4 +234,42 @@ func (cfg *Config) WithHTTPClient() error {
 	}
 
 	return nil
+}
+
+func validateTLSCertPath(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return errors.New("provided TLSCert path must be a file")
+	}
+
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	for path != "." && path != "/" {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+
+		if isWorldWritable(info) {
+			return fmt.Errorf("%s cannot be world-writable", path)
+		}
+
+		path = filepath.Dir(path)
+	}
+
+	return nil
+}
+
+func isWorldWritable(info os.FileInfo) bool {
+	mode := fmt.Sprint(info.Mode())
+	// Parse the system level permissions from the octal mode.
+	// Example: '-rwxrwx-w-' -> '-w-'
+	sysPerms := mode[len(mode)-3:]
+	return strings.Contains(sysPerms, "w")
 }
