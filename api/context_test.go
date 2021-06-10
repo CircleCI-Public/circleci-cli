@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+
 	// we can't dot-import ginkgo because api.Context is a thing.
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -36,7 +37,7 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 		_, err = rw.Write(bytes)
 		Expect(err).ToNot(HaveOccurred())
 	}))
-	client := NewContextGraphqlClient(server.URL, server.URL, "token", false)
+	client := NewContextGraphqlClient(http.DefaultClient, server.URL, server.URL, "token", false)
 	return server, client
 }
 
@@ -49,7 +50,7 @@ var _ = ginkgo.Describe("API", func() {
 			Expect(unrelatedError).Should(Equal(improveVcsTypeError(unrelatedError)))
 
 			errors := []graphql.ResponseError{
-				graphql.ResponseError{
+				{
 					Message: "foo",
 				},
 			}
@@ -121,7 +122,7 @@ var _ = ginkgo.Describe("API", func() {
 		})
 		defer server.Close()
 
-		Expect(client.CreateContext( "test-vcs", "test-org", "foo-bar")).To(Succeed())
+		Expect(client.CreateContext("test-vcs", "test-org", "foo-bar")).To(Succeed())
 
 	})
 

@@ -61,7 +61,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 Please note that at this time all namespaces created in the registry are world-readable.`,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 			return validateToken(opts.cfg)
 		},

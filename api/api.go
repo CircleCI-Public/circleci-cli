@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -9,11 +10,10 @@ import (
 	"sort"
 	"strings"
 
-	"fmt"
-
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -1824,17 +1824,17 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 // FollowProject initiates an API request to follow a specific project on
 // CircleCI. Project slugs are case-sensitive.
-func FollowProject(restEndpoint string, vcs string, owner string, projectName string, cciToken string) (FollowedProject, error) {
-	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", restEndpoint, vcs, owner, projectName)
+func FollowProject(config settings.Config, vcs string, owner string, projectName string) (FollowedProject, error) {
+	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", config.Endpoint, vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
 	if err != nil {
 		return FollowedProject{}, err
 	}
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
-	r.Header.Set("Circle-Token", cciToken)
-	client := http.Client{}
-	response, err := client.Do(r)
+	r.Header.Set("Circle-Token", config.Token)
+
+	response, err := config.HTTPClient.Do(r)
 	if err != nil {
 		return FollowedProject{}, err
 	}
