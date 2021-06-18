@@ -1256,7 +1256,7 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
-		_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
 		if err != nil {
 			return errors.Wrap(err, "Unable to create orb")
 		}
