@@ -119,7 +119,7 @@ Config file at .circleci/config.yml is valid
 The CLI may also be used without installation by using Docker.
 
 ```
-docker run --rm -v $(pwd):/data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
+docker run --rm -v $(pwd):/data -w /data circleci/circleci-cli:alpine config validate /data/.circleci/config.yml --token $TOKEN
 ```
 
 ## circleci-agent
