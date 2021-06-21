@@ -1256,13 +1256,15 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
-		_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
 		if err != nil {
 			return errors.Wrap(err, "Unable to create orb")
 		}
-		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, opts.args[1], api.Add)
-		if err != nil {
-			return err
+		for _, v := range categories {
+			err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
+			if err != nil {
+				return err
+			}
 		}
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
