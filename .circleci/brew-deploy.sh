@@ -2,6 +2,8 @@
 set -e
 
 # Install the latest circleci from homebrew
+git -C /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core fetch --unshallow
+git -C /usr/local/Homebrew/Library/Taps/homebrew/homebrew-cask fetch --unshallow
 brew update
 
 VERSION=$("$DESTDIR"/circleci version)
