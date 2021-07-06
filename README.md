@@ -79,6 +79,20 @@ After installing the CLI, you must run setup to configure the tool.
 ```
 $ circleci setup
 ```
+You should be prompted to enter the _CircleCI API Token_ you generated from the [Personal API Token tab](https://circleci.com/account/api)
+
+```
+✔ CircleCI API Token: 
+
+API token has been set.
+
+✔ CircleCI Host: https://circleci.com
+
+CircleCI host has been set.
+
+Setup complete. Your configuration has been saved.
+```
+
 
 You should be prompted to enter the _CircleCI API Token_ you generated from the [Personal API Token tab](https://circleci.com/account/api)
 
@@ -112,6 +126,7 @@ $ circleci config validate
 
 Config file at .circleci/config.yml is valid
 ```
+
 
 
 ## Docker
