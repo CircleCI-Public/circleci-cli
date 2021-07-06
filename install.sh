@@ -10,6 +10,9 @@
 
 set -o errexit
 
+# Use a function to ensure connection errors don't partially execute when being piped
+install() {
+
 echo "Starting installation."
 
 # GitHub's URL for the latest release, will redirect.
@@ -60,3 +63,7 @@ command -v circleci
 
 # Delete the working directory when the install was successful.
 rm -r "$SCRATCH"
+
+}
+
+install
