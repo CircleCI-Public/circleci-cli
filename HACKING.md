@@ -24,7 +24,7 @@ You should already have [installed Go](https://golang.org/doc/install).
 Clone the repo.
 
 ```
-$ git clone github.com/CircleCI-Public/circleci-cli
+$ git clone git@github.com:CircleCI-Public/circleci-cli.git
 $ cd circleci-cli
 ```
 
