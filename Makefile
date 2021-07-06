@@ -3,14 +3,17 @@ default: build
 GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
-build: always
+build: install-packr always
 	GO111MODULE=on .circleci/pack.sh
 	go build -o build/$(GOOS)/$(GOARCH)/circleci
 
-build-all: build/linux/amd64/circleci build/darwin/amd64/circleci
+build-all: build/linux/amd64/circleci build/darwin/amd64/circleci build/darwin/arm64/circleci
 
 build/%/amd64/circleci: always
 	GOOS=$* GOARCH=amd64 go build -v -o $@ .
+
+build/%/arm64/circleci: always
+	GOOS=$* GOARCH=arm64 go build -v -o $@ .
 
 .PHONY: clean
 clean:

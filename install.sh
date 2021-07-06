@@ -35,12 +35,14 @@ function error {
 trap error ERR
 
 # Determine release filename. This can be expanded with CPU arch in the future.
+ARCH=amd64
 case "$(uname)" in
 	Linux)
 		OS='linux'
 	;;
 	Darwin)
 		OS='darwin'
+		[ "$(arch)" == "arm64" ] && ARCH="arm64"
 	;;
 	*)
 		echo "This operating system is not supported."
@@ -48,7 +50,7 @@ case "$(uname)" in
 	;;
 esac
 
-RELEASE_URL="${GITHUB_BASE_URL}/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_amd64.tar.gz"
+RELEASE_URL="${GITHUB_BASE_URL}/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_${ARCH}.tar.gz"
 
 # Download & unpack the release tarball.
 curl -sL --retry 3 "${RELEASE_URL}" | tar zx --strip 1
