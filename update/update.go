@@ -69,6 +69,24 @@ func checkFromSource(check *Options) error {
 	return err
 }
 
+// Homebrew revisions get added to the version with an underscore.
+// So `1.2.3 revision 4` becomes `1.2.3_4`. This fails to parse as valid semver
+// version. We can work around this by replacing underscores with `-` to convert
+// the revision to a semver tag.
+// https://github.com/CircleCI-Public/circleci-cli/issues/610
+func ParseHomebrewVersion(homebrewVesion string) (semver.Version, error) {
+
+	withRevisionAsTag := strings.Replace(homebrewVesion, "_", "-", 10)
+
+	version, err := semver.Parse(withRevisionAsTag)
+
+	if err != nil {
+		return semver.Version{}, fmt.Errorf("failed to parse current version from %s: %w", homebrewVesion, err)
+	}
+
+	return version, nil
+}
+
 func checkFromHomebrew(check *Options) error {
 	brew, err := exec.LookPath("brew")
 	if err != nil {
@@ -91,20 +109,17 @@ func checkFromHomebrew(check *Options) error {
 	for _, o := range outdated.Formulae {
 		if o.Name == "circleci" {
 			if len(o.InstalledVersions) > 0 {
-				// homebrew versions may have a revision number appended, like
-				// `1.2.3_<revision_number>`. This is not valid semver, but we
-				// can make it valid by replacing the underscore with a hyphen.
-				current, err := semver.Parse(strings.Replace(o.InstalledVersions[0], "_", "-"))
+				current, err := ParseHomebrewVersion(o.InstalledVersions[0])
 				if err != nil {
-					return errors.Wrap(err, "failed to parse current version from `brew outdated --json=v2`")
+					return err
 				}
 				check.Current = current
 			}
 
 			// see above regarding homebrew / revision numbers
-			latest, err := semver.Parse(strings.Replace(o.CurrentVersion, "_", "-"))
+			latest, err := ParseHomebrewVersion(o.CurrentVersion)
 			if err != nil {
-				return errors.Wrap(err, "failed to  parse latest version from `brew outdated --json=v2`")
+				return err
 			}
 			check.Latest = &selfupdate.Release{
 				Version: latest,
