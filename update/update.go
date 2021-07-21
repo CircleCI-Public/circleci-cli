@@ -91,14 +91,18 @@ func checkFromHomebrew(check *Options) error {
 	for _, o := range outdated.Formulae {
 		if o.Name == "circleci" {
 			if len(o.InstalledVersions) > 0 {
-				current, err := semver.Parse(o.InstalledVersions[0])
+				// homebrew versions may have a revision number appended, like
+				// `1.2.3_<revision_number>`. This is not valid semver, but we
+				// can make it valid by replacing the underscore with a hyphen.
+				current, err := semver.Parse(strings.Replace(o.InstalledVersions[0], "_", "-"))
 				if err != nil {
 					return errors.Wrap(err, "failed to parse current version from `brew outdated --json=v2`")
 				}
 				check.Current = current
 			}
 
-			latest, err := semver.Parse(o.CurrentVersion)
+			// see above regarding homebrew / revision numbers
+			latest, err := semver.Parse(strings.Replace(o.CurrentVersion, "_", "-"))
 			if err != nil {
 				return errors.Wrap(err, "failed to  parse latest version from `brew outdated --json=v2`")
 			}
