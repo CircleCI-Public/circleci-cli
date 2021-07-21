@@ -29,8 +29,13 @@ func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options,
 		check *Options
 	)
 
+	currentVersion, err := semver.Parse(current)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse current version")
+	}
+
 	check = &Options{
-		Current:        semver.MustParse(current),
+		Current:        currentVersion,
 		PackageManager: packageManager,
 
 		githubAPI: githubAPI,
@@ -86,11 +91,19 @@ func checkFromHomebrew(check *Options) error {
 	for _, o := range outdated.Formulae {
 		if o.Name == "circleci" {
 			if len(o.InstalledVersions) > 0 {
-				check.Current = semver.MustParse(o.InstalledVersions[0])
+				current, err := semver.Parse(o.InstalledVersions[0])
+				if err != nil {
+					return errors.Wrap(err, "failed to parse current version from `brew outdated --json=v2`")
+				}
+				check.Current = current
 			}
 
+			latest, err := semver.Parse(o.CurrentVersion)
+			if err != nil {
+				return errors.Wrap(err, "failed to  parse latest version from `brew outdated --json=v2`")
+			}
 			check.Latest = &selfupdate.Release{
-				Version: semver.MustParse(o.CurrentVersion),
+				Version: latest,
 			}
 
 			// We found a release so update state of updates check

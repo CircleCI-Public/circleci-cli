@@ -181,7 +181,14 @@ func prepare() {
 }
 
 func rootCmdPreRun(rootOptions *settings.Config) error {
-	return checkForUpdates(rootOptions)
+	// If an error occurs checking for updates, we should print the error but
+	// not break the CLI entirely.
+	err := checkForUpdates(rootOptions)
+	if err != nil {
+		fmt.Printf("Error checking for updates: %s\n", err)
+		fmt.Printf("Please contact support.\n\n")
+	}
+	return nil
 }
 
 func validateToken(rootOptions *settings.Config) error {
