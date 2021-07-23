@@ -81,7 +81,7 @@ func ParseHomebrewVersion(homebrewVesion string) (semver.Version, error) {
 	version, err := semver.Parse(withRevisionAsTag)
 
 	if err != nil {
-		return semver.Version{}, fmt.Errorf("failed to parse current version from %s: %w", homebrewVesion, err)
+		return semver.Version{}, fmt.Errorf("failed to parse current version from %s: %s", homebrewVesion, err)
 	}
 
 	return version, nil
