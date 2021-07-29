@@ -491,9 +491,7 @@ func orbToSimpleString(orb api.OrbWithData) string {
 }
 
 func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) bool {
-	// TODO: make a separate api func to query for the orb's isPrivate field
-	// when available in the schema
-	orbExists, err := api.OrbExists(cl, namespace, orbName)
+	orbExists, orbIsPrivate, err := api.OrbExists(cl, namespace, orbName)
 
 	// we are don't want to output errors as they've already
 	// published a version of the orb successfully
@@ -502,7 +500,7 @@ func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) bool 
 	}
 
 	// orbExists will also be false if it is a private orb
-	return orbExists
+	return orbExists && !orbIsPrivate
 }
 
 func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, error) {

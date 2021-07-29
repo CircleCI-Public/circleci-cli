@@ -106,7 +106,7 @@ func generateImportPlan(opts orbOptions, orbVersions []api.OrbVersion) (orbImpor
 	}
 
 	for _, orb := range uniqueOrbs {
-		ok, err := api.OrbExists(opts.cl, orb.Namespace.Name, orb.Shortname())
+		ok, _, err := api.OrbExists(opts.cl, orb.Namespace.Name, orb.Shortname())
 		if err != nil {
 			return orbImportPlan{}, fmt.Errorf("orb id check failed: %s", err.Error())
 		}

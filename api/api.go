@@ -139,7 +139,8 @@ type OrbLatestVersionResponse struct {
 // OrbIDResponse matches the GQL response for fetching an Orb and ID
 type OrbIDResponse struct {
 	Orb struct {
-		ID string
+		ID        string
+		IsPrivate bool
 	}
 	RegistryNamespace struct {
 		ID string
@@ -686,8 +687,8 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 	return &response.PublishOrb.Orb, nil
 }
 
-// OrbExists checks whether an orb exists within the provided namespace.
-func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, error) {
+// OrbExists checks whether an orb exists within the provided namespace and whether it's private.
+func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, bool, error) {
 	name := namespace + "/" + orb
 
 	var response OrbIDResponse
@@ -696,6 +697,7 @@ func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, error) {
 	query ($name: String!, $namespace: String) {
 		orb(name: $name) {
 		  id
+		  isPrivate
 		}
 		registryNamespace(name: $namespace) {
 			id
@@ -710,10 +712,10 @@ func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, error) {
 
 	err := cl.Run(request, &response)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
-	return response.Orb.ID != "", nil
+	return response.Orb.ID != "", response.Orb.IsPrivate, nil
 }
 
 // OrbID fetches an orb returning the ID
