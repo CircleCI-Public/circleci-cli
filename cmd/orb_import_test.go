@@ -392,7 +392,7 @@ var _ = Describe("Import unit testing", func() {
 			nsResp := `{}`
 
 			orbExistsReq := `{
-					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 					"variables": {
 					  "name": "namespace1/orb",
 					  "namespace": "namespace1"
@@ -479,7 +479,7 @@ var _ = Describe("Import unit testing", func() {
 			nsResp := `{}`
 
 			orbExistsReq := `{
-					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 					"variables": {
 					  "name": "%s",
 					  "namespace": "%s"
@@ -572,7 +572,7 @@ var _ = Describe("Import unit testing", func() {
 				}`
 
 			orbExistsReq := `{
-					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 					"variables": {
 					  "name": "%s",
 					  "namespace": "%s"
@@ -581,7 +581,8 @@ var _ = Describe("Import unit testing", func() {
 
 			orbExistsResp := `{
 					"orb": {
-						"id": "someid"
+						"id": "someid",
+						"isPrivate": false
 					}
 				}`
 
