@@ -400,12 +400,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					  }`
 
 					gqlOrbIDResponse := `{
-						"orb": {"id": "orbid1"},
+						"orb": {"id": "orbid1", "isPrivate": false},
 						"registryNamespace": {"id": "nsid1"}
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -494,7 +494,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -555,12 +555,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					  }`
 
 					gqlOrbIDResponse := `{
-						"orb": {"id": "orbid1"},
+						"orb": {"id": "orbid1", "isPrivate": false},
 						"registryNamespace": {"id": "nsid1"}
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -649,7 +649,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -725,12 +725,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					  }`
 
 					gqlOrbIDResponse := `{
-						"orb": {"id": "orbid1"},
+						"orb": {"id": "orbid1", "isPrivate": false},
 						"registryNamespace": {"id": "nsid1"}
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -857,7 +857,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -938,12 +938,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					  }`
 
 					gqlOrbIDResponse := `{
-						"orb": {"id": "orbid1"},
+						"orb": {"id": "orbid1", "isPrivate": false},
 						"registryNamespace": {"id": "nsid1"}
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
@@ -1071,7 +1071,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					}`
 
 					expectedOrbIDRequest := `{
-						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 						"variables": {
 							"name": "my/orb",
 							"namespace": "my"
