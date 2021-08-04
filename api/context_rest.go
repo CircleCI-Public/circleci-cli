@@ -527,15 +527,15 @@ func (c *ContextRestClient) EnsureExists() error {
 // interface via the REST API.
 func NewContextRestClient(config settings.Config) (*ContextRestClient, error) {
 	// Ensure server ends with a slash
-	if !strings.HasSuffix(config.Endpoint, "/") {
-		config.Endpoint += "/"
+	if !strings.HasSuffix(config.RestEndpoint, "/") {
+		config.RestEndpoint += "/"
 	}
 	serverURL, err := url.Parse(config.Host)
 	if err != nil {
 		return nil, err
 	}
 
-	serverURL, err = serverURL.Parse(config.Endpoint)
+	serverURL, err = serverURL.Parse(config.RestEndpoint)
 	if err != nil {
 		return nil, err
 	}
