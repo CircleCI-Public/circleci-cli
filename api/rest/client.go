@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
@@ -55,6 +56,7 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	req.Header.Set("Circle-Token", c.circleToken)
 	req.Header.Set("Accept-Type", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
+	req.Header.Set("Circleci-Cli-Command", header.GetCommandStr())
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

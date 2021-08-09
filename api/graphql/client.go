@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
@@ -53,6 +54,7 @@ func NewRequest(query string) *Request {
 	}
 
 	request.Header.Set("User-Agent", version.UserAgent())
+	request.Header.Set("Circleci-Cli-Command", header.GetCommandStr())
 	return request
 }
 
