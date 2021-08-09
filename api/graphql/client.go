@@ -54,7 +54,10 @@ func NewRequest(query string) *Request {
 	}
 
 	request.Header.Set("User-Agent", version.UserAgent())
-	request.Header.Set("Circleci-Cli-Command", header.GetCommandStr())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		request.Header.Set("Circleci-Cli-Command", commandStr)
+	}
 	return request
 }
 

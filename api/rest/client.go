@@ -56,7 +56,10 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	req.Header.Set("Circle-Token", c.circleToken)
 	req.Header.Set("Accept-Type", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
-	req.Header.Set("Circleci-Cli-Command", header.GetCommandStr())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		req.Header.Set("Circleci-Cli-Command", commandStr)
+	}
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
