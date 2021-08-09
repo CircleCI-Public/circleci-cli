@@ -3,9 +3,11 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
@@ -33,10 +35,27 @@ var rootTokenFromFlag string
 // by main.main(). It only needs to happen once to
 // the rootCmd.
 func Execute() {
+	header.SetCommandStr(CommandStr())
 	command := MakeCommands()
 	if err := command.Execute(); err != nil {
 		os.Exit(-1)
 	}
+}
+
+// Returns a string (e.g. "context list") indicating what
+// subcommand is being called, without any args or flags,
+// for API headers.
+func CommandStr() string {
+	command := MakeCommands()
+	subCmd, _, err := command.Find(os.Args[1:])
+	if err != nil {
+		return ""
+	}
+	parentNames := []string{subCmd.Name()}
+	subCmd.VisitParents(func(parent *cobra.Command) {
+		parentNames = append([]string{parent.Name()}, parentNames...)
+	})
+	return strings.Join(parentNames, " ")
 }
 
 func hasAnnotations(cmd *cobra.Command) bool {
