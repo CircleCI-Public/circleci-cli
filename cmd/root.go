@@ -42,7 +42,7 @@ func Execute() {
 	}
 }
 
-// Returns a string (e.g. "context list") indicating what
+// Returns a string (e.g. "circleci context list") indicating what
 // subcommand is being called, without any args or flags,
 // for API headers.
 func CommandStr() string {
