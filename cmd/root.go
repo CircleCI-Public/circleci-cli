@@ -49,7 +49,7 @@ func CommandStr() string {
 	command := MakeCommands()
 	subCmd, _, err := command.Find(os.Args[1:])
 	if err != nil {
-		return ""
+		return "unknown"
 	}
 	parentNames := []string{subCmd.Name()}
 	subCmd.VisitParents(func(parent *cobra.Command) {
