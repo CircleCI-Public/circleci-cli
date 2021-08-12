@@ -1,7 +1,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -90,6 +92,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
+	processCommand.Flags().StringP("pipeline-parameters", "", "", "JSON map of pipeline parameters. Use @filename.json to read from a file.")
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
@@ -130,7 +133,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	orgSlug, _ := flags.GetString("org-slug")
 
-	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.FabricatedValues())
+	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.FabricatedValues(map[string]string{}))
 
 	if err != nil {
 		return err
@@ -147,8 +150,31 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	orgSlug, _ := flags.GetString("org-slug")
+	paramsJson, _ := flags.GetString("pipeline-parameters")
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.FabricatedValues())
+	var params map[string]string
+
+	if len(paramsJson) > 0 {
+		if paramsJson[0] == '@' {
+			data, fileErr := ioutil.ReadFile(paramsJson[1:])
+			if fileErr != nil {
+				return fileErr
+			}
+			jsonErr := json.Unmarshal([]byte(data), &params)
+
+			if jsonErr != nil {
+				return jsonErr
+			}
+		} else {
+			jsonErr := json.Unmarshal([]byte(paramsJson), &params)
+
+			if jsonErr != nil {
+				return jsonErr
+			}
+		}
+	}
+
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.FabricatedValues(params))
 
 	if err != nil {
 		return err
