@@ -12,7 +12,7 @@ type Values map[string]string
 
 // vars should contain any pipeline parameters that should be accessible via
 // << pipeline.parameters.foo >>
-func FabricatedValues(vars map[string]string) Values {
+func LocalPipelineVars(vars map[string]string) Values {
 	revision := git.Revision()
 	gitUrl := "https://github.com/CircleCI-Public/circleci-cli"
 	projectType := "github"

@@ -133,7 +133,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	orgSlug, _ := flags.GetString("org-slug")
 
-	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.FabricatedValues(map[string]string{}))
+	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.LocalPipelineVars(map[string]string{}))
 
 	if err != nil {
 		return err
@@ -174,7 +174,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.FabricatedValues(params))
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.LocalPipelineVars(params))
 
 	if err != nil {
 		return err
