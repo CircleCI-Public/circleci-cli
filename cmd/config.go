@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 
@@ -92,7 +91,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
-	processCommand.Flags().StringP("pipeline-parameters", "", "", "JSON map of pipeline parameters. Use @filename.json to read from a file.")
+	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts @filename (e.g @params-file.yml) to read from a file")
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
@@ -150,26 +149,26 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	orgSlug, _ := flags.GetString("org-slug")
-	paramsJson, _ := flags.GetString("pipeline-parameters")
+	paramsYaml, _ := flags.GetString("pipeline-parameters")
 
 	var params map[string]string
 
-	if len(paramsJson) > 0 {
-		if paramsJson[0] == '@' {
-			data, fileErr := ioutil.ReadFile(paramsJson[1:])
+	if len(paramsYaml) > 0 {
+		if paramsYaml[0] == '@' {
+			data, fileErr := ioutil.ReadFile(paramsYaml[1:])
 			if fileErr != nil {
 				return fileErr
 			}
-			jsonErr := json.Unmarshal([]byte(data), &params)
+			yamlErr := yaml.Unmarshal([]byte(data), &params)
 
-			if jsonErr != nil {
-				return jsonErr
+			if yamlErr != nil {
+				return yamlErr
 			}
 		} else {
-			jsonErr := json.Unmarshal([]byte(paramsJson), &params)
+			yamlErr := yaml.Unmarshal([]byte(paramsYaml), &params)
 
-			if jsonErr != nil {
-				return jsonErr
+			if yamlErr != nil {
+				return yamlErr
 			}
 		}
 	}
