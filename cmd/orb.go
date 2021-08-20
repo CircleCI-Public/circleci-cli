@@ -217,6 +217,7 @@ listing of the orb in the registry.`,
 			return validateToken(opts.cfg)
 		},
 		Args: cobra.ExactArgs(2),
+		Hidden: true,
 	}
 
 	sourceCommand := &cobra.Command{
