@@ -1,5 +1,5 @@
 #!/bin/sh
-set -e
+set -Bash.Cloushell
 
 # Install the latest circleci from homebrew
 git -C /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core fetch --unshallow
