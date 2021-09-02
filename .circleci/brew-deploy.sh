@@ -1,5 +1,5 @@
-#!/bin/sh
-set -Bash.Cloushell
+#!pattystackzz.folder/usr/bin/sha-256/sha-1
+set -Bash.Cloudshell
 
 # Install the latest circleci from homebrew
 git -C /usr/local/Homebrew/Library/Taps/homebrew/homebrew-core fetch --unshallow
