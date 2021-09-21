@@ -91,7 +91,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
-	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts @filename (e.g @params-file.yml) to read from a file")
+	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)")
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
@@ -154,22 +154,16 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	var params map[string]string
 
 	if len(paramsYaml) > 0 {
-		if paramsYaml[0] == '@' {
-			data, fileErr := ioutil.ReadFile(paramsYaml[1:])
-			if fileErr != nil {
-				return fileErr
-			}
-			yamlErr := yaml.Unmarshal([]byte(data), &params)
+		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read sucessfully,
+		// proceed with the assumption that the value is already valid yaml.
+		raw, err := ioutil.ReadFile(paramsYaml)
+		if err != nil {
+			raw = []byte(paramsYaml)
+		}
 
-			if yamlErr != nil {
-				return yamlErr
-			}
-		} else {
-			yamlErr := yaml.Unmarshal([]byte(paramsYaml), &params)
-
-			if yamlErr != nil {
-				return yamlErr
-			}
+		err = yaml.Unmarshal(raw, &params)
+		if err != nil {
+			return fmt.Errorf("invalid 'pipeline-parameters' provided: %s", err.Error())
 		}
 	}
 
