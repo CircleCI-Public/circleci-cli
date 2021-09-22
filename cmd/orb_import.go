@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -200,4 +201,39 @@ func displayPlan(w io.Writer, plan orbImportPlan) {
 
 func isNamespace(ref string) bool {
 	return len(strings.Split(ref, "/")) == 1
+}
+
+func deleteNamespace(nsOpts namespaceOptions) error {
+	if len(nsOpts.args) == 0 {
+		return errors.New("namespace name must be provided")
+	}
+	namespaceArg := nsOpts.args[0]
+
+	nsResp, err := api.GetNamespace(nsOpts.cl, namespaceArg)
+	if err != nil {
+		return fmt.Errorf("namespace check failed: %s", err.Error())
+	}
+
+	// Currently, private orbs will not be included in the list of orbs to be deleted.
+	// This can be changed once we have 'listBothPublicAndPrivateOrbs' functionality.
+	orbs, err := api.ListNamespaceOrbs(nsOpts.cl, namespaceArg, false)
+	if err != nil {
+		return fmt.Errorf("unable to list orbs: %s", err.Error())
+	}
+
+	var b strings.Builder
+	b.WriteString("The following delete actions will be performed:\n")
+
+	b.WriteString(fmt.Sprintf("  Delete namespace: '%s'\n", namespaceArg))
+	for _, o := range orbs.Orbs {
+		b.WriteString(fmt.Sprintf("  Delete orb: '%s'\n", o.Name))
+	}
+
+	fmt.Println(b.String())
+
+	if !nsOpts.noPrompt && !nsOpts.tty.askUserToConfirm("Are you sure you would like to proceed?") {
+		return nil
+	}
+
+	return api.DeleteNamespace(nsOpts.cl, nsResp.RegistryNamespace.ID)
 }

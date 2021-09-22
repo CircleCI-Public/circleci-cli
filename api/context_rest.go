@@ -10,7 +10,9 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
 
@@ -475,6 +477,11 @@ func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (
 	req.Header.Add("circle-token", c.token)
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", version.UserAgent())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		req.Header.Add("Circleci-Cli-Command", commandStr)
+	}
 	return req, nil
 }
 
