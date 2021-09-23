@@ -10,8 +10,9 @@ import (
 // CircleCI provides various `<< pipeline.x >>` values to be used in your config, but sometimes we need to fabricate those values when validating config.
 type Values map[string]string
 
-func FabricatedValues() Values {
-
+// vars should contain any pipeline parameters that should be accessible via
+// << pipeline.parameters.foo >>
+func LocalPipelineVars(vars map[string]string) Values {
 	revision := git.Revision()
 	gitUrl := "https://github.com/CircleCI-Public/circleci-cli"
 	projectType := "github"
@@ -28,7 +29,7 @@ func FabricatedValues() Values {
 		}
 	}
 
-	return map[string]string{
+	vals := map[string]string{
 		"id":                "00000000-0000-0000-0000-000000000001",
 		"number":            "1",
 		"project.git_url":   gitUrl,
@@ -38,6 +39,12 @@ func FabricatedValues() Values {
 		"git.revision":      revision,
 		"git.base_revision": revision,
 	}
+
+	for paramName, paramValue := range vars {
+		vals[fmt.Sprintf("parameters.%s", paramName)] = paramValue
+	}
+
+	return vals
 }
 
 // TODO: type Parameters map[string]string

@@ -176,7 +176,7 @@ var _ = Describe("Config", func() {
 
 				r := graphql.NewRequest(query)
 				r.Variables["config"] = config
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.FabricatedValues())
+				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineVars(map[string]string{}))
 
 				req, err := r.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -254,7 +254,7 @@ var _ = Describe("Config", func() {
 
 				r := graphql.NewRequest(query)
 				r.Variables["config"] = config
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.FabricatedValues())
+				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineVars(map[string]string{}))
 				r.Variables["orgSlug"] = orgSlug
 
 				req, err := r.Encode()
