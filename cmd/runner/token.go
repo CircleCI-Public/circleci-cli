@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"os"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -24,7 +23,7 @@ func newTokenCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return generateConfig(*token, os.Stdout)
+			return generateConfig(*token, cmd.OutOrStdout())
 		},
 	})
 
@@ -51,7 +50,7 @@ func newTokenCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 				return err
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
+			table := tablewriter.NewWriter(cmd.OutOrStdout())
 			defer table.Render()
 			table.SetHeader([]string{"ID", "Nickname", "Created At"})
 			for _, token := range tokens {
