@@ -130,7 +130,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		}, "\n"),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processOrb(opts)
@@ -331,7 +331,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Long:  orbHelpLong(config),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.
@@ -490,10 +490,8 @@ func orbToSimpleString(orb api.OrbWithData) string {
 	return buffer.String()
 }
 
-func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) (bool) {
-	// TODO: make a separate api func to query for the orb's isPrivate field
-	// when available in the schema
-	orbExists, err := api.OrbExists(cl, namespace, orbName)
+func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) bool {
+	orbExists, orbIsPrivate, err := api.OrbExists(cl, namespace, orbName)
 
 	// we are don't want to output errors as they've already
 	// published a version of the orb successfully
@@ -502,7 +500,7 @@ func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) (bool
 	}
 
 	// orbExists will also be false if it is a private orb
-	return orbExists
+	return orbExists && !orbIsPrivate
 }
 
 func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, error) {
@@ -794,7 +792,6 @@ func promoteOrb(opts orbOptions) error {
 	}
 
 	fmt.Printf("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
-
 
 	if orbIsOpenSource(opts.cl, namespace, orb) {
 		fmt.Println("Please note that this is an open orb and is world-readable.")
@@ -1195,7 +1192,7 @@ func initOrb(opts orbOptions) error {
 			x = append(x, v.Name)
 		}
 
-		return  x
+		return x
 	}()
 
 	var categories []string
@@ -1219,7 +1216,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if createContext == 0 {
-		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		contextGql := api.NewContextGraphqlClient(opts.cfg.HTTPClient, opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
 		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
 		if err != nil {
 			if strings.Contains(err.Error(), "A context named orb-publishing already exists") {
@@ -1257,13 +1254,15 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
-		_, err = api.CreateOrb(opts.cl, namespace, orbName, false)
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
 		if err != nil {
 			return errors.Wrap(err, "Unable to create orb")
 		}
-		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, opts.args[1], api.Add)
-		if err != nil {
-			return err
+		for _, v := range categories {
+			err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
+			if err != nil {
+				return err
+			}
 		}
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
@@ -1414,7 +1413,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fr, err := api.FollowProject(opts.cfg.Host, vcsShort, ownerName, projectName, opts.cfg.Token)
+	fr, err := api.FollowProject(*opts.cfg, vcsShort, ownerName, projectName)
 	if err != nil {
 		return err
 	}

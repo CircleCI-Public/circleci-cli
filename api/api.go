@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -9,11 +10,10 @@ import (
 	"sort"
 	"strings"
 
-	"fmt"
-
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/Masterminds/semver"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
@@ -139,7 +139,8 @@ type OrbLatestVersionResponse struct {
 // OrbIDResponse matches the GQL response for fetching an Orb and ID
 type OrbIDResponse struct {
 	Orb struct {
-		ID string
+		ID        string
+		IsPrivate bool
 	}
 	RegistryNamespace struct {
 		ID string
@@ -686,8 +687,8 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 	return &response.PublishOrb.Orb, nil
 }
 
-// OrbExists checks whether an orb exists within the provided namespace.
-func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, error) {
+// OrbExists checks whether an orb exists within the provided namespace and whether it's private.
+func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, bool, error) {
 	name := namespace + "/" + orb
 
 	var response OrbIDResponse
@@ -696,6 +697,7 @@ func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, error) {
 	query ($name: String!, $namespace: String) {
 		orb(name: $name) {
 		  id
+		  isPrivate
 		}
 		registryNamespace(name: $namespace) {
 			id
@@ -710,10 +712,10 @@ func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, error) {
 
 	err := cl.Run(request, &response)
 	if err != nil {
-		return false, err
+		return false, false, err
 	}
 
-	return response.Orb.ID != "", nil
+	return response.Orb.ID != "", response.Orb.IsPrivate, nil
 }
 
 // OrbID fetches an orb returning the ID
@@ -898,6 +900,44 @@ mutation($name: String!) {
 
 	if !response.DeleteNamespaceAlias.Deleted {
 		return errors.New("Namespace alias deletion failed for unknown reasons.")
+	}
+
+	return nil
+}
+
+func DeleteNamespace(cl *graphql.Client, id string) error {
+	var response struct {
+		DeleteNamespace struct {
+			Deleted bool
+			Errors  GQLErrorsCollection
+		} `json:"deleteNamespaceAndRelatedOrbs"`
+	}
+	query := `
+mutation($id: UUID!) {
+  deleteNamespaceAndRelatedOrbs(namespaceId: $id) {
+    deleted
+    errors {
+      type
+      message
+    }
+  }
+}
+`
+	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
+	request.Var("id", id)
+
+	err := cl.Run(request, &response)
+	if err != nil {
+		return err
+	}
+
+	if len(response.DeleteNamespace.Errors) > 0 {
+		return response.DeleteNamespace.Errors
+	}
+
+	if !response.DeleteNamespace.Deleted {
+		return errors.New("Namespace deletion failed for unknown reasons.")
 	}
 
 	return nil
@@ -1824,17 +1864,17 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 // FollowProject initiates an API request to follow a specific project on
 // CircleCI. Project slugs are case-sensitive.
-func FollowProject(restEndpoint string, vcs string, owner string, projectName string, cciToken string) (FollowedProject, error) {
-	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", restEndpoint, vcs, owner, projectName)
+func FollowProject(config settings.Config, vcs string, owner string, projectName string) (FollowedProject, error) {
+	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", config.Host, vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
 	if err != nil {
 		return FollowedProject{}, err
 	}
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
-	r.Header.Set("Circle-Token", cciToken)
-	client := http.Client{}
-	response, err := client.Do(r)
+	r.Header.Set("Circle-Token", config.Token)
+
+	response, err := config.HTTPClient.Do(r)
 	if err != nil {
 		return FollowedProject{}, err
 	}

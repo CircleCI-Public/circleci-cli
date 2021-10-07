@@ -20,17 +20,17 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	var contextClient api.ContextInterface
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		contextClient, e = api.NewContextRestClient(config.Host, config.RestEndpoint, config.Token)
+		contextClient, e = api.NewContextRestClient(*config)
 		if e != nil {
 			return e
 		}
 
 		// If we're on cloud, we're good.
-		if (config.Host == defaultHost || contextClient.(*api.ContextRestClient).EnsureExists() == nil) {
+		if config.Host == defaultHost || contextClient.(*api.ContextRestClient).EnsureExists() == nil {
 			return validateToken(config)
 		}
 
-		contextClient = api.NewContextGraphqlClient(config.Host, config.Endpoint, config.Token, config.Debug)
+		contextClient = api.NewContextGraphqlClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 		return validateToken(config)
 	}
@@ -41,8 +41,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	listCommand := &cobra.Command{
-		Short:  "List all contexts",
-		Use:    "list <vcs-type> <org-name>",
+		Short:   "List all contexts",
+		Use:     "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listContexts(contextClient, args[0], args[1])
@@ -51,8 +51,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	showContextCommand := &cobra.Command{
-		Short:  "Show a context",
-		Use:    "show <vcs-type> <org-name> <context-name>",
+		Short:   "Show a context",
+		Use:     "show <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return showContext(contextClient, args[0], args[1], args[2])
@@ -61,8 +61,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	storeCommand := &cobra.Command{
-		Short:  "Store a new environment variable in the named context. The value is read from stdin.",
-		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Store a new environment variable in the named context. The value is read from stdin.",
+		Use:     "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return storeEnvVar(contextClient, args[0], args[1], args[2], args[3])
@@ -71,8 +71,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	removeCommand := &cobra.Command{
-		Short:  "Remove an environment variable from the named context",
-		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Remove an environment variable from the named context",
+		Use:     "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return removeEnvVar(contextClient, args[0], args[1], args[2], args[3])
@@ -81,8 +81,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createContextCommand := &cobra.Command{
-		Short:  "Create a new context",
-		Use:    "create <vcs-type> <org-name> <context-name>",
+		Short:   "Create a new context",
+		Use:     "create <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createContext(contextClient, args[0], args[1], args[2])
@@ -92,8 +92,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 	force := false
 	deleteContextCommand := &cobra.Command{
-		Short:  "Delete the named context",
-		Use:    "delete <vcs-type> <org-name> <context-name>",
+		Short:   "Delete the named context",
+		Use:     "delete <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return deleteContext(contextClient, force, args[0], args[1], args[2])

@@ -26,7 +26,7 @@ func followProject(opts options) error {
 	if remote.VcsType == "BITBUCKET" {
 		vcsShort = "bb"
 	}
-	res, err := api.FollowProject(opts.cfg.Host, vcsShort, remote.Organization, remote.Project, opts.cfg.Token)
+	res, err := api.FollowProject(*opts.cfg, vcsShort, remote.Organization, remote.Project)
 	if err != nil {
 		return err
 	}

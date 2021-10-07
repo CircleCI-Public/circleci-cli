@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"io/ioutil"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -60,7 +61,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return validateConfig(opts, cmd.Flags())
@@ -80,7 +81,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return processConfig(opts, cmd.Flags())
@@ -90,6 +91,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
+	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)")
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
@@ -130,8 +132,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	orgSlug, _ := flags.GetString("org-slug")
 
-	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.FabricatedValues())
-
+	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.LocalPipelineVars(map[string]string{}))
 	if err != nil {
 		return err
 	}
@@ -147,8 +148,25 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	orgSlug, _ := flags.GetString("org-slug")
+	paramsYaml, _ := flags.GetString("pipeline-parameters")
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.FabricatedValues())
+	var params map[string]string
+
+	if len(paramsYaml) > 0 {
+		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read sucessfully,
+		// proceed with the assumption that the value is already valid yaml.
+		raw, err := ioutil.ReadFile(paramsYaml)
+		if err != nil {
+			raw = []byte(paramsYaml)
+		}
+
+		err = yaml.Unmarshal(raw, &params)
+		if err != nil {
+			return fmt.Errorf("invalid 'pipeline-parameters' provided: %s", err.Error())
+		}
+	}
+
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.LocalPipelineVars(params))
 
 	if err != nil {
 		return err
