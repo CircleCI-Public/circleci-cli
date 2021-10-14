@@ -1,6 +1,7 @@
 package cmd_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -165,8 +166,8 @@ var _ = Describe("Config", func() {
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				query := `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
-					buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
+				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValuesJson: String) {
+					buildConfig(configYaml: $config, pipelineParametersJson: $pipelineParametersJson, pipelineValuesJson: $pipelineValuesJson) {
 						valid,
 						errors { message },
 						sourceYaml,
@@ -176,7 +177,10 @@ var _ = Describe("Config", func() {
 
 				r := graphql.NewRequest(query)
 				r.Variables["config"] = config
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineVars(map[string]string{}))
+
+				pipelineValues, err := json.Marshal(pipeline.LocalPipelineValues())
+				Expect(err).ToNot(HaveOccurred())
+				r.Variables["pipelineValuesJson"] = string(pipelineValues)
 
 				req, err := r.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -222,6 +226,72 @@ var _ = Describe("Config", func() {
 			})
 		})
 
+		Describe("validating configs with pipeline parameters", func() {
+			config := "version: 2.1"
+			var expReq string
+
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"config", "process",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--pipeline-parameters", `{"foo": "test", "bar": true, "baz": 10}`,
+					"-",
+				)
+
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				_, err = io.WriteString(stdin, config)
+				Expect(err).ToNot(HaveOccurred())
+				stdin.Close()
+
+				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValuesJson: String) {
+					buildConfig(configYaml: $config, pipelineParametersJson: $pipelineParametersJson, pipelineValuesJson: $pipelineValuesJson) {
+						valid,
+						errors { message },
+						sourceYaml,
+						outputYaml
+					}
+				}`
+
+				r := graphql.NewRequest(query)
+				r.Variables["config"] = config
+
+				pipelineValues, err := json.Marshal(pipeline.LocalPipelineValues())
+				Expect(err).ToNot(HaveOccurred())
+				r.Variables["pipelineValuesJson"] = string(pipelineValues)
+
+				pipelineParams, err := json.Marshal(pipeline.Parameters{
+					"foo": "test",
+					"bar": true,
+					"baz": 10,
+				})
+				Expect(err).ToNot(HaveOccurred())
+				r.Variables["pipelineParametersJson"] = string(pipelineParams)
+
+				req, err := r.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+				expReq = req.String()
+			})
+
+			It("returns successfully when validating a config", func() {
+				expResp := `{
+					"buildConfig": {}
+				}`
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
 		Describe("validating configs with private orbs", func() {
 			config := "version: 2.1"
 			orgSlug := "circleci"
@@ -243,8 +313,8 @@ var _ = Describe("Config", func() {
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				query := `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-					buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
+				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValuesJson: String, $orgSlug: String) {
+					buildConfig(configYaml: $config, pipelineParametersJson: $pipelineParametersJson, pipelineValuesJson: $pipelineValuesJson, orgSlug: $orgSlug) {
 						valid,
 						errors { message },
 						sourceYaml,
@@ -254,8 +324,11 @@ var _ = Describe("Config", func() {
 
 				r := graphql.NewRequest(query)
 				r.Variables["config"] = config
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineVars(map[string]string{}))
 				r.Variables["orgSlug"] = orgSlug
+
+				pipelineValues, err := json.Marshal(pipeline.LocalPipelineValues())
+				Expect(err).ToNot(HaveOccurred())
+				r.Variables["pipelineValuesJson"] = string(pipelineValues)
 
 				req, err := r.Encode()
 				Expect(err).ShouldNot(HaveOccurred())

@@ -514,7 +514,7 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
+func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 	var query string
 
@@ -524,8 +524,8 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipeline
 	}
 
 	if orgSlug != "" {
-		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-					buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
+		query = `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValuesJson: String, $orgSlug: String) {
+					buildConfig(configYaml: $config, pipelineParametersJson: $pipelineParametersJson, pipelineValuesJson: $pipelineValuesJson, orgSlug: $orgSlug) {
 						valid,
 						errors { message },
 						sourceYaml,
@@ -533,8 +533,8 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipeline
 					}
 				}`
 	} else {
-		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
-					buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
+		query = `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValuesJson: String) {
+					buildConfig(configYaml: $config, pipelineParametersJson: $pipelineParametersJson, pipelineValuesJson: $pipelineValuesJson) {
 						valid,
 						errors { message },
 						sourceYaml,
@@ -545,8 +545,19 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipeline
 
 	request := graphql.NewRequest(query)
 	request.Var("config", config)
-	if pipelineValues != nil {
-		request.Var("pipelineValues", pipeline.PrepareForGraphQL(pipelineValues))
+	if values != nil {
+		pipelineValues, err := json.Marshal(values)
+		if err != nil {
+			return nil, fmt.Errorf("unable to serialize pipeline values: %s", err.Error())
+		}
+		request.Var("pipelineValuesJson", string(pipelineValues))
+	}
+	if params != nil {
+		pipelineParameters, err := json.Marshal(params)
+		if err != nil {
+			return nil, fmt.Errorf("unable to serialize pipeline values: %s", err.Error())
+		}
+		request.Var("pipelineParametersJson", string(pipelineParameters))
 	}
 	if orgSlug != "" {
 		request.Var("orgSlug", orgSlug)

@@ -132,7 +132,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	orgSlug, _ := flags.GetString("org-slug")
 
-	_, err := api.ConfigQuery(opts.cl, path, orgSlug, pipeline.LocalPipelineVars(map[string]string{}))
+	_, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
 	if err != nil {
 		return err
 	}
@@ -150,7 +150,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	orgSlug, _ := flags.GetString("org-slug")
 	paramsYaml, _ := flags.GetString("pipeline-parameters")
 
-	var params map[string]string
+	var params pipeline.Parameters
 
 	if len(paramsYaml) > 0 {
 		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read sucessfully,
@@ -166,12 +166,12 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, pipeline.LocalPipelineVars(params))
-
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
 	if err != nil {
 		return err
 	}
 
+	fmt.Println(response.OutputYaml)
 	fmt.Print(response.OutputYaml)
 	return nil
 }
