@@ -95,8 +95,7 @@ CircleCI host has been set.
 Setup complete. Your configuration has been saved.
 ```
 
-
-If you are using this tool on `circleci.com`. accept the provided default `CircleCI Host`.
+If you are using this tool on `circleci.com`, accept the provided default `CircleCI Host`.
 
 Server users will have to change the default value to your custom address (i.e. `circleci.my-org.com`).
 
