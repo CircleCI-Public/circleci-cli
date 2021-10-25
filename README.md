@@ -97,7 +97,7 @@ Setup complete. Your configuration has been saved.
 
 If you are using this tool on `circleci.com`, accept the provided default `CircleCI Host`.
 
-Server users will have to change the default value to your custom address (i.e. `circleci.my-org.com`).
+Server users will have to change the default value to your custom address (e.g., `circleci.my-org.com`).
 
 **Note**: Server does not yet support config processing and orbs, you will only be able to use `circleci local execute` (previously `circleci build`) for now.
 
