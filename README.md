@@ -135,7 +135,7 @@ The following commands are affected:
 
 ## Platforms, Deployment and Package Managers
 
-The tool is deployed through a number of channels. The primary release channel is through [GitHub Releases](https://github.com/CircleCI-Public/circleci-cli/releases). Green builds on the `master` branch will publish a new GitHub release. These releases contain binaries for macOS, Linux and Windows. These releases are published from (CircleCI)[https://app.circleci.com/pipelines/github/CircleCI-Public/circleci-cli] using (GoReleaser)[https://goreleaser.com/].
+The tool is deployed through a number of channels. The primary release channel is through [GitHub Releases](https://github.com/CircleCI-Public/circleci-cli/releases). Green builds on the `master` branch will publish a new GitHub release. These releases contain binaries for macOS, Linux and Windows. These releases are published from [CircleCI](https://app.circleci.com/pipelines/github/CircleCI-Public/circleci-cli) using [GoReleaser](https://goreleaser.com/).
 
 ### Homebrew
 
