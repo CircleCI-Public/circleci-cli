@@ -1424,6 +1424,7 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 		      }`
 
 	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
