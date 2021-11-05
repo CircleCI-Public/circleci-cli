@@ -90,7 +90,7 @@ func (r *runnerMock) GetResourceClassByName(resourceClass string) (*runner.Resou
 			return &rc, nil
 		}
 	}
-	return nil, errors.New("not found")
+	return nil, errors.New("Resource Class not found")
 }
 
 func (r *runnerMock) GetResourceClassesByNamespace(namespace string) ([]runner.ResourceClass, error) {
