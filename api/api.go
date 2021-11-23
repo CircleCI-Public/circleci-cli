@@ -535,7 +535,7 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params p
 	}
 	query = fmt.Sprintf(
 		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues %s) {
+			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
 				valid,
 				errors { message },
 				sourceYaml,

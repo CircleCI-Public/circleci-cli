@@ -171,7 +171,6 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		return err
 	}
 
-	fmt.Println(response.OutputYaml)
 	fmt.Print(response.OutputYaml)
 	return nil
 }
