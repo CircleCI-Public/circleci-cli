@@ -301,7 +301,7 @@ jobs:
     executor: go
     steps:
       - checkout
-      - apt install shellcheck
+      - run: apt install shellcheck
       - shellcheck/check:
           exclude: ./vendor/*
           version: v0.8.0
