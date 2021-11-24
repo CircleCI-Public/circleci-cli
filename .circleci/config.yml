@@ -301,7 +301,7 @@ jobs:
     executor: go
     steps:
       - checkout
-      - run: apt install shellcheck
+      - run: sudo apt install shellcheck
       - shellcheck/check:
           exclude: ./vendor/*
 
