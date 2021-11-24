@@ -304,7 +304,6 @@ jobs:
       - run: apt install shellcheck
       - shellcheck/check:
           exclude: ./vendor/*
-          version: v0.8.0
 
 workflows:
   ci:
