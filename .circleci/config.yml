@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   codecov: codecov/codecov@1.1.3
-  shellcheck: circleci/shellcheck@1.2.0
+  shellcheck: circleci/shellcheck@2.2.4
   windows: circleci/windows@2.2.0
 
 executors:
