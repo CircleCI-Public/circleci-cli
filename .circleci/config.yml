@@ -296,6 +296,15 @@ jobs:
           name: Push to Chocolatey package repository
           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
           working_directory: chocolatey
+  
+  shellcheck:
+    executor: go
+    steps:
+      - checkout
+      - apt install shellcheck
+      - shellcheck/check:
+          exclude: ./vendor/*
+          version: v0.8.0
 
 workflows:
   ci:
@@ -303,9 +312,7 @@ workflows:
       - build
       - cucumber:
           requires: [build]
-      - shellcheck/check:
-          exclude: ./vendor/*
-          version: v0.8.0
+      - shellcheck
       - test
       - test_mac
       - test_windows
