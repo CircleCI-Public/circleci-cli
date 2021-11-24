@@ -342,7 +342,7 @@ workflows:
             - coverage
             - lint
             - deploy-test
-            - shellcheck/check
+            - shellcheck
           filters:
             branches:
               only: master
