@@ -305,6 +305,7 @@ workflows:
           requires: [build]
       - shellcheck/check:
           exclude: ./vendor/*
+          version: v0.8.0
       - test
       - test_mac
       - test_windows
