@@ -30,6 +30,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 type running interface {
 	CreateResourceClass(resourceClass, desc string) (rc *runner.ResourceClass, err error)
 	GetResourceClassByName(resourceClass string) (rc *runner.ResourceClass, err error)
+	GetNamespaceByResourceClass(resourceClass string) (ns string, err error)
 	GetResourceClassesByNamespace(namespace string) ([]runner.ResourceClass, error)
 	DeleteResourceClass(id string) error
 	CreateToken(resourceClass, nickname string) (token *runner.Token, err error)
