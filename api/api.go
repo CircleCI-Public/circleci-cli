@@ -1501,6 +1501,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 	for {
 		request := graphql.NewRequest(query)
+		request.SetToken(cl.Token)
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
