@@ -22,9 +22,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			if err := presentTerms(args[0], o, cmd); err != nil {
-				return err
-			}
+			cmd.PrintErr(terms)
 
 			rc, err := o.r.CreateResourceClass(args[0], args[1])
 			if err != nil {
@@ -101,24 +99,8 @@ func appendResourceClass(table *tablewriter.Table, rc runner.ResourceClass) {
 
 const terms = "If you have not already agreed to Runner Terms in a signed Order, " +
 	"then by continuing to install Runner, " +
-	"you are agreeing to CircleCI's Runner Terms which are found at: https://circleci.com/legal/runner-terms/.\n\n" +
+	"you are agreeing to CircleCI's Runner Terms which are found at: https://circleci.com/legal/runner-terms/.\n" +
 	"If you already agreed to Runner Terms in a signed Order, " +
-	"the Runner Terms in the signed Order supersede the Runner Terms in the web address above.\n\n" +
+	"the Runner Terms in the signed Order supersede the Runner Terms in the web address above.\n" +
 	"If you did not already agree to Runner Terms through a signed Order and do not agree to the Runner Terms in the web address above, " +
 	"please do not install or use Runner.\n\n"
-
-func presentTerms(rc string, o *runnerOpts, cmd *cobra.Command) error {
-	ns, err := o.r.GetNamespaceByResourceClass(rc)
-	if err != nil {
-		return err
-	}
-	rcs, err := o.r.GetResourceClassesByNamespace(ns)
-	if err != nil {
-		return err
-	}
-	// Only present the terms on creation of the first resource class in a namespace
-	if len(rcs) == 0 {
-		cmd.PrintErr(terms)
-	}
-	return nil
-}
