@@ -45,21 +45,6 @@ func Test_ResourceClass(t *testing.T) {
 			assert.Check(t, cmp.Equal(len(runner.tokens), 0))
 
 			assert.Check(t, cmp.Contains(stderr.String(), terms))
-			t.Run("don't show terms again", func(t *testing.T) {
-				stderr.Reset()
-
-				cmd.SetArgs([]string{
-					"create",
-					"my-namespace/my-second-resource-class",
-					"my-description",
-				})
-
-				err := cmd.Execute()
-				assert.NilError(t, err)
-
-				assert.Check(t, cmp.Equal(len(runner.resourceClasses), 2))
-				assert.Check(t, !strings.Contains(stderr.String(), terms))
-			})
 		})
 
 		t.Run("with default token", func(t *testing.T) {
@@ -89,21 +74,6 @@ func Test_ResourceClass(t *testing.T) {
 			assert.Check(t, cmp.Contains(out, "fake-token"))
 
 			assert.Check(t, cmp.Contains(stderr.String(), terms))
-			t.Run("don't show terms again", func(t *testing.T) {
-				stderr.Reset()
-
-				cmd.SetArgs([]string{
-					"create",
-					"my-namespace/my-second-resource-class",
-					"my-description",
-				})
-
-				err := cmd.Execute()
-				assert.NilError(t, err)
-
-				assert.Check(t, cmp.Equal(len(runner.resourceClasses), 2))
-				assert.Check(t, !strings.Contains(stderr.String(), terms))
-			})
 		})
 	})
 }
