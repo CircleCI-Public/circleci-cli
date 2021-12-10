@@ -1,7 +1,7 @@
 package runner
 
 import (
-	"os"
+	"io"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
@@ -30,7 +30,7 @@ func newRunnerInstanceCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 				return err
 			}
 
-			table := newRunnerInstanceTable()
+			table := newRunnerInstanceTable(cmd.OutOrStdout())
 			defer table.Render()
 			for _, r := range runners {
 				appendRunnerInstance(table, r)
@@ -43,8 +43,8 @@ func newRunnerInstanceCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 	return cmd
 }
 
-func newRunnerInstanceTable() *tablewriter.Table {
-	table := tablewriter.NewWriter(os.Stdout)
+func newRunnerInstanceTable(writer io.Writer) *tablewriter.Table {
+	table := tablewriter.NewWriter(writer)
 	table.SetHeader([]string{
 		"Name",
 		"Resource Class",

@@ -514,7 +514,7 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipelineValues pipeline.Values) (*ConfigResponse, error) {
+func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 	var query string
 
@@ -523,30 +523,38 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, pipeline
 		return nil, err
 	}
 
+	// GraphQL isn't forwards-compatible, so we are unusually selective here about
+	// passing only non-empty fields on to the API, to minimize user impact if the
+	// backend is out of date.
+	var fieldAddendums string
 	if orgSlug != "" {
-		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-					buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
-						valid,
-						errors { message },
-						sourceYaml,
-						outputYaml
-					}
-				}`
-	} else {
-		query = `query ValidateConfig ($config: String!, $pipelineValues: [StringKeyVal!]) {
-					buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
-						valid,
-						errors { message },
-						sourceYaml,
-						outputYaml
-					}
-				}`
+		fieldAddendums += ", orgSlug: $orgSlug"
 	}
+	if len(params) > 0 {
+		fieldAddendums += ", pipelineParametersJson: $pipelineParametersJson"
+	}
+	query = fmt.Sprintf(
+		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`,
+		fieldAddendums)
 
 	request := graphql.NewRequest(query)
 	request.Var("config", config)
-	if pipelineValues != nil {
-		request.Var("pipelineValues", pipeline.PrepareForGraphQL(pipelineValues))
+	if values != nil {
+		request.Var("pipelineValues", pipeline.PrepareForGraphQL(values))
+	}
+	if params != nil {
+		pipelineParameters, err := json.Marshal(params)
+		if err != nil {
+			return nil, fmt.Errorf("unable to serialize pipeline values: %s", err.Error())
+		}
+		request.Var("pipelineParametersJson", string(pipelineParameters))
 	}
 	if orgSlug != "" {
 		request.Var("orgSlug", orgSlug)
@@ -1424,6 +1432,7 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 		      }`
 
 	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -1492,6 +1501,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 	for {
 		request := graphql.NewRequest(query)
+		request.SetToken(cl.Token)
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
