@@ -22,6 +22,8 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
+			cmd.PrintErr(terms)
+
 			rc, err := o.r.CreateResourceClass(args[0], args[1])
 			if err != nil {
 				return err
@@ -94,3 +96,11 @@ func newResourceClassTable(writer io.Writer) *tablewriter.Table {
 func appendResourceClass(table *tablewriter.Table, rc runner.ResourceClass) {
 	table.Append([]string{rc.ResourceClass, rc.Description})
 }
+
+const terms = "If you have not already agreed to Runner Terms in a signed Order, " +
+	"then by continuing to install Runner, " +
+	"you are agreeing to CircleCI's Runner Terms which are found at: https://circleci.com/legal/runner-terms/.\n" +
+	"If you already agreed to Runner Terms in a signed Order, " +
+	"the Runner Terms in the signed Order supersede the Runner Terms in the web address above.\n" +
+	"If you did not already agree to Runner Terms through a signed Order and do not agree to the Runner Terms in the web address above, " +
+	"please do not install or use Runner.\n\n"
