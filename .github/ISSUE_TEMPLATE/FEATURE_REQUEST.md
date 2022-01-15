@@ -2,8 +2,9 @@
 name: "\U0001F680 Feature Request"
 about: Propose new features for the CircleCI CLI.
 title: ''
-labels: feature_request
+labels: ''
 assignees: ''
+
 ---
 
 ## What problem does this feature solve?:

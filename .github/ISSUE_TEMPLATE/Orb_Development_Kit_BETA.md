@@ -2,8 +2,9 @@
 name: "\U0001F52E Orb Development Kit - Feedback"
 about: Report bugs or feedback with your experience with the new Orb Development Kit.
 title: ''
-labels: orb-dev-kit
-assignees: '@CircleCI-Public/cpeng'
+labels: ''
+assignees: ''
+
 ---
 
 ## Meta:
