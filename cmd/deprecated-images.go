@@ -8,7 +8,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// CircleCI Linux VM images that will be permanately removed on May 31st.
+// CircleCI Linux VM images that will be permanently removed on May 31st.
 var deprecatedImages = []string{
 	"circleci/classic:201710-01",
 	"circleci/classic:201703-01",
@@ -77,7 +77,7 @@ func deprecatedImageCheck(opts configOptions, flags *pflag.FlagSet, path string)
 
 		for _, v := range deprecatedImages {
 			if image.(string) == v {
-				return errors.New("The config is using a deprecated Linux VM image. Please see <insert URL here>. This error can be ignored by using the '--ignore' flag.")
+				return errors.New("The config is using a deprecated Linux VM image (" + v + "). Please see https://circleci.com/blog/ubuntu-14-16-image-deprecation/. This error can be ignored by using the '--ignore-deprecated-images' flag.")
 			}
 		}
 	}
