@@ -134,19 +134,19 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	orgSlug, _ := flags.GetString("org-slug")
 
+	response, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+	if err != nil {
+		return err
+	}
+
 	// check if a deprecated Linux VM image is being used
 	// link here to blog post when available
 	// returns an error if a deprecated image is used
 	if !ignoreDeprecatedImages {
-		err := deprecatedImageCheck(opts, flags, path)
+		err := deprecatedImageCheck(response)
 		if err != nil {
 			return err
 		}
-	}
-
-	_, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
 	}
 
 	if path == "-" {

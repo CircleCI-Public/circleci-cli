@@ -2,9 +2,8 @@ package cmd
 
 import (
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/pipeline"
+
 	"github.com/pkg/errors"
-	"github.com/spf13/pflag"
 	"gopkg.in/yaml.v3"
 )
 
@@ -41,20 +40,10 @@ type processedConfig struct {
 }
 
 // Processes the config down to v2.0, then checks image used against the block list
-func deprecatedImageCheck(opts configOptions, flags *pflag.FlagSet, path string) error {
-
-	var params pipeline.Parameters
-
-	orgSlug, _ := flags.GetString("org-slug")
-
-	// first process the config so we can get all images
-	response, err := api.ConfigQuery(opts.cl, path, orgSlug, params, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
-	}
+func deprecatedImageCheck(response *api.ConfigResponse) error {
 
 	aConfig := processedConfig{}
-	err = yaml.Unmarshal([]byte(response.OutputYaml), &aConfig)
+	err := yaml.Unmarshal([]byte(response.OutputYaml), &aConfig)
 	if err != nil {
 		return err
 	}
