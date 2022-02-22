@@ -26,6 +26,7 @@ type configOptions struct {
 // Path to the config.yml file to operate on.
 // Used to for compatibility with `circleci config validate --path`
 var configPath string
+var ignoreDeprecatedImages bool // should we ignore deprecated images warning
 
 var configAnnotations = map[string]string{
 	"<path>": "The path to your config (use \"-\" for STDIN)",
@@ -71,6 +72,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	validateCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
+	validateCommand.PersistentFlags().BoolVar(&ignoreDeprecatedImages, "ignore-deprecated-images", false, "ignores the deprecated images error")
 	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
 		panic(err)
 	}
@@ -132,9 +134,19 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	orgSlug, _ := flags.GetString("org-slug")
 
-	_, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+	response, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
 	if err != nil {
 		return err
+	}
+
+	// check if a deprecated Linux VM image is being used
+	// link here to blog post when available
+	// returns an error if a deprecated image is used
+	if !ignoreDeprecatedImages {
+		err := deprecatedImageCheck(response)
+		if err != nil {
+			return err
+		}
 	}
 
 	if path == "-" {
