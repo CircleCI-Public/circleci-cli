@@ -1,8 +1,9 @@
 package cmd
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/proxy"
 )
 
 func newTestsCommand() *cobra.Command {

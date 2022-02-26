@@ -8,11 +8,12 @@ import (
 	"regexp"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 )
 
 var _ = Describe("Setup with prompts", func() {

@@ -17,6 +17,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
@@ -25,9 +29,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/go-git/go-git/v5"

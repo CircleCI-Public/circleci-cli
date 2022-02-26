@@ -3,11 +3,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 type options struct {

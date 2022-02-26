@@ -10,10 +10,11 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/pkg/errors"
 )
 
 // ContextRestClient communicates with the CircleCI REST API to ask questions

@@ -11,10 +11,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/onsi/gomega/types"
+
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 
 	"github.com/onsi/gomega"
 )

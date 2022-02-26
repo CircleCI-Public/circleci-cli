@@ -1,9 +1,10 @@
 package references_test
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/references"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/CircleCI-Public/circleci-cli/references"
 )
 
 var _ = Describe("Parsing Orbs", func() {

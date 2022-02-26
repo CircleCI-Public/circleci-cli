@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
 )
 
 type namespaceOptions struct {

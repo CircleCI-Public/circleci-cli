@@ -12,9 +12,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/pkg/errors"
+
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/pkg/errors"
 )
 
 // A Client is an HTTP client for our GraphQL endpoint.

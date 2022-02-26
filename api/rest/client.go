@@ -99,8 +99,8 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 }
 
 type HTTPError struct {
-	Code int
-	Message  string
+	Code    int
+	Message string
 }
 
 func (e *HTTPError) Error() string {

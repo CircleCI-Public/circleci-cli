@@ -10,13 +10,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/Masterminds/semver"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 type UpdateOrbCategorizationRequestType int
@@ -1878,7 +1879,6 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 var errorMessage = `Unable to follow project`
 
 func FollowProject(config settings.Config, vcs string, owner string, projectName string) (FollowedProject, error) {
-	
 	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", config.Host, vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
 	if err != nil {

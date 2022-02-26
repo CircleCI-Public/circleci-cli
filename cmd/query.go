@@ -6,10 +6,11 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 type queryOptions struct {

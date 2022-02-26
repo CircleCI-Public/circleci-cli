@@ -1,9 +1,10 @@
 package cmd
 
 import (
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
 )
 
 func newLocalExecuteCommand(config *settings.Config) *cobra.Command {

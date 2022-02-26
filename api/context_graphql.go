@@ -7,8 +7,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/pkg/errors"
+
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 )
 
 type GraphQLContextClient struct {

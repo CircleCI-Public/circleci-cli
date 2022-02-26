@@ -14,8 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/data"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/CircleCI-Public/circleci-cli/data"
 )
 
 // Config is used to represent the current state of a CLI instance.

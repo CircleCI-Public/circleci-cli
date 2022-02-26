@@ -7,12 +7,13 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 var _ = Describe("Setup with prompts", func() {

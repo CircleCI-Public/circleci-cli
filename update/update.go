@@ -7,10 +7,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/blang/semver"
 	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 // hoursBeforeCheck is used to configure the delay between auto-update checks

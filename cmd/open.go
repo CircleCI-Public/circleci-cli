@@ -5,10 +5,11 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/pkg/browser"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/git"
 )
 
 func projectUrl(remote *git.Remote) string {

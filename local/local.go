@@ -11,12 +11,13 @@ import (
 	"regexp"
 	"syscall"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/pflag"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
-	"github.com/spf13/pflag"
 )
 
 var picardRepo = "circleci/picard"

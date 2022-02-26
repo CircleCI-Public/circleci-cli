@@ -5,13 +5,14 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
+
+	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 var _ = Describe("Check", func() {

@@ -1,9 +1,10 @@
 package cmd
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/git"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/CircleCI-Public/circleci-cli/git"
 )
 
 var _ = Describe("open", func() {

@@ -3,12 +3,13 @@ package cmd_test
 import (
 	"os/exec"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/cmd"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
+
+	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/cmd"
 )
 
 var _ = Describe("Root", func() {

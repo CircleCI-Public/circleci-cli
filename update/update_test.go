@@ -1,10 +1,11 @@
 package update_test
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/blang/semver"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/CircleCI-Public/circleci-cli/update"
 )
 
 var _ = Describe("Homebrew Version Parsing", func() {

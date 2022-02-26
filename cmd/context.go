@@ -8,12 +8,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/api"
+
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 func newContextCommand(config *settings.Config) *cobra.Command {

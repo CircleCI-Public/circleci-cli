@@ -4,6 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
@@ -11,10 +16,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
-	"gopkg.in/yaml.v3"
 )
 
 type configOptions struct {

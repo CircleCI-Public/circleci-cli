@@ -5,13 +5,14 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 )
 
 var _ = Describe("Update", func() {
