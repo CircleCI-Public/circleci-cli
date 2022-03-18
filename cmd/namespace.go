@@ -82,7 +82,7 @@ Please note that at this time all namespaces created in the registry are world-r
 	createCmd.Annotations["<vcs-type>"] = `Your VCS provider, can be either "github" or "bitbucket"`
 	createCmd.Annotations["<org-name>"] = `The name used for your organization`
 
-	createCmd.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
+	createCmd.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI. (hidden)")
 	if err := createCmd.Flags().MarkHidden("integration-testing"); err != nil {
 		panic(err)
 	}

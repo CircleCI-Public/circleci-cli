@@ -3332,11 +3332,11 @@ Windows Server 2010
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session.Out).Should(gbytes.Say(`commands:
-    orb:
-        steps:
-            - run:
-                command: echo Hello, world!
-                name: Say hello
+  orb:
+    steps:
+      - run:
+          command: echo Hello, world!
+          name: Say hello
 `))
 			Eventually(session).Should(gexec.Exit(0))
 		})

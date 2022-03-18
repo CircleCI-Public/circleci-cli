@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -73,9 +74,6 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	validateCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	validateCommand.PersistentFlags().BoolVar(&ignoreDeprecatedImages, "ignore-deprecated-images", false, "ignores the deprecated images error")
-	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
-		panic(err)
-	}
 	validateCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
 
 	processCommand := &cobra.Command{
@@ -97,14 +95,13 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
-		Short: "Migrate a pre-release 2.0 config to the official release version",
+		Short: "Migrate a pre-release 2.0 config to the official release version (hidden)",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return migrateConfig(opts)
 		},
-		Hidden:             true,
 		DisableFlagParsing: true,
 	}
 	// These flags are for documentation and not actually parsed
@@ -193,11 +190,13 @@ func packConfig(opts configOptions) error {
 		return errors.Wrap(err, "An error occurred trying to build the tree")
 	}
 
-	y, err := yaml.Marshal(&tree)
-	if err != nil {
+	var s strings.Builder
+	enc := yaml.NewEncoder(&s)
+	enc.SetIndent(2)
+	if err := enc.Encode(&tree); err != nil {
 		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
 	}
-	fmt.Printf("%s\n", string(y))
+	fmt.Print(s.String())
 	return nil
 }
 

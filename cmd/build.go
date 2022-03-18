@@ -24,8 +24,8 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 // hidden command for backwards compatibility
 func newBuildCommand(config *settings.Config) *cobra.Command {
 	cmd := newLocalExecuteCommand(config)
-	cmd.Hidden = true
-	cmd.Use = "build"
+	cmd.Hidden = false
+	cmd.Use = "build (hidden)"
 	return cmd
 }
 

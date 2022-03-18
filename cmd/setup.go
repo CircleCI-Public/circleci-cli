@@ -141,22 +141,22 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		},
 	}
 
-	setupCommand.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
-	if err := setupCommand.Flags().MarkHidden("integration-testing"); err != nil {
-		panic(err)
-	}
+	setupCommand.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI. (hidden)")
+	// if err := setupCommand.Flags().MarkHidden("integration-testing"); err != nil {
+	// 	panic(err)
+	// }
 
 	setupCommand.Flags().BoolVar(&opts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI. (MUST supply --host and --token)")
 
-	setupCommand.Flags().StringVar(&opts.host, "host", "", "URL to your CircleCI host")
-	if err := setupCommand.Flags().MarkHidden("host"); err != nil {
-		panic(err)
-	}
+	setupCommand.Flags().StringVar(&opts.host, "host", "", "URL to your CircleCI host (hidden)")
+	// if err := setupCommand.Flags().MarkHidden("host"); err != nil {
+	// 	panic(err)
+	// }
 
-	setupCommand.Flags().StringVar(&opts.token, "token", "", "your token for using CircleCI")
-	if err := setupCommand.Flags().MarkHidden("token"); err != nil {
-		panic(err)
-	}
+	setupCommand.Flags().StringVar(&opts.token, "token", "", "your token for using CircleCI (hidden)")
+	// if err := setupCommand.Flags().MarkHidden("token"); err != nil {
+	// 	panic(err)
+	// }
 
 	return setupCommand
 }

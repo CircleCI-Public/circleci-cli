@@ -24,8 +24,8 @@ func newUsageCommand(config *settings.Config) *cobra.Command {
 
 	return &cobra.Command{
 		Use:    "usage <path> (default is \"docs\")",
-		Short:  "Generate usage documentation in markdown for the CLI.",
-		Hidden: true,
+		Short:  "Generate usage documentation in markdown for the CLI. (hidden)",
+		Hidden: false,
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},

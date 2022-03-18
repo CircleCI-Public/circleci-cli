@@ -8,9 +8,9 @@ import (
 func newTestsCommand() *cobra.Command {
 	testsCmd := &cobra.Command{
 		Use:                "tests",
-		Short:              "Collect and split tests so they may be run in parallel.",
+		Short:              "Collect and split tests so they may be run in parallel. (hidden)",
 		DisableFlagParsing: true,
-		Hidden:             true,
+		Hidden:             false,
 		RunE: func(_ *cobra.Command, args []string) error {
 			return proxy.Exec([]string{"tests"}, args)
 		},

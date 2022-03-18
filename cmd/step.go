@@ -18,21 +18,21 @@ func newStepCommand(config *settings.Config) *cobra.Command {
 
 	stepCmd := &cobra.Command{
 		Use:                "step",
-		Short:              "Execute steps",
-		Hidden:             true,
+		Short:              "Execute steps (hidden)",
+		Hidden:             false,
 		DisableFlagParsing: true,
 	}
 
 	haltCmd := &cobra.Command{
 		Use:   "halt",
-		Short: "Halt the current job and treat it as successful",
+		Short: "Halt the current job and treat it as successful (hidden)",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return haltRunE(opts)
 		},
-		Hidden:             true,
+		Hidden:             false,
 		DisableFlagParsing: true,
 	}
 

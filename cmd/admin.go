@@ -25,9 +25,9 @@ func newAdminCommand(config *settings.Config) *cobra.Command {
 		Args: cobra.MinimumNArgs(1),
 	}
 	importOrbCommand.Flags().BoolVar(&orbOpts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
-	if err := importOrbCommand.Flags().MarkHidden("integration-testing"); err != nil {
-		panic(err)
-	}
+	// if err := importOrbCommand.Flags().MarkHidden("integration-testing"); err != nil {
+	// 	panic(err)
+	// }
 	importOrbCommand.Flags().BoolVar(&orbOpts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
 	renameCommand := &cobra.Command{
@@ -79,9 +79,9 @@ Example:
 	deleteAliasCommand.Annotations["<name>"] = "The name of the alias to delete"
 	deleteAliasCommand.Flags().BoolVar(&nsOpts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 	deleteAliasCommand.Flags().BoolVar(&nsOpts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
-	if err := deleteAliasCommand.Flags().MarkHidden("integration-testing"); err != nil {
-		panic(err)
-	}
+	// if err := deleteAliasCommand.Flags().MarkHidden("integration-testing"); err != nil {
+	// 	panic(err)
+	// }
 
 	deleteNamespaceCommand := &cobra.Command{
 		Use:   "delete-namespace <name>",
@@ -110,7 +110,7 @@ Example:
 
 	adminCommand := &cobra.Command{
 		Use:   "admin",
-		Short: "Administrative operations for a CircleCI Server installation.",
+		Short: "Administrative operations for a CircleCI Server installation. (hidden)",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			orbOpts.args = args
 			nsOpts.args = args
@@ -122,7 +122,7 @@ Example:
 			// As of writing this comment, that is only for daily update checks.
 			return rootCmdPreRun(rootOptions)
 		},
-		Hidden: true,
+		Hidden: false,
 	}
 
 	adminCommand.AddCommand(importOrbCommand)
