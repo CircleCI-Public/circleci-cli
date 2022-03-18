@@ -18,14 +18,14 @@ func newSwitchCommand(config *settings.Config) *cobra.Command {
 	}
 
 	return &cobra.Command{
-		Use: "switch",
+		Use: "switch (hidden)",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return runSwitch(opts)
 		},
-		Hidden: true,
+		Hidden: false,
 	}
 }
 

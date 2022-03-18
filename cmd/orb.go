@@ -102,12 +102,12 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 
 	listCommand.PersistentFlags().StringVar(&opts.sortBy, "sort", "", `one of "builds"|"projects"|"orgs"`)
 	listCommand.PersistentFlags().BoolVarP(&opts.listUncertified, "uncertified", "u", false, "include uncertified orbs")
-	listCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
+	listCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable (hidden)")
 	listCommand.PersistentFlags().BoolVarP(&opts.listDetails, "details", "d", false, "output all the commands, executors, and jobs, along with a tree of their parameters")
 	listCommand.PersistentFlags().BoolVarP(&opts.private, "private", "", false, "exclusively list private orbs within a namespace")
-	if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
-		panic(err)
-	}
+	// if err := listCommand.PersistentFlags().MarkHidden("json"); err != nil {
+	// 	panic(err)
+	// }
 
 	validateCommand := &cobra.Command{
 		Use:   "validate <path>",
@@ -285,10 +285,10 @@ Please note that at this time all orbs created in the registry are world-readabl
 		},
 	}
 
-	listCategoriesCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable")
-	if err := listCategoriesCommand.PersistentFlags().MarkHidden("json"); err != nil {
-		panic(err)
-	}
+	listCategoriesCommand.PersistentFlags().BoolVar(&opts.listJSON, "json", false, "print output as json instead of human-readable (hidden)")
+	// if err := listCategoriesCommand.PersistentFlags().MarkHidden("json"); err != nil {
+	// 	panic(err)
+	// }
 
 	addCategorizationToOrbCommand := &cobra.Command{
 		Use:   "add-to-category <namespace>/<orb> \"<category-name>\"",
@@ -319,10 +319,10 @@ Please note that at this time all orbs created in the registry are world-readabl
 	}
 	orbInit.PersistentFlags().BoolVarP(&opts.private, "private", "", false, "initialize a private orb")
 
-	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
-	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
-		panic(err)
-	}
+	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI. (hidden)")
+	// if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
+	// 	panic(err)
+	// }
 	orbCreate.Flags().BoolVar(&opts.noPrompt, "no-prompt", false, "Disable prompt to bypass interactive UI.")
 
 	orbCommand := &cobra.Command{
@@ -987,13 +987,15 @@ func packOrb(path string) (string, error) {
 		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
-	y, err := yaml.Marshal(&tree)
-	if err != nil {
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(&tree); err != nil {
 		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
 
 	var orbSchema OrbSchema
-	err = yaml.Unmarshal(y, &orbSchema)
+	err = yaml.Unmarshal(buf.Bytes(), &orbSchema)
 	if err != nil {
 		return "", errors.Wrap(err, "An unexpected error occurred")
 	}
@@ -1011,12 +1013,12 @@ func packOrb(path string) (string, error) {
 		return "", err
 	}
 
-	final, err := yaml.Marshal(&orbSchema)
-	if err != nil {
+	buf.Reset()
+	if err := enc.Encode(&orbSchema); err != nil {
 		return "", errors.Wrap(err, "Failed trying to marshal Orb YAML")
 	}
 
-	return string(final), nil
+	return buf.String(), nil
 }
 
 // Travel down a YAML node, replacing values as we go.

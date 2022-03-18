@@ -42,8 +42,8 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 	update.AddCommand(&cobra.Command{
 		Use:    "check",
-		Hidden: true,
-		Short:  "Check if there are any updates available",
+		Hidden: false,
+		Short:  "Check if there are any updates available (hidden)",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
 		},
@@ -58,8 +58,8 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 	update.AddCommand(&cobra.Command{
 		Use:    "install",
-		Hidden: true,
-		Short:  "Update the tool to the latest version",
+		Hidden: false,
+		Short:  "Update the tool to the latest version (hidden)",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
 		},
@@ -73,8 +73,8 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 
 	update.AddCommand(&cobra.Command{
 		Use:    "build-agent",
-		Hidden: true,
-		Short:  "Update the build agent to the latest version",
+		Hidden: false,
+		Short:  "Update the build agent to the latest version (hidden)",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
 		},
