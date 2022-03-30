@@ -1309,24 +1309,24 @@ func initOrb(opts orbOptions) error {
 		return y[0]
 	}()
 
-	circleConfig1, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	circleConfigSetup, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
 	if err != nil {
 		return err
 	}
 
-	config1String := string(circleConfig1)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(config1String, projectName, ownerName, orbName, namespace)), 0644)
+	configSetupString := string(circleConfigSetup)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
 
-	circleConfig2, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "test-deploy.yml"))
+	circleConfigDeploy, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "test-deploy.yml"))
 	if err != nil {
 		return err
 	}
 
-	config2String := string(circleConfig2)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(config2String, projectName, ownerName, orbName, namespace)), 0644)
+	configDeployString := string(circleConfigDeploy)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
