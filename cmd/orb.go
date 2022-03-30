@@ -311,7 +311,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	orbInit := &cobra.Command{
 		Use:   "init <path>",
-		Short: "Initialize a new orb.",
+		Short: "Initialize a new orb project.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return initOrb(opts)
