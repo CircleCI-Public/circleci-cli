@@ -1,4 +1,4 @@
-FROM circleci/golang:1.10.3
+FROM cimg/go:1.17
 
 ENV CIRCLECI_CLI_SKIP_UPDATE_CHECK true
 
