@@ -1077,7 +1077,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	// filter out any non-release tags
-	releaseTags:= []orbProtectTemplateRelease{}
+	releaseTags := []orbProtectTemplateRelease{}
 	validTagRegex := regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
 	for _, tag := range tags {
 		matched := validTagRegex.MatchString(tag.Name)
