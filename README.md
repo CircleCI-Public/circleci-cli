@@ -155,7 +155,7 @@ Further [package information is available on Snap website](https://snapcraft.io/
 
 ## Contributing
 
-Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKING.md).
+Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKING.md). 
 
 ## More
 
