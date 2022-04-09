@@ -159,4 +159,4 @@ Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKI
 
 ## More
 
-Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
+Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more. 
