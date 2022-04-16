@@ -76,7 +76,7 @@ type createOrbTestUI struct {
 
 type orbProtectTemplateRelease struct {
 	ZipUrl string `json:"zipball_url"`
-	Name string `json:"name"`
+	Name   string `json:"name"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -1086,7 +1086,6 @@ func initOrb(opts orbOptions) error {
 		}
 	}
 
-
 	latestRelease := releaseTags[0]
 	resp, err := http.Get(latestRelease.ZipUrl)
 	if err != nil {
@@ -1342,13 +1341,35 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src",  "@orb.yml"))
+	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
 	if err != nil {
 		return err
 	}
 
 	orbRootString := string(orbRoot)
 	err = ioutil.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	license, err := ioutil.ReadFile(path.Join(orbPath, "LICENSE"))
+	if err != nil {
+		return err
+	}
+
+	licenseString := string(license)
+	err = ioutil.WriteFile(path.Join(orbPath, "LICENSE"), []byte(orbTemplate(licenseString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	example, err := ioutil.ReadFile(path.Join(orbPath, "src", "examples", "example.yml"))
+	if err != nil {
+		return err
+	}
+
+	exampleString := string(example)
+	err = ioutil.WriteFile(path.Join(orbPath, "src", "examples", "example.yml"), []byte(orbTemplate(exampleString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
