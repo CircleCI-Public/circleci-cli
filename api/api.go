@@ -1878,7 +1878,7 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 var errorMessage = `Unable to follow project`
 
 func FollowProject(config settings.Config, vcs string, owner string, projectName string) (FollowedProject, error) {
-	
+
 	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", config.Host, vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
 	if err != nil {
