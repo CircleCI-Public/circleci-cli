@@ -76,7 +76,7 @@ type createOrbTestUI struct {
 
 type orbProtectTemplateRelease struct {
 	ZipUrl string `json:"zipball_url"`
-	Name string `json:"name"`
+	Name   string `json:"name"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -1086,7 +1086,6 @@ func initOrb(opts orbOptions) error {
 		}
 	}
 
-
 	latestRelease := releaseTags[0]
 	resp, err := http.Get(latestRelease.ZipUrl)
 	if err != nil {
@@ -1342,7 +1341,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src",  "@orb.yml"))
+	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
 	if err != nil {
 		return err
 	}
