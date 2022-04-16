@@ -11,4 +11,4 @@ function error() {
 
 trap error SIGINT
 
-./bin/golangci-lint run
+./bin/golangci-lint run -E gofmt
