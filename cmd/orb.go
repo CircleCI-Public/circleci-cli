@@ -1308,13 +1308,15 @@ func initOrb(opts orbOptions) error {
 		return y[0]
 	}()
 
+	jobName := "greet"
+
 	circleConfigSetup, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
 	if err != nil {
 		return err
 	}
 
 	configSetupString := string(circleConfigSetup)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace, jobName)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1325,7 +1327,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	configDeployString := string(circleConfigDeploy)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace, jobName)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1336,7 +1338,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	readmeString := string(readme)
-	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace, jobName)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1347,7 +1349,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	orbRootString := string(orbRoot)
-	err = ioutil.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace, jobName)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1358,7 +1360,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	licenseString := string(license)
-	err = ioutil.WriteFile(path.Join(orbPath, "LICENSE"), []byte(orbTemplate(licenseString, projectName, ownerName, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, "LICENSE"), []byte(orbTemplate(licenseString, projectName, ownerName, orbName, namespace, jobName)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1369,7 +1371,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	exampleString := string(example)
-	err = ioutil.WriteFile(path.Join(orbPath, "src", "examples", "example.yml"), []byte(orbTemplate(exampleString, projectName, ownerName, orbName, namespace)), 0644)
+	err = ioutil.WriteFile(path.Join(orbPath, "src", "examples", "example.yml"), []byte(orbTemplate(exampleString, projectName, ownerName, orbName, namespace, jobName)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1587,12 +1589,13 @@ func unzipToOrbPath(src, dest string) error {
 	return nil
 }
 
-func orbTemplate(fileContents string, projectName string, orgName string, orbName string, namespace string) string {
+func orbTemplate(fileContents string, projectName string, orgName string, orbName string, namespace string, jobName string) string {
 	x := strings.Replace(fileContents, "<orb-name>", orbName, -1)
 	x = strings.Replace(x, "<namespace>", namespace, -1)
 	x = strings.Replace(x, "<publishing-context>", "orb-publishing", -1)
 	x = strings.Replace(x, "<project-name>", projectName, -1)
 	x = strings.Replace(x, "<organization>", orgName, -1)
+	x = strings.Replace(x, "<job-name>", jobName, -1)
 	x = strings.Replace(x, "<!---", "", -1)
 	x = strings.Replace(x, "--->", "", -1)
 	var re = regexp.MustCompile(`\*\*Meta\*\*.*`)
