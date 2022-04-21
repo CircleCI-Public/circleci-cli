@@ -8,6 +8,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -55,7 +56,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createCmd := &cobra.Command{
-		Use:   "create <name> <vcs-type> <org-name>",
+		Use:   "create <name> (<vcs-type> <org-name> | <org-id>)",
 		Short: "Create a namespace",
 		Long: `Create a namespace.
 Please note that at this time all namespaces created in the registry are world-readable.`,
@@ -74,13 +75,14 @@ Please note that at this time all namespaces created in the registry are world-r
 
 			return createNamespace(opts)
 		},
-		Args:        cobra.ExactArgs(3),
+		Args:        cobra.RangeArgs(2, 3),
 		Annotations: make(map[string]string),
 	}
 
 	createCmd.Annotations["<name>"] = "The name to give your new namespace"
 	createCmd.Annotations["<vcs-type>"] = `Your VCS provider, can be either "github" or "bitbucket"`
 	createCmd.Annotations["<org-name>"] = `The name used for your organization`
+	createCmd.Annotations["<org-id>"] = `The id of your organization`
 
 	createCmd.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := createCmd.Flags().MarkHidden("integration-testing"); err != nil {
@@ -103,9 +105,32 @@ func deleteNamespaceAlias(opts namespaceOptions) error {
 	return nil
 }
 
-func createNamespace(opts namespaceOptions) error {
-	namespaceName := opts.args[0]
+func createNamespaceWithOrgId(opts namespaceOptions, namespaceName, orgId string) error {
+	if !opts.noPrompt {
+		fmt.Printf(`You are creating a namespace called "%s".
 
+This is the only namespace permitted for your organization with id %s.
+
+To change the namespace, you will have to contact CircleCI customer support.
+
+`, namespaceName, orgId)
+	}
+
+	confirm := fmt.Sprintf("Are you sure you wish to create the namespace: `%s`", namespaceName)
+	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
+		_, err := api.CreateNamespaceWithOwnerID(opts.cl, namespaceName, orgId)
+
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Namespace `%s` created.\n", namespaceName)
+		fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
+	}
+	return nil
+}
+
+func createNamespaceWithVcsTypeAndOrgName(opts namespaceOptions, namespaceName, vcsType, orgName string) error {
 	if !opts.noPrompt {
 		fmt.Printf(`You are creating a namespace called "%s".
 
@@ -127,7 +152,20 @@ To change the namespace, you will have to contact CircleCI customer support.
 		fmt.Printf("Namespace `%s` created.\n", namespaceName)
 		fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
 	}
+	return nil
+}
 
+func createNamespace(opts namespaceOptions) error {
+	namespaceName := opts.args[0]
+	vcsTypeOrOrgId := opts.args[1]
+
+	_, err := uuid.Parse(vcsTypeOrOrgId)
+	if err == nil {
+		createNamespaceWithOrgId(opts, namespaceName, vcsTypeOrOrgId)
+		return nil
+	}
+
+	createNamespaceWithVcsTypeAndOrgName(opts, namespaceName, vcsTypeOrOrgId, opts.args[2])
 	return nil
 }
 
