@@ -56,7 +56,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createCmd := &cobra.Command{
-		Use:   "create <name> (<vcs-type> <org-name> | <org-id>)",
+		Use:   "create <name> {<vcs-type> <org-name>|<org-id>}",
 		Short: "Create a namespace",
 		Long: `Create a namespace.
 Please note that at this time all namespaces created in the registry are world-readable.`,
@@ -66,14 +66,14 @@ Please note that at this time all namespaces created in the registry are world-r
 
 			return validateToken(opts.cfg)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if opts.integrationTesting {
 				opts.tty = createNamespaceTestUI{
 					confirm: true,
 				}
 			}
 
-			return createNamespace(opts)
+			return createNamespace(cmd, opts)
 		},
 		Args:        cobra.RangeArgs(2, 3),
 		Annotations: make(map[string]string),
@@ -155,7 +155,7 @@ To change the namespace, you will have to contact CircleCI customer support.
 	return nil
 }
 
-func createNamespace(opts namespaceOptions) error {
+func createNamespace(cmd *cobra.Command, opts namespaceOptions) error {
 	namespaceName := opts.args[0]
 	vcsTypeOrOrgId := opts.args[1]
 
@@ -163,6 +163,10 @@ func createNamespace(opts namespaceOptions) error {
 	if err == nil {
 		createNamespaceWithOrgId(opts, namespaceName, vcsTypeOrOrgId)
 		return nil
+	}
+
+	if len(opts.args) != 3 {
+		return cmd.Help()
 	}
 
 	createNamespaceWithVcsTypeAndOrgName(opts, namespaceName, vcsTypeOrOrgId, opts.args[2])
