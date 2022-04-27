@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -74,7 +73,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 	update.AddCommand(&cobra.Command{
 		Use:    "build-agent",
 		Hidden: true,
-		Short:  "Update the build agent to the latest version",
+		Short:  "This command has no effect, and is kept for backwards compatiblity",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
 		},
@@ -82,7 +81,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return local.UpdateBuildAgent()
+			return nil
 		},
 	})
 

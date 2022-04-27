@@ -1,13 +1,11 @@
 package local
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"syscall"
 
@@ -22,22 +20,6 @@ import (
 var picardRepo = "circleci/picard"
 
 const DefaultConfigPath = ".circleci/config.yml"
-
-type buildAgentSettings struct {
-	LatestSha256 string
-}
-
-func UpdateBuildAgent() error {
-	latestSha256, err := findLatestPicardSha()
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Latest build agent is version %s\n", latestSha256)
-
-	return nil
-}
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	processedArgs, configPath := buildAgentArguments(flags)
@@ -149,25 +131,13 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 func picardImage(output io.Writer) (string, error) {
 
-	sha, err := loadCurrentBuildAgentSha()
+	fmt.Fprintf(output, "Fetching latest build environment...\n")
+	sha, err := findLatestPicardSha()
 
 	if err != nil {
-		fmt.Printf("Failed to load build agent settings: %s\n", err)
+		return "", err
 	}
 
-	if sha == "" {
-
-		fmt.Println("Downloading latest CircleCI build agent...")
-
-		var err error
-
-		sha, err = findLatestPicardSha()
-
-		if err != nil {
-			return "", err
-		}
-
-	}
 	_, _ = fmt.Fprintf(output, "Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
@@ -210,61 +180,7 @@ func findLatestPicardSha() (string, error) {
 		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
 	}
 
-	// This function still lives in cmd/build.go
-	err = storeBuildAgentSha(latest)
-
-	if err != nil {
-		return "", err
-	}
-
 	return latest, nil
-}
-
-func buildAgentSettingsPath() string {
-	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
-}
-
-func storeBuildAgentSha(sha256 string) error {
-	agentSettings := buildAgentSettings{
-		LatestSha256: sha256,
-	}
-
-	settingsJSON, err := json.Marshal(agentSettings)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to serialize build agent settings")
-	}
-
-	if err = os.MkdirAll(settings.SettingsPath(), 0700); err != nil {
-		return errors.Wrap(err, "Could not create settings directory")
-	}
-
-	err = ioutil.WriteFile(buildAgentSettingsPath(), settingsJSON, 0644)
-
-	return errors.Wrap(err, "Failed to write build agent settings file")
-}
-
-func loadCurrentBuildAgentSha() (string, error) {
-
-	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
-		// Settings file does not exist.
-		return "", nil
-	}
-
-	file, err := os.Open(buildAgentSettingsPath())
-	if err != nil {
-		return "", errors.Wrap(err, "Could not open build settings config")
-	}
-	defer file.Close()
-
-	var settings buildAgentSettings
-
-	if err := json.NewDecoder(file).Decode(&settings); err != nil {
-
-		return "", errors.Wrap(err, "Could not parse build settings config")
-	}
-
-	return settings.LatestSha256, nil
 }
 
 // Write data to a temp file, and return the path to that file.
