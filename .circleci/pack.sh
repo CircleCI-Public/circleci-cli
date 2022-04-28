@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -o errexit
 set -o pipefail
 set -o nounset
@@ -15,7 +14,7 @@ trap error SIGINT
 function get_arch_type() {
     if [[ $(uname -m) == "i686" ]]; then
         echo "386"
-    elif [[ $(uname -m) == "x86_64" ]]; then
+    elif [[ $(uname -m) == "x86_64" || $(uname -m) == "arm64" ]]; then
         echo "amd64"
     fi
 }
@@ -32,7 +31,6 @@ ARCH="$(get_arch_base)_$(get_arch_type)"
 CMD="bin/$ARCH/packr2"
 
 command -v "$CMD"
-
 ./"$CMD" build
 
 exit 0
