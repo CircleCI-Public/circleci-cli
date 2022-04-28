@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 set -o errexit
 set -o pipefail
 set -o nounset
@@ -28,9 +29,11 @@ function get_arch_base() {
 }
 
 ARCH="$(get_arch_base)_$(get_arch_type)"
+
 CMD="bin/$ARCH/packr2"
 
 command -v "$CMD"
+
 ./"$CMD" build
 
 exit 0
