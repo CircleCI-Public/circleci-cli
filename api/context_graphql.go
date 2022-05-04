@@ -52,10 +52,20 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 	cl := c.Client
 
 	org, err := getOrganization(cl, orgName, vcsType)
-
 	if err != nil {
 		return err
 	}
+
+	err = c.CreateContextWithOrgID(cl, org.Organization.ID, contextName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateContextWithOrgID creates a new Context in the supplied organization.
+func (c *GraphQLContextClient) CreateContextWithOrgID(cl *graphql.Client, orgID, contextName string) error {
 
 	query := `
 	mutation CreateContext($input: CreateContextInput!) {
@@ -78,7 +88,7 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		ContextName string `json:"contextName"`
 	}
 
-	input.OwnerId = org.Organization.ID
+	input.OwnerId = orgID
 	input.OwnerType = "ORGANIZATION"
 	input.ContextName = contextName
 
@@ -94,14 +104,13 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		}
 	}
 
-	if err = cl.Run(request, &response); err != nil {
+	if err := cl.Run(request, &response); err != nil {
 		return improveVcsTypeError(err)
 	}
 
 	if response.CreateContext.Error.Type != "" {
 		return fmt.Errorf("Error creating context: %s", response.CreateContext.Error.Type)
 	}
-
 	return nil
 }
 
