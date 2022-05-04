@@ -38,6 +38,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "context",
 		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
+		OrgID: *string,
 	}
 
 	listCommand := &cobra.Command{
@@ -82,7 +83,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 	createContextCommand := &cobra.Command{
 		Short:   "Create a new context",
-		Use:     "create <vcs-type> <org-name> <context-name>",
+		Use:     "create [<vcs-type>] [<org-name>] <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createContext(contextClient, args[0], args[1], args[2])
@@ -102,6 +103,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	deleteContextCommand.Flags().BoolVarP(&force, "force", "f", false, "Delete the context without asking for confirmation.")
+	command.OrgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
 
 	command.AddCommand(listCommand)
 	command.AddCommand(showContextCommand)
