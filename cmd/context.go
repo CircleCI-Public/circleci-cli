@@ -86,10 +86,14 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:     "create [<vcs-type>] [<org-name>] <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(contextClient, args[0], args[1], args[2])
+			return createContext(contextClient, args)
 		},
-		Args: cobra.ExactArgs(3),
+		Args: cobra.RangeArgs(1, 3),
+		Example: `  circleci context create github OrgName contextName
+ 		 circleci context create --org-id "your-org-id-here" contextName`,
 	}
+	createContextCommand.Annotations["[<vcs-type>]"] = `Your VCS provider, can be either "github" or "bitbucket". Optional when passing org-id flag.`
+	createContextCommand.Annotations["[<org-name>]"] = `The name used for your organization. Optional when passing org-id flag.`
 
 	force := false
 	deleteContextCommand := &cobra.Command{
@@ -176,9 +180,12 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client api.ContextInterface, vcsType, orgName, contextName string) error {
-	err := client.CreateContext(vcsType, orgName, contextName)
-	return err
+func createContext(client api.ContextInterface, args []string) error {
+	//We'll add some checks and stuff here like we did with namespace
+
+	//vcsType, orgName, contextName string
+	// err := client.CreateContext(vcsType, orgName, contextName)
+	// return err
 }
 
 func removeEnvVar(client api.ContextInterface, vcsType, orgName, contextName, varName string) error {
