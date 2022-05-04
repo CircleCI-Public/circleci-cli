@@ -67,16 +67,16 @@ Please note that at this time all namespaces created in the registry are world-r
 
 			return validateToken(opts.cfg)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			if opts.integrationTesting {
 				opts.tty = createNamespaceTestUI{
 					confirm: true,
 				}
 			}
 
-			return createNamespace(opts)
+			return createNamespace(cmd, opts)
 		},
-		Args: cobra.MaximumNArgs(3),
+		Args: cobra.RangeArgs(1, 3),
 		Annotations: make(map[string]string),
 		Example: `  circleci namespace create NamespaceName github OrgName
   circleci namespace create NamespaceName --org-id "your-org-id-here"`,
@@ -134,7 +134,6 @@ To change the namespace, you will have to contact CircleCI customer support.
 }
 
 func createNamespaceWithVcsTypeAndOrgName(opts namespaceOptions, namespaceName, vcsType, orgName string) error {
-	var err error
 	if !opts.noPrompt {
 		fmt.Printf(`You are creating a namespace called "%s".
 
@@ -147,7 +146,7 @@ To change the namespace, you will have to contact CircleCI customer support.
 
 	confirm := fmt.Sprintf("Are you sure you wish to create the namespace: `%s`", namespaceName)
 	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
-		_, err = api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
+		_, err := api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
 		if err != nil {
 			return err
 		}
@@ -155,24 +154,23 @@ To change the namespace, you will have to contact CircleCI customer support.
 		fmt.Printf("Namespace `%s` created.\n", namespaceName)
 		fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
 	}
-	return err
+	return nil
 }
 
-func createNamespace(opts namespaceOptions) error {
-	var err error
+func createNamespace(cmd *cobra.Command,opts namespaceOptions) error {
 	namespaceName := opts.args[0]
 	//skip if no orgid provided
 	if opts.orgID != nil && strings.TrimSpace(*opts.orgID) != ""{
-		_, err = uuid.Parse(*opts.orgID)
+		_, err := uuid.Parse(*opts.orgID)
 		if err == nil {
 			return createNamespaceWithOrgId(opts, namespaceName, *opts.orgID)
 		}
 
 	//skip if no vcs type and org name provided
-	} else if len(opts.args) > 1{
+	} else if len(opts.args) == 3{
 		return createNamespaceWithVcsTypeAndOrgName(opts, namespaceName, opts.args[1], opts.args[2])
 	}
-	return fmt.Errorf("please provide org-id or vcs type and org name")
+	return cmd.Help()
 }
 
 func renameNamespace(opts namespaceOptions) error {
