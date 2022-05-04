@@ -27,7 +27,7 @@ type Config struct {
 	TLSCert         string            `yaml:"tls_cert"`
 	TLSInsecure     bool              `yaml:"tls_insecure"`
 	HTTPClient      *http.Client      `yaml:"-"`
-	Data            *data.YML         `yaml:"-"`
+	Data            *data.DataBag     `yaml:"-"`
 	Debug           bool              `yaml:"-"`
 	Address         string            `yaml:"-"`
 	FileUsed        string            `yaml:"-"`
