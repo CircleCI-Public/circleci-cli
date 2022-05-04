@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
 
@@ -38,7 +39,6 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "context",
 		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
-		OrgID: *string,
 	}
 
 	listCommand := &cobra.Command{
@@ -83,14 +83,14 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 	createContextCommand := &cobra.Command{
 		Short:   "Create a new context",
-		Use:     "create [<vcs-type>] [<org-name>] <context-name>",
+		Use:     "create <context-name> [<vcs-type>] [<org-name>]",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createContext(contextClient, args)
 		},
 		Args: cobra.RangeArgs(1, 3),
-		Example: `  circleci context create github OrgName contextName
- 		 circleci context create --org-id "your-org-id-here" contextName`,
+		Example: `  circleci context create contextName github OrgName
+circleci context create contextName --org-id "your-org-id-here"`,
 	}
 	createContextCommand.Annotations["[<vcs-type>]"] = `Your VCS provider, can be either "github" or "bitbucket". Optional when passing org-id flag.`
 	createContextCommand.Annotations["[<org-name>]"] = `The name used for your organization. Optional when passing org-id flag.`
@@ -107,7 +107,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	deleteContextCommand.Flags().BoolVarP(&force, "force", "f", false, "Delete the context without asking for confirmation.")
-	command.OrgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
+	createContextCommand.Flags().String("org-id", "", "The id of your organization.")
 
 	command.AddCommand(listCommand)
 	command.AddCommand(showContextCommand)
@@ -181,11 +181,19 @@ func readSecretValue() (string, error) {
 }
 
 func createContext(client api.ContextInterface, args []string) error {
-	//We'll add some checks and stuff here like we did with namespace
+	//skip if no orgid provided
+	if len(args) == 2 {
+		orgID, err := uuid.Parse(args[1])
+		if err == nil {
+			//!! we need to create this endpoint i think
+			// return createNamespaceWithOrgId(opts, args[0], orgID)
+		}
 
-	//vcsType, orgName, contextName string
-	// err := client.CreateContext(vcsType, orgName, contextName)
-	// return err
+		//skip if no vcs type and org name provided
+	} else if len(args) == 3 {
+		return client.CreateContext(args[1], args[2], args[0])
+	}
+	return fmt.Errorf("please provide org-id or vcs type and org name")
 }
 
 func removeEnvVar(client api.ContextInterface, vcsType, orgName, contextName, varName string) error {
