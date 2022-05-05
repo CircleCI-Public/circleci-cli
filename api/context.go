@@ -26,7 +26,7 @@ type ContextInterface interface {
 	ContextByName(vcs, org, name string) (*Context, error)
 	DeleteContext(contextID string) error
 	CreateContext(vcs, org, name string) error
-	CreateContextWithOrgID(name string, orgId *string) error
+	CreateContextWithOrgID(orgID *string, name string) error
 	EnvironmentVariables(contextID string) (*[]EnvironmentVariable, error)
 	CreateEnvironmentVariable(contextID, variable, value string) error
 	DeleteEnvironmentVariable(contextID, variable string) error

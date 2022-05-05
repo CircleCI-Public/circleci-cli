@@ -88,6 +88,37 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 	return nil
 }
 
+func (c *ContextRestClient) CreateContextWithOrgID(orgID *string, name string) error {
+	req, err := c.newCreateContextRequestWithOrgID(orgID, name)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		return err
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		var dest errorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return err
+		}
+		return errors.New(*dest.Message)
+	}
+	var dest Context
+	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+		return err
+	}
+	return nil
+}
+
 // CreateContext creates a new context in the supplied organization.
 func (c *ContextRestClient) CreateContext(vcs, org, name string) error {
 	req, err := c.newCreateContextRequest(vcs, org, name)
@@ -352,7 +383,46 @@ func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*htt
 		Owner: struct {
 			Slug *string `json:"slug,omitempty"`
 		}{
+
 			Slug: toSlug(vcs, org),
+		},
+	}
+	buf, err := json.Marshal(body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader = bytes.NewReader(buf)
+
+	return c.newHTTPRequest("POST", queryURL.String(), bodyReader)
+}
+
+func (c *ContextRestClient) newCreateContextRequestWithOrgID(orgID *string, name string) (*http.Request, error) {
+	var err error
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err = queryURL.Parse("context")
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyReader io.Reader
+
+	var body = struct {
+		Name  string `json:"name"`
+		Owner struct {
+			ID *string `json:"id,omitempty"`
+		} `json:"owner"`
+	}{
+		Name: name,
+		Owner: struct {
+			ID *string `json:"id,omitempty"`
+		}{
+
+			ID: orgID,
 		},
 	}
 	buf, err := json.Marshal(body)

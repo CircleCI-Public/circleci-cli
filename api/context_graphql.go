@@ -56,7 +56,7 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		return err
 	}
 
-	err = c.CreateContextWithOrgID(cl, org.Organization.ID, contextName)
+	err = c.CreateContextWithOrgID(&org.Organization.ID, contextName)
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,8 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 }
 
 // CreateContextWithOrgID creates a new Context in the supplied organization.
-func (c *GraphQLContextClient) CreateContextWithOrgID(cl *graphql.Client, orgID, contextName string) error {
+func (c *GraphQLContextClient) CreateContextWithOrgID(orgID *string, contextName string) error {
+	cl := c.Client
 
 	query := `
 	mutation CreateContext($input: CreateContextInput!) {
@@ -88,7 +89,7 @@ func (c *GraphQLContextClient) CreateContextWithOrgID(cl *graphql.Client, orgID,
 		ContextName string `json:"contextName"`
 	}
 
-	input.OwnerId = orgID
+	input.OwnerId = *orgID
 	input.OwnerType = "ORGANIZATION"
 	input.ContextName = contextName
 

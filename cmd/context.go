@@ -188,7 +188,7 @@ func createContext(client api.ContextInterface, args []string) error {
 	if orgID != nil && strings.TrimSpace(*orgID) != "" && len(args) == 1 {
 		_, err := uuid.Parse(*orgID)
 		if err == nil {
-			return client.CreateContextWithOrgID(args[0], orgID)
+			return client.CreateContextWithOrgID(orgID, args[0])
 		}
 
 		//skip if no vcs type and org name provided
