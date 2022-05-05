@@ -29,8 +29,6 @@ require (
 	gotest.tools/v3 v3.0.2
 )
 
-require github.com/google/uuid v1.3.0
-
 require (
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/fsnotify/fsnotify v1.4.7 // indirect
