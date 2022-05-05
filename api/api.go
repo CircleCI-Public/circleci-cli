@@ -802,7 +802,7 @@ func CreateImportedNamespace(cl *graphql.Client, name string) (*ImportNamespaceR
 	return &response, nil
 }
 
-func createNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string) (*CreateNamespaceResponse, error) {
+func CreateNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string) (*CreateNamespaceResponse, error) {
 	var response CreateNamespaceResponse
 
 	query := `
@@ -959,7 +959,7 @@ func CreateNamespace(cl *graphql.Client, name string, organizationName string, o
 		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
 	}
 
-	createNSResponse, createNSError := createNamespaceWithOwnerID(cl, name, getOrgResponse.Organization.ID)
+	createNSResponse, createNSError := CreateNamespaceWithOwnerID(cl, name, getOrgResponse.Organization.ID)
 
 	if createNSError != nil {
 		return nil, createNSError
