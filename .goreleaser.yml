@@ -10,10 +10,6 @@ archives:
       - api/graphql/LICENSE
       - md_docs/LICENSE
 
-before:
-  hooks:
-  - make pack
-
 builds:
   - binary: circleci
     env:
