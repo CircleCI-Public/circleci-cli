@@ -120,7 +120,6 @@ circleci context create contextName --org-id "your-org-id-here"`,
 	deleteContextCommand.Flags().BoolVarP(&force, "force", "f", false, "Delete the context without asking for confirmation.")
 
 	orgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
-
 	createContextCommand.Flags().BoolVar(&integrationTesting, "integration-testing", false, "Enable test mode to setup rest API")
 	if err := createContextCommand.Flags().MarkHidden("integration-testing"); err != nil {
 		panic(err)

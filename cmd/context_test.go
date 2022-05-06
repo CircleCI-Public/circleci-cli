@@ -17,6 +17,10 @@ var _ = Describe("Context integration tests", func() {
 		tempSettings *clitest.TempSettings
 		token        string = "testtoken"
 		command      *exec.Cmd
+		contextName  string = "foo-context"
+		orgID        string = "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		vcsType      string = "BITBUCKET"
+		orgName      string = "test-org"
 	)
 
 	BeforeEach(func() {
@@ -52,9 +56,8 @@ https://circleci.com/account/api`))
 	})
 
 	Context("create, with interactive prompts", func() {
-		FDescribe("using an org id to create a context", func() {
-			contextName := "foo-context"
-			orgID := "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+
+		Describe("using an org id to create a context", func() {
 
 			BeforeEach(func() {
 				command = commandWithHome(pathCLI, tempSettings.Home,
@@ -80,36 +83,38 @@ https://circleci.com/account/api`))
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
 
-				// TODO: Make assertions once prompts are implemented.
+		Describe("using an vcs and org name to create a context", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"context", "create",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--integration-testing",
+					vcsType,
+					orgName,
+					contextName,
+				)
+			})
 
-				// stdout := session.Wait().Out.Contents()
-				// Expect(string(stdout)).To(ContainSubstring(`blah`))
+			It("user creating new context", func() {
+				By("setting up a mock server")
+
+				tempSettings.AppendRESTPostHandler(clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  fmt.Sprintf(`{"name": "%s","owner":{"slug":"%s"}}`, contextName, vcsType+"/"+orgName),
+					Response: fmt.Sprintf(`{"id": "497f6eca-6276-4993-bfeb-53cbbbba6f08", "name": "%s", "created_at": "2015-09-21T17:29:21.042Z" }`, contextName),
+				})
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(gexec.Exit(0))
 			})
 		})
 	})
-
-	// Describe("using an vcs and org name to create a context", func() {
-	// 	BeforeEach(func() {
-	// 		command = exec.Command(pathCLI,
-	// 			"context", "create",
-	// 			"--skip-update-check",
-	// 			"--token", token,
-	// 			"--host", tempSettings.TestServer.URL(),
-	// 			"--integration-testing",
-	// 			"BITBUCKET",
-	// 			"test-org",
-	// 			"foo-context",
-	// 		)
-	// 	})
-
-	// 	It("user creating new context", func() {
-	// 		By("running the command")
-	// 		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-	// 		Expect(err).ShouldNot(HaveOccurred())
-	// 		Eventually(session.Err).Should(gbytes.Say(`Error: please use either an orgid or vcs and org name to create context`))
-	// 		Eventually(session).Should(clitest.ShouldFail())
-	// 	})
-	// })
 })
