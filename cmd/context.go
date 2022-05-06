@@ -17,7 +17,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var orgID *string
+var (
+	orgID              *string
+	integrationTesting bool
+)
 
 func newContextCommand(config *settings.Config) *cobra.Command {
 	var contextClient api.ContextInterface
@@ -26,6 +29,11 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		contextClient, e = api.NewContextRestClient(*config)
 		if e != nil {
 			return e
+		}
+
+		// Ensure does not fallback to graph for testing.
+		if integrationTesting {
+			return validateToken(config)
 		}
 
 		// If we're on cloud, we're good.
@@ -97,7 +105,6 @@ circleci context create contextName --org-id "your-org-id-here"`,
 	}
 	createContextCommand.Annotations["[<vcs-type>]"] = `Your VCS provider, can be either "github" or "bitbucket". Optional when passing org-id flag.`
 	createContextCommand.Annotations["[<org-name>]"] = `The name used for your organization. Optional when passing org-id flag.`
-	orgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
 
 	force := false
 	deleteContextCommand := &cobra.Command{
@@ -111,6 +118,13 @@ circleci context create contextName --org-id "your-org-id-here"`,
 	}
 
 	deleteContextCommand.Flags().BoolVarP(&force, "force", "f", false, "Delete the context without asking for confirmation.")
+
+	orgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
+
+	createContextCommand.Flags().BoolVar(&integrationTesting, "integration-testing", false, "Enable test mode to setup rest API")
+	if err := createContextCommand.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
 
 	command.AddCommand(listCommand)
 	command.AddCommand(showContextCommand)
