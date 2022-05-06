@@ -96,7 +96,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:     "create  [<vcs-type>] [<org-name>] <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(contextClient, args)
+			return createContext(cmd, contextClient, args)
 		},
 		Args:        cobra.RangeArgs(1, 3),
 		Annotations: make(map[string]string),
@@ -197,10 +197,11 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client api.ContextInterface, args []string) error {
+func createContext(cmd *cobra.Command, client api.ContextInterface, args []string) error {
 	//skip if no orgid provided
 	if orgID != nil && strings.TrimSpace(*orgID) != "" && len(args) == 1 {
 		_, err := uuid.Parse(*orgID)
+
 		if err == nil {
 			return client.CreateContextWithOrgID(orgID, args[0])
 		}
@@ -209,7 +210,7 @@ func createContext(client api.ContextInterface, args []string) error {
 	} else if len(args) == 3 {
 		return client.CreateContext(args[0], args[1], args[2])
 	}
-	return fmt.Errorf("please provide org-id or vcs type and org name")
+	return cmd.Help()
 }
 
 func removeEnvVar(client api.ContextInterface, vcsType, orgName, contextName, varName string) error {
