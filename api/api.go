@@ -10,6 +10,10 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/spinner"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
@@ -449,6 +453,78 @@ type Orb struct {
 	Versions  []OrbVersion
 
 	Categories []OrbCategory
+}
+
+type errMsg error
+
+type model struct {
+	spinner  spinner.Model
+	cl       *graphql.Client
+	req      *graphql.Request
+	res      interface{}
+	quitting bool
+	err      error
+}
+
+type respMsg struct {
+	err error
+}
+
+func initialModel(cl *graphql.Client, req *graphql.Request, res interface{}) model {
+	s := spinner.New()
+	s.Spinner = spinner.Dot
+	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	return model{spinner: s, cl: cl, req: req, res: &res}
+}
+
+func (m model) Init() tea.Cmd {
+	checkServer := func() tea.Msg {
+		m.err = m.cl.Run(m.req, &m.res)
+		return respMsg{err: m.err}
+	}
+	return tea.Batch(
+		m.spinner.Tick,
+		checkServer,
+	)
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "q", "esc", "ctrl+c":
+			m.quitting = true
+			return m, tea.Quit
+		default:
+			return m, nil
+		}
+
+	case respMsg:
+		m.quitting = true
+		return m, tea.Quit
+
+	case errMsg:
+		m.err = msg
+		return m, nil
+
+	default:
+		var cmd tea.Cmd
+		m.spinner, cmd = m.spinner.Update(msg)
+		return m, cmd
+	}
+
+}
+
+func (m model) View() string {
+	if m.err != nil {
+		return m.err.Error()
+	}
+	str := fmt.Sprintf("\n\n   %s Loading forever...press q to quit\n\n", m.spinner.View())
+	if m.quitting {
+		return str + "\n"
+	}
+	return str
 }
 
 // Shortname returns the orb's name without its associated namespace.
@@ -1731,9 +1807,9 @@ func IntrospectionQuery(cl *graphql.Client) (*IntrospectionResponse, error) {
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	err := cl.Run(request, &response)
+	m := initialModel(cl, request, &response)
 
-	return &response, err
+	return &response, m.err
 }
 
 // OrbCategoryID fetches an orb returning the ID
