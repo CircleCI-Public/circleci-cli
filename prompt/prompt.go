@@ -1,7 +1,6 @@
 package prompt
 
 import (
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/erikgeiser/promptkit/confirmation"
 	"github.com/erikgeiser/promptkit/textinput"
 )
@@ -21,26 +20,18 @@ func ReadSecretStringFromUser(message string) (string, error) {
 
 // ReadStringFromUser can be used to read any value from the user or the defaultValue when provided.
 func ReadStringFromUser(message string, defaultValue string) string {
-	token := ""
-	prompt := &survey.Input{
-		Message: message,
-	}
-
-	if defaultValue != "" {
-		prompt.Default = defaultValue
-	}
-
-	err := survey.AskOne(prompt, &token)
+	input := textinput.New(message)
+	input.Placeholder = defaultValue
+	result, err := input.RunPrompt()
 	if err != nil {
 		panic(err)
 	}
-
-	return token
+	return result
 }
 
 // AskUserToConfirm will prompt the user to confirm with the provided message.
 func AskUserToConfirm(message string) bool {
-	input := confirmation.New(message, confirmation.Yes)
+	input := confirmation.New(message, confirmation.No)
 	result, err := input.RunPrompt()
 	return err == nil && result
 }
