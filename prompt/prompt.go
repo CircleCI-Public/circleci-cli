@@ -1,6 +1,9 @@
 package prompt
 
-import "github.com/AlecAivazis/survey/v2"
+import (
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/erikgeiser/promptkit/confirmation"
+)
 
 // ReadSecretStringFromUser can be used to read a value from the user by masking their input.
 // It's useful for token input in our case.
@@ -38,11 +41,7 @@ func ReadStringFromUser(message string, defaultValue string) string {
 
 // AskUserToConfirm will prompt the user to confirm with the provided message.
 func AskUserToConfirm(message string) bool {
-	result := true
-	prompt := &survey.Confirm{
-		Message: message,
-	}
-
-	err := survey.AskOne(prompt, &result)
+	input := confirmation.New(message, confirmation.Yes)
+	result, err := input.RunPrompt()
 	return err == nil && result
 }
