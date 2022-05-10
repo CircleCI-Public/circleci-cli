@@ -3,20 +3,19 @@ package prompt
 import (
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/erikgeiser/promptkit/confirmation"
+	"github.com/erikgeiser/promptkit/textinput"
 )
 
 // ReadSecretStringFromUser can be used to read a value from the user by masking their input.
 // It's useful for token input in our case.
 func ReadSecretStringFromUser(message string) (string, error) {
 	secret := ""
-	prompt := &survey.Password{
-		Message: message,
-	}
-	err := survey.AskOne(prompt, &secret)
+	input := textinput.New(message)
+	input.Hidden = true
+	secret, err := input.RunPrompt()
 	if err != nil {
 		return "", err
 	}
-
 	return secret, nil
 }
 
