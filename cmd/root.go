@@ -108,6 +108,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd = &cobra.Command{
 		Use:  "circleci",
 		Long: rootHelpLong(rootOptions),
+		Run:  RunTeaBrowser,
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
