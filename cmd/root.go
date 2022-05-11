@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	// "github.com/charmbracelet/bubbles/spinner"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
