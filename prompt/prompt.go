@@ -22,6 +22,7 @@ func ReadSecretStringFromUser(message string) (string, error) {
 func ReadStringFromUser(message string, defaultValue string) string {
 	input := textinput.New(message)
 	input.Placeholder = defaultValue
+	input.InitialValue = defaultValue
 	result, err := input.RunPrompt()
 	if err != nil {
 		panic(err)
