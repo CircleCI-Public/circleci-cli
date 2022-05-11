@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/elewis787/boa"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
@@ -106,8 +108,10 @@ func MakeCommands() *cobra.Command {
 	rootOptions.Data = &data.Data
 
 	rootCmd = &cobra.Command{
-		Use:  "circleci",
-		Long: rootHelpLong(rootOptions),
+		Use:   "circleci",
+		Long:  rootHelpLong(),
+		Short: rootHelpShort(rootOptions),
+
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
@@ -118,6 +122,25 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
+
+	//Format Help Menu
+	styles := boa.DefaultStyles()
+	styles.Title.Border(lipgloss.HiddenBorder())                                                                 //the boarder around the main section
+	styles.SubTitle.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Align(lipgloss.Center) //long description
+	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(false)                //mystery
+
+	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`})
+
+	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`})                                                     //when you print the command (option)
+	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Center) //section titles (ie flags, commands)
+	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
+		Background(lipgloss.AdaptiveColor{Light: `#1D97E4`, Dark: `#1D97E4`}).Bold(true) //selected command
+	styles.Text.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(false) //regular text
+	styles.Item.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`})             //commands
+
+	b := boa.New(boa.WithStyles(styles))
+	rootCmd.SetUsageFunc(b.UsageFunc)
+	rootCmd.SetHelpFunc(b.HelpFunc)
 	rootCmd.DisableAutoGenTag = true
 
 	validator := func(_ *cobra.Command, _ []string) error {
@@ -183,6 +206,37 @@ func MakeCommands() *cobra.Command {
 	setFlagErrorFuncAndValidateArgs(rootCmd)
 
 	return rootCmd
+}
+
+func rootHelpLong() string {
+	logo := `         
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMMWNXXXNWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWWMMMMMMMMMMMMMMMMMMMMMMMNNWM
+MMMN0o:,''';cxKWMMMMMMMMMMMMMMW0xKMMMMMMMMMMMMMMMMKokWMMMMMMMMMMMMMMMMMMMMM0:;OW
+MW0c.  ..'.. .'dXMMMMMN0kddkKWMOd0K0KOkKWWKkxdx0NM0:dWMN0xdxkXWMMMN0xddkKWM0:;OM
+M0;...lO000k:. .lXMMW0lcdxxdldXx:ko':okOOdcoxkdloK0:dNOcldkxocdXW0:.';;''lXO'.kM
+MXOkkKNO:,lKX:  'OMMXccXMMMMNXNx;ko,kWWd';OMMMMNXN0:dO;'odddd:'xK:.cKWW0do0O'.kM
+MN0OOKWO;'cKXc  'OMMXccXMMMMNXNx;ko:KMWo.;0MMMMWXN0:dO;;xkkkkdd0K;.cXWWKxd0O'.kM
+M0;..'o0K0KOc. .lXMMW0llxkkdldXx;ko:KMMXOocdkkxloK0:dNkclxkkdlkNWO;.,:;'.lKO'.kM
+MW0:.  .',..  .oXMMMMMN0xddx0NMKOX0ONMMMMWKxddxOXMNOKMMXOxddkKWMMMNOdoox0WMNkxXM
+MMMNOo;'...,:d0WMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMMWXKKXNWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
+`
+	//          ............
+	//      ....................
+	//    ........................
+	//  .........         .........
+	// ........              .......
+	//             ......     .......
+	//             ......     .......
+	// ........              .......
+	//  .........          ........
+	//    ........................
+	//      ....................
+	//          ............
+
+	return logo
 }
 
 func init() {
@@ -275,10 +329,10 @@ func isUpdateIncluded(packageManager string) bool {
 	}
 }
 
-func rootHelpLong(config *settings.Config) string {
+func rootHelpShort(config *settings.Config) string {
 	long := `Use CircleCI from the command line.
 
-This project is the seed for CircleCI's new command-line application.`
+This project is the seed for CircleCI's command-line application.`
 
 	// We should only print this for cloud users
 	if config.Host != defaultHost {
@@ -286,7 +340,6 @@ This project is the seed for CircleCI's new command-line application.`
 	}
 
 	return fmt.Sprintf(`%s
-
 For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
 }
 
