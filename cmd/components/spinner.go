@@ -15,78 +15,38 @@ var CircleCISpinner = spinner.Spinner{
 	Frames: []string{
 		`
  οοο
-ο   ο
-ο ◉
-ο   ο
+ο ◉ 	Loading forever...press q to quit
  οοο	`,
 		`
  οοο
-ο   ο
-ο ◉ ο
-ο   
- οοο	`,
-		`
- οοο
-ο   ο
-ο ◉ ο
-ο   ο
+ο ◉ ο	Loading forever...press q to quit
  οο 	`,
 		`
  οοο
-ο   ο
-ο ◉ ο
-ο   ο
- ο ο	`,
+ο ◉ ο	Loading forever...press q to quit
+ ο ο 	`,
 		`
  οοο
-ο   ο
-ο ◉ ο
-ο   ο
+ο ◉ ο	Loading forever...press q to quit
   οο	`,
 		`
  οοο
-ο   ο
-ο ◉ ο
-    ο
- οοο	`,
-		`
- οοο
-ο   ο
-  ◉ ο
-ο   ο
- οοο	`,
-		`
- οοο
-    ο
-ο ◉ ο
-ο   ο
+  ◉ ο	Loading forever...press q to quit
  οοο	`,
 		`
   οο
-ο   ο
-ο ◉ ο
-ο   ο
+ο ◉ ο	Loading forever...press q to quit
  οοο	`,
 		`
  ο ο
-ο   ο
-ο ◉ ο
-ο   ο
+ο ◉ ο	Loading forever...press q to quit
  οοο	`,
 		`
  οο
-ο   ο
-ο ◉ ο
-ο   ο
- οοο	`,
-		`
- οοο
-ο
-ο ◉ ο
-ο   ο
+ο ◉ ο	Loading forever...press q to quit
  οοο	`,
 	},
-	FPS: time.Second / 15,
+	FPS: time.Second / 4,
 }
 
 type model struct {
@@ -134,7 +94,7 @@ func (m model) View() string {
 	if m.err != nil {
 		return m.err.Error()
 	}
-	str := fmt.Sprintf("\n\n   %s Loading forever...press q to quit\n\n", m.spinner.View())
+	str := m.spinner.View()
 	if m.quitting {
 		return str + "\n"
 	}
