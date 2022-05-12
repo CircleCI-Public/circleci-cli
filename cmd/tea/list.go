@@ -74,7 +74,7 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 		return nil
 	}
 
-	help := []key.Binding{keys.choose}
+	help := []key.Binding{keys.choose, keys.goBack}
 
 	d.ShortHelpFunc = func() []key.Binding {
 		return help
@@ -89,6 +89,7 @@ func newItemDelegate(keys *delegateKeyMap) list.DefaultDelegate {
 
 type delegateKeyMap struct {
 	choose key.Binding
+	goBack key.Binding
 }
 
 // Additional short help entries. This satisfies the help.KeyMap interface and
@@ -96,6 +97,7 @@ type delegateKeyMap struct {
 func (d delegateKeyMap) ShortHelp() []key.Binding {
 	return []key.Binding{
 		d.choose,
+		d.goBack,
 	}
 }
 
@@ -105,6 +107,7 @@ func (d delegateKeyMap) FullHelp() [][]key.Binding {
 	return [][]key.Binding{
 		{
 			d.choose,
+			d.goBack,
 		},
 	}
 }
@@ -114,6 +117,10 @@ func newDelegateKeyMap() *delegateKeyMap {
 		choose: key.NewBinding(
 			key.WithKeys("enter"),
 			key.WithHelp("enter", "choose"),
+		),
+		goBack: key.NewBinding(
+			key.WithKeys("backspace"),
+			key.WithHelp("backspace", "go back"),
 		),
 	}
 }
