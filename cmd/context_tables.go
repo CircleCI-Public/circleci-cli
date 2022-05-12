@@ -3,7 +3,6 @@ package cmd
 import (
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
 )
@@ -13,13 +12,19 @@ const (
 	columnKeyName      = "name"
 	columnKeyOrg       = "org"
 	columnKeyCreatedAt = "created_at"
+	columnKeyValue     = "value"
 )
 
-type RowData struct {
+type ContextListRowData struct {
 	provider  string
 	name      string
 	org       string
 	createdAt time.Time
+}
+
+type ContextShowRowData struct {
+	name  string
+	value string
 }
 
 var (
@@ -48,15 +53,15 @@ var (
 	}
 )
 
-type Model struct {
+type ContextListModel struct {
 	table table.Model
 }
 
-func (m Model) Init() tea.Cmd {
-	return nil
+type ContextShowModel struct {
+	table table.Model
 }
 
-func makeRow(data RowData) table.Row {
+func makeContextListRow(data ContextListRowData) table.Row {
 	return table.NewRow(table.RowData{
 		columnKeyProvider:  data.provider,
 		columnKeyName:      data.name,
@@ -65,14 +70,13 @@ func makeRow(data RowData) table.Row {
 	})
 }
 
-func NewContextListModel(data []RowData) Model {
+func NewContextListModel(data []ContextListRowData) ContextListModel {
 	rows := make([]table.Row, len(data))
-
 	for i, row := range data {
-		rows[i] = makeRow(row)
+		rows[i] = makeContextListRow(row)
 	}
 
-	return Model{
+	return ContextListModel{
 		table: table.New([]table.Column{
 			table.NewColumn(columnKeyProvider, "Provider", 10),
 			table.NewColumn(columnKeyName, "Name", 13),
@@ -85,7 +89,40 @@ func NewContextListModel(data []RowData) Model {
 	}
 }
 
-func (m Model) View() string {
+func (m ContextListModel) View() string {
+	view := lipgloss.JoinVertical(
+		lipgloss.Left,
+		m.table.View(),
+	) + "\n"
+
+	return lipgloss.NewStyle().MarginLeft(1).Render(view)
+}
+
+func makeContextShowRow(data ContextShowRowData) table.Row {
+	return table.NewRow(table.RowData{
+		columnKeyName:  data.name,
+		columnKeyValue: data.value,
+	})
+}
+
+func NewContextShowModel(data []ContextShowRowData) ContextShowModel {
+	rows := make([]table.Row, len(data))
+	for i, row := range data {
+		rows[i] = makeContextShowRow(row)
+	}
+
+	return ContextShowModel{
+		table: table.New([]table.Column{
+			table.NewColumn(columnKeyName, "Environment Variable", 25),
+			table.NewColumn(columnKeyValue, "Value", 50),
+		}).WithRows(rows).
+			Border(customBorder).
+			WithBaseStyle(styleBase).
+			SortByDesc(columnKeyCreatedAt),
+	}
+}
+
+func (m ContextShowModel) View() string {
 	view := lipgloss.JoinVertical(
 		lipgloss.Left,
 		m.table.View(),

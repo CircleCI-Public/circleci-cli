@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -118,9 +117,9 @@ func listContexts(contextClient api.ContextInterface, vcs, org string) error {
 		return err
 	}
 
-	rows := make([]RowData, len(*contexts))
+	rows := make([]ContextListRowData, len(*contexts))
 	for i, context := range *contexts {
-		rows[i] = RowData{
+		rows[i] = ContextListRowData{
 			provider:  vcs,
 			org:       org,
 			name:      context.Name,
@@ -143,16 +142,21 @@ func showContext(client api.ContextInterface, vcsType, orgName, contextName stri
 		return err
 	}
 
-	fmt.Printf("Context: %s\n", context.Name)
+	rows := make([]ContextShowRowData, len(*envVars))
 
-	table := tablewriter.NewWriter(os.Stdout)
+	if len(rows) > 0 {
+		for i, envVar := range *envVars {
+			rows[i] = ContextShowRowData{
+				name:  envVar.Variable,
+				value: "••••",
+			}
+		}
 
-	table.SetHeader([]string{"Environment Variable", "Value"})
-
-	for _, envVar := range *envVars {
-		table.Append([]string{envVar.Variable, "••••"})
+		fmt.Printf("Context: %s\n", context.Name)
+		fmt.Println(NewContextShowModel(rows).View())
+	} else {
+		fmt.Printf("Context %s contains no variables\n", context.Name)
 	}
-	table.Render()
 
 	return nil
 }
