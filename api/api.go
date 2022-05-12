@@ -9,6 +9,7 @@ import (
 	"os"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
@@ -457,6 +458,155 @@ type Orb struct {
 
 type errMsg error
 
+var CircleCISpinner = spinner.Spinner{
+	Frames: []string{
+		` ████████
+██      ██
+    ██  ██
+██      ██
+ ████████	`,
+		` ████████
+        ██
+    ██  ██
+██      ██
+ ████████	`,
+		`    █████
+██      ██
+    ██  ██
+██      ██
+ ████████	`,
+		` ███  ███
+██      ██
+    ██  ██
+██      ██
+ ████████	`,
+		` █████
+██      ██
+    ██  ██
+██      ██
+ ████████	`,
+		` ███████
+██
+    ██  ██
+██      ██
+ ████████	`,
+		` ████████
+██      ██
+    ██
+██      ██
+ ████████	`,
+		` ████████
+██      ██
+    ██  ██
+██
+ ████████	`,
+		` ████████
+██      ██
+    ██  ██
+██      ██
+ █████   	`,
+		` ████████
+██      ██
+    ██  ██
+██      ██
+ ███  ███	`,
+		` ████████
+██      ██
+    ██  ██
+██      ██
+    █████	`,
+		` ████████
+██      ██
+    ██  ██
+        ██
+ ████████	`,
+		` ████████
+██      ██
+        ██
+██      ██
+ ████████	`,
+	},
+	FPS: time.Second / 15,
+}
+
+var CircleCISpinnerAlt = spinner.Spinner{
+	Frames: []string{
+		`
+--▢  
+`,
+		`⟍
+  ▢  
+`,
+		`  |
+  ▢  
+`,
+		`   ⟋
+  ▢  
+`,
+		`
+  ▢--
+`,
+		`
+  ▢  
+   ⟍`,
+		`
+  ▢  
+  |`,
+		`
+  ▢  
+⟋`,
+	},
+	FPS: time.Second / 12,
+}
+
+var CircleCISpinnerAltAlt = spinner.Spinner{
+	Frames: []string{
+		`
+══▢  
+`,
+		`  ‖
+  ▢  
+`,
+		`
+  ▢══
+`,
+		`
+  ▢  
+  ‖`,
+	},
+	FPS: time.Second / 12,
+}
+
+var CircleCISpinnerAltAltAlt = spinner.Spinner{
+	Frames: []string{
+		`╭───╮
+  ⋅ │ 
+╰───╯`,
+		`  ──╮
+│ ⋅ │ 
+╰───╯`,
+		`╭   ╮
+│ ⋅ │ 
+╰───╯`,
+		`╭──
+│ ⋅ │ 
+╰───╯`,
+		`╭───╮
+│ ⋅ 
+╰───╯`,
+		`╭───╮
+│ ⋅ │ 
+╰── `,
+		`╭───╮
+│ ⋅ │ 
+╰   ╯`,
+		`╭───╮
+│ ⋅ │ 
+  ──╯`,
+	},
+	FPS: time.Second / 6,
+}
+
 type model struct {
 	spinner  spinner.Model
 	cl       *graphql.Client
@@ -472,8 +622,11 @@ type respMsg struct {
 
 func initializeModel(cl *graphql.Client, req *graphql.Request, res interface{}) model {
 	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	s.Spinner = CircleCISpinnerAltAltAlt
+	s.Style = lipgloss.NewStyle().
+		// BorderStyle(lipgloss.RoundedBorder()).
+		// BorderForeground(lipgloss.Color("#47A359")).
+		Foreground(lipgloss.Color("#47A359"))
 	return model{spinner: s, cl: cl, req: req, res: &res}
 }
 
@@ -518,18 +671,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	default:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
+		if !m.quitting {
+			var cmd tea.Cmd
+			m.spinner, cmd = m.spinner.Update(msg)
+			return m, cmd
+		}
+		return m, nil
 	}
-
 }
 
 func (m model) View() string {
 	if m.err != nil {
 		return m.err.Error()
 	}
-	str := fmt.Sprintf("%s Fetching data… (press q to quit)", m.spinner.View())
+	str := fmt.Sprintf("%s\nFetching data… (press q to quit)", m.spinner.View())
 	if m.quitting {
 		return ""
 	}
