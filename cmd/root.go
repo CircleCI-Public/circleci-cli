@@ -123,22 +123,10 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
 
-	//Format Help Menu
-	styles := boa.DefaultStyles()
-	styles.Title.Border(lipgloss.HiddenBorder())                                                                 //the boarder around the main section
-	styles.SubTitle.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Align(lipgloss.Center) //long description
-	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(false)                //mystery
-
-	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`})
-
-	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`})                                                     //when you print the command (option)
-	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Center) //section titles (ie flags, commands)
-	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
-		Background(lipgloss.AdaptiveColor{Light: `#1D97E4`, Dark: `#1D97E4`}).Bold(true) //selected command
-	styles.Text.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(false) //regular text
-	styles.Item.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`})             //commands
-
+	//styling the help menu
+	styles := styleHelpMenu()
 	b := boa.New(boa.WithStyles(styles))
+
 	rootCmd.SetUsageFunc(b.UsageFunc)
 	rootCmd.SetHelpFunc(b.HelpFunc)
 	rootCmd.DisableAutoGenTag = true
@@ -179,7 +167,8 @@ func MakeCommands() *cobra.Command {
 
 	flags.BoolVar(&rootOptions.Debug, "debug", rootOptions.Debug, "Enable debug logging.")
 	flags.StringVar(&rootTokenFromFlag, "token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
-	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
+	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, `URL to your CircleCI host, also CIRCLECI_CLI_HOST
+`)
 	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
@@ -208,34 +197,32 @@ func MakeCommands() *cobra.Command {
 	return rootCmd
 }
 
-func rootHelpLong() string {
-	logo := `         
-MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-MMMMMMWNXXXNWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMWWMMMMMMMMMMMMMMMMMMMMMMMNNWM
-MMMN0o:,''';cxKWMMMMMMMMMMMMMMW0xKMMMMMMMMMMMMMMMMKokWMMMMMMMMMMMMMMMMMMMMM0:;OW
-MW0c.  ..'.. .'dXMMMMMN0kddkKWMOd0K0KOkKWWKkxdx0NM0:dWMN0xdxkXWMMMN0xddkKWM0:;OM
-M0;...lO000k:. .lXMMW0lcdxxdldXx:ko':okOOdcoxkdloK0:dNOcldkxocdXW0:.';;''lXO'.kM
-MXOkkKNO:,lKX:  'OMMXccXMMMMNXNx;ko,kWWd';OMMMMNXN0:dO;'odddd:'xK:.cKWW0do0O'.kM
-MN0OOKWO;'cKXc  'OMMXccXMMMMNXNx;ko:KMWo.;0MMMMWXN0:dO;;xkkkkdd0K;.cXWWKxd0O'.kM
-M0;..'o0K0KOc. .lXMMW0llxkkdldXx;ko:KMMXOocdkkxloK0:dNkclxkkdlkNWO;.,:;'.lKO'.kM
-MW0:.  .',..  .oXMMMMMN0xddx0NMKOX0ONMMMMWKxddxOXMNOKMMXOxddkKWMMMNOdoox0WMNkxXM
-MMMNOo;'...,:d0WMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-MMMMMMWXKKXNWMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-MMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMMM
-`
-	//          ............
-	//      ....................
-	//    ........................
-	//  .........         .........
-	// ........              .......
-	//             ......     .......
-	//             ......     .......
-	// ........              .......
-	//  .........          ........
-	//    ........................
-	//      ....................
-	//          ............
+//styleHelpMenu using external package "github.com/elewis787/boa" to add styling to the help menu
+func styleHelpMenu() *boa.Styles {
+	styles := boa.DefaultStyles()
+	styles.Title.Border(lipgloss.HiddenBorder()).Align(lipgloss.Left)                                            //the boarder around the main section
+	styles.SubTitle.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Align(lipgloss.Center) //long description
+	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(false)                //all of the unselected commands and
 
+	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`})
+
+	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`})                                                     //when you print the command (option)
+	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Center) //section titles (ie flags, commands)
+	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
+		Background(lipgloss.AdaptiveColor{Light: `#1D97E4`, Dark: `#1D97E4`}).Bold(true) //selected command
+	styles.Text.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(false)          //regular text
+	styles.Item.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Align(lipgloss.Left) //commands
+	return styles
+}
+
+//rootHelpLong creates content for the long field in the command
+func rootHelpLong() string {
+	logo := `   
+          ███████        ██████ ██ ██████   ██████ ██      ███████      ██████ ██ 
+                ██      ██      ██ ██   ██ ██      ██      ██          ██      ██ 
+            ██  ██      ██      ██ ██████  ██      ██      █████       ██      ██ 
+                ██      ██      ██ ██   ██ ██      ██      ██          ██      ██ 
+          ███████        ██████ ██ ██   ██  ██████ ███████ ███████      ██████ ██`
 	return logo
 }
 
@@ -329,6 +316,7 @@ func isUpdateIncluded(packageManager string) bool {
 	}
 }
 
+//rootHelpShort creates content for the short field in the command
 func rootHelpShort(config *settings.Config) string {
 	long := `Use CircleCI from the command line.
 
