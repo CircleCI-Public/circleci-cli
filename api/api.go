@@ -10,11 +10,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
-
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/helper"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -455,87 +452,6 @@ type Orb struct {
 	Categories []OrbCategory
 }
 
-type errMsg error
-
-type model struct {
-	spinner  spinner.Model
-	cl       *graphql.Client
-	req      *graphql.Request
-	res      interface{}
-	quitting bool
-	err      error
-}
-
-type respMsg struct {
-	err error
-}
-
-func initializeModel(cl *graphql.Client, req *graphql.Request, res interface{}) model {
-	s := spinner.New()
-	s.Spinner = spinner.Dot
-	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	return model{spinner: s, cl: cl, req: req, res: &res}
-}
-
-func initializeTeaProgram(m model) {
-	p := tea.NewProgram(m)
-
-	if p.Start() != nil {
-		fmt.Println("Error: Could not start Tea Program")
-		os.Exit(1)
-	}
-}
-
-func (m model) Init() tea.Cmd {
-	checkServer := func() tea.Msg {
-		m.err = m.cl.Run(m.req, &m.res)
-		return respMsg{err: m.err}
-	}
-	return tea.Batch(
-		m.spinner.Tick,
-		checkServer,
-	)
-}
-
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-
-	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "esc", "ctrl+c":
-			m.quitting = true
-			return m, tea.Quit
-		default:
-			return m, nil
-		}
-
-	case respMsg:
-		m.quitting = true
-		return m, tea.Quit
-
-	case errMsg:
-		m.err = msg
-		return m, nil
-
-	default:
-		var cmd tea.Cmd
-		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
-	}
-
-}
-
-func (m model) View() string {
-	if m.err != nil {
-		return m.err.Error()
-	}
-	str := fmt.Sprintf("%s Fetching data… (press q to quit)", m.spinner.View())
-	if m.quitting {
-		return ""
-	}
-	return str
-}
-
 // Shortname returns the orb's name without its associated namespace.
 func (o *Orb) Shortname() string {
 	_, orbName, err := references.SplitIntoOrbAndNamespace(o.Name)
@@ -590,10 +506,10 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return nil, m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	return &response, nil
@@ -647,11 +563,11 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params p
 	}
 	request.SetToken(cl.Token)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
-	if m.err != nil {
-		return nil, errors.Wrap(m.err, "Unable to validate config")
+	if m.Err != nil {
+		return nil, errors.Wrap(m.Err, "Unable to validate config")
 	}
 
 	if len(response.BuildConfig.ConfigResponse.Errors) > 0 {
@@ -684,11 +600,11 @@ func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 	request.Var("config", config)
 	request.SetToken(cl.Token)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
-	if m.err != nil {
-		return nil, errors.Wrap(m.err, "Unable to validate config")
+	if m.Err != nil {
+		return nil, errors.Wrap(m.Err, "Unable to validate config")
 	}
 
 	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {
@@ -724,10 +640,10 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 	request.Var("orbId", orbID)
 	request.Var("version", orbVersion)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return nil, errors.Wrap(m.err, "unable to import orb version")
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return nil, errors.Wrap(m.Err, "unable to import orb version")
 	}
 
 	if len(response.ImportOrbVersion.Errors) > 0 {
@@ -771,11 +687,11 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 	request.Var("namespaceName", namespaceName)
 	request.Var("version", orbVersion)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
-	if m.err != nil {
-		return nil, errors.Wrap(m.err, "Unable to publish orb")
+	if m.Err != nil {
+		return nil, errors.Wrap(m.Err, "Unable to publish orb")
 	}
 
 	if len(response.PublishOrb.Errors) > 0 {
@@ -808,10 +724,10 @@ func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, bool, er
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return false, false, m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return false, false, m.Err
 	}
 
 	return response.Orb.ID != "", response.Orb.IsPrivate, nil
@@ -840,12 +756,12 @@ func OrbID(cl *graphql.Client, namespace string, orb string) (*OrbIDResponse, er
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	// If there is an error, or the request was successful, return now.
-	if m.err != nil || response.Orb.ID != "" {
-		return &response, m.err
+	if m.Err != nil || response.Orb.ID != "" {
+		return &response, m.Err
 	}
 
 	// Otherwise, we want to generate a nice error message for the user.
@@ -882,10 +798,10 @@ func CreateImportedNamespace(cl *graphql.Client, name string) (*ImportNamespaceR
 
 	request.Var("name", name)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return nil, m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	if len(response.ImportNamespace.Errors) > 0 {
@@ -920,15 +836,15 @@ func CreateNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string)
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	if len(response.CreateNamespace.Errors) > 0 {
 		return nil, response.CreateNamespace.Errors
 	}
 
-	if m.err != nil {
-		return nil, m.err
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	return &response, nil
@@ -952,11 +868,11 @@ func getOrganization(cl *graphql.Client, organizationName string, organizationVc
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", strings.ToUpper(organizationVcs))
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
-	if m.err != nil {
-		return nil, errors.Wrapf(m.err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
+	if m.Err != nil {
+		return nil, errors.Wrapf(m.Err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
 	}
 
 	return &response, nil
@@ -992,10 +908,10 @@ mutation($name: String!) {
 	request.SetToken(cl.Token)
 
 	request.Var("name", name)
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return m.Err
 	}
 
 	if len(response.DeleteNamespaceAlias.Errors) > 0 {
@@ -1031,10 +947,10 @@ mutation($id: UUID!) {
 	request.SetToken(cl.Token)
 	request.Var("id", id)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return m.Err
 	}
 
 	if len(response.DeleteNamespace.Errors) > 0 {
@@ -1082,10 +998,10 @@ func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error
 
 	request.Var("name", name)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return nil, errors.Wrapf(m.err, "failed to load namespace '%s'", m.err)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return nil, errors.Wrapf(m.Err, "failed to load namespace '%s'", m.Err)
 	}
 
 	if response.RegistryNamespace.ID == "" {
@@ -1112,10 +1028,10 @@ func NamespaceExists(cl *graphql.Client, namespace string) (bool, error) {
 	request.SetToken(cl.Token)
 	request.Var("name", namespace)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return false, errors.Wrapf(m.err, "failed to load namespace '%s'", m.err)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return false, errors.Wrapf(m.Err, "failed to load namespace '%s'", m.Err)
 	}
 
 	if response.RegistryNamespace.ID != "" {
@@ -1150,15 +1066,15 @@ func renameNamespaceWithNsID(cl *graphql.Client, id, newName string) (*RenameNam
 	request.Var("namespaceId", id)
 	request.Var("newName", newName)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	if len(response.RenameNamespace.Errors) > 0 {
 		return nil, response.RenameNamespace.Errors
 	}
 
-	if m.err != nil {
-		return nil, m.err
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	return &response, nil
@@ -1198,15 +1114,15 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string, isPr
 	request.Var("registryNamespaceId", namespaceID)
 	request.Var("isPrivate", isPrivate)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	if len(response.CreateOrb.Errors) > 0 {
 		return nil, response.CreateOrb.Errors
 	}
 
-	if m.err != nil {
-		return nil, m.err
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	return &response, nil
@@ -1252,10 +1168,10 @@ func CreateImportedOrb(cl *graphql.Client, namespace string, name string) (*Impo
 	request.Var("name", name)
 	request.Var("registryNamespaceId", res.RegistryNamespace.ID)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return nil, m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	if len(response.ImportOrb.Errors) > 0 {
@@ -1326,10 +1242,10 @@ func OrbLatestVersion(cl *graphql.Client, namespace string, orb string) (string,
 
 	request.Var("name", name)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return "", m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return "", m.Err
 	}
 
 	if len(response.Orb.Versions) != 1 {
@@ -1378,15 +1294,15 @@ func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment
 	request.Var("devVersion", label)
 	request.Var("semanticVersion", v2)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	if len(response.PromoteOrb.Errors) > 0 {
 		return nil, response.PromoteOrb.Errors
 	}
 
-	if m.err != nil {
-		return nil, errors.Wrap(m.err, "Unable to promote orb")
+	if m.Err != nil {
+		return nil, errors.Wrap(m.Err, "Unable to promote orb")
 	}
 
 	return &response.PromoteOrb.Orb, nil
@@ -1422,15 +1338,15 @@ func OrbSetOrbListStatus(cl *graphql.Client, namespace string, orb string, list 
 	request.Var("orbId", id.Orb.ID)
 	request.Var("list", list)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	if len(response.SetOrbListStatus.Errors) > 0 {
 		return nil, response.SetOrbListStatus.Errors
 	}
 
-	if m.err != nil {
-		return nil, errors.Wrap(m.err, "Unable to set orb list status")
+	if m.Err != nil {
+		return nil, errors.Wrap(m.Err, "Unable to set orb list status")
 	}
 
 	return &response.SetOrbListStatus.Listed, nil
@@ -1474,10 +1390,10 @@ func OrbSource(cl *graphql.Client, orbRef string) (string, error) {
 	request.SetToken(cl.Token)
 	request.Var("orbVersionRef", ref)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return "", m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return "", m.Err
 	}
 
 	if response.OrbVersion.ID == "" {
@@ -1544,10 +1460,10 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 	request.SetToken(cl.Token)
 	request.Var("orbVersionRef", ref)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
-	if m.err != nil {
-		return nil, m.err
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
+	if m.Err != nil {
+		return nil, m.Err
 	}
 
 	if response.OrbVersion.ID == "" {
@@ -1615,10 +1531,10 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
-		m := initializeModel(cl, request, &result)
-		initializeTeaProgram(m)
-		if m.err != nil {
-			return nil, errors.Wrap(m.err, "GraphQL query failed")
+		m := helper.InitializeGqlModel(cl, request, &result)
+		helper.InitializeTeaProgram(m)
+		if m.Err != nil {
+			return nil, errors.Wrap(m.Err, "GraphQL query failed")
 		}
 
 	Orbs:
@@ -1689,10 +1605,10 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 
-		m := initializeModel(cl, request, &result)
-		initializeTeaProgram(m)
-		if m.err != nil {
-			return nil, errors.Wrap(m.err, "GraphQL query failed")
+		m := helper.InitializeGqlModel(cl, request, &result)
+		helper.InitializeTeaProgram(m)
+		if m.Err != nil {
+			return nil, errors.Wrap(m.Err, "GraphQL query failed")
 		}
 
 		if result.RegistryNamespace.ID == "" {
@@ -1776,10 +1692,10 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 
 		orbs.Namespace = namespace
 
-		m := initializeModel(cl, request, &result)
-		initializeTeaProgram(m)
-		if m.err != nil {
-			return nil, errors.Wrap(m.err, "GraphQL query failed")
+		m := helper.InitializeGqlModel(cl, request, &result)
+		helper.InitializeTeaProgram(m)
+		if m.Err != nil {
+			return nil, errors.Wrap(m.Err, "GraphQL query failed")
 		}
 
 		if result.RegistryNamespace.ID == "" {
@@ -1843,10 +1759,10 @@ func IntrospectionQuery(cl *graphql.Client) (*IntrospectionResponse, error) {
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
-	return &response, m.err
+	return &response, m.Err
 }
 
 // OrbCategoryID fetches an orb returning the ID
@@ -1864,12 +1780,12 @@ func OrbCategoryID(cl *graphql.Client, name string) (*OrbCategoryIDResponse, err
 
 	request.Var("name", name)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	// If there is an error, or the request was successful, return now.
-	if m.err != nil || response.OrbCategoryByName.ID != "" {
-		return &response, m.err
+	if m.Err != nil || response.OrbCategoryByName.ID != "" {
+		return &response, m.Err
 	}
 
 	return nil, fmt.Errorf("the '%s' category does not exist. Did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'.", name)
@@ -1922,8 +1838,8 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 	request.Var("orbId", orbId.Orb.ID)
 	request.Var("categoryId", categoryId.OrbCategoryByName.ID)
 
-	m := initializeModel(cl, request, &response)
-	initializeTeaProgram(m)
+	m := helper.InitializeGqlModel(cl, request, &response)
+	helper.InitializeTeaProgram(m)
 
 	responseData := response[mutationName]
 
@@ -1931,8 +1847,8 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 		return &responseData.Errors
 	}
 
-	if m.err != nil {
-		return errors.Wrap(m.err, "Unable to add/remove orb categorization")
+	if m.Err != nil {
+		return errors.Wrap(m.Err, "Unable to add/remove orb categorization")
 	}
 
 	return nil
@@ -1969,10 +1885,10 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 		request := graphql.NewRequest(query)
 		request.Var("after", currentCursor)
 
-		m := initializeModel(cl, request, &result)
-		initializeTeaProgram(m)
-		if m.err != nil {
-			return nil, errors.Wrap(m.err, "GraphQL query failed")
+		m := helper.InitializeGqlModel(cl, request, &result)
+		helper.InitializeTeaProgram(m)
+		if m.Err != nil {
+			return nil, errors.Wrap(m.Err, "GraphQL query failed")
 		}
 
 		for i := range result.OrbCategories.Edges {
