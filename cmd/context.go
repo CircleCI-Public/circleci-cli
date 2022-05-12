@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/olekukonko/tablewriter"
@@ -115,24 +114,21 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 func listContexts(contextClient api.ContextInterface, vcs, org string) error {
 	contexts, err := contextClient.Contexts(vcs, org)
-
 	if err != nil {
 		return err
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-
-	table.SetHeader([]string{"Provider", "Organization", "Name", "Created At"})
-
-	for _, context := range *contexts {
-		table.Append([]string{
-			vcs,
-			org,
-			context.Name,
-			context.CreatedAt.Format(time.RFC3339),
-		})
+	rows := make([]RowData, len(*contexts))
+	for i, context := range *contexts {
+		rows[i] = RowData{
+			provider:  vcs,
+			org:       org,
+			name:      context.Name,
+			createdAt: context.CreatedAt,
+		}
 	}
-	table.Render()
+
+	fmt.Println(NewContextListModel(rows).View())
 
 	return nil
 }
