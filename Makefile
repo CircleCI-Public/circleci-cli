@@ -22,7 +22,7 @@ test:
 
 .PHONY: cover
 cover:
-	go test -race -coverprofile=coverage.txt ./...
+	TESTING=true go test -race -coverprofile=coverage.txt ./...
 
 .PHONY: lint
 lint:
