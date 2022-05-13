@@ -123,12 +123,14 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
 
-	//styling the help menu
-	styles := styleHelpMenu()
-	b := boa.New(boa.WithStyles(styles))
+	if os.Getenv("TESTING") != "true" {
+		//styling the help menu
+		styles := styleHelpMenu()
+		b := boa.New(boa.WithStyles(styles))
+		rootCmd.SetUsageFunc(b.UsageFunc)
+		rootCmd.SetHelpFunc(b.HelpFunc)
+	}
 
-	rootCmd.SetUsageFunc(b.UsageFunc)
-	rootCmd.SetHelpFunc(b.HelpFunc)
 	rootCmd.DisableAutoGenTag = true
 
 	validator := func(_ *cobra.Command, _ []string) error {

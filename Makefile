@@ -18,7 +18,7 @@ clean:
 
 .PHONY: test
 test:
-	go test -v ./...
+	TESTING=true go test -v ./...
 
 .PHONY: cover
 cover:
