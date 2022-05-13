@@ -31,7 +31,7 @@ require (
 
 require (
 	github.com/charmbracelet/lipgloss v0.5.0
-	github.com/elewis787/boa v0.1.0
+	github.com/elewis787/boa v0.1.1
 	github.com/erikgeiser/promptkit v0.6.0
 )
 
