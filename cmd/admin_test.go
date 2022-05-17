@@ -13,6 +13,7 @@ import (
 )
 
 var _ = Describe("Namespace integration tests", func() {
+	nkuin
 	var (
 		tempSettings *clitest.TempSettings
 		token        string = "testtoken"
