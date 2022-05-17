@@ -1,3 +1,6 @@
+Checklist
+=========
+
 - [ ] I have read [Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/master/CONTRIBUTING.md).
 - [ ] I have checked for similar issues and haven't found anything relevant.
 - [ ] This is not a security issue (which should be reported here: https://circleci.com/security/)
@@ -11,3 +14,35 @@
 5. The `--debug` flag is often helpful for debugging HTTP client requests and responses.
 6. Format your code with [gofmt](https://golang.org/cmd/gofmt/).
 7. Make sure your code lints (`make lint`). Note: This requires Docker to run inside a local job.
+
+
+Changes
+=======
+
+- Put itemized changes here, preferably in imperative mood, i.e. "Add
+  `functionA` to `fileB`"
+
+Rationale
+=========
+
+What was the overarching product goal of this PR as well as any pertinent
+history of changes
+
+Considerations
+==============
+
+Why you made some of the technical decisions that you made, especially if the
+reasoning is not immediately obvious
+
+Analytics Events Added
+======================
+
+- `event-name`
+
+Screenshots
+============
+<h4>Before</h4>
+Image or [gif](https://giphy.com/apps/giphycapture)
+
+<h4>After</h4>
+Image or gif where change can be clearly seen
