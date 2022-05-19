@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
+	"github.com/elewis787/boa"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
@@ -106,8 +108,10 @@ func MakeCommands() *cobra.Command {
 	rootOptions.Data = &data.Data
 
 	rootCmd = &cobra.Command{
-		Use:  "circleci",
-		Long: rootHelpLong(rootOptions),
+		Use:   "circleci",
+		Long:  rootHelpLong(),
+		Short: rootHelpShort(rootOptions),
+
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
@@ -118,6 +122,15 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
+
+	if os.Getenv("TESTING") != "true" {
+		//styling the help menu
+		styles := styleHelpMenu()
+		b := boa.New(boa.WithStyles(styles))
+		rootCmd.SetUsageFunc(b.UsageFunc)
+		rootCmd.SetHelpFunc(b.HelpFunc)
+	}
+
 	rootCmd.DisableAutoGenTag = true
 
 	validator := func(_ *cobra.Command, _ []string) error {
@@ -156,7 +169,8 @@ func MakeCommands() *cobra.Command {
 
 	flags.BoolVar(&rootOptions.Debug, "debug", rootOptions.Debug, "Enable debug logging.")
 	flags.StringVar(&rootTokenFromFlag, "token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
-	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
+	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, `URL to your CircleCI host, also CIRCLECI_CLI_HOST
+`)
 	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
@@ -183,6 +197,38 @@ func MakeCommands() *cobra.Command {
 	setFlagErrorFuncAndValidateArgs(rootCmd)
 
 	return rootCmd
+}
+
+//styleHelpMenu using external package "github.com/elewis787/boa" to add styling to the help menu
+func styleHelpMenu() *boa.Styles {
+	styles := boa.DefaultStyles()
+	styles.Title.Border(lipgloss.HiddenBorder()).Align(lipgloss.Left)                                            //the boarder around the main section
+	styles.SubTitle.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#3B6385`}).Align(lipgloss.Center) //long description
+	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#F3F3F3`}).Bold(false)                //all of the unselected commands and
+
+	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#04AA51`})
+
+	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#04AA51`})                                                     //when you print the command (option)
+	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Center) //section titles (ie flags, commands)
+	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
+		Background(lipgloss.AdaptiveColor{Light: `#1D97E4`, Dark: `#1D97E4`}).Bold(true) //selected command
+	styles.Text.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(false)          //regular text
+	styles.Item.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Align(lipgloss.Left) //commands
+	return styles
+}
+
+//rootHelpLong creates content for the long field in the command
+func rootHelpLong() string {
+	logo := `   
+                          /??                     /??                         /??
+                         |__/                    | ??                        |__/
+  /????????      /??????? /??  /??????   /???????| ??  /??????       /??????? /??
+ /_______/??    /??_____/| ?? /??__  ?? /??_____/| ?? /??__  ??     /??_____/| ??
+    /?? | ??   | ??      | ??| ??  \__/| ??      | ??| ????????    | ??      | ??
+   |__/ | ??   | ??      | ??| ??      | ??      | ??| ??_____/    | ??      | ??
+  /????????    |  ???????| ??| ??      |  ???????| ??|  ???????    |  ???????| ??
+ /________/     \_______/|__/|__/       \_______/|__/ \_______/     \_______/|__/`
+	return logo
 }
 
 func init() {
@@ -275,10 +321,11 @@ func isUpdateIncluded(packageManager string) bool {
 	}
 }
 
-func rootHelpLong(config *settings.Config) string {
+//rootHelpShort creates content for the short field in the command
+func rootHelpShort(config *settings.Config) string {
 	long := `Use CircleCI from the command line.
 
-This project is the seed for CircleCI's new command-line application.`
+This project is the seed for CircleCI's command-line application.`
 
 	// We should only print this for cloud users
 	if config.Host != defaultHost {
@@ -286,7 +333,6 @@ This project is the seed for CircleCI's new command-line application.`
 	}
 
 	return fmt.Sprintf(`%s
-
 For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
 }
 

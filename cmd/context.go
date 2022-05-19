@@ -36,13 +36,17 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	command := &cobra.Command{
-		Use:   "context",
-		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
+		Use: "context ",
+		Long: `Contexts provide a mechanism for securing and sharing environment variables across 
+		projects. The environment variables are defined as name/value pairs and 
+		are injected at runtime.`,
+		Short: "For securing and sharing environment variables across projects",
 	}
 
 	listCommand := &cobra.Command{
-		Short:   "List all contexts",
 		Use:     "list <vcs-type> <org-name>",
+		Short:   "List all contexts",
+		Example: "circleci context list github OrgName",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listContexts(contextClient, args[0], args[1])
@@ -51,8 +55,9 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	showContextCommand := &cobra.Command{
-		Short:   "Show a context",
 		Use:     "show <vcs-type> <org-name> <context-name>",
+		Short:   "Show a context",
+		Example: "circleci context show github OrgName contextName",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return showContext(contextClient, args[0], args[1], args[2])
@@ -61,8 +66,9 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	storeCommand := &cobra.Command{
-		Short:   "Store a new environment variable in the named context. The value is read from stdin.",
 		Use:     "store-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   `Store a new environment variable in this context. The value is read from stdin.`,
+		Example: "circleci context store-secret github OrgName contextName secretName",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return storeEnvVar(contextClient, args[0], args[1], args[2], args[3])
@@ -71,8 +77,9 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	removeCommand := &cobra.Command{
-		Short:   "Remove an environment variable from the named context",
 		Use:     "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Remove an environment variable from the named context",
+		Example: "circleci context remove-secret github OrgName contextName secretName",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return removeEnvVar(contextClient, args[0], args[1], args[2], args[3])
@@ -81,8 +88,9 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createContextCommand := &cobra.Command{
-		Short:   "Create a new context",
 		Use:     "create <vcs-type> <org-name> <context-name>",
+		Short:   "Create a new context",
+		Example: "circleci context create github OrgName contextName",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return createContext(contextClient, args[0], args[1], args[2])
@@ -92,8 +100,9 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 	force := false
 	deleteContextCommand := &cobra.Command{
-		Short:   "Delete the named context",
 		Use:     "delete <vcs-type> <org-name> <context-name>",
+		Short:   "Delete the named context",
+		Example: "circleci context delete github OrgName contextName",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return deleteContext(contextClient, force, args[0], args[1], args[2])
