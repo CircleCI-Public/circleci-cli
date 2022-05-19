@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -16,13 +17,16 @@ import (
 func Test_ResourceClass(t *testing.T) {
 	runner := runnerMock{}
 	cmd := newResourceClassCommand(&runnerOpts{r: &runner}, nil)
-	b := new(bytes.Buffer)
-	cmd.SetOut(b)
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
 
 	t.Run("create", func(t *testing.T) {
 		t.Run("without default token", func(t *testing.T) {
 			defer runner.reset()
-			defer b.Reset()
+			defer stdout.Reset()
+			defer stderr.Reset()
 
 			cmd.SetArgs([]string{
 				"create",
@@ -36,14 +40,17 @@ func Test_ResourceClass(t *testing.T) {
 			assert.Check(t, cmp.Equal(len(runner.resourceClasses), 1))
 			assert.Check(t, cmp.Equal(runner.resourceClasses[0].ResourceClass, "my-namespace/my-resource-class"))
 			assert.Check(t, cmp.Equal(runner.resourceClasses[0].Description, "my-description"))
-			assert.Check(t, cmp.Contains(b.String(), "my-namespace/my-resource-class"))
+			assert.Check(t, cmp.Contains(stdout.String(), "my-namespace/my-resource-class"))
 
 			assert.Check(t, cmp.Equal(len(runner.tokens), 0))
+
+			assert.Check(t, cmp.Contains(stderr.String(), terms))
 		})
 
 		t.Run("with default token", func(t *testing.T) {
 			defer runner.reset()
-			defer b.Reset()
+			defer stdout.Reset()
+			defer stderr.Reset()
 
 			cmd.SetArgs([]string{
 				"create",
@@ -54,7 +61,7 @@ func Test_ResourceClass(t *testing.T) {
 
 			err := cmd.Execute()
 			assert.NilError(t, err)
-			out := b.String()
+			out := stdout.String()
 
 			assert.Check(t, cmp.Equal(len(runner.resourceClasses), 1))
 			assert.Check(t, cmp.Equal(runner.resourceClasses[0].ResourceClass, "my-namespace/my-other-resource-class"))
@@ -65,6 +72,8 @@ func Test_ResourceClass(t *testing.T) {
 			assert.Check(t, cmp.Equal(runner.tokens[0].ResourceClass, "my-namespace/my-other-resource-class"))
 			assert.Check(t, cmp.Equal(runner.tokens[0].Nickname, "default"))
 			assert.Check(t, cmp.Contains(out, "fake-token"))
+
+			assert.Check(t, cmp.Contains(stderr.String(), terms))
 		})
 	})
 }
@@ -91,6 +100,14 @@ func (r *runnerMock) GetResourceClassByName(resourceClass string) (*runner.Resou
 		}
 	}
 	return nil, errors.New("not found")
+}
+
+func (r *runnerMock) GetNamespaceByResourceClass(resourceClass string) (string, error) {
+	s := strings.SplitN(resourceClass, "/", 2)
+	if len(s) != 2 {
+		return "", fmt.Errorf("bad resource class: %q", resourceClass)
+	}
+	return s[0], nil
 }
 
 func (r *runnerMock) GetResourceClassesByNamespace(namespace string) ([]runner.ResourceClass, error) {

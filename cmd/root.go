@@ -103,11 +103,7 @@ func MakeCommands() *cobra.Command {
 		panic(err)
 	}
 
-	loaded, err := data.LoadData()
-	if err != nil {
-		panic(err)
-	}
-	rootOptions.Data = loaded
+	rootOptions.Data = &data.Data
 
 	rootCmd = &cobra.Command{
 		Use:  "circleci",
