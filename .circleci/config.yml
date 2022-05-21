@@ -172,12 +172,12 @@ jobs:
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
-    executor: go
+    docker:
+      - image: golangci/golangci-lint:v1.46-alpine
+    resource_class: large
     steps:
       - checkout
-      - run: make install-lint
-      - run: make build
-      - run: make lint
+      - run: golangci-lint run
 
   deploy-test:
     executor: go

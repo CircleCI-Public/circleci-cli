@@ -61,7 +61,7 @@ func TestFollowProject(t *testing.T) {
 			expErr: "invalid character '/'",
 		},
 		{
-			label: "returns a followed project succesfully",
+			label: "returns a followed project successfully",
 			transportFn: func(r *http.Request) (*http.Response, error) {
 				if r.URL.String() != "https://circleci.com/api/v1.1/project/github/test-user/test-project/follow" {
 					panic(fmt.Sprintf("unexpected url: %s", r.URL.String()))
