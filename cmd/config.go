@@ -77,6 +77,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		panic(err)
 	}
 	validateCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
+	validateCommand.Flags().String("org-id", "", "organization id used when a config depends on private orbs belonging to that org")
 
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
@@ -121,6 +122,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
+	var err error
+	var response *api.ConfigResponse
 	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
@@ -133,8 +136,9 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	}
 
 	orgSlug, _ := flags.GetString("org-slug")
+	orgID, _ := flags.GetString("org-id")
 
-	response, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+	response, err = api.ConfigQuery(opts.cl, path, orgID, orgSlug, nil, pipeline.LocalPipelineValues())
 	if err != nil {
 		return err
 	}
@@ -160,6 +164,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	orgSlug, _ := flags.GetString("org-slug")
+	orgID, _ := flags.GetString("org-id")
 	paramsYaml, _ := flags.GetString("pipeline-parameters")
 
 	var params pipeline.Parameters
@@ -178,7 +183,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
+	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgID, orgSlug, params, pipeline.LocalPipelineValues())
 	if err != nil {
 		return err
 	}

@@ -15,6 +15,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/Masterminds/semver"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -514,15 +515,14 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 }
 
 // ConfigQuery calls the GQL API to validate and process config
-func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
+func ConfigQuery(cl *graphql.Client, configPath string, orgIDString, orgSlug string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 	var query string
-
+	var orgId uuid.UUID
 	config, err := loadYaml(configPath)
 	if err != nil {
 		return nil, err
 	}
-
 	// GraphQL isn't forwards-compatible, so we are unusually selective here about
 	// passing only non-empty fields on to the API, to minimize user impact if the
 	// backend is out of date.
@@ -530,11 +530,19 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params p
 	if orgSlug != "" {
 		fieldAddendums += ", orgSlug: $orgSlug"
 	}
+
+	if orgIDString != "" {
+		orgId, err = uuid.Parse(orgIDString)
+		if err != nil {
+			return nil, err
+		}
+		fieldAddendums += ", orgId: $orgId"
+	}
 	if len(params) > 0 {
 		fieldAddendums += ", pipelineParametersJson: $pipelineParametersJson"
 	}
 	query = fmt.Sprintf(
-		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgId: UUID!, $orgSlug: String) {
 			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
 				valid,
 				errors { message },
@@ -546,6 +554,7 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params p
 
 	request := graphql.NewRequest(query)
 	request.Var("config", config)
+
 	if values != nil {
 		request.Var("pipelineValues", pipeline.PrepareForGraphQL(values))
 	}
@@ -556,17 +565,20 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgSlug string, params p
 		}
 		request.Var("pipelineParametersJson", string(pipelineParameters))
 	}
+
+	if orgId != uuid.Nil {
+		request.Var("orgId", orgId)
+	}
 	if orgSlug != "" {
 		request.Var("orgSlug", orgSlug)
 	}
+
 	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
-
 	if len(response.BuildConfig.ConfigResponse.Errors) > 0 {
 		return nil, &response.BuildConfig.ConfigResponse.Errors
 	}
