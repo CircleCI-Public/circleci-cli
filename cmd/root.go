@@ -139,6 +139,11 @@ func MakeCommands() *cobra.Command {
 
 	rootCmd.AddCommand(followProjectCommand(rootOptions))
 
+	policyOptions := rootOptions
+	policyOptions.Host = "https://internal.cirlceci.com"
+	policyOptions.RestEndpoint = "api/v1"
+	rootCmd.AddCommand(newPolicyCommand(policyOptions))
+
 	if isUpdateIncluded(version.PackageManager()) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))
 	} else {
