@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -135,12 +136,18 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 		path = opts.args[0]
 	}
 
-	orgSlug, _ := flags.GetString("org-slug")
 	orgID, _ := flags.GetString("org-id")
-
-	response, err = api.ConfigQuery(opts.cl, path, orgID, orgSlug, nil, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
+	if strings.TrimSpace(orgID) != "" {
+		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		response, err = api.ConfigQueryLegacy(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	// check if a deprecated Linux VM image is being used
@@ -163,11 +170,10 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 }
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
-	orgSlug, _ := flags.GetString("org-slug")
-	orgID, _ := flags.GetString("org-id")
 	paramsYaml, _ := flags.GetString("pipeline-parameters")
-
+	var response *api.ConfigResponse
 	var params pipeline.Parameters
+	var err error
 
 	if len(paramsYaml) > 0 {
 		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read sucessfully,
@@ -183,9 +189,18 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgID, orgSlug, params, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		response, err = api.ConfigQueryLegacy(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Print(response.OutputYaml)

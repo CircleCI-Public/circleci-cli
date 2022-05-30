@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -27,12 +28,19 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 
 	processedArgs, configPath := buildAgentArguments(flags)
-	orgSlug, _ := flags.GetString("org-slug")
-	orgID, _ := flags.GetString("org-id")
 
-	configResponse, err = api.ConfigQuery(cl, configPath, orgID, orgSlug, nil, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		configResponse, err = api.ConfigQuery(cl, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		configResponse, err = api.ConfigQueryLegacy(cl, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	if !configResponse.Valid {
