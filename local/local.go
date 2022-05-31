@@ -29,6 +29,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 
 	processedArgs, configPath := buildAgentArguments(flags)
 
+	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
 		configResponse, err = api.ConfigQuery(cl, configPath, orgID, nil, pipeline.LocalPipelineValues())

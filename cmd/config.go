@@ -95,6 +95,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
+	processCommand.Flags().String("org-id", "", "organization id used when a config depends on private orbs belonging to that org")
 	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)")
 
 	migrateCommand := &cobra.Command{
@@ -136,6 +137,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 		path = opts.args[0]
 	}
 
+	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
 		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, pipeline.LocalPipelineValues())
@@ -189,6 +191,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
+	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
 		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
