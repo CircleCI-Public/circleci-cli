@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/pkg/errors"
 
@@ -16,6 +15,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
+
+const policyServerUrl = "https://internal.cirlceci.com"
 
 // Client communicates with the CircleCI policy-service to ask questions
 // about policies. It satisfies policy.ClientInterface.
@@ -68,7 +69,7 @@ func (c *Client) newListPoliciesRequest(ownerID, activeFilter string) (*http.Req
 	if err != nil {
 		return nil, err
 	}
-	queryURL, err = queryURL.Parse(fmt.Sprintf("owner/%s/policy", ownerID))
+	queryURL, err = queryURL.Parse(fmt.Sprintf("/api/v1/owner/%s/policy", ownerID))
 	if err != nil {
 		return nil, err
 	}
@@ -100,26 +101,10 @@ func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Reque
 }
 
 // NewClient returns a new client satisfying the api.PolicyInterface interface via the REST API.
-func NewClient(config settings.Config) (*Client, error) {
-	// Ensure serverUrl ends with a slash
-	if !strings.HasSuffix(config.RestEndpoint, "/") {
-		config.RestEndpoint += "/"
-	}
-	serverURL, err := url.Parse(config.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err = serverURL.Parse(config.RestEndpoint)
-	if err != nil {
-		return nil, err
-	}
-
-	client := &Client{
+func NewClient(config settings.Config) *Client {
+	return &Client{
 		token:     config.Token,
-		serverUrl: serverURL.String(),
+		serverUrl: policyServerUrl,
 		client:    config.HTTPClient,
 	}
-
-	return client, nil
 }

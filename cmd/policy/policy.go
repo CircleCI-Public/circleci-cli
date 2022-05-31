@@ -13,28 +13,19 @@ import (
 )
 
 func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
-	var policyClient ClientInterface
-	var ownerID, activeFilter string
-
-	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		if policyClient, e = policy.NewClient(*config); e != nil {
-			return e
-		}
-		return preRunE(cmd, args)
-	}
-
 	command := &cobra.Command{
 		Use: "policy",
 		Short: "Policies ensures security of build configs via security policy management framework. " +
 			"This group of commands allows the management of polices to be verified against build configs.",
 	}
 
+	var ownerID, activeFilter string
 	listPoliciesCommand := &cobra.Command{
 		Short:   "List all policies",
 		Use:     "list",
-		PreRunE: initClient,
+		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listPolicies(policyClient, ownerID, activeFilter)
+			return listPolicies(policy.NewClient(*config), ownerID, activeFilter)
 		},
 		Args:    cobra.ExactArgs(0),
 		Example: `policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active true`,
