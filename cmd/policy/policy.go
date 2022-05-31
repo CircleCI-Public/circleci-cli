@@ -14,6 +14,7 @@ import (
 
 func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	var policyClient ClientInterface
+	var ownerID, activeFilter string
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
 		if policyClient, e = policy.NewClient(*config); e != nil {
@@ -30,29 +31,25 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 	listPoliciesCommand := &cobra.Command{
 		Short:   "List all policies",
-		Use:     "list <ownerID> [<active>]",
+		Use:     "list",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listPolicies(policyClient, args)
+			return listPolicies(policyClient, ownerID, activeFilter)
 		},
-		Args:        cobra.RangeArgs(1, 2),
-		Annotations: make(map[string]string),
-		Example:     `policy list 516425b2-e369-421b-838d-920e1f51b0f5 true`,
+		Args:    cobra.ExactArgs(0),
+		Example: `policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active true`,
 	}
-	listPoliciesCommand.Annotations["<ownerID>"] = `the id of the owner of a policy. These are in uuid format`
-	listPoliciesCommand.Annotations["[<active>]"] = `(OPTIONAL) filter policies based on active status (true or false)`
+	listPoliciesCommand.Flags().StringVar(&ownerID, "owner-id", "", "the id of the owner of a policy")
+	listPoliciesCommand.Flags().StringVar(&activeFilter, "active", "", "(OPTIONAL) filter policies based on active status (true or false)")
+	listPoliciesCommand.MarkFlagRequired("owner-id")
 	command.AddCommand(listPoliciesCommand)
 
 	return command
 }
 
-func listPolicies(policyClient ClientInterface, args []string) error {
-	ownerID, activeFilter := args[0], ""
-	if len(args) > 1 {
-		activeFilter = args[1]
-		if !(activeFilter == "true" || activeFilter == "false") {
-			return errors.New("activeFilter value can only be true or false")
-		}
+func listPolicies(policyClient ClientInterface, ownerID, activeFilter string) error {
+	if activeFilter != "" && !(activeFilter == "true" || activeFilter == "false") {
+		return errors.New("activeFilter value can only be true or false")
 	}
 	policies, err := policyClient.ListPolicies(ownerID, activeFilter)
 	if err != nil {

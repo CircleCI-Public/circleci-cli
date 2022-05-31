@@ -25,8 +25,9 @@ type Client struct {
 	client    *http.Client
 }
 
-type errorResponse struct {
-	Message *string `json:"message"`
+type httpError struct {
+	Error   string                 `json:"error"`
+	Context map[string]interface{} `json:"context,omitempty"`
 }
 
 func (c *Client) ListPolicies(ownerID, activeFilter string) (string, error) {
@@ -46,11 +47,11 @@ func (c *Client) ListPolicies(ownerID, activeFilter string) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		var dest errorResponse
-		if err = json.Unmarshal(bodyBytes, &dest); err != nil {
+		var errorResponse httpError
+		if err = json.Unmarshal(bodyBytes, &errorResponse); err != nil {
 			return "", err
 		}
-		return "", errors.New(*dest.Message)
+		return "", errors.New(errorResponse.Error)
 	}
 
 	var prettyJSON bytes.Buffer
