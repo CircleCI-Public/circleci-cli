@@ -1,0 +1,5 @@
+Usage:
+  policy list <ownerID> [<active>]
+
+Examples:
+policy list 516425b2-e369-421b-838d-920e1f51b0f5 true

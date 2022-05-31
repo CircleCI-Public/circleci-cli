@@ -143,7 +143,10 @@ func MakeCommands() *cobra.Command {
 	policyOptions := rootOptions
 	policyOptions.Host = "https://internal.cirlceci.com"
 	policyOptions.RestEndpoint = "api/v1"
-	rootCmd.AddCommand(policy.NewCommand(policyOptions))
+	policyTokenValidator := func(_ *cobra.Command, _ []string) error {
+		return validateToken(policyOptions)
+	}
+	rootCmd.AddCommand(policy.NewCommand(policyOptions, policyTokenValidator))
 
 	if isUpdateIncluded(version.PackageManager()) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))

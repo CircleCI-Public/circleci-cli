@@ -12,14 +12,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-func NewCommand(config *settings.Config) *cobra.Command {
+func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	var policyClient policy.PolicyInterface
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
 		if policyClient, e = policy.NewPolicyRestClient(*config); e != nil {
 			return e
 		}
-		return nil
+		return preRunE(cmd, args)
 	}
 
 	command := &cobra.Command{
@@ -37,7 +37,7 @@ func NewCommand(config *settings.Config) *cobra.Command {
 		},
 		Args:        cobra.RangeArgs(1, 2),
 		Annotations: make(map[string]string),
-		Example:     `circleci policy list 516425b2-e369-421b-838d-920e1f51b0f5 true`,
+		Example:     `policy list 516425b2-e369-421b-838d-920e1f51b0f5 true`,
 	}
 	listPoliciesCommand.Annotations["<ownerID>"] = `the id of the owner of a policy. These are in uuid format`
 	listPoliciesCommand.Annotations["[<active>]"] = `(OPTIONAL) filter policies based on active status (true or false)`
@@ -61,3 +61,5 @@ func listPolicies(policyClient policy.PolicyInterface, args []string) error {
 	fmt.Println(policies)
 	return nil
 }
+
+type validator func(cmd *cobra.Command, args []string) error
