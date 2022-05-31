@@ -13,10 +13,10 @@ import (
 )
 
 func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
-	var policyClient policy.PolicyInterface
+	var policyClient ClientInterface
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		if policyClient, e = policy.NewPolicyRestClient(*config); e != nil {
+		if policyClient, e = policy.NewClient(*config); e != nil {
 			return e
 		}
 		return preRunE(cmd, args)
@@ -46,7 +46,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	return command
 }
 
-func listPolicies(policyClient policy.PolicyInterface, args []string) error {
+func listPolicies(policyClient ClientInterface, args []string) error {
 	ownerID, activeFilter := args[0], ""
 	if len(args) > 1 {
 		activeFilter = args[1]
@@ -63,3 +63,7 @@ func listPolicies(policyClient policy.PolicyInterface, args []string) error {
 }
 
 type validator func(cmd *cobra.Command, args []string) error
+
+type ClientInterface interface {
+	ListPolicies(ownerID, activeFilter string) (string, error)
+}
