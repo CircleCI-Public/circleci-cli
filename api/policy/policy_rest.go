@@ -1,4 +1,4 @@
-package api
+package policy
 
 import (
 	"bytes"
@@ -23,6 +23,10 @@ type PolicyRestClient struct {
 	token  string
 	server string
 	client *http.Client
+}
+
+type errorResponse struct {
+	Message *string `json:"message"`
 }
 
 func (c *PolicyRestClient) ListPolicies(ownerID, activeFilter string) (string, error) {

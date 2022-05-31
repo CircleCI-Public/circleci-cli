@@ -8,6 +8,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
@@ -142,7 +143,7 @@ func MakeCommands() *cobra.Command {
 	policyOptions := rootOptions
 	policyOptions.Host = "https://internal.cirlceci.com"
 	policyOptions.RestEndpoint = "api/v1"
-	rootCmd.AddCommand(newPolicyCommand(policyOptions))
+	rootCmd.AddCommand(policy.NewCommand(policyOptions))
 
 	if isUpdateIncluded(version.PackageManager()) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))

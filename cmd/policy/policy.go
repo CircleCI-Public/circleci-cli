@@ -1,4 +1,4 @@
-package cmd
+package policy
 
 import (
 	"fmt"
@@ -7,23 +7,24 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/api/policy"
+
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-func newPolicyCommand(config *settings.Config) *cobra.Command {
-	var policyClient api.PolicyInterface
+func NewCommand(config *settings.Config) *cobra.Command {
+	var policyClient policy.PolicyInterface
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		if policyClient, e = api.NewPolicyRestClient(*config); e != nil {
+		if policyClient, e = policy.NewPolicyRestClient(*config); e != nil {
 			return e
 		}
-		return validateToken(config)
+		return nil
 	}
 
 	command := &cobra.Command{
 		Use: "policy",
-		Short: "Policies allows ensuring security of build configs via security policy management framework. " +
+		Short: "Policies ensures security of build configs via security policy management framework. " +
 			"This group of commands allows the management of polices to be verified against build configs.",
 	}
 
@@ -45,7 +46,7 @@ func newPolicyCommand(config *settings.Config) *cobra.Command {
 	return command
 }
 
-func listPolicies(policyClient api.PolicyInterface, args []string) error {
+func listPolicies(policyClient policy.PolicyInterface, args []string) error {
 	ownerID, activeFilter := args[0], ""
 	if len(args) > 1 {
 		activeFilter = args[1]
