@@ -4,4 +4,7 @@ Usage:
 Available Commands:
   list        List all policies
 
+Flags:
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+
 Use "policy [command] --help" for more information about a command.
