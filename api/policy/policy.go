@@ -1,27 +1,20 @@
 package policy
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-
-	"github.com/pkg/errors"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
-const policyServerUrl = "https://internal.cirlceci.com"
-
 // Client communicates with the CircleCI policy-service to ask questions
 // about policies. It satisfies policy.ClientInterface.
 type Client struct {
-	token     string
 	serverUrl string
 	client    *http.Client
 }
@@ -31,80 +24,68 @@ type httpError struct {
 	Context map[string]interface{} `json:"context,omitempty"`
 }
 
-func (c *Client) ListPolicies(ownerID, activeFilter string) (string, error) {
-	req, err := c.newListPoliciesRequest(ownerID, activeFilter)
+func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), nil)
 	if err != nil {
-		return "", err
+		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
+
+	query := make(url.Values)
+	if activeFilter != nil {
+		query.Set("active", fmt.Sprint(*activeFilter))
+	}
+
+	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	defer resp.Body.Close()
-	if err != nil {
-		return "", err
-	}
+
 	if resp.StatusCode != http.StatusOK {
-		var errorResponse httpError
-		if err = json.Unmarshal(bodyBytes, &errorResponse); err != nil {
-			return "", err
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
 		}
-		return "", errors.New(errorResponse.Error)
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
 
-	var prettyJSON bytes.Buffer
-	if err = json.Indent(&prettyJSON, bodyBytes, "", "\t"); err != nil {
-		return "", err
-	}
-	return prettyJSON.String(), nil
-}
-
-func (c *Client) newListPoliciesRequest(ownerID, activeFilter string) (*http.Request, error) {
-	var err error
-
-	queryURL, err := url.Parse(c.serverUrl)
-	if err != nil {
-		return nil, err
-	}
-	queryURL, err = queryURL.Parse(fmt.Sprintf("/api/v1/owner/%s/policy", ownerID))
-	if err != nil {
-		return nil, err
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
 	}
 
-	urlParams := url.Values{}
-	if activeFilter != "" {
-		urlParams.Add("active", activeFilter)
-	}
-
-	queryURL.RawQuery = urlParams.Encode()
-
-	return c.newHTTPRequest("GET", queryURL.String(), nil)
-}
-
-func (c *Client) newHTTPRequest(method, url string, body io.Reader) (*http.Request, error) {
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Add("circle-token", c.token)
-	req.Header.Add("Accept", "application/json")
-	req.Header.Add("Content-Type", "application/json")
-	req.Header.Add("User-Agent", version.UserAgent())
-	commandStr := header.GetCommandStr()
-	if commandStr != "" {
-		req.Header.Add("Circleci-Cli-Command", commandStr)
-	}
-	return req, nil
+	return body, nil
 }
 
 // NewClient returns a new client satisfying the api.PolicyInterface interface via the REST API.
-func NewClient(config settings.Config) *Client {
+func NewClient(baseURL string, config *settings.Config) *Client {
+	transport := config.HTTPClient.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
+
+	config.HTTPClient.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
+		r.Header.Add("circle-token", config.Token)
+		r.Header.Add("Accept", "application/json")
+		r.Header.Add("Content-Type", "application/json")
+		r.Header.Add("User-Agent", version.UserAgent())
+		if commandStr := header.GetCommandStr(); commandStr != "" {
+			r.Header.Add("Circleci-Cli-Command", commandStr)
+		}
+		return transport.RoundTrip(r)
+	})
+
 	return &Client{
-		token:     config.Token,
-		serverUrl: policyServerUrl,
+		serverUrl: strings.TrimSuffix(baseURL, "/"),
 		client:    config.HTTPClient,
 	}
+}
+
+// transportFunc is utility type for declaring a http.RoundTripper as a function literal
+type transportFunc func(*http.Request) (*http.Response, error)
+
+func (fn transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return fn(req)
 }
