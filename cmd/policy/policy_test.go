@@ -64,8 +64,6 @@ func Test_ListPolicies(t *testing.T) {
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
-		defer stdout.Reset()
-		defer stderr.Reset()
 
 		cmd.SetArgs([]string{
 			"list",
@@ -91,8 +89,6 @@ func Test_ListPolicies(t *testing.T) {
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
-		defer stdout.Reset()
-		defer stderr.Reset()
 
 		cmd.SetArgs([]string{
 			"list",
@@ -117,8 +113,6 @@ func Test_ListPolicies(t *testing.T) {
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
-		defer stdout.Reset()
-		defer stderr.Reset()
 
 		cmd.SetArgs([]string{
 			"list",
