@@ -3,7 +3,6 @@ package policy
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 
 	"github.com/spf13/cobra"
 
@@ -47,7 +46,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					return fmt.Errorf("failed to list policies: %v", err)
 				}
 
-				enc := json.NewEncoder(os.Stdout)
+				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")
 
 				if err := enc.Encode(policies); err != nil {

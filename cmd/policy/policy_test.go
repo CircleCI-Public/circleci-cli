@@ -2,6 +2,7 @@ package policy
 
 import (
 	"bytes"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -14,21 +15,17 @@ import (
 
 func Test_ListPolicies(t *testing.T) {
 	t.Run("without owner-id", func(t *testing.T) {
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		cmd := NewCommand(config, nil)
+
 		stdout := new(bytes.Buffer)
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
-		defer stdout.Reset()
-		defer stderr.Reset()
 
-		cmd.SetArgs([]string{
-			"list",
-		})
+		cmd.SetArgs([]string{"list"})
 
-		err := cmd.Execute()
-		assert.Error(t, err, "required flag(s) \"owner-id\" not set")
+		assert.Error(t, cmd.Execute(), "required flag(s) \"owner-id\" not set")
 		assert.Assert(t, cmp.Contains(stdout.String(), "required flag(s) \"owner-id\" not set"))
 	})
 
@@ -39,8 +36,6 @@ func Test_ListPolicies(t *testing.T) {
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
-		defer stdout.Reset()
-		defer stderr.Reset()
 
 		cmd.SetArgs([]string{
 			"list",
@@ -55,13 +50,15 @@ func Test_ListPolicies(t *testing.T) {
 
 	t.Run("gets forbidden error", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
+
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
 			w.WriteHeader(http.StatusForbidden)
 			w.Write([]byte(expectedResponse))
 		}))
 		defer svr.Close()
 
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		cmd := NewCommand(config, nil)
 		stdout := new(bytes.Buffer)
 		stderr := new(bytes.Buffer)
@@ -79,6 +76,58 @@ func Test_ListPolicies(t *testing.T) {
 		err := cmd.Execute()
 		assert.Error(t, err, "failed to list policies: unexpected status-code: 403 - Forbidden")
 		assert.Assert(t, cmp.Contains(stdout.String(), "failed to list policies: unexpected status-code: 403 - Forbidden"))
+	})
+
+	t.Run("should set active to true", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy?active=true")
+			w.Write([]byte("[]"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+		defer stdout.Reset()
+		defer stderr.Reset()
+
+		cmd.SetArgs([]string{
+			"list",
+			"--owner-id", "ownerID",
+			"--policy-base-url", svr.URL,
+			"--active",
+		})
+
+		assert.NilError(t, cmd.Execute())
+	})
+
+	t.Run("should set active to false", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy?active=false")
+			w.Write([]byte("[]"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+		defer stdout.Reset()
+		defer stderr.Reset()
+
+		cmd.SetArgs([]string{
+			"list",
+			"--owner-id", "ownerID",
+			"--policy-base-url", svr.URL,
+			"--active=false",
+		})
+
+		assert.NilError(t, cmd.Execute())
 	})
 
 	t.Run("successfully gets list of policies", func(t *testing.T) {
@@ -102,6 +151,10 @@ func Test_ListPolicies(t *testing.T) {
 				"modified_at": "2022-05-31T14:15:46.72321Z"
 			}
 		]`
+
+		var expectedValue interface{}
+		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedValue))
+
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(expectedResponse))
 		}))
@@ -113,8 +166,6 @@ func Test_ListPolicies(t *testing.T) {
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
-		defer stdout.Reset()
-		defer stderr.Reset()
 
 		cmd.SetArgs([]string{
 			"list",
@@ -124,6 +175,10 @@ func Test_ListPolicies(t *testing.T) {
 
 		err := cmd.Execute()
 		assert.NilError(t, err)
-		assert.Equal(t, stdout.String(), expectedResponse)
+
+		var actualValue interface{}
+		assert.NilError(t, json.Unmarshal(stdout.Bytes(), &actualValue))
+
+		assert.DeepEqual(t, expectedValue, actualValue)
 	})
 }
