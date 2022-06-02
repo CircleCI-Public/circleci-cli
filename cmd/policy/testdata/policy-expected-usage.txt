@@ -2,9 +2,12 @@ Usage:
   policy [command]
 
 Available Commands:
+  create      create policy
+  get         Get a policy
   list        List all policies
 
 Flags:
+      --owner-id string          the id of the owner of a policy
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
 
 Use "policy [command] --help" for more information about a command.
