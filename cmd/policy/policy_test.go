@@ -11,6 +11,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/spf13/cobra"
 )
 
 func TestListPolicies(t *testing.T) {
@@ -175,4 +176,49 @@ func TestListPolicies(t *testing.T) {
 
 		assert.DeepEqual(t, expectedValue, actualValue)
 	})
+}
+
+func TestCreatePolicy(t *testing.T) {
+	makeCMD := func() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		return cmd, stdout, stderr
+	}
+
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(tc.Args)
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+			}
+
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
 }
