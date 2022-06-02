@@ -6,10 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/api/policy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
 )
@@ -191,34 +193,223 @@ func TestCreatePolicy(t *testing.T) {
 		return cmd, stdout, stderr
 	}
 
+	now := time.Now()
+
+	asPrettyJSON := func(t *testing.T, value interface{}) string {
+		data, err := json.MarshalIndent(value, "", "  ")
+		assert.NilError(t, err)
+		return string(data) + "\n"
+	}
+
 	testcases := []struct {
 		Name           string
 		Args           []string
 		ServerHandler  http.HandlerFunc
 		ExpectedOutput string
 		ExpectedErr    string
-	}{}
+	}{
+		{
+			Name:        "requires owner-id and name and policy",
+			Args:        []string{"create"},
+			ExpectedErr: "required flag(s) \"name\", \"owner-id\", \"policy\" not set",
+		},
+		{
+			Name: "sends appropiate desired request",
+			Args: []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": "package test",
+					"context": "config",
+					"name":    "test-policy",
+				})
+
+				response := policy.CreationResponse{
+					DocumentVersion: 1,
+					ID:              "id",
+					Name:            "test-policy",
+					Context:         "config",
+					Content:         "package test",
+					CreatedAt:       now,
+				}
+
+				w.WriteHeader(201)
+				_ = json.NewEncoder(w).Encode(response)
+			},
+			ExpectedOutput: asPrettyJSON(t, policy.CreationResponse{
+				DocumentVersion: 1,
+				ID:              "id",
+				Name:            "test-policy",
+				Context:         "config",
+				Content:         "package test",
+				CreatedAt:       now,
+			}),
+		},
+	}
 
 	for _, tc := range testcases {
 		t.Run(tc.Name, func(t *testing.T) {
 			if tc.ServerHandler == nil {
 				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
 			}
+
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
 			cmd, stdout, _ := makeCMD()
 
-			cmd.SetArgs(tc.Args)
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
 			err := cmd.Execute()
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
 				assert.Error(t, err, tc.ExpectedErr)
+				return
 			}
 
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
 		})
 	}
+}
+
+func Test_GetPolicy(t *testing.T) {
+	t.Run("without policy-id", func(t *testing.T) {
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		cmd.SetArgs([]string{
+			"get",
+			"--owner-id", "ownerID",
+		})
+
+		assert.Error(t, cmd.Execute(), "accepts 1 arg(s), received 0")
+		assert.Assert(t, cmp.Contains(stdout.String(), "accepts 1 arg(s), received 0"))
+	})
+
+	t.Run("without org-id", func(t *testing.T) {
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		cmd.SetArgs([]string{
+			"get",
+			"policyID",
+		})
+
+		assert.Error(t, cmd.Execute(), "required flag(s) \"owner-id\" not set")
+		assert.Assert(t, cmp.Contains(stdout.String(), "required flag(s) \"owner-id\" not set"))
+	})
+
+	t.Run("gets forbidden error", func(t *testing.T) {
+		expectedResponse := `{"error": "Forbidden"}`
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy/policyID")
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		cmd.SetArgs([]string{
+			"get",
+			"policyID",
+			"--owner-id", "ownerID",
+			"--policy-base-url", svr.URL,
+		})
+
+		err := cmd.Execute()
+		assert.Error(t, err, "failed to get policy: unexpected status-code: 403 - Forbidden")
+		assert.Assert(t, cmp.Contains(stdout.String(), "failed to get policy: unexpected status-code: 403 - Forbidden"))
+	})
+
+	t.Run("gets not found", func(t *testing.T) {
+		expectedResponse := `{"error": "policy not found"}`
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy/policyID")
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		cmd.SetArgs([]string{
+			"get",
+			"policyID",
+			"--owner-id", "ownerID",
+			"--policy-base-url", svr.URL,
+		})
+
+		err := cmd.Execute()
+		assert.Error(t, err, "failed to get policy: unexpected status-code: 404 - policy not found")
+		assert.Assert(t, cmp.Contains(stdout.String(), "failed to get policy: unexpected status-code: 404 - policy not found"))
+	})
+
+	t.Run("successfully gets a policy", func(t *testing.T) {
+		expectedResponse := `{
+   			 "document_version": 1,
+   			 "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+   			 "name": "policy_1",
+   			 "owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
+   			 "context": "config",
+   			 "content": "package test",
+   			 "active": false,
+   			 "created_at": "2022-05-31T14:15:10.86097Z",
+   			 "modified_at": null
+		}`
+
+		var expectedValue interface{}
+		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedValue))
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		cmd := NewCommand(config, nil)
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		cmd.SetArgs([]string{
+			"get",
+			"60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+			"--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f",
+			"--policy-base-url", svr.URL,
+		})
+
+		err := cmd.Execute()
+		assert.NilError(t, err)
+
+		var actualValue interface{}
+		assert.NilError(t, json.Unmarshal(stdout.Bytes(), &actualValue))
+
+		assert.DeepEqual(t, expectedValue, actualValue)
+	})
 }
