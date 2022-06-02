@@ -177,7 +177,7 @@ func TestListPolicies(t *testing.T) {
 	})
 }
 
-func Test_GetPolicy(t *testing.T) {
+func TestGetPolicy(t *testing.T) {
 	t.Run("without policy-id", func(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		cmd := NewCommand(config, nil)

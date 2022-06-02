@@ -127,7 +127,7 @@ func TestClient_ListPolicies(t *testing.T) {
 	})
 }
 
-func TestClient_GetPolicy(t *testing.T) {
+func TestClientGetPolicy(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
