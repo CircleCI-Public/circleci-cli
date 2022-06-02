@@ -110,11 +110,12 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}()
 
 	get := func() *cobra.Command {
+		var policyID string
 		cmd := &cobra.Command{
 			Short: "Get a policy",
-			Use:   "get <policyID>",
+			Use:   "get",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				policy, err := policy.NewClient(*policyBaseURL, config).GetPolicy(*ownerID, args[0])
+				policy, err := policy.NewClient(*policyBaseURL, config).GetPolicy(*ownerID, policyID)
 				if err != nil {
 					return fmt.Errorf("failed to get policy: %v", err)
 				}
@@ -128,9 +129,13 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 				return nil
 			},
-			Args:    cobra.ExactArgs(1),
-			Example: `policy get 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
+			Args:    cobra.ExactArgs(0),
+			Example: `policy get --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --policy-id 60b7e1a5-c1d7-4422-b813-7a12d353d7c6`,
 		}
+
+		cmd.Flags().StringVar(&policyID, "policy-id", "", "the id policy to get")
+		cmd.MarkFlagRequired("policy-id")
+
 		return cmd
 	}()
 

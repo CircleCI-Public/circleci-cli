@@ -192,16 +192,16 @@ func TestGetPolicy(t *testing.T) {
 		{
 			Name:        "requires policy-id",
 			Args:        []string{"get", "--owner-id", "ownerID"},
-			ExpectedErr: "accepts 1 arg(s), received 0",
+			ExpectedErr: "required flag(s) \"policy-id\" not set",
 		},
 		{
 			Name:        "requires org-id",
-			Args:        []string{"get", "policyID"},
+			Args:        []string{"get", "--policy-id", "policyID"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
 		{
 			Name:        "gets error response",
-			Args:        []string{"get", "policyID", "--owner-id", "ownerID"},
+			Args:        []string{"get", "--policy-id", "policyID", "--owner-id", "ownerID"},
 			ExpectedErr: "failed to get policy: unexpected status-code: 403 - Forbidden",
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
@@ -212,7 +212,7 @@ func TestGetPolicy(t *testing.T) {
 		},
 		{
 			Name: "successfully gets a policy",
-			Args: []string{"get", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
+			Args: []string{"get", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--policy-id", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/policy/60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
