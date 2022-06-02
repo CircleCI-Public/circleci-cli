@@ -109,8 +109,47 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		return cmd
 	}()
 
+	get := func() *cobra.Command {
+		var ownerID string
+
+		cmd := &cobra.Command{
+			Short:   "Get a policy",
+			Use:     "get <policyID>",
+			PreRunE: preRunE,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				var flags struct {
+					OwnerID string
+				}
+
+				flags.OwnerID = ownerID
+
+				policy, err := policy.NewClient(*policyBaseURL, config).GetPolicy(flags.OwnerID, args[0])
+				if err != nil {
+					return fmt.Errorf("failed to get policy: %v", err)
+				}
+
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+
+				if err := enc.Encode(policy); err != nil {
+					return fmt.Errorf("failed to output policy in json format: %v", err)
+				}
+
+				return nil
+			},
+			Args:    cobra.ExactArgs(1),
+			Example: `policy get 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
+		}
+
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the owner of the policy")
+		cmd.MarkFlagRequired("owner-id")
+
+		return cmd
+	}()
+
 	cmd.AddCommand(list)
 	cmd.AddCommand(create)
+	cmd.AddCommand(get)
 
 	return cmd
 }

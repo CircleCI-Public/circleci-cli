@@ -113,6 +113,34 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (*CreationR
 	return &response, nil
 }
 
+func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
+}
+
 // NewClient returns a new client satisfying the api.PolicyInterface interface via the REST API.
 func NewClient(baseURL string, config *settings.Config) *Client {
 	transport := config.HTTPClient.Transport
