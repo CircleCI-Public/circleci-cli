@@ -15,18 +15,6 @@ import (
 )
 
 func TestListPolicies(t *testing.T) {
-	makeCMD := func() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		cmd := NewCommand(config, nil)
-
-		stdout := new(bytes.Buffer)
-		stderr := new(bytes.Buffer)
-		cmd.SetOut(stdout)
-		cmd.SetErr(stderr)
-
-		return cmd, stdout, stderr
-	}
-
 	testcases := []struct {
 		Name           string
 		Args           []string
@@ -134,18 +122,6 @@ func TestListPolicies(t *testing.T) {
 }
 
 func TestCreatePolicy(t *testing.T) {
-	makeCMD := func() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		cmd := NewCommand(config, nil)
-
-		stdout := new(bytes.Buffer)
-		stderr := new(bytes.Buffer)
-		cmd.SetOut(stdout)
-		cmd.SetErr(stderr)
-
-		return cmd, stdout, stderr
-	}
-
 	testcases := []struct {
 		Name           string
 		Args           []string
@@ -206,18 +182,6 @@ func TestCreatePolicy(t *testing.T) {
 }
 
 func TestGetPolicy(t *testing.T) {
-	makeCMD := func() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		cmd := NewCommand(config, nil)
-
-		stdout := new(bytes.Buffer)
-		stderr := new(bytes.Buffer)
-		cmd.SetOut(stdout)
-		cmd.SetErr(stderr)
-
-		return cmd, stdout, stderr
-	}
-
 	testcases := []struct {
 		Name           string
 		Args           []string
@@ -303,4 +267,16 @@ func TestGetPolicy(t *testing.T) {
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
 		})
 	}
+}
+
+func makeCMD() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
+	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+	cmd := NewCommand(config, nil)
+
+	stdout := new(bytes.Buffer)
+	stderr := new(bytes.Buffer)
+	cmd.SetOut(stdout)
+	cmd.SetErr(stderr)
+
+	return cmd, stdout, stderr
 }
