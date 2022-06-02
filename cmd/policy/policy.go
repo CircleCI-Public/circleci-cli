@@ -3,6 +3,7 @@ package policy
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -134,9 +135,28 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		return cmd
 	}()
 
+	delete := func() *cobra.Command {
+		cmd := &cobra.Command{
+			Short: "Delete a policy",
+			Use:   "delete <policyID>",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				err := policy.NewClient(*policyBaseURL, config).DeletePolicy(*ownerID, args[0])
+				if err != nil {
+					return fmt.Errorf("failed to delete policy: %v", err)
+				}
+				io.WriteString(cmd.OutOrStdout(), "Deleted Successfully\n")
+				return nil
+			},
+			Args:    cobra.ExactArgs(1),
+			Example: `policy delete 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
+		}
+		return cmd
+	}()
+
 	cmd.AddCommand(list)
 	cmd.AddCommand(create)
 	cmd.AddCommand(get)
+	cmd.AddCommand(delete)
 
 	return cmd
 }

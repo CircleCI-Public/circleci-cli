@@ -279,3 +279,86 @@ func TestClientCreatePolicy(t *testing.T) {
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 	})
 }
+
+func TestClientDeletePolicy(t *testing.T) {
+	t.Run("expected request", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "DELETE")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy/policyID")
+
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		err := client.DeletePolicy("ownerId", "policyID")
+		assert.NilError(t, err)
+	})
+
+	t.Run("Delete Policy - Bad Request", func(t *testing.T) {
+		expectedResponse := `{"error": "PolicyID: must be a valid UUID."}`
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		err := client.DeletePolicy("ownerId", "policyID")
+		assert.Error(t, err, "unexpected status-code: 400 - PolicyID: must be a valid UUID.")
+	})
+
+	t.Run("Delete Policy - Forbidden", func(t *testing.T) {
+		expectedResponse := `{"error": "Forbidden"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		err := client.DeletePolicy("ownerId", "policyID")
+		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
+	})
+
+	t.Run("Delete Policy - Not Found", func(t *testing.T) {
+		expectedResponse := `{"error": "policy not found"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		err := client.DeletePolicy("ownerId", "a917a0ab-ceb6-482d-9a4e-f2f6b8bdfdca")
+		assert.Error(t, err, "unexpected status-code: 404 - policy not found")
+	})
+
+	t.Run("Delete Policy - successfully deletes a policy", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNoContent)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		err := client.DeletePolicy("462d67f8-b232-4da4-a7de-0c86dd667d3f", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
+		assert.NilError(t, err)
+	})
+}
