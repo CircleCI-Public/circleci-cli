@@ -3,6 +3,7 @@ package policy
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -15,28 +16,29 @@ type validator func(cmd *cobra.Command, args []string) error
 
 func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "policy",
+		Use:               "policy",
+		PersistentPreRunE: preRunE,
 		Short: "Policies ensures security of build configs via security policy management framework. " +
 			"This group of commands allows the management of polices to be verified against build configs.",
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
+	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the owner of a policy")
+	cmd.MarkFlagRequired("owner-id")
 
 	list := func() *cobra.Command {
-		var ownerID string
 		var active bool
 
 		cmd := &cobra.Command{
-			Short:   "List all policies",
-			Use:     "list",
-			PreRunE: preRunE,
+			Short: "List all policies",
+			Use:   "list",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				var flags struct {
 					OwnerID string
 					Active  *bool
 				}
 
-				flags.OwnerID = ownerID
+				flags.OwnerID = *ownerID
 				if cmd.Flag("active").Changed {
 					flags.Active = &active
 				}
@@ -59,14 +61,56 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Example: `policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active true`,
 		}
 
-		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the owner of a policy")
 		cmd.Flags().BoolVar(&active, "active", false, "(OPTIONAL) filter policies based on active status (true or false)")
-		cmd.MarkFlagRequired("owner-id")
+
+		return cmd
+	}()
+
+	create := func() *cobra.Command {
+		var policyPath string
+		var creationRequest policy.CreationRequest
+
+		cmd := &cobra.Command{
+			Short: "create policy",
+			Use:   "create",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				policyData, err := os.ReadFile(policyPath)
+				if err != nil {
+					return fmt.Errorf("failed to read policy file: %w", err)
+				}
+
+				creationRequest.Content = string(policyData)
+
+				client := policy.NewClient(*policyBaseURL, config)
+
+				result, err := client.CreatePolicy(*ownerID, creationRequest)
+				if err != nil {
+					return fmt.Errorf("failed to create policy: %w", err)
+				}
+
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+
+				if err := enc.Encode(result); err != nil {
+					return fmt.Errorf("failed to encode result to stdout: %w", err)
+				}
+
+				return nil
+			},
+		}
+
+		cmd.Flags().StringVar(&creationRequest.Name, "name", "", "name of policy to create")
+		cmd.Flags().StringVar(&creationRequest.Context, "context", "config", "policy context")
+		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file")
+
+		cmd.MarkFlagRequired("name")
+		cmd.MarkFlagRequired("policy")
 
 		return cmd
 	}()
 
 	cmd.AddCommand(list)
+	cmd.AddCommand(create)
 
 	return cmd
 }

@@ -1,11 +1,14 @@
 package policy
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -57,6 +60,57 @@ func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, e
 	}
 
 	return body, nil
+}
+
+// Creation types taken from policy-service: internal/policy/api.go
+type CreationRequest struct {
+	Name    string `json:"name"`
+	Context string `json:"context"`
+	Content string `json:"content"`
+}
+
+type CreationResponse struct {
+	DocumentVersion int        `json:"document_version"`
+	ID              string     `json:"id"`
+	Name            string     `json:"name"`
+	Context         string     `json:"context"`
+	Content         string     `json:"content"`
+	CreatedAt       *time.Time `json:"created_at"`
+}
+
+func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (*CreationResponse, error) {
+	data, err := json.Marshal(policy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
+	}
+
+	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), bytes.NewReader(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get response from policy-service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusCreated {
+		var response httpError
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return nil, fmt.Errorf("unexpected statuscode: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected statuscode: %d - %s", resp.StatusCode, response.Error)
+	}
+
+	var response CreationResponse
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
 }
 
 // NewClient returns a new client satisfying the api.PolicyInterface interface via the REST API.
