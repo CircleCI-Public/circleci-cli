@@ -24,7 +24,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
 	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the owner of a policy")
-	cmd.MarkFlagRequired("owner-id")
+	cmd.MarkPersistentFlagRequired("owner-id")
 
 	list := func() *cobra.Command {
 		var active bool

@@ -13,7 +13,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-func Test_ListPolicies(t *testing.T) {
+func TestListPolicies(t *testing.T) {
 	t.Run("without owner-id", func(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		cmd := NewCommand(config, nil)
