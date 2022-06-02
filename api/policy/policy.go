@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -69,16 +68,7 @@ type CreationRequest struct {
 	Content string `json:"content"`
 }
 
-type CreationResponse struct {
-	DocumentVersion int       `json:"document_version"`
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Context         string    `json:"context"`
-	Content         string    `json:"content"`
-	CreatedAt       time.Time `json:"created_at"`
-}
-
-func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (*CreationResponse, error) {
+func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{}, error) {
 	data, err := json.Marshal(policy)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
@@ -105,7 +95,7 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (*CreationR
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
 	}
 
-	var response CreationResponse
+	var response interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

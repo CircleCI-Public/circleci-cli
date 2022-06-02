@@ -3,15 +3,14 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli/api/policy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
 )
@@ -193,14 +192,6 @@ func TestCreatePolicy(t *testing.T) {
 		return cmd, stdout, stderr
 	}
 
-	now := time.Now()
-
-	asPrettyJSON := func(t *testing.T, value interface{}) string {
-		data, err := json.MarshalIndent(value, "", "  ")
-		assert.NilError(t, err)
-		return string(data) + "\n"
-	}
-
 	testcases := []struct {
 		Name           string
 		Args           []string
@@ -225,26 +216,10 @@ func TestCreatePolicy(t *testing.T) {
 					"name":    "test-policy",
 				})
 
-				response := policy.CreationResponse{
-					DocumentVersion: 1,
-					ID:              "id",
-					Name:            "test-policy",
-					Context:         "config",
-					Content:         "package test",
-					CreatedAt:       now,
-				}
-
 				w.WriteHeader(201)
-				_ = json.NewEncoder(w).Encode(response)
+				io.WriteString(w, "{}")
 			},
-			ExpectedOutput: asPrettyJSON(t, policy.CreationResponse{
-				DocumentVersion: 1,
-				ID:              "id",
-				Name:            "test-policy",
-				Context:         "config",
-				Content:         "package test",
-				CreatedAt:       now,
-			}),
+			ExpectedOutput: "{}\n",
 		},
 	}
 
