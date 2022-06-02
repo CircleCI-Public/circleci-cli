@@ -3,6 +3,7 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/spf13/cobra"
 )
 
 func TestListPolicies(t *testing.T) {
@@ -177,6 +179,76 @@ func TestListPolicies(t *testing.T) {
 	})
 }
 
+func TestCreatePolicy(t *testing.T) {
+	makeCMD := func() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		return cmd, stdout, stderr
+	}
+
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires owner-id and name and policy",
+			Args:        []string{"create"},
+			ExpectedErr: "required flag(s) \"name\", \"owner-id\", \"policy\" not set",
+		},
+		{
+			Name: "sends appropiate desired request",
+			Args: []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": "package test",
+					"context": "config",
+					"name":    "test-policy",
+				})
+
+				w.WriteHeader(201)
+				io.WriteString(w, "{}")
+			},
+			ExpectedOutput: "{}\n",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+				return
+			}
+
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
 func TestGetPolicy(t *testing.T) {
 	t.Run("without policy-id", func(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
@@ -189,7 +261,8 @@ func TestGetPolicy(t *testing.T) {
 
 		cmd.SetArgs([]string{
 			"get",
-			"--owner-id", "ownerID"})
+			"--owner-id", "ownerID",
+		})
 
 		assert.Error(t, cmd.Execute(), "accepts 1 arg(s), received 0")
 		assert.Assert(t, cmp.Contains(stdout.String(), "accepts 1 arg(s), received 0"))
@@ -206,7 +279,8 @@ func TestGetPolicy(t *testing.T) {
 
 		cmd.SetArgs([]string{
 			"get",
-			"policyID"})
+			"policyID",
+		})
 
 		assert.Error(t, cmd.Execute(), "required flag(s) \"owner-id\" not set")
 		assert.Assert(t, cmp.Contains(stdout.String(), "required flag(s) \"owner-id\" not set"))

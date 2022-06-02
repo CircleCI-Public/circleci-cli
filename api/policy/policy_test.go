@@ -12,7 +12,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
-func TestClient_ListPolicies(t *testing.T) {
+func TestClientListPolicies(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
@@ -227,5 +227,55 @@ func TestClientGetPolicy(t *testing.T) {
 		policy, err := client.GetPolicy("462d67f8-b232-4da4-a7de-0c86dd667d3f", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
 		assert.DeepEqual(t, policy, expectedResponseValue)
 		assert.NilError(t, err)
+	})
+}
+
+func TestClientCreatePolicy(t *testing.T) {
+	t.Run("expected request", func(t *testing.T) {
+		req := CreationRequest{
+			Name:    "test-name",
+			Context: "config",
+			Content: "test-content",
+		}
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "POST")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy")
+
+			var actual CreationRequest
+			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
+			assert.DeepEqual(t, actual, req)
+
+			w.WriteHeader(http.StatusCreated)
+			w.Write([]byte("{}"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.CreatePolicy("ownerId", req)
+		assert.NilError(t, err)
+	})
+
+	t.Run("unexpected status code", func(t *testing.T) {
+		expectedResponse := `{"error": "Forbidden"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.CreatePolicy("ownerId", CreationRequest{})
+		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 	})
 }

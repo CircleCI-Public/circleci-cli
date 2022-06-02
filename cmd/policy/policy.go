@@ -95,6 +95,8 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 				return nil
 			},
+			Args:    cobra.ExactArgs(0),
+			Example: `policy create --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --name policy_name --policy ./policy.rego`,
 		}
 
 		cmd.Flags().StringVar(&creationRequest.Name, "name", "", "name of policy to create")
