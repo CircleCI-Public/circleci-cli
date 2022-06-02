@@ -100,9 +100,9 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (*CreationR
 	if resp.StatusCode != http.StatusCreated {
 		var response httpError
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return nil, fmt.Errorf("unexpected statuscode: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
-		return nil, fmt.Errorf("unexpected statuscode: %d - %s", resp.StatusCode, response.Error)
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
 	}
 
 	var response CreationResponse

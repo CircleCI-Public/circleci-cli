@@ -34,16 +34,14 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Use:   "list",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				var flags struct {
-					OwnerID string
-					Active  *bool
+					Active *bool
 				}
 
-				flags.OwnerID = *ownerID
 				if cmd.Flag("active").Changed {
 					flags.Active = &active
 				}
 
-				policies, err := policy.NewClient(*policyBaseURL, config).ListPolicies(flags.OwnerID, flags.Active)
+				policies, err := policy.NewClient(*policyBaseURL, config).ListPolicies(*ownerID, flags.Active)
 				if err != nil {
 					return fmt.Errorf("failed to list policies: %v", err)
 				}
@@ -110,20 +108,11 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}()
 
 	get := func() *cobra.Command {
-		var ownerID string
-
 		cmd := &cobra.Command{
-			Short:   "Get a policy",
-			Use:     "get <policyID>",
-			PreRunE: preRunE,
+			Short: "Get a policy",
+			Use:   "get <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				var flags struct {
-					OwnerID string
-				}
-
-				flags.OwnerID = ownerID
-
-				policy, err := policy.NewClient(*policyBaseURL, config).GetPolicy(flags.OwnerID, args[0])
+				policy, err := policy.NewClient(*policyBaseURL, config).GetPolicy(*ownerID, args[0])
 				if err != nil {
 					return fmt.Errorf("failed to get policy: %v", err)
 				}
@@ -140,10 +129,6 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Args:    cobra.ExactArgs(1),
 			Example: `policy get 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
-
-		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the owner of the policy")
-		cmd.MarkFlagRequired("owner-id")
-
 		return cmd
 	}()
 
