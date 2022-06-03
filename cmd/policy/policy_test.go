@@ -377,7 +377,7 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedErr: "accepts 1 arg(s), received 0",
 		},
 		{
-			Name: "sends appropiate desired request",
+			Name: "sends appropriate desired request",
 			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
@@ -414,7 +414,7 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedOutput: "{}\n",
 		},
 		{
-			Name: "sends appropiate desired request with only name",
+			Name: "sends appropriate desired request with only name",
 			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
@@ -430,7 +430,7 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedOutput: "{}\n",
 		},
 		{
-			Name: "sends appropiate desired request with only policy path",
+			Name: "sends appropriate desired request with only policy path",
 			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
@@ -446,7 +446,7 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedOutput: "{}\n",
 		},
 		{
-			Name: "sends appropiate desired request - deactivate policy",
+			Name: "sends appropriate desired request - deactivate policy",
 			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active=false", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
