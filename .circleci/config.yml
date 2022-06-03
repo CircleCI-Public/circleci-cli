@@ -104,7 +104,7 @@ jobs:
     steps:
       - checkout
       - run: |
-          brew install go@1.13
+          brew install go@1.17
           echo 'export PATH="/usr/local/opt/go@1.13/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
