@@ -13,8 +13,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
+// validator is a cobra command and args validator to be run as persisten PreRun for every policy command.
 type validator func(cmd *cobra.Command, args []string) error
 
+// NewCommand creates the root policy command with all policy subcommands attached.
 func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "policy",
