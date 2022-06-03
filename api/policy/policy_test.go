@@ -362,3 +362,158 @@ func TestClientDeletePolicy(t *testing.T) {
 		assert.NilError(t, err)
 	})
 }
+
+func TestClientUpdatePolicy(t *testing.T) {
+	t.Run("expected request", func(t *testing.T) {
+		isActive := true
+		name := "test-name"
+		context := "config"
+		content := "test-content"
+		req := UpdateRequest{
+			Name:    &name,
+			Context: &context,
+			Content: &content,
+			Active:  &isActive,
+		}
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "PATCH")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
+
+			var actual UpdateRequest
+			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
+			assert.DeepEqual(t, actual, req)
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("{}"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.UpdatePolicy("ownerID", "policyID", req)
+		assert.NilError(t, err)
+	})
+
+	t.Run("nil active", func(t *testing.T) {
+
+		name := "test-name"
+		context := "config"
+		content := "test-content"
+		req := UpdateRequest{
+			Name:    &name,
+			Context: &context,
+			Content: &content,
+			Active:  nil,
+		}
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "PATCH")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
+
+			var actual UpdateRequest
+			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
+			assert.DeepEqual(t, actual, req)
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("{}"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.UpdatePolicy("ownerID", "policyID", req)
+		assert.NilError(t, err)
+	})
+
+	t.Run("unexpected status code", func(t *testing.T) {
+		expectedResponse := `{"error": "Forbidden"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.UpdatePolicy("ownerId", "policyId", UpdateRequest{})
+		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
+	})
+
+	t.Run("no changes", func(t *testing.T) {
+		req := UpdateRequest{}
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "PATCH")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
+
+			var actual UpdateRequest
+			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
+			assert.DeepEqual(t, actual, req)
+
+			expectedResponse := `{"error": "at least one of name, context, content, or active cannot be blank"}`
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(expectedResponse))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.UpdatePolicy("ownerID", "policyID", req)
+		assert.Error(t, err, "unexpected status-code: 400 - at least one of name, context, content, or active cannot be blank")
+	})
+
+	t.Run("one change", func(t *testing.T) {
+		name := "test-name"
+		req := UpdateRequest{
+			Name: &name,
+		}
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "PATCH")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
+
+			var actual UpdateRequest
+			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
+			assert.DeepEqual(t, actual, req)
+
+			w.WriteHeader(http.StatusOK)
+			w.Write([]byte("{}"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.UpdatePolicy("ownerID", "policyID", req)
+		assert.NilError(t, err)
+	})
+}

@@ -110,6 +110,53 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 	return &response, nil
 }
 
+type UpdateRequest struct {
+	Name    *string `json:"name,omitempty"`
+	Context *string `json:"context,omitempty"`
+	Content *string `json:"content,omitempty"`
+	Active  *bool   `json:"active,omitempty"`
+}
+
+// UpdatePolicy calls the UPDATE policy API in the policy-service. It updates a policy in the policy-service matching the given owner-id and policy-id.
+func (c Client) UpdatePolicy(ownerID string, policyID string, policy UpdateRequest) (interface{}, error) {
+	data, err := json.Marshal(policy)
+	if err != nil {
+		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
+	}
+
+	req, err := http.NewRequest(
+		"PATCH",
+		fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID),
+		bytes.NewReader(data),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get response from policy-service: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var response httpError
+		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
+	}
+
+	var response interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &response, nil
+}
+
 // GetPolicy calls the GET policy API in the policy-service. It fetches the policy from policy-service matching the given owner-id and policy-id.
 func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)

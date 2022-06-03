@@ -59,7 +59,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 				return nil
 			},
 			Args:    cobra.ExactArgs(0),
-			Example: `policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active true`,
+			Example: `policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active=true`,
 		}
 
 		cmd.Flags().BoolVar(&active, "active", false, "(OPTIONAL) filter policies based on active status (true or false)")
@@ -152,6 +152,77 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Args:    cobra.ExactArgs(1),
 			Example: `policy delete 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
+
+		return cmd
+	}()
+
+	update := func() *cobra.Command {
+		var policyPath string
+		var active bool
+		var context string
+		var name string
+		var updateRequest policy.UpdateRequest
+
+		cmd := &cobra.Command{
+			Short: "Update a policy",
+			Use:   "update <policyID>",
+			RunE: func(cmd *cobra.Command, args []string) error {
+
+				if !(cmd.Flag("policy").Changed ||
+					cmd.Flag("active").Changed ||
+					cmd.Flag("context").Changed ||
+					cmd.Flag("name").Changed) {
+					return fmt.Errorf("one of policy, active, context, or name must be set")
+				}
+
+				if cmd.Flag("policy").Changed {
+					policyData, err := os.ReadFile(policyPath)
+					if err != nil {
+						return fmt.Errorf("failed to read policy file: %w", err)
+					}
+
+					content := string(policyData)
+
+					updateRequest.Content = &content
+				}
+
+				client := policy.NewClient(*policyBaseURL, config)
+
+				if cmd.Flag("active").Changed {
+					updateRequest.Active = &active
+				}
+
+				if cmd.Flag("context").Changed {
+					updateRequest.Context = &context
+				}
+
+				if cmd.Flag("name").Changed {
+					updateRequest.Name = &name
+				}
+
+				result, err := client.UpdatePolicy(*ownerID, args[0], updateRequest)
+				if err != nil {
+					return fmt.Errorf("failed to update policy: %w", err)
+				}
+
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+
+				if err := enc.Encode(result); err != nil {
+					return fmt.Errorf("failed to encode result to stdout: %w", err)
+				}
+
+				return nil
+			},
+			Args:    cobra.ExactArgs(1),
+			Example: `policy update e9e300d1-5bab-4704-b610-addbd6e03b0b --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --name policy_name --active --policy ./policy.rego`,
+		}
+
+		cmd.Flags().StringVar(&name, "name", "", "set name of the given policy-id")
+		cmd.Flags().StringVar(&context, "context", "", "policy context (if set, must be config)")
+		cmd.Flags().BoolVar(&active, "active", false, "set policy active state (to deactivate, use --active=false)")
+		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego file containing the updated policy")
+
 		return cmd
 	}()
 
@@ -159,6 +230,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	cmd.AddCommand(create)
 	cmd.AddCommand(get)
 	cmd.AddCommand(delete)
+	cmd.AddCommand(update)
 
 	return cmd
 }
