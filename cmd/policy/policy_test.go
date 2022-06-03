@@ -463,11 +463,6 @@ func TestUpdatePolicy(t *testing.T) {
 			Args:        []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id"},
 			ExpectedErr: "one of policy, active, context, or name must be set",
 		},
-		{
-			Name:        "context must be set to config",
-			Args:        []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--context", "test"},
-			ExpectedErr: "context must be set to \"config\"",
-		},
 	}
 
 	for _, tc := range testcases {

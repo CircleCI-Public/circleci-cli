@@ -194,10 +194,6 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 				}
 
 				if cmd.Flag("context").Changed {
-					if context != "config" {
-						return fmt.Errorf("context must be set to \"config\"")
-
-					}
 					updateRequest.Context = &context
 				}
 
