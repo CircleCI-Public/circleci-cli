@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
+	"io/ioutil"
 
 	"github.com/spf13/cobra"
 
@@ -77,7 +77,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Short: "create policy",
 			Use:   "create",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				policyData, err := os.ReadFile(policyPath)
+				policyData, err := ioutil.ReadFile(policyPath)
 				if err != nil {
 					return fmt.Errorf("failed to read policy file: %w", err)
 				}
@@ -182,7 +182,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 				}
 
 				if cmd.Flag("policy").Changed {
-					policyData, err := os.ReadFile(policyPath)
+					policyData, err := ioutil.ReadFile(policyPath)
 					if err != nil {
 						return fmt.Errorf("failed to read policy file: %w", err)
 					}
