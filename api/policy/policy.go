@@ -157,7 +157,8 @@ func (c Client) UpdatePolicy(ownerID string, policyID string, policy UpdateReque
 	return &response, nil
 }
 
-// GetPolicy calls the GET policy API in the policy-service. It fetches the policy from policy-service matching the given owner-id and policy-id.
+// GetPolicy calls the GET policy API in the policy-service.It fetches the policy from policy-service matching the given owner-id and policy-id.
+// It returns an error if the call fails or the policy could not be found.
 func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
 	if err != nil {
@@ -186,7 +187,8 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	return body, nil
 }
 
-// DeletePolicy calls the Delete Policy API in the policy-service. It attempts to delete an a policy belonging the passed ownerID.
+// DeletePolicy calls the DELETE Policy API in the policy-service.
+// It attempts to delete the policy matching the given policy-id and belonging to the given ownerID.
 // It returns an error if the call fails or the policy could not be deleted.
 func (c Client) DeletePolicy(ownerID string, policyID string) error {
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
