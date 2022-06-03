@@ -110,7 +110,6 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 	return &response, nil
 }
 
-
 type UpdateRequest struct {
 	Name    *string `json:"name,omitempty"`
 	Context *string `json:"context,omitempty"`
@@ -118,6 +117,7 @@ type UpdateRequest struct {
 	Active  *bool   `json:"active,omitempty"`
 }
 
+// UpdatePolicy calls the UPDATE policy API in the policy-service. It updates a policy in the policy-service matching the given owner-id and policy-id.
 func (c Client) UpdatePolicy(ownerID string, policyID string, policy UpdateRequest) (interface{}, error) {
 	data, err := json.Marshal(policy)
 	if err != nil {

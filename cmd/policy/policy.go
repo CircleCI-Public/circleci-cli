@@ -158,7 +158,6 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 	update := func() *cobra.Command {
 		var policyPath string
-		var policyID string
 		var active bool
 		var context string
 		var name string
@@ -166,7 +165,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 		cmd := &cobra.Command{
 			Short: "Update a policy",
-			Use:   "update",
+			Use:   "update <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
 
 				if !(cmd.Flag("policy").Changed ||
@@ -201,7 +200,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					updateRequest.Name = &name
 				}
 
-				result, err := client.UpdatePolicy(*ownerID, policyID, updateRequest)
+				result, err := client.UpdatePolicy(*ownerID, args[0], updateRequest)
 				if err != nil {
 					return fmt.Errorf("failed to update policy: %w", err)
 				}
@@ -215,17 +214,14 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 				return nil
 			},
-			Args:    cobra.ExactArgs(0),
-			Example: `policy update --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --policy-id e9e300d1-5bab-4704-b610-addbd6e03b0b --name policy_name --active --policy ./policy.rego`,
+			Args:    cobra.ExactArgs(1),
+			Example: `policy update e9e300d1-5bab-4704-b610-addbd6e03b0b --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --name policy_name --active --policy ./policy.rego`,
 		}
 
-		cmd.Flags().StringVar(&policyID, "policy-id", "", "id of the policy to update")
 		cmd.Flags().StringVar(&name, "name", "", "set name of the given policy-id")
 		cmd.Flags().StringVar(&context, "context", "", "policy context (if set, must be config)")
 		cmd.Flags().BoolVar(&active, "active", false, "set policy active state (to deactivate, use --active=false)")
 		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego file containing the updated policy")
-
-		cmd.MarkFlagRequired("policy-id")
 
 		return cmd
 	}()

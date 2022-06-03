@@ -367,13 +367,18 @@ func TestUpdatePolicy(t *testing.T) {
 		ExpectedErr    string
 	}{
 		{
-			Name:        "requires owner-id and name and policy and policy-id and active flag",
-			Args:        []string{"update"},
-			ExpectedErr: "required flag(s) \"owner-id\", \"policy-id\" not set",
+			Name:        "requires owner-id flag",
+			Args:        []string{"update", "testID"},
+			ExpectedErr: "required flag(s) \"owner-id\" not set",
+		},
+		{
+			Name:        "requires policy id",
+			Args:        []string{"update", "--owner-id", "test-org"},
+			ExpectedErr: "accepts 1 arg(s), received 0",
 		},
 		{
 			Name: "sends appropiate desired request",
-			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -391,7 +396,7 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "explicitly set config",
-			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego", "--context", "config"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego", "--context", "config"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -410,7 +415,7 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "sends appropiate desired request with only name",
-			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--name", "test-policy"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -426,7 +431,7 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "sends appropiate desired request with only policy path",
-			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--policy", "./testdata/test.rego"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -442,7 +447,7 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "sends appropiate desired request - deactivate policy",
-			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--active=false", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active=false", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -459,8 +464,8 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedOutput: "{}\n",
 		},
 		{
-			Name:        "requires owner-id and name and policy and policy-id and active flag",
-			Args:        []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id"},
+			Name:        "check at least one field is changed",
+			Args:        []string{"update", "test-policy-id", "--owner-id", "test-org"},
 			ExpectedErr: "one of policy, active, context, or name must be set",
 		},
 	}
