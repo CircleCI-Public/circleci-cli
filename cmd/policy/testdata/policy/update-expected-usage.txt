@@ -1,0 +1,16 @@
+Usage:
+  policy update [flags]
+
+Examples:
+policy update --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --policy-id e9e300d1-5bab-4704-b610-addbd6e03b0b --name policy_name --active --policy ./policy.rego
+
+Flags:
+      --active             set policy active state (to deactivate, use --active=false)
+      --context string     policy context (if set, must be config)
+      --name string        set name of the given policy-id
+      --policy string      path to rego file containing the updated policy
+      --policy-id string   id of the policy to update
+
+Global Flags:
+      --owner-id string          the id of the owner of a policy
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

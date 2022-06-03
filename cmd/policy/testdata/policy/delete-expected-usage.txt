@@ -1,11 +1,8 @@
 Usage:
-  policy list [flags]
+  policy delete <policyID> [flags]
 
 Examples:
-policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active=true
-
-Flags:
-      --active   (OPTIONAL) filter policies based on active status (true or false)
+policy delete 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5
 
 Global Flags:
       --owner-id string          the id of the owner of a policy

@@ -53,6 +53,16 @@ func TestListPolicies(t *testing.T) {
 			ExpectedOutput: "[]\n",
 		},
 		{
+			Name: "no active is set",
+			Args: []string{"list", "--owner-id", "ownerID"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
+				w.Write([]byte("[]"))
+			},
+			ExpectedOutput: "[]\n",
+		},
+		{
 			Name:        "gets error response",
 			Args:        []string{"list", "--owner-id", "ownerID"},
 			ExpectedErr: "failed to list policies: unexpected status-code: 403 - Forbidden",
@@ -307,6 +317,156 @@ func TestDeletePolicy(t *testing.T) {
 				w.WriteHeader(http.StatusNoContent)
 			},
 			ExpectedOutput: "Deleted Successfully\n",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+				return
+			}
+
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+func TestUpdatePolicy(t *testing.T) {
+	makeCMD := func() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		cmd := NewCommand(config, nil)
+
+		stdout := new(bytes.Buffer)
+		stderr := new(bytes.Buffer)
+		cmd.SetOut(stdout)
+		cmd.SetErr(stderr)
+
+		return cmd, stdout, stderr
+	}
+
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires owner-id and name and policy and policy-id and active flag",
+			Args:        []string{"update"},
+			ExpectedErr: "required flag(s) \"owner-id\", \"policy-id\" not set",
+		},
+		{
+			Name: "sends appropiate desired request",
+			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": string("package test"),
+					"name":    string("test-policy"),
+					"active":  bool(true),
+				})
+
+				w.WriteHeader(200)
+				io.WriteString(w, "{}")
+			},
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name: "explicitly set config",
+			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego", "--context", "config"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": string("package test"),
+					"name":    string("test-policy"),
+					"active":  bool(true),
+					"context": string("config"),
+				})
+
+				w.WriteHeader(200)
+				io.WriteString(w, "{}")
+			},
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name: "sends appropiate desired request with only name",
+			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--name", "test-policy"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"name": string("test-policy"),
+				})
+
+				w.WriteHeader(200)
+				io.WriteString(w, "{}")
+			},
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name: "sends appropiate desired request with only policy path",
+			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": string("package test"),
+				})
+
+				w.WriteHeader(200)
+				io.WriteString(w, "{}")
+			},
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name: "sends appropiate desired request - deactivate policy",
+			Args: []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--active=false", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": string("package test"),
+					"name":    string("test-policy"),
+					"active":  bool(false),
+				})
+
+				w.WriteHeader(200)
+				io.WriteString(w, "{}")
+			},
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name:        "requires owner-id and name and policy and policy-id and active flag",
+			Args:        []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id"},
+			ExpectedErr: "one of policy, active, context, or name must be set",
+		},
+		{
+			Name:        "context must be set to config",
+			Args:        []string{"update", "--owner-id", "test-org", "--policy-id", "test-policy-id", "--context", "test"},
+			ExpectedErr: "context must be set to \"config\"",
 		},
 	}
 
