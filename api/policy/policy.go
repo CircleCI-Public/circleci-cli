@@ -74,7 +74,7 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), bytes.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
@@ -104,7 +104,7 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 }
 
 func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
+	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
@@ -129,6 +129,29 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	}
 
 	return body, nil
+}
+
+func (c Client) DeletePolicy(ownerID string, policyID string) error {
+	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
+	if err != nil {
+		return fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusNoContent {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+		}
+		return fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	return nil
 }
 
 // NewClient returns a new client satisfying the api.PolicyInterface interface via the REST API.

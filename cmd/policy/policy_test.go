@@ -23,7 +23,7 @@ func TestListPolicies(t *testing.T) {
 		ExpectedErr    string
 	}{
 		{
-			Name:        "requires org-id",
+			Name:        "requires owner-id",
 			Args:        []string{"list"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
@@ -195,7 +195,7 @@ func TestGetPolicy(t *testing.T) {
 			ExpectedErr: "accepts 1 arg(s), received 0",
 		},
 		{
-			Name:        "requires org-id",
+			Name:        "requires owner-id",
 			Args:        []string{"get", "policyID"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
@@ -240,6 +240,73 @@ func TestGetPolicy(t *testing.T) {
   "owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f"
 }
 `,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+				return
+			}
+
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+func TestDeletePolicy(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires policy-id",
+			Args:        []string{"delete", "--owner-id", "ownerID"},
+			ExpectedErr: "accepts 1 arg(s), received 0",
+		},
+		{
+			Name:        "requires owner-id",
+			Args:        []string{"delete", "policyID"},
+			ExpectedErr: "required flag(s) \"owner-id\" not set",
+		},
+		{
+			Name:        "gets error response",
+			Args:        []string{"delete", "policyID", "--owner-id", "ownerID"},
+			ExpectedErr: "failed to delete policy: unexpected status-code: 403 - Forbidden",
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "DELETE")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy/policyID")
+				w.WriteHeader(http.StatusForbidden)
+				io.WriteString(w, `{"error": "Forbidden"}`)
+			},
+		},
+		{
+			Name: "successfully deletes a policy",
+			Args: []string{"delete", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "DELETE")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/policy/60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
+				w.WriteHeader(http.StatusNoContent)
+			},
+			ExpectedOutput: "Deleted Successfully\n",
 		},
 	}
 
