@@ -21,11 +21,14 @@ type Client struct {
 	client    *http.Client
 }
 
+// httpError represents error response json payload as sent by the policy-server: internal/error.go
 type httpError struct {
 	Error   string                 `json:"error"`
 	Context map[string]interface{} `json:"context,omitempty"`
 }
 
+// ListPolicies calls the view policy-service list policy API. If the active filter is nil, all policies are returned. If
+// activeFilter is not nil it will only return active or inactive policies based on the value of *activeFilter.
 func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), nil)
 	if err != nil {
@@ -62,12 +65,16 @@ func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, e
 }
 
 // Creation types taken from policy-service: internal/policy/api.go
+
+// CreationRequest represents the json payload to create a Policy in the Policy-Service
 type CreationRequest struct {
 	Name    string `json:"name"`
 	Context string `json:"context"`
 	Content string `json:"content"`
 }
 
+// CreatePolicy call the Create Policy API in the Policy-Service. It creates a policy for the specified owner and returns the created
+// policy resonse as an interface{}.
 func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{}, error) {
 	data, err := json.Marshal(policy)
 	if err != nil {
@@ -102,6 +109,7 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 
 	return &response, nil
 }
+
 
 type UpdateRequest struct {
 	Name    *string `json:"name,omitempty"`
@@ -149,6 +157,7 @@ func (c Client) UpdatePolicy(ownerID string, policyID string, policy UpdateReque
 	return &response, nil
 }
 
+// GetPolicy calls the GET policy API in the policy-service. It fetches the policy from policy-service matching the given owner-id and policy-id.
 func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) {
 	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
 	if err != nil {
@@ -177,6 +186,8 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	return body, nil
 }
 
+// DeletePolicy calls the Delete Policy API in the policy-service. It attempts to delete an a policy belonging the passed ownerID.
+// It returns an error if the call fails or the policy could not be deleted.
 func (c Client) DeletePolicy(ownerID string, policyID string) error {
 	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
 	if err != nil {
@@ -200,7 +211,8 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 	return nil
 }
 
-// NewClient returns a new client satisfying the api.PolicyInterface interface via the REST API.
+// NewClient returns a new policy client that will use the provided settings.Config to automatically inject appropriate
+// Circle-Token authentication and other relevant CLI headers.
 func NewClient(baseURL string, config *settings.Config) *Client {
 	transport := config.HTTPClient.Transport
 	if transport == nil {
@@ -227,6 +239,7 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 // transportFunc is utility type for declaring a http.RoundTripper as a function literal
 type transportFunc func(*http.Request) (*http.Response, error)
 
+// RoundTrip implements the http.RoundTripper interface
 func (fn transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return fn(req)
 }
