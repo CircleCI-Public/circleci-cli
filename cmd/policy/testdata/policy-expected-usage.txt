@@ -3,6 +3,7 @@ Usage:
 
 Available Commands:
   create      create policy
+  delete      Delete a policy
   get         Get a policy
   list        List all policies
 
