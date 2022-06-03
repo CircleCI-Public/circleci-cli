@@ -3,7 +3,6 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -38,7 +37,8 @@ func TestListPolicies(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy?active=true")
-				w.Write([]byte("[]"))
+				_, err := w.Write([]byte("[]"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "[]\n",
 		},
@@ -48,7 +48,8 @@ func TestListPolicies(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy?active=false")
-				w.Write([]byte("[]"))
+				_, err := w.Write([]byte("[]"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "[]\n",
 		},
@@ -58,7 +59,8 @@ func TestListPolicies(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
-				w.Write([]byte("[]"))
+				_, err := w.Write([]byte("[]"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "[]\n",
 		},
@@ -70,7 +72,8 @@ func TestListPolicies(t *testing.T) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
 				w.WriteHeader(http.StatusForbidden)
-				io.WriteString(w, `{"error": "Forbidden"}`)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
 			},
 		},
 		{
@@ -79,7 +82,7 @@ func TestListPolicies(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
-				w.Write([]byte(`[
+				_, err := w.Write([]byte(`[
 			{
 				"id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
 				"name": "policy_1",
@@ -90,6 +93,7 @@ func TestListPolicies(t *testing.T) {
 				"modified_at": null
 			}
 		]`))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: `[
   {
@@ -159,7 +163,8 @@ func TestCreatePolicy(t *testing.T) {
 				})
 
 				w.WriteHeader(http.StatusCreated)
-				io.WriteString(w, "{}")
+				_, err := w.Write([]byte("{}"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "{}\n",
 		},
@@ -217,7 +222,8 @@ func TestGetPolicy(t *testing.T) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy/policyID")
 				w.WriteHeader(http.StatusForbidden)
-				io.WriteString(w, `{"error": "Forbidden"}`)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
 			},
 		},
 		{
@@ -226,7 +232,7 @@ func TestGetPolicy(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/policy/60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
-				w.Write([]byte(`{
+				_, err := w.Write([]byte(`{
 					"document_version": 1,
 					"id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
 					"name": "policy_1",
@@ -237,6 +243,7 @@ func TestGetPolicy(t *testing.T) {
 					"created_at": "2022-05-31T14:15:10.86097Z",
 					"modified_at": null
 				}`))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: `{
   "active": false,
@@ -305,7 +312,8 @@ func TestDeletePolicy(t *testing.T) {
 				assert.Equal(t, r.Method, "DELETE")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy/policyID")
 				w.WriteHeader(http.StatusForbidden)
-				io.WriteString(w, `{"error": "Forbidden"}`)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
 			},
 		},
 		{
@@ -384,13 +392,14 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
-					"content": string("package test"),
-					"name":    string("test-policy"),
-					"active":  bool(true),
+					"content": "package test",
+					"name":    "test-policy",
+					"active":  true,
 				})
 
-				w.WriteHeader(200)
-				io.WriteString(w, "{}")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("{}"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "{}\n",
 		},
@@ -402,14 +411,15 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
-					"content": string("package test"),
-					"name":    string("test-policy"),
-					"active":  bool(true),
-					"context": string("config"),
+					"content": "package test",
+					"name":    "test-policy",
+					"active":  true,
+					"context": "config",
 				})
 
-				w.WriteHeader(200)
-				io.WriteString(w, "{}")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("{}"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "{}\n",
 		},
@@ -421,11 +431,12 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
-					"name": string("test-policy"),
+					"name": "test-policy",
 				})
 
-				w.WriteHeader(200)
-				io.WriteString(w, "{}")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("{}"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "{}\n",
 		},
@@ -437,11 +448,12 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
-					"content": string("package test"),
+					"content": "package test",
 				})
 
-				w.WriteHeader(200)
-				io.WriteString(w, "{}")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("{}"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "{}\n",
 		},
@@ -453,13 +465,14 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
-					"content": string("package test"),
-					"name":    string("test-policy"),
-					"active":  bool(false),
+					"content": "package test",
+					"name":    "test-policy",
+					"active":  false,
 				})
 
-				w.WriteHeader(200)
-				io.WriteString(w, "{}")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte("{}"))
+				assert.NilError(t, err)
 			},
 			ExpectedOutput: "{}\n",
 		},

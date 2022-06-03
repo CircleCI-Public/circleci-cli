@@ -27,7 +27,9 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
 	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the owner of a policy")
-	cmd.MarkPersistentFlagRequired("owner-id")
+	if err := cmd.MarkPersistentFlagRequired("owner-id"); err != nil {
+		panic(err)
+	}
 
 	list := func() *cobra.Command {
 		var active bool
@@ -106,8 +108,12 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		cmd.Flags().StringVar(&creationRequest.Context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file")
 
-		cmd.MarkFlagRequired("name")
-		cmd.MarkFlagRequired("policy")
+		if err := cmd.MarkFlagRequired("name"); err != nil {
+			panic(err)
+		}
+		if err := cmd.MarkFlagRequired("policy"); err != nil {
+			panic(err)
+		}
 
 		return cmd
 	}()
@@ -117,7 +123,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Short: "Get a policy",
 			Use:   "get <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				policy, err := policy.NewClient(*policyBaseURL, config).GetPolicy(*ownerID, args[0])
+				p, err := policy.NewClient(*policyBaseURL, config).GetPolicy(*ownerID, args[0])
 				if err != nil {
 					return fmt.Errorf("failed to get policy: %v", err)
 				}
@@ -125,7 +131,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 				enc := json.NewEncoder(cmd.OutOrStdout())
 				enc.SetIndent("", "  ")
 
-				if err := enc.Encode(policy); err != nil {
+				if err := enc.Encode(p); err != nil {
 					return fmt.Errorf("failed to output policy in json format: %v", err)
 				}
 

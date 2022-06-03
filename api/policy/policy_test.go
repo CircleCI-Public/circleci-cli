@@ -25,7 +25,8 @@ func TestClientListPolicies(t *testing.T) {
 			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy")
 
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("[]"))
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -41,7 +42,8 @@ func TestClientListPolicies(t *testing.T) {
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -57,7 +59,8 @@ func TestClientListPolicies(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -76,7 +79,8 @@ func TestClientListPolicies(t *testing.T) {
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -114,7 +118,8 @@ func TestClientListPolicies(t *testing.T) {
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -140,7 +145,8 @@ func TestClientGetPolicy(t *testing.T) {
 			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy/policyID")
 
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("[]"))
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -156,7 +162,8 @@ func TestClientGetPolicy(t *testing.T) {
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -172,7 +179,8 @@ func TestClientGetPolicy(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -188,7 +196,8 @@ func TestClientGetPolicy(t *testing.T) {
 		expectedResponse := `{"error": "policy not found"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -217,7 +226,8 @@ func TestClientGetPolicy(t *testing.T) {
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -253,7 +263,8 @@ func TestClientCreatePolicy(t *testing.T) {
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusCreated)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -268,7 +279,8 @@ func TestClientCreatePolicy(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -308,7 +320,8 @@ func TestClientDeletePolicy(t *testing.T) {
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -323,7 +336,8 @@ func TestClientDeletePolicy(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -338,7 +352,8 @@ func TestClientDeletePolicy(t *testing.T) {
 		expectedResponse := `{"error": "policy not found"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -391,7 +406,8 @@ func TestClientUpdatePolicy(t *testing.T) {
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -429,7 +445,8 @@ func TestClientUpdatePolicy(t *testing.T) {
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -444,7 +461,8 @@ func TestClientUpdatePolicy(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -474,7 +492,8 @@ func TestClientUpdatePolicy(t *testing.T) {
 
 			expectedResponse := `{"error": "at least one of name, context, content, or active cannot be blank"}`
 			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(expectedResponse))
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
@@ -506,7 +525,8 @@ func TestClientUpdatePolicy(t *testing.T) {
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusOK)
-			w.Write([]byte("{}"))
+			_, err := w.Write([]byte("{}"))
+			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
