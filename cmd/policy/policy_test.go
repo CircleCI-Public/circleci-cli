@@ -23,7 +23,7 @@ func TestListPolicies(t *testing.T) {
 		ExpectedErr    string
 	}{
 		{
-			Name:        "requires org-id",
+			Name:        "requires owner-id",
 			Args:        []string{"list"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
@@ -195,7 +195,7 @@ func TestGetPolicy(t *testing.T) {
 			ExpectedErr: "accepts 1 arg(s), received 0",
 		},
 		{
-			Name:        "requires org-id",
+			Name:        "requires owner-id",
 			Args:        []string{"get", "policyID"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
@@ -283,7 +283,7 @@ func TestDeletePolicy(t *testing.T) {
 			ExpectedErr: "accepts 1 arg(s), received 0",
 		},
 		{
-			Name:        "requires org-id",
+			Name:        "requires owner-id",
 			Args:        []string{"delete", "policyID"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
