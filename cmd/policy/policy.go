@@ -152,7 +152,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 				if err != nil {
 					return fmt.Errorf("failed to delete policy: %v", err)
 				}
-				io.WriteString(cmd.OutOrStdout(), "Deleted Successfully\n")
+				_, _ = io.WriteString(cmd.OutOrStdout(), "Deleted Successfully\n")
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
