@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -22,13 +23,25 @@ var picardRepo = "circleci/picard"
 const DefaultConfigPath = ".circleci/config.yml"
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
-	processedArgs, configPath := buildAgentArguments(flags)
-	orgSlug, _ := flags.GetString("org-slug")
+	var err error
+	var configResponse *api.ConfigResponse
 	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	configResponse, err := api.ConfigQuery(cl, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
 
-	if err != nil {
-		return err
+	processedArgs, configPath := buildAgentArguments(flags)
+
+	//if no orgId provided use org slug
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		configResponse, err = api.ConfigQuery(cl, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		configResponse, err = api.ConfigQueryLegacy(cl, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	if !configResponse.Valid {
@@ -118,7 +131,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
