@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_policy_list</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-policy-list">circleci policy list</h2>
+<p>List all policies</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>List all policies</p>
+<pre><code>circleci policy list [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --active=true</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --active   (OPTIONAL) filter policies based on active status (true or false)
+  -h, --help     help for list</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --owner-id string          the id of the owner of a policy
+      --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
+      --skip-update-check        Skip the check for updates check run before every command. (default true)
+      --token string             your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_policy.html">circleci policy</a> - Policies ensures security of build configs via security policy management framework. This group of commands allows the management of polices to be verified against build configs.</li>
+</ul>
+</body>
+</html>
