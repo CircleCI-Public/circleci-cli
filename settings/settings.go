@@ -223,7 +223,7 @@ func (cfg *Config) WithHTTPClient() error {
 	}
 
 	cfg.HTTPClient = &http.Client{
-		Timeout: 30 * time.Second,
+		Timeout: 60 * time.Second,
 		Transport: &http.Transport{
 			ExpectContinueTimeout: 1 * time.Second,
 			IdleConnTimeout:       90 * time.Second,
