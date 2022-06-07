@@ -14,6 +14,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
+// Policy-service endpoints documentation : https://github.com/circleci/policy-service/blob/main/cmd/server/openapi.yaml
+
 // Client communicates with the CircleCI policy-service to ask questions
 // about policies. It satisfies policy.ClientInterface.
 type Client struct {
