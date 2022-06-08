@@ -3,6 +3,7 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -504,6 +505,127 @@ func TestUpdatePolicy(t *testing.T) {
 				return
 			}
 
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+func TestGetDecisionLogs(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires owner-id",
+			Args:        []string{"logs"},
+			ExpectedErr: "required flag(s) \"owner-id\" not set",
+		},
+		{
+			Name:        "invalid offset filter value",
+			Args:        []string{"logs", "--owner-id", "ownerID", "--offset=badValue"},
+			ExpectedErr: `invalid argument "badValue" for "--offset" flag: strconv.ParseInt: parsing "badValue": invalid syntax`,
+		},
+		{
+			Name: "no filter is set",
+			Args: []string{"logs", "--owner-id", "ownerID"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision")
+				_, err := w.Write([]byte("[]"))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: "[]\n",
+		},
+		{
+			Name: "all filters are set",
+			Args: []string{"logs", "--owner-id", "ownerID", "--start", "startTimeValue", "--end", "endTimeValue",
+				"--branch", "branchValue", "--project-id", "projectIDValue", "--offset", "42"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision?branch=branchValue&end=endTimeValue&offset=42&project_id=projectIDValue&start=startTimeValue")
+				_, err := w.Write([]byte("[]"))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: "[]\n",
+		},
+		{
+			Name:        "gets error response",
+			Args:        []string{"logs", "--owner-id", "ownerID"},
+			ExpectedErr: "failed to get policy decision logs: unexpected status-code: 403 - Forbidden",
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision")
+				w.WriteHeader(http.StatusForbidden)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
+			},
+		},
+		{
+			Name: "successfully gets decision logs",
+			Args: []string{"logs", "--owner-id", "ownerID"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision")
+				_, err := w.Write([]byte(`[
+    {
+        "metadata": {},
+        "created_at": "2022-06-08T16:56:22.179906Z",
+        "policies": [
+            {
+                "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+                "version": 2
+            }
+        ],
+        "decision": {
+            "status": "PASS"
+        }
+    }
+]`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `[
+  {
+    "created_at": "2022-06-08T16:56:22.179906Z",
+    "decision": {
+      "status": "PASS"
+    },
+    "metadata": {},
+    "policies": [
+      {
+        "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+        "version": 2
+      }
+    ]
+  }
+]
+`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+				return
+			}
+			fmt.Println(stdout.String())
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
 		})
 	}

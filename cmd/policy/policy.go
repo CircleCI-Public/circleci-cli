@@ -232,11 +232,45 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		return cmd
 	}()
 
+	logs := func() *cobra.Command {
+		var request policy.DecisionQueryRequest
+		cmd := &cobra.Command{
+			Short: "Get policy (decision) logs",
+			Use:   "logs",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				p, err := policy.NewClient(*policyBaseURL, config).GetDecisionLogs(*ownerID, request)
+				if err != nil {
+					return fmt.Errorf("failed to get policy decision logs: %v", err)
+				}
+
+				enc := json.NewEncoder(cmd.OutOrStdout())
+				enc.SetIndent("", "  ")
+
+				if err := enc.Encode(p); err != nil {
+					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
+				}
+
+				return nil
+			},
+			Args:    cobra.ExactArgs(0),
+			Example: `policy logs  --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --offset 42`,
+		}
+
+		cmd.Flags().StringVar(&request.Start, "start", "", "filter decision logs based on start time")
+		cmd.Flags().StringVar(&request.End, "end", "", "filter decision logs based on end time")
+		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
+		cmd.Flags().StringVar(&request.ProjectID, "project-id", "", "filter decision logs based on project-id")
+		cmd.Flags().IntVar(&request.Offset, "offset", 0, "specifies the number of logs to skip")
+
+		return cmd
+	}()
+
 	cmd.AddCommand(list)
 	cmd.AddCommand(create)
 	cmd.AddCommand(get)
 	cmd.AddCommand(delete)
 	cmd.AddCommand(update)
+	cmd.AddCommand(logs)
 
 	return cmd
 }

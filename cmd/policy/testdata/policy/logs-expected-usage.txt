@@ -1,0 +1,16 @@
+Usage:
+  policy logs [flags]
+
+Examples:
+policy logs  --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --offset 42
+
+Flags:
+      --branch string       filter decision logs based on branch name
+      --end string          filter decision logs based on end time
+      --offset int          specifies the number of logs to skip
+      --project-id string   filter decision logs based on project-id
+      --start string        filter decision logs based on start time
+
+Global Flags:
+      --owner-id string          the id of the owner of a policy
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

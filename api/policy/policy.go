@@ -76,7 +76,7 @@ type CreationRequest struct {
 }
 
 // CreatePolicy call the Create Policy API in the Policy-Service. It creates a policy for the specified owner and returns the created
-// policy resonse as an interface{}.
+// policy response as an interface{}.
 func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{}, error) {
 	data, err := json.Marshal(policy)
 	if err != nil {
@@ -213,6 +213,63 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 	}
 
 	return nil
+}
+
+type DecisionQueryRequest struct {
+	Start     string
+	End       string
+	Branch    string
+	ProjectID string
+	Offset    int
+}
+
+// GetDecisionLogs calls the GET decision query API of policy-service. The endpoint accepts multiple filter values as
+// path query parameters (start-time, end-time, branch-name, project-id and offset).
+func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) (interface{}, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/decision", c.serverUrl, ownerID), nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	query := make(url.Values)
+	if request.Start != "" {
+		query.Set("start", fmt.Sprint(request.Start))
+	}
+	if request.End != "" {
+		query.Set("end", fmt.Sprint(request.End))
+	}
+	if request.Branch != "" {
+		query.Set("branch", fmt.Sprint(request.Branch))
+	}
+	if request.ProjectID != "" {
+		query.Set("project_id", fmt.Sprint(request.ProjectID))
+	}
+	if request.Offset != 0 {
+		query.Set("offset", fmt.Sprint(request.Offset))
+	}
+
+	req.URL.RawQuery = query.Encode()
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
 }
 
 // NewClient returns a new policy client that will use the provided settings.Config to automatically inject appropriate
