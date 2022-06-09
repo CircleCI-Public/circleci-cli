@@ -216,8 +216,8 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 }
 
 type DecisionQueryRequest struct {
-	Start     string
-	End       string
+	After     string
+	Before    string
 	Branch    string
 	ProjectID string
 	Offset    int
@@ -225,18 +225,18 @@ type DecisionQueryRequest struct {
 
 // GetDecisionLogs calls the GET decision query API of policy-service. The endpoint accepts multiple filter values as
 // path query parameters (start-time, end-time, branch-name, project-id and offset).
-func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) (interface{}, error) {
+func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([]interface{}, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/decision", c.serverUrl, ownerID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
 
 	query := make(url.Values)
-	if request.Start != "" {
-		query.Set("start", fmt.Sprint(request.Start))
+	if request.After != "" {
+		query.Set("after", fmt.Sprint(request.After))
 	}
-	if request.End != "" {
-		query.Set("end", fmt.Sprint(request.End))
+	if request.Before != "" {
+		query.Set("before", fmt.Sprint(request.Before))
 	}
 	if request.Branch != "" {
 		query.Set("branch", fmt.Sprint(request.Branch))
@@ -264,7 +264,7 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) (i
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
 
-	var body interface{}
+	var body []interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("failed to decode response body: %v", err)
 	}

@@ -524,9 +524,9 @@ func TestGetDecisionLogs(t *testing.T) {
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
 		{
-			Name:        "invalid offset filter value",
-			Args:        []string{"logs", "--owner-id", "ownerID", "--offset=badValue"},
-			ExpectedErr: `invalid argument "badValue" for "--offset" flag: strconv.ParseInt: parsing "badValue": invalid syntax`,
+			Name:        "invalid --after filter value",
+			Args:        []string{"logs", "--owner-id", "ownerID", "--after", "1/2/2022"},
+			ExpectedErr: `error in parsing --after value: This date has ambiguous mm/dd vs dd/mm type format`,
 		},
 		{
 			Name: "no filter is set",
@@ -541,11 +541,11 @@ func TestGetDecisionLogs(t *testing.T) {
 		},
 		{
 			Name: "all filters are set",
-			Args: []string{"logs", "--owner-id", "ownerID", "--start", "startTimeValue", "--end", "endTimeValue",
-				"--branch", "branchValue", "--project-id", "projectIDValue", "--offset", "42"},
+			Args: []string{"logs", "--owner-id", "ownerID", "--after", "2022/03/14", "--before", "2022/03/15",
+				"--branch", "branchValue", "--project-id", "projectIDValue"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision?branch=branchValue&end=endTimeValue&offset=42&project_id=projectIDValue&start=startTimeValue")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision?after=2022-03-14T00%3A00%3A00Z&before=2022-03-15T00%3A00%3A00Z&branch=branchValue&project_id=projectIDValue")
 				_, err := w.Write([]byte("[]"))
 				assert.NilError(t, err)
 			},

@@ -3,8 +3,9 @@ module github.com/CircleCI-Public/circleci-cli
 require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
 	github.com/Masterminds/semver v1.4.2
+	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/blang/semver v3.5.1+incompatible
-	github.com/briandowns/spinner v0.0.0-20181018151057-dd69c579ff20
+	github.com/briandowns/spinner v1.18.1
 	github.com/fatih/color v1.9.0 // indirect
 	github.com/go-git/go-git/v5 v5.1.0
 	github.com/google/go-github v15.0.0+incompatible // indirect
@@ -42,10 +43,11 @@ require (
 	github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 // indirect
 	github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
-	github.com/mattn/go-runewidth v0.0.7 // indirect
+	github.com/mattn/go-runewidth v0.0.10 // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/nxadm/tail v1.4.4 // indirect
+	github.com/rivo/uniseg v0.1.0 // indirect
 	github.com/sergi/go-diff v1.1.0 // indirect
 	github.com/xanzy/ssh-agent v0.2.1 // indirect
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect

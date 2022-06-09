@@ -599,7 +599,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 
 			assert.Equal(t, r.Method, "GET")
 			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/decision?branch=branchValue&end=endTimeValue&offset=42&project_id=projectIDValue&start=startTimeValue")
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/decision?after=afterValue&before=beforeValue&branch=branchValue&offset=42&project_id=projectIDValue")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -610,8 +610,8 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{Start: "startTimeValue",
-			End: "endTimeValue", Branch: "branchValue", ProjectID: "projectIDValue", Offset: 42})
+		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{After: "afterValue",
+			Before: "beforeValue", Branch: "branchValue", ProjectID: "projectIDValue", Offset: 42})
 		assert.NilError(t, err)
 	})
 
@@ -629,8 +629,8 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		client := NewClient(svr.URL, config)
 
 		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
-		assert.Equal(t, logs, nil)
 		assert.Error(t, err, "unexpected status-code: 400 - Offset: must be an integer number.")
+		assert.Equal(t, len(logs), 0)
 	})
 
 	t.Run("Get Decision Logs - Forbidden", func(t *testing.T) {
@@ -646,14 +646,14 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		client := NewClient(svr.URL, config)
 
 		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
-		assert.Equal(t, logs, nil)
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
+		assert.Equal(t, len(logs), 0)
 	})
 
 	t.Run("Get Decision Logs - no decision logs", func(t *testing.T) {
 		expectedResponse := "[]"
 
-		var expectedResponseValue interface{}
+		var expectedResponseValue []interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -700,7 +700,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
     }
 ]`
 
-		var expectedResponseValue interface{}
+		var expectedResponseValue []interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
