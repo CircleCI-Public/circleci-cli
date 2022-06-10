@@ -541,8 +541,10 @@ func TestGetDecisionLogs(t *testing.T) {
 		},
 		{
 			Name: "all filters are set",
-			Args: []string{"logs", "--owner-id", "ownerID", "--after", "2022/03/14", "--before", "2022/03/15",
-				"--branch", "branchValue", "--project-id", "projectIDValue"},
+			Args: []string{
+				"logs", "--owner-id", "ownerID", "--after", "2022/03/14", "--before", "2022/03/15",
+				"--branch", "branchValue", "--project-id", "projectIDValue",
+			},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision?after=2022-03-14T00%3A00%3A00Z&before=2022-03-15T00%3A00%3A00Z&branch=branchValue&project_id=projectIDValue")
@@ -566,26 +568,42 @@ func TestGetDecisionLogs(t *testing.T) {
 		{
 			Name: "successfully gets decision logs",
 			Args: []string{"logs", "--owner-id", "ownerID"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision")
-				_, err := w.Write([]byte(`[
-    {
-        "metadata": {},
-        "created_at": "2022-06-08T16:56:22.179906Z",
-        "policies": [
-            {
-                "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
-                "version": 2
-            }
-        ],
-        "decision": {
-            "status": "PASS"
-        }
-    }
-]`))
-				assert.NilError(t, err)
-			},
+			ServerHandler: func() http.HandlerFunc {
+				var count int
+				return func(w http.ResponseWriter, r *http.Request) {
+					defer func() { count++ }()
+
+					assert.Equal(t, r.Method, "GET")
+
+					if count == 0 {
+						assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision")
+						_, err := w.Write([]byte(`
+							[
+								{
+									"metadata": {},
+									"created_at": "2022-06-08T16:56:22.179906Z",
+									"policies": [
+										{
+											"id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+											"version": 2
+										}
+									],
+									"decision": {
+										"status": "PASS"
+									}
+								}
+							]`),
+						)
+						assert.NilError(t, err)
+					} else if count == 1 {
+						assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/decision?offset=1")
+						_, err := w.Write([]byte("[]"))
+						assert.NilError(t, err)
+					} else {
+						t.Fatal("did not expect more than two requests but received a third")
+					}
+				}
+			}(),
 			ExpectedOutput: `[
   {
     "created_at": "2022-06-08T16:56:22.179906Z",

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 
@@ -419,7 +420,6 @@ func TestClientUpdatePolicy(t *testing.T) {
 	})
 
 	t.Run("nil active", func(t *testing.T) {
-
 		name := "test-name"
 		context := "config"
 		content := "test-content"
@@ -574,7 +574,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 
 			assert.Equal(t, r.Method, "GET")
 			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/decision?project_id=projectIDValue")
+			assert.Equal(t, r.URL.RawQuery, "project_id=projectIDValue")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -590,6 +590,8 @@ func TestClientGetDecisionLogs(t *testing.T) {
 	})
 
 	t.Run("expected request with all filters", func(t *testing.T) {
+		testTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 			assert.Equal(t, r.Header.Get("accept"), "application/json")
@@ -599,7 +601,14 @@ func TestClientGetDecisionLogs(t *testing.T) {
 
 			assert.Equal(t, r.Method, "GET")
 			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/decision?after=afterValue&before=beforeValue&branch=branchValue&offset=42&project_id=projectIDValue")
+			assert.Equal(
+				t,
+				r.URL.RawQuery,
+				"after=2000-01-01T00%3A00%3A00Z&before=2000-01-01T00%3A00%3A00Z&branch=branchValue&offset=42&project_id=projectIDValue",
+			)
+
+			assert.Equal(t, r.URL.Query().Get("before"), testTime.Format(time.RFC3339))
+			assert.Equal(t, r.URL.Query().Get("after"), testTime.Format(time.RFC3339))
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -610,8 +619,13 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{After: "afterValue",
-			Before: "beforeValue", Branch: "branchValue", ProjectID: "projectIDValue", Offset: 42})
+		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{
+			After:     &testTime,
+			Before:    &testTime,
+			Branch:    "branchValue",
+			ProjectID: "projectIDValue",
+			Offset:    42,
+		})
 		assert.NilError(t, err)
 	})
 

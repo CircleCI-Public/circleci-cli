@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -216,8 +217,8 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 }
 
 type DecisionQueryRequest struct {
-	After     string
-	Before    string
+	After     *time.Time
+	Before    *time.Time
 	Branch    string
 	ProjectID string
 	Offset    int
@@ -232,11 +233,11 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 	}
 
 	query := make(url.Values)
-	if request.After != "" {
-		query.Set("after", fmt.Sprint(request.After))
+	if request.After != nil {
+		query.Set("after", request.After.Format(time.RFC3339))
 	}
-	if request.Before != "" {
-		query.Set("before", fmt.Sprint(request.Before))
+	if request.Before != nil {
+		query.Set("before", request.Before.Format(time.RFC3339))
 	}
 	if request.Branch != "" {
 		query.Set("branch", fmt.Sprint(request.Branch))
@@ -244,7 +245,7 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 	if request.ProjectID != "" {
 		query.Set("project_id", fmt.Sprint(request.ProjectID))
 	}
-	if request.Offset != 0 {
+	if request.Offset > 0 {
 		query.Set("offset", fmt.Sprint(request.Offset))
 	}
 
@@ -280,7 +281,16 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 		transport = http.DefaultTransport
 	}
 
+	// Throttling the client so that it cannot make more than 10 concurrent requests at time
+	sem := make(chan struct{}, 10)
+
 	config.HTTPClient.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
+		// Aquiring semaphore to respect throttling
+		sem <- struct{}{}
+
+		// releasing the semaphore after a second ensuring client doesn't make more than cap(sem)/second
+		time.AfterFunc(time.Second, func() { <-sem })
+
 		r.Header.Add("circle-token", config.Token)
 		r.Header.Add("Accept", "application/json")
 		r.Header.Add("Content-Type", "application/json")

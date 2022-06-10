@@ -18,8 +18,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-const GET_DECISION_LOG_BATCH_SIZE = 100
-
 // validator is a cobra command and args validator to be run as persisten PreRun for every policy command.
 type validator func(cmd *cobra.Command, args []string) error
 
@@ -180,7 +178,6 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Short: "Update a policy",
 			Use:   "update <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
-
 				if !(cmd.Flag("policy").Changed ||
 					cmd.Flag("active").Changed ||
 					cmd.Flag("context").Changed ||
@@ -240,70 +237,86 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}()
 
 	logs := func() *cobra.Command {
+		var after, before, outputFile string
 		var request policy.DecisionQueryRequest
-		var outputFile string
+
 		cmd := &cobra.Command{
 			Short: "Get policy (decision) logs",
 			Use:   "logs",
-			RunE: func(cmd *cobra.Command, args []string) error {
-				var err error
-				var afterTime, beforeTime time.Time
-
+			RunE: func(cmd *cobra.Command, args []string) (err error) {
 				if cmd.Flag("after").Changed {
-					afterTime, err = dateparse.ParseStrict(request.After)
+					request.After = new(time.Time)
+					*request.After, err = dateparse.ParseStrict(after)
 					if err != nil {
 						return fmt.Errorf("error in parsing --after value: %v", err)
 					}
-					request.After = afterTime.Format(time.RFC3339)
 				}
 
 				if cmd.Flag("before").Changed {
-					beforeTime, err = dateparse.ParseStrict(request.Before)
+					request.Before = new(time.Time)
+					*request.Before, err = dateparse.ParseStrict(before)
 					if err != nil {
 						return fmt.Errorf("error in parsing --before value: %v", err)
 					}
-					request.Before = beforeTime.Format(time.RFC3339)
 				}
 
-				outputWriter := cmd.OutOrStdout()
-				if cmd.Flag("out").Changed {
-					fo, err := os.Create(outputFile)
+				dst := cmd.OutOrStdout()
+				if outputFile != "" {
+					file, err := os.Create(outputFile)
 					if err != nil {
 						return fmt.Errorf("failed to create output file: %v", err)
 					}
-					outputWriter = fo
-					defer fo.Close()
+					dst = file
+					defer func() {
+						if closeErr := file.Close(); err == nil && closeErr != nil {
+							err = closeErr
+						}
+					}()
 				}
 
 				allLogs := make([]interface{}, 0)
+
 				spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(cmd.ErrOrStderr()))
 				spr.Suffix = " Fetching Policy Decision Logs..."
+
+				spr.PostUpdate = func(s *spinner.Spinner) {
+					s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
+				}
+
 				spr.Start()
 				defer spr.Stop()
+
+				client := policy.NewClient(*policyBaseURL, config)
+
 				for {
-					logsBatch, err := policy.NewClient(*policyBaseURL, config).GetDecisionLogs(*ownerID, request)
+					logsBatch, err := client.GetDecisionLogs(*ownerID, request)
 					if err != nil {
 						return fmt.Errorf("failed to get policy decision logs: %v", err)
 					}
-					allLogs = append(allLogs, logsBatch...)
-					if len(logsBatch) < GET_DECISION_LOG_BATCH_SIZE {
-						enc := json.NewEncoder(outputWriter)
-						enc.SetIndent("", "  ")
 
-						if err := enc.Encode(allLogs); err != nil {
-							return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
-						}
-						return nil
+					if len(logsBatch) == 0 {
+						break
 					}
-					request.Offset += GET_DECISION_LOG_BATCH_SIZE
+
+					allLogs = append(allLogs, logsBatch...)
+					request.Offset = len(allLogs)
 				}
+
+				enc := json.NewEncoder(dst)
+				enc.SetIndent("", "  ")
+
+				if err := enc.Encode(allLogs); err != nil {
+					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
+				}
+
+				return nil
 			},
 			Args:    cobra.ExactArgs(0),
 			Example: `policy logs  --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
-		cmd.Flags().StringVar(&request.After, "after", "", "filter decision logs triggered AFTER this datetime")
-		cmd.Flags().StringVar(&request.Before, "before", "", "filter decision logs triggered BEFORE this datetime")
+		cmd.Flags().StringVar(&after, "after", "", "filter decision logs triggered AFTER this datetime")
+		cmd.Flags().StringVar(&before, "before", "", "filter decision logs triggered BEFORE this datetime")
 		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
 		cmd.Flags().StringVar(&request.ProjectID, "project-id", "", "filter decision logs based on project-id")
 		cmd.Flags().StringVar(&outputFile, "out", "", "specify output file name ")
