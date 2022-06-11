@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// MaybeIncludeFile replaces intsances of <<include(file)>> with the contents
+// MaybeIncludeFile replaces instances of <<include(file)>> with the contents
 // of "file", escaping instances of "<<" within the file before returning, when
 // the <<include()>> parameter is the string passed.
 func MaybeIncludeFile(s string, orbDirectory string) (string, error) {
