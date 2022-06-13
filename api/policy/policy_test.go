@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 
@@ -419,7 +420,6 @@ func TestClientUpdatePolicy(t *testing.T) {
 	})
 
 	t.Run("nil active", func(t *testing.T) {
-
 		name := "test-name"
 		context := "config"
 		content := "test-content"
@@ -534,6 +534,200 @@ func TestClientUpdatePolicy(t *testing.T) {
 		client := NewClient(svr.URL, config)
 
 		_, err := client.UpdatePolicy("ownerID", "policyID", req)
+		assert.NilError(t, err)
+	})
+}
+
+func TestClientGetDecisionLogs(t *testing.T) {
+	t.Run("expected request without any filters", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "GET")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/decision")
+
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		assert.NilError(t, err)
+	})
+
+	t.Run("expected request without only one filter", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "GET")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
+			assert.Equal(t, r.URL.RawQuery, "project_id=projectIDValue")
+
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{ProjectID: "projectIDValue"})
+		assert.NilError(t, err)
+	})
+
+	t.Run("expected request with all filters", func(t *testing.T) {
+		testTime := time.Date(2000, 1, 1, 0, 0, 0, 0, time.UTC)
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "GET")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
+			assert.Equal(
+				t,
+				r.URL.RawQuery,
+				"after=2000-01-01T00%3A00%3A00Z&before=2000-01-01T00%3A00%3A00Z&branch=branchValue&offset=42&project_id=projectIDValue",
+			)
+
+			assert.Equal(t, r.URL.Query().Get("before"), testTime.Format(time.RFC3339))
+			assert.Equal(t, r.URL.Query().Get("after"), testTime.Format(time.RFC3339))
+
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{
+			After:     &testTime,
+			Before:    &testTime,
+			Branch:    "branchValue",
+			ProjectID: "projectIDValue",
+			Offset:    42,
+		})
+		assert.NilError(t, err)
+	})
+
+	t.Run("Get Decision Logs - Bad Request", func(t *testing.T) {
+		expectedResponse := `{"error": "Offset: must be an integer number."}`
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		assert.Error(t, err, "unexpected status-code: 400 - Offset: must be an integer number.")
+		assert.Equal(t, len(logs), 0)
+	})
+
+	t.Run("Get Decision Logs - Forbidden", func(t *testing.T) {
+		expectedResponse := `{"error": "Forbidden"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
+		assert.Equal(t, len(logs), 0)
+	})
+
+	t.Run("Get Decision Logs - no decision logs", func(t *testing.T) {
+		expectedResponse := "[]"
+
+		var expectedResponseValue []interface{}
+		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		assert.DeepEqual(t, logs, expectedResponseValue)
+		assert.NilError(t, err)
+	})
+
+	t.Run("Get Decision Logs - some logs", func(t *testing.T) {
+		expectedResponse := `[
+    {
+        "metadata": {},
+        "created_at": "2022-06-08T16:56:22.179906Z",
+        "policies": [
+            {
+                "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+                "version": 2
+            }
+        ],
+        "decision": {
+            "status": "PASS"
+        }
+    },
+    {
+        "metadata": {},
+        "created_at": "2022-06-08T17:06:14.591951Z",
+        "policies": [
+            {
+                "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
+                "version": 2
+            }
+        ],
+        "decision": {
+            "status": "PASS"
+        }
+    }
+]`
+
+		var expectedResponseValue []interface{}
+		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		assert.DeepEqual(t, logs, expectedResponseValue)
 		assert.NilError(t, err)
 	})
 }
