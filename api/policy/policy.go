@@ -285,7 +285,7 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 	sem := make(chan struct{}, 10)
 
 	config.HTTPClient.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
-		// Aquiring semaphore to respect throttling
+		// Acquiring semaphore to respect throttling
 		sem <- struct{}{}
 
 		// releasing the semaphore after a second ensuring client doesn't make more than cap(sem)/second
