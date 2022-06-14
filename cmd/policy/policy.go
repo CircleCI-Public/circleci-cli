@@ -32,6 +32,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
 	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the owner of a policy")
+
 	if err := cmd.MarkPersistentFlagRequired("owner-id"); err != nil {
 		panic(err)
 	}
@@ -56,10 +57,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					return fmt.Errorf("failed to list policies: %v", err)
 				}
 
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-
-				if err := enc.Encode(policies); err != nil {
+				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(policies); err != nil {
 					return fmt.Errorf("failed to output policies in json format: %v", err)
 				}
 
@@ -96,10 +94,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					return fmt.Errorf("failed to create policy: %w", err)
 				}
 
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-
-				if err := enc.Encode(result); err != nil {
+				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 					return fmt.Errorf("failed to encode result to stdout: %w", err)
 				}
 
@@ -133,10 +128,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					return fmt.Errorf("failed to get policy: %v", err)
 				}
 
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-
-				if err := enc.Encode(p); err != nil {
+				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(p); err != nil {
 					return fmt.Errorf("failed to output policy in json format: %v", err)
 				}
 
@@ -215,10 +207,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					return fmt.Errorf("failed to update policy: %w", err)
 				}
 
-				enc := json.NewEncoder(cmd.OutOrStdout())
-				enc.SetIndent("", "  ")
-
-				if err := enc.Encode(result); err != nil {
+				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 					return fmt.Errorf("failed to encode result to stdout: %w", err)
 				}
 
@@ -302,10 +291,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 					request.Offset = len(allLogs)
 				}
 
-				enc := json.NewEncoder(dst)
-				enc.SetIndent("", "  ")
-
-				if err := enc.Encode(allLogs); err != nil {
+				if err := prettyJSONEncoder(dst).Encode(allLogs); err != nil {
 					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
 				}
 
@@ -324,12 +310,56 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		return cmd
 	}()
 
+	decide := func() *cobra.Command {
+		var inputPath string
+		var request policy.DecisionRequest
+
+		cmd := &cobra.Command{
+			Short: "make a decision",
+			Use:   "decide",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				input, err := os.ReadFile(inputPath)
+				if err != nil {
+					return fmt.Errorf("failed to read file: %w", err)
+				}
+
+				request.Input = string(input)
+
+				decision, err := policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request)
+				if err != nil {
+					return fmt.Errorf("failed to make decision: %w", err)
+				}
+
+				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
+					return fmt.Errorf("failed to encode decision: %w", err)
+				}
+
+				return nil
+			},
+			Args: cobra.ExactArgs(0),
+		}
+
+		cmd.Flags().StringVar(&request.Context, "context", "config", "policy context for decision")
+		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+
+		cmd.MarkFlagRequired("input")
+
+		return cmd
+	}()
+
 	cmd.AddCommand(list)
 	cmd.AddCommand(create)
 	cmd.AddCommand(get)
 	cmd.AddCommand(delete)
 	cmd.AddCommand(update)
 	cmd.AddCommand(logs)
+	cmd.AddCommand(decide)
 
 	return cmd
+}
+
+func prettyJSONEncoder(dst io.Writer) *json.Encoder {
+	enc := json.NewEncoder(dst)
+	enc.SetIndent("", "  ")
+	return enc
 }

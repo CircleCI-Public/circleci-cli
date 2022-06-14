@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -644,6 +645,94 @@ func TestGetDecisionLogs(t *testing.T) {
 				return
 			}
 			fmt.Println(stdout.String())
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+func TestMakeDecisionCommand(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires flags",
+			Args:        []string{"decide"},
+			ExpectedErr: `required flag(s) "input", "owner-id" not set`,
+		},
+		{
+			Name: "sends expected request",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yaml"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"context": "config",
+					"input":   "test: config\n",
+				})
+
+				io.WriteString(w, `{"status":"PASS"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
+		},
+		{
+			Name: "sends expected request with context",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yaml", "--context", "custom"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"context": "custom",
+					"input":   "test: config\n",
+				})
+
+				io.WriteString(w, `{"status":"PASS"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
+		},
+		{
+			Name: "fails on unexpected status code",
+			Args: []string{"decide", "--input", "./testdata/test.yaml", "--owner-id", "test-owner"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(500)
+				io.WriteString(w, `{"error":"oopsie!"}`)
+			},
+
+			ExpectedErr: "failed to make decision: unexpected status-code: 500 - oopsie!",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+				return
+			}
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
 		})
 	}
