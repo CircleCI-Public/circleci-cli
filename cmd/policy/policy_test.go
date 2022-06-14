@@ -678,7 +678,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 					"input":   "test: config\n",
 				})
 
-				io.WriteString(w, `{"status":"PASS"}`)
+				_, _ = io.WriteString(w, `{"status":"PASS"}`)
 			},
 			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
 		},
@@ -697,7 +697,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 					"input":   "test: config\n",
 				})
 
-				io.WriteString(w, `{"status":"PASS"}`)
+				_, _ = io.WriteString(w, `{"status":"PASS"}`)
 			},
 			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
 		},
@@ -706,7 +706,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 			Args: []string{"decide", "--input", "./testdata/test.yaml", "--owner-id", "test-owner"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
-				io.WriteString(w, `{"error":"oopsie!"}`)
+				_, _ = io.WriteString(w, `{"error":"oopsie!"}`)
 			},
 
 			ExpectedErr: "failed to make decision: unexpected status-code: 500 - oopsie!",

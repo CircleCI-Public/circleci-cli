@@ -763,7 +763,7 @@ func TestMakeDecision(t *testing.T) {
 					"input":   "test-input",
 				})
 
-				json.NewEncoder(w).Encode(map[string]string{"status": "PASS"})
+				_ = json.NewEncoder(w).Encode(map[string]string{"status": "PASS"})
 			},
 			ExpectedDecision: map[string]interface{}{"status": "PASS"},
 		},
@@ -773,7 +773,7 @@ func TestMakeDecision(t *testing.T) {
 			Request: DecisionRequest{},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(400)
-				io.WriteString(w, `{"error":"that was a bad request!"}`)
+				_, _ = io.WriteString(w, `{"error":"that was a bad request!"}`)
 			},
 			ExpectedError: errors.New("unexpected status-code: 400 - that was a bad request!"),
 		},
@@ -792,7 +792,7 @@ func TestMakeDecision(t *testing.T) {
 			OwnerID: "test-owner",
 			Request: DecisionRequest{},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				io.WriteString(w, "not a json response")
+				_, _ = io.WriteString(w, "not a json response")
 			},
 			ExpectedError: errors.New("failed to decode response body: invalid character 'o' in literal null (expecting 'u')"),
 		},

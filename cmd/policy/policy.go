@@ -318,7 +318,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Short: "make a decision",
 			Use:   "decide",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				input, err := os.ReadFile(inputPath)
+				input, err := ioutil.ReadFile(inputPath)
 				if err != nil {
 					return fmt.Errorf("failed to read file: %w", err)
 				}
@@ -342,7 +342,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		cmd.Flags().StringVar(&request.Context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
 
-		cmd.MarkFlagRequired("input")
+		_ = cmd.MarkFlagRequired("input")
 
 		return cmd
 	}()
