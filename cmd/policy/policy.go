@@ -358,6 +358,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	return cmd
 }
 
+// prettyJSONEncoder takes a writer and returns a new json encoder with indent set to two space characters
 func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 	enc := json.NewEncoder(dst)
 	enc.SetIndent("", "  ")
