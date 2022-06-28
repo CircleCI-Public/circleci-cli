@@ -2,6 +2,8 @@ package policy
 
 import (
 	"encoding/json"
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -730,4 +732,88 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		assert.DeepEqual(t, logs, expectedResponseValue)
 		assert.NilError(t, err)
 	})
+}
+
+func TestMakeDecision(t *testing.T) {
+	testcases := []struct {
+		Name             string
+		OwnerID          string
+		Request          DecisionRequest
+		Handler          http.HandlerFunc
+		ExpectedError    error
+		ExpectedDecision interface{}
+	}{
+		{
+			Name:    "sends expexted request",
+			OwnerID: "test-owner",
+			Request: DecisionRequest{
+				Input:   "test-input",
+				Context: "test-context",
+			},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"context": "test-context",
+					"input":   "test-input",
+				})
+
+				_ = json.NewEncoder(w).Encode(map[string]string{"status": "PASS"})
+			},
+			ExpectedDecision: map[string]interface{}{"status": "PASS"},
+		},
+		{
+			Name:    "unexpected statuscode",
+			OwnerID: "test-owner",
+			Request: DecisionRequest{},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(400)
+				_, _ = io.WriteString(w, `{"error":"that was a bad request!"}`)
+			},
+			ExpectedError: errors.New("unexpected status-code: 400 - that was a bad request!"),
+		},
+
+		{
+			Name:    "unexpected statuscode no body",
+			OwnerID: "test-owner",
+			Request: DecisionRequest{},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(204)
+			},
+			ExpectedError: errors.New("unexpected status-code: 204"),
+		},
+		{
+			Name:    "bad decoding",
+			OwnerID: "test-owner",
+			Request: DecisionRequest{},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				_, _ = io.WriteString(w, "not a json response")
+			},
+			ExpectedError: errors.New("failed to decode response body: invalid character 'o' in literal null (expecting 'u')"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			svr := httptest.NewServer(tc.Handler)
+			defer svr.Close()
+
+			client := NewClient(svr.URL, &settings.Config{Token: "test-token", HTTPClient: http.DefaultClient})
+
+			decision, err := client.MakeDecision(tc.OwnerID, tc.Request)
+			if tc.ExpectedError == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedError.Error())
+				return
+			}
+
+			assert.DeepEqual(t, decision, tc.ExpectedDecision)
+		})
+	}
 }
