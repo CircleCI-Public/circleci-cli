@@ -2,6 +2,7 @@ package policy
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
@@ -19,7 +20,7 @@ func TestGetPolicyDecisionLocally(t *testing.T) {
 		{
 			Name:        "fails on non-existing policyPath",
 			PolicyPath:  "./testdata/does_not_exist",
-			ExpectedErr: "failed to get document bundle for path: failed to get path info: stat ./testdata/does_not_exist: no such file or directory",
+			ExpectedErr: "failed to get document bundle for path: failed to get path info: stat ./testdata/does_not_exist: " + notFoundErrorString(),
 		},
 		{
 			Name:        "fails for empty policy FILE",
@@ -86,7 +87,7 @@ func TestGetDocumentBundleFromPath(t *testing.T) {
 		{
 			Name:        "fails on non-existing policyPath",
 			PolicyPath:  "./testdata/does_not_exist",
-			ExpectedErr: "failed to get path info: stat ./testdata/does_not_exist: no such file or directory",
+			ExpectedErr: "failed to get path info: stat ./testdata/does_not_exist: " + notFoundErrorString(),
 		},
 		{
 			Name:           "successfully gets policy bundle for a policyPath of a FILE",
@@ -140,7 +141,7 @@ func TestSetFileContentToMap(t *testing.T) {
 			FilePath:    "./testdata/does_not_exist",
 			Key:         "test_key",
 			ContentMap:  map[string]string{},
-			ExpectedErr: "failed to read file: open ./testdata/does_not_exist: no such file or directory",
+			ExpectedErr: "failed to read file: open ./testdata/does_not_exist: " + notFoundErrorString(),
 		},
 		{
 			Name:           "successfully sets file content to map",
@@ -162,4 +163,11 @@ func TestSetFileContentToMap(t *testing.T) {
 			}
 		})
 	}
+}
+
+func notFoundErrorString() string {
+	if runtime.GOOS == "windows" {
+		return "The system cannot find the file specified."
+	}
+	return "no such file or directory"
 }
