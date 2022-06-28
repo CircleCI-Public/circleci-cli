@@ -719,12 +719,12 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails for input file not found",
 			Args:        []string{"decide", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
-			ExpectedErr: "failed to read file: open ./testdata/no_such_file.yml: no such file or directory",
+			ExpectedErr: "failed to read file: open ./testdata/no_such_file.yml: ",
 		},
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
-			ExpectedErr: "failed to get policy decision locally: failed to get document bundle for path: failed to get path info: stat ./testdata/no_such_file.rego: no such file or directory",
+			ExpectedErr: "failed to get policy decision locally: failed to get document bundle for path: failed to get path info: ",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
@@ -757,7 +757,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)

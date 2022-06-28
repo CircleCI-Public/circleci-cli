@@ -19,7 +19,7 @@ func TestGetPolicyDecisionLocally(t *testing.T) {
 		{
 			Name:        "fails on non-existing policyPath",
 			PolicyPath:  "./testdata/does_not_exist",
-			ExpectedErr: "failed to get document bundle for path: failed to get path info: stat ./testdata/does_not_exist: no such file or directory",
+			ExpectedErr: "failed to get document bundle for path: failed to get path info: ",
 		},
 		{
 			Name:        "fails for empty policy FILE",
@@ -70,7 +70,7 @@ type: "not_person"`,
 				fmt.Println(tc.ExpectedOutput)
 				assert.DeepEqual(t, tc.ExpectedOutput, decision)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 			}
 		})
 	}
@@ -86,7 +86,7 @@ func TestGetDocumentBundleFromPath(t *testing.T) {
 		{
 			Name:        "fails on non-existing policyPath",
 			PolicyPath:  "./testdata/does_not_exist",
-			ExpectedErr: "failed to get path info: stat ./testdata/does_not_exist: no such file or directory",
+			ExpectedErr: "failed to get path info: ",
 		},
 		{
 			Name:           "successfully gets policy bundle for a policyPath of a FILE",
@@ -108,7 +108,7 @@ func TestGetDocumentBundleFromPath(t *testing.T) {
 				fmt.Println(tc.ExpectedOutput)
 				assert.DeepEqual(t, tc.ExpectedOutput, documentBundle)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 			}
 		})
 	}
@@ -140,7 +140,7 @@ func TestSetFileContentToMap(t *testing.T) {
 			FilePath:    "./testdata/does_not_exist",
 			Key:         "test_key",
 			ContentMap:  map[string]string{},
-			ExpectedErr: "failed to read file: open ./testdata/does_not_exist: no such file or directory",
+			ExpectedErr: "failed to read file: open ./testdata/does_not_exist: ",
 		},
 		{
 			Name:           "successfully sets file content to map",
@@ -158,7 +158,7 @@ func TestSetFileContentToMap(t *testing.T) {
 				assert.NilError(t, err)
 				assert.DeepEqual(t, tc.ExpectedOutput, tc.ContentMap)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 			}
 		})
 	}
