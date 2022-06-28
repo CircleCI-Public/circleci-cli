@@ -27,11 +27,6 @@ func TestGetPolicyDecisionLocally(t *testing.T) {
 			ExpectedErr: "failed to parse policy bundle: failed to parse policy file(s): failed to parse file \"empty_file.rego\": empty_file.rego:0: rego_parse_error: empty module",
 		},
 		{
-			Name:        "fails for empty policy DIRECTORY",
-			PolicyPath:  "./testdata/test0/empty_directory",
-			ExpectedErr: "failed to get document bundle for path: no files found in: ./testdata/test0/empty_directory",
-		},
-		{
 			Name:        "fails on bad input",
 			PolicyPath:  "./testdata/test1/policy.rego",
 			Input:       ":",
@@ -92,11 +87,6 @@ func TestGetDocumentBundleFromPath(t *testing.T) {
 			Name:        "fails on non-existing policyPath",
 			PolicyPath:  "./testdata/does_not_exist",
 			ExpectedErr: "failed to get path info: stat ./testdata/does_not_exist: no such file or directory",
-		},
-		{
-			Name:        "fails on empty directory",
-			PolicyPath:  "./testdata/test0/empty_directory",
-			ExpectedErr: "no files found in: ./testdata/test0/empty_directory",
 		},
 		{
 			Name:           "successfully gets policy bundle for a policyPath of a FILE",

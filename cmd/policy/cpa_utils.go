@@ -14,6 +14,7 @@ import (
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
 )
 
+//getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
 func getPolicyDecisionLocally(policyPath, input string) (*cpa.Decision, error) {
 	var config interface{}
 	if err := yaml.Unmarshal([]byte(input), &config); err != nil {
@@ -39,6 +40,9 @@ func getPolicyDecisionLocally(policyPath, input string) (*cpa.Decision, error) {
 	return decision, nil
 }
 
+//getDocumentBundleFromPath takes policy path as an input which could be path to a file or directory, and returns a policy bundle
+//if policyPath is a file, its content will be the only data in the decision bundle
+//if policyPath is a directory, every file in the directory (non-recursive) will be considered a policy in the output policy bundle
 func getDocumentBundleFromPath(policyPath string) (map[string]string, error) {
 	documentBundle := map[string]string{}
 	pathInfo, err := os.Stat(policyPath)
@@ -74,6 +78,7 @@ func getDocumentBundleFromPath(policyPath string) (map[string]string, error) {
 	return documentBundle, nil
 }
 
+//setFileContentToMap Sets key(usually file-name) and value(content of given file(path)) to a given map
 func setFileContentToMap(filePath string, key string, contentMap map[string]string) error {
 	if key == "" {
 		return fmt.Errorf("invalid key")
@@ -89,6 +94,7 @@ func setFileContentToMap(filePath string, key string, contentMap map[string]stri
 	return nil
 }
 
+//normalise makes a string suitable to be used as a map key
 func normalise(name string) string {
 	var spaces = regexp.MustCompile(`\s+`)
 	name = strings.TrimSpace(name)
