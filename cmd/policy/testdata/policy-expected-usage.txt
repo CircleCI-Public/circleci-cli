@@ -11,7 +11,7 @@ Available Commands:
   update      Update a policy
 
 Flags:
-      --owner-id string          the id of the owner of a policy
+      --owner-id string          the id of the policy's owner
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
 
 Use "policy [command] --help" for more information about a command.

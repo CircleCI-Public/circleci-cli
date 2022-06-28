@@ -31,7 +31,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
-	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the owner of a policy")
+	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the policy's owner")
 
 	if err := cmd.MarkPersistentFlagRequired("owner-id"); err != nil {
 		panic(err)
@@ -311,23 +311,33 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}()
 
 	decide := func() *cobra.Command {
-		var inputPath string
+		var inputPath, policyPath string
 		var request policy.DecisionRequest
 
 		cmd := &cobra.Command{
 			Short: "make a decision",
 			Use:   "decide",
 			RunE: func(cmd *cobra.Command, args []string) error {
+				var decision interface{}
 				input, err := ioutil.ReadFile(inputPath)
 				if err != nil {
 					return fmt.Errorf("failed to read file: %w", err)
 				}
 
-				request.Input = string(input)
-
-				decision, err := policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request)
-				if err != nil {
-					return fmt.Errorf("failed to make decision: %w", err)
+				if policyPath != "" {
+					//policy is provided locally, use integrated circle-policy-agent for decision
+					if decision, err = getPolicyDecisionLocally(policyPath, string(input)); err != nil {
+						return fmt.Errorf("failed to get policy decision locally: %w", err)
+					}
+				} else {
+					// fetch policy for this org from policy-service, because it's not provided locally
+					if *ownerID == "" {
+						return fmt.Errorf("--owner-id is required when --policy is not provided")
+					}
+					request.Input = string(input)
+					if decision, err = policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request); err != nil {
+						return fmt.Errorf("failed to make decision: %w", err)
+					}
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
@@ -341,6 +351,8 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 		cmd.Flags().StringVar(&request.Context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
+		cmd.Flags().StringVar(ownerID, "owner-id", "", "the id of the policy's owner") //Redeclared flag to make optional
 
 		_ = cmd.MarkFlagRequired("input")
 

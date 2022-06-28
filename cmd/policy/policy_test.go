@@ -661,11 +661,11 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "requires flags",
 			Args:        []string{"decide"},
-			ExpectedErr: `required flag(s) "input", "owner-id" not set`,
+			ExpectedErr: `required flag(s) "input" not set`,
 		},
 		{
 			Name: "sends expected request",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yaml"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
@@ -684,7 +684,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "sends expected request with context",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yaml", "--context", "custom"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
@@ -703,13 +703,40 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "fails on unexpected status code",
-			Args: []string{"decide", "--input", "./testdata/test.yaml", "--owner-id", "test-owner"},
+			Args: []string{"decide", "--input", "./testdata/test.yml", "--owner-id", "test-owner"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
 				_, _ = io.WriteString(w, `{"error":"oopsie!"}`)
 			},
 
 			ExpectedErr: "failed to make decision: unexpected status-code: 500 - oopsie!",
+		},
+		{
+			Name:        "fails if neither local-policy nor owner-id is provided",
+			Args:        []string{"decide", "--input", "./testdata/test.yml"},
+			ExpectedErr: "--owner-id is required when --policy is not provided",
+		},
+		{
+			Name:        "fails for input file not found",
+			Args:        []string{"decide", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			ExpectedErr: "failed to read file: open ./testdata/no_such_file.yml: no such file or directory",
+		},
+		{
+			Name:        "fails for policy FILE/DIRECTORY not found",
+			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
+			ExpectedErr: "failed to get policy decision locally: failed to get document bundle for path: failed to get path info: stat ./testdata/no_such_file.rego: no such file or directory",
+		},
+		{
+			Name: "successfully performs decision for policy FILE provided locally",
+			Args: []string{"decide", "--policy", "./testdata/test4/policy.rego", "--input",
+				"./testdata/test4/config.yml"},
+			ExpectedOutput: `{
+  "status": "PASS",
+  "enabled_rules": [
+    "name_is_bob"
+  ]
+}
+`,
 		},
 	}
 

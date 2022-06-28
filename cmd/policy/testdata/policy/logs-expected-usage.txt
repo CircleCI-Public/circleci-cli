@@ -12,5 +12,5 @@ Flags:
       --project-id string   filter decision logs based on project-id
 
 Global Flags:
-      --owner-id string          the id of the owner of a policy
+      --owner-id string          the id of the policy's owner
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
