@@ -75,4 +75,4 @@ require (
 // fix vulnerability: CVE-2020-15114 in etcd v3.3.10+incompatible
 replace github.com/coreos/etcd => github.com/coreos/etcd v3.3.24+incompatible
 
-go 1.17
+go 1.18

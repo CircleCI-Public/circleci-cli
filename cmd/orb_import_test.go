@@ -680,7 +680,7 @@ The following orb versions already exist:
 `
 			actual, err := ioutil.ReadAll(&b)
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(fmt.Sprintf("%s", actual)).To(Equal(expOutput))
+			Expect(string(actual)).To(Equal(expOutput))
 		})
 	})
 
