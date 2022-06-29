@@ -2,6 +2,7 @@ package runner
 
 import (
 	"github.com/spf13/cobra"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
@@ -18,7 +19,13 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		Use:   "runner",
 		Short: "Operate on runners",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
-			opts.r = runner.New(rest.New(config.Host, config.RestEndpoint, config.Token))
+			var host string
+			if strings.Contains(config.Host, "https://circleci.com") {
+				host = "https://runner.circleci.com"
+			} else {
+				host = config.Host
+			}
+			opts.r = runner.New(rest.New(host, config.RestEndpoint, config.Token))
 		},
 	}
 	cmd.AddCommand(newResourceClassCommand(&opts, preRunE))
