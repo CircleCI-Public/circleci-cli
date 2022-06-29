@@ -733,7 +733,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedOutput: `{
   "status": "PASS",
   "enabled_rules": [
-    "name_is_bob"
+    "branch_is_main"
   ]
 }
 `,
