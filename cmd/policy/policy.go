@@ -321,32 +321,31 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Short: "make a decision",
 			Use:   "decide",
 			RunE: func(cmd *cobra.Command, args []string) error {
+				if policyPath == "" && *ownerID == "" {
+					return fmt.Errorf("either of --owner-id or --policy is required")
+				}
+
 				var decision interface{}
 				input, err := ioutil.ReadFile(inputPath)
 				if err != nil {
 					return fmt.Errorf("failed to read file: %w", err)
 				}
+				request.Input = string(input)
 
 				if policyPath != "" {
-					//policy is provided locally, use integrated circle-policy-agent for decision
-					if decision, err = getPolicyDecisionLocally(policyPath, string(input)); err != nil {
-						return fmt.Errorf("failed to get policy decision locally: %w", err)
-					}
+					// make decision from local policy
+					decision, err = getPolicyDecisionLocally(policyPath, request.Input)
 				} else {
-					// fetch policy for this org from policy-service, because it's not provided locally
-					if *ownerID == "" {
-						return fmt.Errorf("--owner-id is required when --policy is not provided")
-					}
-					request.Input = string(input)
-					if decision, err = policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request); err != nil {
-						return fmt.Errorf("failed to make decision: %w", err)
-					}
+					// make decision from policy obtained from policy-service
+					decision, err = policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request)
+				}
+				if err != nil {
+					return fmt.Errorf("failed to make decision: %w", err)
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
 					return fmt.Errorf("failed to encode decision: %w", err)
 				}
-
 				return nil
 			},
 			Args: cobra.ExactArgs(0),

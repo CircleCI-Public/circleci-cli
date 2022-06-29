@@ -714,7 +714,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails if neither local-policy nor owner-id is provided",
 			Args:        []string{"decide", "--input", "./testdata/test.yml"},
-			ExpectedErr: "--owner-id is required when --policy is not provided",
+			ExpectedErr: "either of --owner-id or --policy is required",
 		},
 		{
 			Name:        "fails for input file not found",
@@ -724,7 +724,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
-			ExpectedErr: "failed to get policy decision locally: failed to get path info: ",
+			ExpectedErr: "failed to make decision: failed to get path info: ",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
