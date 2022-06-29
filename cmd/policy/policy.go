@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,8 +9,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/CircleCI-Public/circle-policy-agent/cpa"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/araddon/dateparse"
 
@@ -375,4 +378,36 @@ func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 	enc := json.NewEncoder(dst)
 	enc.SetIndent("", "  ")
 	return enc
+}
+
+//getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
+func getPolicyDecisionLocally(policyPath, inputString string) (*cpa.Decision, error) {
+	var input interface{}
+	if err := yaml.Unmarshal([]byte(inputString), &input); err != nil {
+		return nil, fmt.Errorf("invalid input: %w", err)
+	}
+
+	var parsedPolicy *cpa.Policy
+	pathInfo, err := os.Stat(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get path info: %w", err)
+	}
+
+	//if policyPath is directory get content of all files in this directory (non-recursively) and add to document bundle
+	if pathInfo.IsDir() {
+		parsedPolicy, err = cpa.LoadPolicyDirectory(policyPath)
+	} else {
+		parsedPolicy, err = cpa.LoadPolicyFile(policyPath)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to load policy files: %w", err)
+	}
+
+	ctx := context.Background()
+	decision, err := parsedPolicy.Decide(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make decision: %w", err)
+	}
+
+	return decision, nil
 }

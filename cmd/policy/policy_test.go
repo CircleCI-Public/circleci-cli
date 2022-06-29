@@ -724,12 +724,12 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
-			ExpectedErr: "failed to get policy decision locally: failed to get document bundle for path: failed to get path info: ",
+			ExpectedErr: "failed to get policy decision locally: failed to get path info: ",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
-			Args: []string{"decide", "--policy", "./testdata/test4/policy.rego", "--input",
-				"./testdata/test4/config.yml"},
+			Args: []string{"decide", "--policy", "./testdata/test0/policy.rego", "--input",
+				"./testdata/test0/config.yml"},
 			ExpectedOutput: `{
   "status": "PASS",
   "enabled_rules": [
