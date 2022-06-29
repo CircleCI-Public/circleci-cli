@@ -1,6 +1,7 @@
 package policy
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,8 +9,10 @@ import (
 	"os"
 	"time"
 
+	"github.com/CircleCI-Public/circle-policy-agent/cpa"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/araddon/dateparse"
 
@@ -31,7 +34,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
-	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the owner of a policy")
+	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the policy's owner")
 
 	if err := cmd.MarkPersistentFlagRequired("owner-id"); err != nil {
 		panic(err)
@@ -311,21 +314,31 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	}()
 
 	decide := func() *cobra.Command {
-		var inputPath string
+		var inputPath, policyPath string
 		var request policy.DecisionRequest
 
 		cmd := &cobra.Command{
 			Short: "make a decision",
 			Use:   "decide",
 			RunE: func(cmd *cobra.Command, args []string) error {
+				if policyPath == "" && *ownerID == "" {
+					return fmt.Errorf("--owner-id or --policy is required")
+				}
+
+				var decision interface{}
 				input, err := ioutil.ReadFile(inputPath)
 				if err != nil {
 					return fmt.Errorf("failed to read file: %w", err)
 				}
-
 				request.Input = string(input)
 
-				decision, err := policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request)
+				if policyPath != "" {
+					// make decision from local policy
+					decision, err = getPolicyDecisionLocally(policyPath, request.Input)
+				} else {
+					// make decision from policy obtained from policy-service
+					decision, err = policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request)
+				}
 				if err != nil {
 					return fmt.Errorf("failed to make decision: %w", err)
 				}
@@ -333,7 +346,6 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
 					return fmt.Errorf("failed to encode decision: %w", err)
 				}
-
 				return nil
 			},
 			Args: cobra.ExactArgs(0),
@@ -341,6 +353,8 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 
 		cmd.Flags().StringVar(&request.Context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
+		cmd.Flags().StringVar(ownerID, "owner-id", "", "the id of the policy's owner") //Redeclared flag to make optional
 
 		_ = cmd.MarkFlagRequired("input")
 
@@ -363,4 +377,36 @@ func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 	enc := json.NewEncoder(dst)
 	enc.SetIndent("", "  ")
 	return enc
+}
+
+//getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
+func getPolicyDecisionLocally(policyPath, inputString string) (*cpa.Decision, error) {
+	var input interface{}
+	if err := yaml.Unmarshal([]byte(inputString), &input); err != nil {
+		return nil, fmt.Errorf("invalid input: %w", err)
+	}
+
+	var parsedPolicy *cpa.Policy
+	pathInfo, err := os.Stat(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get path info: %w", err)
+	}
+
+	//if policyPath is directory get content of all files in this directory (non-recursively) and add to document bundle
+	if pathInfo.IsDir() {
+		parsedPolicy, err = cpa.LoadPolicyDirectory(policyPath)
+	} else {
+		parsedPolicy, err = cpa.LoadPolicyFile(policyPath)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to load policy files: %w", err)
+	}
+
+	ctx := context.Background()
+	decision, err := parsedPolicy.Decide(ctx, input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to make decision: %w", err)
+	}
+
+	return decision, nil
 }

@@ -661,11 +661,11 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "requires flags",
 			Args:        []string{"decide"},
-			ExpectedErr: `required flag(s) "input", "owner-id" not set`,
+			ExpectedErr: `required flag(s) "input" not set`,
 		},
 		{
 			Name: "sends expected request",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yaml"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
@@ -684,7 +684,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "sends expected request with context",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yaml", "--context", "custom"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
@@ -703,13 +703,40 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "fails on unexpected status code",
-			Args: []string{"decide", "--input", "./testdata/test.yaml", "--owner-id", "test-owner"},
+			Args: []string{"decide", "--input", "./testdata/test.yml", "--owner-id", "test-owner"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
 				_, _ = io.WriteString(w, `{"error":"oopsie!"}`)
 			},
 
 			ExpectedErr: "failed to make decision: unexpected status-code: 500 - oopsie!",
+		},
+		{
+			Name:        "fails if neither local-policy nor owner-id is provided",
+			Args:        []string{"decide", "--input", "./testdata/test.yml"},
+			ExpectedErr: "--owner-id or --policy is required",
+		},
+		{
+			Name:        "fails for input file not found",
+			Args:        []string{"decide", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			ExpectedErr: "failed to read file: open ./testdata/no_such_file.yml: ",
+		},
+		{
+			Name:        "fails for policy FILE/DIRECTORY not found",
+			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
+			ExpectedErr: "failed to make decision: failed to get path info: ",
+		},
+		{
+			Name: "successfully performs decision for policy FILE provided locally",
+			Args: []string{"decide", "--policy", "./testdata/test0/policy.rego", "--input",
+				"./testdata/test0/config.yml"},
+			ExpectedOutput: `{
+  "status": "PASS",
+  "enabled_rules": [
+    "branch_is_main"
+  ]
+}
+`,
 		},
 	}
 
@@ -730,7 +757,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
