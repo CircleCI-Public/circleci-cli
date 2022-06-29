@@ -8,7 +8,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: circleci/golang:1.17
+      - image: cimg/go:1.18
     environment:
       CGO_ENABLED: 0
   mac:
@@ -27,7 +27,7 @@ commands:
           # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
           #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
           # The issue seems to be on the server-side, so force HTTP 1.1
-          name: "cURL: Force HTTP 1.1"
+          name: 'cURL: Force HTTP 1.1'
           command: echo '--http1.1' >> ~/.curlrc
   build-docker-image:
     steps:
@@ -51,7 +51,7 @@ commands:
       - persist_to_workspace:
           root: .
           paths:
-            - "dist"
+            - 'dist'
       - store_artifacts:
           path: ./dist
           destination: dist
@@ -72,7 +72,7 @@ commands:
   gomod:
     steps:
       - restore_cache:
-          keys: ["v2-gomod-{{ arch }}-"]
+          keys: ['v2-gomod-{{ arch }}-']
       - run:
           name: Download go module dependencies
           command: go mod download
@@ -104,8 +104,9 @@ jobs:
     steps:
       - checkout
       - run: |
-          brew install go@1.13
-          echo 'export PATH="/usr/local/opt/go@1.13/bin:$PATH"' >> ~/.bash_profile
+          brew update
+          brew install go@1.18
+          echo 'export PATH="/usr/local/opt/go@1.18/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
   build:
@@ -117,7 +118,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - "build"
+            - 'build'
   cucumber:
     docker:
       - image: cimg/ruby:2.7
@@ -126,7 +127,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: "Install CLI tool from workspace"
+          name: 'Install CLI tool from workspace'
           command: sudo cp ~/project/build/linux/amd64/circleci /usr/local/bin/
       - run:
           command: bundle install
