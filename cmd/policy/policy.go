@@ -322,7 +322,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Use:   "decide",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if policyPath == "" && *ownerID == "" {
-					return fmt.Errorf("either of --owner-id or --policy is required")
+					return fmt.Errorf("--owner-id or --policy is required")
 				}
 
 				var decision interface{}
