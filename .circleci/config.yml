@@ -62,7 +62,7 @@ commands:
         default: https://github.com/goreleaser/goreleaser/releases/download/v0.127.0/goreleaser_amd64.deb
     steps:
       - restore_cache:
-          keys: [v4-goreleaser-]
+          keys: [v5-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
@@ -72,7 +72,7 @@ commands:
   gomod:
     steps:
       - restore_cache:
-          keys: ['v2-gomod-{{ arch }}-']
+          keys: ['v3-gomod-{{ arch }}-']
       - run:
           name: Download go module dependencies
           command: go mod download
