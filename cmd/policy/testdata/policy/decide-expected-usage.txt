@@ -1,0 +1,11 @@
+Usage:
+  policy decide [flags]
+
+Flags:
+      --context string   policy context for decision (default "config")
+      --input string     path to input file
+      --policy string    path to rego policy file or directory containing policy files
+
+Global Flags:
+      --owner-id string          the id of the policy's owner
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
