@@ -11,6 +11,13 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// errorMessage string containing the error message displayed in both the open command and the follow command
+var errorMessage = `
+Unable detect which URL should be opened. This command is intended to be run from
+a git repository with a remote named 'origin' that is hosted on Github or Bitbucket
+Error`
+
+//projectUrl uses the provided values to create the url to open
 func projectUrl(remote *git.Remote) string {
 	return fmt.Sprintf("https://app.circleci.com/pipelines/%s/%s/%s",
 		url.PathEscape(strings.ToLower(string(remote.VcsType))),
@@ -18,15 +25,9 @@ func projectUrl(remote *git.Remote) string {
 		url.PathEscape(remote.Project))
 }
 
-var errorMessage = `
-Unable detect which URL should be opened. This command is intended to be run from
-a git repository with a remote named 'origin' that is hosted on Github or Bitbucket
-Error`
-
+//openProjectInBrowser takes the created url and opens a browser to it
 func openProjectInBrowser() error {
-
 	remote, err := git.InferProjectFromGitRemotes()
-
 	if err != nil {
 		return errors.Wrap(err, errorMessage)
 	}
@@ -34,8 +35,8 @@ func openProjectInBrowser() error {
 	return browser.OpenURL(projectUrl(remote))
 }
 
+// newOpenCommand creates the cli command open
 func newOpenCommand() *cobra.Command {
-
 	openCommand := &cobra.Command{
 		Use:   "open",
 		Short: "Open the current project in the browser.",
