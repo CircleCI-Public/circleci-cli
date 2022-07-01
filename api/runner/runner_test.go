@@ -82,7 +82,7 @@ func TestRunner_GetResourceClassByName(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource", RawQuery: "namespace=the-namespace"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
@@ -133,7 +133,7 @@ func TestRunner_GetResourceClassesByNamespace(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource", RawQuery: "namespace=the-namespace"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
@@ -279,7 +279,7 @@ func TestRunner_GetRunnerTokensByResourceClass(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/token", RawQuery: "resource-class=the-namespace%2Fthe-resource-class"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},
@@ -390,7 +390,7 @@ func TestRunner_GetRunnerInstances_ByNamespace(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner", RawQuery: "namespace=the-namespace"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
 			"Accept-Type":     {"application/json"},

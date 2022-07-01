@@ -61,7 +61,7 @@ func TestClient_DoRequest(t *testing.T) {
 		defer cleanup()
 
 		t.Run("Check result", func(t *testing.T) {
-			r, err := c.NewRequest("GET", &url.URL{Path: "my/error/endpoint"}, nil)
+			r, err := c.NewRequest(http.MethodGet, &url.URL{Path: "my/error/endpoint"}, nil)
 			assert.NilError(t, err)
 
 			resp := make(map[string]interface{})
@@ -73,7 +73,7 @@ func TestClient_DoRequest(t *testing.T) {
 
 		t.Run("Check request", func(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/my/error/endpoint"}))
-			assert.Check(t, cmp.Equal(fix.Method(), "GET"))
+			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept-Type":     {"application/json"},
@@ -90,7 +90,7 @@ func TestClient_DoRequest(t *testing.T) {
 		defer cleanup()
 
 		t.Run("Check result", func(t *testing.T) {
-			r, err := c.NewRequest("GET", &url.URL{Path: "path"}, nil)
+			r, err := c.NewRequest(http.MethodGet, &url.URL{Path: "path"}, nil)
 			assert.NilError(t, err)
 
 			resp := make(map[string]interface{})
@@ -105,7 +105,7 @@ func TestClient_DoRequest(t *testing.T) {
 
 		t.Run("Check request", func(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/path"}))
-			assert.Check(t, cmp.Equal(fix.Method(), "GET"))
+			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept-Type":     {"application/json"},
