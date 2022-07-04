@@ -285,7 +285,7 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 	}
 
 	err := cl.Run(request, &response)
-	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment varaible")
+	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment variable")
 }
 
 // CreateEnvironmentVariable creates a new environment variable in the given
@@ -343,7 +343,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 	}
 
 	if err := cl.Run(request, &response); err != nil {
-		return errors.Wrap(improveVcsTypeError(err), "failed to store environment varaible in context")
+		return errors.Wrap(improveVcsTypeError(err), "failed to store environment variable in context")
 	}
 
 	if response.StoreEnvironmentVariable.Error.Type != "" {

@@ -67,7 +67,7 @@ func TestSchedules(t *testing.T) {
 		if r.URL.String() != "https://circleci.com/api/v2/project/github/test-org/test-project/schedule" {
 			panic(fmt.Sprintf("unexpected url: %s", r.URL.String()))
 		}
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			panic(fmt.Sprintf("unexpected method: %s", r.Method))
 		}
 		return mock.NewHTTPResponse(200, formatListResponse([]Schedule{mockSchedule()})), nil
@@ -90,7 +90,7 @@ func TestScheduleByID(t *testing.T) {
 		if r.URL.String() != "https://circleci.com/api/v2/schedule/07f08dea-de06-48d4-9b47-9639229b7d24" {
 			panic(fmt.Sprintf("unexpected url: %s", r.URL.String()))
 		}
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			panic(fmt.Sprintf("unexpected method: %s", r.Method))
 		}
 		return mock.NewHTTPResponse(200, mockScheduleString()), nil
@@ -114,7 +114,7 @@ func TestScheduleByName(t *testing.T) {
 		if r.URL.String() != "https://circleci.com/api/v2/project/github/test-org/test-project/schedule" {
 			panic(fmt.Sprintf("unexpected url: %s", r.URL.String()))
 		}
-		if r.Method != "GET" {
+		if r.Method != http.MethodGet {
 			panic(fmt.Sprintf("unexpected method: %s", r.Method))
 		}
 		return mock.NewHTTPResponse(200, formatListResponse([]Schedule{mockSchedule()})), nil
