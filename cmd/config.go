@@ -178,7 +178,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	var err error
 
 	if len(paramsYaml) > 0 {
-		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read sucessfully,
+		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read successfully,
 		// proceed with the assumption that the value is already valid yaml.
 		raw, err := ioutil.ReadFile(paramsYaml)
 		if err != nil {

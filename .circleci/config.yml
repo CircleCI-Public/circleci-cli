@@ -62,7 +62,7 @@ commands:
         default: https://github.com/goreleaser/goreleaser/releases/download/v0.127.0/goreleaser_amd64.deb
     steps:
       - restore_cache:
-          keys: [v4-goreleaser-]
+          keys: [v5-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
@@ -72,7 +72,7 @@ commands:
   gomod:
     steps:
       - restore_cache:
-          keys: ['v2-gomod-{{ arch }}-']
+          keys: ['v3-gomod-{{ arch }}-']
       - run:
           name: Download go module dependencies
           command: go mod download
@@ -172,12 +172,12 @@ jobs:
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
-    executor: go
+    docker:
+      - image: golangci/golangci-lint:v1.46-alpine
+    resource_class: large
     steps:
       - checkout
-      - run: make install-lint
-      - run: make build
-      - run: make lint
+      - run: golangci-lint run
 
   deploy-test:
     executor: go

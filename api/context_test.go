@@ -188,7 +188,7 @@ var _ = ginkgo.Describe("API", func() {
 
 			list.Organization.Id = "C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"
 			list.Organization.Contexts.Edges = []struct{ Node circleCIContext }{
-				struct{ Node circleCIContext }{
+				{
 					Node: ctx,
 				},
 			}
