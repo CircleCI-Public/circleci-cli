@@ -42,7 +42,7 @@ func followProject(opts options) error {
 		//if not warn user their vcs is not supported
 		return errors.New(errorMessage)
 	}
-	return errors.New(errorMessage)
+	return nil
 }
 
 //followProjectCommand follow cobra command creation
