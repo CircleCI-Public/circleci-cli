@@ -1,8 +1,9 @@
 package runner
 
 import (
-	"github.com/spf13/cobra"
 	"strings"
+
+	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
@@ -28,9 +29,11 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			opts.r = runner.New(rest.New(host, config.RestEndpoint, config.Token))
 		},
 	}
+
 	cmd.AddCommand(newResourceClassCommand(&opts, preRunE))
 	cmd.AddCommand(newTokenCommand(&opts, preRunE))
 	cmd.AddCommand(newRunnerInstanceCommand(&opts, preRunE))
+
 	return cmd
 }
 
