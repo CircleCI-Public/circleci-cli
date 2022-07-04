@@ -25,7 +25,7 @@ func followProject(opts options) error {
 	//check that project url contains github or bitbucket; our legacy vcs
 	if remote.VcsType == git.GitHub || remote.VcsType == git.Bitbucket {
 		vcsShort := "gh"
-		if remote.VcsType == "BITBUCKET" {
+		if remote.VcsType == git.Bitbucket {
 			vcsShort = "bb"
 		}
 		res, err := api.FollowProject(*opts.cfg, vcsShort, remote.Organization, remote.Project)
@@ -38,8 +38,10 @@ func followProject(opts options) error {
 			fmt.Println("Unable to determine project slug for CircleCI (slug is case sensitive).")
 		}
 
+	} else {
+		//if not warn user their vcs is not supported
+		return errors.New(errorMessage)
 	}
-	//if not warn user their vcs is not supported
 	return errors.New(errorMessage)
 }
 
