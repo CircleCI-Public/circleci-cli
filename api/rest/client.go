@@ -63,7 +63,6 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-
 	return req, nil
 }
 
