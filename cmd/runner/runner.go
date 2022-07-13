@@ -42,7 +42,7 @@ type running interface {
 	GetResourceClassByName(resourceClass string) (rc *runner.ResourceClass, err error)
 	GetNamespaceByResourceClass(resourceClass string) (ns string, err error)
 	GetResourceClassesByNamespace(namespace string) ([]runner.ResourceClass, error)
-	DeleteResourceClass(id string) error
+	DeleteResourceClass(id string, force bool) error
 	CreateToken(resourceClass, nickname string) (token *runner.Token, err error)
 	GetRunnerTokensByResourceClass(resourceClass string) ([]runner.Token, error)
 	DeleteToken(id string) error

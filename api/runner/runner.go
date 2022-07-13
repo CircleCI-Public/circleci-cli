@@ -82,8 +82,13 @@ func (r *Runner) GetResourceClassesByNamespace(namespace string) ([]ResourceClas
 	return resp.Items, err
 }
 
-func (r *Runner) DeleteResourceClass(id string) error {
-	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: "runner/resource/" + url.PathEscape(id)}, nil)
+func (r *Runner) DeleteResourceClass(id string, force bool) error {
+	path := "runner/resource/" + url.PathEscape(id)
+	if force {
+		path = fmt.Sprintf("runner/resource/%s/force", url.PathEscape(id))
+	}
+
+	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: path}, nil)
 	if err != nil {
 		return err
 	}
