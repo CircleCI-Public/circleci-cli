@@ -30,20 +30,12 @@ type httpError struct {
 	Context map[string]interface{} `json:"context,omitempty"`
 }
 
-// ListPolicies calls the view policy-service list policy API. If the active filter is nil, all policies are returned. If
-// activeFilter is not nil it will only return active or inactive policies based on the value of *activeFilter.
-func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, error) {
+// ListPolicies calls the view policy-service list policy API
+func (c Client) ListPolicies(ownerID string) (interface{}, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
-
-	query := make(url.Values)
-	if activeFilter != nil {
-		query.Set("active", fmt.Sprint(*activeFilter))
-	}
-
-	req.URL.RawQuery = query.Encode()
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -54,7 +46,7 @@ func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, e
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -117,7 +109,6 @@ type UpdateRequest struct {
 	Name    *string `json:"name,omitempty"`
 	Context *string `json:"context,omitempty"`
 	Content *string `json:"content,omitempty"`
-	Active  *bool   `json:"active,omitempty"`
 }
 
 // UpdatePolicy calls the UPDATE policy API in the policy-service. It updates a policy in the policy-service matching the given owner-id and policy-id.
@@ -177,7 +168,7 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -208,7 +199,7 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 	if resp.StatusCode != http.StatusNoContent {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -260,7 +251,7 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}

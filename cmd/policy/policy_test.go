@@ -29,44 +29,6 @@ func TestListPolicies(t *testing.T) {
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
 		{
-			Name:        "invalid active filter value",
-			Args:        []string{"list", "--owner-id", "ownerID", "--active=badValue"},
-			ExpectedErr: `invalid argument "badValue" for "--active" flag: strconv.ParseBool: parsing "badValue": invalid syntax`,
-		},
-		{
-			Name: "should set active to true",
-			Args: []string{"list", "--owner-id", "ownerID", "--active"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy?active=true")
-				_, err := w.Write([]byte("[]"))
-				assert.NilError(t, err)
-			},
-			ExpectedOutput: "[]\n",
-		},
-		{
-			Name: "should set active to false",
-			Args: []string{"list", "--owner-id", "ownerID", "--active=false"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy?active=false")
-				_, err := w.Write([]byte("[]"))
-				assert.NilError(t, err)
-			},
-			ExpectedOutput: "[]\n",
-		},
-		{
-			Name: "no active is set",
-			Args: []string{"list", "--owner-id", "ownerID"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
-				_, err := w.Write([]byte("[]"))
-				assert.NilError(t, err)
-			},
-			ExpectedOutput: "[]\n",
-		},
-		{
 			Name:        "gets error response",
 			Args:        []string{"list", "--owner-id", "ownerID"},
 			ExpectedErr: "failed to list policies: unexpected status-code: 403 - Forbidden",
@@ -75,6 +37,17 @@ func TestListPolicies(t *testing.T) {
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
 				w.WriteHeader(http.StatusForbidden)
 				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
+			},
+		},
+		{
+			Name:        "gets bad json response",
+			Args:        []string{"list", "--owner-id", "ownerID"},
+			ExpectedErr: "failed to list policies: failed to decode response body: invalid character '}' looking for beginning of value",
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
+				_, err := w.Write([]byte(`{"bad json": }`))
 				assert.NilError(t, err)
 			},
 		},
@@ -90,7 +63,6 @@ func TestListPolicies(t *testing.T) {
 				"name": "policy_1",
 				"owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
 				"context": "config",
-				"active": false,
 				"created_at": "2022-05-31T14:15:10.86097Z",
 				"modified_at": null
 			}
@@ -99,7 +71,6 @@ func TestListPolicies(t *testing.T) {
 			},
 			ExpectedOutput: `[
   {
-    "active": false,
     "context": "config",
     "created_at": "2022-05-31T14:15:10.86097Z",
     "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
@@ -151,6 +122,11 @@ func TestCreatePolicy(t *testing.T) {
 			ExpectedErr: "required flag(s) \"name\", \"owner-id\", \"policy\" not set",
 		},
 		{
+			Name:        "fails for policy file not found",
+			Args:        []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/file_not_present.rego"},
+			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: ",
+		},
+		{
 			Name: "sends appropriate desired request",
 			Args: []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -189,7 +165,7 @@ func TestCreatePolicy(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
 
@@ -241,14 +217,12 @@ func TestGetPolicy(t *testing.T) {
 					"owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
 					"context": "config",
 					"content": "package test",
-					"active": false,
 					"created_at": "2022-05-31T14:15:10.86097Z",
 					"modified_at": null
 				}`))
 				assert.NilError(t, err)
 			},
 			ExpectedOutput: `{
-  "active": false,
   "content": "package test",
   "context": "config",
   "created_at": "2022-05-31T14:15:10.86097Z",
@@ -387,8 +361,13 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedErr: "accepts 1 arg(s), received 0",
 		},
 		{
-			Name: "sends appropriate desired request",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Name:        "fails if policy file not found",
+			Args:        []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/file_not_present.rego"},
+			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: ",
+		},
+		{
+			Name: "gets error response",
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -396,7 +375,24 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
 					"name":    "test-policy",
-					"active":  true,
+				})
+
+				w.WriteHeader(http.StatusForbidden)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
+			},
+			ExpectedErr: "failed to update policy: unexpected status-code: 403 - Forbidden",
+		},
+		{
+			Name: "sends appropriate desired request",
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": "package test",
+					"name":    "test-policy",
 				})
 
 				w.WriteHeader(http.StatusOK)
@@ -407,7 +403,7 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "explicitly set config",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active", "--name", "test-policy", "--policy", "./testdata/test.rego", "--context", "config"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego", "--context", "config"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -415,7 +411,6 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
 					"name":    "test-policy",
-					"active":  true,
 					"context": "config",
 				})
 
@@ -460,8 +455,8 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedOutput: "{}\n",
 		},
 		{
-			Name: "sends appropriate desired request - deactivate policy",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--active=false", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Name: "sends appropriate desired request - policy name and content",
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
@@ -469,7 +464,6 @@ func TestUpdatePolicy(t *testing.T) {
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
 					"name":    "test-policy",
-					"active":  false,
 				})
 
 				w.WriteHeader(http.StatusOK)
@@ -481,7 +475,7 @@ func TestUpdatePolicy(t *testing.T) {
 		{
 			Name:        "check at least one field is changed",
 			Args:        []string{"update", "test-policy-id", "--owner-id", "test-org"},
-			ExpectedErr: "one of policy, active, context, or name must be set",
+			ExpectedErr: "one of policy, context, or name must be set",
 		},
 	}
 
@@ -502,7 +496,7 @@ func TestUpdatePolicy(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
 
@@ -528,6 +522,11 @@ func TestGetDecisionLogs(t *testing.T) {
 			Name:        "invalid --after filter value",
 			Args:        []string{"logs", "--owner-id", "ownerID", "--after", "1/2/2022"},
 			ExpectedErr: `error in parsing --after value: This date has ambiguous mm/dd vs dd/mm type format`,
+		},
+		{
+			Name:        "invalid --before filter value",
+			Args:        []string{"logs", "--owner-id", "ownerID", "--before", "1/2/2022"},
+			ExpectedErr: `error in parsing --before value: This date has ambiguous mm/dd vs dd/mm type format`,
 		},
 		{
 			Name: "no filter is set",
