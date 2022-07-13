@@ -57,6 +57,23 @@ func TestClientListPolicies(t *testing.T) {
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 	})
 
+	t.Run("List Policies - Bad error json", func(t *testing.T) {
+		expectedResponse := `{"this is bad json": }`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		policies, err := client.ListPolicies("ownerId")
+		assert.Equal(t, policies, nil)
+		assert.Error(t, err, "unexpected status-code: 403")
+	})
+
 	t.Run("List Policies - no policies", func(t *testing.T) {
 		expectedResponse := "[]"
 

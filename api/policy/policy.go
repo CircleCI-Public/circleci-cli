@@ -46,7 +46,7 @@ func (c Client) ListPolicies(ownerID string) (interface{}, error) {
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -168,7 +168,7 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -199,7 +199,7 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 	if resp.StatusCode != http.StatusNoContent {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -251,7 +251,7 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
