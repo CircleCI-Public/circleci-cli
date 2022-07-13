@@ -41,6 +41,17 @@ func TestListPolicies(t *testing.T) {
 			},
 		},
 		{
+			Name:        "gets bad json response",
+			Args:        []string{"list", "--owner-id", "ownerID"},
+			ExpectedErr: "failed to list policies: failed to decode response body: invalid character '}' looking for beginning of value",
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/policy")
+				_, err := w.Write([]byte(`{"bad json": }`))
+				assert.NilError(t, err)
+			},
+		},
+		{
 			Name: "successfully gets a policy",
 			Args: []string{"list", "--owner-id", "ownerID"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -343,6 +354,29 @@ func TestUpdatePolicy(t *testing.T) {
 			Name:        "requires policy id",
 			Args:        []string{"update", "--owner-id", "test-org"},
 			ExpectedErr: "accepts 1 arg(s), received 0",
+		},
+		{
+			Name:        "fails if policy file not found",
+			Args:        []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/file_not_present.rego"},
+			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: no such file or directory",
+		},
+		{
+			Name: "gets error response",
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"content": "package test",
+					"name":    "test-policy",
+				})
+
+				w.WriteHeader(http.StatusForbidden)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
+			},
+			ExpectedErr: "failed to update policy: unexpected status-code: 403 - Forbidden",
 		},
 		{
 			Name: "sends appropriate desired request",
