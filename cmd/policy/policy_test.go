@@ -122,6 +122,11 @@ func TestCreatePolicy(t *testing.T) {
 			ExpectedErr: "required flag(s) \"name\", \"owner-id\", \"policy\" not set",
 		},
 		{
+			Name:        "fails for policy file not found",
+			Args:        []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/file_not_present.rego"},
+			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: ",
+		},
+		{
 			Name: "sends appropriate desired request",
 			Args: []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -160,7 +165,7 @@ func TestCreatePolicy(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
 
@@ -358,7 +363,7 @@ func TestUpdatePolicy(t *testing.T) {
 		{
 			Name:        "fails if policy file not found",
 			Args:        []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/file_not_present.rego"},
-			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: no such file or directory",
+			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: ",
 		},
 		{
 			Name: "gets error response",
@@ -491,7 +496,7 @@ func TestUpdatePolicy(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.ExpectedErr)
+				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
 
@@ -517,6 +522,11 @@ func TestGetDecisionLogs(t *testing.T) {
 			Name:        "invalid --after filter value",
 			Args:        []string{"logs", "--owner-id", "ownerID", "--after", "1/2/2022"},
 			ExpectedErr: `error in parsing --after value: This date has ambiguous mm/dd vs dd/mm type format`,
+		},
+		{
+			Name:        "invalid --before filter value",
+			Args:        []string{"logs", "--owner-id", "ownerID", "--before", "1/2/2022"},
+			ExpectedErr: `error in parsing --before value: This date has ambiguous mm/dd vs dd/mm type format`,
 		},
 		{
 			Name: "no filter is set",
