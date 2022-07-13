@@ -150,7 +150,7 @@ func TestRunner_DeleteResourceClass(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Check resource-class is deleted", func(t *testing.T) {
-		err := runner.DeleteResourceClass("51628548-4627-4813-9f9b-8cc9637ac879")
+		err := runner.DeleteResourceClass("51628548-4627-4813-9f9b-8cc9637ac879", false)
 		assert.NilError(t, err)
 	})
 
@@ -167,13 +167,32 @@ func TestRunner_DeleteResourceClass(t *testing.T) {
 	})
 }
 
+func TestRunner_DeleteResourceClass_Force(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(http.StatusOK, ``)
+	defer cleanup()
+
+	err := runner.DeleteResourceClass("5a1ef22d-444b-45db-8e98-21d7c42fb80b", true)
+	assert.NilError(t, err)
+
+	assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource/5a1ef22d-444b-45db-8e98-21d7c42fb80b/force"}))
+	assert.Check(t, cmp.Equal(fix.method, "DELETE"))
+	assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+		"Accept-Encoding": {"gzip"},
+		"Accept-Type":     {"application/json"},
+		"Circle-Token":    {"fake-token"},
+		"User-Agent":      {version.UserAgent()},
+	}))
+	assert.Check(t, cmp.Equal(fix.Body(), ``))
+}
+
 func TestRunner_DeleteResourceClass_PathEscaping(t *testing.T) {
 	fix := fixture{}
 	runner, cleanup := fix.Run(http.StatusOK, ``)
 	defer cleanup()
 
 	t.Run("Check resource-class is deleted", func(t *testing.T) {
-		err := runner.DeleteResourceClass("escape~,/;?~noescape~$&+:=@")
+		err := runner.DeleteResourceClass("escape~,/;?~noescape~$&+:=@", false)
 		assert.NilError(t, err)
 	})
 
