@@ -208,6 +208,7 @@ func (c Client) DeletePolicy(ownerID string, policyID string) error {
 }
 
 type DecisionQueryRequest struct {
+	Status    string
 	After     *time.Time
 	Before    *time.Time
 	Branch    string
@@ -224,6 +225,9 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 	}
 
 	query := make(url.Values)
+	if request.Status != "" {
+		query.Set("status", fmt.Sprint(request.Status))
+	}
 	if request.After != nil {
 		query.Set("after", request.After.Format(time.RFC3339))
 	}
