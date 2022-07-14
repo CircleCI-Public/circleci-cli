@@ -10,6 +10,7 @@ Flags:
       --branch string       filter decision logs based on branch name
       --out string          specify output file name 
       --project-id string   filter decision logs based on project-id
+      --status string       filter decision logs based on their status
 
 Global Flags:
       --owner-id string          the id of the policy's owner

@@ -562,7 +562,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(
 				t,
 				r.URL.RawQuery,
-				"after=2000-01-01T00%3A00%3A00Z&before=2000-01-01T00%3A00%3A00Z&branch=branchValue&offset=42&project_id=projectIDValue",
+				"after=2000-01-01T00%3A00%3A00Z&before=2000-01-01T00%3A00%3A00Z&branch=branchValue&offset=42&project_id=projectIDValue&status=PASS",
 			)
 
 			assert.Equal(t, r.URL.Query().Get("before"), testTime.Format(time.RFC3339))
@@ -578,6 +578,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		client := NewClient(svr.URL, config)
 
 		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{
+			Status:    "PASS",
 			After:     &testTime,
 			Before:    &testTime,
 			Branch:    "branchValue",

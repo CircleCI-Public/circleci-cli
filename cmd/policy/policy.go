@@ -284,6 +284,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Example: `policy logs  --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
+		cmd.Flags().StringVar(&request.Status, "status", "", "filter decision logs based on their status")
 		cmd.Flags().StringVar(&after, "after", "", "filter decision logs triggered AFTER this datetime")
 		cmd.Flags().StringVar(&before, "before", "", "filter decision logs triggered BEFORE this datetime")
 		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
