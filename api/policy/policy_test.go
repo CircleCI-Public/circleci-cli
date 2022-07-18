@@ -36,26 +36,8 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.ListPolicies("ownerId", nil)
+		_, err := client.ListPolicies("ownerId")
 		assert.NilError(t, err)
-	})
-
-	t.Run("List Policies - Bad Request", func(t *testing.T) {
-		expectedResponse := `{"error": "active: query string not a boolean."}`
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		policies, err := client.ListPolicies("ownerId", nil)
-		assert.Equal(t, policies, nil)
-		assert.Error(t, err, "unexpected status-code: 400 - active: query string not a boolean.")
 	})
 
 	t.Run("List Policies - Forbidden", func(t *testing.T) {
@@ -70,9 +52,26 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId", nil)
+		policies, err := client.ListPolicies("ownerId")
 		assert.Equal(t, policies, nil)
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
+	})
+
+	t.Run("List Policies - Bad error json", func(t *testing.T) {
+		expectedResponse := `{"this is bad json": }`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		policies, err := client.ListPolicies("ownerId")
+		assert.Equal(t, policies, nil)
+		assert.Error(t, err, "unexpected status-code: 403")
 	})
 
 	t.Run("List Policies - no policies", func(t *testing.T) {
@@ -90,7 +89,7 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId", nil)
+		policies, err := client.ListPolicies("ownerId")
 		assert.DeepEqual(t, policies, expectedResponseValue)
 		assert.NilError(t, err)
 	})
@@ -102,7 +101,6 @@ func TestClientListPolicies(t *testing.T) {
 				"name": "policy_1",
 				"owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
 				"context": "config",
-				"active": false,
 				"created_at": "2022-05-31T14:15:10.86097Z",
 				"modified_at": null
 			},
@@ -111,7 +109,6 @@ func TestClientListPolicies(t *testing.T) {
 				"name": "policy_2",
 				"owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
 				"context": "config",
-				"active": true,
 				"created_at": "2022-05-31T14:15:23.582383Z",
 				"modified_at": "2022-05-31T14:15:46.72321Z"
 			}
@@ -129,7 +126,7 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId", nil)
+		policies, err := client.ListPolicies("ownerId")
 		assert.DeepEqual(t, policies, expectedResponseValue)
 		assert.NilError(t, err)
 	})
@@ -220,7 +217,6 @@ func TestClientGetPolicy(t *testing.T) {
    			 "owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
    			 "context": "config",
    			 "content": "package test",
-   			 "active": false,
    			 "created_at": "2022-05-31T14:15:10.86097Z",
    			 "modified_at": null
 		}`
@@ -383,7 +379,6 @@ func TestClientDeletePolicy(t *testing.T) {
 
 func TestClientUpdatePolicy(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
-		isActive := true
 		name := "test-name"
 		context := "config"
 		content := "test-content"
@@ -391,45 +386,6 @@ func TestClientUpdatePolicy(t *testing.T) {
 			Name:    &name,
 			Context: &context,
 			Content: &content,
-			Active:  &isActive,
-		}
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-			assert.Equal(t, r.Header.Get("accept"), "application/json")
-			assert.Equal(t, r.Header.Get("content-type"), "application/json")
-			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-
-			assert.Equal(t, r.Method, "PATCH")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
-
-			var actual UpdateRequest
-			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
-			assert.DeepEqual(t, actual, req)
-
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("{}"))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		client := NewClient(svr.URL, config)
-
-		_, err := client.UpdatePolicy("ownerID", "policyID", req)
-		assert.NilError(t, err)
-	})
-
-	t.Run("nil active", func(t *testing.T) {
-		name := "test-name"
-		context := "config"
-		content := "test-content"
-		req := UpdateRequest{
-			Name:    &name,
-			Context: &context,
-			Content: &content,
-			Active:  nil,
 		}
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -492,7 +448,7 @@ func TestClientUpdatePolicy(t *testing.T) {
 			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
 			assert.DeepEqual(t, actual, req)
 
-			expectedResponse := `{"error": "at least one of name, context, content, or active cannot be blank"}`
+			expectedResponse := `{"error": "at least one of name, context, or content, cannot be blank"}`
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -503,7 +459,7 @@ func TestClientUpdatePolicy(t *testing.T) {
 		client := NewClient(svr.URL, config)
 
 		_, err := client.UpdatePolicy("ownerID", "policyID", req)
-		assert.Error(t, err, "unexpected status-code: 400 - at least one of name, context, content, or active cannot be blank")
+		assert.Error(t, err, "unexpected status-code: 400 - at least one of name, context, or content, cannot be blank")
 	})
 
 	t.Run("one change", func(t *testing.T) {
@@ -606,7 +562,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(
 				t,
 				r.URL.RawQuery,
-				"after=2000-01-01T00%3A00%3A00Z&before=2000-01-01T00%3A00%3A00Z&branch=branchValue&offset=42&project_id=projectIDValue",
+				"after=2000-01-01T00%3A00%3A00Z&before=2000-01-01T00%3A00%3A00Z&branch=branchValue&offset=42&project_id=projectIDValue&status=PASS",
 			)
 
 			assert.Equal(t, r.URL.Query().Get("before"), testTime.Format(time.RFC3339))
@@ -622,6 +578,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		client := NewClient(svr.URL, config)
 
 		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{
+			Status:    "PASS",
 			After:     &testTime,
 			Before:    &testTime,
 			Branch:    "branchValue",
