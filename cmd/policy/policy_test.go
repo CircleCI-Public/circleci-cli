@@ -117,18 +117,18 @@ func TestCreatePolicy(t *testing.T) {
 		ExpectedErr    string
 	}{
 		{
-			Name:        "requires owner-id and name and policy",
+			Name:        "requires owner-id and policy",
 			Args:        []string{"create"},
-			ExpectedErr: "required flag(s) \"name\", \"owner-id\", \"policy\" not set",
+			ExpectedErr: "required flag(s) \"owner-id\", \"policy\" not set",
 		},
 		{
 			Name:        "fails for policy file not found",
-			Args:        []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/file_not_present.rego"},
+			Args:        []string{"create", "--owner-id", "test-org", "--policy", "./testdata/file_not_present.rego"},
 			ExpectedErr: "failed to read policy file: open ./testdata/file_not_present.rego: ",
 		},
 		{
 			Name: "sends appropriate desired request",
-			Args: []string{"create", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Args: []string{"create", "--owner-id", "test-org", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, r.Method, "POST")
@@ -137,7 +137,6 @@ func TestCreatePolicy(t *testing.T) {
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
 					"context": "config",
-					"name":    "test-policy",
 				})
 
 				w.WriteHeader(http.StatusCreated)
@@ -367,14 +366,13 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "gets error response",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
-					"name":    "test-policy",
 				})
 
 				w.WriteHeader(http.StatusForbidden)
@@ -385,14 +383,13 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "sends appropriate desired request",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/test.rego"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
-					"name":    "test-policy",
 				})
 
 				w.WriteHeader(http.StatusOK)
@@ -403,32 +400,14 @@ func TestUpdatePolicy(t *testing.T) {
 		},
 		{
 			Name: "explicitly set config",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego", "--context", "config"},
+			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--policy", "./testdata/test.rego", "--context", "config"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"content": "package test",
-					"name":    "test-policy",
 					"context": "config",
-				})
-
-				w.WriteHeader(http.StatusOK)
-				_, err := w.Write([]byte("{}"))
-				assert.NilError(t, err)
-			},
-			ExpectedOutput: "{}\n",
-		},
-		{
-			Name: "sends appropriate desired request with only name",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				var body map[string]interface{}
-				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
-				assert.DeepEqual(t, body, map[string]interface{}{
-					"name": "test-policy",
 				})
 
 				w.WriteHeader(http.StatusOK)
@@ -455,27 +434,9 @@ func TestUpdatePolicy(t *testing.T) {
 			ExpectedOutput: "{}\n",
 		},
 		{
-			Name: "sends appropriate desired request - policy name and content",
-			Args: []string{"update", "test-policy-id", "--owner-id", "test-org", "--name", "test-policy", "--policy", "./testdata/test.rego"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				var body map[string]interface{}
-				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-org/policy/test-policy-id")
-				assert.DeepEqual(t, body, map[string]interface{}{
-					"content": "package test",
-					"name":    "test-policy",
-				})
-
-				w.WriteHeader(http.StatusOK)
-				_, err := w.Write([]byte("{}"))
-				assert.NilError(t, err)
-			},
-			ExpectedOutput: "{}\n",
-		},
-		{
 			Name:        "check at least one field is changed",
 			Args:        []string{"update", "test-policy-id", "--owner-id", "test-org"},
-			ExpectedErr: "one of policy, context, or name must be set",
+			ExpectedErr: "one of policy or context must be set",
 		},
 	}
 
@@ -703,7 +664,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name: "fails on unexpected status code",
 			Args: []string{"decide", "--input", "./testdata/test.yml", "--owner-id", "test-owner"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+			ServerHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(500)
 				_, _ = io.WriteString(w, `{"error":"oopsie!"}`)
 			},
@@ -727,8 +688,10 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
-			Args: []string{"decide", "--policy", "./testdata/test0/policy.rego", "--input",
-				"./testdata/test0/config.yml"},
+			Args: []string{
+				"decide", "--policy", "./testdata/test0/policy.rego", "--input",
+				"./testdata/test0/config.yml",
+			},
 			ExpectedOutput: `{
   "status": "PASS",
   "enabled_rules": [

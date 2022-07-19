@@ -152,7 +152,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			Use:   "update <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if !(cmd.Flag("policy").Changed || cmd.Flag("context").Changed) {
-					return fmt.Errorf("one of policy, context, or name must be set")
+					return fmt.Errorf("one of policy or context must be set")
 				}
 
 				if cmd.Flag("policy").Changed {
@@ -196,7 +196,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		cmd := &cobra.Command{
 			Short: "Get policy (decision) logs",
 			Use:   "logs",
-			RunE: func(cmd *cobra.Command, args []string) (err error) {
+			RunE: func(cmd *cobra.Command, _ []string) (err error) {
 				if cmd.Flag("after").Changed {
 					request.After = new(time.Time)
 					*request.After, err = dateparse.ParseStrict(after)
@@ -282,7 +282,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 		cmd := &cobra.Command{
 			Short: "make a decision",
 			Use:   "decide",
-			RunE: func(cmd *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, _ []string) error {
 				if policyPath == "" && *ownerID == "" {
 					return fmt.Errorf("--owner-id or --policy is required")
 				}
