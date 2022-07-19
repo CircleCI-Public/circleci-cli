@@ -63,7 +63,6 @@ func (c Client) ListPolicies(ownerID string) (interface{}, error) {
 
 // CreationRequest represents the json payload to create a Policy in the Policy-Service
 type CreationRequest struct {
-	Name    string `json:"name"`
 	Context string `json:"context"`
 	Content string `json:"content"`
 }
@@ -106,7 +105,6 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 }
 
 type UpdateRequest struct {
-	Name    *string `json:"name,omitempty"`
 	Context *string `json:"context,omitempty"`
 	Content *string `json:"content,omitempty"`
 }
