@@ -662,6 +662,29 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
 		},
 		{
+			Name: "sends expected request with metadata",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml", "--context", "custom", "--metafile", "./testdata/meta.yml"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"context": "custom",
+					"input":   "test: config\n",
+					"metadata": map[string]any{
+						"project_id": "test-project-id",
+						"branch":     "main",
+					},
+				})
+
+				_, _ = io.WriteString(w, `{"status":"PASS"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
+		},
+		{
 			Name: "fails on unexpected status code",
 			Args: []string{"decide", "--input", "./testdata/test.yml", "--owner-id", "test-owner"},
 			ServerHandler: func(w http.ResponseWriter, _ *http.Request) {
@@ -679,7 +702,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails for input file not found",
 			Args:        []string{"decide", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
-			ExpectedErr: "failed to read file: open ./testdata/no_such_file.yml: ",
+			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
 		},
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
@@ -696,6 +719,20 @@ func TestMakeDecisionCommand(t *testing.T) {
   "status": "PASS",
   "enabled_rules": [
     "branch_is_main"
+  ]
+}
+`,
+		},
+		{
+			Name: "successfully performs decision with metadata for policy FILE provided locally",
+			Args: []string{
+				"decide", "--metafile", "./testdata/meta.yml", "--policy", "./testdata/test0/meta-policy.rego", "--input",
+				"./testdata/test0/config.yml",
+			},
+			ExpectedOutput: `{
+  "status": "PASS",
+  "enabled_rules": [
+    "enabled"
   ]
 }
 `,

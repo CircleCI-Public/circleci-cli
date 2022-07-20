@@ -2,9 +2,10 @@ Usage:
   policy decide [flags]
 
 Flags:
-      --context string   policy context for decision (default "config")
-      --input string     path to input file
-      --policy string    path to rego policy file or directory containing policy files
+      --context string    policy context for decision (default "config")
+      --input string      path to input file
+      --metafile string   decision metadata file
+      --policy string     path to rego policy file or directory containing policy files
 
 Global Flags:
       --owner-id string          the id of the policy's owner
