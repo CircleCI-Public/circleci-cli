@@ -3,11 +3,12 @@ package runner
 import (
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
 
-func newTokenCommand(o *runnerOpts, preRunE validator) *cobra.Command {
+func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token",
 		Short: "Operate on runner tokens",

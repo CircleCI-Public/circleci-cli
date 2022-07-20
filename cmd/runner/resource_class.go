@@ -7,9 +7,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
 
-func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
+func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resource-class",
 		Short: "Operate on runner resource-classes",
