@@ -5,20 +5,18 @@
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
   <title>circleci_orb_process</title>
-  <style>
-    code{white-space: pre-wrap;}
-    span.smallcaps{font-variant: small-caps;}
-    span.underline{text-decoration: underline;}
-    div.column{display: inline-block; vertical-align: top; width: 50%;}
-    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
-    ul.task-list{list-style: none;}
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
   </style>
 </head>
 <body>
 <h2 id="circleci-orb-process">circleci orb process</h2>
 <p>Validate an orb and print its form after all pre-registration processing</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>Use <code>$ circleci orb process</code> to resolve an orb, and it’s dependencies to see how it would be expanded when you publish it to the registry.</p>
+<p>Use <code>$ circleci orb process</code> to resolve an orb and its dependencies, to see how it would be expanded when you publish it to the registry.</p>
 <p>This can be helpful for validating an orb and debugging the processed form before publishing.</p>
 <pre><code>circleci orb process &lt;path&gt; [flags]</code></pre>
 <h3 id="examples">Examples</h3>
