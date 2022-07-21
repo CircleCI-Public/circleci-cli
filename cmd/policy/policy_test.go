@@ -674,7 +674,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 				assert.DeepEqual(t, payload, map[string]interface{}{
 					"context": "custom",
 					"input":   "test: config\n",
-					"metadata": map[string]any{
+					"metadata": map[string]interface{}{
 						"project_id": "test-project-id",
 						"branch":     "main",
 					},
