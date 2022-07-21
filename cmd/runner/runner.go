@@ -7,6 +7,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
@@ -14,7 +15,7 @@ type runnerOpts struct {
 	r running
 }
 
-func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
+func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
 	var opts runnerOpts
 	cmd := &cobra.Command{
 		Use:   "runner",
@@ -48,5 +49,3 @@ type running interface {
 	DeleteToken(id string) error
 	GetRunnerInstances(query string) ([]runner.RunnerInstance, error)
 }
-
-type validator func(cmd *cobra.Command, args []string) error

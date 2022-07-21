@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -605,16 +604,7 @@ func (c *ContextRestClient) EnsureExists() error {
 // NewContextRestClient returns a new client satisfying the api.ContextInterface
 // interface via the REST API.
 func NewContextRestClient(config settings.Config) (*ContextRestClient, error) {
-	// Ensure server ends with a slash
-	if !strings.HasSuffix(config.RestEndpoint, "/") {
-		config.RestEndpoint += "/"
-	}
-	serverURL, err := url.Parse(config.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err = serverURL.Parse(config.RestEndpoint)
+	serverURL, err := config.ServerURL()
 	if err != nil {
 		return nil, err
 	}
