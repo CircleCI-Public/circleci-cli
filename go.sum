@@ -65,8 +65,8 @@ github.com/Azure/go-autorest/logger v0.2.1/go.mod h1:T9E3cAhj2VqvPOtCYAvby9aBXkZ
 github.com/Azure/go-autorest/tracing v0.6.0/go.mod h1:+vhtPC754Xsa23ID7GlGsrdKBpUA79WCAKPPZVC2DeU=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/CircleCI-Public/circle-policy-agent v0.0.97 h1:Wqmqt+vktCaLY7lPe9BQJvPxlA9XypS082v3OMPBUVI=
-github.com/CircleCI-Public/circle-policy-agent v0.0.97/go.mod h1:JB9mRsC/ua95h+E8rMgudFDWqE6fR4Y4l73qzdNpPbw=
+github.com/CircleCI-Public/circle-policy-agent v0.0.106 h1:Tt1+MtBSBeoAumzFeBAU89+qFYrbhnOohRch2GxBxGc=
+github.com/CircleCI-Public/circle-policy-agent v0.0.106/go.mod h1:JB9mRsC/ua95h+E8rMgudFDWqE6fR4Y4l73qzdNpPbw=
 github.com/Masterminds/semver v1.4.2 h1:WBLTQ37jOCzSLtXNdoo8bNM8876KhNqOKvrlGITgsTc=
 github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Microsoft/go-winio v0.4.11/go.mod h1:VhR8bwka0BXejwEJY73c50VrPtXAaKcyvVC4A4RozmA=
