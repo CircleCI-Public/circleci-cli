@@ -293,7 +293,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				var metadata map[string]any
+				var metadata map[string]interface{}
 				if metaFile != "" {
 					raw, err := os.ReadFile(metaFile)
 					if err != nil {
@@ -304,7 +304,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}
 				}
 
-				decision, err := func() (any, error) {
+				decision, err := func() (interface{}, error) {
 					if policyPath != "" {
 						return getPolicyDecisionLocally(policyPath, input, metadata)
 					}
@@ -357,7 +357,7 @@ func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 }
 
 // getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
-func getPolicyDecisionLocally(policyPath string, rawPolicy []byte, meta map[string]any) (*cpa.Decision, error) {
+func getPolicyDecisionLocally(policyPath string, rawPolicy []byte, meta map[string]interface{}) (*cpa.Decision, error) {
 	var input interface{}
 	if err := yaml.Unmarshal(rawPolicy, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)
