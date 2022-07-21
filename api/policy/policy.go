@@ -269,9 +269,9 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 // DecisionRequest represents a request to Policy-Service to evaluate a given input against an organization's policies.
 // The context determines which policies to apply.
 type DecisionRequest struct {
-	Input    string         `json:"input"`
-	Context  string         `json:"context"`
-	Metadata map[string]any `json:"metadata,omitempty"`
+	Input    string                 `json:"input"`
+	Context  string                 `json:"context"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response
