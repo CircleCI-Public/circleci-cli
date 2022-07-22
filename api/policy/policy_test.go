@@ -42,7 +42,7 @@ func TestClientListPolicies(t *testing.T) {
 
 	t.Run("List Policies - Forbidden", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -59,7 +59,7 @@ func TestClientListPolicies(t *testing.T) {
 
 	t.Run("List Policies - Bad error json", func(t *testing.T) {
 		expectedResponse := `{"this is bad json": }`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -80,7 +80,7 @@ func TestClientListPolicies(t *testing.T) {
 		var expectedResponseValue interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
 		}))
@@ -117,7 +117,7 @@ func TestClientListPolicies(t *testing.T) {
 		var expectedResponseValue interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
 		}))
@@ -160,7 +160,7 @@ func TestClientGetPolicy(t *testing.T) {
 	t.Run("Get Policy - Bad Request", func(t *testing.T) {
 		expectedResponse := `{"error": "PolicyID: must be a valid UUID."}`
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -177,7 +177,7 @@ func TestClientGetPolicy(t *testing.T) {
 
 	t.Run("Get Policy - Forbidden", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -194,7 +194,7 @@ func TestClientGetPolicy(t *testing.T) {
 
 	t.Run("Get Policy - Not Found", func(t *testing.T) {
 		expectedResponse := `{"error": "policy not found"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -224,7 +224,7 @@ func TestClientGetPolicy(t *testing.T) {
 		var expectedResponseValue interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
 		}))
@@ -242,7 +242,6 @@ func TestClientGetPolicy(t *testing.T) {
 func TestClientCreatePolicy(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
 		req := CreationRequest{
-			Name:    "test-name",
 			Context: "config",
 			Content: "test-content",
 		}
@@ -276,7 +275,7 @@ func TestClientCreatePolicy(t *testing.T) {
 
 	t.Run("unexpected status code", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -317,7 +316,7 @@ func TestClientDeletePolicy(t *testing.T) {
 	t.Run("Delete Policy - Bad Request", func(t *testing.T) {
 		expectedResponse := `{"error": "PolicyID: must be a valid UUID."}`
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -333,7 +332,7 @@ func TestClientDeletePolicy(t *testing.T) {
 
 	t.Run("Delete Policy - Forbidden", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -349,7 +348,7 @@ func TestClientDeletePolicy(t *testing.T) {
 
 	t.Run("Delete Policy - Not Found", func(t *testing.T) {
 		expectedResponse := `{"error": "policy not found"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -364,7 +363,7 @@ func TestClientDeletePolicy(t *testing.T) {
 	})
 
 	t.Run("Delete Policy - successfully deletes a policy", func(t *testing.T) {
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNoContent)
 		}))
 		defer svr.Close()
@@ -379,11 +378,9 @@ func TestClientDeletePolicy(t *testing.T) {
 
 func TestClientUpdatePolicy(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
-		name := "test-name"
 		context := "config"
 		content := "test-content"
 		req := UpdateRequest{
-			Name:    &name,
 			Context: &context,
 			Content: &content,
 		}
@@ -417,7 +414,7 @@ func TestClientUpdatePolicy(t *testing.T) {
 
 	t.Run("unexpected status code", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -463,10 +460,7 @@ func TestClientUpdatePolicy(t *testing.T) {
 	})
 
 	t.Run("one change", func(t *testing.T) {
-		name := "test-name"
-		req := UpdateRequest{
-			Name: &name,
-		}
+		req := UpdateRequest{}
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
@@ -591,7 +585,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 	t.Run("Get Decision Logs - Bad Request", func(t *testing.T) {
 		expectedResponse := `{"error": "Offset: must be an integer number."}`
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -608,7 +602,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 
 	t.Run("Get Decision Logs - Forbidden", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
@@ -629,7 +623,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		var expectedResponseValue []interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
 		}))
@@ -676,7 +670,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		var expectedResponseValue []interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			_, err := w.Write([]byte(expectedResponse))
 			assert.NilError(t, err)
 		}))
@@ -728,7 +722,7 @@ func TestMakeDecision(t *testing.T) {
 			Name:    "unexpected statuscode",
 			OwnerID: "test-owner",
 			Request: DecisionRequest{},
-			Handler: func(w http.ResponseWriter, r *http.Request) {
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(400)
 				_, _ = io.WriteString(w, `{"error":"that was a bad request!"}`)
 			},
@@ -739,7 +733,7 @@ func TestMakeDecision(t *testing.T) {
 			Name:    "unexpected statuscode no body",
 			OwnerID: "test-owner",
 			Request: DecisionRequest{},
-			Handler: func(w http.ResponseWriter, r *http.Request) {
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(204)
 			},
 			ExpectedError: errors.New("unexpected status-code: 204"),
@@ -748,7 +742,7 @@ func TestMakeDecision(t *testing.T) {
 			Name:    "bad decoding",
 			OwnerID: "test-owner",
 			Request: DecisionRequest{},
-			Handler: func(w http.ResponseWriter, r *http.Request) {
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
 				_, _ = io.WriteString(w, "not a json response")
 			},
 			ExpectedError: errors.New("failed to decode response body: invalid character 'o' in literal null (expecting 'u')"),
