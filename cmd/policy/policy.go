@@ -357,9 +357,9 @@ func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 }
 
 // getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
-func getPolicyDecisionLocally(policyPath string, rawPolicy []byte, meta map[string]interface{}) (*cpa.Decision, error) {
+func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[string]interface{}) (*cpa.Decision, error) {
 	var input interface{}
-	if err := yaml.Unmarshal(rawPolicy, &input); err != nil {
+	if err := yaml.Unmarshal(rawInput, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)
 	}
 
