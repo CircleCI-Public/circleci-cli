@@ -63,7 +63,6 @@ func (c Client) ListPolicies(ownerID string) (interface{}, error) {
 
 // CreationRequest represents the json payload to create a Policy in the Policy-Service
 type CreationRequest struct {
-	Name    string `json:"name"`
 	Context string `json:"context"`
 	Content string `json:"content"`
 }
@@ -106,7 +105,6 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 }
 
 type UpdateRequest struct {
-	Name    *string `json:"name,omitempty"`
 	Context *string `json:"context,omitempty"`
 	Content *string `json:"content,omitempty"`
 }
@@ -271,8 +269,9 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 // DecisionRequest represents a request to Policy-Service to evaluate a given input against an organization's policies.
 // The context determines which policies to apply.
 type DecisionRequest struct {
-	Input   string `json:"input"`
-	Context string `json:"context"`
+	Input    string                 `json:"input"`
+	Context  string                 `json:"context"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -272,4 +273,27 @@ func isWorldWritable(info os.FileInfo) bool {
 	// Example: '-rwxrwx-w-' -> '-w-'
 	sysPerms := mode[len(mode)-3:]
 	return strings.Contains(sysPerms, "w")
+}
+
+// ServerURL retrieves and formats a ServerURL from our restEndpoint and host.
+func (cfg *Config) ServerURL() (*url.URL, error) {
+	var URL string
+
+	if !strings.HasSuffix(cfg.RestEndpoint, "/") {
+		URL = fmt.Sprintf("%s/", cfg.RestEndpoint)
+	} else {
+		URL = cfg.RestEndpoint
+	}
+
+	serverURL, err := url.Parse(cfg.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err = serverURL.Parse(URL)
+	if err != nil {
+		return nil, err
+	}
+
+	return serverURL, nil
 }
