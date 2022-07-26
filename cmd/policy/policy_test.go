@@ -299,7 +299,6 @@ func TestDeletePolicy(t *testing.T) {
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/policy/60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
 				w.WriteHeader(http.StatusNoContent)
 			},
-			ExpectedOutput: "Deleted Successfully\n",
 		},
 	}
 
