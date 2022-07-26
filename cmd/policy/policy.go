@@ -78,6 +78,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					return fmt.Errorf("failed to create policy: %w", err)
 				}
 
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Created Successfully\n")
+
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 					return fmt.Errorf("failed to encode result to stdout: %w", err)
 				}
@@ -129,7 +131,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				if err != nil {
 					return fmt.Errorf("failed to delete policy: %v", err)
 				}
-				_, _ = io.WriteString(cmd.OutOrStdout(), "Deleted Successfully\n")
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Deleted Successfully\n")
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
@@ -169,6 +171,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				if err != nil {
 					return fmt.Errorf("failed to update policy: %w", err)
 				}
+
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Updated Successfully\n")
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 					return fmt.Errorf("failed to encode result to stdout: %w", err)
