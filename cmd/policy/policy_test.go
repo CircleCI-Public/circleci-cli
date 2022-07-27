@@ -706,7 +706,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
-			ExpectedErr: "failed to make decision: failed to get path info: ",
+			ExpectedErr: "failed to make decision: failed to load policy files: failed to get path info: ",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
@@ -794,7 +794,7 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"eval", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
-			ExpectedErr: "failed to make decision: failed to get path info: ",
+			ExpectedErr: "failed to make decision: failed to load policy files: failed to get path info: ",
 		},
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
@@ -816,6 +816,17 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
     ]
   }
 }
+`,
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metadata and query",
+			Args: []string{
+				"eval", "--metafile", "./testdata/meta.yml", "--policy", "./testdata/test0/meta-policy.rego", "--input",
+				"./testdata/test0/config.yml", "--query", "data.org.enable_rule",
+			},
+			ExpectedOutput: `[
+  "enabled"
+]
 `,
 		},
 	}

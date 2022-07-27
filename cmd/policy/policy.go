@@ -367,7 +367,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	eval := func() *cobra.Command {
-		var inputPath, policyPath, metaFile string
+		var inputPath, policyPath, metaFile, query string
 		cmd := &cobra.Command{
 			Short: "perform raw opa evaluation locally",
 			Use:   "eval",
@@ -388,7 +388,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}
 				}
 
-				decision, err := getPolicyEvaluationLocally(policyPath, input, metadata)
+				decision, err := getPolicyEvaluationLocally(policyPath, input, metadata, query)
 				if err != nil {
 					return fmt.Errorf("failed to make decision: %w", err)
 				}
@@ -405,6 +405,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
 		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
+		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
 			panic(err)
@@ -442,19 +443,7 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 		return nil, fmt.Errorf("invalid input: %w", err)
 	}
 
-	pathInfo, err := os.Stat(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get path info: %w", err)
-	}
-
-	loadPolicy := func() func(string) (*cpa.Policy, error) {
-		if pathInfo.IsDir() {
-			return cpa.LoadPolicyDirectory
-		}
-		return cpa.LoadPolicyFile
-	}()
-
-	p, err := loadPolicy(policyPath)
+	p, err := loadPolicyFromPath(policyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load policy files: %w", err)
 	}
@@ -468,12 +457,26 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 }
 
 // getPolicyEvaluationLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally and returns raw opa evaluation response
-func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[string]interface{}) (interface{}, error) {
+func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[string]interface{}, query string) (interface{}, error) {
 	var input interface{}
 	if err := yaml.Unmarshal(rawInput, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)
 	}
 
+	p, err := loadPolicyFromPath(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load policy files: %w", err)
+	}
+
+	decision, err := p.Eval(context.Background(), query, input, cpa.Meta(meta))
+	if err != nil {
+		return nil, fmt.Errorf("failed to make decision: %w", err)
+	}
+
+	return decision, nil
+}
+
+func loadPolicyFromPath(policyPath string) (*cpa.Policy, error) {
 	pathInfo, err := os.Stat(policyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get path info: %w", err)
@@ -486,15 +489,5 @@ func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[str
 		return cpa.LoadPolicyFile
 	}()
 
-	p, err := loadPolicy(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load policy files: %w", err)
-	}
-
-	decision, err := p.Eval(context.Background(), "data", input, cpa.Meta(meta))
-	if err != nil {
-		return nil, fmt.Errorf("failed to make decision: %w", err)
-	}
-
-	return decision, nil
+	return loadPolicy(policyPath)
 }
