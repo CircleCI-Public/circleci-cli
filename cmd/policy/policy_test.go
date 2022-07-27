@@ -763,6 +763,88 @@ func TestMakeDecisionCommand(t *testing.T) {
 	}
 }
 
+func TestRawOPAEvaluationCommand(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires flags",
+			Args:        []string{"eval"},
+			ExpectedErr: `required flag(s) "input", "policy" not set`,
+		},
+		{
+			Name:        "fails if local-policy is not provided",
+			Args:        []string{"eval", "--input", "./testdata/test.yml"},
+			ExpectedErr: `required flag(s) "policy" not set`,
+		},
+		{
+			Name:        "fails if input is not provided",
+			Args:        []string{"eval", "--policy", "./testdata/policy.rego"},
+			ExpectedErr: `required flag(s) "input" not set`,
+		},
+		{
+			Name:        "fails for input file not found",
+			Args:        []string{"eval", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
+		},
+		{
+			Name:        "fails for policy FILE/DIRECTORY not found",
+			Args:        []string{"eval", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
+			ExpectedErr: "failed to make decision: failed to get path info: ",
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
+			Args: []string{
+				"eval", "--metafile", "./testdata/meta.yml", "--policy", "./testdata/test0/meta-policy.rego", "--input",
+				"./testdata/test0/config.yml",
+			},
+			ExpectedOutput: `{
+  "meta": {
+    "branch": "main",
+    "project_id": "test-project-id"
+  },
+  "org": {
+    "enable_rule": [
+      "enabled"
+    ],
+    "policy_name": [
+      "meta_policy_test"
+    ]
+  }
+}
+`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.ExpectedErr)
+				return
+			}
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
 func makeCMD() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 	cmd := NewCommand(config, nil)
