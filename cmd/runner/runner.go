@@ -27,7 +27,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			} else {
 				host = config.Host
 			}
-			opts.r = runner.New(rest.New(host, config.RestEndpoint, config.Token))
+			opts.r = runner.New(rest.New(host, config))
 		},
 	}
 
