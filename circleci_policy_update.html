@@ -21,12 +21,12 @@
 <h3 id="examples">Examples</h3>
 <pre><code>policy update e9e300d1-5bab-4704-b610-addbd6e03b0b --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --name policy_name --policy ./policy.rego</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>      --context string   policy context (if set, must be config)
-  -h, --help             help for update
-      --policy string    path to rego file containing the updated policy</code></pre>
+<pre><code>      --context string    policy context (if set, must be config)
+  -h, --help              help for update
+      --owner-id string   the id of the policy&#39;s owner
+      --policy string     path to rego file containing the updated policy</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
-      --owner-id string          the id of the policy&#39;s owner
       --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
       --skip-update-check        Skip the check for updates check run before every command. (default true)
       --token string             your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>

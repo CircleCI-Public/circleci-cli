@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>circleci_policy_get</title>
+  <title>circleci_policy_eval</title>
   <style type="text/css">
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
@@ -13,16 +13,17 @@
   </style>
 </head>
 <body>
-<h2 id="circleci-policy-get">circleci policy get</h2>
-<p>Get a policy</p>
+<h2 id="circleci-policy-eval">circleci policy eval</h2>
+<p>perform raw opa evaluation locally</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>Get a policy</p>
-<pre><code>circleci policy get &lt;policyID&gt; [flags]</code></pre>
-<h3 id="examples">Examples</h3>
-<pre><code>policy get 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5</code></pre>
+<p>perform raw opa evaluation locally</p>
+<pre><code>circleci policy eval [flags]</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help              help for get
-      --owner-id string   the id of the policy&#39;s owner</code></pre>
+<pre><code>  -h, --help              help for eval
+      --input string      path to input file
+      --metafile string   decision metadata file
+      --policy string     path to rego policy file or directory containing policy files
+      --query string      policy decision query (default &quot;data&quot;)</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
