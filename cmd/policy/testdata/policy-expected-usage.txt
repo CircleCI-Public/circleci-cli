@@ -5,13 +5,13 @@ Available Commands:
   create      create policy
   decide      make a decision
   delete      Delete a policy
+  eval        perform raw opa evaluation locally
   get         Get a policy
   list        List all policies
   logs        Get policy (decision) logs
   update      Update a policy
 
 Flags:
-      --owner-id string          the id of the policy's owner
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
 
 Use "policy [command] --help" for more information about a command.

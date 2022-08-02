@@ -31,18 +31,14 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
-	ownerID := cmd.PersistentFlags().String("owner-id", "", "the id of the policy's owner")
-
-	if err := cmd.MarkPersistentFlagRequired("owner-id"); err != nil {
-		panic(err)
-	}
 
 	list := func() *cobra.Command {
+		var ownerID string
 		cmd := &cobra.Command{
 			Short: "List all policies",
 			Use:   "list",
 			RunE: func(cmd *cobra.Command, _ []string) error {
-				policies, err := policy.NewClient(*policyBaseURL, config).ListPolicies(*ownerID)
+				policies, err := policy.NewClient(*policyBaseURL, config).ListPolicies(ownerID)
 				if err != nil {
 					return fmt.Errorf("failed to list policies: %v", err)
 				}
@@ -56,11 +52,17 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			Args:    cobra.ExactArgs(0),
 			Example: `policy list --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
+
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
+
 		return cmd
 	}()
 
 	create := func() *cobra.Command {
-		var policyPath string
+		var policyPath, ownerID string
 		var creationRequest policy.CreationRequest
 
 		cmd := &cobra.Command{
@@ -73,10 +75,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				}
 				creationRequest.Content = string(policyData)
 
-				result, err := policy.NewClient(*policyBaseURL, config).CreatePolicy(*ownerID, creationRequest)
+				result, err := policy.NewClient(*policyBaseURL, config).CreatePolicy(ownerID, creationRequest)
 				if err != nil {
 					return fmt.Errorf("failed to create policy: %w", err)
 				}
+
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Created Successfully\n")
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 					return fmt.Errorf("failed to encode result to stdout: %w", err)
@@ -90,7 +94,10 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 		cmd.Flags().StringVar(&creationRequest.Context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file")
-
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
 		if err := cmd.MarkFlagRequired("policy"); err != nil {
 			panic(err)
 		}
@@ -99,11 +106,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	get := func() *cobra.Command {
+		var ownerID string
 		cmd := &cobra.Command{
 			Short: "Get a policy",
 			Use:   "get <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				p, err := policy.NewClient(*policyBaseURL, config).GetPolicy(*ownerID, args[0])
+				p, err := policy.NewClient(*policyBaseURL, config).GetPolicy(ownerID, args[0])
 				if err != nil {
 					return fmt.Errorf("failed to get policy: %v", err)
 				}
@@ -117,31 +125,40 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			Args:    cobra.ExactArgs(1),
 			Example: `policy get 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
+
 		return cmd
 	}()
 
 	delete := func() *cobra.Command {
+		var ownerID string
 		cmd := &cobra.Command{
 			Short: "Delete a policy",
 			Use:   "delete <policyID>",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				err := policy.NewClient(*policyBaseURL, config).DeletePolicy(*ownerID, args[0])
+				err := policy.NewClient(*policyBaseURL, config).DeletePolicy(ownerID, args[0])
 				if err != nil {
 					return fmt.Errorf("failed to delete policy: %v", err)
 				}
-				_, _ = io.WriteString(cmd.OutOrStdout(), "Deleted Successfully\n")
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Deleted Successfully\n")
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
 			Example: `policy delete 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
+		}
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
 		}
 
 		return cmd
 	}()
 
 	update := func() *cobra.Command {
-		var policyPath string
-		var context string
+		var policyPath, context, ownerID string
 		var updateRequest policy.UpdateRequest
 
 		cmd := &cobra.Command{
@@ -165,10 +182,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					updateRequest.Context = &context
 				}
 
-				result, err := policy.NewClient(*policyBaseURL, config).UpdatePolicy(*ownerID, args[0], updateRequest)
+				result, err := policy.NewClient(*policyBaseURL, config).UpdatePolicy(ownerID, args[0], updateRequest)
 				if err != nil {
 					return fmt.Errorf("failed to update policy: %w", err)
 				}
+
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Updated Successfully\n")
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(result); err != nil {
 					return fmt.Errorf("failed to encode result to stdout: %w", err)
@@ -182,12 +201,16 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 		cmd.Flags().StringVar(&context, "context", "", "policy context (if set, must be config)")
 		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego file containing the updated policy")
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
 
 		return cmd
 	}()
 
 	logs := func() *cobra.Command {
-		var after, before, outputFile string
+		var after, before, outputFile, ownerID string
 		var request policy.DecisionQueryRequest
 
 		cmd := &cobra.Command{
@@ -239,7 +262,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				client := policy.NewClient(*policyBaseURL, config)
 
 				for {
-					logsBatch, err := client.GetDecisionLogs(*ownerID, request)
+					logsBatch, err := client.GetDecisionLogs(ownerID, request)
 					if err != nil {
 						return fmt.Errorf("failed to get policy decision logs: %v", err)
 					}
@@ -268,6 +291,10 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
 		cmd.Flags().StringVar(&request.ProjectID, "project-id", "", "filter decision logs based on project-id")
 		cmd.Flags().StringVar(&outputFile, "out", "", "specify output file name ")
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
 
 		return cmd
 	}()
@@ -277,6 +304,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			inputPath  string
 			policyPath string
 			metaFile   string
+			ownerID    string
 			request    policy.DecisionRequest
 		)
 
@@ -284,7 +312,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			Short: "make a decision",
 			Use:   "decide",
 			RunE: func(cmd *cobra.Command, _ []string) error {
-				if policyPath == "" && *ownerID == "" {
+				if policyPath == "" && ownerID == "" {
 					return fmt.Errorf("--owner-id or --policy is required")
 				}
 
@@ -310,7 +338,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}
 					request.Input = string(input)
 					request.Metadata = metadata
-					return policy.NewClient(*policyBaseURL, config).MakeDecision(*ownerID, request)
+					return policy.NewClient(*policyBaseURL, config).MakeDecision(ownerID, request)
 				}()
 				if err != nil {
 					return fmt.Errorf("failed to make decision: %w", err)
@@ -325,15 +353,66 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			Args: cobra.ExactArgs(0),
 		}
 
-		// Redeclared flag to make optional
-		cmd.Flags().StringVar(ownerID, "owner-id", "", "the id of the policy's owner")
-
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().StringVar(&request.Context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
 		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 
-		_ = cmd.MarkFlagRequired("input")
+		if err := cmd.MarkFlagRequired("input"); err != nil {
+			panic(err)
+		}
+
+		return cmd
+	}()
+
+	eval := func() *cobra.Command {
+		var inputPath, policyPath, metaFile, query string
+		cmd := &cobra.Command{
+			Short: "perform raw opa evaluation locally",
+			Use:   "eval",
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				input, err := os.ReadFile(inputPath)
+				if err != nil {
+					return fmt.Errorf("failed to read input file: %w", err)
+				}
+
+				var metadata map[string]interface{}
+				if metaFile != "" {
+					raw, err := os.ReadFile(metaFile)
+					if err != nil {
+						return fmt.Errorf("failed to read meta file: %w", err)
+					}
+					if err := yaml.Unmarshal(raw, &metadata); err != nil {
+						return fmt.Errorf("failed to decode meta content: %w", err)
+					}
+				}
+
+				decision, err := getPolicyEvaluationLocally(policyPath, input, metadata, query)
+				if err != nil {
+					return fmt.Errorf("failed to make decision: %w", err)
+				}
+
+				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
+					return fmt.Errorf("failed to encode decision: %w", err)
+				}
+
+				return nil
+			},
+			Args: cobra.ExactArgs(0),
+		}
+
+		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
+		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
+		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
+
+		if err := cmd.MarkFlagRequired("input"); err != nil {
+			panic(err)
+		}
+		if err := cmd.MarkFlagRequired("policy"); err != nil {
+			panic(err)
+		}
 
 		return cmd
 	}()
@@ -345,6 +424,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	cmd.AddCommand(update)
 	cmd.AddCommand(logs)
 	cmd.AddCommand(decide)
+	cmd.AddCommand(eval)
 
 	return cmd
 }
@@ -363,6 +443,40 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 		return nil, fmt.Errorf("invalid input: %w", err)
 	}
 
+	p, err := loadPolicyFromPath(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load policy files: %w", err)
+	}
+
+	decision, err := p.Decide(context.Background(), input, cpa.Meta(meta))
+	if err != nil {
+		return nil, fmt.Errorf("failed to make decision: %w", err)
+	}
+
+	return decision, nil
+}
+
+// getPolicyEvaluationLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally and returns raw opa evaluation response
+func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[string]interface{}, query string) (interface{}, error) {
+	var input interface{}
+	if err := yaml.Unmarshal(rawInput, &input); err != nil {
+		return nil, fmt.Errorf("invalid input: %w", err)
+	}
+
+	p, err := loadPolicyFromPath(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load policy files: %w", err)
+	}
+
+	decision, err := p.Eval(context.Background(), query, input, cpa.Meta(meta))
+	if err != nil {
+		return nil, fmt.Errorf("failed to make decision: %w", err)
+	}
+
+	return decision, nil
+}
+
+func loadPolicyFromPath(policyPath string) (*cpa.Policy, error) {
 	pathInfo, err := os.Stat(policyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get path info: %w", err)
@@ -375,15 +489,5 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 		return cpa.LoadPolicyFile
 	}()
 
-	policy, err := loadPolicy(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load policy files: %w", err)
-	}
-
-	decision, err := policy.Decide(context.Background(), input, cpa.Meta(meta))
-	if err != nil {
-		return nil, fmt.Errorf("failed to make decision: %w", err)
-	}
-
-	return decision, nil
+	return loadPolicy(policyPath)
 }
