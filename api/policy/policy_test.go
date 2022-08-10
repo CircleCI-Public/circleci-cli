@@ -28,7 +28,7 @@ func TestClientFetchPolicyBundle(t *testing.T) {
 			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle/my_policy")
 
 			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("[]"))
+			_, err := w.Write([]byte("{}"))
 			assert.NilError(t, err)
 		}))
 		defer svr.Close()
@@ -135,7 +135,7 @@ func TestClientFetchPolicyBundle(t *testing.T) {
 func TestClientCreatePolicy(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
 		req := CreatePolicyBundleRequest{
-			//TODO
+			Policies: map[string]string{"policy_a": "package org"},
 		}
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -153,15 +153,13 @@ func TestClientCreatePolicy(t *testing.T) {
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusCreated)
-			_, err := w.Write([]byte("{}"))
-			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
 		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.CreatePolicyBundle("ownerId", "config", req)
+		err := client.CreatePolicyBundle("ownerId", "config", req)
 		assert.NilError(t, err)
 	})
 
@@ -177,7 +175,7 @@ func TestClientCreatePolicy(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.CreatePolicyBundle("ownerId", "config", CreatePolicyBundleRequest{})
+		err := client.CreatePolicyBundle("ownerId", "config", CreatePolicyBundleRequest{})
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 	})
 }
