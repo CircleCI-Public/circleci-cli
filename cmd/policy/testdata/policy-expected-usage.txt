@@ -2,14 +2,11 @@ Usage:
   policy [command]
 
 Available Commands:
-  create      create policy
   decide      make a decision
-  delete      Delete a policy
   eval        perform raw opa evaluation locally
-  get         Get a policy
-  list        List all policies
+  fetch       Fetch policy bundle (or a single policy)
   logs        Get policy (decision) logs
-  update      Update a policy
+  push        push policy bundle
 
 Flags:
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
