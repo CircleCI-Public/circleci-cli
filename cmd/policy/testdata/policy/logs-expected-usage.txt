@@ -8,6 +8,7 @@ Flags:
       --after string        filter decision logs triggered AFTER this datetime
       --before string       filter decision logs triggered BEFORE this datetime
       --branch string       filter decision logs based on branch name
+      --context string      policy context (default "config")
       --out string          specify output file name 
       --owner-id string     the id of the policy's owner
       --project-id string   filter decision logs based on project-id

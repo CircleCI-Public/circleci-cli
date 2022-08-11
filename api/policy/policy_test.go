@@ -15,7 +15,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
-func TestClientListPolicies(t *testing.T) {
+func TestClientFetchPolicyBundle(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
@@ -25,10 +25,10 @@ func TestClientListPolicies(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle/my_policy")
 
 			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("[]"))
+			_, err := w.Write([]byte("{}"))
 			assert.NilError(t, err)
 		}))
 		defer svr.Close()
@@ -36,11 +36,11 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.ListPolicies("ownerId")
+		_, err := client.FetchPolicyBundle("ownerId", "config", "my_policy")
 		assert.NilError(t, err)
 	})
 
-	t.Run("List Policies - Forbidden", func(t *testing.T) {
+	t.Run("Fetch Policy Bundle - Forbidden", func(t *testing.T) {
 		expectedResponse := `{"error": "Forbidden"}`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
@@ -52,12 +52,12 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId")
+		policies, err := client.FetchPolicyBundle("ownerId", "config", "")
 		assert.Equal(t, policies, nil)
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 	})
 
-	t.Run("List Policies - Bad error json", func(t *testing.T) {
+	t.Run("Fetch Policy Bundle - Bad error json", func(t *testing.T) {
 		expectedResponse := `{"this is bad json": }`
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusForbidden)
@@ -69,13 +69,13 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId")
+		policies, err := client.FetchPolicyBundle("ownerId", "config", "")
 		assert.Equal(t, policies, nil)
 		assert.Error(t, err, "unexpected status-code: 403")
 	})
 
-	t.Run("List Policies - no policies", func(t *testing.T) {
-		expectedResponse := "[]"
+	t.Run("Fetch Policy Bundle - no policies", func(t *testing.T) {
+		expectedResponse := "{}"
 
 		var expectedResponseValue interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
@@ -89,12 +89,12 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId")
+		policies, err := client.FetchPolicyBundle("ownerId", "config", "")
 		assert.DeepEqual(t, policies, expectedResponseValue)
 		assert.NilError(t, err)
 	})
 
-	t.Run("List Policies - some policies", func(t *testing.T) {
+	t.Run("Fetch Policy Bundle - some policies", func(t *testing.T) {
 		expectedResponse := `[
 			{
 				"id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
@@ -126,124 +126,16 @@ func TestClientListPolicies(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		policies, err := client.ListPolicies("ownerId")
+		policies, err := client.FetchPolicyBundle("ownerId", "config", "")
 		assert.DeepEqual(t, policies, expectedResponseValue)
-		assert.NilError(t, err)
-	})
-}
-
-func TestClientGetPolicy(t *testing.T) {
-	t.Run("expected request", func(t *testing.T) {
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-			assert.Equal(t, r.Header.Get("accept"), "application/json")
-			assert.Equal(t, r.Header.Get("content-type"), "application/json")
-			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-
-			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy/policyID")
-
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("[]"))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		_, err := client.GetPolicy("ownerId", "policyID")
-		assert.NilError(t, err)
-	})
-
-	t.Run("Get Policy - Bad Request", func(t *testing.T) {
-		expectedResponse := `{"error": "PolicyID: must be a valid UUID."}`
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		policy, err := client.GetPolicy("ownerId", "policyID")
-		assert.Equal(t, policy, nil)
-		assert.Error(t, err, "unexpected status-code: 400 - PolicyID: must be a valid UUID.")
-	})
-
-	t.Run("Get Policy - Forbidden", func(t *testing.T) {
-		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusForbidden)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		policy, err := client.GetPolicy("ownerId", "policyID")
-		assert.Equal(t, policy, nil)
-		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
-	})
-
-	t.Run("Get Policy - Not Found", func(t *testing.T) {
-		expectedResponse := `{"error": "policy not found"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		policy, err := client.GetPolicy("ownerId", "a917a0ab-ceb6-482d-9a4e-f2f6b8bdfdca")
-		assert.Equal(t, policy, nil)
-		assert.Error(t, err, "unexpected status-code: 404 - policy not found")
-	})
-
-	t.Run("Get Policy - successfully gets a policy", func(t *testing.T) {
-		expectedResponse := `{
-   			 "document_version": 1,
-   			 "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
-   			 "name": "policy_1",
-   			 "owner_id": "462d67f8-b232-4da4-a7de-0c86dd667d3f",
-   			 "context": "config",
-   			 "content": "package test",
-   			 "created_at": "2022-05-31T14:15:10.86097Z",
-   			 "modified_at": null
-		}`
-
-		var expectedResponseValue interface{}
-		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		policy, err := client.GetPolicy("462d67f8-b232-4da4-a7de-0c86dd667d3f", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
-		assert.DeepEqual(t, policy, expectedResponseValue)
 		assert.NilError(t, err)
 	})
 }
 
 func TestClientCreatePolicy(t *testing.T) {
 	t.Run("expected request", func(t *testing.T) {
-		req := CreationRequest{
-			Context: "config",
-			Content: "test-content",
+		req := CreatePolicyBundleRequest{
+			Policies: map[string]string{"policy_a": "package org"},
 		}
 
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -254,22 +146,20 @@ func TestClientCreatePolicy(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "POST")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle")
 
-			var actual CreationRequest
+			var actual CreatePolicyBundleRequest
 			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusCreated)
-			_, err := w.Write([]byte("{}"))
-			assert.NilError(t, err)
 		}))
 		defer svr.Close()
 
 		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.CreatePolicy("ownerId", req)
+		err := client.CreatePolicyBundle("ownerId", "config", req)
 		assert.NilError(t, err)
 	})
 
@@ -285,208 +175,8 @@ func TestClientCreatePolicy(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.CreatePolicy("ownerId", CreationRequest{})
+		err := client.CreatePolicyBundle("ownerId", "config", CreatePolicyBundleRequest{})
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
-	})
-}
-
-func TestClientDeletePolicy(t *testing.T) {
-	t.Run("expected request", func(t *testing.T) {
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-			assert.Equal(t, r.Header.Get("accept"), "application/json")
-			assert.Equal(t, r.Header.Get("content-type"), "application/json")
-			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-
-			assert.Equal(t, r.Method, "DELETE")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/policy/policyID")
-
-			w.WriteHeader(http.StatusNoContent)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		err := client.DeletePolicy("ownerId", "policyID")
-		assert.NilError(t, err)
-	})
-
-	t.Run("Delete Policy - Bad Request", func(t *testing.T) {
-		expectedResponse := `{"error": "PolicyID: must be a valid UUID."}`
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		err := client.DeletePolicy("ownerId", "policyID")
-		assert.Error(t, err, "unexpected status-code: 400 - PolicyID: must be a valid UUID.")
-	})
-
-	t.Run("Delete Policy - Forbidden", func(t *testing.T) {
-		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusForbidden)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		err := client.DeletePolicy("ownerId", "policyID")
-		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
-	})
-
-	t.Run("Delete Policy - Not Found", func(t *testing.T) {
-		expectedResponse := `{"error": "policy not found"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNotFound)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		err := client.DeletePolicy("ownerId", "a917a0ab-ceb6-482d-9a4e-f2f6b8bdfdca")
-		assert.Error(t, err, "unexpected status-code: 404 - policy not found")
-	})
-
-	t.Run("Delete Policy - successfully deletes a policy", func(t *testing.T) {
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusNoContent)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		err := client.DeletePolicy("462d67f8-b232-4da4-a7de-0c86dd667d3f", "60b7e1a5-c1d7-4422-b813-7a12d353d7c6")
-		assert.NilError(t, err)
-	})
-}
-
-func TestClientUpdatePolicy(t *testing.T) {
-	t.Run("expected request", func(t *testing.T) {
-		context := "config"
-		content := "test-content"
-		req := UpdateRequest{
-			Context: &context,
-			Content: &content,
-		}
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-			assert.Equal(t, r.Header.Get("accept"), "application/json")
-			assert.Equal(t, r.Header.Get("content-type"), "application/json")
-			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-
-			assert.Equal(t, r.Method, "PATCH")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
-
-			var actual UpdateRequest
-			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
-			assert.DeepEqual(t, actual, req)
-
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("{}"))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		client := NewClient(svr.URL, config)
-
-		_, err := client.UpdatePolicy("ownerID", "policyID", req)
-		assert.NilError(t, err)
-	})
-
-	t.Run("unexpected status code", func(t *testing.T) {
-		expectedResponse := `{"error": "Forbidden"}`
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			w.WriteHeader(http.StatusForbidden)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
-		client := NewClient(svr.URL, config)
-
-		_, err := client.UpdatePolicy("ownerId", "policyId", UpdateRequest{})
-		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
-	})
-
-	t.Run("no changes", func(t *testing.T) {
-		req := UpdateRequest{}
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-			assert.Equal(t, r.Header.Get("accept"), "application/json")
-			assert.Equal(t, r.Header.Get("content-type"), "application/json")
-			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-
-			assert.Equal(t, r.Method, "PATCH")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
-
-			var actual UpdateRequest
-			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
-			assert.DeepEqual(t, actual, req)
-
-			expectedResponse := `{"error": "at least one of name, context, or content, cannot be blank"}`
-			w.WriteHeader(http.StatusBadRequest)
-			_, err := w.Write([]byte(expectedResponse))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		client := NewClient(svr.URL, config)
-
-		_, err := client.UpdatePolicy("ownerID", "policyID", req)
-		assert.Error(t, err, "unexpected status-code: 400 - at least one of name, context, or content, cannot be blank")
-	})
-
-	t.Run("one change", func(t *testing.T) {
-		req := UpdateRequest{}
-
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-			assert.Equal(t, r.Header.Get("accept"), "application/json")
-			assert.Equal(t, r.Header.Get("content-type"), "application/json")
-			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
-			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
-
-			assert.Equal(t, r.Method, "PATCH")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerID/policy/policyID")
-
-			var actual UpdateRequest
-			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
-			assert.DeepEqual(t, actual, req)
-
-			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("{}"))
-			assert.NilError(t, err)
-		}))
-		defer svr.Close()
-
-		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
-		client := NewClient(svr.URL, config)
-
-		_, err := client.UpdatePolicy("ownerID", "policyID", req)
-		assert.NilError(t, err)
 	})
 }
 
@@ -500,8 +190,8 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/decision")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision")
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/context/config/decision")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -512,7 +202,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		_, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{})
 		assert.NilError(t, err)
 	})
 
@@ -525,7 +215,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision")
 			assert.Equal(t, r.URL.RawQuery, "project_id=projectIDValue")
 
 			w.WriteHeader(http.StatusOK)
@@ -537,7 +227,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{ProjectID: "projectIDValue"})
+		_, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{ProjectID: "projectIDValue"})
 		assert.NilError(t, err)
 	})
 
@@ -552,7 +242,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/decision")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision")
 			assert.Equal(
 				t,
 				r.URL.RawQuery,
@@ -571,7 +261,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		_, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{
+		_, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{
 			Status:    "PASS",
 			After:     &testTime,
 			Before:    &testTime,
@@ -595,7 +285,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		logs, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{})
 		assert.Error(t, err, "unexpected status-code: 400 - Offset: must be an integer number.")
 		assert.Equal(t, len(logs), 0)
 	})
@@ -612,7 +302,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		logs, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{})
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 		assert.Equal(t, len(logs), 0)
 	})
@@ -632,41 +322,44 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		logs, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{})
 		assert.DeepEqual(t, logs, expectedResponseValue)
 		assert.NilError(t, err)
 	})
 
 	t.Run("Get Decision Logs - some logs", func(t *testing.T) {
 		expectedResponse := `[
-    {
-        "metadata": {},
-        "created_at": "2022-06-08T16:56:22.179906Z",
-        "policies": [
-            {
-                "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
-                "version": 2
-            }
-        ],
-        "decision": {
-            "status": "PASS"
-        }
+  {
+    "created_at": "2022-08-11T09:20:40.674594-04:00",
+    "decision": {
+      "enabled_rules": [
+        "branch_is_main"
+      ],
+      "status": "PASS"
     },
-    {
-        "metadata": {},
-        "created_at": "2022-06-08T17:06:14.591951Z",
-        "policies": [
-            {
-                "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
-                "version": 2
-            }
-        ],
-        "decision": {
-            "status": "PASS"
-        }
-    }
+    "metadata": {},
+    "policies": [
+      "8c69adc542bcfd6e65f5d5a2b6a4e3764480db2253cd075d0954e64a1f827a9c695c916d5a49302991df781447b3951410824dce8a8282d11ed56302272cf6fb",
+      "3124131001ec20b4b524260ababa6411190a1bc9c5ac3219ccc2d21109fc5faf4bb9f7bbe38f3f798d9c232d68564390e0ca560877711f3f2ff7f89e10eef685"
+    ],
+    "time_taken_ms": 4
+  },
+  {
+    "created_at": "2022-08-11T09:21:31.66168-04:00",
+    "decision": {
+      "enabled_rules": [
+        "branch_is_main"
+      ],
+      "status": "PASS"
+    },
+    "metadata": {},
+    "policies": [
+      "8c69adc542bcfd6e65f5d5a2b6a4e3764480db2253cd075d0954e64a1f827a9c695c916d5a49302991df781447b3951410824dce8a8282d11ed56302272cf6fb",
+      "3124131001ec20b4b524260ababa6411190a1bc9c5ac3219ccc2d21109fc5faf4bb9f7bbe38f3f798d9c232d68564390e0ca560877711f3f2ff7f89e10eef685"
+    ],
+    "time_taken_ms": 7
+  }
 ]`
-
 		var expectedResponseValue []interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
 
@@ -679,7 +372,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		logs, err := client.GetDecisionLogs("ownerId", DecisionQueryRequest{})
+		logs, err := client.GetDecisionLogs("ownerId", "config", DecisionQueryRequest{})
 		assert.DeepEqual(t, logs, expectedResponseValue)
 		assert.NilError(t, err)
 	})
@@ -695,14 +388,13 @@ func TestMakeDecision(t *testing.T) {
 		ExpectedDecision interface{}
 	}{
 		{
-			Name:    "sends expexted request",
+			Name:    "sends expected request",
 			OwnerID: "test-owner",
 			Request: DecisionRequest{
-				Input:   "test-input",
-				Context: "test-context",
+				Input: "test-input",
 			},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/decision")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 
@@ -710,8 +402,7 @@ func TestMakeDecision(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
 
 				assert.DeepEqual(t, payload, map[string]interface{}{
-					"context": "test-context",
-					"input":   "test-input",
+					"input": "test-input",
 				})
 
 				_ = json.NewEncoder(w).Encode(map[string]string{"status": "PASS"})
@@ -719,7 +410,7 @@ func TestMakeDecision(t *testing.T) {
 			ExpectedDecision: map[string]interface{}{"status": "PASS"},
 		},
 		{
-			Name:    "unexpected statuscode",
+			Name:    "unexpected status code",
 			OwnerID: "test-owner",
 			Request: DecisionRequest{},
 			Handler: func(w http.ResponseWriter, _ *http.Request) {
@@ -730,7 +421,7 @@ func TestMakeDecision(t *testing.T) {
 		},
 
 		{
-			Name:    "unexpected statuscode no body",
+			Name:    "unexpected status code no body",
 			OwnerID: "test-owner",
 			Request: DecisionRequest{},
 			Handler: func(w http.ResponseWriter, _ *http.Request) {
@@ -756,7 +447,7 @@ func TestMakeDecision(t *testing.T) {
 
 			client := NewClient(svr.URL, &settings.Config{Token: "test-token", HTTPClient: http.DefaultClient})
 
-			decision, err := client.MakeDecision(tc.OwnerID, tc.Request)
+			decision, err := client.MakeDecision(tc.OwnerID, "config", tc.Request)
 			if tc.ExpectedError == nil {
 				assert.NilError(t, err)
 			} else {
