@@ -348,7 +348,7 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 		return nil, fmt.Errorf("invalid input: %w", err)
 	}
 
-	p, err := loadPolicyFromPath(policyPath)
+	p, err := cpa.LoadPolicyFromFS(policyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load policy files: %w", err)
 	}
@@ -368,7 +368,7 @@ func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[str
 		return nil, fmt.Errorf("invalid input: %w", err)
 	}
 
-	p, err := loadPolicyFromPath(policyPath)
+	p, err := cpa.LoadPolicyFromFS(policyPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load policy files: %w", err)
 	}
@@ -379,20 +379,4 @@ func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[str
 	}
 
 	return decision, nil
-}
-
-func loadPolicyFromPath(policyPath string) (*cpa.Policy, error) {
-	pathInfo, err := os.Stat(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get path info: %w", err)
-	}
-
-	loadPolicy := func() func(string) (*cpa.Policy, error) {
-		if pathInfo.IsDir() {
-			return cpa.LoadPolicyDirectory
-		}
-		return cpa.LoadPolicyFile
-	}()
-
-	return loadPolicy(policyPath)
 }

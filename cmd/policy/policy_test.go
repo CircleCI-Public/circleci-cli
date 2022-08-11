@@ -458,7 +458,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
-			ExpectedErr: "failed to make decision: failed to load policy files: failed to get path info: ",
+			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
@@ -546,7 +546,7 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"eval", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
-			ExpectedErr: "failed to make decision: failed to load policy files: failed to get path info: ",
+			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
