@@ -48,7 +48,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					if err != nil {
 						return err
 					}
-					if (f.IsDir() == false) && (filepath.Ext(f.Name()) == ".rego") {
+					if !f.IsDir() && (filepath.Ext(f.Name()) == ".rego") {
 						fileContent, err := os.ReadFile(filepath.Clean(path))
 						if err != nil {
 							return fmt.Errorf("failed to read file: %w", err)

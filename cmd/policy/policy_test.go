@@ -34,7 +34,21 @@ func TestPushPolicyBundle(t *testing.T) {
 		{
 			Name:        "fails for policy bundle directory path not found",
 			Args:        []string{"push", "./testdata/directory_not_present", "--owner-id", "test-org"},
-			ExpectedErr: "failed to walk policy directory path: lstat ./testdata/directory_not_present: ",
+			ExpectedErr: "failed to walk policy directory path: ",
+		},
+		{
+			Name: "no policy files in given policy directory path",
+			Args: []string{"push", "./testdata/test0/no-valid-policy-files", "--owner-id", "test-org", "--context", "custom"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/test-org/context/custom/policy-bundle")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"policies": map[string]interface{}{},
+				})
+				w.WriteHeader(http.StatusCreated)
+			},
 		},
 		{
 			Name: "sends appropriate desired request",
