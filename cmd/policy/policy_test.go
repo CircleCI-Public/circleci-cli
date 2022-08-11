@@ -3,7 +3,6 @@ package policy
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -278,19 +277,21 @@ func TestGetDecisionLogs(t *testing.T) {
 						assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/config/decision")
 						_, err := w.Write([]byte(`
 							[
-								{
-									"metadata": {},
-									"created_at": "2022-06-08T16:56:22.179906Z",
-									"policies": [
-										{
-											"id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
-											"version": 2
-										}
-									],
-									"decision": {
-										"status": "PASS"
-									}
-								}
+							  {
+								"created_at": "2022-08-11T09:20:40.674594-04:00",
+								"decision": {
+								  "enabled_rules": [
+									"branch_is_main"
+								  ],
+								  "status": "PASS"
+								},
+								"metadata": {},
+								"policies": [
+								  "8c69adc542bcfd6e65f5d5a2b6a4e3764480db2253cd075d0954e64a1f827a9c695c916d5a49302991df781447b3951410824dce8a8282d11ed56302272cf6fb",
+								  "3124131001ec20b4b524260ababa6411190a1bc9c5ac3219ccc2d21109fc5faf4bb9f7bbe38f3f798d9c232d68564390e0ca560877711f3f2ff7f89e10eef685"
+								],
+								"time_taken_ms": 4
+							  }
 							]`),
 						)
 						assert.NilError(t, err)
@@ -305,17 +306,19 @@ func TestGetDecisionLogs(t *testing.T) {
 			}(),
 			ExpectedOutput: `[
   {
-    "created_at": "2022-06-08T16:56:22.179906Z",
+    "created_at": "2022-08-11T09:20:40.674594-04:00",
     "decision": {
+      "enabled_rules": [
+        "branch_is_main"
+      ],
       "status": "PASS"
     },
     "metadata": {},
     "policies": [
-      {
-        "id": "60b7e1a5-c1d7-4422-b813-7a12d353d7c6",
-        "version": 2
-      }
-    ]
+      "8c69adc542bcfd6e65f5d5a2b6a4e3764480db2253cd075d0954e64a1f827a9c695c916d5a49302991df781447b3951410824dce8a8282d11ed56302272cf6fb",
+      "3124131001ec20b4b524260ababa6411190a1bc9c5ac3219ccc2d21109fc5faf4bb9f7bbe38f3f798d9c232d68564390e0ca560877711f3f2ff7f89e10eef685"
+    ],
+    "time_taken_ms": 4
   }
 ]
 `,
@@ -342,7 +345,6 @@ func TestGetDecisionLogs(t *testing.T) {
 				assert.Error(t, err, tc.ExpectedErr)
 				return
 			}
-			fmt.Println(stdout.String())
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
 		})
 	}
