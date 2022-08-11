@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>circleci_policy_delete</title>
+  <title>circleci_policy_push</title>
   <style type="text/css">
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
@@ -13,15 +13,16 @@
   </style>
 </head>
 <body>
-<h2 id="circleci-policy-delete">circleci policy delete</h2>
-<p>Delete a policy</p>
+<h2 id="circleci-policy-push">circleci policy push</h2>
+<p>push policy bundle</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>Delete a policy</p>
-<pre><code>circleci policy delete &lt;policyID&gt; [flags]</code></pre>
+<p>push policy bundle</p>
+<pre><code>circleci policy push [flags]</code></pre>
 <h3 id="examples">Examples</h3>
-<pre><code>policy delete 60b7e1a5-c1d7-4422-b813-7a12d353d7c6 --owner-id 516425b2-e369-421b-838d-920e1f51b0f5</code></pre>
+<pre><code>policy push ./policy_bundle_dir_path --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --context config</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help              help for delete
+<pre><code>      --context string    policy context (default &quot;config&quot;)
+  -h, --help              help for push
       --owner-id string   the id of the policy&#39;s owner</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
