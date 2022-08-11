@@ -44,8 +44,8 @@ func TestPushPolicyBundle(t *testing.T) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/test-org/context/custom/policy-bundle")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
-				assert.DeepEqual(t, body, map[string]any{
-					"policies": map[string]any{
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"policies": map[string]interface{}{
 						"meta-policy.rego": `package org
 
 policy_name["meta_policy_test"]
