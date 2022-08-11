@@ -28,13 +28,13 @@ func TestPushPolicyBundle(t *testing.T) {
 		},
 		{
 			Name:        "requires owner-id",
-			Args:        []string{"push", "./testdata/test.rego"},
+			Args:        []string{"push", "./testdata/test0/policy.rego"},
 			ExpectedErr: "required flag(s) \"owner-id\" not set",
 		},
 		{
 			Name:        "fails for policy bundle directory path not found",
 			Args:        []string{"push", "./testdata/directory_not_present", "--owner-id", "test-org"},
-			ExpectedErr: "failed to get list of policy files: open ./testdata/directory_not_present: ",
+			ExpectedErr: "failed to walk policy directory path: lstat ./testdata/directory_not_present: ",
 		},
 		{
 			Name: "sends appropriate desired request",
@@ -365,7 +365,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "sends expected request",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
@@ -383,7 +383,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "sends expected request with context",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml", "--context", "custom"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/custom/decision")
@@ -401,7 +401,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "sends expected request with metadata",
-			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test.yml", "--context", "custom", "--metafile", "./testdata/meta.yml"},
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--metafile", "./testdata/test1/meta.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/custom/decision")
@@ -423,7 +423,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name: "fails on unexpected status code",
-			Args: []string{"decide", "--input", "./testdata/test.yml", "--owner-id", "test-owner"},
+			Args: []string{"decide", "--input", "./testdata/test1/test.yml", "--owner-id", "test-owner"},
 			ServerHandler: func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(500)
 				_, _ = io.WriteString(w, `{"error":"oopsie!"}`)
@@ -433,17 +433,17 @@ func TestMakeDecisionCommand(t *testing.T) {
 		},
 		{
 			Name:        "fails if neither local-policy nor owner-id is provided",
-			Args:        []string{"decide", "--input", "./testdata/test.yml"},
+			Args:        []string{"decide", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: "--owner-id or --policy is required",
 		},
 		{
 			Name:        "fails for input file not found",
-			Args:        []string{"decide", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			Args:        []string{"decide", "--policy", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
 			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
 		},
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
-			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
+			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to get path info: ",
 		},
 		{
@@ -463,7 +463,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name: "successfully performs decision with metadata for policy FILE provided locally",
 			Args: []string{
-				"decide", "--metafile", "./testdata/meta.yml", "--policy", "./testdata/test0/meta-policy.rego", "--input",
+				"decide", "--metafile", "./testdata/test1/meta.yml", "--policy", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--input",
 				"./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
@@ -516,28 +516,28 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		},
 		{
 			Name:        "fails if local-policy is not provided",
-			Args:        []string{"eval", "--input", "./testdata/test.yml"},
+			Args:        []string{"eval", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: `required flag(s) "policy" not set`,
 		},
 		{
 			Name:        "fails if input is not provided",
-			Args:        []string{"eval", "--policy", "./testdata/policy.rego"},
+			Args:        []string{"eval", "--policy", "./testdata/test0/policy.rego"},
 			ExpectedErr: `required flag(s) "input" not set`,
 		},
 		{
 			Name:        "fails for input file not found",
-			Args:        []string{"eval", "--policy", "./testdata/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			Args:        []string{"eval", "--policy", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
 			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
 		},
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
-			Args:        []string{"eval", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test.yml"},
+			Args:        []string{"eval", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to get path info: ",
 		},
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
 			Args: []string{
-				"eval", "--metafile", "./testdata/meta.yml", "--policy", "./testdata/test0/meta-policy.rego", "--input",
+				"eval", "--metafile", "./testdata/test1/meta.yml", "--policy", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--input",
 				"./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
@@ -559,7 +559,7 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metadata and query",
 			Args: []string{
-				"eval", "--metafile", "./testdata/meta.yml", "--policy", "./testdata/test0/meta-policy.rego", "--input",
+				"eval", "--metafile", "./testdata/test1/meta.yml", "--policy", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--input",
 				"./testdata/test0/config.yml", "--query", "data.org.enable_rule",
 			},
 			ExpectedOutput: `[

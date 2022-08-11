@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"time"
@@ -41,22 +42,23 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			Use:   "push",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				policyPath := args[0]
+				creationRequest.Policies = make(map[string]string)
 
-				policyFiles, err := os.ReadDir(policyPath) // get list of all files in given directory path
-				if err != nil {
-					return fmt.Errorf("failed to get list of policy files: %w", err)
-				}
-				creationRequest.Policies = make(map[string]string, len(policyFiles))
-				for _, f := range policyFiles {
-					if f.IsDir() || filepath.Ext(f.Name()) != ".rego" {
-						continue
-					}
-					filePath := filepath.Join(policyPath, f.Name()) // get absolute file path
-					fileContent, err := os.ReadFile(filepath.Clean(filePath))
+				err := filepath.WalkDir(policyPath, func(path string, f fs.DirEntry, err error) error {
 					if err != nil {
-						return fmt.Errorf("failed to read file: %w", err)
+						return err
 					}
-					creationRequest.Policies[f.Name()] = string(fileContent)
+					if (f.IsDir() == false) && (filepath.Ext(f.Name()) == ".rego") {
+						fileContent, err := os.ReadFile(filepath.Clean(path))
+						if err != nil {
+							return fmt.Errorf("failed to read file: %w", err)
+						}
+						creationRequest.Policies[f.Name()] = string(fileContent)
+					}
+					return nil
+				})
+				if err != nil {
+					return fmt.Errorf("failed to walk policy directory path: %w", err)
 				}
 
 				err = policy.NewClient(*policyBaseURL, config).CreatePolicyBundle(ownerID, context, creationRequest)
