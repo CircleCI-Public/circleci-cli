@@ -88,7 +88,7 @@ branch_is_main = "branch must be main!" { input.branch != "main" }
 		},
 		{
 			Name: "sends appropriate desired dry request",
-			Args: []string{"push", "./testdata/test0", "--owner-id", "test-org", "--context", "custom", "--dry"},
+			Args: []string{"push", "./testdata/test0", "--owner-id", "test-org", "--context", "custom", "--preview"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, r.Method, "POST")
@@ -115,7 +115,7 @@ branch_is_main = "branch must be main!" { input.branch != "main" }
 				_, _ = w.Write([]byte("{}"))
 			},
 			ExpectedStdOut: "{}\n",
-			ExpectedStdErr: "Policy Bundle Pushed in Dry-Mode (no changes were made)\n\ndiff:\n",
+			ExpectedStdErr: "Policy Bundle Pushed in Preview Mode (no changes were made)\n\ndiff:\n",
 		},
 	}
 

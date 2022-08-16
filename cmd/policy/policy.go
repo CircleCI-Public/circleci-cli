@@ -68,7 +68,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				topLevelMessage := func() string {
 					if request.DryRun {
-						return "Policy Bundle Pushed in Dry-Mode (no changes were made)\n"
+						return "Policy Bundle Pushed in Preview Mode (no changes were made)\n"
 					}
 					return "Policy Bundle Pushed Successfully\n"
 				}()
@@ -85,7 +85,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
-		cmd.Flags().BoolVar(&request.DryRun, "dry", false, "run in dry mode")
+		cmd.Flags().BoolVar(&request.DryRun, "preview", false, "run in dry mode and show the diff preview")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
 			panic(err)
 		}

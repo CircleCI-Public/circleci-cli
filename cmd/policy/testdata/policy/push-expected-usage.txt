@@ -6,8 +6,8 @@ policy push ./policy_bundle_dir_path --owner-id 462d67f8-b232-4da4-a7de-0c86dd66
 
 Flags:
       --context string    policy context (default "config")
-      --dry               run in dry mode
       --owner-id string   the id of the policy's owner
+      --preview           run in dry mode and show the diff preview
 
 Global Flags:
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
