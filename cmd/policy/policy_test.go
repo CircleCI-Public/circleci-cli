@@ -16,10 +16,12 @@ import (
 
 func TestPushPolicyBundle(t *testing.T) {
 	testcases := []struct {
-		Name          string
-		Args          []string
-		ServerHandler http.HandlerFunc
-		ExpectedErr   string
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedErr    string
+		ExpectedStdErr string
+		ExpectedStdOut string
 	}{
 		{
 			Name:        "requires policy bundle directory path ",
@@ -48,7 +50,10 @@ func TestPushPolicyBundle(t *testing.T) {
 					"policies": map[string]interface{}{},
 				})
 				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte("{}"))
 			},
+			ExpectedStdOut: "{}\n",
+			ExpectedStdErr: "Policy Bundle Pushed Successfully\n\ndiff:\n",
 		},
 		{
 			Name: "sends appropriate desired request",
@@ -76,7 +81,41 @@ branch_is_main = "branch must be main!" { input.branch != "main" }
 				})
 
 				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte("{}"))
 			},
+			ExpectedStdOut: "{}\n",
+			ExpectedStdErr: "Policy Bundle Pushed Successfully\n\ndiff:\n",
+		},
+		{
+			Name: "sends appropriate desired dry request",
+			Args: []string{"push", "./testdata/test0", "--owner-id", "test-org", "--context", "custom", "--dry"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/test-org/context/custom/policy-bundle?dry=true")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"policies": map[string]interface{}{
+						"meta-policy.rego": `package org
+
+policy_name["meta_policy_test"]
+enable_rule["enabled"] { data.meta.branch == "main" }
+enable_rule["disabled"] { data.meta.project_id != "test-project-id" }
+`,
+						"policy.rego": `package org
+
+policy_name["test"]
+enable_rule["branch_is_main"]
+branch_is_main = "branch must be main!" { input.branch != "main" }
+`,
+					},
+				})
+
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte("{}"))
+			},
+			ExpectedStdOut: "{}\n",
+			ExpectedStdErr: "Policy Bundle Pushed in Dry-Mode (no changes were made)\n\ndiff:\n",
 		},
 	}
 
@@ -89,17 +128,19 @@ branch_is_main = "branch must be main!" { input.branch != "main" }
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
-			cmd, _, _ := makeCMD()
+			cmd, stdout, stderr := makeCMD()
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
 			err := cmd.Execute()
-			if tc.ExpectedErr == "" {
-				assert.NilError(t, err)
-			} else {
+			if tc.ExpectedErr != "" {
 				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
+
+			assert.NilError(t, err)
+			assert.Equal(t, stdout.String(), tc.ExpectedStdOut)
+			assert.Equal(t, stderr.String(), tc.ExpectedStdErr)
 		})
 	}
 }

@@ -35,37 +35,50 @@ type httpError struct {
 // CreatePolicyBundleRequest defines the fields for the Create-Policy-Bundle endpoint as defined in Policy Service
 type CreatePolicyBundleRequest struct {
 	Policies map[string]string `json:"policies"`
+	DryRun   bool              `json:"-"`
 }
 
 // CreatePolicyBundle calls the Create Policy Bundle API in the Policy-Service.
 // It creates a policy bundle for the specified owner+context and returns the http status code as response
-func (c Client) CreatePolicyBundle(ownerID string, context string, policy CreatePolicyBundleRequest) error {
-	data, err := json.Marshal(policy)
+func (c Client) CreatePolicyBundle(ownerID string, context string, request CreatePolicyBundleRequest) (interface{}, error) {
+	data, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("failed to encode policy payload: %w", err)
+		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/owner/%s/context/%s/policy-bundle", c.serverUrl, ownerID, context), bytes.NewReader(data))
 	if err != nil {
-		return fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
 
 	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
 
+	if request.DryRun {
+		q := req.URL.Query()
+		q.Set("dry", "true")
+		req.URL.RawQuery = q.Encode()
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return fmt.Errorf("failed to get response from policy-service: %w", err)
+		return nil, fmt.Errorf("failed to get response from policy-service: %w", err)
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		var response httpError
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
-		return fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
 	}
-	return nil
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
 }
 
 // FetchPolicyBundle calls the GET policy-bundle API in the policy-service

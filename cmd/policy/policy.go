@@ -35,14 +35,14 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 	push := func() *cobra.Command {
 		var ownerID, context string
-		var creationRequest policy.CreatePolicyBundleRequest
+		var request policy.CreatePolicyBundleRequest
 
 		cmd := &cobra.Command{
 			Short: "push policy bundle",
 			Use:   "push",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				policyPath := args[0]
-				creationRequest.Policies = make(map[string]string)
+				request.Policies = make(map[string]string)
 
 				err := filepath.WalkDir(policyPath, func(path string, f fs.DirEntry, err error) error {
 					if err != nil {
@@ -53,7 +53,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 						if err != nil {
 							return fmt.Errorf("failed to read file: %w", err)
 						}
-						creationRequest.Policies[f.Name()] = string(fileContent)
+						request.Policies[f.Name()] = string(fileContent)
 					}
 					return nil
 				})
@@ -61,12 +61,22 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					return fmt.Errorf("failed to walk policy directory path: %w", err)
 				}
 
-				err = policy.NewClient(*policyBaseURL, config).CreatePolicyBundle(ownerID, context, creationRequest)
+				diff, err := policy.NewClient(*policyBaseURL, config).CreatePolicyBundle(ownerID, context, request)
 				if err != nil {
 					return fmt.Errorf("failed to push policy bundle: %w", err)
 				}
 
-				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Bundle Pushed Successfully\n")
+				topLevelMessage := func() string {
+					if request.DryRun {
+						return "Policy Bundle Pushed in Dry-Mode (no changes were made)\n"
+					}
+					return "Policy Bundle Pushed Successfully\n"
+				}()
+
+				_, _ = io.WriteString(cmd.ErrOrStderr(), topLevelMessage)
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "\ndiff:\n")
+				_ = prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
+
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
@@ -75,6 +85,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		cmd.Flags().BoolVar(&request.DryRun, "dry", false, "run in dry mode")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
 			panic(err)
 		}
