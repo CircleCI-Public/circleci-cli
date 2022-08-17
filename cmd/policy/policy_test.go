@@ -2,11 +2,15 @@ package policy
 
 import (
 	"bytes"
+	"embed"
 	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"testing"
+
+	_ "embed"
 
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
@@ -14,7 +18,16 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-func TestPushPolicyBundle(t *testing.T) {
+//go:embed testdata
+var testdata embed.FS
+
+func testdataContent(t *testing.T, path string) string {
+	data, err := testdata.ReadFile(filepath.Join("testdata", path))
+	assert.NilError(t, err)
+	return string(data)
+}
+
+func TestPushPolicyBundleNoPrompt(t *testing.T) {
 	testcases := []struct {
 		Name           string
 		Args           []string
@@ -53,7 +66,7 @@ func TestPushPolicyBundle(t *testing.T) {
 				_, _ = w.Write([]byte("{}"))
 			},
 			ExpectedStdOut: "{}\n",
-			ExpectedStdErr: "Policy Bundle Pushed Successfully\n\ndiff:\n",
+			ExpectedStdErr: "Policy Bundle Pushed Successfully\n\ndiff: ",
 		},
 		{
 			Name: "sends appropriate desired request",
@@ -65,18 +78,8 @@ func TestPushPolicyBundle(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"policies": map[string]interface{}{
-						"meta-policy.rego": `package org
-
-policy_name["meta_policy_test"]
-enable_rule["enabled"] { data.meta.branch == "main" }
-enable_rule["disabled"] { data.meta.project_id != "test-project-id" }
-`,
-						"policy.rego": `package org
-
-policy_name["test"]
-enable_rule["branch_is_main"]
-branch_is_main = "branch must be main!" { input.branch != "main" }
-`,
+						"testdata/test0/policy.rego":                                testdataContent(t, "test0/policy.rego"),
+						"testdata/test0/subdir/meta-policy-subdir/meta-policy.rego": testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
 					},
 				})
 
@@ -84,38 +87,7 @@ branch_is_main = "branch must be main!" { input.branch != "main" }
 				_, _ = w.Write([]byte("{}"))
 			},
 			ExpectedStdOut: "{}\n",
-			ExpectedStdErr: "Policy Bundle Pushed Successfully\n\ndiff:\n",
-		},
-		{
-			Name: "sends appropriate desired dry request",
-			Args: []string{"push", "./testdata/test0", "--owner-id", "test-org", "--context", "custom", "--preview"},
-			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
-				var body map[string]interface{}
-				assert.Equal(t, r.Method, "POST")
-				assert.Equal(t, r.URL.String(), "/api/v1/owner/test-org/context/custom/policy-bundle?dry=true")
-				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
-				assert.DeepEqual(t, body, map[string]interface{}{
-					"policies": map[string]interface{}{
-						"meta-policy.rego": `package org
-
-policy_name["meta_policy_test"]
-enable_rule["enabled"] { data.meta.branch == "main" }
-enable_rule["disabled"] { data.meta.project_id != "test-project-id" }
-`,
-						"policy.rego": `package org
-
-policy_name["test"]
-enable_rule["branch_is_main"]
-branch_is_main = "branch must be main!" { input.branch != "main" }
-`,
-					},
-				})
-
-				w.WriteHeader(http.StatusCreated)
-				_, _ = w.Write([]byte("{}"))
-			},
-			ExpectedStdOut: "{}\n",
-			ExpectedStdErr: "Policy Bundle Pushed in Preview Mode (no changes were made)\n\ndiff:\n",
+			ExpectedStdErr: "Policy Bundle Pushed Successfully\n\ndiff: ",
 		},
 	}
 
@@ -130,7 +102,7 @@ branch_is_main = "branch must be main!" { input.branch != "main" }
 
 			cmd, stdout, stderr := makeCMD()
 
-			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL, "--no-prompt"))
 
 			err := cmd.Execute()
 			if tc.ExpectedErr != "" {

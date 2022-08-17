@@ -3,6 +3,7 @@ Usage:
 
 Available Commands:
   decide      make a decision
+  diff        Get diff between local and remote policy bundles
   eval        perform raw opa evaluation locally
   fetch       Fetch policy bundle (or a single policy)
   logs        Get policy (decision) logs
