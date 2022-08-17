@@ -5,15 +5,12 @@ import (
 	"embed"
 	"encoding/json"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
-	expect "github.com/Netflix/go-expect"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 
@@ -54,46 +51,42 @@ func TestPushPolicyWithPrompt(t *testing.T) {
 	}))
 	defer svr.Close()
 
-	temp, err := os.CreateTemp(".", "")
-	assert.NilError(t, err)
+	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+	cmd := NewCommand(config, nil)
 
-	binaryPath := "./" + temp.Name()
+	buffer := new(bytes.Buffer)
 
-	defer os.Remove(binaryPath)
+	pr, pw := io.Pipe()
 
-	assert.NilError(t, exec.Command("go", "build", "-o", binaryPath, "../..").Run())
+	cmd.SetOut(buffer)
+	cmd.SetErr(buffer)
+	cmd.SetIn(pr)
 
-	console, err := expect.NewConsole(expect.WithStdout(os.Stdout), expect.WithLogger(log.Default()))
-	assert.NilError(t, err)
-
-	cmd := exec.Command(
-		binaryPath, "policy", "push", "./testdata/test0",
+	cmd.SetArgs([]string{
+		"push", "./testdata/test0",
 		"--owner-id", "test-org",
 		"--policy-base-url", svr.URL,
-		"--token", "testtoken",
-	)
+	})
 
-	tty := console.Tty()
+	done := make(chan struct{})
+	go func() {
+		assert.NilError(t, cmd.Execute())
+		close(done)
+	}()
 
-	cmd.Stdout = tty
-	cmd.Stderr = tty
-	cmd.Stdin = tty
+	time.Sleep(50 * time.Millisecond)
 
-	assert.NilError(t, cmd.Start())
+	expectedMessage := "The following changes are going to be made: {}\n\nDo you wish to continue? (y/N) "
+	assert.Equal(t, buffer.String(), expectedMessage)
 
-	_, err = console.ExpectString("Do you wish to continue")
+	_, err := pw.Write([]byte("y\n"))
 	assert.NilError(t, err)
 
-	_, err = console.SendLine("y")
-	assert.NilError(t, err)
+	time.Sleep(50 * time.Millisecond)
 
-	_, err = console.ExpectString("Policy Bundle Pushed Successfully")
-	assert.NilError(t, err)
+	assert.Equal(t, buffer.String()[len(expectedMessage):], "\nPolicy Bundle Pushed Successfully\n\ndiff: {}\n")
 
-	_, err = console.ExpectString("diff: {}")
-	assert.NilError(t, err)
-
-	assert.NilError(t, cmd.Wait())
+	<-done
 }
 
 func TestPushPolicyBundleNoPrompt(t *testing.T) {

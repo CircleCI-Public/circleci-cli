@@ -63,7 +63,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					_ = prettyJSONEncoder(cmd.ErrOrStderr()).Encode(diff)
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
 
-					if !Confirm(cmd.OutOrStdout(), "Do you wish to continue? (y/N)") {
+					if !Confirm(cmd.ErrOrStderr(), cmd.InOrStdin(), "Do you wish to continue? (y/N)") {
 						return nil
 					}
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
@@ -454,11 +454,12 @@ func loadBundleFromFS(root string) (map[string]string, error) {
 	return bundle, err
 }
 
-func Confirm(w io.Writer, question string) bool {
+func Confirm(w io.Writer, r io.Reader, question string) bool {
 	fmt.Fprint(w, question+" ")
 	var answer string
 
-	fmt.Scanln(&answer)
+	_, _ = fmt.Fscanln(r, &answer)
+
 	answer = strings.ToLower(answer)
 	return answer == "y" || answer == "yes"
 }
