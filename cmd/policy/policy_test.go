@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
@@ -54,7 +55,7 @@ func TestPushPolicyWithPrompt(t *testing.T) {
 	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 	cmd := NewCommand(config, nil)
 
-	buffer := new(bytes.Buffer)
+	buffer := makeSafeBuffer()
 
 	pr, pw := io.Pipe()
 
@@ -693,4 +694,28 @@ func makeCMD() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	cmd.SetErr(stderr)
 
 	return cmd, stdout, stderr
+}
+
+type SafeBuffer struct {
+	*bytes.Buffer
+	mu *sync.Mutex
+}
+
+func (buf SafeBuffer) Write(data []byte) (int, error) {
+	buf.mu.Lock()
+	defer buf.mu.Unlock()
+	return buf.Buffer.Write(data)
+}
+
+func (buf SafeBuffer) String() string {
+	buf.mu.Lock()
+	defer buf.mu.Unlock()
+	return buf.Buffer.String()
+}
+
+func makeSafeBuffer() SafeBuffer {
+	return SafeBuffer{
+		Buffer: &bytes.Buffer{},
+		mu:     &sync.Mutex{},
+	}
 }
