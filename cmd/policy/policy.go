@@ -265,9 +265,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd := &cobra.Command{
 			Short: "make a decision",
 			Use:   "decide",
-			RunE: func(cmd *cobra.Command, _ []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if len(args) == 1 {
+					policyPath = args[0]
+				}
 				if policyPath == "" && ownerID == "" {
-					return fmt.Errorf("--owner-id or --policy is required")
+					return fmt.Errorf("--owner-id or policy-directory-path is required")
 				}
 
 				input, err := os.ReadFile(inputPath)
@@ -304,13 +307,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args: cobra.ExactArgs(0),
+			Args: cobra.MaximumNArgs(1),
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
-		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
@@ -321,11 +323,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	eval := func() *cobra.Command {
-		var inputPath, policyPath, metaFile, query string
+		var inputPath, metaFile, query string
 		cmd := &cobra.Command{
 			Short: "perform raw opa evaluation locally",
 			Use:   "eval",
-			RunE: func(cmd *cobra.Command, _ []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
+				policyPath := args[0]
 				input, err := os.ReadFile(inputPath)
 				if err != nil {
 					return fmt.Errorf("failed to read input file: %w", err)
@@ -353,18 +356,14 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args: cobra.ExactArgs(0),
+			Args: cobra.ExactArgs(1),
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
-		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
-			panic(err)
-		}
-		if err := cmd.MarkFlagRequired("policy"); err != nil {
 			panic(err)
 		}
 
@@ -390,6 +389,14 @@ func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 
 // getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
 func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[string]interface{}) (*cpa.Decision, error) {
+	policyPathInfo, err := os.Stat(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get path info: %w", err)
+	}
+	if !policyPathInfo.IsDir() {
+		return nil, fmt.Errorf("policy path is not a directory")
+	}
+
 	var input interface{}
 	if err := yaml.Unmarshal(rawInput, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)
@@ -410,6 +417,14 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 
 // getPolicyEvaluationLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally and returns raw opa evaluation response
 func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[string]interface{}, query string) (interface{}, error) {
+	policyPathInfo, err := os.Stat(policyPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get path info: %w", err)
+	}
+	if !policyPathInfo.IsDir() {
+		return nil, fmt.Errorf("policy path is not a directory")
+	}
+
 	var input interface{}
 	if err := yaml.Unmarshal(rawInput, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)
@@ -431,9 +446,17 @@ func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[str
 func loadBundleFromFS(root string) (map[string]string, error) {
 	root = filepath.Clean(root)
 
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get path info: %w", err)
+	}
+	if !rootInfo.IsDir() {
+		return nil, fmt.Errorf("policy path is not a directory")
+	}
+
 	bundle := make(map[string]string)
 
-	err := filepath.WalkDir(root, func(path string, f fs.DirEntry, err error) error {
+	err = filepath.WalkDir(root, func(path string, f fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
