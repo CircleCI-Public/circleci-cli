@@ -22,7 +22,7 @@ import (
 var testdata embed.FS
 
 func testdataContent(t *testing.T, path string) string {
-	data, err := testdata.ReadFile(filepath.Join("testdata", path))
+	data, err := testdata.ReadFile(filepath.Join(".", "testdata", path))
 	assert.NilError(t, err)
 	return string(data)
 }
