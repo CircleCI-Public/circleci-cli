@@ -8,9 +8,9 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
 	"github.com/araddon/dateparse"
 	"github.com/briandowns/spinner"
@@ -43,9 +43,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			Short: "push policy bundle",
 			Use:   "push",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				policyPath := args[0]
-
-				bundle, err := loadBundleFromFS(policyPath)
+				bundle, err := loadBundleFromFS(args[0])
 				if err != nil {
 					return fmt.Errorf("failed to walk policy directory path: %w", err)
 				}
@@ -65,14 +63,9 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					_ = prettyJSONEncoder(cmd.ErrOrStderr()).Encode(diff)
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
 
-					var proceed bool
-					if err := survey.AskOne(&survey.Confirm{Message: "Do you wish to continue", Default: false}, &proceed); err != nil {
-						return err
-					}
-					if !proceed {
+					if !Confirm(cmd.OutOrStdout(), "Do you wish to continue? (y/N)") {
 						return nil
 					}
-
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
 				}
 
@@ -459,4 +452,13 @@ func loadBundleFromFS(root string) (map[string]string, error) {
 	})
 
 	return bundle, err
+}
+
+func Confirm(w io.Writer, question string) bool {
+	fmt.Fprint(w, question+" ")
+	var answer string
+
+	fmt.Scanln(&answer)
+	answer = strings.ToLower(answer)
+	return answer == "y" || answer == "yes"
 }

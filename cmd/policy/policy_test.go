@@ -5,13 +5,15 @@ import (
 	"embed"
 	"encoding/json"
 	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
-	_ "embed"
-
+	expect "github.com/Netflix/go-expect"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 
@@ -25,6 +27,73 @@ func testdataContent(t *testing.T, path string) string {
 	data, err := testdata.ReadFile(filepath.Join("testdata", path))
 	assert.NilError(t, err)
 	return string(data)
+}
+
+func TestPushPolicyWithPrompt(t *testing.T) {
+	var requestCount int
+
+	expectedURLs := []string{
+		"/api/v1/owner/test-org/context/config/policy-bundle?dry=true",
+		"/api/v1/owner/test-org/context/config/policy-bundle",
+	}
+
+	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		assert.Equal(t, r.Method, "POST")
+		assert.Equal(t, r.URL.String(), expectedURLs[requestCount])
+		assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+		assert.DeepEqual(t, body, map[string]interface{}{
+			"policies": map[string]interface{}{
+				"testdata/test0/policy.rego":                                testdataContent(t, "test0/policy.rego"),
+				"testdata/test0/subdir/meta-policy-subdir/meta-policy.rego": testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
+			},
+		})
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte("{}"))
+		requestCount++
+	}))
+	defer svr.Close()
+
+	temp, err := os.CreateTemp(".", "")
+	assert.NilError(t, err)
+
+	binaryPath := "./" + temp.Name()
+
+	defer os.Remove(binaryPath)
+
+	assert.NilError(t, exec.Command("go", "build", "-o", binaryPath, "../..").Run())
+
+	console, err := expect.NewConsole(expect.WithStdout(os.Stdout), expect.WithLogger(log.Default()))
+	assert.NilError(t, err)
+
+	cmd := exec.Command(
+		binaryPath, "policy", "push", "./testdata/test0",
+		"--owner-id", "test-org",
+		"--policy-base-url", svr.URL,
+		"--token", "testtoken",
+	)
+
+	tty := console.Tty()
+
+	cmd.Stdout = tty
+	cmd.Stderr = tty
+	cmd.Stdin = tty
+
+	assert.NilError(t, cmd.Start())
+
+	_, err = console.ExpectString("Do you wish to continue")
+	assert.NilError(t, err)
+
+	_, err = console.SendLine("y")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Policy Bundle Pushed Successfully")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("diff: {}")
+	assert.NilError(t, err)
+
+	assert.NilError(t, cmd.Wait())
 }
 
 func TestPushPolicyBundleNoPrompt(t *testing.T) {
