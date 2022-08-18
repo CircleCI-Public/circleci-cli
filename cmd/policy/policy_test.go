@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -42,8 +43,8 @@ func TestPushPolicyWithPrompt(t *testing.T) {
 		assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 		assert.DeepEqual(t, body, map[string]interface{}{
 			"policies": map[string]interface{}{
-				"testdata/test0/policy.rego":                                testdataContent(t, "test0/policy.rego"),
-				"testdata/test0/subdir/meta-policy-subdir/meta-policy.rego": testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
+				filepath.Join("testdata", "test0", "policy.rego"):                                      testdataContent(t, "test0/policy.rego"),
+				filepath.Join("testdata", "test0", "subdir", "meta-policy-subdir", "meta-policy.rego"): testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
 			},
 		})
 		w.WriteHeader(http.StatusCreated)
@@ -141,8 +142,8 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{
 					"policies": map[string]interface{}{
-						"testdata/test0/policy.rego":                                testdataContent(t, "test0/policy.rego"),
-						"testdata/test0/subdir/meta-policy-subdir/meta-policy.rego": testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
+						filepath.Join("testdata", "test0", "policy.rego"):                                      testdataContent(t, "test0/policy.rego"),
+						filepath.Join("testdata", "test0", "subdir", "meta-policy-subdir", "meta-policy.rego"): testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
 					},
 				})
 
