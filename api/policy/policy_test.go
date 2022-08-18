@@ -153,13 +153,47 @@ func TestClientCreatePolicy(t *testing.T) {
 			assert.DeepEqual(t, actual, req)
 
 			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte("{}"))
 		}))
 		defer svr.Close()
 
 		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 		client := NewClient(svr.URL, config)
 
-		err := client.CreatePolicyBundle("ownerId", "config", req)
+		_, err := client.CreatePolicyBundle("ownerId", "config", req)
+		assert.NilError(t, err)
+	})
+
+	t.Run("expected dry request", func(t *testing.T) {
+		req := CreatePolicyBundleRequest{
+			Policies: map[string]string{"policy_a": "package org"},
+			DryRun:   true,
+		}
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "POST")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle")
+			assert.Equal(t, r.URL.RawQuery, "dry=true")
+
+			var actual CreatePolicyBundleRequest
+			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
+			assert.DeepEqual(t, actual, CreatePolicyBundleRequest{Policies: req.Policies})
+
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte("{}"))
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.CreatePolicyBundle("ownerId", "config", req)
 		assert.NilError(t, err)
 	})
 
@@ -175,7 +209,7 @@ func TestClientCreatePolicy(t *testing.T) {
 		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
 		client := NewClient(svr.URL, config)
 
-		err := client.CreatePolicyBundle("ownerId", "config", CreatePolicyBundleRequest{})
+		_, err := client.CreatePolicyBundle("ownerId", "config", CreatePolicyBundleRequest{})
 		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
 	})
 }

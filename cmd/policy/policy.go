@@ -8,6 +8,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
@@ -35,44 +36,89 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 	push := func() *cobra.Command {
 		var ownerID, context string
-		var creationRequest policy.CreatePolicyBundleRequest
+		var noPrompt bool
+		var request policy.CreatePolicyBundleRequest
 
 		cmd := &cobra.Command{
 			Short: "push policy bundle",
 			Use:   "push",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				policyPath := args[0]
-				creationRequest.Policies = make(map[string]string)
-
-				err := filepath.WalkDir(policyPath, func(path string, f fs.DirEntry, err error) error {
-					if err != nil {
-						return err
-					}
-					if !f.IsDir() && (filepath.Ext(f.Name()) == ".rego") {
-						fileContent, err := os.ReadFile(filepath.Clean(path))
-						if err != nil {
-							return fmt.Errorf("failed to read file: %w", err)
-						}
-						creationRequest.Policies[f.Name()] = string(fileContent)
-					}
-					return nil
-				})
+				bundle, err := loadBundleFromFS(args[0])
 				if err != nil {
 					return fmt.Errorf("failed to walk policy directory path: %w", err)
 				}
 
-				err = policy.NewClient(*policyBaseURL, config).CreatePolicyBundle(ownerID, context, creationRequest)
+				request.Policies = bundle
+
+				client := policy.NewClient(*policyBaseURL, config)
+
+				if !noPrompt {
+					request.DryRun = true
+					diff, err := client.CreatePolicyBundle(ownerID, context, request)
+					if err != nil {
+						return fmt.Errorf("failed to get bundle diff: %v", err)
+					}
+
+					_, _ = io.WriteString(cmd.ErrOrStderr(), "The following changes are going to be made: ")
+					_ = prettyJSONEncoder(cmd.ErrOrStderr()).Encode(diff)
+					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
+
+					if !Confirm(cmd.ErrOrStderr(), cmd.InOrStdin(), "Do you wish to continue? (y/N)") {
+						return nil
+					}
+					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
+				}
+
+				request.DryRun = false
+
+				diff, err := client.CreatePolicyBundle(ownerID, context, request)
 				if err != nil {
 					return fmt.Errorf("failed to push policy bundle: %w", err)
 				}
 
 				_, _ = io.WriteString(cmd.ErrOrStderr(), "Policy Bundle Pushed Successfully\n")
+				_, _ = io.WriteString(cmd.ErrOrStderr(), "\ndiff: ")
+				_ = prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
+
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
 			Example: `policy push ./policy_bundle_dir_path --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --context config`,
 		}
 
+		cmd.Flags().StringVar(&context, "context", "config", "policy context")
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "removes the prompt")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
+
+		return cmd
+	}()
+
+	diff := func() *cobra.Command {
+		var ownerID, context string
+		cmd := &cobra.Command{
+			Short: "Get diff between local and remote policy bundles",
+			Use:   "diff",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				bundle, err := loadBundleFromFS(args[0])
+				if err != nil {
+					return fmt.Errorf("failed to walk policy directory path: %w", err)
+				}
+
+				diff, err := policy.NewClient(*policyBaseURL, config).CreatePolicyBundle(ownerID, context, policy.CreatePolicyBundleRequest{
+					Policies: bundle,
+					DryRun:   true,
+				})
+				if err != nil {
+					return fmt.Errorf("failed to get diff: %w", err)
+				}
+
+				return prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
+			},
+			Args: cobra.ExactArgs(1),
+		}
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
@@ -219,9 +265,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd := &cobra.Command{
 			Short: "make a decision",
 			Use:   "decide",
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				if policyPath == "" && ownerID == "" {
-					return fmt.Errorf("--owner-id or --policy is required")
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if len(args) == 1 {
+					policyPath = args[0]
+				}
+				if (policyPath == "" && ownerID == "") || (policyPath != "" && ownerID != "") {
+					return fmt.Errorf("either policy-path or --owner-id is required")
 				}
 
 				input, err := os.ReadFile(inputPath)
@@ -258,13 +307,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args: cobra.ExactArgs(0),
+			Args: cobra.MaximumNArgs(1),
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
-		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
@@ -275,11 +323,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	eval := func() *cobra.Command {
-		var inputPath, policyPath, metaFile, query string
+		var inputPath, metaFile, query string
 		cmd := &cobra.Command{
 			Short: "perform raw opa evaluation locally",
 			Use:   "eval",
-			RunE: func(cmd *cobra.Command, _ []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
+				policyPath := args[0]
 				input, err := os.ReadFile(inputPath)
 				if err != nil {
 					return fmt.Errorf("failed to read input file: %w", err)
@@ -307,18 +356,14 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args: cobra.ExactArgs(0),
+			Args: cobra.ExactArgs(1),
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
-		cmd.Flags().StringVar(&policyPath, "policy", "", "path to rego policy file or directory containing policy files")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
-			panic(err)
-		}
-		if err := cmd.MarkFlagRequired("policy"); err != nil {
 			panic(err)
 		}
 
@@ -326,6 +371,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	cmd.AddCommand(push)
+	cmd.AddCommand(diff)
 	cmd.AddCommand(fetch)
 	cmd.AddCommand(logs)
 	cmd.AddCommand(decide)
@@ -379,4 +425,48 @@ func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[str
 	}
 
 	return decision, nil
+}
+
+func loadBundleFromFS(root string) (map[string]string, error) {
+	root = filepath.Clean(root)
+
+	rootInfo, err := os.Stat(root)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get path info: %w", err)
+	}
+	if !rootInfo.IsDir() {
+		return nil, fmt.Errorf("policy path is not a directory")
+	}
+
+	bundle := make(map[string]string)
+
+	err = filepath.WalkDir(root, func(path string, f fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if f.IsDir() || filepath.Ext(path) != ".rego" {
+			return nil
+		}
+
+		fileContent, err := os.ReadFile(filepath.Clean(path))
+		if err != nil {
+			return fmt.Errorf("failed to read file: %w", err)
+		}
+
+		bundle[path] = string(fileContent)
+
+		return nil
+	})
+
+	return bundle, err
+}
+
+func Confirm(w io.Writer, r io.Reader, question string) bool {
+	fmt.Fprint(w, question+" ")
+	var answer string
+
+	_, _ = fmt.Fscanln(r, &answer)
+
+	answer = strings.ToLower(answer)
+	return answer == "y" || answer == "yes"
 }
