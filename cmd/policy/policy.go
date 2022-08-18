@@ -389,14 +389,6 @@ func prettyJSONEncoder(dst io.Writer) *json.Encoder {
 
 // getPolicyDecisionLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally
 func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[string]interface{}) (*cpa.Decision, error) {
-	policyPathInfo, err := os.Stat(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get path info: %w", err)
-	}
-	if !policyPathInfo.IsDir() {
-		return nil, fmt.Errorf("policy path is not a directory")
-	}
-
 	var input interface{}
 	if err := yaml.Unmarshal(rawInput, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)
@@ -417,14 +409,6 @@ func getPolicyDecisionLocally(policyPath string, rawInput []byte, meta map[strin
 
 // getPolicyEvaluationLocally takes path of policy path/directory and input (eg build config) as string, and performs policy evaluation locally and returns raw opa evaluation response
 func getPolicyEvaluationLocally(policyPath string, rawInput []byte, meta map[string]interface{}, query string) (interface{}, error) {
-	policyPathInfo, err := os.Stat(policyPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get path info: %w", err)
-	}
-	if !policyPathInfo.IsDir() {
-		return nil, fmt.Errorf("policy path is not a directory")
-	}
-
 	var input interface{}
 	if err := yaml.Unmarshal(rawInput, &input); err != nil {
 		return nil, fmt.Errorf("invalid input: %w", err)

@@ -525,24 +525,21 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails if neither local-policy nor owner-id is provided",
 			Args:        []string{"decide", "--input", "./testdata/test1/test.yml"},
-			ExpectedErr: "--owner-id or --policy is required",
+			ExpectedErr: "--owner-id or policy-directory-path is required",
 		},
 		{
 			Name:        "fails for input file not found",
-			Args:        []string{"decide", "--policy", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
 			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
 		},
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
-			Args:        []string{"decide", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
+			Args:        []string{"decide", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
-			Args: []string{
-				"decide", "--policy", "./testdata/test0/policy.rego", "--input",
-				"./testdata/test0/config.yml",
-			},
+			Args: []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test0/config.yml"},
 			ExpectedOutput: `{
   "status": "PASS",
   "enabled_rules": [
@@ -554,8 +551,8 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name: "successfully performs decision with metadata for policy FILE provided locally",
 			Args: []string{
-				"decide", "--metafile", "./testdata/test1/meta.yml", "--policy", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--input",
-				"./testdata/test0/config.yml",
+				"decide", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
+				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
   "status": "PASS",
@@ -601,35 +598,30 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		ExpectedErr    string
 	}{
 		{
-			Name:        "requires flags",
-			Args:        []string{"eval"},
-			ExpectedErr: `required flag(s) "input", "policy" not set`,
-		},
-		{
 			Name:        "fails if local-policy is not provided",
 			Args:        []string{"eval", "--input", "./testdata/test1/test.yml"},
-			ExpectedErr: `required flag(s) "policy" not set`,
+			ExpectedErr: `accepts 1 arg(s), received 0`,
 		},
 		{
 			Name:        "fails if input is not provided",
-			Args:        []string{"eval", "--policy", "./testdata/test0/policy.rego"},
+			Args:        []string{"eval", "./testdata/test0/policy.rego"},
 			ExpectedErr: `required flag(s) "input" not set`,
 		},
 		{
 			Name:        "fails for input file not found",
-			Args:        []string{"eval", "--policy", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
+			Args:        []string{"eval", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
 			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
 		},
 		{
 			Name:        "fails for policy FILE/DIRECTORY not found",
-			Args:        []string{"eval", "--policy", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
+			Args:        []string{"eval", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
 			Args: []string{
-				"eval", "--metafile", "./testdata/test1/meta.yml", "--policy", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--input",
-				"./testdata/test0/config.yml",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
+				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
   "meta": {
@@ -650,8 +642,8 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metadata and query",
 			Args: []string{
-				"eval", "--metafile", "./testdata/test1/meta.yml", "--policy", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--input",
-				"./testdata/test0/config.yml", "--query", "data.org.enable_rule",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
+				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml", "--query", "data.org.enable_rule",
 			},
 			ExpectedOutput: `[
   "enabled"
