@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>circleci_policy_decide</title>
+  <title>circleci_policy_diff</title>
   <style type="text/css">
       code{white-space: pre-wrap;}
       span.smallcaps{font-variant: small-caps;}
@@ -13,16 +13,14 @@
   </style>
 </head>
 <body>
-<h2 id="circleci-policy-decide">circleci policy decide</h2>
-<p>make a decision</p>
+<h2 id="circleci-policy-diff">circleci policy diff</h2>
+<p>Get diff between local and remote policy bundles</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>make a decision</p>
-<pre><code>circleci policy decide [flags]</code></pre>
+<p>Get diff between local and remote policy bundles</p>
+<pre><code>circleci policy diff [flags]</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>      --context string    policy context for decision (default &quot;config&quot;)
-  -h, --help              help for decide
-      --input string      path to input file
-      --metafile string   decision metadata file
+<pre><code>      --context string    policy context (default &quot;config&quot;)
+  -h, --help              help for diff
       --owner-id string   the id of the policy&#39;s owner</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
