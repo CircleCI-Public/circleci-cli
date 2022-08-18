@@ -626,6 +626,11 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "either policy-path or --owner-id is required",
 		},
 		{
+			Name:        "fails if both local-policy and owner-id are provided",
+			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--owner-id", "test-owner"},
+			ExpectedErr: "either policy-path or --owner-id is required",
+		},
+		{
 			Name:        "fails for input file not found",
 			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/no_such_file.yml"},
 			ExpectedErr: "failed to read input file: open ./testdata/no_such_file.yml: ",
