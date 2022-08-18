@@ -116,6 +116,11 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 			ExpectedErr: "failed to walk policy directory path: ",
 		},
 		{
+			Name:        "fails if policy path points to a file instead of directory",
+			Args:        []string{"push", "./testdata/test0/policy.rego", "--owner-id", "test-org"},
+			ExpectedErr: "failed to walk policy directory path: policy path is not a directory",
+		},
+		{
 			Name: "no policy files in given policy directory path",
 			Args: []string{"push", "./testdata/test0/no-valid-policy-files", "--owner-id", "test-org", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -167,6 +172,99 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 			cmd, stdout, stderr := makeCMD()
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL, "--no-prompt"))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr != "" {
+				assert.ErrorContains(t, err, tc.ExpectedErr)
+				return
+			}
+
+			assert.NilError(t, err)
+			assert.Equal(t, stdout.String(), tc.ExpectedStdOut)
+			assert.Equal(t, stderr.String(), tc.ExpectedStdErr)
+		})
+	}
+}
+
+func TestDiffPolicyBundle(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedErr    string
+		ExpectedStdErr string
+		ExpectedStdOut string
+	}{
+		{
+			Name:        "requires policy bundle directory path ",
+			Args:        []string{"diff", "--owner-id", "ownerID"},
+			ExpectedErr: "accepts 1 arg(s), received 0",
+		},
+		{
+			Name:        "requires owner-id",
+			Args:        []string{"diff", "./testdata/test0/policy.rego"},
+			ExpectedErr: "required flag(s) \"owner-id\" not set",
+		},
+		{
+			Name:        "fails for policy bundle directory path not found",
+			Args:        []string{"diff", "./testdata/directory_not_present", "--owner-id", "test-org"},
+			ExpectedErr: "failed to walk policy directory path: ",
+		},
+		{
+			Name:        "fails if policy path points to a file instead of directory",
+			Args:        []string{"diff", "./testdata/test0/policy.rego", "--owner-id", "test-org"},
+			ExpectedErr: "failed to walk policy directory path: policy path is not a directory",
+		},
+		{
+			Name: "no policy files in given policy directory path",
+			Args: []string{"diff", "./testdata/test0/no-valid-policy-files", "--owner-id", "test-org", "--context", "custom"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/test-org/context/custom/policy-bundle?dry=true")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"policies": map[string]interface{}{},
+				})
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte("{}"))
+			},
+			ExpectedStdOut: "{}\n",
+		},
+		{
+			Name: "sends appropriate desired request",
+			Args: []string{"diff", "./testdata/test0", "--owner-id", "test-org", "--context", "custom"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/test-org/context/custom/policy-bundle?dry=true")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{
+					"policies": map[string]interface{}{
+						filepath.Join("testdata", "test0", "policy.rego"):                                      testdataContent(t, "test0/policy.rego"),
+						filepath.Join("testdata", "test0", "subdir", "meta-policy-subdir", "meta-policy.rego"): testdataContent(t, "test0/subdir/meta-policy-subdir/meta-policy.rego"),
+					},
+				})
+
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte("{}"))
+			},
+			ExpectedStdOut: "{}\n",
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, stderr := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
 			err := cmd.Execute()
 			if tc.ExpectedErr != "" {
