@@ -269,8 +269,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				if len(args) == 1 {
 					policyPath = args[0]
 				}
-				if policyPath == "" && ownerID == "" {
-					return fmt.Errorf("--owner-id or policy-directory-path is required")
+				if (policyPath == "" && ownerID == "") || (policyPath != "" && ownerID != "") {
+					return fmt.Errorf("either policy-path or --owner-id is required")
 				}
 
 				input, err := os.ReadFile(inputPath)
