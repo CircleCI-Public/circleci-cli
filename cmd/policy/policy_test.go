@@ -7,7 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
+	"path"
 	"sync"
 	"testing"
 	"time"
@@ -21,8 +21,8 @@ import (
 //go:embed testdata
 var testdata embed.FS
 
-func testdataContent(t *testing.T, path string) string {
-	data, err := testdata.ReadFile(filepath.Join(".", "testdata", path))
+func testdataContent(t *testing.T, filePath string) string {
+	data, err := testdata.ReadFile(path.Join(".", "testdata", filePath))
 	assert.NilError(t, err)
 	return string(data)
 }
