@@ -1,8 +1,8 @@
 Usage:
-  policy push [flags]
+  policy push <policy_dir_path> [flags]
 
 Examples:
-policy push ./policy_bundle_dir_path --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --context config
+policy push ./config --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
 
 Flags:
       --context string    policy context (default "config")

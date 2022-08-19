@@ -1,5 +1,8 @@
 Usage:
-  policy decide [flags]
+  policy decide [policy_file_or_dir_path] [flags]
+
+Examples:
+policy decide ./config --input ./.circleci/config.yml
 
 Flags:
       --context string    policy context for decision (default "config")

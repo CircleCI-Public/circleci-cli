@@ -1,5 +1,8 @@
 Usage:
-  policy eval [flags]
+  policy eval <policy_file_or_dir_path> [flags]
+
+Examples:
+policy eval ./config --input ./.circleci/config.yml
 
 Flags:
       --input string      path to input file
