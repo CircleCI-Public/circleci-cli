@@ -83,7 +83,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy push ./config --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
+			Example: `policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -118,7 +118,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy diff ./config --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
+			Example: `policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -309,7 +309,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy decide ./config --input ./.circleci/config.yml`,
+			Example: `policy decide ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -359,7 +359,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy eval ./config --input ./.circleci/config.yml`,
+			Example: `policy eval ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
