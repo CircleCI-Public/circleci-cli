@@ -17,7 +17,9 @@
 <p>perform raw opa evaluation locally</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>perform raw opa evaluation locally</p>
-<pre><code>circleci policy eval [flags]</code></pre>
+<pre><code>circleci policy eval &lt;policy_file_or_dir_path&gt; [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>policy eval ./policies --input ./.circleci/config.yml</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>  -h, --help              help for eval
       --input string      path to input file

@@ -17,7 +17,9 @@
 <p>make a decision</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>make a decision</p>
-<pre><code>circleci policy decide [flags]</code></pre>
+<pre><code>circleci policy decide [policy_file_or_dir_path] [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>policy decide ./policies --input ./.circleci/config.yml</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>      --context string    policy context for decision (default &quot;config&quot;)
   -h, --help              help for decide
