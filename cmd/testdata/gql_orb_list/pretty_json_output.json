@@ -1,21 +1,6 @@
 {
   "orbs": [
     {
-      "name": "circleci/codecov-clojure",
-      "statistics": {
-        "last30DaysBuildCount": 0,
-        "last30DaysProjectCount": 0,
-        "last30DaysOrganizationCount": 0
-      },
-      "version": "0.0.3",
-      "versions": [
-        {
-          "version": "0.0.3",
-          "source": "{}"
-        }
-      ]
-    },
-    {
       "name": "circleci/gradle",
       "statistics": {
         "last30DaysBuildCount": 0,
