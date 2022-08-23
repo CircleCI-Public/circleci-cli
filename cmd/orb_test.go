@@ -2146,6 +2146,8 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session).Should(gexec.Exit(0))
 				Eventually(session.Out).Should(gbytes.Say("Orbs found: 11. Includes all certified and uncertified orbs."))
+				// Include an orb with content from the first mocked response
+				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
 
@@ -2340,6 +2342,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 				Expect(err).ShouldNot(HaveOccurred())
 
 				secondRequest := graphql.NewRequest(query)
+				secondRequest.Variables["after"] = "circleci/codecov-clojure"
 				secondRequest.Variables["namespace"] = "circleci"
 				secondRequest.Variables["view"] = "PUBLIC_ONLY"
 

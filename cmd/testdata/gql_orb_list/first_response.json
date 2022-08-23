@@ -38,6 +38,18 @@
           }
         },
         {
+          "cursor": "circleci/codecov-clojure",
+          "node": {
+            "name": "circleci/codecov-clojure",
+            "versions": [
+              {
+                "version": "0.0.3",
+                "source": "{}"
+              }
+            ]
+          }
+        },
+        {
           "cursor": "circleci/gradle",
           "node": {
             "name": "circleci/gradle",
