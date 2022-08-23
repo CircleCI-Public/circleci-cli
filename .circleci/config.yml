@@ -158,7 +158,11 @@ jobs:
     executor: go
     steps:
       - checkout
-      - run: sudo apt-get install pandoc
+      - run:
+          name: Install pandoc
+          command: |
+            sudo apt-get update
+            sudo apt-get install pandoc
       - gomod
       - run: go run main.go usage
       - store_artifacts:

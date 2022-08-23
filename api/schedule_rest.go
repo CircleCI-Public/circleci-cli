@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -463,16 +462,7 @@ func (c *ScheduleRestClient) EnsureExists() error {
 // Returns a new client satisfying the api.ScheduleInterface interface
 // via the REST API.
 func NewScheduleRestClient(config settings.Config) (*ScheduleRestClient, error) {
-	// Ensure server ends with a slash
-	if !strings.HasSuffix(config.RestEndpoint, "/") {
-		config.RestEndpoint += "/"
-	}
-	serverURL, err := url.Parse(config.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err = serverURL.Parse(config.RestEndpoint)
+	serverURL, err := config.ServerURL()
 	if err != nil {
 		return nil, err
 	}

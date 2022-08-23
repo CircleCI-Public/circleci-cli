@@ -30,66 +30,34 @@ type httpError struct {
 	Context map[string]interface{} `json:"context,omitempty"`
 }
 
-// ListPolicies calls the view policy-service list policy API. If the active filter is nil, all policies are returned. If
-// activeFilter is not nil it will only return active or inactive policies based on the value of *activeFilter.
-func (c Client) ListPolicies(ownerID string, activeFilter *bool) (interface{}, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
-	}
-
-	query := make(url.Values)
-	if activeFilter != nil {
-		query.Set("active", fmt.Sprint(*activeFilter))
-	}
-
-	req.URL.RawQuery = query.Encode()
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var payload httpError
-		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
-		}
-		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
-	}
-
-	var body interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
-	}
-
-	return body, nil
-}
-
 // Creation types taken from policy-service: internal/policy/api.go
 
-// CreationRequest represents the json payload to create a Policy in the Policy-Service
-type CreationRequest struct {
-	Name    string `json:"name"`
-	Context string `json:"context"`
-	Content string `json:"content"`
+// CreatePolicyBundleRequest defines the fields for the Create-Policy-Bundle endpoint as defined in Policy Service
+type CreatePolicyBundleRequest struct {
+	Policies map[string]string `json:"policies"`
+	DryRun   bool              `json:"-"`
 }
 
-// CreatePolicy call the Create Policy API in the Policy-Service. It creates a policy for the specified owner and returns the created
-// policy response as an interface{}.
-func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{}, error) {
-	data, err := json.Marshal(policy)
+// CreatePolicyBundle calls the Create Policy Bundle API in the Policy-Service.
+// It creates a policy bundle for the specified owner+context and returns the http status code as response
+func (c Client) CreatePolicyBundle(ownerID string, context string, request CreatePolicyBundleRequest) (interface{}, error) {
+	data, err := json.Marshal(request)
 	if err != nil {
 		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/owner/%s/policy", c.serverUrl, ownerID), bytes.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/owner/%s/context/%s/policy-bundle", c.serverUrl, ownerID, context), bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
 
 	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
+
+	if request.DryRun {
+		q := req.URL.Query()
+		q.Set("dry", "true")
+		req.URL.RawQuery = q.Encode()
+	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
@@ -97,7 +65,7 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusCreated {
+	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		var response httpError
 		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
 			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
@@ -105,65 +73,19 @@ func (c Client) CreatePolicy(ownerID string, policy CreationRequest) (interface{
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
 	}
 
-	var response interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
 	}
 
-	return &response, nil
+	return body, nil
 }
 
-type UpdateRequest struct {
-	Name    *string `json:"name,omitempty"`
-	Context *string `json:"context,omitempty"`
-	Content *string `json:"content,omitempty"`
-	Active  *bool   `json:"active,omitempty"`
-}
-
-// UpdatePolicy calls the UPDATE policy API in the policy-service. It updates a policy in the policy-service matching the given owner-id and policy-id.
-func (c Client) UpdatePolicy(ownerID string, policyID string, policy UpdateRequest) (interface{}, error) {
-	data, err := json.Marshal(policy)
-	if err != nil {
-		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
-	}
-
-	req, err := http.NewRequest(
-		"PATCH",
-		fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID),
-		bytes.NewReader(data),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
-	}
-
-	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get response from policy-service: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var response httpError
-		if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
-		}
-		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, response.Error)
-	}
-
-	var response interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&response); err != nil {
-		return nil, fmt.Errorf("failed to parse response: %w", err)
-	}
-
-	return &response, nil
-}
-
-// GetPolicy calls the GET policy API in the policy-service.It fetches the policy from policy-service matching the given owner-id and policy-id.
-// It returns an error if the call fails or the policy could not be found.
-func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) {
-	req, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
+// FetchPolicyBundle calls the GET policy-bundle API in the policy-service
+// If policyName is empty, the full policy bundle would be fetched for given ownerID+context
+// If a policyName is provided, only that matching policy would be fetched for given ownerID+context+policyName
+func (c Client) FetchPolicyBundle(ownerID, context, policyName string) (interface{}, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/context/%s/policy-bundle/%s", c.serverUrl, ownerID, context, policyName), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
@@ -177,7 +99,7 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -188,35 +110,10 @@ func (c Client) GetPolicy(ownerID string, policyID string) (interface{}, error) 
 	}
 
 	return body, nil
-}
-
-// DeletePolicy calls the DELETE Policy API in the policy-service.
-// It attempts to delete the policy matching the given policy-id and belonging to the given ownerID.
-// It returns an error if the call fails or the policy could not be deleted.
-func (c Client) DeletePolicy(ownerID string, policyID string) error {
-	req, err := http.NewRequest(http.MethodDelete, fmt.Sprintf("%s/api/v1/owner/%s/policy/%s", c.serverUrl, ownerID, policyID), nil)
-	if err != nil {
-		return fmt.Errorf("failed to construct request: %v", err)
-	}
-
-	resp, err := c.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusNoContent {
-		var payload httpError
-		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return fmt.Errorf("unexected status-code: %d", resp.StatusCode)
-		}
-		return fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
-	}
-
-	return nil
 }
 
 type DecisionQueryRequest struct {
+	Status    string
 	After     *time.Time
 	Before    *time.Time
 	Branch    string
@@ -226,13 +123,16 @@ type DecisionQueryRequest struct {
 
 // GetDecisionLogs calls the GET decision query API of policy-service. The endpoint accepts multiple filter values as
 // path query parameters (start-time, end-time, branch-name, project-id and offset).
-func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([]interface{}, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/decision", c.serverUrl, ownerID), nil)
+func (c Client) GetDecisionLogs(ownerID string, context string, request DecisionQueryRequest) ([]interface{}, error) {
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision", c.serverUrl, ownerID, context), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
 
 	query := make(url.Values)
+	if request.Status != "" {
+		query.Set("status", fmt.Sprint(request.Status))
+	}
 	if request.After != nil {
 		query.Set("after", request.After.Format(time.RFC3339))
 	}
@@ -260,7 +160,7 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return nil, fmt.Errorf("unexected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
@@ -276,18 +176,18 @@ func (c Client) GetDecisionLogs(ownerID string, request DecisionQueryRequest) ([
 // DecisionRequest represents a request to Policy-Service to evaluate a given input against an organization's policies.
 // The context determines which policies to apply.
 type DecisionRequest struct {
-	Input   string `json:"input"`
-	Context string `json:"context"`
+	Input    string                 `json:"input"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response
-func (c Client) MakeDecision(ownerID string, req DecisionRequest) (interface{}, error) {
+func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest) (interface{}, error) {
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("%s/api/v1/owner/%s/decision", c.serverUrl, ownerID)
+	endpoint := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision", c.serverUrl, ownerID, context)
 
 	request, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
 	if err != nil {
