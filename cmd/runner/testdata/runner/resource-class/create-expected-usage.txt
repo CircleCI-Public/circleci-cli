@@ -1,0 +1,5 @@
+Usage:
+  runner resource-class create <resource-class> <description> [flags]
+
+Flags:
+      --generate-token   Generate a default token

@@ -5,13 +5,14 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Setup with prompts", func() {
@@ -63,7 +64,7 @@ var _ = Describe("Setup with prompts", func() {
 		    }
 		  }`
 
-			request := client.NewRequest(query)
+			request := graphql.NewRequest(query)
 			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -77,7 +78,7 @@ var _ = Describe("Setup with prompts", func() {
 
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
-			request = client.NewRequest(query)
+			request = graphql.NewRequest(query)
 			request.SetToken(token)
 			Expect(err).ShouldNot(HaveOccurred())
 			expected, err = request.Encode()
@@ -93,12 +94,15 @@ var _ = Describe("Setup with prompts", func() {
 
 		Describe("new config file", func() {
 			It("should set file permissions to 0600", func() {
+
 				err := setup(opts)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				fileInfo, err := os.Stat(tempSettings.Config.Path)
 				Expect(err).ToNot(HaveOccurred())
-				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+				if runtime.GOOS != "windows" {
+					Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+				}
 			})
 		})
 
@@ -193,7 +197,7 @@ token: %s
 		    }
 		  }`
 
-			request := client.NewRequest(query)
+			request := graphql.NewRequest(query)
 			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -204,7 +208,7 @@ token: %s
 
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
-			request = client.NewRequest(query)
+			request = graphql.NewRequest(query)
 			request.SetToken(token)
 			Expect(err).ShouldNot(HaveOccurred())
 			expected, err = request.Encode()
@@ -267,7 +271,7 @@ Trying to query our API for your profile name... Hello, %s.
 		    }
 		  }`
 
-			request := client.NewRequest(query)
+			request := graphql.NewRequest(query)
 			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -281,7 +285,7 @@ Trying to query our API for your profile name... Hello, %s.
 
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
-			request = client.NewRequest(query)
+			request = graphql.NewRequest(query)
 			request.SetToken(token)
 			Expect(err).ShouldNot(HaveOccurred())
 			expected, err = request.Encode()

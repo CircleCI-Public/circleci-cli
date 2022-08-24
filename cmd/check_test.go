@@ -81,6 +81,13 @@ var _ = Describe("Check", func() {
 		"label": "short description",
         "content_type": "application/zip",
 		"size": 1024
+      },
+      {
+        "id": 1,
+        "name": "windows_amd64.tar.gz",
+        "label": "short description",
+        "content_type": "application/zip",
+        "size": 1024
       }
     ]
   }
@@ -89,7 +96,7 @@ var _ = Describe("Check", func() {
 
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 			)

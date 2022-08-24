@@ -7,12 +7,8 @@ archives:
       - goos: windows
         format: zip
     files:
-      - client/LICENSE
+      - api/graphql/LICENSE
       - md_docs/LICENSE
-
-before:
-  hooks:
-  - make pack
 
 builds:
   - binary: circleci
@@ -25,6 +21,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     ldflags:
       # -s Omit the symbol table and debug information.
       # -w Omit the DWARF symbol table.

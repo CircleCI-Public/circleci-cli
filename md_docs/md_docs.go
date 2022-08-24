@@ -22,7 +22,6 @@ var introHeader = `
 [![CircleCI](https://circleci.com/gh/CircleCI-Public/circleci-cli.svg?style=svg)](https://circleci.com/gh/CircleCI-Public/circleci-cli)
 [![GitHub release](https://img.shields.io/github/tag/CircleCI-Public/circleci-cli.svg?label=latest)](https://github.com/CircleCI-Public/circleci-cli/releases)
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
-[![Codecov](https://codecov.io/gh/CircleCI-Public/circleci-cli/branch/master/graph/badge.svg)](https://codecov.io/gh/CircleCI-Public/circleci-cli)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
 `
 

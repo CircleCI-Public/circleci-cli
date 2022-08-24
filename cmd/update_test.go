@@ -11,7 +11,7 @@ import (
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Update", func() {
@@ -45,6 +45,13 @@ var _ = Describe("Update", func() {
 		"label": "short description",
         "content_type": "application/zip",
 		"size": 1024
+      },
+      {
+        "id": 1,
+        "name": "windows_amd64.tar.gz",
+        "label": "short description",
+        "content_type": "application/zip",
+        "size": 1024
       }
     ]
   }
@@ -53,7 +60,7 @@ var _ = Describe("Update", func() {
 
 		tempSettings.TestServer.AppendHandlers(
 			ghttp.CombineHandlers(
-				ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+				ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
 				ghttp.RespondWith(http.StatusOK, response),
 			),
 		)
@@ -125,11 +132,11 @@ var _ = Describe("Update", func() {
 
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
 					ghttp.RespondWith(http.StatusOK, assetResponse),
 				),
 			)
@@ -159,7 +166,7 @@ var _ = Describe("Update", func() {
 			tempSettings.TestServer.Reset()
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusForbidden, []byte("Forbidden")),
 				),
 			)

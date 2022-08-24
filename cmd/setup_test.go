@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
@@ -50,7 +51,9 @@ var _ = Describe("Setup with prompts", func() {
 
 			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			if runtime.GOOS != "windows" {
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			}
 		})
 	})
 
@@ -63,7 +66,9 @@ var _ = Describe("Setup with prompts", func() {
 
 			fileInfo, err := os.Stat(tempSettings.Config.Path)
 			Expect(err).ToNot(HaveOccurred())
-			Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			if runtime.GOOS != "windows" {
+				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
+			}
 		})
 
 		Describe("token and host set in config file", func() {
@@ -248,6 +253,13 @@ Your configuration has been saved to %s.
 					Expect(string(reread)).To(Equal(`host: https://zomg.com
 endpoint: graphql-unstable
 token: mytoken
+rest_endpoint: api/v2
+tls_cert: ""
+tls_insecure: false
+orb_publishing:
+    default_namespace: ""
+    default_vcs_provider: ""
+    default_owner: ""
 `))
 				})
 			})
