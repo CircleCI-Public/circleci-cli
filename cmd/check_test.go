@@ -96,7 +96,7 @@ var _ = Describe("Check", func() {
 
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 			)

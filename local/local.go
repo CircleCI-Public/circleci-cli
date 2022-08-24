@@ -1,18 +1,18 @@
 package local
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
+	"strings"
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -22,30 +22,26 @@ var picardRepo = "circleci/picard"
 
 const DefaultConfigPath = ".circleci/config.yml"
 
-type buildAgentSettings struct {
-	LatestSha256 string
-}
-
-func UpdateBuildAgent() error {
-	latestSha256, err := findLatestPicardSha()
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Latest build agent is version %s\n", latestSha256)
-
-	return nil
-}
-
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
+	var err error
+	var configResponse *api.ConfigResponse
+	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 
 	processedArgs, configPath := buildAgentArguments(flags)
-	cl := client.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	configResponse, err := api.ConfigQuery(cl, configPath, nil)
 
-	if err != nil {
-		return err
+	//if no orgId provided use org slug
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		configResponse, err = api.ConfigQuery(cl, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		configResponse, err = api.ConfigQueryLegacy(cl, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	if !configResponse.Valid {
@@ -101,7 +97,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 }
 
 // The `local execute` command proxies execution to the picard docker container,
-// and ultimately to `build-agent`. We want to pass all arguments passed to the
+// and ultimately to `build-agent`. We want to pass most arguments passed to the
 // `local execute` command on to build-agent
 // These options are here to retain a mock of the flags used by `build-agent`.
 // They don't reflect the entire structure or available flags, only those which
@@ -112,17 +108,18 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
-	flags.StringSliceP("volume", "v", nil, "Volume bind-mounting")
+	flags.StringArrayP("volume", "v", nil, "Volume bind-mounting")
 	flags.String("checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
 	flags.String("revision", "", "Git Revision")
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
-	flags.StringSliceP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
 }
 
 // Given the full set of flags that were passed to this command, return the path
 // to the config file, and the list of supplied args _except_ for the `--config`
-// or `-c` argument.
+// or `-c` argument, and except for --debug and --org-slug which are consumed by
+// this program.
 // The `build-agent` can only deal with config version 2.0. In order to feed
 // version 2.0 config to it, we need to process the supplied config file using the
 // GraphQL API, and feed the result of that into `build-agent`. The first step of
@@ -134,7 +131,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -147,25 +144,13 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 func picardImage(output io.Writer) (string, error) {
 
-	sha, err := loadCurrentBuildAgentSha()
+	fmt.Fprintf(output, "Fetching latest build environment...\n")
+	sha, err := findLatestPicardSha()
 
 	if err != nil {
-		fmt.Printf("Failed to load build agent settings: %s\n", err)
+		return "", err
 	}
 
-	if sha == "" {
-
-		fmt.Println("Downloading latest CircleCI build agent...")
-
-		var err error
-
-		sha, err = findLatestPicardSha()
-
-		if err != nil {
-			return "", err
-		}
-
-	}
 	_, _ = fmt.Fprintf(output, "Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
 }
@@ -208,61 +193,7 @@ func findLatestPicardSha() (string, error) {
 		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
 	}
 
-	// This function still lives in cmd/build.go
-	err = storeBuildAgentSha(latest)
-
-	if err != nil {
-		return "", err
-	}
-
 	return latest, nil
-}
-
-func buildAgentSettingsPath() string {
-	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
-}
-
-func storeBuildAgentSha(sha256 string) error {
-	agentSettings := buildAgentSettings{
-		LatestSha256: sha256,
-	}
-
-	settingsJSON, err := json.Marshal(agentSettings)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to serialize build agent settings")
-	}
-
-	if err = os.MkdirAll(settings.SettingsPath(), 0700); err != nil {
-		return errors.Wrap(err, "Could not create settings directory")
-	}
-
-	err = ioutil.WriteFile(buildAgentSettingsPath(), settingsJSON, 0644)
-
-	return errors.Wrap(err, "Failed to write build agent settings file")
-}
-
-func loadCurrentBuildAgentSha() (string, error) {
-
-	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
-		// Settings file does not exist.
-		return "", nil
-	}
-
-	file, err := os.Open(buildAgentSettingsPath())
-	if err != nil {
-		return "", errors.Wrap(err, "Could not open build settings config")
-	}
-	defer file.Close()
-
-	var settings buildAgentSettings
-
-	if err := json.NewDecoder(file).Decode(&settings); err != nil {
-
-		return "", errors.Wrap(err, "Could not parse build settings config")
-	}
-
-	return settings.LatestSha256, nil
 }
 
 // Write data to a temp file, and return the path to that file.
@@ -307,7 +238,7 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 	switch flag.Value.Type() {
 	// A stringArray type argument is collapsed into a single flag:
 	// `--foo 1 --foo 2` will result in a single `foo` flag with an array of values.
-	case "stringSlice":
+	case "stringArray":
 		for _, value := range flag.Value.(pflag.SliceValue).GetSlice() {
 			result = append(result, flagName, value)
 		}

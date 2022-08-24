@@ -56,7 +56,7 @@ var _ = Describe("Dealing with git", func() {
 				// This test will fail if the current working directory has git remote
 				// named 'peristeronic'.
 				_, err := getRemoteUrl("peristeronic")
-				Expect(err).To(MatchError("Error finding the peristeronic git remote: fatal: No such remote 'peristeronic'"))
+				Expect(err.Error()).To(MatchRegexp(`Error finding the peristeronic git remote`))
 			})
 
 			It("can read git output", func() {

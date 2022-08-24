@@ -29,8 +29,13 @@ func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options,
 		check *Options
 	)
 
+	currentVersion, err := semver.Parse(current)
+	if err != nil {
+		return nil, errors.Wrap(err, "Failed to parse current version")
+	}
+
 	check = &Options{
-		Current:        semver.MustParse(current),
+		Current:        currentVersion,
 		PackageManager: packageManager,
 
 		githubAPI: githubAPI,
@@ -64,33 +69,60 @@ func checkFromSource(check *Options) error {
 	return err
 }
 
+// Homebrew revisions get added to the version with an underscore.
+// So `1.2.3 revision 4` becomes `1.2.3_4`. This fails to parse as valid semver
+// version. We can work around this by replacing underscores with `-` to convert
+// the revision to a semver tag.
+// https://github.com/CircleCI-Public/circleci-cli/issues/610
+func ParseHomebrewVersion(homebrewVesion string) (semver.Version, error) {
+
+	withRevisionAsTag := strings.Replace(homebrewVesion, "_", "-", 10)
+
+	version, err := semver.Parse(withRevisionAsTag)
+
+	if err != nil {
+		return semver.Version{}, fmt.Errorf("failed to parse current version from %s: %s", homebrewVesion, err)
+	}
+
+	return version, nil
+}
+
 func checkFromHomebrew(check *Options) error {
 	brew, err := exec.LookPath("brew")
 	if err != nil {
 		return errors.Wrap(err, "Expected to find `brew` in your $PATH but wasn't able to find it")
 	}
 
-	command := exec.Command(brew, "outdated", "--json=v1") // #nosec
+	command := exec.Command(brew, "outdated", "--json=v2") // #nosec
 	out, err := command.Output()
 	if err != nil {
-		return errors.Wrap(err, "failed to check for updates. `brew outdated --json=v1` returned an error")
+		return errors.Wrap(err, "failed to check for updates. `brew outdated --json=v2` returned an error")
 	}
 
 	var outdated HomebrewOutdated
 
 	err = json.Unmarshal(out, &outdated)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse output of `brew outdated --json=v1`")
+		return errors.Wrap(err, "failed to parse output of `brew outdated --json=v2`")
 	}
 
-	for _, o := range outdated {
+	for _, o := range outdated.Formulae {
 		if o.Name == "circleci" {
 			if len(o.InstalledVersions) > 0 {
-				check.Current = semver.MustParse(o.InstalledVersions[0])
+				current, err := ParseHomebrewVersion(o.InstalledVersions[0])
+				if err != nil {
+					return err
+				}
+				check.Current = current
 			}
 
+			// see above regarding homebrew / revision numbers
+			latest, err := ParseHomebrewVersion(o.CurrentVersion)
+			if err != nil {
+				return err
+			}
 			check.Latest = &selfupdate.Release{
-				Version: semver.MustParse(o.CurrentVersion),
+				Version: latest,
 			}
 
 			// We found a release so update state of updates check
@@ -101,26 +133,31 @@ func checkFromHomebrew(check *Options) error {
 	return nil
 }
 
-// HomebrewOutdated wraps the JSON output from running `brew outdated --json=v1`
+// HomebrewOutdated wraps the JSON output from running `brew outdated --json=v2`
 // We're specifically looking for this kind of structured data from the command:
 //
-//   [
-//     {
-//       "name": "circleci",
-//       "installed_versions": [
-//         "0.1.1248"
-//       ],
-//       "current_version": "0.1.3923",
-//       "pinned": false,
-//       "pinned_version": null
-//     },
-//   ]
-type HomebrewOutdated []struct {
-	Name              string   `json:"name"`
-	InstalledVersions []string `json:"installed_versions"`
-	CurrentVersion    string   `json:"current_version"`
-	Pinned            bool     `json:"pinned"`
-	PinnedVersion     string   `json:"pinned_version"`
+//   {
+//     "formulae": [
+//       {
+//         "name": "circleci",
+//         "installed_versions": [
+//           "0.1.1248"
+//         ],
+//         "current_version": "0.1.3923",
+//         "pinned": false,
+//         "pinned_version": null
+//       }
+//     ],
+//     "casks": []
+//   }
+type HomebrewOutdated struct {
+	Formulae []struct {
+		Name              string   `json:"name"`
+		InstalledVersions []string `json:"installed_versions"`
+		CurrentVersion    string   `json:"current_version"`
+		Pinned            bool     `json:"pinned"`
+		PinnedVersion     string   `json:"pinned_version"`
+	} `json:"formulae"`
 }
 
 // Options contains everything we need to check for or perform updates of the CLI.

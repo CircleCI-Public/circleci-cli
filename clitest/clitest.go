@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/onsi/gomega/types"
@@ -77,8 +77,8 @@ func WithTempSettings() *TempSettings {
 }
 
 // NewFakeClient returns a new *client.Client with the TestServer set and the provided endpoint, token.
-func (tempSettings *TempSettings) NewFakeClient(endpoint, token string) *client.Client {
-	return client.NewClient(tempSettings.TestServer.URL(), endpoint, token, false)
+func (tempSettings *TempSettings) NewFakeClient(endpoint, token string) *graphql.Client {
+	return graphql.NewClient(http.DefaultClient, tempSettings.TestServer.URL(), endpoint, token, false)
 }
 
 // MockRequestResponse is a helpful type for mocking HTTP handlers.
@@ -87,6 +87,30 @@ type MockRequestResponse struct {
 	Status        int
 	Response      string
 	ErrorResponse string
+}
+
+func (tempSettings *TempSettings) AppendRESTPostHandler(combineHandlers ...MockRequestResponse) {
+	for _, handler := range combineHandlers {
+		responseBody := handler.Response
+		if handler.ErrorResponse != "" {
+			responseBody = handler.ErrorResponse
+		}
+
+		tempSettings.TestServer.AppendHandlers(
+			ghttp.CombineHandlers(
+				ghttp.VerifyRequest("POST", "/api/v2/context"),
+				ghttp.VerifyContentType("application/json"),
+				func(w http.ResponseWriter, req *http.Request) {
+					body, err := ioutil.ReadAll(req.Body)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					err = req.Body.Close()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(handler.Request).Should(gomega.MatchJSON(body), "JSON Mismatch")
+				},
+				ghttp.RespondWith(handler.Status, responseBody),
+			),
+		)
+	}
 }
 
 // AppendPostHandler stubs out the provided MockRequestResponse.
@@ -111,7 +135,7 @@ func (tempSettings *TempSettings) AppendPostHandler(authToken string, combineHan
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 						err = req.Body.Close()
 						gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-						gomega.Expect(body).Should(gomega.MatchJSON(handler.Request), "JSON Mismatch")
+						gomega.Expect(handler.Request).Should(gomega.MatchJSON(body), "JSON Mismatch")
 					},
 					ghttp.RespondWith(handler.Status, responseBody),
 				),

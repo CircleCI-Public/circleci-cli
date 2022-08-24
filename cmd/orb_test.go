@@ -10,9 +10,10 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"gotest.tools/golden"
+	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
@@ -379,20 +380,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("works", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlPublishResponse := `{
 					"publishOrb": {
 						"errors": [],
@@ -403,48 +390,47 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.0.1"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.0.1"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+					gqlOrbIDResponse := `{
+						"orb": {"id": "orbid1", "isPrivate": false},
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.0.1` was published."))
-					Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 					Eventually(session).Should(gexec.Exit(0))
 				})
 
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlPublishResponse := `{
 					"publishOrb": {
@@ -457,18 +443,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.0.1"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.0.1"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
@@ -481,6 +464,59 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
 
+				})
+
+				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
+					By("setting up a mock server")
+
+					gqlPublishResponse := `{
+						"publishOrb": {
+							"errors": [],
+							"orb": {
+								"version": "0.0.1"
+							}
+						}
+					}`
+
+					expectedPublishRequest := `{
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.0.1"
+						}
+					  }`
+
+					gqlOrbIDResponse := `{
+						"orb": null,
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedPublishRequest,
+						Response: gqlPublishResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
+
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@0.0.1` was published."))
+					Eventually(session.Out).ShouldNot(gbytes.Say("Please note that this is an open orb and is world-readable."))
+					Eventually(session).Should(gexec.Exit(0))
 				})
 			})
 
@@ -499,20 +535,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				It("works", func() {
 					By("setting up a mock server")
 
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
-
 					gqlPublishResponse := `{
 					"publishOrb": {
 						"errors": [],
@@ -523,48 +545,47 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:foo"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "dev:foo"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+					gqlOrbIDResponse := `{
+						"orb": {"id": "orbid1", "isPrivate": false},
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was published."))
-					Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 					Eventually(session).Should(gexec.Exit(0))
 				})
 
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlPublishResponse := `{
 					"publishOrb": {
@@ -577,18 +598,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "dev:foo"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "dev:foo"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
@@ -601,6 +619,59 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
 
+				})
+
+				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
+					By("setting up a mock server")
+
+					gqlPublishResponse := `{
+						"publishOrb": {
+							"errors": [],
+							"orb": {
+								"version": "dev:foo"
+							}
+						}
+					}`
+
+					expectedPublishRequest := `{
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "dev:foo"
+						}
+					  }`
+
+					gqlOrbIDResponse := `{
+						"orb": null,
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedPublishRequest,
+						Response: gqlPublishResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
+
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was published."))
+					Eventually(session.Out).ShouldNot(gbytes.Say("Please note that this is an open orb and is world-readable."))
+					Eventually(session).Should(gexec.Exit(0))
 				})
 			})
 
@@ -618,20 +689,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 				It("works", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlVersionResponse := `{
 					"orb": {
@@ -658,18 +715,28 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+					gqlOrbIDResponse := `{
+						"orb": {"id": "orbid1", "isPrivate": false},
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -678,32 +745,21 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
 						Response: gqlPublishResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb` has been incremented to `my/orb@0.1.0`."))
-					Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 					Eventually(session).Should(gexec.Exit(0))
 				})
 
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlVersionResponse := `{
 					"orb": {
@@ -731,18 +787,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPublishRequest := `{
-					"query": "\n\t\tmutation($config: String!, $orbId: UUID!, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"config": "some orb",
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"version": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -760,6 +813,78 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Eventually(session).ShouldNot(gexec.Exit(0))
 
 				})
+
+				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
+					By("setting up a mock server")
+
+					gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+					expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+					gqlPublishResponse := `{
+					"publishOrb": {
+						"errors": [],
+						"orb": {
+							"version": "0.1.0"
+						}
+					}
+				}`
+
+					expectedPublishRequest := `{
+						"query": "\n\t\tmutation($config: String!, $orbName: String, $namespaceName: String, $version: String!) {\n\t\t\tpublishOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\torbYaml: $config,\n\t\t\t\tversion: $version\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "config": "some orb",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "version": "0.1.0"
+						}
+					  }`
+
+					gqlOrbIDResponse := `{
+						"orb": null,
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedVersionRequest,
+						Response: gqlVersionResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedPublishRequest,
+						Response: gqlPublishResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
+
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb` has been incremented to `my/orb@0.1.0`."))
+					Eventually(session.Out).ShouldNot(gbytes.Say("Please note that this is an open orb and is world-readable."))
+					Eventually(session).Should(gexec.Exit(0))
+				})
 			})
 
 			Describe("when promoting a development version", func() {
@@ -776,20 +901,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 
 				It("works", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlVersionResponse := `{
 					"orb": {
@@ -817,18 +928,28 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPromoteRequest := `{
-                                        "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:foo",
-						"semanticVersion": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($orbName: String, $namespaceName: String, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "devVersion": "dev:foo",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "semanticVersion": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+					gqlOrbIDResponse := `{
+						"orb": {"id": "orbid1", "isPrivate": false},
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -837,32 +958,21 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						Status:   http.StatusOK,
 						Request:  expectedPromoteRequest,
 						Response: gqlPromoteResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was promoted to `my/orb@0.1.0`."))
-					Eventually(session.Out).Should(gbytes.Say("Please note that this is an open orb and is world-readable."))
 					Eventually(session).Should(gexec.Exit(0))
 				})
 
 				It("prints all errors returned by the GraphQL API", func() {
 					By("setting up a mock server")
-
-					gqlOrbIDResponse := `{
-    											"orb": {
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-					expectedOrbIDRequest := `{
-            "query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
-            "variables": {
-              "name": "my/orb",
-              "namespace": "my"
-            }
-          }`
 
 					gqlVersionResponse := `{
 					"orb": {
@@ -890,18 +1000,15 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				}`
 
 					expectedPromoteRequest := `{
-                                        "query": "\n\t\tmutation($orbId: UUID!, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbId: $orbId,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
-					"variables": {
-						"orbId": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
-						"devVersion": "dev:foo",
-						"semanticVersion": "0.1.0"
-					}
-				}`
+						"query": "\n\t\tmutation($orbName: String, $namespaceName: String, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "devVersion": "dev:foo",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "semanticVersion": "0.1.0"
+						}
+					  }`
 
-					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-						Status:   http.StatusOK,
-						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
@@ -918,6 +1025,79 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
 
+				})
+
+				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
+					By("setting up a mock server")
+
+					gqlVersionResponse := `{
+					"orb": {
+						"versions": [
+                                                        {"version": "0.0.1"}
+                                                 ]
+					}
+				}`
+
+					expectedVersionRequest := `{
+            "query": "query($name: String!) {\n\t\t\t    orb(name: $name) {\n\t\t\t      versions(count: 1) {\n\t\t\t\t    version\n\t\t\t      }\n\t\t\t    }\n\t\t      }",
+            "variables": {
+              "name": "my/orb"
+            }
+				}`
+
+					gqlPromoteResponse := `{
+					"promoteOrb": {
+						"errors": [],
+						"orb": {
+							"version": "0.1.0",
+                                                        "source": "some orb"
+						}
+					}
+				}`
+
+					expectedPromoteRequest := `{
+						"query": "\n\t\tmutation($orbName: String, $namespaceName: String, $devVersion: String!, $semanticVersion: String!) {\n\t\t\tpromoteOrb(\n\t\t\t\torbName: $orbName,\n\t\t\t\tnamespaceName: $namespaceName,\n\t\t\t\tdevVersion: $devVersion,\n\t\t\t\tsemanticVersion: $semanticVersion\n\t\t\t) {\n\t\t\t\torb {\n\t\t\t\t\tversion\n\t\t\t\t\tsource\n\t\t\t\t}\n\t\t\t\terrors { message }\n\t\t\t}\n\t\t}\n\t",
+						"variables": {
+						  "devVersion": "dev:foo",
+						  "namespaceName": "my",
+						  "orbName": "orb",
+						  "semanticVersion": "0.1.0"
+						}
+					  }`
+
+					gqlOrbIDResponse := `{
+						"orb": null,
+						"registryNamespace": {"id": "nsid1"}
+					}`
+
+					expectedOrbIDRequest := `{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+						"variables": {
+							"name": "my/orb",
+							"namespace": "my"
+						}
+					}`
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedVersionRequest,
+						Response: gqlVersionResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedPromoteRequest,
+						Response: gqlPromoteResponse})
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbIDRequest,
+						Response: gqlOrbIDResponse})
+
+					By("running the command")
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session.Out).Should(gbytes.Say("Orb `my/orb@dev:foo` was promoted to `my/orb@0.1.0`."))
+					Eventually(session.Out).ShouldNot(gbytes.Say("Please note that this is an open orb and is world-readable."))
+					Eventually(session).Should(gexec.Exit(0))
 				})
 			})
 		})
@@ -961,8 +1141,9 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 								   }`
 
 					expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+              "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -987,6 +1168,71 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					stdout := session.Wait().Out.Contents()
 					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
 Please note that any versions you publish of this orb are world-readable.
+You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
+				})
+
+				It("works for private orbs", func() {
+					By("setting up a mock server")
+
+					gqlNamespaceResponse := `{
+    											"registryNamespace": {
+      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+    											}
+  				}`
+
+					expectedNamespaceRequest := `{
+            "query": "\n\t\t\t\tquery($name: String!) {\n\t\t\t\t\tregistryNamespace(\n\t\t\t\t\t\tname: $name\n\t\t\t\t\t){\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t }",
+            "variables": {
+              "name": "bar-ns"
+            }
+          }`
+
+					gqlOrbResponse := `{
+									 "createOrb": {
+										 "errors": [],
+										 "orb": {
+											"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+										 }
+									 }
+								   }`
+
+					expectedOrbRequest := `{
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "variables": {
+              "isPrivate": true,
+              "name": "foo-orb",
+              "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+            }
+          }`
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedNamespaceRequest,
+						Response: gqlNamespaceResponse})
+
+					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+						Status:   http.StatusOK,
+						Request:  expectedOrbRequest,
+						Response: gqlOrbResponse})
+
+					By("running the command")
+					command = exec.Command(pathCLI,
+						"orb", "create",
+						"--private",
+						"--skip-update-check",
+						"--token", token,
+						"--host", tempSettings.TestServer.URL(),
+						"--no-prompt",
+						"bar-ns/foo-orb",
+					)
+					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+					Expect(err).ShouldNot(HaveOccurred())
+					Eventually(session).Should(gexec.Exit(0))
+
+					stdout := session.Wait().Out.Contents()
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
+This orb will not be listed on the registry and is usable only by org users.
 You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 				})
 
@@ -1019,8 +1265,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 					gqlErrors := `[ { "message": "ignored error" } ]`
 
 					expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1086,8 +1333,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 								   }`
 
 						expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1152,8 +1400,9 @@ You can now register versions of %s using %s.`,
 						gqlErrors := `[ { "message": "ignored error" } ]`
 
 						expectedOrbRequest := `{
-            "query": "mutation($name: String!, $registryNamespaceId: UUID!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
+            "query": "mutation($name: String!, $registryNamespaceId: UUID!, $isPrivate: Boolean!){\n\t\t\t\tcreateOrb(\n\t\t\t\t\tname: $name,\n\t\t\t\t\tregistryNamespaceId: $registryNamespaceId,\n\t\t\t\t\tisPrivate: $isPrivate\n\t\t\t\t){\n\t\t\t\t    orb {\n\t\t\t\t      id\n\t\t\t\t    }\n\t\t\t\t    errors {\n\t\t\t\t      message\n\t\t\t\t      type\n\t\t\t\t    }\n\t\t\t\t}\n}",
             "variables": {
+			  "isPrivate": false,
               "name": "foo-orb",
               "registryNamespaceId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
             }
@@ -1544,14 +1793,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1615,7 +1864,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -1656,7 +1905,7 @@ first (0.7.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -1683,7 +1932,7 @@ second (0.8.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -1710,7 +1959,7 @@ third (0.9.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -1772,14 +2021,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = true
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "test/test"
 				secondRequest.Variables["certifiedOnly"] = true
 
@@ -1858,14 +2107,14 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["certifiedOnly"] = false
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "test/here-we-go"
 				secondRequest.Variables["certifiedOnly"] = false
 
@@ -1903,7 +2152,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
 
 				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
-				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/"))
+				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -1970,7 +2219,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 }
 `
 
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["certifiedOnly"] = true
 
@@ -2012,7 +2261,7 @@ foo/test (0.7.0)
 
 In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
 
-Search, filter, and view sources for all Orbs online at https://circleci.com/orbs/registry/
+Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
@@ -2056,11 +2305,11 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/orb
 				By("setting up a mock server")
 
 				query := `
-query namespaceOrbs ($namespace: String, $after: String!) {
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
 	registryNamespace(name: $namespace) {
 		name
                 id
-		orbs(first: 20, after: $after) {
+		orbs(first: 20, after: $after, view: $view) {
 			edges {
 				cursor
 				node {
@@ -2084,16 +2333,18 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 	}
 }
 `
-				firstRequest := client.NewRequest(query)
+				firstRequest := graphql.NewRequest(query)
 				firstRequest.Variables["after"] = ""
 				firstRequest.Variables["namespace"] = "circleci"
+				firstRequest.Variables["view"] = "PUBLIC_ONLY"
 
 				firstRequestEncoded, err := firstRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
 
-				secondRequest := client.NewRequest(query)
+				secondRequest := graphql.NewRequest(query)
 				secondRequest.Variables["after"] = "circleci/codecov-clojure"
 				secondRequest.Variables["namespace"] = "circleci"
+				secondRequest.Variables["view"] = "PUBLIC_ONLY"
 
 				secondRequestEncoded, err := secondRequest.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2170,11 +2421,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				By("setting up a mock server")
 
 				query := `
-query namespaceOrbs ($namespace: String, $after: String!) {
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
 	registryNamespace(name: $namespace) {
 		name
                 id
-		orbs(first: 20, after: $after) {
+		orbs(first: 20, after: $after, view: $view) {
 			edges {
 				cursor
 				node {
@@ -2199,9 +2450,10 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 }
 `
 
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["after"] = ""
 				request.Variables["namespace"] = "nonexist"
+				request.Variables["view"] = "PUBLIC_ONLY"
 
 				encodedRequest, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2224,7 +2476,100 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 				Eventually(session).Should(clitest.ShouldFail())
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 			})
+		})
 
+		Describe("when listing private orbs", func() {
+			BeforeEach(func() {
+				By("setting up a mock server")
+
+				query := `
+query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
+	registryNamespace(name: $namespace) {
+		name
+                id
+		orbs(first: 20, after: $after, view: $view) {
+			edges {
+				cursor
+				node {
+					versions {
+						source
+						version
+					}
+					name
+	                                statistics {
+		                           last30DaysBuildCount,
+		                           last30DaysProjectCount,
+		                           last30DaysOrganizationCount
+	                               }
+				}
+			}
+			totalCount
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+}
+`
+
+				request := graphql.NewRequest(query)
+				request.Variables["after"] = ""
+				request.Variables["namespace"] = "circleci"
+				request.Variables["view"] = "PRIVATE_ONLY"
+
+				encodedRequest, err := request.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_with_namespace/second_response.json"))
+				mockResponse := string(tmpBytes)
+
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  encodedRequest.String(),
+					Response: mockResponse,
+				})
+			})
+
+			It("returns an error when private is provided without a namespace", func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--private",
+					"--skip-update-check",
+					"--host", tempSettings.TestServer.URL(),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Namespace must be provided when listing private orbs"))
+				Eventually(session).Should(clitest.ShouldFail())
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(0))
+			})
+			It("successfully returns private orbs within a given namespace", func() {
+				command = exec.Command(pathCLI,
+					"orb", "list", "circleci",
+					"--private",
+					"--skip-update-check",
+					"--host", tempSettings.TestServer.URL(),
+				)
+
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				stdout := session.Wait().Out.Contents()
+				Expect(string(stdout)).To(Equal(`Orbs found: 5. Showing only private orbs.
+
+circleci/delete-me (Not published)
+circleci/delete-me-too (Not published)
+circleci/gradle (0.0.1)
+circleci/heroku (Not published)
+circleci/rollbar (0.0.1)
+
+`))
+				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
+			})
 		})
 
 		Describe("when creating an orb without a token", func() {
@@ -2281,7 +2626,7 @@ foo.bar/account/api`))
 				// on BeforeEach in each block to specify server mocking.
 				By("setting up a mock server")
 
-				request := client.NewRequest(`query($orbVersionRef: String!) {
+				request := graphql.NewRequest(`query($orbVersionRef: String!) {
 			    orbVersion(orbVersionRef: $orbVersionRef) {
 			        id
                                 version
@@ -2331,7 +2676,7 @@ foo.bar/account/api`))
                                 source
 			    }
 		      }`
-				request := client.NewRequest(query)
+				request := graphql.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err := request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2356,7 +2701,7 @@ foo.bar/account/api`))
 
 		Describe("when fetching an orb's meta-data", func() {
 			var (
-				request  *client.Request
+				request  *graphql.Request
 				query    string
 				expected bytes.Buffer
 				err      error
@@ -2377,7 +2722,14 @@ foo.bar/account/api`))
                                 orb {
                                     id
                                     createdAt
-                                    name
+									name
+									namespace {
+									  name
+									}
+                                    categories {
+                                      id
+                                      name
+                                    }
 	                            statistics {
 		                        last30DaysBuildCount,
 		                        last30DaysProjectCount,
@@ -2393,7 +2745,7 @@ foo.bar/account/api`))
 			    }
 		      }`
 
-				request = client.NewRequest(query)
+				request = graphql.NewRequest(query)
 				request.Variables["orbVersionRef"] = "my/orb@dev:foo"
 				expected, err = request.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -2407,7 +2759,17 @@ foo.bar/account/api`))
 								"orb": {
 								        "id": "bb604b45-b6b0-4b81-ad80-796f15eddf87",
 								        "createdAt": "2018-09-24T08:53:37.086Z",
-                                                                        "name": "my/orb",
+																																				"name": "my/orb",
+																																				"categories": [
+																																					{
+																																						"id": "cc604b45-b6b0-4b81-ad80-796f15eddf87",
+																																						"name": "Infra Automation"
+																																					},
+																																					{
+																																						"id": "dd604b45-b6b0-4b81-ad80-796f15eddf87",
+																																						"name": "Testing"
+																																					}
+																																				],
                                                                         "versions": [
                                                                             {
                                                                                 "version": "0.0.1",
@@ -2447,8 +2809,12 @@ Builds: 0
 Projects: 0
 Orgs: 0
 
+## Categories:
+Infra Automation
+Testing
+
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/my/orb
+https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2508,7 +2874,7 @@ Projects: 777
 Orgs: 999
 
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/my/orb
+https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2555,7 +2921,7 @@ Projects: 0
 Orgs: 0
 
 Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/orbs/registry/orb/my/orb
+https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
@@ -2580,5 +2946,400 @@ https://circleci.com/orbs/registry/orb/my/orb
 				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})
+
+		Describe("list orb categories", func() {
+			Context("with mock server", func() {
+				DescribeTable("sends multiple requests when there are more than 1 page of orb categories",
+					func(json bool) {
+						argList := []string{"orb", "list-categories",
+							"--skip-update-check",
+							"--host", tempSettings.TestServer.URL()}
+						if json {
+							argList = append(argList, "--json")
+						}
+
+						command = exec.Command(pathCLI,
+							argList...,
+						)
+
+						query := `
+	query ListOrbCategories($after: String!) {
+		orbCategories(first: 20, after: $after) {
+			totalCount
+			edges {
+				cursor
+				node {
+					id
+					name
+				}
+			}
+			pageInfo {
+				hasNextPage
+			}
+		}
+	}
+`
+
+						firstRequest := graphql.NewRequest(query)
+						firstRequest.Variables["after"] = ""
+
+						firstRequestEncoded, err := firstRequest.Encode()
+						Expect(err).ShouldNot(HaveOccurred())
+
+						secondRequest := graphql.NewRequest(query)
+						secondRequest.Variables["after"] = "Testing"
+
+						secondRequestEncoded, err := secondRequest.Encode()
+						Expect(err).ShouldNot(HaveOccurred())
+
+						tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/first_response.json"))
+						firstResponse := string(tmpBytes)
+
+						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/second_response.json"))
+						secondResponse := string(tmpBytes)
+
+						tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_category_list/pretty_json_output.json"))
+						expectedOutput := string(tmpBytes)
+
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  firstRequestEncoded.String(),
+							Response: firstResponse,
+						})
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  secondRequestEncoded.String(),
+							Response: secondResponse,
+						})
+
+						By("running the command")
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(gexec.Exit(0))
+						Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
+
+						displayedOutput := string(session.Wait().Out.Contents())
+						if json {
+							Expect(displayedOutput).Should(MatchJSON(expectedOutput))
+						} else {
+							Expect(displayedOutput).To(Equal(`Artifacts/Registry
+Build
+Cloud Platform
+Code Analysis
+Collaboration
+Containers
+Deployment
+Infra Automation
+Kubernetes
+Language/Framework
+Monitoring
+Notifications
+Reporting
+Security
+Testing
+Windows Server 2003
+Windows Server 2010
+`))
+						}
+					},
+					Entry("with --json", true),
+					Entry("without --json", false),
+				)
+			})
+		})
+
+		Describe("Add/remove orb categorization", func() {
+			var (
+				orbId            string
+				orbNamespaceName string
+				orbFullName      string
+				orbName          string
+				categoryId       string
+				categoryName     string
+			)
+
+			BeforeEach(func() {
+				orbId = "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+				orbNamespaceName = "bar-ns"
+				orbName = "foo-orb"
+				orbFullName = orbNamespaceName + "/" + orbName
+				categoryId = "cc604b45-b6b0-4b81-ad80-796f15eddf87"
+				categoryName = "Cloud Platform"
+			})
+
+			Context("with mock server", func() {
+				DescribeTable("add/remove a valid orb to/from a valid category",
+					func(mockErrorResponse bool, updateType api.UpdateOrbCategorizationRequestType) {
+						commandName := "add-to-category"
+						operationName := "addCategorizationToOrb"
+						expectedOutputSegment := "added to"
+						if updateType == api.Remove {
+							commandName = "remove-from-category"
+							operationName = "removeCategorizationFromOrb"
+							expectedOutputSegment = "removed from"
+						}
+
+						command = exec.Command(pathCLI,
+							"orb", commandName,
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							orbFullName, categoryName)
+
+						gqlOrbIDResponse := fmt.Sprintf(`{
+						"orb": {
+								"id": "%s"
+						}
+					}`, orbId)
+
+						expectedOrbIDRequest := fmt.Sprintf(`{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+						"variables": {
+							"name": "%s",
+							"namespace": "%s"
+						}
+					}`, orbFullName, orbNamespaceName)
+
+						expectedCategoryIDRequest := fmt.Sprintf(`{
+							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}",
+							"variables": {
+								"name": "%s"
+							}
+						}`, categoryName)
+
+						gqlCategoryIDResponse := fmt.Sprintf(`{
+							"orbCategoryByName": {
+									"id": "%s"
+							}
+						}`, categoryId)
+
+						expectedOrbCategorizationRequest := fmt.Sprintf(`{
+							"query": "\n\t\tmutation($orbId: UUID!, $categoryId: UUID!) {\n\t\t\t%s(\n\t\t\t\torbId: $orbId,\n\t\t\t\tcategoryId: $categoryId\n\t\t\t) {\n\t\t\t\torbId\n\t\t\t\tcategoryId\n\t\t\t\terrors {\n\t\t\t\t\tmessage\n\t\t\t\t\ttype\n\t\t\t\t}\n\t\t\t}\n\t\t}\n\t",
+							"variables": {
+								"categoryId": "%s",
+								"orbId": "%s"
+							}
+						}`, operationName, categoryId, orbId)
+
+						gqlCategorizationResponse := fmt.Sprintf(`{
+							"%s": {
+								"orbId": "%s",
+								"categoryId": "%s",
+								"errors": []
+							}
+						}`, operationName, orbId, categoryId)
+
+						if mockErrorResponse {
+							gqlCategorizationResponse = fmt.Sprintf(`{
+								"%s": {
+									"orbId": "",
+									"categoryId": "",
+									"errors": [{
+										"message": "Mock error message",
+										"type": "Mock error from server"
+									}]
+								}
+							}`, operationName)
+						}
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedCategoryIDRequest,
+							Response: gqlCategoryIDResponse})
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbCategorizationRequest,
+							Response: gqlCategorizationResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+
+						stdout := session.Wait().Out.Contents()
+						if mockErrorResponse {
+							Eventually(session).Should(clitest.ShouldFail())
+							errorMsg := fmt.Sprintf(`Error: Failed to add orb %s to category %s: Mock error message`, orbFullName, categoryName)
+							if updateType == api.Remove {
+								errorMsg = fmt.Sprintf(`Error: Failed to remove orb %s from category %s: Mock error message`, orbFullName, categoryName)
+							}
+							Eventually(session.Err).Should(gbytes.Say(errorMsg))
+						} else {
+							Eventually(session).Should(gexec.Exit(0))
+							Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`%s is successfully %s the "%s" category.`, orbFullName, expectedOutputSegment, categoryName)))
+						}
+					},
+					Entry("add categorization success", false, api.Add),
+					Entry("remove categorization success", false, api.Remove),
+					Entry("server error on adding categorization", true, api.Add),
+					Entry("server error on removing categorization", true, api.Remove),
+				)
+			})
+			Context("with mock server", func() {
+				DescribeTable("orb does not exist",
+					func(updateType api.UpdateOrbCategorizationRequestType) {
+						commandName := "add-to-category"
+						if updateType == api.Remove {
+							commandName = "remove-from-category"
+						}
+
+						command = exec.Command(pathCLI,
+							"orb", commandName,
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							orbFullName, categoryName)
+
+						expectedOrbIDRequest := fmt.Sprintf(`{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+						"variables": {
+							"name": "%s",
+							"namespace": "%s"
+						}
+					}`, orbFullName, orbNamespaceName)
+
+						gqlOrbIDResponse := `{
+						"orb": null,
+						"registryNamespace": {
+							"id": "eac63dee-9960-48c2-b763-612e1683194e"
+						}
+					}`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(clitest.ShouldFail())
+						errorMsg := fmt.Sprintf(`Error: Failed to add orb %s to category %s: the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?`, orbFullName, categoryName, orbName, orbNamespaceName)
+						if updateType == api.Remove {
+							errorMsg = fmt.Sprintf(`Error: Failed to remove orb %s from category %s: the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?`, orbFullName, categoryName, orbName, orbNamespaceName)
+						}
+						Eventually(session.Err).Should(gbytes.Say(errorMsg))
+					},
+					Entry("add categorization to non-existent orb", api.Add),
+					Entry("remove categorization to non-existent orb", api.Remove),
+				)
+			})
+			Context("with mock server", func() {
+				DescribeTable("category does not exist",
+					func(updateType api.UpdateOrbCategorizationRequestType) {
+						commandName := "add-to-category"
+						if updateType == api.Remove {
+							commandName = "remove-from-category"
+						}
+
+						command = exec.Command(pathCLI,
+							"orb", commandName,
+							"--skip-update-check",
+							"--token", token,
+							"--host", tempSettings.TestServer.URL(),
+							orbFullName, categoryName)
+
+						expectedOrbIDRequest := fmt.Sprintf(`{
+						"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t  id\n\t\t}\n\t  }\n\t  ",
+						"variables": {
+							"name": "%s",
+							"namespace": "%s"
+						}
+					}`, orbFullName, orbNamespaceName)
+
+						gqlOrbIDResponse := fmt.Sprintf(`{
+							"orb": {
+									"id": "%s"
+							}
+						}`, orbId)
+
+						expectedCategoryIDRequest := fmt.Sprintf(`{
+							"query": "\n\tquery ($name: String!) {\n\t\torbCategoryByName(name: $name) {\n\t\t  id\n\t\t}\n\t}",
+							"variables": {
+								"name": "%s"
+							}
+						}`, categoryName)
+
+						gqlCategoryIDResponse := `{
+							"orbCategoryByName": null
+						}`
+
+						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedOrbIDRequest,
+							Response: gqlOrbIDResponse})
+
+						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+							Status:   http.StatusOK,
+							Request:  expectedCategoryIDRequest,
+							Response: gqlCategoryIDResponse})
+
+						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+						Expect(err).ShouldNot(HaveOccurred())
+						Eventually(session).Should(clitest.ShouldFail())
+						errorCause := fmt.Sprintf(`the '%s' category does not exist. Did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'.`, categoryName)
+						errorMsg := fmt.Sprintf(`Error: Failed to add orb %s to category %s: %s`, orbFullName, categoryName, errorCause)
+						if updateType == api.Remove {
+							errorMsg = fmt.Sprintf(`Error: Failed to remove orb %s from category %s: %s`, orbFullName, categoryName, errorCause)
+						}
+						stderr := session.Wait().Err.Contents()
+						Expect(string(stderr)).To(ContainSubstring(errorMsg))
+					},
+					Entry("add orb to non-existent category", api.Add),
+					Entry("remove orb to non-existent category", api.Remove),
+				)
+			})
+		})
+	})
+
+	Describe("Orb pack", func() {
+		var (
+			tempSettings *clitest.TempSettings
+			orb          *clitest.TmpFile
+			script       *clitest.TmpFile
+			command      *exec.Cmd
+		)
+		BeforeEach(func() {
+			tempSettings = clitest.WithTempSettings()
+			orb = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("commands", "orb.yml"))
+			clitest.OpenTmpFile(tempSettings.Home, "@orb.yml")
+			orb.Write([]byte(`steps:
+    - run:
+        name: Say hello
+        command: <<include(scripts/script.sh)>>
+`))
+			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("scripts", "script.sh"))
+			script.Write([]byte(`echo Hello, world!`))
+			command = exec.Command(pathCLI,
+				"orb", "pack",
+				"--skip-update-check",
+				tempSettings.Home,
+			)
+		})
+
+		AfterEach(func() {
+			tempSettings.Close()
+			orb.Close()
+			script.Close()
+		})
+
+		It("Includes a script in the packed Orb file", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).Should(gbytes.Say(`commands:
+    orb:
+        steps:
+            - run:
+                command: echo Hello, world!
+                name: Say hello
+`))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
 	})
 })

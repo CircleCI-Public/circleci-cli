@@ -1,21 +1,15 @@
 package prompt
 
-import (
-	"strings"
-
-	"github.com/manifoldco/promptui"
-)
+import "github.com/AlecAivazis/survey/v2"
 
 // ReadSecretStringFromUser can be used to read a value from the user by masking their input.
 // It's useful for token input in our case.
 func ReadSecretStringFromUser(message string) (string, error) {
-	prompt := promptui.Prompt{
-		Label: message,
-		Mask:  '*',
+	secret := ""
+	prompt := &survey.Password{
+		Message: message,
 	}
-
-	secret, err := prompt.Run()
-
+	err := survey.AskOne(prompt, &secret)
 	if err != nil {
 		return "", err
 	}
@@ -25,16 +19,16 @@ func ReadSecretStringFromUser(message string) (string, error) {
 
 // ReadStringFromUser can be used to read any value from the user or the defaultValue when provided.
 func ReadStringFromUser(message string, defaultValue string) string {
-	prompt := promptui.Prompt{
-		Label: message,
+	token := ""
+	prompt := &survey.Input{
+		Message: message,
 	}
 
 	if defaultValue != "" {
 		prompt.Default = defaultValue
 	}
 
-	token, err := prompt.Run()
-
+	err := survey.AskOne(prompt, &token)
 	if err != nil {
 		panic(err)
 	}
@@ -44,11 +38,11 @@ func ReadStringFromUser(message string, defaultValue string) string {
 
 // AskUserToConfirm will prompt the user to confirm with the provided message.
 func AskUserToConfirm(message string) bool {
-	prompt := promptui.Prompt{
-		Label:     message,
-		IsConfirm: true,
+	result := true
+	prompt := &survey.Confirm{
+		Message: message,
 	}
 
-	result, err := prompt.Run()
-	return err == nil && strings.ToLower(result) == "y"
+	err := survey.AskOne(prompt, &result)
+	return err == nil && result
 }
