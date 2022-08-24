@@ -41,7 +41,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 		cmd := &cobra.Command{
 			Short: "push policy bundle",
-			Use:   "push",
+			Use:   "push <policy_dir_path>",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				bundle, err := loadBundleFromFS(args[0])
 				if err != nil {
@@ -83,7 +83,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy push ./policy_bundle_dir_path --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --context config`,
+			Example: `policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -100,7 +100,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		var ownerID, context string
 		cmd := &cobra.Command{
 			Short: "Get diff between local and remote policy bundles",
-			Use:   "diff",
+			Use:   "diff <policy_dir_path>",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				bundle, err := loadBundleFromFS(args[0])
 				if err != nil {
@@ -117,7 +117,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
 			},
-			Args: cobra.ExactArgs(1),
+			Args:    cobra.ExactArgs(1),
+			Example: `policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -132,7 +133,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		var ownerID, context, policyName string
 		cmd := &cobra.Command{
 			Short: "Fetch policy bundle (or a single policy)",
-			Use:   "fetch <policy_name>",
+			Use:   "fetch [policy_name]",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if len(args) == 1 {
 					policyName = args[0]
@@ -149,7 +150,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy fetch policy_name --owner-id 516425b2-e369-421b-838d-920e1f51b0f5 --context config`,
+			Example: `policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -166,7 +167,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		var request policy.DecisionQueryRequest
 
 		cmd := &cobra.Command{
-			Short: "Get policy (decision) logs",
+			Short: "Get policy decision logs",
 			Use:   "logs",
 			RunE: func(cmd *cobra.Command, _ []string) (err error) {
 				if cmd.Flag("after").Changed {
@@ -234,7 +235,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.ExactArgs(0),
-			Example: `policy logs  --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
+			Example: `policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
 		cmd.Flags().StringVar(&request.Status, "status", "", "filter decision logs based on their status")
@@ -264,13 +265,13 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 		cmd := &cobra.Command{
 			Short: "make a decision",
-			Use:   "decide",
+			Use:   "decide [policy_file_or_dir_path]",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if len(args) == 1 {
 					policyPath = args[0]
 				}
 				if (policyPath == "" && ownerID == "") || (policyPath != "" && ownerID != "") {
-					return fmt.Errorf("either policy-path or --owner-id is required")
+					return fmt.Errorf("either [policy_file_or_dir_path] or --owner-id is required")
 				}
 
 				input, err := os.ReadFile(inputPath)
@@ -307,7 +308,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args: cobra.MaximumNArgs(1),
+			Args:    cobra.MaximumNArgs(1),
+			Example: `policy decide ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -326,7 +328,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		var inputPath, metaFile, query string
 		cmd := &cobra.Command{
 			Short: "perform raw opa evaluation locally",
-			Use:   "eval",
+			Use:   "eval <policy_file_or_dir_path>",
 			RunE: func(cmd *cobra.Command, args []string) error {
 				policyPath := args[0]
 				input, err := os.ReadFile(inputPath)
@@ -356,7 +358,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args: cobra.ExactArgs(1),
+			Args:    cobra.ExactArgs(1),
+			Example: `policy eval ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
