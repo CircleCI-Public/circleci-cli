@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/client"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -13,7 +13,7 @@ import (
 
 type setupOptions struct {
 	cfg      *settings.Config
-	cl       *client.Client
+	cl       *graphql.Client
 	noPrompt bool
 	// Add host and token for use with --no-prompt
 	host  string
@@ -121,7 +121,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		Short: "Setup the CLI with your credentials",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = client.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if opts.integrationTesting {
@@ -250,6 +250,7 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Use the default endpoint since we don't expose that to users
 	config.Endpoint = defaultEndpoint
+	config.RestEndpoint = defaultRestEndpoint
 	config.Host = opts.host   // Set new host to flag
 	config.Token = opts.token // Set new token to flag
 

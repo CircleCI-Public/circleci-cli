@@ -1,9 +1,0 @@
-links:
-  # cli_docs links to CLI documentation on circleci.com
-  cli_docs: https://circleci.com/docs/2.0/local-cli/
-
-  # orb_docs links to Orb documentation on circleci.com
-  orb_docs: https://circleci.com/docs/2.0/orb-intro/
-
-  # new_api_token links to the personal account API token page on circleci.com
-  new_api_token: https://circleci.com/account/api

@@ -103,39 +103,23 @@ var _ = Describe("build", func() {
 				expectedArgs:       []string{"--env", "foo", "--env", "bar", "--env", "baz"},
 			}),
 
+			Entry("many args, multiple volumes (issue #469)", TestCase{
+				input:              []string{"-v", "/foo:/bar", "--volume", "/bin:/baz", "--volume", "/boo:/bop"},
+				expectedConfigPath: ".circleci/config.yml",
+				expectedArgs:       []string{"--volume", "/foo:/bar", "--volume", "/bin:/baz", "--volume", "/boo:/bop"},
+			}),
+
+			Entry("comma in env value (issue #440)", TestCase{
+				input:              []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
+				expectedConfigPath: ".circleci/config.yml",
+				expectedArgs:       []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
+			}),
+
 			Entry("args that are not flags", TestCase{
 				input:              []string{"a", "--debug", "b", "--config", "foo", "d"},
 				expectedConfigPath: "foo",
 				expectedArgs:       []string{"a", "b", "d"},
 			}))
 
-	})
-
-	Describe("loading settings", func() {
-
-		var (
-			tempHome string
-		)
-
-		BeforeEach(func() {
-			var err error
-			tempHome, err = ioutil.TempDir("", "circleci-cli-test-")
-
-			Expect(err).ToNot(HaveOccurred())
-			Expect(os.Setenv("HOME", tempHome)).To(Succeed())
-
-		})
-
-		AfterEach(func() {
-			Expect(os.RemoveAll(tempHome)).To(Succeed())
-		})
-
-		It("can load settings", func() {
-			Expect(storeBuildAgentSha("deipnosophist")).To(Succeed())
-			Expect(loadCurrentBuildAgentSha()).To(Equal("deipnosophist"))
-			image, err := picardImage(ioutil.Discard)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(image).To(Equal("circleci/picard@deipnosophist"))
-		})
 	})
 })
