@@ -2,36 +2,39 @@ package api
 
 import (
 	"bytes"
-	"fmt"
-	"net/http"
-	"net/url"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
+	"net/http"
+	"net/url"
+
+	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
 
 // ContextRestClient communicates with the CircleCI REST API to ask questions
 // about contexts. It satisfies api.ContextInterface.
 type ContextRestClient struct {
-	token string
+	token  string
 	server string
 	client *http.Client
 }
 
 type listEnvironmentVariablesResponse struct {
-	Items []EnvironmentVariable
+	Items         []EnvironmentVariable
 	NextPageToken *string `json:"next_page_token"`
-	client *ContextRestClient
-	params *listEnvironmentVariablesParams
+	client        *ContextRestClient
+	params        *listEnvironmentVariablesParams
 }
 
 type listContextsResponse struct {
-	Items []Context
+	Items         []Context
 	NextPageToken *string `json:"next_page_token"`
-	client *ContextRestClient
-	params *listContextsParams
+	client        *ContextRestClient
+	params        *listContextsParams
 }
 
 type errorResponse struct {
@@ -39,7 +42,7 @@ type errorResponse struct {
 }
 
 type listContextsParams struct {
-	OwnerID *string
+	OwnerID   *string
 	OwnerSlug *string
 	OwnerType *string
 	PageToken *string
@@ -84,8 +87,39 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 	return nil
 }
 
+func (c *ContextRestClient) CreateContextWithOrgID(orgID *string, name string) error {
+	req, err := c.newCreateContextRequestWithOrgID(orgID, name)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		return err
+	}
+
+	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		var dest errorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return err
+		}
+		return errors.New(*dest.Message)
+	}
+	var dest Context
+	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+		return err
+	}
+	return nil
+}
+
 // CreateContext creates a new context in the supplied organization.
-func (c *ContextRestClient) CreateContext(vcs, org, name string) (error) {
+func (c *ContextRestClient) CreateContext(vcs, org, name string) error {
 	req, err := c.newCreateContextRequest(vcs, org, name)
 	if err != nil {
 		return err
@@ -217,7 +251,7 @@ func (c *ContextRestClient) ContextByName(vcs, org, name string) (*Context, erro
 	}
 }
 
-func (c *ContextRestClient) listAllEnvironmentVariables (params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
+func (c *ContextRestClient) listAllEnvironmentVariables(params *listEnvironmentVariablesParams) (envVars []EnvironmentVariable, err error) {
 	var resp *listEnvironmentVariablesResponse
 	for {
 		resp, err = c.listEnvironmentVariables(params)
@@ -255,7 +289,7 @@ func (c *ContextRestClient) listAllContexts(params *listContextsParams) (context
 	return contexts, nil
 }
 
-func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
+func (c *ContextRestClient) listEnvironmentVariables(params *listEnvironmentVariablesParams) (*listEnvironmentVariablesResponse, error) {
 	req, err := c.newListEnvironmentVariablesRequest(params)
 	if err != nil {
 		return nil, err
@@ -289,7 +323,7 @@ func (c *ContextRestClient) listEnvironmentVariables (params *listEnvironmentVar
 	return &dest, nil
 }
 
-func (c *ContextRestClient) listContexts (params *listContextsParams) (*listContextsResponse, error) {
+func (c *ContextRestClient) listContexts(params *listContextsParams) (*listContextsResponse, error) {
 	req, err := c.newListContextsRequest(params)
 	if err != nil {
 		return nil, err
@@ -325,6 +359,7 @@ func (c *ContextRestClient) listContexts (params *listContextsParams) (*listCont
 	return &dest, nil
 }
 
+//newCreateContextRequest posts a new context creation with orgname and vcs type using a slug
 func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -345,10 +380,50 @@ func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*htt
 		} `json:"owner"`
 	}{
 		Name: name,
-		Owner: struct{
+		Owner: struct {
 			Slug *string `json:"slug,omitempty"`
 		}{
+
 			Slug: toSlug(vcs, org),
+		},
+	}
+	buf, err := json.Marshal(body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader = bytes.NewReader(buf)
+
+	return c.newHTTPRequest("POST", queryURL.String(), bodyReader)
+}
+
+//newCreateContextRequestWithOrgID posts a new context creation with an orgID
+func (c *ContextRestClient) newCreateContextRequestWithOrgID(orgID *string, name string) (*http.Request, error) {
+	var err error
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err = queryURL.Parse("context")
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyReader io.Reader
+
+	var body = struct {
+		Name  string `json:"name"`
+		Owner struct {
+			ID *string `json:"id,omitempty"`
+		} `json:"owner"`
+	}{
+		Name: name,
+		Owner: struct {
+			ID *string `json:"id,omitempty"`
+		}{
+
+			ID: orgID,
 		},
 	}
 	buf, err := json.Marshal(body)
@@ -374,7 +449,7 @@ func (c *ContextRestClient) newCreateEnvironmentVariableRequest(contextID, varia
 	}
 
 	var bodyReader io.Reader
-	body := struct{
+	body := struct {
 		Value string `json:"value"`
 	}{
 		Value: value,
@@ -473,6 +548,11 @@ func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (
 	req.Header.Add("circle-token", c.token)
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", version.UserAgent())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		req.Header.Add("Circleci-Cli-Command", commandStr)
+	}
 	return req, nil
 }
 
@@ -505,8 +585,8 @@ func (c *ContextRestClient) EnsureExists() error {
 	if err != nil {
 		return err
 	}
-	var respBody struct{
-		Paths struct{
+	var respBody struct {
+		Paths struct {
 			ContextEndpoint interface{} `json:"/context"`
 		}
 	}
@@ -523,25 +603,16 @@ func (c *ContextRestClient) EnsureExists() error {
 
 // NewContextRestClient returns a new client satisfying the api.ContextInterface
 // interface via the REST API.
-func NewContextRestClient(host, endpoint, token string) (*ContextRestClient, error) {
-	// Ensure server ends with a slash
-	if !strings.HasSuffix(endpoint, "/") {
-		endpoint += "/"
-	}
-	serverURL, err := url.Parse(host)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err = serverURL.Parse(endpoint)
+func NewContextRestClient(config settings.Config) (*ContextRestClient, error) {
+	serverURL, err := config.ServerURL()
 	if err != nil {
 		return nil, err
 	}
 
 	client := &ContextRestClient{
-		token: token,
+		token:  config.Token,
 		server: serverURL.String(),
-		client: &http.Client{},
+		client: config.HTTPClient,
 	}
 
 	return client, nil

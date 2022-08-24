@@ -41,12 +41,10 @@ func (r *Runner) CreateResourceClass(resourceClass, desc string) (rc *ResourceCl
 }
 
 func (r *Runner) GetResourceClassByName(resourceClass string) (rc *ResourceClass, err error) {
-	s := strings.SplitN(resourceClass, "/", 2)
-	if len(s) != 2 {
-		return nil, fmt.Errorf("bad resource class: %q", resourceClass)
+	namespace, err := r.GetNamespaceByResourceClass(resourceClass)
+	if err != nil {
+		return nil, err
 	}
-
-	namespace := s[0]
 	rcs, err := r.GetResourceClassesByNamespace(namespace)
 	if err != nil {
 		return nil, err
@@ -59,6 +57,14 @@ func (r *Runner) GetResourceClassByName(resourceClass string) (rc *ResourceClass
 	}
 
 	return nil, fmt.Errorf("resource class %q not found", resourceClass)
+}
+
+func (r *Runner) GetNamespaceByResourceClass(resourceClass string) (ns string, err error) {
+	s := strings.SplitN(resourceClass, "/", 2)
+	if len(s) != 2 {
+		return "", fmt.Errorf("bad resource class: %q", resourceClass)
+	}
+	return s[0], nil
 }
 
 func (r *Runner) GetResourceClassesByNamespace(namespace string) ([]ResourceClass, error) {
@@ -76,8 +82,13 @@ func (r *Runner) GetResourceClassesByNamespace(namespace string) ([]ResourceClas
 	return resp.Items, err
 }
 
-func (r *Runner) DeleteResourceClass(id string) error {
-	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: "runner/resource/" + url.PathEscape(id)}, nil)
+func (r *Runner) DeleteResourceClass(id string, force bool) error {
+	path := "runner/resource/" + url.PathEscape(id)
+	if force {
+		path = fmt.Sprintf("runner/resource/%s/force", url.PathEscape(id))
+	}
+
+	req, err := r.rc.NewRequest("DELETE", &url.URL{Path: path}, nil)
 	if err != nil {
 		return err
 	}

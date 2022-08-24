@@ -1,16 +1,14 @@
 package runner
 
 import (
-	"os"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli/api/runner"
 )
 
-func newTokenCommand(r *runner.Runner, preRunE validator) *cobra.Command {
+func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "token",
 		Short: "Operate on runner tokens",
@@ -22,11 +20,11 @@ func newTokenCommand(r *runner.Runner, preRunE validator) *cobra.Command {
 		Args:    cobra.ExactArgs(2),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			token, err := r.CreateToken(args[0], args[1])
+			token, err := o.r.CreateToken(args[0], args[1])
 			if err != nil {
 				return err
 			}
-			return generateConfig(*token, os.Stdout)
+			return generateConfig(*token, cmd.OutOrStdout())
 		},
 	})
 
@@ -37,7 +35,7 @@ func newTokenCommand(r *runner.Runner, preRunE validator) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			return r.DeleteToken(args[0])
+			return o.r.DeleteToken(args[0])
 		},
 	})
 
@@ -48,12 +46,12 @@ func newTokenCommand(r *runner.Runner, preRunE validator) *cobra.Command {
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			tokens, err := r.GetRunnerTokensByResourceClass(args[0])
+			tokens, err := o.r.GetRunnerTokensByResourceClass(args[0])
 			if err != nil {
 				return err
 			}
 
-			table := tablewriter.NewWriter(os.Stdout)
+			table := tablewriter.NewWriter(cmd.OutOrStdout())
 			defer table.Render()
 			table.SetHeader([]string{"ID", "Nickname", "Created At"})
 			for _, token := range tokens {

@@ -3,6 +3,7 @@ package api
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -47,14 +48,25 @@ func improveVcsTypeError(err error) error {
 }
 
 // CreateContext creates a new Context in the supplied organization.
-func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName string) (error) {
+func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName string) error {
 	cl := c.Client
 
 	org, err := getOrganization(cl, orgName, vcsType)
-
 	if err != nil {
 		return err
 	}
+
+	err = c.CreateContextWithOrgID(&org.Organization.ID, contextName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateContextWithOrgID creates a new Context in the supplied organization.
+func (c *GraphQLContextClient) CreateContextWithOrgID(orgID *string, contextName string) error {
+	cl := c.Client
 
 	query := `
 	mutation CreateContext($input: CreateContextInput!) {
@@ -77,7 +89,7 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		ContextName string `json:"contextName"`
 	}
 
-	input.OwnerId = org.Organization.ID
+	input.OwnerId = *orgID
 	input.OwnerType = "ORGANIZATION"
 	input.ContextName = contextName
 
@@ -93,21 +105,20 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		}
 	}
 
-	if err = cl.Run(request, &response); err != nil {
+	if err := cl.Run(request, &response); err != nil {
 		return improveVcsTypeError(err)
 	}
 
 	if response.CreateContext.Error.Type != "" {
 		return fmt.Errorf("Error creating context: %s", response.CreateContext.Error.Type)
 	}
-
 	return nil
 }
 
 // ContextByName returns the Context in the given organization with the given
 // name.
 func (c *GraphQLContextClient) ContextByName(vcs, org, name string) (*Context, error) {
-	contexts , err := c.Contexts(vcs, org)
+	contexts, err := c.Contexts(vcs, org)
 	if err != nil {
 		return nil, err
 	}
@@ -135,8 +146,8 @@ func (c *GraphQLContextClient) EnvironmentVariables(contextID string) (*[]Enviro
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
 	request.Var("id", contextID)
-	var resp struct{
-		Context struct{
+	var resp struct {
+		Context struct {
 			Resources []EnvironmentVariable
 		}
 	}
@@ -216,15 +227,15 @@ func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, er
 		return nil, errors.Wrapf(improveVcsTypeError(err), "failed to load context list")
 	}
 	var contexts []Context
-        for _, edge := range response.Organization.Contexts.Edges {
+	for _, edge := range response.Organization.Contexts.Edges {
 		context := edge.Node
 		created_at, err := time.Parse(time.RFC3339, context.CreatedAt)
 		if err != nil {
 			return nil, err
 		}
 		contexts = append(contexts, Context{
-			Name: context.Name,
-			ID: context.ID,
+			Name:      context.Name,
+			ID:        context.ID,
 			CreatedAt: created_at,
 		})
 	}
@@ -274,7 +285,7 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 	}
 
 	err := cl.Run(request, &response)
-	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment varaible")
+	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment variable")
 }
 
 // CreateEnvironmentVariable creates a new environment variable in the given
@@ -332,7 +343,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 	}
 
 	if err := cl.Run(request, &response); err != nil {
-		return errors.Wrap(improveVcsTypeError(err), "failed to store environment varaible in context")
+		return errors.Wrap(improveVcsTypeError(err), "failed to store environment variable in context")
 	}
 
 	if response.StoreEnvironmentVariable.Error.Type != "" {
@@ -372,8 +383,8 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 
 // NewContextGraphqlClient returns a new client satisfying the
 // api.ContextInterface interface via the GraphQL API.
-func NewContextGraphqlClient(host, endpoint, token string, debug bool) *GraphQLContextClient {
+func NewContextGraphqlClient(httpClient *http.Client, host, endpoint, token string, debug bool) *GraphQLContextClient {
 	return &GraphQLContextClient{
-		Client: graphql.NewClient(host, endpoint, token, debug),
+		Client: graphql.NewClient(httpClient, host, endpoint, token, debug),
 	}
 }

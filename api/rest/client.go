@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
@@ -20,19 +22,22 @@ type Client struct {
 	client      *http.Client
 }
 
-func New(host, endpoint, circleToken string) *Client {
+func New(host string, config *settings.Config) *Client {
 	// Ensure endpoint ends with a slash
+	endpoint := config.RestEndpoint
 	if !strings.HasSuffix(endpoint, "/") {
 		endpoint += "/"
 	}
 
 	u, _ := url.Parse(host)
+
+	client := config.HTTPClient
+	client.Timeout = 10 * time.Second
+
 	return &Client{
 		baseURL:     u.ResolveReference(&url.URL{Path: endpoint}),
-		circleToken: circleToken,
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		circleToken: config.Token,
+		client:      client,
 	}
 }
 
@@ -55,10 +60,13 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	req.Header.Set("Circle-Token", c.circleToken)
 	req.Header.Set("Accept-Type", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		req.Header.Set("Circleci-Cli-Command", commandStr)
+	}
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-
 	return req, nil
 }
 
@@ -94,8 +102,8 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 }
 
 type HTTPError struct {
-	Code int
-	Message  string
+	Code    int
+	Message string
 }
 
 func (e *HTTPError) Error() string {

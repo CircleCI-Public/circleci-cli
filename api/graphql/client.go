@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
@@ -26,7 +27,7 @@ type Client struct {
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(host, endpoint, token string, debug bool) *Client {
+func NewClient(httpClient *http.Client, host, endpoint, token string, debug bool) *Client {
 	return &Client{
 		httpClient: http.DefaultClient,
 		Endpoint:   endpoint,
@@ -53,6 +54,10 @@ func NewRequest(query string) *Request {
 	}
 
 	request.Header.Set("User-Agent", version.UserAgent())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		request.Header.Set("Circleci-Cli-Command", commandStr)
+	}
 	return request
 }
 

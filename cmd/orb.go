@@ -76,6 +76,7 @@ type createOrbTestUI struct {
 
 type orbProtectTemplateRelease struct {
 	ZipUrl string `json:"zipball_url"`
+	Name   string `json:"name"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -124,13 +125,13 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Use:   "process <path>",
 		Short: "Validate an orb and print its form after all pre-registration processing",
 		Long: strings.Join([]string{
-			"Use `$ circleci orb process` to resolve an orb, and it's dependencies to see how it would be expanded when you publish it to the registry.",
+			"Use `$ circleci orb process` to resolve an orb and its dependencies, to see how it would be expanded when you publish it to the registry.",
 			"", // purposeful new-line
 			"This can be helpful for validating an orb and debugging the processed form before publishing.",
 		}, "\n"),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processOrb(opts)
@@ -310,7 +311,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	orbInit := &cobra.Command{
 		Use:   "init <path>",
-		Short: "Initialize a new orb.",
+		Short: "Initialize a new orb project.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return initOrb(opts)
@@ -331,7 +332,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Long:  orbHelpLong(config),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.
@@ -488,6 +489,19 @@ func orbToSimpleString(orb api.OrbWithData) string {
 	}
 
 	return buffer.String()
+}
+
+func orbIsOpenSource(cl *graphql.Client, namespace string, orbName string) bool {
+	orbExists, orbIsPrivate, err := api.OrbExists(cl, namespace, orbName)
+
+	// we are don't want to output errors as they've already
+	// published a version of the orb successfully
+	if err != nil {
+		return false
+	}
+
+	// orbExists will also be false if it is a private orb
+	return orbExists && !orbIsPrivate
 }
 
 func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, error) {
@@ -673,6 +687,11 @@ func publishOrb(opts orbOptions) error {
 		fmt.Printf("Note that your dev label `%s` can be overwritten by anyone in your organization.\n", version)
 		fmt.Printf("Your dev orb will expire in 90 days unless a new version is published on the label `%s`.\n", version)
 	}
+
+	if orbIsOpenSource(opts.cl, namespace, orb) {
+		fmt.Println("Please note that this is an open orb and is world-readable.")
+	}
+
 	return nil
 }
 
@@ -743,6 +762,11 @@ func incrementOrb(opts orbOptions) error {
 	}
 
 	fmt.Printf("Orb `%s` has been incremented to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+
+	if orbIsOpenSource(opts.cl, namespace, orb) {
+		fmt.Println("Please note that this is an open orb and is world-readable.")
+	}
+
 	return nil
 }
 
@@ -769,6 +793,10 @@ func promoteOrb(opts orbOptions) error {
 	}
 
 	fmt.Printf("Orb `%s` was promoted to `%s/%s@%s`.\n", ref, namespace, orb, response.HighestVersion)
+
+	if orbIsOpenSource(opts.cl, namespace, orb) {
+		fmt.Println("Please note that this is an open orb and is world-readable.")
+	}
 	return nil
 }
 
@@ -1033,7 +1061,7 @@ func initOrb(opts orbOptions) error {
 
 	fmt.Printf("Downloading Orb Project Template into %s\n", orbPath)
 	httpClient := http.Client{}
-	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Project-Template/tags")
+	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Template/tags")
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
@@ -1042,21 +1070,31 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
-	tags := []orbProtectTemplateRelease{}
+	var tags []orbProtectTemplateRelease
 	err = json.Unmarshal(body, &tags)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	latestTag := tags[0].ZipUrl
-	resp, err := http.Get(latestTag)
+	// filter out any non-release tags
+	releaseTags := []orbProtectTemplateRelease{}
+	validTagRegex := regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+	for _, tag := range tags {
+		matched := validTagRegex.MatchString(tag.Name)
+		if matched {
+			releaseTags = append(releaseTags, tag)
+		}
+	}
+
+	latestRelease := releaseTags[0]
+	resp, err := http.Get(latestRelease.ZipUrl)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
 	// Create the file
-	out, err := os.Create(filepath.Join(os.TempDir(), "orb-project-template.zip"))
+	out, err := os.Create(filepath.Join(os.TempDir(), "orb-template.zip"))
 	if err != nil {
 		return err
 	}
@@ -1068,7 +1106,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-project-template.zip"), orbPath)
+	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-template.zip"), orbPath)
 	if err != nil {
 		return err
 	}
@@ -1155,6 +1193,29 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
+	registryCategories, err := api.ListOrbCategories(opts.cl)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to list orb categories")
+	}
+	c := func() []string {
+		var x []string
+		for _, v := range registryCategories.OrbCategories {
+			x = append(x, v.Name)
+		}
+
+		return x
+	}()
+
+	var categories []string
+	cPrompt := &survey.MultiSelect{
+		Message: "What categories will this orb belong to?",
+		Options: c,
+	}
+	err = survey.AskOne(cPrompt, &categories)
+	if err != nil {
+		return err
+	}
+
 	createContext := 0
 	prompt = &survey.Select{
 		Message: "Automatically set up a publishing context for your orb?",
@@ -1166,7 +1227,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if createContext == 0 {
-		contextGql := api.NewContextGraphqlClient(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		contextGql := api.NewContextGraphqlClient(opts.cfg.HTTPClient, opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
 		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
 		if err != nil {
 			if strings.Contains(err.Error(), "A context named orb-publishing already exists") {
@@ -1204,11 +1265,31 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
+		if err != nil {
+			return errors.Wrap(err, "Unable to create orb")
+		}
+		for _, v := range categories {
+			err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
+			if err != nil {
+				return err
+			}
+		}
 		err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, "", &opts)
 		if err != nil {
 			return err
 		}
 		return nil
+	}
+
+	gitBranch := "main"
+	bPrompt := &survey.Input{
+		Message: "Enter your primary git branch.",
+		Default: gitBranch,
+	}
+	err = survey.AskOne(bPrompt, &gitBranch)
+	if err != nil {
+		return err
 	}
 
 	gitLocation := ""
@@ -1227,13 +1308,24 @@ func initOrb(opts orbOptions) error {
 		return y[0]
 	}()
 
-	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	circleConfigSetup, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
 	if err != nil {
 		return err
 	}
 
-	circle := string(circleConfig)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, projectName, ownerName, orbName, namespace)), 0644)
+	configSetupString := string(circleConfigSetup)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	circleConfigDeploy, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "test-deploy.yml"))
+	if err != nil {
+		return err
+	}
+
+	configDeployString := string(circleConfigDeploy)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1242,8 +1334,20 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+
 	readmeString := string(readme)
 	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
+	if err != nil {
+		return err
+	}
+
+	orbRootString := string(orbRoot)
+	err = ioutil.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1261,7 +1365,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 	err = r.CreateBranch(&config.Branch{
-		Name:   "master",
+		Name:   gitBranch,
 		Remote: "origin",
 	})
 	if err != nil {
@@ -1302,6 +1406,13 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return errors.Wrap(err, "Unable to create orb")
 	}
+	for _, v := range categories {
+		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
+		if err != nil {
+			return err
+		}
+	}
+
 	packedOrb, err := packOrb(filepath.Join(orbPath, "src"))
 	if err != nil {
 		return err
@@ -1324,9 +1435,11 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Println("An initial commit has been created - please run \033[1;34m'git push origin master'\033[0m to publish your first commit!")
+	fmt.Printf("An initial commit has been created - please run the following commands in a separate terminal window. \n")
+	fmt.Printf("\033[1;34m'git branch -M %v'\033[0m\n", gitBranch)
+	fmt.Printf("\033[1;34m'git push origin %v'\033[0m\n", gitBranch)
 	yprompt = &survey.Confirm{
-		Message: "I have pushed to my git repository using the above command",
+		Message: "I have pushed to my git repository using the above commands",
 	}
 	// We don't use this anywhere, but AskOne will fail if we don't give it a
 	// place to put the result.
@@ -1336,7 +1449,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fr, err := api.FollowProject(opts.cfg.Host, vcsShort, ownerName, projectName, opts.cfg.Token)
+	fr, err := api.FollowProject(*opts.cfg, vcsShort, ownerName, projectName)
 	if err != nil {
 		return err
 	}
@@ -1407,7 +1520,7 @@ func unzipToOrbPath(src, dest string) error {
 			}
 		}()
 
-		// This is neccesary because the zip downloaded from GitHub will have a
+		// This is necessary because the zip downloaded from GitHub will have a
 		// directory with the actual template, rather than the template being
 		// top-level.
 		pathParts := strings.Split(f.Name, "/")

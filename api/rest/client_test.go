@@ -12,6 +12,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
@@ -61,7 +62,7 @@ func TestClient_DoRequest(t *testing.T) {
 		defer cleanup()
 
 		t.Run("Check result", func(t *testing.T) {
-			r, err := c.NewRequest("GET", &url.URL{Path: "my/error/endpoint"}, nil)
+			r, err := c.NewRequest(http.MethodGet, &url.URL{Path: "my/error/endpoint"}, nil)
 			assert.NilError(t, err)
 
 			resp := make(map[string]interface{})
@@ -73,7 +74,7 @@ func TestClient_DoRequest(t *testing.T) {
 
 		t.Run("Check request", func(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/my/error/endpoint"}))
-			assert.Check(t, cmp.Equal(fix.Method(), "GET"))
+			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept-Type":     {"application/json"},
@@ -90,7 +91,7 @@ func TestClient_DoRequest(t *testing.T) {
 		defer cleanup()
 
 		t.Run("Check result", func(t *testing.T) {
-			r, err := c.NewRequest("GET", &url.URL{Path: "path"}, nil)
+			r, err := c.NewRequest(http.MethodGet, &url.URL{Path: "path"}, nil)
 			assert.NilError(t, err)
 
 			resp := make(map[string]interface{})
@@ -105,7 +106,7 @@ func TestClient_DoRequest(t *testing.T) {
 
 		t.Run("Check request", func(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/path"}))
-			assert.Check(t, cmp.Equal(fix.Method(), "GET"))
+			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept-Type":     {"application/json"},
@@ -167,5 +168,13 @@ func (f *fixture) Run(statusCode int, respBody string) (c *Client, cleanup func(
 	})
 	server := httptest.NewServer(mux)
 
-	return New(server.URL, "api/v2", "fake-token"), server.Close
+	cfg := &settings.Config{
+		Debug:        false,
+		Token:        "fake-token",
+		RestEndpoint: "api/v2",
+		Endpoint:     "api/v2",
+		HTTPClient:   http.DefaultClient,
+	}
+
+	return New(server.URL, cfg), server.Close
 }
