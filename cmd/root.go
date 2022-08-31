@@ -32,7 +32,7 @@ var rootCmd *cobra.Command
 // rootOptions is used internally for preparing CLI and passed to sub-commands
 var rootOptions *settings.Config
 
-var configRootOptions *settings.Config
+// var configRootOptions *settings.Config
 
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
@@ -98,22 +98,24 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
 	rootOptions = &settings.Config{
-		Debug:        false,
-		Token:        "",
-		Host:         defaultHost,
-		RestEndpoint: defaultRestEndpoint,
-		Endpoint:     defaultEndpoint,
-		GitHubAPI:    "https://api.github.com/",
+		Debug:             false,
+		Token:             "",
+		Host:              defaultHost,
+		RestEndpoint:      defaultRestEndpoint,
+		Endpoint:          defaultEndpoint,
+		GitHubAPI:         "https://api.github.com/",
+		ConfigAPIHost:     defaultApiHost,
+		ConfigAPIEndpoint: defaultConfgCompileEndpoint,
 	}
 
-	configRootOptions = &settings.Config{
-		Debug:        false,
-		Token:        "",
-		Host:         defaultApiHost,
-		RestEndpoint: defaultRestEndpoint,
-		Endpoint:     defaultConfgCompileEndpoint,
-		GitHubAPI:    "https://api.github.com/",
-	}
+	// configRootOptions = &settings.Config{
+	// 	Debug:        false,
+	// 	Token:        "",
+	// 	Host:         defaultApiHost,
+	// 	RestEndpoint: defaultRestEndpoint,
+	// 	Endpoint:     defaultConfgCompileEndpoint,
+	// 	GitHubAPI:    "https://api.github.com/",
+	// }
 
 	if err := rootOptions.Load(); err != nil {
 		panic(err)
@@ -144,7 +146,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
-	rootCmd.AddCommand(newConfigCommand(configRootOptions))
+	rootCmd.AddCommand(newConfigCommand(rootOptions))
 	rootCmd.AddCommand(newOrbCommand(rootOptions))
 	rootCmd.AddCommand(runner.NewCommand(rootOptions, validator))
 	rootCmd.AddCommand(newLocalCommand(rootOptions))
