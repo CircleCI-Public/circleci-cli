@@ -19,6 +19,9 @@ import (
 
 var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
+
+var defaultApiHost = "https://api.circleci.com"
+var defaultConfgCompileEndpoint = "compile-config-with-defaults"
 var defaultRestEndpoint = "api/v2"
 
 // rootCmd is used internally and global to the package but not exported
@@ -28,6 +31,8 @@ var rootCmd *cobra.Command
 
 // rootOptions is used internally for preparing CLI and passed to sub-commands
 var rootOptions *settings.Config
+
+var configRootOptions *settings.Config
 
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
@@ -101,6 +106,15 @@ func MakeCommands() *cobra.Command {
 		GitHubAPI:    "https://api.github.com/",
 	}
 
+	configRootOptions = &settings.Config{
+		Debug:        false,
+		Token:        "",
+		Host:         defaultApiHost,
+		RestEndpoint: defaultRestEndpoint,
+		Endpoint:     defaultConfgCompileEndpoint,
+		GitHubAPI:    "https://api.github.com/",
+	}
+
 	if err := rootOptions.Load(); err != nil {
 		panic(err)
 	}
@@ -130,7 +144,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(newQueryCommand(rootOptions))
-	rootCmd.AddCommand(newConfigCommand(rootOptions))
+	rootCmd.AddCommand(newConfigCommand(configRootOptions))
 	rootCmd.AddCommand(newOrbCommand(rootOptions))
 	rootCmd.AddCommand(runner.NewCommand(rootOptions, validator))
 	rootCmd.AddCommand(newLocalCommand(rootOptions))
@@ -161,7 +175,7 @@ func MakeCommands() *cobra.Command {
 	flags.BoolVar(&rootOptions.Debug, "debug", rootOptions.Debug, "Enable debug logging.")
 	flags.StringVar(&rootTokenFromFlag, "token", "", "your token for using CircleCI, also CIRCLECI_CLI_TOKEN")
 	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
-	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
+	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
 
