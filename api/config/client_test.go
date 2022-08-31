@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -35,7 +36,7 @@ var compiled_config = `version: 2
 		  - run:
 			  command: echo Hello World`
 
-var options = &Options{owner_id: "123"}
+var options = &Options{OwnerId: "123"}
 
 func TestServerAddress(t *testing.T) {
 	var (
@@ -86,7 +87,10 @@ func TestDoJSON(t *testing.T) {
 			t.Errorf(err.Error())
 		}
 
-		if string(b) != source_config+"\n" {
+		var decodedBody ConfigCompileRequest
+		json.Unmarshal(b, &decodedBody)
+
+		if string(decodedBody.ConfigYml) != source_config {
 			t.Errorf("expected %s", string(b))
 		}
 
@@ -123,7 +127,10 @@ func TestDoJSONErr(t *testing.T) {
 			t.Errorf(err.Error())
 		}
 
-		if string(body) != source_config+"\n" {
+		var decodedBody ConfigCompileRequest
+		json.Unmarshal(body, &decodedBody)
+
+		if string(decodedBody.ConfigYml) != source_config {
 			t.Errorf("expected %s", body)
 		}
 
@@ -140,37 +147,6 @@ func TestDoJSONErr(t *testing.T) {
 	_, err := client.CompileConfigWithDefaults(source_config, *options)
 	if err != nil {
 		t.Errorf("expected empty compiled config string")
-	}
-}
-
-func TestHeader(t *testing.T) {
-	var calls int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
-		if r.Header.Get("X-Custom-Header") != "123" {
-			t.Errorf("expected %s", r.Header.Get("X-Custom-Header"))
-		}
-
-		_, err := io.WriteString(w, compiled_config)
-		if err != nil {
-			t.Errorf(err.Error())
-		}
-	}))
-	defer srv.Close()
-
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
-
-	compiled, err := client.CompileConfigWithDefaults(source_config, *options)
-	if err != nil {
-		t.Errorf(err.Error())
-	}
-
-	if calls != 1 {
-		t.Errorf("expected %d", calls)
-	}
-
-	if compiled == "" {
-		t.Errorf("expected %+v", compiled_config)
 	}
 }
 
@@ -221,7 +197,7 @@ func TestStatusCode500(t *testing.T) {
 		t.Error("expected error")
 	}
 
-	if err.Error() != "failure calling config API: 500 Internal Server Error" {
+	if err.Error() != "failure calling compile config API: 500 Internal Server Error" {
 		t.Errorf("expected %s", err.Error())
 	}
 
@@ -251,7 +227,7 @@ func TestStatusCode413(t *testing.T) {
 		t.Error("expected error")
 	}
 
-	if err.Error() != "failure calling config API: 413 Request Entity Too Large" {
+	if err.Error() != "failure calling compile config API: 413 Request Entity Too Large" {
 		t.Errorf("expected %s", err.Error())
 	}
 

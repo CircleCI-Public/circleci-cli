@@ -43,24 +43,14 @@ func NewClient(httpClient *http.Client, host, endpoint, token string, debug bool
 }
 
 type Options struct {
-	owner_id            string
-	pipeline_parameters map[string]interface{}
-	pipeline_values     map[string]interface{}
+	OwnerId            string                 `json:"owner_id"`
+	PipelineParameters map[string]interface{} `json:"pipeline_parameters"`
+	PipelineValues     map[string]interface{} `json:"pipeline_values"`
 }
 
 type ConfigCompileRequest struct {
-	config_yml string
-	options    Options
-}
-
-// Request is a HTTP request.
-type Request struct {
-	Query     string                 `json:"query"`
-	Variables map[string]interface{} `json:"variables"`
-
-	// Header represent any request headers that will be set
-	// when the request is made.
-	Header http.Header `json:"-"`
+	ConfigYml string  `json:"config_yml"`
+	Options   Options `json:"options"`
 }
 
 // getServerAddress returns the full address to the server
@@ -106,14 +96,14 @@ func (cl *Client) CompileConfigWithDefaults(config_yml string, options Options) 
 		return "", err
 	}
 
-	reqBody, err := json.Marshal(&ConfigCompileRequest{config_yml: config_yml, options: options})
+	reqBody, err := json.Marshal(&ConfigCompileRequest{ConfigYml: config_yml, Options: options})
 	if err != nil {
 		return "", fmt.Errorf("failed to construct request body: %w", err)
 	}
 
 	if cl.Debug {
 		l.Printf(">> config_string: %s", config_yml)
-		l.Printf(">> options: %v", options) // check %v
+		l.Printf(">> options: %+v", options) // check %v
 	}
 
 	req, err := http.NewRequestWithContext(ctx, "POST", address, bytes.NewBuffer(reqBody))
@@ -126,7 +116,7 @@ func (cl *Client) CompileConfigWithDefaults(config_yml string, options Options) 
 	req.Header.Set("Authorization", cl.Token)
 	req.Header.Set("User-Agent", version.UserAgent())
 
-	commandStr := header.GetCommandStr()
+	commandStr := header.GetCommandStr() // TODO: check this
 	if commandStr != "" {
 		req.Header.Set("Circleci-Cli-Command", commandStr)
 	}
