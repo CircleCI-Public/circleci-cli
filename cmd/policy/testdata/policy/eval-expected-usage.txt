@@ -1,10 +1,12 @@
 Usage:
-  policy eval [flags]
+  policy eval <policy_file_or_dir_path> [flags]
+
+Examples:
+policy eval ./policies --input ./.circleci/config.yml
 
 Flags:
       --input string      path to input file
       --metafile string   decision metadata file
-      --policy string     path to rego policy file or directory containing policy files
       --query string      policy decision query (default "data")
 
 Global Flags:
