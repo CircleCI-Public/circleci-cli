@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/api/config"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
@@ -148,7 +149,7 @@ var _ = Describe("Config", func() {
 		})
 
 		Describe("validating configs", func() {
-			config := "version: 2.1"
+			config_string := "version: 2.1"
 			var expReq string
 
 			BeforeEach(func() {
@@ -162,22 +163,28 @@ var _ = Describe("Config", func() {
 
 				stdin, err := command.StdinPipe()
 				Expect(err).ToNot(HaveOccurred())
-				_, err = io.WriteString(stdin, config)
+				_, err = io.WriteString(stdin, config_string)
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
+				r := config.NewRequest()
 
-				r := graphql.NewRequest(query)
-				r.Variables["config"] = config
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+				// 		query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+				// 	buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
+				// 		valid,
+				// 		errors { message },
+				// 		sourceYaml,
+				// 		outputYaml
+				// 	}
+				// }`
+
+				// r := graphql.NewRequest(query)
+				// r.Variables["config"] = config_string
+				// r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+
+				r.ConfigYml = config_string
+				r.Options = config.Options{PipelineValues: pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())}
+				// r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
 
 				req, err := r.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
@@ -186,10 +193,8 @@ var _ = Describe("Config", func() {
 
 			It("returns an error when validating a config", func() {
 				expResp := `{
-					"buildConfig": {
-								"errors": [
-									{"message": "error1"}
-								]
+					"Errors": {
+						{"config": "error1"}
 					}
 				}`
 
@@ -201,7 +206,7 @@ var _ = Describe("Config", func() {
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err, time.Second*3).Should(gbytes.Say("Error: error1"))
+				Eventually(session.Err, time.Second*3).Should(gbytes.Say("config: error1"))
 				Eventually(session).Should(clitest.ShouldFail())
 			})
 

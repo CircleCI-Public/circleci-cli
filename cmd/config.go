@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	compileConfig "github.com/CircleCI-Public/circleci-cli/api/config"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/local"
@@ -19,9 +20,10 @@ import (
 )
 
 type configOptions struct {
-	cfg  *settings.Config
-	cl   *graphql.Client
-	args []string
+	cfg                 *settings.Config
+	cl                  *graphql.Client
+	compileConfigClient *compileConfig.Client
+	args                []string
 }
 
 // Path to the config.yml file to operate on.
@@ -63,7 +65,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.ConfigAPIHost, config.ConfigAPIEndpoint, config.Token, config.Debug)
+			opts.compileConfigClient = compileConfig.NewClient(config.HTTPClient, config.ConfigAPIHost, config.ConfigAPIEndpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return validateConfig(opts, cmd.Flags())
@@ -140,7 +143,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQuery(opts.compileConfigClient, path, orgID, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
@@ -194,7 +197,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQuery(opts.compileConfigClient, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}

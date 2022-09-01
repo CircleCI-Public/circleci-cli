@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/api/config"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
@@ -69,6 +70,19 @@ type IntrospectionResponse struct {
 			Name string
 		}
 	} `json:"__schema"`
+}
+
+type ConfigError struct {
+	Type    string
+	Message string
+}
+
+type CompileConfigResponse struct {
+	Valid      bool
+	SourceYaml string
+	OutputYaml string
+
+	Errors []ConfigError
 }
 
 // ConfigResponse is a structure that matches the result of the GQL
@@ -574,62 +588,41 @@ func ConfigQueryLegacy(cl *graphql.Client, configPath string, orgSlug string, pa
 }
 
 // ConfigQuery calls the GQL API to validate and process config with the org id
-func ConfigQuery(cl *graphql.Client, configPath string, orgId string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
-	var response BuildConfigResponse
-	var query string
-	config, err := loadYaml(configPath)
+func ConfigQuery(cl *config.Client, configPath string, orgId string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
+	var response ConfigResponse
+	config_string, err := loadYaml(configPath)
 	if err != nil {
 		return nil, err
 	}
-	// GraphQL isn't forwards-compatible, so we are unusually selective here about
-	// passing only non-empty fields on to the API, to minimize user impact if the
-	// backend is out of date.
-	var fieldAddendums string
-	if orgId != "" {
-		fieldAddendums += ", orgId: $orgId"
-	}
-	if len(params) > 0 {
-		fieldAddendums += ", pipelineParametersJson: $pipelineParametersJson"
-	}
-	query = fmt.Sprintf(
-		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgId: UUID!) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`,
-		fieldAddendums)
 
-	request := graphql.NewRequest(query)
-	request.Var("config", config)
+	request := config.NewRequest()
+	request.ConfigYml = config_string
 
 	if values != nil {
-		request.Var("pipelineValues", pipeline.PrepareForGraphQL(values))
+		request.Options.PipelineValues = pipeline.PrepareForGraphQL(values)
 	}
 	if params != nil {
 		pipelineParameters, err := json.Marshal(params)
 		if err != nil {
 			return nil, fmt.Errorf("unable to serialize pipeline values: %s", err.Error())
 		}
-		request.Var("pipelineParametersJson", string(pipelineParameters))
+		request.Options.PipelineParameters = string(pipelineParameters)
 	}
 
 	if orgId != "" {
-		request.Var("orgId", orgId)
+		request.Options.OwnerId = orgId
 	}
-	request.SetToken(cl.Token)
+	// request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
-	if len(response.BuildConfig.ConfigResponse.Errors) > 0 {
-		return nil, &response.BuildConfig.ConfigResponse.Errors
+	if len(response.Errors) > 0 {
+		return nil, fmt.Errorf("failed to start reporter: %+v", response.Errors)
 	}
 
-	return &response.BuildConfig.ConfigResponse, nil
+	return &response, nil
 }
 
 // OrbQuery validated and processes an orb.

@@ -91,10 +91,16 @@ func TestDoJSON(t *testing.T) {
 		json.Unmarshal(b, &decodedBody)
 
 		if string(decodedBody.ConfigYml) != source_config {
-			t.Errorf("expected %s", string(b))
+			t.Errorf("expected %s", source_config)
 		}
 
-		_, err = io.WriteString(w, compiled_config)
+		result, err := json.Marshal(&Response{Valid: true, Source_Yaml: source_config, Output_yaml: compiled_config, Errors: nil})
+
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		_, err = io.WriteString(w, string(result))
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -103,7 +109,9 @@ func TestDoJSON(t *testing.T) {
 
 	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
-	compiled, err := client.CompileConfigWithDefaults(source_config, *options)
+	var resp Response
+	err := client.Run(&Request{ConfigYml: source_config, Options: *options}, &resp)
+
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -112,7 +120,9 @@ func TestDoJSON(t *testing.T) {
 		t.Errorf("expected %d", calls)
 	}
 
-	if compiled == "" {
+	t.Logf("response %+v", resp)
+
+	if resp.Output_yaml == "" {
 		t.Errorf("expected %+v", compiled_config)
 	}
 }
@@ -134,7 +144,15 @@ func TestDoJSONErr(t *testing.T) {
 			t.Errorf("expected %s", body)
 		}
 
-		_, err = io.WriteString(writer, compiled_config)
+		result, err := json.Marshal(&Response{Valid: false, Source_Yaml: source_config, Output_yaml: "", Errors: []ConfigError{
+			{Type: "config", Message: "Something went wrong"},
+		}})
+
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
+		_, err = io.WriteString(writer, string(result))
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -144,7 +162,9 @@ func TestDoJSONErr(t *testing.T) {
 
 	client := NewClient(http.DefaultClient, server.URL, "/", "token", false)
 
-	_, err := client.CompileConfigWithDefaults(source_config, *options)
+	var resp Response
+
+	err := client.Run(&Request{ConfigYml: source_config, Options: *options}, &resp)
 	if err != nil {
 		t.Errorf("expected empty compiled config string")
 	}
@@ -155,9 +175,15 @@ func TestStatusCode200(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 
+		result, err := json.Marshal(&Response{Valid: false, Source_Yaml: source_config, Output_yaml: "", Errors: nil})
+
+		if err != nil {
+			t.Errorf(err.Error())
+		}
+
 		w.WriteHeader(http.StatusOK)
 
-		_, err := io.WriteString(w, compiled_config)
+		_, err = io.WriteString(w, string(result))
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -166,7 +192,9 @@ func TestStatusCode200(t *testing.T) {
 
 	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
-	_, err := client.CompileConfigWithDefaults(source_config, *options)
+	var resp Response
+
+	err := client.Run(&Request{ConfigYml: source_config, Options: *options}, &resp)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -192,7 +220,9 @@ func TestStatusCode500(t *testing.T) {
 
 	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
-	_, err := client.CompileConfigWithDefaults(source_config, *options)
+	var resp Response
+
+	err := client.Run(&Request{ConfigYml: source_config, Options: *options}, &resp)
 	if err == nil {
 		t.Error("expected error")
 	}
@@ -222,7 +252,9 @@ func TestStatusCode413(t *testing.T) {
 
 	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
-	_, err := client.CompileConfigWithDefaults(source_config, *options)
+	var resp Response
+
+	err := client.Run(&Request{ConfigYml: source_config, Options: *options}, &resp)
 	if err == nil {
 		t.Error("expected error")
 	}

@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/api/config"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -25,6 +26,7 @@ const DefaultConfigPath = ".circleci/config.yml"
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	var err error
 	var configResponse *api.ConfigResponse
+	configClient := config.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 
 	processedArgs, configPath := buildAgentArguments(flags)
@@ -32,7 +34,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		configResponse, err = api.ConfigQuery(cl, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		configResponse, err = api.ConfigQuery(configClient, configPath, orgID, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
