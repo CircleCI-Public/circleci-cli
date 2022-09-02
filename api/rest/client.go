@@ -93,6 +93,11 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 		if !strings.Contains(httpResp.Header.Get("Content-Type"), "application/json") {
 			return httpResp.StatusCode, errors.New("wrong content type received")
 		}
+
+		err = json.NewDecoder(httpResp.Body).Decode(resp)
+		if err != nil {
+			return httpResp.StatusCode, err
+		}
 	}
 
 	return httpResp.StatusCode, nil
