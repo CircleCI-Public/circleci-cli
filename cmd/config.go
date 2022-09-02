@@ -6,8 +6,9 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	compileConfig "github.com/CircleCI-Public/circleci-cli/api/config"
+	"github.com/CircleCI-Public/circleci-cli/api/compile_config"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
@@ -22,7 +23,8 @@ import (
 type configOptions struct {
 	cfg                 *settings.Config
 	cl                  *graphql.Client
-	compileConfigClient *compileConfig.Client
+	rest                *rest.Client
+	compileConfigClient *rest.Client
 	args                []string
 }
 
@@ -65,8 +67,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.compileConfigClient = compileConfig.NewClient(config.HTTPClient, config.ConfigAPIHost, config.ConfigAPIEndpoint, config.Token, config.Debug)
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.rest = rest.New(config.Host, config)
+			opts.compileConfigClient = rest.New(config.ConfigAPIHost, config)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return validateConfig(opts, cmd.Flags())
@@ -88,7 +90,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.ConfigAPIHost, config.ConfigAPIEndpoint, config.Token, config.Debug)
+			opts.rest = rest.New(config.Host, config)
+			opts.compileConfigClient = rest.New(config.ConfigAPIHost, config)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return processConfig(opts, cmd.Flags())
@@ -128,7 +131,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	var err error
-	var response *api.ConfigResponse
+	var response *compile_config.CompileConfigResult
 	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
@@ -140,26 +143,30 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 		path = opts.args[0]
 	}
 
+	var compileConfig = compile_config.New(opts.rest, opts.compileConfigClient)
+
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.compileConfigClient, path, orgID, nil, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQuery(compileConfig, path, orgID, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		response, err = api.ConfigQueryLegacy(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQueryLegacy(compileConfig, path, orgSlug, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	}
 
+	var configResponse = &api.ConfigResponse{OutputYaml: response.OutputYaml, SourceYaml: response.SourceYaml, Valid: response.Valid}
+
 	// check if a deprecated Linux VM image is being used
 	// link here to blog post when available
 	// returns an error if a deprecated image is used
 	if !ignoreDeprecatedImages {
-		err := deprecatedImageCheck(response)
+		err := deprecatedImageCheck(configResponse)
 		if err != nil {
 			return err
 		}
@@ -176,7 +183,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	paramsYaml, _ := flags.GetString("pipeline-parameters")
-	var response *api.ConfigResponse
+	var response *compile_config.CompileConfigResult
 	var params pipeline.Parameters
 	var err error
 
@@ -194,16 +201,18 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
+	var compileConfig = compile_config.New(opts.rest, opts.compileConfigClient)
+
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.compileConfigClient, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQuery(compileConfig, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		response, err = api.ConfigQueryLegacy(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQueryLegacy(compileConfig, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}

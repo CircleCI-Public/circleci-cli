@@ -120,8 +120,6 @@ func TestDoJSON(t *testing.T) {
 		t.Errorf("expected %d", calls)
 	}
 
-	t.Logf("response %+v", resp)
-
 	if resp.Output_yaml == "" {
 		t.Errorf("expected %+v", compiled_config)
 	}

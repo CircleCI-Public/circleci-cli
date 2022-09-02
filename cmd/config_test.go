@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api/config"
+	"github.com/CircleCI-Public/circleci-cli/api/compile_config"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
@@ -167,9 +167,13 @@ var _ = Describe("Config", func() {
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				r := config.NewRequest()
+				reqOptions := &compile_config.Options{PipelineValues: pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())}
 
-				// 		query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
+
+				// r := config.NewRequest()
+
+				// query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
 				// 	buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
 				// 		valid,
 				// 		errors { message },
@@ -178,17 +182,18 @@ var _ = Describe("Config", func() {
 				// 	}
 				// }`
 
-				// r := graphql.NewRequest(query)
-				// r.Variables["config"] = config_string
-				// r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+				// graphqlRequest := graphql.NewRequest(query)
 
-				r.ConfigYml = config_string
-				r.Options = config.Options{PipelineValues: pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())}
-				// r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+				// graphqlRequest.Variables["config"] = config_string
+				// graphqlRequest.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
 
-				req, err := r.Encode()
+				// r.ConfigYml = config_string
+				// r.Options = config.Options{PipelineValues: pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())}
+
 				Expect(err).ShouldNot(HaveOccurred())
-				expReq = req.String()
+				rawRequest, err := json.Marshal(body)
+
+				expReq = string(rawRequest)
 			})
 
 			It("returns an error when validating a config", func() {

@@ -11,8 +11,8 @@ import (
 	"syscall"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/api/config"
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/compile_config"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -25,22 +25,24 @@ const DefaultConfigPath = ".circleci/config.yml"
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 	var err error
-	var configResponse *api.ConfigResponse
-	configClient := config.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	var configResponse *compile_config.CompileConfigResult
+	// configClient := config.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	// cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 
 	processedArgs, configPath := buildAgentArguments(flags)
+
+	var compileConfig = compile_config.New(rest.New(cfg.Host, cfg), rest.New(cfg.ConfigAPIHost, cfg))
 
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		configResponse, err = api.ConfigQuery(configClient, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		configResponse, err = api.ConfigQuery(compileConfig, configPath, orgID, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		configResponse, err = api.ConfigQueryLegacy(cl, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
+		configResponse, err = api.ConfigQueryLegacy(compileConfig, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}

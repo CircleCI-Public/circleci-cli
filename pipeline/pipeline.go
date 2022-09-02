@@ -69,3 +69,7 @@ func PrepareForGraphQL(kvMap Values) []KeyVal {
 	}
 	return kvs
 }
+
+func PrepareForRest(kvMap Values) map[string]string {
+	return kvMap
+}

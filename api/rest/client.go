@@ -72,6 +72,7 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
 	httpResp, err := c.client.Do(req)
+
 	if err != nil {
 		return 0, err
 	}
@@ -92,12 +93,8 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 		if !strings.Contains(httpResp.Header.Get("Content-Type"), "application/json") {
 			return httpResp.StatusCode, errors.New("wrong content type received")
 		}
-
-		err = json.NewDecoder(httpResp.Body).Decode(resp)
-		if err != nil {
-			return httpResp.StatusCode, err
-		}
 	}
+
 	return httpResp.StatusCode, nil
 }
 
