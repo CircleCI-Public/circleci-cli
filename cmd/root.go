@@ -21,7 +21,6 @@ var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
 
 var defaultApiHost = "https://api.circleci.com"
-var defaultConfgCompileEndpoint = "compile-config-with-defaults"
 var defaultRestEndpoint = "api/v2"
 
 // rootCmd is used internally and global to the package but not exported
@@ -98,24 +97,14 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
 	rootOptions = &settings.Config{
-		Debug:             false,
-		Token:             "",
-		Host:              defaultHost,
-		RestEndpoint:      defaultRestEndpoint,
-		Endpoint:          defaultEndpoint,
-		GitHubAPI:         "https://api.github.com/",
-		ConfigAPIHost:     defaultApiHost,
-		ConfigAPIEndpoint: defaultConfgCompileEndpoint,
+		Debug:         false,
+		Token:         "",
+		Host:          defaultHost,
+		RestEndpoint:  defaultRestEndpoint,
+		Endpoint:      defaultEndpoint,
+		GitHubAPI:     "https://api.github.com/",
+		ConfigAPIHost: defaultApiHost,
 	}
-
-	// configRootOptions = &settings.Config{
-	// 	Debug:        false,
-	// 	Token:        "",
-	// 	Host:         defaultApiHost,
-	// 	RestEndpoint: defaultRestEndpoint,
-	// 	Endpoint:     defaultConfgCompileEndpoint,
-	// 	GitHubAPI:    "https://api.github.com/",
-	// }
 
 	if err := rootOptions.Load(); err != nil {
 		panic(err)

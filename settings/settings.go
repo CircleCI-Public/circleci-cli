@@ -21,22 +21,21 @@ import (
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	Host              string            `yaml:"host"`
-	Endpoint          string            `yaml:"endpoint"`
-	Token             string            `yaml:"token"`
-	RestEndpoint      string            `yaml:"rest_endpoint"`
-	TLSCert           string            `yaml:"tls_cert"`
-	TLSInsecure       bool              `yaml:"tls_insecure"`
-	HTTPClient        *http.Client      `yaml:"-"`
-	Data              *data.DataBag     `yaml:"-"`
-	Debug             bool              `yaml:"-"`
-	Address           string            `yaml:"-"`
-	FileUsed          string            `yaml:"-"`
-	GitHubAPI         string            `yaml:"-"`
-	SkipUpdateCheck   bool              `yaml:"-"`
-	OrbPublishing     OrbPublishingInfo `yaml:"orb_publishing"`
-	ConfigAPIHost     string            `yaml:"-"`
-	ConfigAPIEndpoint string            `yaml:"-"`
+	Host            string            `yaml:"host"`
+	Endpoint        string            `yaml:"endpoint"`
+	Token           string            `yaml:"token"`
+	RestEndpoint    string            `yaml:"rest_endpoint"`
+	TLSCert         string            `yaml:"tls_cert"`
+	TLSInsecure     bool              `yaml:"tls_insecure"`
+	HTTPClient      *http.Client      `yaml:"-"`
+	Data            *data.DataBag     `yaml:"-"`
+	Debug           bool              `yaml:"-"`
+	Address         string            `yaml:"-"`
+	FileUsed        string            `yaml:"-"`
+	GitHubAPI       string            `yaml:"-"`
+	SkipUpdateCheck bool              `yaml:"-"`
+	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
+	ConfigAPIHost   string            `yaml:"-"`
 }
 
 type OrbPublishingInfo struct {
