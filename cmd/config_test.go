@@ -167,7 +167,7 @@ var _ = Describe("Config", func() {
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				reqOptions := &compile_config.Options{PipelineValues: pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())}
+				reqOptions := &compile_config.Options{PipelineValues: pipeline.LocalPipelineValues()}
 
 				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
 
@@ -199,7 +199,7 @@ var _ = Describe("Config", func() {
 			It("returns an error when validating a config", func() {
 				expResp := `{
 					"Errors": {
-						{"config": "error1"}
+						{"Message": "error1"}
 					}
 				}`
 
@@ -211,14 +211,12 @@ var _ = Describe("Config", func() {
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err, time.Second*3).Should(gbytes.Say("config: error1"))
+				Eventually(session.Err, time.Second*3).Should(gbytes.Say("message: error1"))
 				Eventually(session).Should(clitest.ShouldFail())
 			})
 
 			It("returns successfully when validating a config", func() {
-				expResp := `{
-					"buildConfig": {}
-				}`
+				expResp := ``
 
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
@@ -234,7 +232,7 @@ var _ = Describe("Config", func() {
 		})
 
 		Describe("validating configs with pipeline parameters", func() {
-			config := "version: 2.1"
+			config_string := "version: 2.1"
 			var expReq string
 
 			BeforeEach(func() {
@@ -249,40 +247,52 @@ var _ = Describe("Config", func() {
 
 				stdin, err := command.StdinPipe()
 				Expect(err).ToNot(HaveOccurred())
-				_, err = io.WriteString(stdin, config)
+				_, err = io.WriteString(stdin, config_string)
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
-
-				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues, pipelineParametersJson: $pipelineParametersJson) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
-
-				r := graphql.NewRequest(query)
-				r.Variables["config"] = config
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
 
 				pipelineParams, err := json.Marshal(pipeline.Parameters{
 					"foo": "test",
 					"bar": true,
 					"baz": 10,
 				})
-				Expect(err).ToNot(HaveOccurred())
-				r.Variables["pipelineParametersJson"] = string(pipelineParams)
 
-				req, err := r.Encode()
+				reqOptions := &compile_config.Options{PipelineValues: pipeline.LocalPipelineValues(), PipelineParameters: string(pipelineParams)}
+
+				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
+
+				// 		query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
+				// 	buildConfig(configYaml: $config, pipelineValues: $pipelineValues, pipelineParametersJson: $pipelineParametersJson) {
+				// 		valid,
+				// 		errors { message },
+				// 		sourceYaml,
+				// 		outputYaml
+				// 	}
+				// }`
+
+				// 		r := graphql.NewRequest(query)
+				// 		r.Variables["config"] = config
+				// 		r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+
+				// 		pipelineParams, err := json.Marshal(pipeline.Parameters{
+				// 			"foo": "test",
+				// 			"bar": true,
+				// 			"baz": 10,
+				// 		})
+				Expect(err).ToNot(HaveOccurred())
+				// r.Variables["pipelineParametersJson"] = string(pipelineParams)
+
+				rawRequest, err := json.Marshal(body)
 				Expect(err).ShouldNot(HaveOccurred())
-				expReq = req.String()
+
+				expReq = string(rawRequest)
+				// req, err := r.Encode()
+				// Expect(err).ShouldNot(HaveOccurred())
+				// expReq = req.String()
 			})
 
 			It("returns successfully when validating a config", func() {
-				expResp := `{
-					"buildConfig": {}
-				}`
+				expResp := ``
 
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
