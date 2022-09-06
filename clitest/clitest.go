@@ -110,6 +110,21 @@ func (tempSettings *TempSettings) AppendRESTPostHandler(combineHandlers ...MockR
 				ghttp.RespondWith(handler.Status, responseBody),
 			),
 		)
+
+		tempSettings.TestServer.AppendHandlers(
+			ghttp.CombineHandlers(
+				ghttp.VerifyRequest("POST", "/api/v2/compile-config-with-defaults"),
+				ghttp.VerifyContentType("application/json"),
+				func(w http.ResponseWriter, req *http.Request) {
+					body, err := ioutil.ReadAll(req.Body)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					err = req.Body.Close()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(handler.Request).Should(gomega.MatchJSON(body), "JSON Mismatch")
+				},
+				ghttp.RespondWith(handler.Status, responseBody),
+			),
+		)
 	}
 }
 

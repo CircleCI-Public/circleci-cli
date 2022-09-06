@@ -16,7 +16,6 @@ func New(rc *rest.Client, compileClient *rest.Client) *CompileConfig {
 }
 
 type ConfigError struct {
-	Type    string `json:"type"`
 	Message string `json:"message"`
 }
 
@@ -94,9 +93,6 @@ func (r *CompileConfig) GetOrgCollaborations() ([]CollaborationResult, error) {
 }
 
 func (r *CompileConfig) CompileConfigWithDefaults(compileConfigRequest *CompileConfigRequest) (*CompileConfigResult, error) {
-	// compileConfigRequest.ConfigYml = "version 2.1"
-	// compileConfigRequest.Options.OwnerId = "5806bba7-7afc-4dfb-8abc-1e669a31f9d2"
-	// compileConfigRequest.Options.PipelineValues = nil
 	req, err := r.compileClient.NewRequest("POST", &url.URL{Path: "compile-config-with-defaults"}, compileConfigRequest)
 	if err != nil {
 		return nil, err

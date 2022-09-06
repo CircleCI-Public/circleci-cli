@@ -203,12 +203,14 @@ var _ = Describe("Config", func() {
 					}
 				}`
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				By("setting up a mock server")
+				tempSettings.AppendRESTPostHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
 				})
 
+				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err, time.Second*3).Should(gbytes.Say("message: error1"))
@@ -430,9 +432,7 @@ var _ = Describe("Config", func() {
 			})
 
 			It("returns successfully when validating a config with private orbs", func() {
-				expResp := `{
-					"buildConfig": {}
-				}`
+				expResp := ``
 
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,

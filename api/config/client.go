@@ -96,7 +96,6 @@ type Request struct {
 }
 
 type ConfigError struct {
-	Type    string
 	Message string
 }
 

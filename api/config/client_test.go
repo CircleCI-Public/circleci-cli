@@ -143,7 +143,7 @@ func TestDoJSONErr(t *testing.T) {
 		}
 
 		result, err := json.Marshal(&Response{Valid: false, Source_Yaml: source_config, Output_yaml: "", Errors: []ConfigError{
-			{Type: "config", Message: "Something went wrong"},
+			{Message: "Something went wrong"},
 		}})
 
 		if err != nil {
