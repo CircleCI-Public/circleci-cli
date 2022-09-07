@@ -99,6 +99,7 @@ func (r *CompileConfig) CompileConfigWithDefaults(compileConfigRequest *CompileC
 	fmt.Printf("calling request****: %+v", req)
 
 	if err != nil {
+		fmt.Printf("calling request errored****: %+v", err)
 		return nil, err
 	}
 

@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/compile_config"
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	. "github.com/onsi/ginkgo"
@@ -171,43 +170,23 @@ var _ = Describe("Config", func() {
 
 				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
 
-				// r := config.NewRequest()
-
-				// query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-				// 	buildConfig(configYaml: $config, pipelineValues: $pipelineValues) {
-				// 		valid,
-				// 		errors { message },
-				// 		sourceYaml,
-				// 		outputYaml
-				// 	}
-				// }`
-
-				// graphqlRequest := graphql.NewRequest(query)
-
-				// graphqlRequest.Variables["config"] = config_string
-				// graphqlRequest.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
-
-				// r.ConfigYml = config_string
-				// r.Options = config.Options{PipelineValues: pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())}
-
 				Expect(err).ShouldNot(HaveOccurred())
 				rawRequest, err := json.Marshal(body)
-
+				Expect(err).ToNot(HaveOccurred())
 				expReq = string(rawRequest)
 			})
 
 			It("returns an error when validating a config", func() {
 				expResp := `{
-					"errors": {
+					"valid": false,
+					"errors": [
 						{"message": "error1"}
-					}
+					]
 				}`
 				fmt.Printf("*****address: %v", tempSettings.TestServer.URL())
 
-				fmt.Printf("***temp settings: %v", tempSettings.Config)
-
 				By("setting up a mock server")
-				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -217,15 +196,18 @@ var _ = Describe("Config", func() {
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				fmt.Printf("^^^^^^error: %+v", session.Err)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err, time.Second*3).Should(gbytes.Say("message: error1"))
 				Eventually(session).Should(clitest.ShouldFail())
 			})
 
 			It("returns successfully when validating a config", func() {
-				expResp := ``
+				expResp := `{
+					"valid":true
+				}`
 
-				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -268,40 +250,24 @@ var _ = Describe("Config", func() {
 
 				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
 
-				// 		query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-				// 	buildConfig(configYaml: $config, pipelineValues: $pipelineValues, pipelineParametersJson: $pipelineParametersJson) {
-				// 		valid,
-				// 		errors { message },
-				// 		sourceYaml,
-				// 		outputYaml
-				// 	}
-				// }`
-
-				// 		r := graphql.NewRequest(query)
-				// 		r.Variables["config"] = config
-				// 		r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
-
-				// 		pipelineParams, err := json.Marshal(pipeline.Parameters{
-				// 			"foo": "test",
-				// 			"bar": true,
-				// 			"baz": 10,
-				// 		})
 				Expect(err).ToNot(HaveOccurred())
-				// r.Variables["pipelineParametersJson"] = string(pipelineParams)
 
 				rawRequest, err := json.Marshal(body)
+
 				Expect(err).ShouldNot(HaveOccurred())
 
 				expReq = string(rawRequest)
-				// req, err := r.Encode()
-				// Expect(err).ShouldNot(HaveOccurred())
-				// expReq = req.String()
 			})
 
 			It("returns successfully when validating a config", func() {
-				expResp := ``
 
-				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
+				fmt.Printf("*****raw request: %s", expReq)
+
+				expResp := `{
+					"valid": true
+				}`
+
+				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -314,7 +280,7 @@ var _ = Describe("Config", func() {
 		})
 
 		Describe("validating configs with private orbs", func() {
-			config := "version: 2.1"
+			config_string := "version: 2.1"
 			orgId := "bb604b45-b6b0-4b81-ad80-796f15eddf87"
 			var expReq string
 
@@ -330,37 +296,29 @@ var _ = Describe("Config", func() {
 
 				stdin, err := command.StdinPipe()
 				Expect(err).ToNot(HaveOccurred())
-				_, err = io.WriteString(stdin, config)
+				_, err = io.WriteString(stdin, config_string)
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgId: UUID!) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgId: $orgId) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
+				reqOptions := &compile_config.Options{PipelineValues: pipeline.LocalPipelineValues(), OwnerId: orgId}
 
-				r := graphql.NewRequest(query)
-				r.Variables["config"] = config
-				r.Variables["orgId"] = orgId
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
 
-				req, err := r.Encode()
+				rawRequest, err := json.Marshal(body)
 				Expect(err).ShouldNot(HaveOccurred())
-				expReq = req.String()
+
+				expReq = string(rawRequest)
 			})
 
 			It("returns an error when validating a config with a private orb", func() {
 				expResp := `{
+					"valid": false,
 					"errors": [
 									{"message": "permission denied"}
 								]
 				}`
 
-				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -374,7 +332,7 @@ var _ = Describe("Config", func() {
 		})
 
 		Describe("validating configs with private orbs Legacy", func() {
-			config := "version: 2.1"
+			config_string := "version: 2.1"
 			orgSlug := "circleci"
 			var expReq string
 
@@ -390,37 +348,34 @@ var _ = Describe("Config", func() {
 
 				stdin, err := command.StdinPipe()
 				Expect(err).ToNot(HaveOccurred())
-				_, err = io.WriteString(stdin, config)
+				_, err = io.WriteString(stdin, config_string)
 				Expect(err).ToNot(HaveOccurred())
 				stdin.Close()
 
-				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgSlug: $orgSlug) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
+				reqOptions := &compile_config.Options{PipelineValues: pipeline.LocalPipelineValues()}
 
-				r := graphql.NewRequest(query)
-				r.Variables["config"] = config
-				r.Variables["orgSlug"] = orgSlug
-				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+				body := &compile_config.CompileConfigRequest{ConfigYml: config_string, Options: *reqOptions}
 
-				req, err := r.Encode()
 				Expect(err).ShouldNot(HaveOccurred())
-				expReq = req.String()
+				rawRequest, err := json.Marshal(body)
+				Expect(err).ToNot(HaveOccurred())
+				expReq = string(rawRequest)
 			})
 
 			It("returns an error when validating a config with a private orb", func() {
 				expResp := `{
-					"errors": [
+						"errors": [
 									{"message": "permission denied"}
-								]
-				}`
+						]
+					}`
 
-				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
+				tempSettings.AppendRESTCollborationsHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -433,9 +388,17 @@ var _ = Describe("Config", func() {
 			})
 
 			It("returns successfully when validating a config with private orbs", func() {
-				expResp := ``
+				expResp := `{
+					"valid": true
+				}`
 
-				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
+				tempSettings.AppendRESTCollborationsHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,

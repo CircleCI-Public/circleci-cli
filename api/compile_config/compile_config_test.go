@@ -113,7 +113,7 @@ func Test_CompileConfig(t *testing.T) {
 	})
 }
 
-func TestRunner_GetCollaborations(t *testing.T) {
+func Test_GetCollaborations(t *testing.T) {
 	fix := fixture{}
 	compileConfig, cleanup := fix.Run(
 		http.StatusOK,

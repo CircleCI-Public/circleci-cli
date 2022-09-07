@@ -120,7 +120,7 @@ func (tempSettings *TempSettings) AppendRESTPostHandler(combineHandlers ...MockR
 	}
 }
 
-func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(combineHandlers ...MockRequestResponse) {
+func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(authToken string, combineHandlers ...MockRequestResponse) {
 	println("#####step 1")
 	for _, handler := range combineHandlers {
 		println("#####step 2")
@@ -133,7 +133,43 @@ func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(combineHandlers
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("POST", "/api/v2/compile-config-with-defaults"),
 				ghttp.VerifyContentType("application/json"),
+				ghttp.VerifyHeader(http.Header{
+					"Circle-Token": []string{authToken},
+				}),
 				func(w http.ResponseWriter, req *http.Request) {
+					fmt.Println("#####Request: %v", req)
+					println("#####step 3")
+
+					body, err := ioutil.ReadAll(req.Body)
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					err = req.Body.Close()
+					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+					gomega.Expect(handler.Request).Should(gomega.MatchJSON(body), "JSON Mismatch")
+				},
+				ghttp.RespondWith(handler.Status, responseBody),
+			),
+		)
+	}
+}
+
+func (tempSettings *TempSettings) AppendRESTCollborationsHandler(authToken string, combineHandlers ...MockRequestResponse) {
+	println("#####step 1")
+	for _, handler := range combineHandlers {
+		println("#####step 2")
+		responseBody := handler.Response
+		if handler.ErrorResponse != "" {
+			responseBody = handler.ErrorResponse
+		}
+
+		tempSettings.TestServer.AppendHandlers(
+			ghttp.CombineHandlers(
+				ghttp.VerifyRequest("GET", "/api/v2/me/collaborations"),
+				ghttp.VerifyContentType("application/json"),
+				ghttp.VerifyHeader(http.Header{
+					"Circle-Token": []string{authToken},
+				}),
+				func(w http.ResponseWriter, req *http.Request) {
+					fmt.Println("#####Request: %v", req)
 					println("#####step 3")
 
 					body, err := ioutil.ReadAll(req.Body)

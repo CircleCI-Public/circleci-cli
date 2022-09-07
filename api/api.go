@@ -597,11 +597,12 @@ func ConfigQuery(cl *compile_config.CompileConfig, configPath string, orgId stri
 	// request.SetToken(cl.Token)
 
 	response, err := cl.CompileConfigWithDefaults(&configCompileRequest)
+	fmt.Printf("****real response: %+v", response.Errors)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
 	if len(response.Errors) > 0 {
-		return nil, fmt.Errorf("failed to start reporter: %+v", response.Errors)
+		return nil, fmt.Errorf("failed: %+v", response.Errors)
 	}
 
 	return response, nil

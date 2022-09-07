@@ -81,6 +81,9 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode >= 300 {
+		println("status code**** %s", httpResp.StatusCode)
+		println("response body**** %s", httpResp.Body)
+
 		httpError := struct {
 			Message string `json:"message"`
 		}{}
