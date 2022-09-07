@@ -174,15 +174,11 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 }
 
 // GetDecisionLog calls the GET decision query API of policy-service for a DecisionID.
-// It also accepts a getPolicyBundle bool param; If set to true will return only the policy bundle corresponding to that decision log.
-func (c Client) GetDecisionLog(ownerID string, context string, decisionID string, getPolicyBundle bool) (interface{}, error) {
+// It also accepts a policyBundle bool param; If set to true will return only the policy bundle corresponding to that decision log.
+func (c Client) GetDecisionLog(ownerID string, context string, decisionID string, policyBundle bool) (interface{}, error) {
 	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/%s", c.serverUrl, ownerID, context, decisionID)
-	var err error
-	if getPolicyBundle {
-		path, err = url.JoinPath(path, "policy-bundle")
-		if err != nil {
-			return nil, err
-		}
+	if policyBundle {
+		path = fmt.Sprintf("%s/%s", path, "policy-bundle")
 	}
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {

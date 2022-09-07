@@ -413,7 +413,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 }
 
 func TestClientGetDecisionLog(t *testing.T) {
-	t.Run("expected request with getPolicyBundle=false", func(t *testing.T) {
+	t.Run("expected request with policyBundle=false", func(t *testing.T) {
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 			assert.Equal(t, r.Header.Get("accept"), "application/json")
@@ -438,7 +438,7 @@ func TestClientGetDecisionLog(t *testing.T) {
 		assert.NilError(t, err)
 	})
 
-	t.Run("expected request without getPolicyBundle=true", func(t *testing.T) {
+	t.Run("expected request without policyBundle=true", func(t *testing.T) {
 		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 			assert.Equal(t, r.Header.Get("accept"), "application/json")
