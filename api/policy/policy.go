@@ -173,6 +173,44 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 	return body, nil
 }
 
+// GetDecisionLog calls the GET decision query API of policy-service for a DecisionID.
+// It also accepts a getPolicyBundle bool param; If set to true will return only the policy bundle corresponding to that decision log.
+func (c Client) GetDecisionLog(ownerID string, context string, decisionID string, getPolicyBundle bool) (interface{}, error) {
+	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/%s", c.serverUrl, ownerID, context, decisionID)
+	var err error
+	if getPolicyBundle {
+		path, err = url.JoinPath(path, "policy-bundle")
+		if err != nil {
+			return nil, err
+		}
+	}
+	req, err := http.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
+}
+
 // DecisionRequest represents a request to Policy-Service to evaluate a given input against an organization's policies.
 // The context determines which policies to apply.
 type DecisionRequest struct {

@@ -412,6 +412,144 @@ func TestClientGetDecisionLogs(t *testing.T) {
 	})
 }
 
+func TestClientGetDecisionLog(t *testing.T) {
+	t.Run("expected request with getPolicyBundle=false", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "GET")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision/decisionID")
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/context/config/decision/decisionID")
+
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.GetDecisionLog("ownerId", "config", "decisionID", false)
+		assert.NilError(t, err)
+	})
+
+	t.Run("expected request without getPolicyBundle=true", func(t *testing.T) {
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+			assert.Equal(t, r.Header.Get("accept"), "application/json")
+			assert.Equal(t, r.Header.Get("content-type"), "application/json")
+			assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
+
+			assert.Equal(t, r.Method, "GET")
+			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision/decisionID/policy-bundle")
+			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/context/config/decision/decisionID/policy-bundle")
+
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte("[]"))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		_, err := client.GetDecisionLog("ownerId", "config", "decisionID", true)
+		assert.NilError(t, err)
+	})
+
+	t.Run("Get Decision Log - Bad Request", func(t *testing.T) {
+		expectedResponse := `{"error": "some error"}`
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusBadRequest)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		log, err := client.GetDecisionLog("ownerId", "config", "decisionID", false)
+		assert.Error(t, err, "unexpected status-code: 400 - some error")
+		assert.Equal(t, log, nil)
+	})
+
+	t.Run("Get Decision Log - Forbidden", func(t *testing.T) {
+		expectedResponse := `{"error": "Forbidden"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		log, err := client.GetDecisionLog("ownerId", "config", "decisionID", false)
+		assert.Error(t, err, "unexpected status-code: 403 - Forbidden")
+		assert.Equal(t, log, nil)
+	})
+
+	t.Run("Get Decision Log - decision log not found", func(t *testing.T) {
+		expectedResponse := `{"error": "decision log not found"}`
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		log, err := client.GetDecisionLog("ownerId", "config", "decisionID", false)
+		assert.Error(t, err, "unexpected status-code: 404 - decision log not found")
+		assert.Equal(t, log, nil)
+	})
+
+	t.Run("Get Decision Log - successfully finds decision log", func(t *testing.T) {
+		expectedResponse := `{
+    "id": "fdc5311d-6d4d-480c-8ba8-b86b215ee86a",
+    "created_at": "2022-08-11T09:20:40.674594-04:00",
+    "decision": {
+      "enabled_rules": [
+        "branch_is_main"
+      ],
+      "status": "PASS"
+    },
+    "metadata": {},
+    "policies": {
+      "policy_name1": "8c69adc542bcfd6e65f5d5a2b6a4e3764480db2253cd075d0954e64a1f827a9c695c916d5a49302991df781447b3951410824dce8a8282d11ed56302272cf6fb",
+      "policy_name2": "3124131001ec20b4b524260ababa6411190a1bc9c5ac3219ccc2d21109fc5faf4bb9f7bbe38f3f798d9c232d68564390e0ca560877711f3f2ff7f89e10eef685"
+    },
+    "time_taken_ms": 4
+  }`
+		var expectedResponseValue interface{}
+		assert.NilError(t, json.Unmarshal([]byte(expectedResponse), &expectedResponseValue))
+
+		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte(expectedResponse))
+			assert.NilError(t, err)
+		}))
+		defer svr.Close()
+
+		config := &settings.Config{Token: "testtoken", HTTPClient: &http.Client{}}
+		client := NewClient(svr.URL, config)
+
+		log, err := client.GetDecisionLog("ownerId", "config", "fdc5311d-6d4d-480c-8ba8-b86b215ee86a", false)
+		assert.DeepEqual(t, log, expectedResponseValue)
+		assert.NilError(t, err)
+	})
+}
+
 func TestMakeDecision(t *testing.T) {
 	testcases := []struct {
 		Name             string

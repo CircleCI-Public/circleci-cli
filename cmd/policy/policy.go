@@ -163,13 +163,23 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	logs := func() *cobra.Command {
-		var after, before, outputFile, ownerID, context string
+		var after, before, outputFile, ownerID, context, decisionID string
+		var getPolicyBundle bool
 		var request policy.DecisionQueryRequest
 
 		cmd := &cobra.Command{
-			Short: "Get policy decision logs",
-			Use:   "logs",
-			RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			Short: "Get policy decision logs / Get decision log (or policy bundle) by decision ID",
+			Use:   "logs [decision_id]",
+			RunE: func(cmd *cobra.Command, args []string) (err error) {
+				if len(args) == 1 {
+					decisionID = args[0]
+				}
+				if decisionID != "" && (after != "" || before != "" || request.Status != "" || request.Offset != 0 || request.Branch != "" || request.ProjectID != "") {
+					return fmt.Errorf("filters are not accepted when decision_id is provided")
+				}
+				if getPolicyBundle && decisionID == "" {
+					return fmt.Errorf("decision_id is required when --policy-bundle flag is used")
+				}
 				if cmd.Flag("after").Changed {
 					request.After = new(time.Time)
 					*request.After, err = dateparse.ParseStrict(after)
@@ -200,6 +210,19 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}()
 				}
 
+				client := policy.NewClient(*policyBaseURL, config)
+
+				if decisionID != "" { //fetch single decision log
+					log, err := client.GetDecisionLog(ownerID, context, decisionID, getPolicyBundle)
+					if err != nil {
+						return fmt.Errorf("failed to get policy decision log: %v", err)
+					}
+					if err := prettyJSONEncoder(dst).Encode(log); err != nil {
+						return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
+					}
+					return nil
+				}
+
 				allLogs := make([]interface{}, 0)
 
 				spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(cmd.ErrOrStderr()))
@@ -211,8 +234,6 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				spr.Start()
 				defer spr.Stop()
-
-				client := policy.NewClient(*policyBaseURL, config)
 
 				for {
 					logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
@@ -234,7 +255,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 
 				return nil
 			},
-			Args:    cobra.ExactArgs(0),
+			Args:    cobra.MaximumNArgs(1),
 			Example: `policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
@@ -244,6 +265,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
 		cmd.Flags().StringVar(&request.ProjectID, "project-id", "", "filter decision logs based on project-id")
 		cmd.Flags().StringVar(&outputFile, "out", "", "specify output file name ")
+		cmd.Flags().BoolVar(&getPolicyBundle, "policy-bundle", false, "get only the policy bundle for given decisionID")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
