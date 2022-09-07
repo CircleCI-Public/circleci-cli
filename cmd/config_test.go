@@ -198,17 +198,22 @@ var _ = Describe("Config", func() {
 
 			It("returns an error when validating a config", func() {
 				expResp := `{
-					"Errors": {
-						{"Message": "error1"}
+					"errors": {
+						{"message": "error1"}
 					}
 				}`
+				fmt.Printf("*****address: %v", tempSettings.TestServer.URL())
+
+				fmt.Printf("***temp settings: %v", tempSettings.Config)
 
 				By("setting up a mock server")
-				tempSettings.AppendRESTPostHandler(clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
 				})
+
+				fmt.Printf("request: %s", expReq)
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -220,7 +225,7 @@ var _ = Describe("Config", func() {
 			It("returns successfully when validating a config", func() {
 				expResp := ``
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -296,7 +301,7 @@ var _ = Describe("Config", func() {
 			It("returns successfully when validating a config", func() {
 				expResp := ``
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -350,14 +355,12 @@ var _ = Describe("Config", func() {
 
 			It("returns an error when validating a config with a private orb", func() {
 				expResp := `{
-					"buildConfig": {
-								"errors": [
+					"errors": [
 									{"message": "permission denied"}
 								]
-					}
 				}`
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -412,14 +415,12 @@ var _ = Describe("Config", func() {
 
 			It("returns an error when validating a config with a private orb", func() {
 				expResp := `{
-					"buildConfig": {
-								"errors": [
+					"errors": [
 									{"message": "permission denied"}
 								]
-					}
 				}`
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,
@@ -434,7 +435,7 @@ var _ = Describe("Config", func() {
 			It("returns successfully when validating a config with private orbs", func() {
 				expResp := ``
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+				tempSettings.AppendRESTConfigCompileHandler(clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expReq,
 					Response: expResp,

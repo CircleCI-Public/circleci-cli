@@ -5,6 +5,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -22,7 +23,9 @@ type setupOptions struct {
 	// This lets us pass in our own interface for testing
 	tty setupUserInterface
 	// Linked with --integration-testing flag for stubbing UI in gexec tests
-	integrationTesting bool
+	integrationTesting  bool
+	compileConfigClient *rest.Client
+	rest                *rest.Client
 }
 
 // setupUserInterface is created to allow us to pass a mock user interface for testing.

@@ -71,6 +71,8 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 }
 
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
+	println("making real http api****")
+
 	httpResp, err := c.client.Do(req)
 
 	if err != nil {

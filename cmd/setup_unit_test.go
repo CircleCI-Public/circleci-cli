@@ -26,7 +26,13 @@ var _ = Describe("Setup with prompts", func() {
 		tempSettings = clitest.WithTempSettings()
 		opts = setupOptions{
 			cfg: &settings.Config{
-				FileUsed: tempSettings.Config.Path,
+				FileUsed:      tempSettings.Config.Path,
+				ConfigAPIHost: "https://api.circleci.com",
+				Host:          "https://circleci.com",
+				Endpoint:      "api/v2",
+				RestEndpoint:  "api/v2",
+				Token:         token,
+				HTTPClient:    tempSettings.TestServer.HTTPTestServer.Client(),
 			},
 			noPrompt: false,
 			tty: setupTestUI{
@@ -37,6 +43,8 @@ var _ = Describe("Setup with prompts", func() {
 			},
 		}
 		opts.cl = tempSettings.NewFakeClient(opts.cfg.Endpoint, token)
+		opts.rest = tempSettings.NewFakeRestClient(opts.cfg)
+		opts.compileConfigClient = tempSettings.NewFakeRestClient(opts.cfg)
 	})
 
 	AfterEach(func() {

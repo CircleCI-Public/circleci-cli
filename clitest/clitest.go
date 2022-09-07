@@ -12,6 +12,8 @@ import (
 	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/onsi/gomega/types"
@@ -81,6 +83,11 @@ func (tempSettings *TempSettings) NewFakeClient(endpoint, token string) *graphql
 	return graphql.NewClient(http.DefaultClient, tempSettings.TestServer.URL(), endpoint, token, false)
 }
 
+func (tempSettings *TempSettings) NewFakeRestClient(cfg *settings.Config) *rest.Client {
+	cfg.Token = "test"
+	return rest.New(tempSettings.TestServer.URL(), cfg)
+}
+
 // MockRequestResponse is a helpful type for mocking HTTP handlers.
 type MockRequestResponse struct {
 	Request       string
@@ -110,12 +117,25 @@ func (tempSettings *TempSettings) AppendRESTPostHandler(combineHandlers ...MockR
 				ghttp.RespondWith(handler.Status, responseBody),
 			),
 		)
+	}
+}
+
+func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(combineHandlers ...MockRequestResponse) {
+	println("#####step 1")
+	for _, handler := range combineHandlers {
+		println("#####step 2")
+		responseBody := handler.Response
+		if handler.ErrorResponse != "" {
+			responseBody = handler.ErrorResponse
+		}
 
 		tempSettings.TestServer.AppendHandlers(
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("POST", "/api/v2/compile-config-with-defaults"),
 				ghttp.VerifyContentType("application/json"),
 				func(w http.ResponseWriter, req *http.Request) {
+					println("#####step 3")
+
 					body, err := ioutil.ReadAll(req.Body)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					err = req.Body.Close()

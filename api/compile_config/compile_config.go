@@ -1,6 +1,7 @@
 package compile_config
 
 import (
+	"fmt"
 	"net/url"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
@@ -93,7 +94,10 @@ func (r *CompileConfig) GetOrgCollaborations() ([]CollaborationResult, error) {
 }
 
 func (r *CompileConfig) CompileConfigWithDefaults(compileConfigRequest *CompileConfigRequest) (*CompileConfigResult, error) {
+	println("calling api****")
 	req, err := r.compileClient.NewRequest("POST", &url.URL{Path: "compile-config-with-defaults"}, compileConfigRequest)
+	fmt.Printf("calling request****: %+v", req)
+
 	if err != nil {
 		return nil, err
 	}
