@@ -35,7 +35,7 @@ type Client struct {
 // NewClient returns a reference to a Client.
 func NewClient(httpClient *http.Client, host, endpoint, token string, debug bool) *Client {
 	return &Client{
-		httpClient: http.DefaultClient,
+		httpClient: httpClient,
 		Endpoint:   endpoint,
 		Host:       host,
 		Token:      token,
