@@ -178,7 +178,7 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 func (c Client) GetDecisionLog(ownerID string, context string, decisionID string, policyBundle bool) (interface{}, error) {
 	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/%s", c.serverUrl, ownerID, context, decisionID)
 	if policyBundle {
-		path = fmt.Sprintf("%s/%s", path, "policy-bundle")
+		path += "/policy-bundle"
 	}
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {

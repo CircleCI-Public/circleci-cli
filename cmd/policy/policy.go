@@ -210,46 +210,20 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}()
 				}
 
+				var output interface{}
 				client := policy.NewClient(*policyBaseURL, config)
 
-				if decisionID != "" { //fetch single decision log
-					log, err := client.GetDecisionLog(ownerID, context, decisionID, policyBundle)
-					if err != nil {
-						return fmt.Errorf("failed to get policy decision log: %v", err)
-					}
-					if err := prettyJSONEncoder(dst).Encode(log); err != nil {
-						return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
-					}
-					return nil
+				if decisionID != "" {
+					output, err = client.GetDecisionLog(ownerID, context, decisionID, policyBundle)
+				} else {
+					output, err = getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
 				}
 
-				allLogs := make([]interface{}, 0)
-
-				spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(cmd.ErrOrStderr()))
-				spr.Suffix = " Fetching Policy Decision Logs..."
-
-				spr.PostUpdate = func(s *spinner.Spinner) {
-					s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
+				if err != nil {
+					return fmt.Errorf("failed to get policy decision logs: %v", err)
 				}
 
-				spr.Start()
-				defer spr.Stop()
-
-				for {
-					logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
-					if err != nil {
-						return fmt.Errorf("failed to get policy decision logs: %v", err)
-					}
-
-					if len(logsBatch) == 0 {
-						break
-					}
-
-					allLogs = append(allLogs, logsBatch...)
-					request.Offset = len(allLogs)
-				}
-
-				if err := prettyJSONEncoder(dst).Encode(allLogs); err != nil {
+				if err := prettyJSONEncoder(dst).Encode(output); err != nil {
 					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
 				}
 
@@ -484,6 +458,35 @@ func loadBundleFromFS(root string) (map[string]string, error) {
 	})
 
 	return bundle, err
+}
+
+func getAllDecisionLogs(client *policy.Client, ownerID string, context string, request policy.DecisionQueryRequest, spinnerOutputDst io.Writer) (interface{}, error) {
+	allLogs := make([]interface{}, 0)
+
+	spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(spinnerOutputDst))
+	spr.Suffix = " Fetching Policy Decision Logs..."
+
+	spr.PostUpdate = func(s *spinner.Spinner) {
+		s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
+	}
+
+	spr.Start()
+	defer spr.Stop()
+
+	for {
+		logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(logsBatch) == 0 {
+			break
+		}
+
+		allLogs = append(allLogs, logsBatch...)
+		request.Offset = len(allLogs)
+	}
+	return allLogs, nil
 }
 
 func Confirm(w io.Writer, r io.Reader, question string) bool {
