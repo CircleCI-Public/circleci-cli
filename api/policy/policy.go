@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circle-policy-agent/cpa"
+
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -215,7 +217,7 @@ type DecisionRequest struct {
 }
 
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response
-func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest) (interface{}, error) {
+func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest) (*cpa.Decision, error) {
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -244,12 +246,12 @@ func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
 
-	var body interface{}
+	var body cpa.Decision
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
-	return body, nil
+	return &body, nil
 }
 
 // NewClient returns a new policy client that will use the provided settings.Config to automatically inject appropriate

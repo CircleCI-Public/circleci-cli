@@ -63,7 +63,11 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					_ = prettyJSONEncoder(cmd.ErrOrStderr()).Encode(diff)
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
 
-					if !Confirm(cmd.ErrOrStderr(), cmd.InOrStdin(), "Do you wish to continue? (y/N)") {
+					proceed, err := Confirm(cmd.ErrOrStderr(), cmd.InOrStdin(), "Do you wish to continue? (y/N)")
+					if err != nil {
+						return err
+					}
+					if !proceed {
 						return nil
 					}
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
@@ -210,14 +214,14 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}()
 				}
 
-				var output interface{}
 				client := policy.NewClient(*policyBaseURL, config)
 
-				if decisionID != "" {
-					output, err = client.GetDecisionLog(ownerID, context, decisionID, policyBundle)
-				} else {
-					output, err = getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
-				}
+				output, err := func() (interface{}, error) {
+					if decisionID != "" {
+						return client.GetDecisionLog(ownerID, context, decisionID, policyBundle)
+					}
+					return getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
+				}()
 
 				if err != nil {
 					return fmt.Errorf("failed to get policy decision logs: %v", err)
@@ -256,6 +260,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			metaFile   string
 			ownerID    string
 			context    string
+			strict     bool
 			request    policy.DecisionRequest
 		)
 
@@ -286,7 +291,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}
 				}
 
-				decision, err := func() (interface{}, error) {
+				decision, err := func() (*cpa.Decision, error) {
 					if policyPath != "" {
 						return getPolicyDecisionLocally(policyPath, input, metadata)
 					}
@@ -296,6 +301,10 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				}()
 				if err != nil {
 					return fmt.Errorf("failed to make decision: %w", err)
+				}
+
+				if strict && decision.Status == cpa.StatusHardFail {
+					return fmt.Errorf("policy decision status: HARD_FAIL")
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
@@ -312,6 +321,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
+		cmd.Flags().BoolVar(&strict, "strict", false, "return non-zero status code for decision resulting in HARD_FAIL")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
 			panic(err)
@@ -489,12 +499,14 @@ func getAllDecisionLogs(client *policy.Client, ownerID string, context string, r
 	return allLogs, nil
 }
 
-func Confirm(w io.Writer, r io.Reader, question string) bool {
+func Confirm(w io.Writer, r io.Reader, question string) (bool, error) {
 	fmt.Fprint(w, question+" ")
 	var answer string
 
-	_, _ = fmt.Fscanln(r, &answer)
-
+	n, err := fmt.Fscanln(r, &answer)
+	if err != nil || n == 0 {
+		return false, fmt.Errorf("error in input")
+	}
 	answer = strings.ToLower(answer)
-	return answer == "y" || answer == "yes"
+	return answer == "y" || answer == "yes", nil
 }

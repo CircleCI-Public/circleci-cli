@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CircleCI-Public/circle-policy-agent/cpa"
 	"gotest.tools/v3/assert"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -579,7 +580,7 @@ func TestMakeDecision(t *testing.T) {
 
 				_ = json.NewEncoder(w).Encode(map[string]string{"status": "PASS"})
 			},
-			ExpectedDecision: map[string]interface{}{"status": "PASS"},
+			ExpectedDecision: &cpa.Decision{Status: cpa.StatusPass},
 		},
 		{
 			Name:    "unexpected status code",
