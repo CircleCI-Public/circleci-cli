@@ -416,6 +416,16 @@ func TestGetDecisionLogs(t *testing.T) {
 			ExpectedErr: `error in parsing --before value: This date has ambiguous mm/dd vs dd/mm type format`,
 		},
 		{
+			Name:        "gives error when a filter is provided when decisionID is also provided",
+			Args:        []string{"logs", "decisionID", "--owner-id", "ownerID", "--branch", "main"},
+			ExpectedErr: `filters are not accepted when decision_id is provided`,
+		},
+		{
+			Name:        "gives error when --policy-bundle flag is used but decisionID is not provided",
+			Args:        []string{"logs", "--owner-id", "ownerID", "--policy-bundle"},
+			ExpectedErr: `decision_id is required when --policy-bundle flag is used`,
+		},
+		{
 			Name: "no filter is set",
 			Args: []string{"logs", "--owner-id", "ownerID"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -511,6 +521,32 @@ func TestGetDecisionLogs(t *testing.T) {
   }
 ]
 `,
+		},
+		{
+			Name: "successfully gets a decision log for given decision ID",
+			Args: []string{"logs", "--owner-id", "ownerID", "decisionID"},
+			ServerHandler: func() http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, r.Method, "GET")
+					assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/config/decision/decisionID")
+					_, err := w.Write([]byte("{}"))
+					assert.NilError(t, err)
+				}
+			}(),
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name: "successfully gets policy-bundle for given decision ID",
+			Args: []string{"logs", "--owner-id", "ownerID", "decisionID", "--policy-bundle"},
+			ServerHandler: func() http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, r.Method, "GET")
+					assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/config/decision/decisionID/policy-bundle")
+					_, err := w.Write([]byte("{}"))
+					assert.NilError(t, err)
+				}
+			}(),
+			ExpectedOutput: "{}\n",
 		},
 	}
 

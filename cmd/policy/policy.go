@@ -163,13 +163,23 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	logs := func() *cobra.Command {
-		var after, before, outputFile, ownerID, context string
+		var after, before, outputFile, ownerID, context, decisionID string
+		var policyBundle bool
 		var request policy.DecisionQueryRequest
 
 		cmd := &cobra.Command{
-			Short: "Get policy decision logs",
-			Use:   "logs",
-			RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			Short: "Get policy decision logs / Get decision log (or policy bundle) by decision ID",
+			Use:   "logs [decision_id]",
+			RunE: func(cmd *cobra.Command, args []string) (err error) {
+				if len(args) == 1 {
+					decisionID = args[0]
+				}
+				if decisionID != "" && (after != "" || before != "" || request.Status != "" || request.Offset != 0 || request.Branch != "" || request.ProjectID != "") {
+					return fmt.Errorf("filters are not accepted when decision_id is provided")
+				}
+				if policyBundle && decisionID == "" {
+					return fmt.Errorf("decision_id is required when --policy-bundle flag is used")
+				}
 				if cmd.Flag("after").Changed {
 					request.After = new(time.Time)
 					*request.After, err = dateparse.ParseStrict(after)
@@ -200,41 +210,26 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}()
 				}
 
-				allLogs := make([]interface{}, 0)
-
-				spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(cmd.ErrOrStderr()))
-				spr.Suffix = " Fetching Policy Decision Logs..."
-
-				spr.PostUpdate = func(s *spinner.Spinner) {
-					s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
-				}
-
-				spr.Start()
-				defer spr.Stop()
-
+				var output interface{}
 				client := policy.NewClient(*policyBaseURL, config)
 
-				for {
-					logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
-					if err != nil {
-						return fmt.Errorf("failed to get policy decision logs: %v", err)
-					}
-
-					if len(logsBatch) == 0 {
-						break
-					}
-
-					allLogs = append(allLogs, logsBatch...)
-					request.Offset = len(allLogs)
+				if decisionID != "" {
+					output, err = client.GetDecisionLog(ownerID, context, decisionID, policyBundle)
+				} else {
+					output, err = getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
 				}
 
-				if err := prettyJSONEncoder(dst).Encode(allLogs); err != nil {
+				if err != nil {
+					return fmt.Errorf("failed to get policy decision logs: %v", err)
+				}
+
+				if err := prettyJSONEncoder(dst).Encode(output); err != nil {
 					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
 				}
 
 				return nil
 			},
-			Args:    cobra.ExactArgs(0),
+			Args:    cobra.MaximumNArgs(1),
 			Example: `policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
@@ -244,6 +239,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
 		cmd.Flags().StringVar(&request.ProjectID, "project-id", "", "filter decision logs based on project-id")
 		cmd.Flags().StringVar(&outputFile, "out", "", "specify output file name ")
+		cmd.Flags().BoolVar(&policyBundle, "policy-bundle", false, "get only the policy bundle for given decisionID")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
@@ -462,6 +458,35 @@ func loadBundleFromFS(root string) (map[string]string, error) {
 	})
 
 	return bundle, err
+}
+
+func getAllDecisionLogs(client *policy.Client, ownerID string, context string, request policy.DecisionQueryRequest, spinnerOutputDst io.Writer) (interface{}, error) {
+	allLogs := make([]interface{}, 0)
+
+	spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(spinnerOutputDst))
+	spr.Suffix = " Fetching Policy Decision Logs..."
+
+	spr.PostUpdate = func(s *spinner.Spinner) {
+		s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
+	}
+
+	spr.Start()
+	defer spr.Stop()
+
+	for {
+		logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(logsBatch) == 0 {
+			break
+		}
+
+		allLogs = append(allLogs, logsBatch...)
+		request.Offset = len(allLogs)
+	}
+	return allLogs, nil
 }
 
 func Confirm(w io.Writer, r io.Reader, question string) bool {
