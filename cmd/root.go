@@ -23,6 +23,8 @@ var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
 var defaultRestEndpoint = "api/v2"
 
+const trueString = "true" //this constant makes go lint happy
+
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
 // it should be set once when Execute is first called
@@ -125,7 +127,7 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 	rootCmd.SetUsageTemplate(usageTemplate)
 
-	if os.Getenv("TESTING") != "true" {
+	if os.Getenv("TESTING") != trueString {
 		//styling the help menu
 		styles := styleHelpMenu()
 		b := boa.New(boa.WithStyles(styles))
@@ -341,5 +343,5 @@ For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
 }
 
 func skipUpdateByDefault() bool {
-	return os.Getenv("CI") == "true" || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == "true"
+	return os.Getenv("CI") == trueString || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == trueString
 }
