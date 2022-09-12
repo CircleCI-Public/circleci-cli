@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/cmd/info"
+	"github.com/CircleCI-Public/circleci-cli/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
@@ -151,6 +153,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
 
 	rootCmd.AddCommand(followProjectCommand(rootOptions))
+	rootCmd.AddCommand(policy.NewCommand(rootOptions, validator))
 
 	if isUpdateIncluded(version.PackageManager()) {
 		rootCmd.AddCommand(newUpdateCommand(rootOptions))
@@ -159,6 +162,7 @@ func MakeCommands() *cobra.Command {
 	}
 
 	rootCmd.AddCommand(newNamespaceCommand(rootOptions))
+	rootCmd.AddCommand(info.NewInfoCommand(rootOptions, validator))
 	rootCmd.AddCommand(newUsageCommand(rootOptions))
 	rootCmd.AddCommand(newStepCommand(rootOptions))
 	rootCmd.AddCommand(newSwitchCommand(rootOptions))

@@ -1,0 +1,12 @@
+Usage:
+  policy diff <policy_dir_path> [flags]
+
+Examples:
+policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+
+Flags:
+      --context string    policy context (default "config")
+      --owner-id string   the id of the policy's owner
+
+Global Flags:
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

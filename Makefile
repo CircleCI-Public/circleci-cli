@@ -26,16 +26,11 @@ cover:
 
 .PHONY: lint
 lint:
-	bash .circleci/lint.sh
+	golangci-lint run
 
 .PHONY: doc
 doc:
 	godoc -http=:6060
-
-.PHONY: install-lint
-install-lint:
-	bash .circleci/install-lint.sh
-
 
 .PHONY: always
 always:

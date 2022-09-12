@@ -1,0 +1,36 @@
+---
+service:
+  golangci-lint-version: 1.46.x
+
+linters:
+  enable:
+    - deadcode
+    - errcheck
+    - goconst
+    - gofmt
+    - goimports
+    # - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - megacheck
+    - misspell
+    - nakedret
+    # - revive
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unconvert
+    # - unparam
+    - unused
+    - varcheck
+    - vet
+    - vetshadow
+
+# Instead of disabling tests entirely, just ignore goconst, which is the only
+# one with issues there currently.
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - goconst
