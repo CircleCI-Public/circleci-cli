@@ -1,4 +1,5 @@
 # Checklist
+
 =========
 
 - [ ] I have performed a self-review of my own code
@@ -8,30 +9,30 @@
 - [ ] I have read [Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/master/CONTRIBUTING.md).
 
 ## Changes
+
 =======
 
 - Put itemized changes here, preferably in imperative mood, i.e. "Add
   `functionA` to `fileB`"
 
 ## Rationale
+
 =========
 
 What was the overarching product goal of this PR as well as any pertinent
 history of changes
 
 ## Considerations
+
 ==============
 
 Why you made some of the technical decisions that you made, especially if the
 reasoning is not immediately obvious
 
-## Analytics Events Added
-======================
-
-- `event-name` 
-
 ## Screenshots
+
 ============
+
 <h4>Before</h4>
 Image or [gif](https://giphy.com/apps/giphycapture)
 
