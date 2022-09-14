@@ -9,6 +9,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/google/uuid"
+	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -54,7 +55,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		Use:     "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(contextClient, args[0], args[1])
+			return listContexts(cmd, contextClient, args[0], args[1])
 		},
 		Args: cobra.ExactArgs(2),
 	}
@@ -133,23 +134,33 @@ circleci context create contextName --org-id "your-org-id-here"`,
 	return command
 }
 
-func listContexts(contextClient api.ContextInterface, vcs, org string) error {
+func listContexts(cmd *cobra.Command, contextClient api.ContextInterface, vcs, org string) error {
 	contexts, err := contextClient.Contexts(vcs, org)
 	if err != nil {
 		return err
 	}
+	table := tablewriter.NewWriter(cmd.OutOrStdout())
 
-	rows := make([]ContextListRowData, len(*contexts))
-	for i, context := range *contexts {
-		rows[i] = ContextListRowData{
-			provider:  vcs,
-			org:       org,
-			name:      context.Name,
-			createdAt: context.CreatedAt,
-		}
+	table.SetHeader([]string{"Provider", "Name", "Organization", "Created At"})
+
+	for _, context := range *contexts {
+		table.Append([]string{
+			vcs, context.Name, org, context.CreatedAt.String(),
+		})
 	}
+	table.Render()
 
-	fmt.Println(NewContextListModel(rows).View())
+	// rows := make([]ContextListRowData, len(*contexts))
+	// for i, context := range *contexts {
+	// 	rows[i] = ContextListRowData{
+	// 		provider:  vcs,
+	// 		org:       org,
+	// 		name:      context.Name,
+	// 		createdAt: context.CreatedAt,
+	// 	}
+	// }
+
+	// fmt.Println(NewContextListModel(rows).View())
 
 	return nil
 }
