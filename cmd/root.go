@@ -213,7 +213,6 @@ func styleHelpMenu() *boa.Styles {
 	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#F3F3F3`}).Bold(false)                //all of the unselected commands and
 
 	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#04AA51`})
-
 	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#04AA51`})                                                     //when you print the command (option)
 	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Center) //section titles (ie flags, commands)
 	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
@@ -225,8 +224,7 @@ func styleHelpMenu() *boa.Styles {
 
 //rootHelpLong creates content for the long field in the command
 func rootHelpLong() string {
-	logo := `   
-                          /??                     /??                         /??
+	logo := `                          /??                     /??                         /??
                          |__/                    | ??                        |__/
   /????????      /??????? /??  /??????   /???????| ??  /??????       /??????? /??
  /_______/??    /??_____/| ?? /??__  ?? /??_____/| ?? /??__  ??     /??_____/| ??
@@ -330,7 +328,6 @@ func isUpdateIncluded(packageManager string) bool {
 //rootHelpShort creates content for the short field in the command
 func rootHelpShort(config *settings.Config) string {
 	long := `Use CircleCI from the command line.
-
 This project is the seed for CircleCI's command-line application.`
 
 	// We should only print this for cloud users
