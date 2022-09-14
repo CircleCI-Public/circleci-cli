@@ -6,7 +6,6 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/elewis787/boa"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
@@ -129,8 +128,9 @@ func MakeCommands() *cobra.Command {
 
 	if os.Getenv("TESTING") != trueString {
 		//styling the help menu
-		styles := styleHelpMenu()
-		b := boa.New(boa.WithStyles(styles))
+		// styles := styleHelpMenu()
+		// b := boa.New(boa.WithStyles(styles))
+
 		rootCmd.SetUsageFunc(b.UsageFunc)
 		rootCmd.SetHelpFunc(b.HelpFunc)
 	}
@@ -205,22 +205,99 @@ func MakeCommands() *cobra.Command {
 	return rootCmd
 }
 
-//styleHelpMenu using external package "github.com/elewis787/boa" to add styling to the help menu
-func styleHelpMenu() *boa.Styles {
-	styles := boa.DefaultStyles()
-	styles.Title.Border(lipgloss.HiddenBorder()).Align(lipgloss.Left)                                            //the boarder around the main section
-	styles.SubTitle.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#3B6385`}).Align(lipgloss.Center) //long description
-	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#F3F3F3`}).Bold(false)                //all of the unselected commands and
-
-	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#04AA51`})
-	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#04AA51`})                                                     //when you print the command (option)
-	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Center) //section titles (ie flags, commands)
-	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
-		Background(lipgloss.AdaptiveColor{Light: `#1D97E4`, Dark: `#1D97E4`}).Bold(true) //selected command
-	styles.Text.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(false)          //regular text
-	styles.Item.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Align(lipgloss.Left) //commands
-	return styles
+type Styles struct {
+	Border       lipgloss.Style
+	Title        lipgloss.Style
+	SubTitle     lipgloss.Style
+	Section      lipgloss.Style
+	Text         lipgloss.Style
+	ErrorText    lipgloss.Style
+	SelectedItem lipgloss.Style
+	Item         lipgloss.Style
+	Info         lipgloss.Style
+	CmdPrint     lipgloss.Style
 }
+
+const (
+	defaultWidth = 100
+
+	//default colors
+	purple    = `#7e2fcc`
+	darkGrey  = `#353C3B`
+	lightTeal = `#03DAC5`
+	darkTeal  = `#01A299`
+	white     = `#e5e5e5`
+	red       = `#FF3333`
+)
+
+func DefaultStyles() *Styles {
+	s := &Styles{}
+
+	// Style of the border
+	s.Border = lipgloss.NewStyle().
+		Padding(0, 1, 0, 1).
+		Width(defaultWidth).
+		BorderForeground(lipgloss.AdaptiveColor{Light: darkTeal, Dark: lightTeal}).
+		Border(lipgloss.ThickBorder())
+
+		// Style of the title
+	s.Title = lipgloss.NewStyle().Bold(true).
+		Border(lipgloss.DoubleBorder()).
+		BorderForeground(lipgloss.AdaptiveColor{Light: purple, Dark: purple}).
+		Width(defaultWidth - 4).
+		Align(lipgloss.Center)
+
+	// Style of the SubTitle
+	s.SubTitle = lipgloss.NewStyle().Foreground(lipgloss.AdaptiveColor{Light: white, Dark: white}).Align(lipgloss.Center)
+
+	// Style of the individual help sections (Exaple, Usage, Flags etc.. )
+	s.Section = lipgloss.NewStyle().Bold(true).
+		Foreground(lipgloss.AdaptiveColor{Light: darkTeal, Dark: lightTeal}).
+		Underline(true).
+		BorderBottom(true).
+		Margin(1, 0, 1, 0).
+		Padding(0, 1, 0, 1).Align(lipgloss.Center)
+
+	// Style of the text output
+	s.Text = lipgloss.NewStyle().Bold(true).Padding(0, 0, 0, 5).Align(lipgloss.Left).
+		Foreground(lipgloss.AdaptiveColor{Light: darkGrey, Dark: white})
+
+	s.ErrorText = lipgloss.NewStyle().Underline(true).Bold(true).Align(lipgloss.Center).Width(defaultWidth - 4).
+		Foreground(lipgloss.AdaptiveColor{Light: red, Dark: red})
+
+	// Style of the selection list items
+	s.SelectedItem = lipgloss.NewStyle().PaddingLeft(2).Background(lipgloss.AdaptiveColor{Light: purple, Dark: purple}).
+		Foreground(lipgloss.AdaptiveColor{Light: white, Dark: white})
+
+	// Style of the list items
+	s.Item = lipgloss.NewStyle().PaddingLeft(2).Bold(true).Foreground(lipgloss.AdaptiveColor{Light: white, Dark: white})
+
+	// Style of the info text
+	s.Info = lipgloss.NewStyle().Bold(true).Width(defaultWidth).Align(lipgloss.Center).
+		Foreground(lipgloss.AdaptiveColor{Light: darkGrey, Dark: white})
+
+	// Style of the Cmd Print text
+	s.CmdPrint = lipgloss.NewStyle().Bold(true).Width(defaultWidth).Margin(1).Align(lipgloss.Center).
+		Foreground(lipgloss.AdaptiveColor{Light: darkGrey, Dark: white})
+
+	return s
+}
+
+// //styleHelpMenu using external package "github.com/elewis787/boa" to add styling to the help menu
+// func styleHelpMenu() *boa.Styles {
+// 	styles := boa.DefaultStyles()
+// 	styles.Title.Border(lipgloss.HiddenBorder()).Align(lipgloss.Left)                                            //the boarder around the main section
+// 	styles.SubTitle.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#3B6385`}).Align(lipgloss.Center) //long description
+// 	styles.Info.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#F3F3F3`}).Bold(false)                //all of the unselected commands and
+// 	styles.Border.BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#04AA51`})
+// 	styles.CmdPrint.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#04AA51`})                                                   //when you print the command (option)
+// 	styles.Section.Foreground(lipgloss.AdaptiveColor{Light: `#47A359`, Dark: `#003740`}).Bold(true).BorderForeground().Align(lipgloss.Left) //section titles (ie flags, commands)
+// 	styles.SelectedItem.Foreground(lipgloss.AdaptiveColor{Light: `#FFFFFF`, Dark: `#FFFFFF`}).
+// 		Background(lipgloss.AdaptiveColor{Light: `#1D97E4`, Dark: `#1D97E4`}).Bold(true) //selected command
+// 	styles.Text.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(false)          //regular text
+// 	styles.Item.Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Align(lipgloss.Left) //commands
+// 	return styles
+// }
 
 //rootHelpLong creates content for the long field in the command
 func rootHelpLong() string {
