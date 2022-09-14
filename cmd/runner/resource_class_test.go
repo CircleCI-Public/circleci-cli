@@ -120,7 +120,7 @@ func (r *runnerMock) GetResourceClassesByNamespace(namespace string) ([]runner.R
 	return rcs, nil
 }
 
-func (r *runnerMock) DeleteResourceClass(id string) error {
+func (r *runnerMock) DeleteResourceClass(id string, force bool) error {
 	for i, rc := range r.resourceClasses {
 		if rc.ID == id {
 			r.resourceClasses = append(r.resourceClasses[:i], r.resourceClasses[i+1:]...)

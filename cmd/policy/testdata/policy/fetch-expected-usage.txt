@@ -1,0 +1,12 @@
+Usage:
+  policy fetch [policy_name] [flags]
+
+Examples:
+policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5
+
+Flags:
+      --context string    policy context (default "config")
+      --owner-id string   the id of the policy's owner
+
+Global Flags:
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

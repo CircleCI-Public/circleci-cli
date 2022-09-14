@@ -8,10 +8,16 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
+)
+
+var (
+	orgID              *string
+	integrationTesting bool
 )
 
 func newContextCommand(config *settings.Config) *cobra.Command {
@@ -21,6 +27,11 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		contextClient, e = api.NewContextRestClient(*config)
 		if e != nil {
 			return e
+		}
+
+		// Ensure does not fallback to graph for testing.
+		if integrationTesting {
+			return validateToken(config)
 		}
 
 		// If we're on cloud, we're good.
@@ -80,13 +91,18 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 
 	createContextCommand := &cobra.Command{
 		Short:   "Create a new context",
-		Use:     "create <vcs-type> <org-name> <context-name>",
+		Use:     "create  [<vcs-type>] [<org-name>] <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(contextClient, args[0], args[1], args[2])
+			return createContext(cmd, contextClient, args)
 		},
-		Args: cobra.ExactArgs(3),
+		Args:        cobra.RangeArgs(1, 3),
+		Annotations: make(map[string]string),
+		Example: `  circleci context create github OrgName contextName
+circleci context create contextName --org-id "your-org-id-here"`,
 	}
+	createContextCommand.Annotations["[<vcs-type>]"] = `Your VCS provider, can be either "github" or "bitbucket". Optional when passing org-id flag.`
+	createContextCommand.Annotations["[<org-name>]"] = `The name used for your organization. Optional when passing org-id flag.`
 
 	force := false
 	deleteContextCommand := &cobra.Command{
@@ -100,6 +116,12 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	deleteContextCommand.Flags().BoolVarP(&force, "force", "f", false, "Delete the context without asking for confirmation.")
+
+	orgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
+	createContextCommand.Flags().BoolVar(&integrationTesting, "integration-testing", false, "Enable test mode to setup rest API")
+	if err := createContextCommand.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
 
 	command.AddCommand(listCommand)
 	command.AddCommand(showContextCommand)
@@ -174,9 +196,22 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client api.ContextInterface, vcsType, orgName, contextName string) error {
-	err := client.CreateContext(vcsType, orgName, contextName)
-	return err
+//createContext determines if the context is being created via orgid or vcs and org name
+//and navigates to corresponding function accordingly
+func createContext(cmd *cobra.Command, client api.ContextInterface, args []string) error {
+	//skip if no orgid provided
+	if orgID != nil && strings.TrimSpace(*orgID) != "" && len(args) == 1 {
+		_, err := uuid.Parse(*orgID)
+
+		if err == nil {
+			return client.CreateContextWithOrgID(orgID, args[0])
+		}
+
+		//skip if no vcs type and org name provided
+	} else if len(args) == 3 {
+		return client.CreateContext(args[0], args[1], args[2])
+	}
+	return cmd.Help()
 }
 
 func removeEnvVar(client api.ContextInterface, vcsType, orgName, contextName, varName string) error {

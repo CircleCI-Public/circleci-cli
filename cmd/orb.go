@@ -76,7 +76,7 @@ type createOrbTestUI struct {
 
 type orbProtectTemplateRelease struct {
 	ZipUrl string `json:"zipball_url"`
-	Name string `json:"name"`
+	Name   string `json:"name"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -125,7 +125,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Use:   "process <path>",
 		Short: "Validate an orb and print its form after all pre-registration processing",
 		Long: strings.Join([]string{
-			"Use `$ circleci orb process` to resolve an orb, and it's dependencies to see how it would be expanded when you publish it to the registry.",
+			"Use `$ circleci orb process` to resolve an orb and its dependencies, to see how it would be expanded when you publish it to the registry.",
 			"", // purposeful new-line
 			"This can be helpful for validating an orb and debugging the processed form before publishing.",
 		}, "\n"),
@@ -1086,7 +1086,6 @@ func initOrb(opts orbOptions) error {
 		}
 	}
 
-
 	latestRelease := releaseTags[0]
 	resp, err := http.Get(latestRelease.ZipUrl)
 	if err != nil {
@@ -1342,7 +1341,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src",  "@orb.yml"))
+	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
 	if err != nil {
 		return err
 	}
@@ -1384,13 +1383,13 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if version.PackageManager() != "snap" {
-		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+		_, err = w.Commit("feat: Initial commit.", &git.CommitOptions{})
 		if err != nil {
 			return err
 		}
 	} else {
 		fmt.Println("We detected you installed the CLI via snap\nThe commit generated will not match your actual git username or email due to sandboxing.")
-		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{
+		_, err = w.Commit("feat: Initial commit.", &git.CommitOptions{
 			Author: &object.Signature{
 				Name:  "CircleCI",
 				Email: "community-partner@circleci.com",
@@ -1521,7 +1520,7 @@ func unzipToOrbPath(src, dest string) error {
 			}
 		}()
 
-		// This is neccesary because the zip downloaded from GitHub will have a
+		// This is necessary because the zip downloaded from GitHub will have a
 		// directory with the actual template, rather than the template being
 		// top-level.
 		pathParts := strings.Split(f.Name, "/")
