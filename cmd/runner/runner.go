@@ -7,6 +7,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
@@ -14,7 +15,7 @@ type runnerOpts struct {
 	r running
 }
 
-func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
+func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
 	var opts runnerOpts
 	cmd := &cobra.Command{
 		Use:   "runner",
@@ -26,7 +27,7 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 			} else {
 				host = config.Host
 			}
-			opts.r = runner.New(rest.New(host, config.RestEndpoint, config.Token))
+			opts.r = runner.New(rest.New(host, config))
 		},
 	}
 
@@ -42,11 +43,9 @@ type running interface {
 	GetResourceClassByName(resourceClass string) (rc *runner.ResourceClass, err error)
 	GetNamespaceByResourceClass(resourceClass string) (ns string, err error)
 	GetResourceClassesByNamespace(namespace string) ([]runner.ResourceClass, error)
-	DeleteResourceClass(id string) error
+	DeleteResourceClass(id string, force bool) error
 	CreateToken(resourceClass, nickname string) (token *runner.Token, err error)
 	GetRunnerTokensByResourceClass(resourceClass string) ([]runner.Token, error)
 	DeleteToken(id string) error
 	GetRunnerInstances(query string) ([]runner.RunnerInstance, error)
 }
-
-type validator func(cmd *cobra.Command, args []string) error
