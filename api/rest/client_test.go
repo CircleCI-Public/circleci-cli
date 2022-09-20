@@ -12,6 +12,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
@@ -167,5 +168,13 @@ func (f *fixture) Run(statusCode int, respBody string) (c *Client, cleanup func(
 	})
 	server := httptest.NewServer(mux)
 
-	return New(server.URL, "api/v2", "fake-token"), server.Close
+	cfg := &settings.Config{
+		Debug:        false,
+		Token:        "fake-token",
+		RestEndpoint: "api/v2",
+		Endpoint:     "api/v2",
+		HTTPClient:   http.DefaultClient,
+	}
+
+	return New(server.URL, cfg), server.Close
 }

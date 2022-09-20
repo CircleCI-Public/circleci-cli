@@ -1,13 +1,12 @@
 Usage:
-  policy create [flags]
+  policy fetch [policy_name] [flags]
 
 Examples:
-policy create --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --name policy_name --policy ./policy.rego
+policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5
 
 Flags:
       --context string    policy context (default "config")
       --owner-id string   the id of the policy's owner
-      --policy string     path to rego policy file
 
 Global Flags:
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

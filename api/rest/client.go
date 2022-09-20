@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
@@ -21,19 +22,22 @@ type Client struct {
 	client      *http.Client
 }
 
-func New(host, endpoint, circleToken string) *Client {
+func New(host string, config *settings.Config) *Client {
 	// Ensure endpoint ends with a slash
+	endpoint := config.RestEndpoint
 	if !strings.HasSuffix(endpoint, "/") {
 		endpoint += "/"
 	}
 
 	u, _ := url.Parse(host)
+
+	client := config.HTTPClient
+	client.Timeout = 10 * time.Second
+
 	return &Client{
 		baseURL:     u.ResolveReference(&url.URL{Path: endpoint}),
-		circleToken: circleToken,
-		client: &http.Client{
-			Timeout: 10 * time.Second,
-		},
+		circleToken: config.Token,
+		client:      client,
 	}
 }
 
@@ -63,7 +67,6 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-
 	return req, nil
 }
 
