@@ -2,10 +2,9 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"strings"
-
-	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/cmd/policy"
@@ -14,11 +13,15 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/cobra"
 )
 
 var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
 var defaultRestEndpoint = "api/v2"
+
+// const trueString = "true" //this constant makes go lint happy
 
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
@@ -87,6 +90,7 @@ Global Flags:
 Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
   {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
 Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
+
 `
 
 // MakeCommands creates the top level commands
@@ -107,8 +111,9 @@ func MakeCommands() *cobra.Command {
 	rootOptions.Data = &data.Data
 
 	rootCmd = &cobra.Command{
-		Use:  "circleci",
-		Long: rootHelpLong(rootOptions),
+		Use:   "circleci",
+		Long:  rootHelpLong(),
+		Short: rootHelpShort(rootOptions),
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
@@ -118,6 +123,9 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("HasAnnotations", hasAnnotations)
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
+
+	helpCmd := helpCmd{cmd: rootCmd}
+	rootCmd.SetHelpTemplate(helpCmd.helpTemplate())
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
@@ -277,21 +285,150 @@ func isUpdateIncluded(packageManager string) bool {
 	}
 }
 
-func rootHelpLong(config *settings.Config) string {
-	long := `Use CircleCI from the command line.
+func skipUpdateByDefault() bool {
+	return os.Getenv("CI") == "true" || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == "true"
+}
 
+/**************** Help Menu Functions ****************/
+
+//rootHelpLong creates content for the long field in the command
+func rootHelpLong() string {
+	long := `
+                          /??                     /??                         /??
+                         |__/                    | ??                        |__/
+  /????????      /??????? /??  /??????   /???????| ??  /??????       /??????? /??
+ /_______/??    /??_____/| ?? /??__  ?? /??_____/| ?? /??__  ??     /??_____/| ??
+    /?? | ??   | ??      | ??| ??  \__/| ??      | ??| ????????    | ??      | ??
+   |__/ | ??   | ??      | ??| ??      | ??      | ??| ??_____/    | ??      | ??
+  /????????    |  ???????| ??| ??      |  ???????| ??|  ???????    |  ???????| ??
+ /________/     \_______/|__/|__/       \_______/|__/ \_______/     \_______/|__/`
+	return long
+}
+
+// rootHelpShort creates content for the short feild in the command
+func rootHelpShort(config *settings.Config) string {
+	short := `Use CircleCI from the command line.
 This project is the seed for CircleCI's new command-line application.`
 
 	// We should only print this for cloud users
 	if config.Host != defaultHost {
-		return long
+		return short
 	}
 
 	return fmt.Sprintf(`%s
 
-For more help, see the documentation here: %s`, long, config.Data.Links.CLIDocs)
+For more help, see the documentation here: %s`, short, config.Data.Links.CLIDocs)
 }
 
-func skipUpdateByDefault() bool {
-	return os.Getenv("CI") == "true" || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == "true"
+const (
+	defaultWidth = 100
+
+	//default colors
+	purple    = `#7e2fcc`
+	darkGrey  = `#353C3B`
+	lightTeal = `#03DAC5`
+	darkTeal  = `#01A299`
+	white     = `#e5e5e5`
+	red       = `#FF3333`
+)
+
+type helpCmd struct {
+	cmd *cobra.Command
+}
+
+// helpTemplate Building a custom help template with more finess and pizazz
+func (helpCmd *helpCmd) helpTemplate() string {
+	cmd := helpCmd.cmd
+	log.Println(cmd)
+	usageText := strings.Builder{}
+
+	//Title styles
+	titleStyle := lipgloss.NewStyle().Bold(true).
+		Foreground(lipgloss.AdaptiveColor{Light: darkTeal, Dark: lightTeal}).
+		Underline(true).
+		BorderBottom(true).
+		Margin(1, 0, 1, 0).
+		Padding(0, 1, 0, 1).Align(lipgloss.Center)
+
+	//get command name and style it
+	cmdName := cmd.Long
+	cmdName = titleStyle.Render(cmdName)
+	usageText.WriteString(cmdName + "\n")
+
+	// cmdLong := m.styles.SubTitle.Render(m.cmd.Long)
+	// cmdTitle = m.styles.Title.Foreground(lipgloss.AdaptiveColor{Light: darkGrey, Dark: white}).
+	// 	Render(lipgloss.JoinVertical(lipgloss.Center, cmdName, cmdLong))
+	// usageText.WriteString(cmdTitle + "\n")
+
+	// cmdSection := m.styles.Section.Render("Cmd Description:")
+	// short := m.styles.Text.Render(m.cmd.Short)
+
+	// usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, cmdSection, short) + "\n")
+
+	// if m.cmd.Runnable() {
+	// 	usage := m.styles.Section.Render("Usage:")
+	// 	useLine := m.styles.Text.Render(m.cmd.UseLine())
+	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, usage, useLine) + "\n")
+	// commandPath := m.styles.Text.Render(m.cmd.CommandPath() + " [command]")
+	// usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, cmd.cmd.CommandPath()) + "\n")
+	// }
+
+	// if len(m.cmd.Aliases) > 0 {
+	// 	aliases := m.styles.Section.Render("Aliases:")
+	// 	nameAndAlias := m.styles.Text.Render(m.cmd.NameAndAliases())
+	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, aliases, nameAndAlias) + "\n")
+	// }
+	// if m.cmd.HasExample() {
+	// 	examples := m.styles.Section.Render("Examples:")
+	// 	example := m.styles.Text.Render(m.cmd.Example)
+	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, examples, example) + "\n")
+	// }
+
+	// if m.cmd.HasAvailableSubCommands() {
+	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, m.list.View()))
+	// }
+
+	// if m.cmd.HasAvailableLocalFlags() {
+	// 	localFlags := m.styles.Section.Render("Flags:")
+	// 	flagUsage := m.styles.Text.Render(strings.TrimRightFunc(m.cmd.LocalFlags().FlagUsages(), unicode.IsSpace))
+	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, localFlags, flagUsage) + "\n")
+	// }
+	// if m.cmd.HasAvailableInheritedFlags() {
+	// 	globalFlags := m.styles.Section.Render("Global Flags:")
+	// 	flagUsage := m.styles.Text.Render(strings.TrimRightFunc(m.cmd.InheritedFlags().FlagUsages(), unicode.IsSpace))
+	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, globalFlags, flagUsage) + "\n")
+	// }
+
+	// 	var ht2 = `
+	// {{if .HasAvailableSubCommands}}{{.CommandPath}} [command]{{end}}
+	// {{if gt (len .Aliases) 0}}
+	// Aliases: {{.NameAndAliases}}{{end}}
+	// {{if .Long}}{{.Long}}{{else}}{{.Short}}{{end}}
+	// {{if .HasExample}}
+	// Examples:
+	// {{.Example}}{{end}}{{if .HasAvailableSubCommands}}
+
+	// Available Commands: {{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
+	//   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if (HasAnnotations .)}}
+	// {{$cmd := .}}
+	// Args:
+	// {{range (PositionalArgs .)}}  {{(FormatPositionalArg $cmd .)}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
+
+	// Flags:
+	// {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
+
+	// Global Flags:
+	// {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
+	// Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
+	//   {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}
+
+	// `
+	//Border styles
+	borderStyle := lipgloss.NewStyle().
+		Padding(0, 1, 0, 1).
+		Width(defaultWidth).
+		BorderForeground(lipgloss.AdaptiveColor{Light: darkTeal, Dark: lightTeal}).
+		Border(lipgloss.ThickBorder())
+
+	return borderStyle.Render(usageText.String() + "\n")
 }

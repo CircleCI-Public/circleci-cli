@@ -29,8 +29,9 @@ func NewCommand(config *settings.Config, preRunE validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "policy",
 		PersistentPreRunE: preRunE,
-		Short: "Policies ensures security of build configs via security policy management framework. " +
-			"This group of commands allows the management of polices to be verified against build configs.",
+		Short:             "Manage security policies",
+		Long: `Policies ensures security of build configs via security policy management framework.
+This group of commands allows the management of polices to be verified against build configs.`,
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
