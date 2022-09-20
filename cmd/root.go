@@ -21,8 +21,6 @@ var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
 var defaultRestEndpoint = "api/v2"
 
-// const trueString = "true" //this constant makes go lint happy
-
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
 // it should be set once when Execute is first called
