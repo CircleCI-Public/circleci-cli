@@ -125,7 +125,7 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 
 	helpCmd := helpCmd{cmd: rootCmd}
-	rootCmd.SetHelpTemplate(helpCmd.helpTemplate())
+	rootCmd.SetHelpFunc(helpCmd.helpTemplate)
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
@@ -316,119 +316,94 @@ This project is the seed for CircleCI's new command-line application.`
 	}
 
 	return fmt.Sprintf(`%s
-
 For more help, see the documentation here: %s`, short, config.Data.Links.CLIDocs)
 }
-
-const (
-	defaultWidth = 100
-
-	//default colors
-	purple    = `#7e2fcc`
-	darkGrey  = `#353C3B`
-	lightTeal = `#03DAC5`
-	darkTeal  = `#01A299`
-	white     = `#e5e5e5`
-	red       = `#FF3333`
-)
 
 type helpCmd struct {
 	cmd *cobra.Command
 }
 
 // helpTemplate Building a custom help template with more finess and pizazz
-func (helpCmd *helpCmd) helpTemplate() string {
-	cmd := helpCmd.cmd
-	log.Println(cmd)
-	usageText := strings.Builder{}
+func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 
-	//Title styles
+	/***Styles ***/
 	titleStyle := lipgloss.NewStyle().Bold(true).
-		Foreground(lipgloss.AdaptiveColor{Light: darkTeal, Dark: lightTeal}).
-		Underline(true).
+		Foreground(lipgloss.AdaptiveColor{Light: `#003740`, Dark: `#3B6385`}).
 		BorderBottom(true).
 		Margin(1, 0, 1, 0).
 		Padding(0, 1, 0, 1).Align(lipgloss.Center)
+	subCmdStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).
+		Padding(0, 4, 0, 4).Align(lipgloss.Left)
+	subCmdInfoStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Bold(true)
+	textStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).Align(lipgloss.Left).Margin(0).Padding(0)
 
-	//get command name and style it
-	cmdName := cmd.Long
-	cmdName = titleStyle.Render(cmdName)
-	usageText.WriteString(cmdName + "\n")
+	/** Building Usage String **/
+	usageText := strings.Builder{}
 
-	// cmdLong := m.styles.SubTitle.Render(m.cmd.Long)
-	// cmdTitle = m.styles.Title.Foreground(lipgloss.AdaptiveColor{Light: darkGrey, Dark: white}).
-	// 	Render(lipgloss.JoinVertical(lipgloss.Center, cmdName, cmdLong))
-	// usageText.WriteString(cmdTitle + "\n")
+	//get command path
+	usageText.WriteString(titleStyle.Render(cmd.CommandPath()))
 
-	// cmdSection := m.styles.Section.Render("Cmd Description:")
-	// short := m.styles.Text.Render(m.cmd.Short)
+	//get command short or long
+	cmdDesc := titleStyle.Render(cmd.Long)
+	if strings.TrimSpace(cmdDesc) == "" || cmd.Name() == "circleci" {
+		if cmd.Name() == "circleci" {
+			cmdDesc += "\n\n" //add some spaces for circleci command
+		}
+		cmdDesc += subCmdStyle.Render(cmd.Short)
+	}
+	usageText.WriteString(cmdDesc + "\n")
 
-	// usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, cmdSection, short) + "\n")
+	if len(cmd.Aliases) > 0 {
+		aliases := titleStyle.Render("Aliases:")
+		aliases += textStyle.Render(cmd.NameAndAliases())
+		usageText.WriteString(aliases + "\n")
+	}
 
-	// if m.cmd.Runnable() {
-	// 	usage := m.styles.Section.Render("Usage:")
-	// 	useLine := m.styles.Text.Render(m.cmd.UseLine())
-	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, usage, useLine) + "\n")
-	// commandPath := m.styles.Text.Render(m.cmd.CommandPath() + " [command]")
-	// usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, cmd.cmd.CommandPath()) + "\n")
-	// }
+	if cmd.Runnable() {
+		usage := titleStyle.Render("Usage:")
+		usage += textStyle.Render(cmd.UseLine())
+		usageText.WriteString(usage + "\n")
+	}
 
-	// if len(m.cmd.Aliases) > 0 {
-	// 	aliases := m.styles.Section.Render("Aliases:")
-	// 	nameAndAlias := m.styles.Text.Render(m.cmd.NameAndAliases())
-	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, aliases, nameAndAlias) + "\n")
-	// }
-	// if m.cmd.HasExample() {
-	// 	examples := m.styles.Section.Render("Examples:")
-	// 	example := m.styles.Text.Render(m.cmd.Example)
-	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, examples, example) + "\n")
-	// }
+	if cmd.HasExample() {
+		examples := titleStyle.Render("Example:")
+		examples += textStyle.Render(cmd.Example)
+		usageText.WriteString(examples + "\n")
+	}
 
-	// if m.cmd.HasAvailableSubCommands() {
-	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, m.list.View()))
-	// }
+	if cmd.HasAvailableSubCommands() {
+		subCmds := cmd.Commands()
+		subTitle := titleStyle.Render("Available Commands:")
+		subs := ""
+		for i := range subCmds {
+			if subCmds[i].IsAvailableCommand() {
+				subs += subCmdStyle.Render(subCmds[i].Name()) + subCmdInfoStyle.
+					PaddingLeft(subCmds[i].NamePadding()-len(subCmds[i].Name())+1).Render(subCmds[i].Short) + "\n"
+			}
+		}
+		usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, subTitle, subs))
+	}
 
-	// if m.cmd.HasAvailableLocalFlags() {
-	// 	localFlags := m.styles.Section.Render("Flags:")
-	// 	flagUsage := m.styles.Text.Render(strings.TrimRightFunc(m.cmd.LocalFlags().FlagUsages(), unicode.IsSpace))
-	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, localFlags, flagUsage) + "\n")
-	// }
-	// if m.cmd.HasAvailableInheritedFlags() {
-	// 	globalFlags := m.styles.Section.Render("Global Flags:")
-	// 	flagUsage := m.styles.Text.Render(strings.TrimRightFunc(m.cmd.InheritedFlags().FlagUsages(), unicode.IsSpace))
-	// 	usageText.WriteString(lipgloss.JoinVertical(lipgloss.Left, globalFlags, flagUsage) + "\n")
-	// }
+	if cmd.HasAvailableLocalFlags() {
+		flags := titleStyle.Render("Local Flags:")
+		flags += textStyle.Render("\n" + cmd.LocalFlags().FlagUsages())
+		usageText.WriteString(flags)
+	}
+	if cmd.HasAvailableInheritedFlags() {
+		flags := titleStyle.Render("Global Flags:")
+		flags += textStyle.Render("\n" + cmd.InheritedFlags().FlagUsages())
+		usageText.WriteString(flags)
+	}
 
-	// 	var ht2 = `
-	// {{if .HasAvailableSubCommands}}{{.CommandPath}} [command]{{end}}
-	// {{if gt (len .Aliases) 0}}
-	// Aliases: {{.NameAndAliases}}{{end}}
-	// {{if .Long}}{{.Long}}{{else}}{{.Short}}{{end}}
-	// {{if .HasExample}}
-	// Examples:
-	// {{.Example}}{{end}}{{if .HasAvailableSubCommands}}
-
-	// Available Commands: {{range .Commands}}{{if (or .IsAvailableCommand (eq .Name "help"))}}
-	//   {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if (HasAnnotations .)}}
-	// {{$cmd := .}}
-	// Args:
-	// {{range (PositionalArgs .)}}  {{(FormatPositionalArg $cmd .)}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
-
-	// Flags:
-	// {{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
-
-	// Global Flags:
-	// {{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
-	// Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
-	//   {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}
-
-	// `
 	//Border styles
 	borderStyle := lipgloss.NewStyle().
 		Padding(0, 1, 0, 1).
-		Width(defaultWidth).
-		BorderForeground(lipgloss.AdaptiveColor{Light: darkTeal, Dark: lightTeal}).
+		Width(120).
+		BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#47A359`}).
 		Border(lipgloss.ThickBorder())
 
-	return borderStyle.Render(usageText.String() + "\n")
+	log.Println("\n" + borderStyle.Render(usageText.String()+"\n"))
 }
