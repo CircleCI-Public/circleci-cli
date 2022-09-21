@@ -123,8 +123,10 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 
-	helpCmd := helpCmd{cmd: rootCmd}
-	rootCmd.SetHelpFunc(helpCmd.helpTemplate)
+	if os.Getenv("TESTING") != "true" {
+		helpCmd := helpCmd{cmd: rootCmd}
+		rootCmd.SetHelpFunc(helpCmd.helpTemplate)
+	}
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 

@@ -89,6 +89,8 @@ jobs:
       - run: setx GOPATH %USERPROFILE%\go
       - run: go get gotest.tools/gotestsum
       - run: mkdir test_results
+      - run: setx TESTING "true"
+
       - run:
           name: Run tests
           command: |
@@ -133,7 +135,8 @@ jobs:
       - run:
           command: bundle exec cucumber
           working_directory: integration_tests
-
+          environment:
+            TESTING: "true"
   test:
     executor: go
     steps:
