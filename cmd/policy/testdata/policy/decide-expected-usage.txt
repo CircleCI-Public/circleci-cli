@@ -1,0 +1,15 @@
+Usage:
+  policy decide [policy_file_or_dir_path] [flags]
+
+Examples:
+policy decide ./policies --input ./.circleci/config.yml
+
+Flags:
+      --context string    policy context for decision (default "config")
+      --input string      path to input file
+      --metafile string   decision metadata file
+      --owner-id string   the id of the policy's owner
+      --strict            return non-zero status code for decision resulting in HARD_FAIL
+
+Global Flags:
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

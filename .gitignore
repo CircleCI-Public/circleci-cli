@@ -7,6 +7,8 @@ docs/
 out/
 vendor/
 .vscode
+.idea
+.DS_Store 
 
 # For supporting generated config of 2.1 syntax for local testing
 .circleci/processed.yml
@@ -17,10 +19,6 @@ prime/
 snap/.snapcraft/
 stage/
 *.snap
-
-# packr related
-*/*-packr.go
-packrd/
 
 # golangci-lint
 # We expect to install the binary each time in CI

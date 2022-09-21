@@ -76,6 +76,7 @@ type createOrbTestUI struct {
 
 type orbProtectTemplateRelease struct {
 	ZipUrl string `json:"zipball_url"`
+	Name   string `json:"name"`
 }
 
 func (ui createOrbTestUI) askUserToConfirm(message string) bool {
@@ -124,7 +125,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		Use:   "process <path>",
 		Short: "Validate an orb and print its form after all pre-registration processing",
 		Long: strings.Join([]string{
-			"Use `$ circleci orb process` to resolve an orb, and it's dependencies to see how it would be expanded when you publish it to the registry.",
+			"Use `$ circleci orb process` to resolve an orb and its dependencies, to see how it would be expanded when you publish it to the registry.",
 			"", // purposeful new-line
 			"This can be helpful for validating an orb and debugging the processed form before publishing.",
 		}, "\n"),
@@ -310,7 +311,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 	orbInit := &cobra.Command{
 		Use:   "init <path>",
-		Short: "Initialize a new orb.",
+		Short: "Initialize a new orb project.",
 		Long:  ``,
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return initOrb(opts)
@@ -1060,7 +1061,7 @@ func initOrb(opts orbOptions) error {
 
 	fmt.Printf("Downloading Orb Project Template into %s\n", orbPath)
 	httpClient := http.Client{}
-	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Project-Template/tags")
+	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Template/tags")
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
@@ -1075,15 +1076,25 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	latestTag := tags[0].ZipUrl
-	resp, err := http.Get(latestTag)
+	// filter out any non-release tags
+	releaseTags := []orbProtectTemplateRelease{}
+	validTagRegex := regexp.MustCompile(`^v\d+\.\d+\.\d+$`)
+	for _, tag := range tags {
+		matched := validTagRegex.MatchString(tag.Name)
+		if matched {
+			releaseTags = append(releaseTags, tag)
+		}
+	}
+
+	latestRelease := releaseTags[0]
+	resp, err := http.Get(latestRelease.ZipUrl)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 
 	// Create the file
-	out, err := os.Create(filepath.Join(os.TempDir(), "orb-project-template.zip"))
+	out, err := os.Create(filepath.Join(os.TempDir(), "orb-template.zip"))
 	if err != nil {
 		return err
 	}
@@ -1095,7 +1106,7 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-project-template.zip"), orbPath)
+	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-template.zip"), orbPath)
 	if err != nil {
 		return err
 	}
@@ -1297,13 +1308,24 @@ func initOrb(opts orbOptions) error {
 		return y[0]
 	}()
 
-	circleConfig, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	circleConfigSetup, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
 	if err != nil {
 		return err
 	}
 
-	circle := string(circleConfig)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(circle, projectName, ownerName, orbName, namespace)), 0644)
+	configSetupString := string(circleConfigSetup)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	circleConfigDeploy, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "test-deploy.yml"))
+	if err != nil {
+		return err
+	}
+
+	configDeployString := string(circleConfigDeploy)
+	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1312,8 +1334,20 @@ func initOrb(opts orbOptions) error {
 	if err != nil {
 		return err
 	}
+
 	readmeString := string(readme)
 	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
+	if err != nil {
+		return err
+	}
+
+	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
+	if err != nil {
+		return err
+	}
+
+	orbRootString := string(orbRoot)
+	err = ioutil.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1349,13 +1383,13 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if version.PackageManager() != "snap" {
-		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+		_, err = w.Commit("feat: Initial commit.", &git.CommitOptions{})
 		if err != nil {
 			return err
 		}
 	} else {
 		fmt.Println("We detected you installed the CLI via snap\nThe commit generated will not match your actual git username or email due to sandboxing.")
-		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{
+		_, err = w.Commit("feat: Initial commit.", &git.CommitOptions{
 			Author: &object.Signature{
 				Name:  "CircleCI",
 				Email: "community-partner@circleci.com",
@@ -1401,9 +1435,11 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	fmt.Printf("An initial commit has been created - please run \033[1;34m'git push origin %v'\033[0m to publish your first commit!\n", gitBranch)
+	fmt.Printf("An initial commit has been created - please run the following commands in a separate terminal window. \n")
+	fmt.Printf("\033[1;34m'git branch -M %v'\033[0m\n", gitBranch)
+	fmt.Printf("\033[1;34m'git push origin %v'\033[0m\n", gitBranch)
 	yprompt = &survey.Confirm{
-		Message: "I have pushed to my git repository using the above command",
+		Message: "I have pushed to my git repository using the above commands",
 	}
 	// We don't use this anywhere, but AskOne will fail if we don't give it a
 	// place to put the result.
@@ -1484,7 +1520,7 @@ func unzipToOrbPath(src, dest string) error {
 			}
 		}()
 
-		// This is neccesary because the zip downloaded from GitHub will have a
+		// This is necessary because the zip downloaded from GitHub will have a
 		// directory with the actual template, rather than the template being
 		// top-level.
 		pathParts := strings.Split(f.Name, "/")

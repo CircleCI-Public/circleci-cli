@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -77,6 +78,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		panic(err)
 	}
 	validateCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
+	validateCommand.Flags().String("org-id", "", "organization id used when a config depends on private orbs belonging to that org")
 
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
@@ -93,6 +95,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 	}
 	processCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	processCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
+	processCommand.Flags().String("org-id", "", "organization id used when a config depends on private orbs belonging to that org")
 	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)")
 
 	migrateCommand := &cobra.Command{
@@ -121,6 +124,8 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
+	var err error
+	var response *api.ConfigResponse
 	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
@@ -132,11 +137,19 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 		path = opts.args[0]
 	}
 
-	orgSlug, _ := flags.GetString("org-slug")
-
-	response, err := api.ConfigQuery(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
+	//if no orgId provided use org slug
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		response, err = api.ConfigQueryLegacy(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	// check if a deprecated Linux VM image is being used
@@ -159,13 +172,13 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 }
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
-	orgSlug, _ := flags.GetString("org-slug")
 	paramsYaml, _ := flags.GetString("pipeline-parameters")
-
+	var response *api.ConfigResponse
 	var params pipeline.Parameters
+	var err error
 
 	if len(paramsYaml) > 0 {
-		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read sucessfully,
+		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read successfully,
 		// proceed with the assumption that the value is already valid yaml.
 		raw, err := ioutil.ReadFile(paramsYaml)
 		if err != nil {
@@ -178,9 +191,19 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 		}
 	}
 
-	response, err := api.ConfigQuery(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
-	if err != nil {
-		return err
+	//if no orgId provided use org slug
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		response, err = api.ConfigQueryLegacy(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	fmt.Print(response.OutputYaml)
