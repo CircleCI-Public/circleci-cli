@@ -21,6 +21,7 @@ import (
 var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
 var defaultRestEndpoint = "api/v2"
+var trueString = "true"
 
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
@@ -123,7 +124,7 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 
-	if os.Getenv("TESTING") != "true" {
+	if os.Getenv("TESTING") != trueString {
 		helpCmd := helpCmd{cmd: rootCmd}
 		rootCmd.SetHelpFunc(helpCmd.helpTemplate)
 	}
@@ -288,7 +289,7 @@ func isUpdateIncluded(packageManager string) bool {
 }
 
 func skipUpdateByDefault() bool {
-	return os.Getenv("CI") == "true" || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == "true"
+	return os.Getenv("CI") == trueString || os.Getenv("CIRCLECI_CLI_SKIP_UPDATE_CHECK") == trueString
 }
 
 /**************** Help Menu Functions ****************/

@@ -8,10 +8,6 @@ Feature: Root Commands
     Then the output should contain:
     """
     Use CircleCI from the command line.
-
-    This project is the seed for CircleCI's new command-line application.
-
-    For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/
     """
     And the exit status should be 0
 
