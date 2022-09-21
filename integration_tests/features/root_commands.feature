@@ -7,7 +7,7 @@ Feature: Root Commands
     When I run `circleci help`
     Then the output should contain:
     """
-    Use CircleCI from the command line.
+ circleci
     """
     And the exit status should be 0
 
