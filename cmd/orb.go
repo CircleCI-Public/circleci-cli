@@ -590,8 +590,8 @@ var validSortFlag = map[string]bool{
 	"projects": true,
 	"orgs":     true}
 
-func validateSortFlag(sort string) error {
-	if _, valid := validSortFlag[sort]; valid {
+func validateSortFlag(sortFlag string) error {
+	if _, valid := validSortFlag[sortFlag]; valid {
 		return nil
 	}
 
@@ -599,10 +599,11 @@ func validateSortFlag(sort string) error {
 	for key := range validSortFlag {
 		keys = append(keys, key)
 	}
+	sort.Strings(keys)
 
 	validFlags := fmt.Sprint(strings.Join(keys, ", "))
 
-	return fmt.Errorf("expected `%s` to be one of: %s", sort, validFlags)
+	return fmt.Errorf("expected `%s` to be one of: %s", sortFlag, validFlags)
 }
 
 func listOrbs(opts orbOptions) error {
