@@ -594,8 +594,15 @@ func validateSortFlag(sort string) error {
 	if _, valid := validSortFlag[sort]; valid {
 		return nil
 	}
-	// TODO(zzak): we could probably reuse the map above to print the valid values
-	return fmt.Errorf("expected `%s` to be one of \"builds\", \"projects\", or \"orgs\"", sort)
+
+	keys := make([]string, 0, len(validSortFlag))
+	for key := range validSortFlag {
+		keys = append(keys, key)
+	}
+
+	validFlags := fmt.Sprint(strings.Join(keys, ", "))
+
+	return fmt.Errorf("expected `%s` to be one of: %s", sort, validFlags)
 }
 
 func listOrbs(opts orbOptions) error {
