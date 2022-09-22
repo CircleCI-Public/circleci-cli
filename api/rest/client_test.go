@@ -46,7 +46,7 @@ func TestClient_DoRequest(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.Method(), "PUT"))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
-				"Accept-Type":     {"application/json"},
+				"Accept":          {"application/json"},
 				"Circle-Token":    {"fake-token"},
 				"Content-Length":  {"20"},
 				"Content-Type":    {"application/json"},
@@ -77,7 +77,7 @@ func TestClient_DoRequest(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
-				"Accept-Type":     {"application/json"},
+				"Accept":          {"application/json"},
 				"Circle-Token":    {"fake-token"},
 				"User-Agent":      {version.UserAgent()},
 			}))
@@ -109,7 +109,7 @@ func TestClient_DoRequest(t *testing.T) {
 			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
 			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
-				"Accept-Type":     {"application/json"},
+				"Accept":          {"application/json"},
 				"Circle-Token":    {"fake-token"},
 				"User-Agent":      {version.UserAgent()},
 			}))
