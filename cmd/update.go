@@ -73,7 +73,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 	update.AddCommand(&cobra.Command{
 		Use:    "build-agent",
 		Hidden: true,
-		Short:  "This command has no effect, and is kept for backwards compatiblity",
+		Short:  "This command has no effect, and is kept for backwards compatibility",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
 		},

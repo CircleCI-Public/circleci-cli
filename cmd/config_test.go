@@ -288,6 +288,68 @@ var _ = Describe("Config", func() {
 
 		Describe("validating configs with private orbs", func() {
 			config := "version: 2.1"
+			orgId := "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+			var expReq string
+
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"config", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--org-id", orgId,
+					"-",
+				)
+
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				_, err = io.WriteString(stdin, config)
+				Expect(err).ToNot(HaveOccurred())
+				stdin.Close()
+
+				query := `query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgId: UUID!) {
+			buildConfig(configYaml: $config, pipelineValues: $pipelineValues, orgId: $orgId) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`
+
+				r := graphql.NewRequest(query)
+				r.Variables["config"] = config
+				r.Variables["orgId"] = orgId
+				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
+
+				req, err := r.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+				expReq = req.String()
+			})
+
+			It("returns an error when validating a config with a private orb", func() {
+				expResp := `{
+					"buildConfig": {
+								"errors": [
+									{"message": "permission denied"}
+								]
+					}
+				}`
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  expReq,
+					Response: expResp,
+				})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err, time.Second*3).Should(gbytes.Say("Error: permission denied"))
+				Eventually(session).Should(clitest.ShouldFail())
+			})
+		})
+
+		Describe("validating configs with private orbs Legacy", func() {
+			config := "version: 2.1"
 			orgSlug := "circleci"
 			var expReq string
 

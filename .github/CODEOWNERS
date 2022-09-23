@@ -1,2 +1,6 @@
-* @CircleCI-Public/EcoSystem
-*orb*.go @CircleCI-Public/CPEng @CircleCI-Public/EcoSystem
+* @CircleCI-Public/Extensibility
+*orb*.go @CircleCI-Public/CPEng @CircleCI-Public/Extensibility
+
+/api/runner @CircleCI-Public/runner
+/cmd/runner @CircleCI-Public/runner
+

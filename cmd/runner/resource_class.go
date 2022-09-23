@@ -7,9 +7,10 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
 
-func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
+func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resource-class",
 		Short: "Operate on runner resource-classes",
@@ -47,7 +48,8 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 		"Generate a default token")
 	cmd.AddCommand(createCmd)
 
-	cmd.AddCommand(&cobra.Command{
+	forceDelete := false
+	deleteCmd := &cobra.Command{
 		Use:     "delete <resource-class>",
 		Short:   "Delete a resource-class",
 		Aliases: []string{"rm"},
@@ -58,9 +60,12 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return o.r.DeleteResourceClass(rc.ID)
+			return o.r.DeleteResourceClass(rc.ID, forceDelete)
 		},
-	})
+	}
+	deleteCmd.PersistentFlags().BoolVarP(&forceDelete, "force", "f", false,
+		"Delete resource-class and any associated tokens")
+	cmd.AddCommand(deleteCmd)
 
 	cmd.AddCommand(&cobra.Command{
 		Use:     "list <namespace>",

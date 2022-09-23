@@ -18,24 +18,19 @@ clean:
 
 .PHONY: test
 test:
-	go test -v ./...
+	TESTING=true go test -v ./...
 
 .PHONY: cover
 cover:
-	go test -race -coverprofile=coverage.txt ./...
+	TESTING=true go test -race -coverprofile=coverage.txt ./...
 
 .PHONY: lint
 lint:
-	bash .circleci/lint.sh
+	golangci-lint run
 
 .PHONY: doc
 doc:
 	godoc -http=:6060
-
-.PHONY: install-lint
-install-lint:
-	bash .circleci/install-lint.sh
-
 
 .PHONY: always
 always:

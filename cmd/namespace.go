@@ -19,7 +19,7 @@ type namespaceOptions struct {
 
 	// Allows user to skip y/n confirm when creating a namespace
 	noPrompt bool
-	orgID *string
+	orgID    *string
 	// This lets us pass in our own interface for testing
 	tty createNamespaceUserInterface
 	// Linked with --integration-testing flag for stubbing UI in gexec tests
@@ -57,7 +57,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createCmd := &cobra.Command{
-		Use: "create <name> [<vcs-type>] [<org-name>]",
+		Use:   "create <name> [<vcs-type>] [<org-name>]",
 		Short: "Create a namespace",
 		Long: `Create a namespace.
 Please note that at this time all namespaces created in the registry are world-readable.`,
@@ -76,7 +76,7 @@ Please note that at this time all namespaces created in the registry are world-r
 
 			return createNamespace(cmd, opts)
 		},
-		Args: cobra.RangeArgs(1, 3),
+		Args:        cobra.RangeArgs(1, 3),
 		Annotations: make(map[string]string),
 		Example: `  circleci namespace create NamespaceName github OrgName
   circleci namespace create NamespaceName --org-id "your-org-id-here"`,
@@ -157,17 +157,17 @@ To change the namespace, you will have to contact CircleCI customer support.
 	return nil
 }
 
-func createNamespace(cmd *cobra.Command,opts namespaceOptions) error {
+func createNamespace(cmd *cobra.Command, opts namespaceOptions) error {
 	namespaceName := opts.args[0]
 	//skip if no orgid provided
-	if opts.orgID != nil && strings.TrimSpace(*opts.orgID) != ""{
+	if opts.orgID != nil && strings.TrimSpace(*opts.orgID) != "" {
 		_, err := uuid.Parse(*opts.orgID)
 		if err == nil {
 			return createNamespaceWithOrgId(opts, namespaceName, *opts.orgID)
 		}
 
-	//skip if no vcs type and org name provided
-	} else if len(opts.args) == 3{
+		//skip if no vcs type and org name provided
+	} else if len(opts.args) == 3 {
 		return createNamespaceWithVcsTypeAndOrgName(opts, namespaceName, opts.args[1], opts.args[2])
 	}
 	return cmd.Help()
