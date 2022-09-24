@@ -31,7 +31,10 @@ require (
 	gotest.tools/v3 v3.0.3
 )
 
-require github.com/erikgeiser/promptkit v0.7.0
+require (
+	github.com/charmbracelet/lipgloss v0.5.0
+	github.com/erikgeiser/promptkit v0.7.0
+)
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
@@ -39,7 +42,6 @@ require (
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/charmbracelet/bubbles v0.11.0 // indirect
 	github.com/charmbracelet/bubbletea v0.21.0 // indirect
-	github.com/charmbracelet/lipgloss v0.5.0 // indirect
 	github.com/containerd/console v1.0.3 // indirect
 	github.com/emirpasic/gods v1.12.0 // indirect
 	github.com/fsnotify/fsnotify v1.5.4 // indirect
