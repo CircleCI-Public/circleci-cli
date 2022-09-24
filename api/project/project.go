@@ -10,4 +10,6 @@ type ProjectEnvironmentVariable struct {
 // components.
 type ProjectClient interface {
 	ListAllEnvironmentVariables(vcs, org, project string) ([]*ProjectEnvironmentVariable, error)
+	GetEnvironmentVariable(vcs, org, project, envName string) (*ProjectEnvironmentVariable, error)
+	CreateEnvironmentVariable(vcs, org, project string, v ProjectEnvironmentVariable) (*ProjectEnvironmentVariable, error)
 }
