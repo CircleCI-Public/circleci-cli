@@ -83,20 +83,22 @@ func (r *CompileConfig) CompileConfig(request *CompileConfigRequest, orgSlug str
 }
 
 func (r *CompileConfig) GetOrgCollaborations() ([]CollaborationResult, error) {
-	req, err := r.rc.NewRequest("GET", &url.URL{Path: "me/collaborations"}, nil)
+	req, err := r.rc.NewRequest("GET", &url.URL{Path: "/api/v2/me/collaborations"}, nil)
 	if err != nil {
 		return nil, err
 	}
 
 	var resp []CollaborationResult
 	_, err = r.rc.DoRequest(req, &resp)
+
+	fmt.Println(err)
+	fmt.Printf("%+v\n", resp)
+
 	return resp, err
 }
 
 func (r *CompileConfig) CompileConfigWithDefaults(compileConfigRequest *CompileConfigRequest) (*CompileConfigResult, error) {
-	println("calling api****")
 	req, err := r.compileClient.NewRequest("POST", &url.URL{Path: "compile-config-with-defaults"}, compileConfigRequest)
-	fmt.Printf("calling request****: %+v", req)
 
 	if err != nil {
 		fmt.Printf("calling request errored****: %+v", err)
@@ -105,5 +107,6 @@ func (r *CompileConfig) CompileConfigWithDefaults(compileConfigRequest *CompileC
 
 	resp := &CompileConfigResult{}
 	_, err = r.compileClient.DoRequest(req, resp)
+	// fmt.Println(err)
 	return resp, err
 }

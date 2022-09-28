@@ -117,18 +117,18 @@ func Test_GetCollaborations(t *testing.T) {
 	fix := fixture{}
 	compileConfig, cleanup := fix.Run(
 		http.StatusOK,
-		`[{
-			vcs_type: "github",
-			slug: "gh/circleci",
-			name: "circleci",
-			id: "org-id",
-			avatar_url: "image.png",
+		`[{ "vcs_type": "github",
+			"slug": "gh/circleci",
+			"name": "circleci",
+			"id": "org-id",
+			"avatar_url": "image.png"
 		}]`,
 	)
 	defer cleanup()
 
 	t.Run("Check instance list", func(t *testing.T) {
 		collaborations, err := compileConfig.GetOrgCollaborations()
+
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(collaborations, []CollaborationResult{
 			{
@@ -159,11 +159,11 @@ func Test_GetOrgCollaborations(t *testing.T) {
 	compileConfig, cleanup := fix.Run(
 		http.StatusOK,
 		`[{
-			vcs_type: "github",
-			slug:"gh/circleci",
-			name: "circleci",
-			id: "org-id",
-			avatar_url: "image.png",
+			"vcs_type": "github",
+			"slug": "gh/circleci",
+			"name": "circleci",
+			"id": "org-id",
+			"avatar_url": "image.png"
 		}]`,
 	)
 	defer cleanup()
