@@ -254,7 +254,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 
 	req.Header.Set("Content-Type", "application/json; charset=utf-8")
 	req.Header.Set("Accept", "application/json; charset=utf-8")
-	req.Header.Set("Authorization", cl.Token)
+	req.Header.Set("Circle-Token", cl.Token)
 	req.Header.Set("User-Agent", version.UserAgent())
 
 	commandStr := header.GetCommandStr() // TODO: check this

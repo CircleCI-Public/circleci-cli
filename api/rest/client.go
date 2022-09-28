@@ -71,8 +71,6 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 }
 
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
-	println("making real http api****")
-
 	httpResp, err := c.client.Do(req)
 
 	if err != nil {
@@ -81,9 +79,6 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 	defer httpResp.Body.Close()
 
 	if httpResp.StatusCode >= 300 {
-		println("status code**** %s", httpResp.StatusCode)
-		println("response body**** %s", httpResp.Body)
-
 		httpError := struct {
 			Message string `json:"message"`
 		}{}
