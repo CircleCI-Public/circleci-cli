@@ -47,9 +47,12 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	command := &cobra.Command{
-		Use:   "context",
-		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
-	}
+		Use: "context",
+		Long: `
+Contexts provide a mechanism for securing and sharing environment variables across 
+projects. The environment variables are defined as name/value pairs and 
+are injected at runtime.`,
+		Short: "For securing and sharing environment variables across projects"}
 
 	listCommand := &cobra.Command{
 		Short:   "List all contexts",

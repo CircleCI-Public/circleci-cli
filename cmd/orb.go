@@ -590,12 +590,20 @@ var validSortFlag = map[string]bool{
 	"projects": true,
 	"orgs":     true}
 
-func validateSortFlag(sort string) error {
-	if _, valid := validSortFlag[sort]; valid {
+func validateSortFlag(sortFlag string) error {
+	if _, valid := validSortFlag[sortFlag]; valid {
 		return nil
 	}
-	// TODO(zzak): we could probably reuse the map above to print the valid values
-	return fmt.Errorf("expected `%s` to be one of \"builds\", \"projects\", or \"orgs\"", sort)
+
+	keys := make([]string, 0, len(validSortFlag))
+	for key := range validSortFlag {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	validFlags := fmt.Sprint(strings.Join(keys, ", "))
+
+	return fmt.Errorf("expected `%s` to be one of: %s", sortFlag, validFlags)
 }
 
 func listOrbs(opts orbOptions) error {
@@ -1383,13 +1391,13 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if version.PackageManager() != "snap" {
-		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{})
+		_, err = w.Commit("feat: Initial commit.", &git.CommitOptions{})
 		if err != nil {
 			return err
 		}
 	} else {
 		fmt.Println("We detected you installed the CLI via snap\nThe commit generated will not match your actual git username or email due to sandboxing.")
-		_, err = w.Commit("[semver:skip] Initial commit.", &git.CommitOptions{
+		_, err = w.Commit("feat: Initial commit.", &git.CommitOptions{
 			Author: &object.Signature{
 				Name:  "CircleCI",
 				Email: "community-partner@circleci.com",
