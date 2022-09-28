@@ -138,7 +138,7 @@ func TestDoJSONErr(t *testing.T) {
 		var decodedBody ConfigCompileRequest
 		_ = json.Unmarshal(body, &decodedBody)
 
-		if string(decodedBody.ConfigYml) != source_config {
+		if decodedBody.ConfigYml != source_config {
 			t.Errorf("expected %s", body)
 		}
 
