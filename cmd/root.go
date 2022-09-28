@@ -294,7 +294,7 @@ func skipUpdateByDefault() bool {
 
 /**************** Help Menu Functions ****************/
 
-//rootHelpLong creates content for the long field in the command
+// rootHelpLong creates content for the long field in the command
 func rootHelpLong() string {
 	long := `
                           /??                     /??                         /??
