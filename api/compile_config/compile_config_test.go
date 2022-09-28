@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"strings"
 	"sync"
 	"testing"
 
@@ -19,7 +20,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
-var source_config = `version: "2.1"
+var source_config = `version: 2.1
 workflows:
   bar:
 	jobs:
@@ -31,7 +32,7 @@ jobs:
 	steps:
 	  - run: echo Hello World`
 
-var compiled_config = `version: 2
+var compiled_config = `version: 2.1
 	  workflows:
 		version: 2
 		bar:
@@ -51,17 +52,16 @@ func Test_CompileConfigWithDefaults(t *testing.T) {
 	fix := fixture{}
 	compile_config, cleanup := fix.Run(
 		http.StatusOK,
-		fmt.Sprintf(`
-		"{
-			"valid": true,
-			"output_yaml": %s,
-			"source_yaml": %s
-		}"`, source_config, compiled_config),
+		fmt.Sprintf(`{"valid": true,"output_yaml": "%s", "source_yaml": "%s"}`, source_config, compiled_config),
 	)
 	defer cleanup()
 
 	t.Run("Check config is compiled correctly", func(t *testing.T) {
-		rc, err := compile_config.CompileConfigWithDefaults(&CompileConfigRequest{ConfigYml: source_config, Options: *options})
+		rc, err := compile_config.CompileConfigWithDefaults(
+			&CompileConfigRequest{
+				ConfigYml: source_config,
+				Options:   *options,
+			})
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(rc, &CompileConfigResult{
 			Valid:      true,
@@ -76,15 +76,15 @@ func Test_CompileConfigWithDefaults(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "POST"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
-			"Content-Length":  {"177"},
+			"Content-Length":  {"173"},
 			"Content-Type":    {"application/json"},
 			"User-Agent":      {version.UserAgent()},
 		}))
 		body, err := json.Marshal(&CompileConfigRequest{ConfigYml: source_config, Options: *options})
 		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(fix.Body(), string(body)))
+		assert.Equal(t, strings.TrimSuffix(fix.Body(), "\n"), string(body))
 	})
 }
 
@@ -92,8 +92,7 @@ func Test_CompileConfig(t *testing.T) {
 	fix := fixture{}
 	compile_config, cleanup := fix.Run(
 		http.StatusOK,
-		`
-		{
+		`{
 			"valid": true,
 			"output_yaml": "version 2.1",
 			"source_yaml": "version 2.1"
@@ -102,7 +101,11 @@ func Test_CompileConfig(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Check config is compiled with org slug correctly", func(t *testing.T) {
-		rc, err := compile_config.CompileConfig(&CompileConfigRequest{ConfigYml: source_config, Options: *options}, "gh/circleci")
+		rc, err := compile_config.CompileConfig(&CompileConfigRequest{
+			ConfigYml: source_config,
+			Options:   *options,
+		}, "gh/circleci")
+
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(rc, &CompileConfigResult{
 			Valid:      true,
@@ -146,7 +149,7 @@ func Test_GetCollaborations(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -171,7 +174,15 @@ func Test_GetOrgCollaborations(t *testing.T) {
 	t.Run("Check collborations", func(t *testing.T) {
 		collaborations, err := compileConfig.GetOrgCollaborations()
 		assert.NilError(t, err)
-		assert.Check(t, cmp.DeepEqual(collaborations, []CollaborationResult{}))
+		assert.Check(t, cmp.DeepEqual(collaborations, []CollaborationResult{
+			{
+				VcsTye:    "github",
+				OrgSlug:   "gh/circleci",
+				OrgName:   "circleci",
+				OrgId:     "org-id",
+				AvatarUrl: "image.png",
+			},
+		}))
 	})
 
 	t.Run("Check request", func(t *testing.T) {

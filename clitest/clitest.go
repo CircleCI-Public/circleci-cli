@@ -121,9 +121,7 @@ func (tempSettings *TempSettings) AppendRESTPostHandler(combineHandlers ...MockR
 }
 
 func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(authToken string, combineHandlers ...MockRequestResponse) {
-	println("#####step 1")
 	for _, handler := range combineHandlers {
-		println("#####step 2")
 		responseBody := handler.Response
 		if handler.ErrorResponse != "" {
 			responseBody = handler.ErrorResponse
@@ -132,14 +130,11 @@ func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(authToken strin
 		tempSettings.TestServer.AppendHandlers(
 			ghttp.CombineHandlers(
 				ghttp.VerifyRequest("POST", "/api/v2/compile-config-with-defaults"),
-				ghttp.VerifyContentType("application/json"),
+				// ghttp.VerifyContentType("application/json"),
 				ghttp.VerifyHeader(http.Header{
 					"Circle-Token": []string{authToken},
 				}),
 				func(w http.ResponseWriter, req *http.Request) {
-					fmt.Printf("#####Request: %v\n", req)
-					println("#####step 3")
-
 					body, err := ioutil.ReadAll(req.Body)
 					gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 					err = req.Body.Close()

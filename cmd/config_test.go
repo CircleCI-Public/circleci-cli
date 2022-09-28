@@ -183,8 +183,6 @@ var _ = Describe("Config", func() {
 						{"message": "error1"}
 					]
 				}`
-				fmt.Printf("*****address: %v", tempSettings.TestServer.URL())
-
 				By("setting up a mock server")
 				tempSettings.AppendRESTConfigCompileHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
@@ -192,11 +190,8 @@ var _ = Describe("Config", func() {
 					Response: expResp,
 				})
 
-				fmt.Printf("request: %s", expReq)
-
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				fmt.Printf("^^^^^^error: %+v", session.Err)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err, time.Second*3).Should(gbytes.Say("message: error1"))
 				Eventually(session).Should(clitest.ShouldFail())
@@ -212,7 +207,6 @@ var _ = Describe("Config", func() {
 					Request:  expReq,
 					Response: expResp,
 				})
-
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Out, time.Second*3).Should(gbytes.Say("Config input is valid."))
@@ -314,7 +308,7 @@ var _ = Describe("Config", func() {
 				expResp := `{
 					"valid": false,
 					"errors": [
-									{"message": "permission denied"}
+									{"message": "Unable to validate config: You must log in first"}
 								]
 				}`
 

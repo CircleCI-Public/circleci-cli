@@ -71,10 +71,10 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 }
 
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
+
 	httpResp, err := c.client.Do(req)
 
 	if err != nil {
-		fmt.Println(err)
 		return 0, err
 	}
 	defer httpResp.Body.Close()

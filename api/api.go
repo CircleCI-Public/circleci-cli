@@ -552,8 +552,6 @@ func ConfigQueryLegacy(cl *compile_config.CompileConfig, configPath string, orgS
 
 	configCompileRequest.Options = configCompileOptions
 
-	// request.SetToken(cl.Token)
-
 	response, err := cl.CompileConfig(&configCompileRequest, orgSlug)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")

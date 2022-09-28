@@ -1,7 +1,6 @@
 package compile_config
 
 import (
-	"fmt"
 	"net/url"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
@@ -67,12 +66,16 @@ func (r *CompileConfig) CompileConfig(request *CompileConfigRequest, orgSlug str
 		orgId = request.Options.OwnerId
 	}
 
-	configOptions := &Options{OwnerId: orgId,
+	configOptions := &Options{
+		OwnerId:            orgId,
 		PipelineParameters: request.Options.PipelineParameters,
-		PipelineValues:     request.Options.PipelineValues}
+		PipelineValues:     request.Options.PipelineValues,
+	}
 
-	compileConfgRequest := &CompileConfigRequest{ConfigYml: request.ConfigYml,
-		Options: *configOptions}
+	compileConfgRequest := &CompileConfigRequest{
+		ConfigYml: request.ConfigYml,
+		Options:   *configOptions,
+	}
 
 	rcs, err := r.CompileConfigWithDefaults(compileConfgRequest)
 	if err != nil {
@@ -90,18 +93,19 @@ func (r *CompileConfig) GetOrgCollaborations() ([]CollaborationResult, error) {
 
 	var resp []CollaborationResult
 	_, err = r.rc.DoRequest(req, &resp)
-
-	fmt.Println(err)
-	fmt.Printf("%+v\n", resp)
-
 	return resp, err
 }
 
 func (r *CompileConfig) CompileConfigWithDefaults(compileConfigRequest *CompileConfigRequest) (*CompileConfigResult, error) {
-	req, err := r.compileClient.NewRequest("POST", &url.URL{Path: "compile-config-with-defaults"}, compileConfigRequest)
+	req, err := r.compileClient.NewRequest(
+		"POST",
+		&url.URL{
+			Path: "compile-config-with-defaults",
+		},
+		compileConfigRequest,
+	)
 
 	if err != nil {
-		fmt.Printf("calling request errored****: %+v", err)
 		return nil, err
 	}
 
