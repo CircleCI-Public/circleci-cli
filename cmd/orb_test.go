@@ -1979,7 +1979,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/dev
 				Eventually(session).Should(clitest.ShouldFail())
 
 				stderr := session.Wait().Err.Contents()
-				Expect(string(stderr)).To(Equal("Error: expected `idontknow` to be one of \"builds\", \"projects\", or \"orgs\"\n"))
+				Expect(string(stderr)).To(Equal("Error: expected `idontknow` to be one of: builds, orgs, projects\n"))
 			})
 		})
 

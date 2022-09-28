@@ -7,11 +7,7 @@ Feature: Root Commands
     When I run `circleci help`
     Then the output should contain:
     """
-    Use CircleCI from the command line.
-
-    This project is the seed for CircleCI's new command-line application.
-
-    For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/
+ circleci
     """
     And the exit status should be 0
 
