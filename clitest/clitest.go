@@ -137,7 +137,7 @@ func (tempSettings *TempSettings) AppendRESTConfigCompileHandler(authToken strin
 					"Circle-Token": []string{authToken},
 				}),
 				func(w http.ResponseWriter, req *http.Request) {
-					fmt.Println("#####Request: %v", req)
+					fmt.Printf("#####Request: %v\n", req)
 					println("#####step 3")
 
 					body, err := ioutil.ReadAll(req.Body)
@@ -169,7 +169,7 @@ func (tempSettings *TempSettings) AppendRESTCollborationsHandler(authToken strin
 					"Circle-Token": []string{authToken},
 				}),
 				func(w http.ResponseWriter, req *http.Request) {
-					fmt.Println("#####Request: %v", req)
+					fmt.Printf("#####Request: %v\n", req)
 					println("#####step 3")
 
 					body, err := ioutil.ReadAll(req.Body)

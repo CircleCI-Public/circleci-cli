@@ -88,9 +88,9 @@ func TestDoJSON(t *testing.T) {
 		}
 
 		var decodedBody ConfigCompileRequest
-		json.Unmarshal(b, &decodedBody)
+		_ = json.Unmarshal(b, &decodedBody)
 
-		if string(decodedBody.ConfigYml) != source_config {
+		if decodedBody.ConfigYml != source_config {
 			t.Errorf("expected %s", source_config)
 		}
 
@@ -136,7 +136,7 @@ func TestDoJSONErr(t *testing.T) {
 		}
 
 		var decodedBody ConfigCompileRequest
-		json.Unmarshal(body, &decodedBody)
+		_ = json.Unmarshal(body, &decodedBody)
 
 		if string(decodedBody.ConfigYml) != source_config {
 			t.Errorf("expected %s", body)

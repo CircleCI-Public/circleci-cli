@@ -7,7 +7,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/compile_config"
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/local"
@@ -22,7 +21,6 @@ import (
 
 type configOptions struct {
 	cfg                 *settings.Config
-	cl                  *graphql.Client
 	rest                *rest.Client
 	compileConfigClient *rest.Client
 	args                []string

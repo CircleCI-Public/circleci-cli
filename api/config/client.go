@@ -17,12 +17,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-// transportFunc is utility type for declaring a http.RoundTripper as a function literal
-type transportFunc func(*http.Request) (*http.Response, error)
+// // transportFunc is utility type for declaring a http.RoundTripper as a function literal
+// type transportFunc func(*http.Request) (*http.Response, error)
 
-func (fn transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return fn(req)
-}
+// func (fn transportFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+// 	return fn(req)
+// }
 
 type Client struct {
 	Debug      bool
