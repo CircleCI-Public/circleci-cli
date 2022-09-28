@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circle-policy-agent/cpa"
+
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -173,6 +175,40 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 	return body, nil
 }
 
+// GetDecisionLog calls the GET decision query API of policy-service for a DecisionID.
+// It also accepts a policyBundle bool param; If set to true will return only the policy bundle corresponding to that decision log.
+func (c Client) GetDecisionLog(ownerID string, context string, decisionID string, policyBundle bool) (interface{}, error) {
+	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/%s", c.serverUrl, ownerID, context, decisionID)
+	if policyBundle {
+		path += "/policy-bundle"
+	}
+	req, err := http.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
+}
+
 // DecisionRequest represents a request to Policy-Service to evaluate a given input against an organization's policies.
 // The context determines which policies to apply.
 type DecisionRequest struct {
@@ -181,7 +217,7 @@ type DecisionRequest struct {
 }
 
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response
-func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest) (interface{}, error) {
+func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest) (*cpa.Decision, error) {
 	payload, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
@@ -210,12 +246,12 @@ func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest
 		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
 
-	var body interface{}
+	var body cpa.Decision
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
 		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
-	return body, nil
+	return &body, nil
 }
 
 // NewClient returns a new policy client that will use the provided settings.Config to automatically inject appropriate

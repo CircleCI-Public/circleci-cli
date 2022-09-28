@@ -416,6 +416,16 @@ func TestGetDecisionLogs(t *testing.T) {
 			ExpectedErr: `error in parsing --before value: This date has ambiguous mm/dd vs dd/mm type format`,
 		},
 		{
+			Name:        "gives error when a filter is provided when decisionID is also provided",
+			Args:        []string{"logs", "decisionID", "--owner-id", "ownerID", "--branch", "main"},
+			ExpectedErr: `filters are not accepted when decision_id is provided`,
+		},
+		{
+			Name:        "gives error when --policy-bundle flag is used but decisionID is not provided",
+			Args:        []string{"logs", "--owner-id", "ownerID", "--policy-bundle"},
+			ExpectedErr: `decision_id is required when --policy-bundle flag is used`,
+		},
+		{
 			Name: "no filter is set",
 			Args: []string{"logs", "--owner-id", "ownerID"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -512,6 +522,32 @@ func TestGetDecisionLogs(t *testing.T) {
 ]
 `,
 		},
+		{
+			Name: "successfully gets a decision log for given decision ID",
+			Args: []string{"logs", "--owner-id", "ownerID", "decisionID"},
+			ServerHandler: func() http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, r.Method, "GET")
+					assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/config/decision/decisionID")
+					_, err := w.Write([]byte("{}"))
+					assert.NilError(t, err)
+				}
+			}(),
+			ExpectedOutput: "{}\n",
+		},
+		{
+			Name: "successfully gets policy-bundle for given decision ID",
+			Args: []string{"logs", "--owner-id", "ownerID", "decisionID", "--policy-bundle"},
+			ServerHandler: func() http.HandlerFunc {
+				return func(w http.ResponseWriter, r *http.Request) {
+					assert.Equal(t, r.Method, "GET")
+					assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/config/decision/decisionID/policy-bundle")
+					_, err := w.Write([]byte("{}"))
+					assert.NilError(t, err)
+				}
+			}(),
+			ExpectedOutput: "{}\n",
+		},
 	}
 
 	for _, tc := range testcases {
@@ -569,6 +605,42 @@ func TestMakeDecisionCommand(t *testing.T) {
 				_, _ = io.WriteString(w, `{"status":"PASS"}`)
 			},
 			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
+		},
+		{
+			Name: "passes when decision status = HARD_FAIL AND --strict is OFF",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"HARD_FAIL"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"HARD_FAIL\"\n}\n",
+		},
+		{
+			Name: "fails when decision status = HARD_FAIL AND --strict is ON",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--strict"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"HARD_FAIL"}`)
+			},
+			ExpectedErr: "policy decision status: HARD_FAIL",
 		},
 		{
 			Name: "sends expected request with context",
@@ -650,6 +722,28 @@ func TestMakeDecisionCommand(t *testing.T) {
   ]
 }
 `,
+		},
+		{
+			Name: "successfully performs decision for policy FILE provided locally, passes when decision = HARD_FAIL and strict = OFF",
+			Args: []string{"decide", "./testdata/test2/hard_fail_policy.rego", "--input", "./testdata/test0/config.yml"},
+			ExpectedOutput: `{
+  "status": "HARD_FAIL",
+  "enabled_rules": [
+    "always_hard_fails"
+  ],
+  "hard_failures": [
+    {
+      "rule": "always_hard_fails",
+      "reason": "0 is not equals 1"
+    }
+  ]
+}
+`,
+		},
+		{
+			Name:        "successfully performs decision for policy FILE provided locally, fails when decision = HARD_FAIL and strict = ON",
+			Args:        []string{"decide", "./testdata/test2/hard_fail_policy.rego", "--input", "./testdata/test0/config.yml", "--strict"},
+			ExpectedErr: "policy decision status: HARD_FAIL",
 		},
 		{
 			Name: "successfully performs decision with metadata for policy FILE provided locally",

@@ -28,8 +28,9 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	cmd := &cobra.Command{
 		Use:               "policy",
 		PersistentPreRunE: preRunE,
-		Short: "Policies ensures security of build configs via security policy management framework. " +
-			"This group of commands allows the management of polices to be verified against build configs.",
+		Short:             "Manage security policies",
+		Long: `Policies ensures security of build configs via security policy management framework.
+This group of commands allows the management of polices to be verified against build configs.`,
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
@@ -63,7 +64,11 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					_ = prettyJSONEncoder(cmd.ErrOrStderr()).Encode(diff)
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
 
-					if !Confirm(cmd.ErrOrStderr(), cmd.InOrStdin(), "Do you wish to continue? (y/N)") {
+					proceed, err := Confirm(cmd.ErrOrStderr(), cmd.InOrStdin(), "Do you wish to continue? (y/N)")
+					if err != nil {
+						return err
+					}
+					if !proceed {
 						return nil
 					}
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "\n")
@@ -163,13 +168,23 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	logs := func() *cobra.Command {
-		var after, before, outputFile, ownerID, context string
+		var after, before, outputFile, ownerID, context, decisionID string
+		var policyBundle bool
 		var request policy.DecisionQueryRequest
 
 		cmd := &cobra.Command{
-			Short: "Get policy decision logs",
-			Use:   "logs",
-			RunE: func(cmd *cobra.Command, _ []string) (err error) {
+			Short: "Get policy decision logs / Get decision log (or policy bundle) by decision ID",
+			Use:   "logs [decision_id]",
+			RunE: func(cmd *cobra.Command, args []string) (err error) {
+				if len(args) == 1 {
+					decisionID = args[0]
+				}
+				if decisionID != "" && (after != "" || before != "" || request.Status != "" || request.Offset != 0 || request.Branch != "" || request.ProjectID != "") {
+					return fmt.Errorf("filters are not accepted when decision_id is provided")
+				}
+				if policyBundle && decisionID == "" {
+					return fmt.Errorf("decision_id is required when --policy-bundle flag is used")
+				}
 				if cmd.Flag("after").Changed {
 					request.After = new(time.Time)
 					*request.After, err = dateparse.ParseStrict(after)
@@ -200,41 +215,26 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}()
 				}
 
-				allLogs := make([]interface{}, 0)
-
-				spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(cmd.ErrOrStderr()))
-				spr.Suffix = " Fetching Policy Decision Logs..."
-
-				spr.PostUpdate = func(s *spinner.Spinner) {
-					s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
-				}
-
-				spr.Start()
-				defer spr.Stop()
-
 				client := policy.NewClient(*policyBaseURL, config)
 
-				for {
-					logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
-					if err != nil {
-						return fmt.Errorf("failed to get policy decision logs: %v", err)
+				output, err := func() (interface{}, error) {
+					if decisionID != "" {
+						return client.GetDecisionLog(ownerID, context, decisionID, policyBundle)
 					}
+					return getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
+				}()
 
-					if len(logsBatch) == 0 {
-						break
-					}
-
-					allLogs = append(allLogs, logsBatch...)
-					request.Offset = len(allLogs)
+				if err != nil {
+					return fmt.Errorf("failed to get policy decision logs: %v", err)
 				}
 
-				if err := prettyJSONEncoder(dst).Encode(allLogs); err != nil {
+				if err := prettyJSONEncoder(dst).Encode(output); err != nil {
 					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
 				}
 
 				return nil
 			},
-			Args:    cobra.ExactArgs(0),
+			Args:    cobra.MaximumNArgs(1),
 			Example: `policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
@@ -244,6 +244,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&request.Branch, "branch", "", "filter decision logs based on branch name")
 		cmd.Flags().StringVar(&request.ProjectID, "project-id", "", "filter decision logs based on project-id")
 		cmd.Flags().StringVar(&outputFile, "out", "", "specify output file name ")
+		cmd.Flags().BoolVar(&policyBundle, "policy-bundle", false, "get only the policy bundle for given decisionID")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
@@ -260,6 +261,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			metaFile   string
 			ownerID    string
 			context    string
+			strict     bool
 			request    policy.DecisionRequest
 		)
 
@@ -290,7 +292,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}
 				}
 
-				decision, err := func() (interface{}, error) {
+				decision, err := func() (*cpa.Decision, error) {
 					if policyPath != "" {
 						return getPolicyDecisionLocally(policyPath, input, metadata)
 					}
@@ -300,6 +302,10 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				}()
 				if err != nil {
 					return fmt.Errorf("failed to make decision: %w", err)
+				}
+
+				if strict && decision.Status == cpa.StatusHardFail {
+					return fmt.Errorf("policy decision status: HARD_FAIL")
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
@@ -316,6 +322,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
+		cmd.Flags().BoolVar(&strict, "strict", false, "return non-zero status code for decision resulting in HARD_FAIL")
 
 		if err := cmd.MarkFlagRequired("input"); err != nil {
 			panic(err)
@@ -464,12 +471,43 @@ func loadBundleFromFS(root string) (map[string]string, error) {
 	return bundle, err
 }
 
-func Confirm(w io.Writer, r io.Reader, question string) bool {
+func getAllDecisionLogs(client *policy.Client, ownerID string, context string, request policy.DecisionQueryRequest, spinnerOutputDst io.Writer) (interface{}, error) {
+	allLogs := make([]interface{}, 0)
+
+	spr := spinner.New(spinner.CharSets[14], 100*time.Millisecond, spinner.WithWriter(spinnerOutputDst))
+	spr.Suffix = " Fetching Policy Decision Logs..."
+
+	spr.PostUpdate = func(s *spinner.Spinner) {
+		s.Suffix = fmt.Sprintf(" Fetching Policy Decision Logs... downloaded %d logs...", len(allLogs))
+	}
+
+	spr.Start()
+	defer spr.Stop()
+
+	for {
+		logsBatch, err := client.GetDecisionLogs(ownerID, context, request)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(logsBatch) == 0 {
+			break
+		}
+
+		allLogs = append(allLogs, logsBatch...)
+		request.Offset = len(allLogs)
+	}
+	return allLogs, nil
+}
+
+func Confirm(w io.Writer, r io.Reader, question string) (bool, error) {
 	fmt.Fprint(w, question+" ")
 	var answer string
 
-	_, _ = fmt.Fscanln(r, &answer)
-
+	n, err := fmt.Fscanln(r, &answer)
+	if err != nil || n == 0 {
+		return false, fmt.Errorf("error in input")
+	}
 	answer = strings.ToLower(answer)
-	return answer == "y" || answer == "yes"
+	return answer == "y" || answer == "yes", nil
 }

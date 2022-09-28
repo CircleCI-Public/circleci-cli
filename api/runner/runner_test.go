@@ -46,7 +46,7 @@ func TestRunner_CreateResourceClass(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "POST"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"Content-Length":  {"86"},
 			"Content-Type":    {"application/json"},
@@ -86,7 +86,7 @@ func TestRunner_GetResourceClassByName(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -137,7 +137,7 @@ func TestRunner_GetResourceClassesByNamespace(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -160,7 +160,7 @@ func TestRunner_DeleteResourceClass(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "DELETE"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -180,7 +180,7 @@ func TestRunner_DeleteResourceClass_Force(t *testing.T) {
 	assert.Check(t, cmp.Equal(fix.method, "DELETE"))
 	assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 		"Accept-Encoding": {"gzip"},
-		"Accept-Type":     {"application/json"},
+		"Accept":          {"application/json"},
 		"Circle-Token":    {"fake-token"},
 		"User-Agent":      {version.UserAgent()},
 	}))
@@ -232,7 +232,7 @@ func TestRunner_CreateToken(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "POST"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"Content-Length":  {"80"},
 			"Content-Type":    {"application/json"},
@@ -302,7 +302,7 @@ func TestRunner_GetRunnerTokensByResourceClass(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -325,7 +325,7 @@ func TestRunner_DeleteToken(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "DELETE"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -413,7 +413,7 @@ func TestRunner_GetRunnerInstances_ByNamespace(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
