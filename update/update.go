@@ -136,20 +136,20 @@ func checkFromHomebrew(check *Options) error {
 // HomebrewOutdated wraps the JSON output from running `brew outdated --json=v2`
 // We're specifically looking for this kind of structured data from the command:
 //
-//   {
-//     "formulae": [
-//       {
-//         "name": "circleci",
-//         "installed_versions": [
-//           "0.1.1248"
-//         ],
-//         "current_version": "0.1.3923",
-//         "pinned": false,
-//         "pinned_version": null
-//       }
-//     ],
-//     "casks": []
-//   }
+//	{
+//	  "formulae": [
+//	    {
+//	      "name": "circleci",
+//	      "installed_versions": [
+//	        "0.1.1248"
+//	      ],
+//	      "current_version": "0.1.3923",
+//	      "pinned": false,
+//	      "pinned_version": null
+//	    }
+//	  ],
+//	  "casks": []
+//	}
 type HomebrewOutdated struct {
 	Formulae []struct {
 		Name              string   `json:"name"`
