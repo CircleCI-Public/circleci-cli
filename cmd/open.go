@@ -16,7 +16,7 @@ var errorMessage = `
 This command is intended to be run from a git repository with a remote named 'origin' that is hosted on Github or Bitbucket only. 
 We are not currently supporting any other hosts.`
 
-//projectUrl uses the provided values to create the url to open
+// projectUrl uses the provided values to create the url to open
 func projectUrl(remote *git.Remote) string {
 	return fmt.Sprintf("https://app.circleci.com/pipelines/%s/%s/%s",
 		url.PathEscape(strings.ToLower(string(remote.VcsType))),
@@ -24,7 +24,7 @@ func projectUrl(remote *git.Remote) string {
 		url.PathEscape(remote.Project))
 }
 
-//openProjectInBrowser takes the created url and opens a browser to it
+// openProjectInBrowser takes the created url and opens a browser to it
 func openProjectInBrowser() error {
 	remote, err := git.InferProjectFromGitRemotes()
 	if err != nil {
