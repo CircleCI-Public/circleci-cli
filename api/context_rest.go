@@ -359,7 +359,7 @@ func (c *ContextRestClient) listContexts(params *listContextsParams) (*listConte
 	return &dest, nil
 }
 
-//newCreateContextRequest posts a new context creation with orgname and vcs type using a slug
+// newCreateContextRequest posts a new context creation with orgname and vcs type using a slug
 func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -398,7 +398,7 @@ func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*htt
 	return c.newHTTPRequest("POST", queryURL.String(), bodyReader)
 }
 
-//newCreateContextRequestWithOrgID posts a new context creation with an orgID
+// newCreateContextRequestWithOrgID posts a new context creation with an orgID
 func (c *ContextRestClient) newCreateContextRequestWithOrgID(orgID *string, name string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)

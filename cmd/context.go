@@ -199,8 +199,8 @@ func readSecretValue() (string, error) {
 	}
 }
 
-//createContext determines if the context is being created via orgid or vcs and org name
-//and navigates to corresponding function accordingly
+// createContext determines if the context is being created via orgid or vcs and org name
+// and navigates to corresponding function accordingly
 func createContext(cmd *cobra.Command, client api.ContextInterface, args []string) error {
 	//skip if no orgid provided
 	if orgID != nil && strings.TrimSpace(*orgID) != "" && len(args) == 1 {

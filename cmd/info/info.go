@@ -9,7 +9,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-//infoOptions info command options
+// infoOptions info command options
 type infoOptions struct {
 	cfg       *settings.Config
 	validator validator.Validator
@@ -33,7 +33,7 @@ func NewInfoCommand(config *settings.Config, preRunE validator.Validator) *cobra
 	return infoCommand
 }
 
-//orgInfoCommand organization information subcommand cobra command creation
+// orgInfoCommand organization information subcommand cobra command creation
 func orgInfoCommand(client info.InfoClient, opts infoOptions) *cobra.Command {
 	return &cobra.Command{
 		Use:     "org",
@@ -48,7 +48,7 @@ func orgInfoCommand(client info.InfoClient, opts infoOptions) *cobra.Command {
 	}
 }
 
-//getOrgInformation gets all of the users organizations' information
+// getOrgInformation gets all of the users organizations' information
 func getOrgInformation(cmd *cobra.Command, client info.InfoClient) error {
 	resp, err := client.GetInfo()
 	if err != nil {
