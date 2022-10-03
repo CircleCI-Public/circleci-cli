@@ -632,3 +632,157 @@ func TestMakeDecision(t *testing.T) {
 		})
 	}
 }
+
+func TestGetSettings(t *testing.T) {
+	testcases := []struct {
+		Name             string
+		OwnerID          string
+		Handler          http.HandlerFunc
+		ExpectedError    error
+		ExpectedSettings interface{}
+	}{
+		{
+			Name:    "gets expected response",
+			OwnerID: "test-owner",
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
+				_ = json.NewEncoder(w).Encode(any(`{"enabled": "true"}`))
+			},
+			ExpectedSettings: any(`{"enabled": "true"}`),
+		},
+		{
+			Name:    "unexpected status code",
+			OwnerID: "test-owner",
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(400)
+				_, _ = io.WriteString(w, `{"error":"that was a bad request!"}`)
+			},
+			ExpectedError: errors.New("unexpected status-code: 400 - that was a bad request!"),
+		},
+
+		{
+			Name:    "unexpected status code no body",
+			OwnerID: "test-owner",
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(204)
+			},
+			ExpectedError: errors.New("unexpected status-code: 204"),
+		},
+		{
+			Name:    "bad decoding",
+			OwnerID: "test-owner",
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, "not a json response")
+			},
+			ExpectedError: errors.New("failed to decode response body: invalid character 'o' in literal null (expecting 'u')"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			svr := httptest.NewServer(tc.Handler)
+			defer svr.Close()
+
+			client := NewClient(svr.URL, &settings.Config{Token: "test-token", HTTPClient: http.DefaultClient})
+
+			settings, err := client.GetSettings(tc.OwnerID, "config")
+			if tc.ExpectedError == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedError.Error())
+				return
+			}
+
+			assert.DeepEqual(t, settings, tc.ExpectedSettings)
+		})
+	}
+}
+
+func TestSetSettings(t *testing.T) {
+	trueVar := true
+	falseVar := false
+
+	testcases := []struct {
+		Name           string
+		OwnerID        string
+		Settings       DecisionSettings
+		Handler        http.HandlerFunc
+		ExpectedError  error
+		ExpectedStatus int
+	}{
+		{
+			Name:     "sends expected request (enabled=true)",
+			OwnerID:  "test-owner",
+			Settings: DecisionSettings{Enabled: &trueVar},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"enabled": true,
+				})
+			},
+			ExpectedStatus: 200,
+		},
+		{
+			Name:     "sends expected request (enabled=false)",
+			OwnerID:  "test-owner",
+			Settings: DecisionSettings{Enabled: &falseVar},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"enabled": false,
+				})
+			},
+			ExpectedStatus: 200,
+		},
+		{
+			Name:     "sends expected request (enabled=nil)",
+			OwnerID:  "test-owner",
+			Settings: DecisionSettings{Enabled: nil},
+			Handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+				assert.DeepEqual(t, payload, map[string]interface{}{})
+			},
+			ExpectedStatus: 200,
+		},
+		{
+			Name:    "unexpected status code",
+			OwnerID: "test-owner",
+			Handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.WriteHeader(400)
+				_, _ = io.WriteString(w, `{"error":"that was a bad request!"}`)
+			},
+			ExpectedError: errors.New("unexpected status-code: 400 - that was a bad request!"),
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			svr := httptest.NewServer(tc.Handler)
+			defer svr.Close()
+
+			client := NewClient(svr.URL, &settings.Config{Token: "test-token", HTTPClient: http.DefaultClient})
+
+			err := client.SetSettings(tc.OwnerID, "config", tc.Settings)
+			if tc.ExpectedError == nil {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedError.Error())
+				return
+			}
+		})
+	}
+}

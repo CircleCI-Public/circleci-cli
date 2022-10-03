@@ -380,12 +380,63 @@ This group of commands allows the management of polices to be verified against b
 		return cmd
 	}()
 
+	settings := func() *cobra.Command {
+		var (
+			ownerID string
+			context string
+			enabled bool
+			request policy.DecisionSettings
+		)
+
+		cmd := &cobra.Command{
+
+			Short: "get/set policy decision settings (To read settings: run command without any settings flags)",
+			Use:   "settings",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				client := policy.NewClient(*policyBaseURL, config)
+
+				//Set settings
+				if cmd.Flag("enabled").Changed {
+					request.Enabled = &enabled
+					if err := client.SetSettings(ownerID, context, request); err != nil {
+						return fmt.Errorf("failed to set settings : %w", err)
+					}
+					_, _ = io.WriteString(cmd.ErrOrStderr(), "OK")
+					return nil
+				}
+
+				//Get Settings
+				response, err := client.GetSettings(ownerID, context)
+				if err != nil {
+					return fmt.Errorf("failed to get settings : %w", err)
+				}
+				if err = prettyJSONEncoder(cmd.OutOrStdout()).Encode(response); err != nil {
+					return fmt.Errorf("failed to encode settings: %w", err)
+				}
+
+				return nil
+			},
+			Args:    cobra.MaximumNArgs(1),
+			Example: `policy settings --enabled=true`,
+		}
+
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
+		cmd.Flags().BoolVar(&enabled, "enabled", false, "enable/disable policy decision evaluation in build pipeline")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
+
+		return cmd
+	}()
+
 	cmd.AddCommand(push)
 	cmd.AddCommand(diff)
 	cmd.AddCommand(fetch)
 	cmd.AddCommand(logs)
 	cmd.AddCommand(decide)
 	cmd.AddCommand(eval)
+	cmd.AddCommand(settings)
 
 	return cmd
 }
