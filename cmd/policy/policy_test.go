@@ -894,9 +894,9 @@ func TestGetSetSettings(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/someContext/decision/settings")
+				w.WriteHeader(http.StatusForbidden)
 				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
 				assert.NilError(t, err)
-				w.WriteHeader(http.StatusForbidden)
 			},
 		},
 		{
@@ -905,9 +905,9 @@ func TestGetSetSettings(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`{"enabled": true}`))
 				assert.NilError(t, err)
-				w.WriteHeader(http.StatusOK)
 			},
 			ExpectedOutput: `{
   "enabled": true
@@ -923,9 +923,9 @@ func TestGetSetSettings(t *testing.T) {
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`{"enabled": true}`))
 				assert.NilError(t, err)
-				w.WriteHeader(http.StatusOK)
 			},
 			ExpectedOutput: `{
   "enabled": true
@@ -941,9 +941,9 @@ func TestGetSetSettings(t *testing.T) {
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`{"enabled": true}`))
 				assert.NilError(t, err)
-				w.WriteHeader(http.StatusOK)
 			},
 			ExpectedOutput: `{
   "enabled": true
@@ -959,9 +959,9 @@ func TestGetSetSettings(t *testing.T) {
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{"enabled": false})
+				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`{"enabled": false}`))
 				assert.NilError(t, err)
-				w.WriteHeader(http.StatusOK)
 			},
 			ExpectedOutput: `{
   "enabled": false
