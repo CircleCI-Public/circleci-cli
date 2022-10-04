@@ -648,9 +648,9 @@ func TestGetSettings(t *testing.T) {
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
-				_ = json.NewEncoder(w).Encode(any(`{"enabled": true}`))
+				_ = json.NewEncoder(w).Encode(interface{}(`{"enabled": true}`))
 			},
-			ExpectedSettings: any(`{"enabled": true}`),
+			ExpectedSettings: interface{}(`{"enabled": true}`),
 		},
 		{
 			Name:    "unexpected status code",
@@ -711,7 +711,7 @@ func TestSetSettings(t *testing.T) {
 		Handler          http.HandlerFunc
 		ExpectedError    error
 		ExpectedStatus   int
-		ExpectedResponse any
+		ExpectedResponse interface{}
 	}{
 		{
 			Name:     "sends expected request (enabled=true)",
@@ -726,10 +726,10 @@ func TestSetSettings(t *testing.T) {
 				assert.DeepEqual(t, payload, map[string]interface{}{
 					"enabled": true,
 				})
-				_ = json.NewEncoder(w).Encode(any(`{"enabled": true}`))
+				_ = json.NewEncoder(w).Encode(interface{}(`{"enabled": true}`))
 			},
 			ExpectedStatus:   200,
-			ExpectedResponse: any(`{"enabled": true}`),
+			ExpectedResponse: interface{}(`{"enabled": true}`),
 		},
 		{
 			Name:     "sends expected request (enabled=false)",
@@ -744,10 +744,10 @@ func TestSetSettings(t *testing.T) {
 				assert.DeepEqual(t, payload, map[string]interface{}{
 					"enabled": false,
 				})
-				_ = json.NewEncoder(w).Encode(any(`{"enabled": false}`))
+				_ = json.NewEncoder(w).Encode(interface{}(`{"enabled": false}`))
 			},
 			ExpectedStatus:   200,
-			ExpectedResponse: any(`{"enabled": false}`),
+			ExpectedResponse: interface{}(`{"enabled": false}`),
 		},
 		{
 			Name:     "sends expected request (enabled=nil)",
@@ -760,10 +760,10 @@ func TestSetSettings(t *testing.T) {
 				var payload map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
 				assert.DeepEqual(t, payload, map[string]interface{}{})
-				_ = json.NewEncoder(w).Encode(any(`{}`))
+				_ = json.NewEncoder(w).Encode(interface{}(`{}`))
 			},
 			ExpectedStatus:   200,
-			ExpectedResponse: any(`{}`),
+			ExpectedResponse: interface{}(`{}`),
 		},
 		{
 			Name:    "unexpected status code",
