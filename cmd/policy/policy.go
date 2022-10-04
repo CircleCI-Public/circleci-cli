@@ -395,28 +395,24 @@ This group of commands allows the management of polices to be verified against b
 			RunE: func(cmd *cobra.Command, args []string) error {
 				client := policy.NewClient(*policyBaseURL, config)
 
-				//Set settings
-				if cmd.Flag("enabled").Changed {
-					request.Enabled = &enabled
-					if err := client.SetSettings(ownerID, context, request); err != nil {
-						return fmt.Errorf("failed to set settings : %w", err)
+				response, err := func() (interface{}, error) {
+					if cmd.Flag("enabled").Changed {
+						request.Enabled = &enabled
+						return client.SetSettings(ownerID, context, request)
 					}
-					_, _ = io.WriteString(cmd.ErrOrStderr(), "OK")
-					return nil
+					return client.GetSettings(ownerID, context)
+				}()
+				if err != nil {
+					return fmt.Errorf("failed to run settings : %w", err)
 				}
 
-				//Get Settings
-				response, err := client.GetSettings(ownerID, context)
-				if err != nil {
-					return fmt.Errorf("failed to get settings : %w", err)
-				}
 				if err = prettyJSONEncoder(cmd.OutOrStdout()).Encode(response); err != nil {
 					return fmt.Errorf("failed to encode settings: %w", err)
 				}
 
 				return nil
 			},
-			Args:    cobra.MaximumNArgs(1),
+			Args:    cobra.ExactArgs(0),
 			Example: `policy settings --enabled=true`,
 		}
 

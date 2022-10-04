@@ -890,13 +890,13 @@ func TestGetSetSettings(t *testing.T) {
 		{
 			Name:        "gets error response",
 			Args:        []string{"settings", "--owner-id", "ownerID", "--context", "someContext"},
-			ExpectedErr: "failed to get settings : unexpected status-code: 403 - Forbidden",
+			ExpectedErr: "failed to run settings : unexpected status-code: 403 - Forbidden",
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/someContext/decision/settings")
-				w.WriteHeader(http.StatusForbidden)
 				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
 				assert.NilError(t, err)
+				w.WriteHeader(http.StatusForbidden)
 			},
 		},
 		{
@@ -907,6 +907,7 @@ func TestGetSetSettings(t *testing.T) {
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				_, err := w.Write([]byte(`{"enabled": true}`))
 				assert.NilError(t, err)
+				w.WriteHeader(http.StatusOK)
 			},
 			ExpectedOutput: `{
   "enabled": true
@@ -918,36 +919,54 @@ func TestGetSetSettings(t *testing.T) {
 			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
 				w.WriteHeader(http.StatusOK)
 			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
 		},
 		{
 			Name: "successfully sets settings (--enabled=true)",
 			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled=true"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
 				w.WriteHeader(http.StatusOK)
 			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
 		},
 		{
 			Name: "successfully sets settings (--enabled=false)",
 			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled=false"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.DeepEqual(t, body, map[string]interface{}{"enabled": false})
+				_, err := w.Write([]byte(`{"enabled": false}`))
+				assert.NilError(t, err)
 				w.WriteHeader(http.StatusOK)
 			},
+			ExpectedOutput: `{
+  "enabled": false
+}
+`,
 		},
 	}
 

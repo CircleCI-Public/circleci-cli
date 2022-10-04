@@ -648,9 +648,9 @@ func TestGetSettings(t *testing.T) {
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
-				_ = json.NewEncoder(w).Encode(any(`{"enabled": "true"}`))
+				_ = json.NewEncoder(w).Encode(any(`{"enabled": true}`))
 			},
-			ExpectedSettings: any(`{"enabled": "true"}`),
+			ExpectedSettings: any(`{"enabled": true}`),
 		},
 		{
 			Name:    "unexpected status code",
@@ -705,12 +705,13 @@ func TestSetSettings(t *testing.T) {
 	falseVar := false
 
 	testcases := []struct {
-		Name           string
-		OwnerID        string
-		Settings       DecisionSettings
-		Handler        http.HandlerFunc
-		ExpectedError  error
-		ExpectedStatus int
+		Name             string
+		OwnerID          string
+		Settings         DecisionSettings
+		Handler          http.HandlerFunc
+		ExpectedError    error
+		ExpectedStatus   int
+		ExpectedResponse any
 	}{
 		{
 			Name:     "sends expected request (enabled=true)",
@@ -718,15 +719,17 @@ func TestSetSettings(t *testing.T) {
 			Settings: DecisionSettings{Enabled: &trueVar},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				var payload map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
 				assert.DeepEqual(t, payload, map[string]interface{}{
 					"enabled": true,
 				})
+				_ = json.NewEncoder(w).Encode(any(`{"enabled": true}`))
 			},
-			ExpectedStatus: 200,
+			ExpectedStatus:   200,
+			ExpectedResponse: any(`{"enabled": true}`),
 		},
 		{
 			Name:     "sends expected request (enabled=false)",
@@ -734,15 +737,17 @@ func TestSetSettings(t *testing.T) {
 			Settings: DecisionSettings{Enabled: &falseVar},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				var payload map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
 				assert.DeepEqual(t, payload, map[string]interface{}{
 					"enabled": false,
 				})
+				_ = json.NewEncoder(w).Encode(any(`{"enabled": false}`))
 			},
-			ExpectedStatus: 200,
+			ExpectedStatus:   200,
+			ExpectedResponse: any(`{"enabled": false}`),
 		},
 		{
 			Name:     "sends expected request (enabled=nil)",
@@ -750,13 +755,15 @@ func TestSetSettings(t *testing.T) {
 			Settings: DecisionSettings{Enabled: nil},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
-				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				var payload map[string]interface{}
 				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
 				assert.DeepEqual(t, payload, map[string]interface{}{})
+				_ = json.NewEncoder(w).Encode(any(`{}`))
 			},
-			ExpectedStatus: 200,
+			ExpectedStatus:   200,
+			ExpectedResponse: any(`{}`),
 		},
 		{
 			Name:    "unexpected status code",
@@ -776,13 +783,14 @@ func TestSetSettings(t *testing.T) {
 
 			client := NewClient(svr.URL, &settings.Config{Token: "test-token", HTTPClient: http.DefaultClient})
 
-			err := client.SetSettings(tc.OwnerID, "config", tc.Settings)
+			response, err := client.SetSettings(tc.OwnerID, "config", tc.Settings)
 			if tc.ExpectedError == nil {
 				assert.NilError(t, err)
 			} else {
 				assert.Error(t, err, tc.ExpectedError.Error())
 				return
 			}
+			assert.DeepEqual(t, response, tc.ExpectedResponse)
 		})
 	}
 }

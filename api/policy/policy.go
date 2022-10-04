@@ -251,32 +251,38 @@ type DecisionSettings struct {
 	Enabled *bool `json:"enabled,omitempty"`
 }
 
-// SetSettings calls the POST decision-settings API of policy-service.
-func (c Client) SetSettings(ownerID string, context string, request DecisionSettings) error {
+// SetSettings calls the PATCH decision-settings API of policy-service.
+func (c Client) SetSettings(ownerID string, context string, request DecisionSettings) (interface{}, error) {
 	payload, err := json.Marshal(request)
 	if err != nil {
-		return fmt.Errorf("failed to marshal request: %w", err)
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
-	req, err := http.NewRequest("POST", path, bytes.NewReader(payload))
+	req, err := http.NewRequest("PATCH", path, bytes.NewReader(payload))
 	if err != nil {
-		return fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
 		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
-			return fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
 		}
-		return fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
 	}
-	return nil
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
 }
 
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response
