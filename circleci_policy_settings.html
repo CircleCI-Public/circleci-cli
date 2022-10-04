@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_policy_settings</title>
+  <style type="text/css">
+      code{white-space: pre-wrap;}
+      span.smallcaps{font-variant: small-caps;}
+      span.underline{text-decoration: underline;}
+      div.column{display: inline-block; vertical-align: top; width: 50%;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-policy-settings">circleci policy settings</h2>
+<p>get/set policy decision settings (To read settings: run command without any settings flags)</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>get/set policy decision settings (To read settings: run command without any settings flags)</p>
+<pre><code>circleci policy settings [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>policy settings --enabled=true</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --context string    policy context for decision (default &quot;config&quot;)
+      --enabled           enable/disable policy decision evaluation in build pipeline
+  -h, --help              help for settings
+      --owner-id string   the id of the policy&#39;s owner</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
+      --skip-update-check        Skip the check for updates check run before every command. (default true)
+      --token string             your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_policy.html">circleci policy</a> - Manage security policies</li>
+</ul>
+</body>
+</html>
