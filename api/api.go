@@ -1673,7 +1673,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 // ListNamespaceOrbs queries the API to find all orbs belonging to the given
 // namespace.
 // Returns a collection of Orb objects containing their relevant data.
-func ListNamespaceOrbs(cl *graphql.Client, namespace string, isPrivate bool) (*OrbsForListing, error) {
+func ListNamespaceOrbs(cl *graphql.Client, namespace string, isPrivate, showDetails bool) (*OrbsForListing, error) {
 	l := log.New(os.Stderr, "", 0)
 
 	query := `
@@ -1685,9 +1685,15 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 			edges {
 				cursor
 				node {
-					versions {
-						source
-						version
+					versions `
+						
+						if showDetails {
+							query+=`(count: 1){ source,`
+						} else {
+							query+=`{`
+						}
+
+						query+=` version
 					}
 					name
 	                                statistics {
@@ -1705,6 +1711,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 	}
 }
 `
+
 	var orbs OrbsForListing
 	var result NamespaceOrbResponse
 	currentCursor := ""
