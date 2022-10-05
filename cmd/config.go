@@ -3,10 +3,11 @@ package cmd
 import (
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/pipeline"
@@ -20,7 +21,7 @@ import (
 
 type configOptions struct {
 	cfg  *settings.Config
-	cl   *graphql.Client
+	rest *rest.Client
 	args []string
 }
 
@@ -63,7 +64,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.rest = rest.New(config.Host, config)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return validateConfig(opts, cmd.Flags())
@@ -85,7 +86,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.rest = rest.New(config.Host, config)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return processConfig(opts, cmd.Flags())
@@ -125,7 +126,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	var err error
-	var response *api.ConfigResponse
+	var response *config.ConfigResponse
 	path := local.DefaultConfigPath
 	// First, set the path to configPath set by --path flag for compatibility
 	if configPath != "" {
@@ -138,15 +139,22 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	}
 
 	//if no orgId provided use org slug
-	orgID, _ := flags.GetString("org-id")
+	var orgID string
+	orgID, _ = flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, pipeline.LocalPipelineValues())
+		orgID, _ = flags.GetString("org-id")
+		response, err = config.ConfigQuery(opts.rest, path, orgID, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		response, err = api.ConfigQueryLegacy(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+		orgs, err := GetOrgCollaborations(opts.rest)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		orgID = GetOrgIdFromSlug(orgSlug, orgs)
+		response, err = config.ConfigQuery(opts.rest, path, orgID, nil, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
@@ -156,7 +164,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	// link here to blog post when available
 	// returns an error if a deprecated image is used
 	if !ignoreDeprecatedImages {
-		err := deprecatedImageCheck(response)
+		err := config.DeprecatedImageCheck(response)
 		if err != nil {
 			return err
 		}
@@ -173,7 +181,7 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	paramsYaml, _ := flags.GetString("pipeline-parameters")
-	var response *api.ConfigResponse
+	var response *config.ConfigResponse
 	var params pipeline.Parameters
 	var err error
 
@@ -194,13 +202,18 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
+		response, err = config.ConfigQuery(opts.rest, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		response, err = api.ConfigQueryLegacy(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
+		orgs, err := GetOrgCollaborations(opts.rest)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+		orgID = GetOrgIdFromSlug(orgSlug, orgs)
+		response, err = config.ConfigQuery(opts.rest, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
@@ -226,4 +239,34 @@ func packConfig(opts configOptions) error {
 
 func migrateConfig(opts configOptions) error {
 	return proxy.Exec([]string{"config", "migrate"}, opts.args)
+}
+
+type CollaborationResult struct {
+	VcsTye    string `json:"vcs_type"`
+	OrgSlug   string `json:"slug"`
+	OrgName   string `json:"name"`
+	OrgId     string `json:"id"`
+	AvatarUrl string `json:"avatar_url"`
+}
+
+// GetOrgCollaborations - fetches all the collaborations for a given user.
+func GetOrgCollaborations(client *rest.Client) ([]CollaborationResult, error) {
+	req, err := client.NewRequest("GET", &url.URL{Path: "me/collaborations"}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp []CollaborationResult
+	_, err = client.DoRequest(req, &resp)
+	return resp, err
+}
+
+// GetOrgIdFromSlug - converts a slug into an orgID.
+func GetOrgIdFromSlug(slug string, collaborations []CollaborationResult) string {
+	for _, v := range collaborations {
+		if v.OrgSlug == slug {
+			return v.OrgId
+		}
+	}
+	return ""
 }

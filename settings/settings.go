@@ -35,6 +35,7 @@ type Config struct {
 	GitHubAPI       string            `yaml:"-"`
 	SkipUpdateCheck bool              `yaml:"-"`
 	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
+	ConfigAPIHost   string            `yaml:"-"`
 }
 
 type OrbPublishingInfo struct {
@@ -223,15 +224,17 @@ func (cfg *Config) WithHTTPClient() error {
 		tlsConfig.RootCAs = pool
 	}
 
+	// clone default http transport to retain default transport config values
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.ExpectContinueTimeout = time.Second
+	customTransport.IdleConnTimeout = 90 * time.Second
+	customTransport.MaxIdleConns = 10
+	customTransport.TLSHandshakeTimeout = 10 * time.Second
+	customTransport.TLSClientConfig = tlsConfig
+
 	cfg.HTTPClient = &http.Client{
-		Timeout: 60 * time.Second,
-		Transport: &http.Transport{
-			ExpectContinueTimeout: 1 * time.Second,
-			IdleConnTimeout:       90 * time.Second,
-			MaxIdleConns:          10,
-			TLSHandshakeTimeout:   10 * time.Second,
-			TLSClientConfig:       tlsConfig,
-		},
+		Timeout:   60 * time.Second,
+		Transport: customTransport,
 	}
 
 	return nil
