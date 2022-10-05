@@ -18,6 +18,7 @@ import (
 
 type Client struct {
 	baseURL     *url.URL
+	apiURL      *url.URL
 	circleToken string
 	client      *http.Client
 }
@@ -29,13 +30,14 @@ func New(host string, config *settings.Config) *Client {
 		endpoint += "/"
 	}
 
-	u, _ := url.Parse(host)
-
+	baseURL, _ := url.Parse(host)
+	apiURL, _ := url.Parse(config.ConfigAPIHost)
 	client := config.HTTPClient
 	client.Timeout = 10 * time.Second
 
 	return &Client{
-		baseURL:     u.ResolveReference(&url.URL{Path: endpoint}),
+		apiURL:      apiURL.ResolveReference(&url.URL{Path: endpoint}),
+		baseURL:     baseURL.ResolveReference(&url.URL{Path: endpoint}),
 		circleToken: config.Token,
 		client:      client,
 	}
@@ -53,6 +55,36 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	}
 
 	req, err = http.NewRequest(method, c.baseURL.ResolveReference(u).String(), r)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Set("Circle-Token", c.circleToken)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", version.UserAgent())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		req.Header.Set("Circleci-Cli-Command", commandStr)
+	}
+	if payload != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	return req, nil
+}
+
+// NewAPIRequest - similar to NewRequest except it uses the apiURL as the base URL.
+func (c *Client) NewAPIRequest(method string, u *url.URL, payload interface{}) (req *http.Request, err error) {
+	var r io.Reader
+	if payload != nil {
+		buf := &bytes.Buffer{}
+		r = buf
+		err = json.NewEncoder(buf).Encode(payload)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	req, err = http.NewRequest(method, c.apiURL.ResolveReference(u).String(), r)
 	if err != nil {
 		return nil, err
 	}
