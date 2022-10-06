@@ -35,7 +35,6 @@ type Config struct {
 	GitHubAPI       string            `yaml:"-"`
 	SkipUpdateCheck bool              `yaml:"-"`
 	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
-	ConfigAPIHost   string            `yaml:"-"`
 }
 
 type OrbPublishingInfo struct {
