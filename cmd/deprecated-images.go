@@ -1,6 +1,8 @@
-package config
+package cmd
 
 import (
+	"github.com/CircleCI-Public/circleci-cli/api"
+
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 )
@@ -38,7 +40,8 @@ type processedConfig struct {
 }
 
 // Processes the config down to v2.0, then checks image used against the block list
-func DeprecatedImageCheck(response *ConfigResponse) error {
+func deprecatedImageCheck(response *api.ConfigResponse) error {
+
 	aConfig := processedConfig{}
 	err := yaml.Unmarshal([]byte(response.OutputYaml), &aConfig)
 	if err != nil {

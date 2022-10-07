@@ -21,7 +21,6 @@ import (
 
 var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
-var defaultConfigApiHost = "https://api.circleci.com"
 var defaultRestEndpoint = "api/v2"
 var trueString = "true"
 
@@ -98,13 +97,12 @@ Use "{{.CommandPath}} [command] --help" for more information about a command.{{e
 // MakeCommands creates the top level commands
 func MakeCommands() *cobra.Command {
 	rootOptions = &settings.Config{
-		Debug:         false,
-		Token:         "",
-		Host:          defaultHost,
-		ConfigAPIHost: defaultConfigApiHost,
-		RestEndpoint:  defaultRestEndpoint,
-		Endpoint:      defaultEndpoint,
-		GitHubAPI:     "https://api.github.com/",
+		Debug:        false,
+		Token:        "",
+		Host:         defaultHost,
+		RestEndpoint: defaultRestEndpoint,
+		Endpoint:     defaultEndpoint,
+		GitHubAPI:    "https://api.github.com/",
 	}
 
 	if err := rootOptions.Load(); err != nil {
