@@ -3311,6 +3311,20 @@ Windows Server 2010
     - run:
         name: Say hello
         command: <<include(scripts/script.sh)>>
+
+examples:
+    example:
+        description: |
+            An example of how to use the orb.
+        usage:
+            version: 2.1
+            orbs:
+                orb-name: company/orb-name@1.2.3
+            setup: true
+            workflows:
+                create-pipeline:
+                    jobs:
+                        orb-name: create-pipeline-x
 `))
 			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("scripts", "script.sh"))
 			script.Write([]byte(`echo Hello, world!`))
@@ -3330,13 +3344,22 @@ Windows Server 2010
 		It("Includes a script in the packed Orb file", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Out).Should(gbytes.Say(`commands:
-    orb:
-        steps:
+			Eventually(session.Out).Should(gbytes.Say(`steps:
             - run:
                 command: echo Hello, world!
                 name: Say hello
+`))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
+		It("Includes the setup key when an orb example uses a dynamic pipeline", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Out).Should(gbytes.Say(`orbs:
+                        orb-name: company/orb-name@1.2.3
+                    setup: true
+                    version: 2.1
+                    workflows:
 `))
 			Eventually(session).Should(gexec.Exit(0))
 		})
