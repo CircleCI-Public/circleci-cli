@@ -2406,7 +2406,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 					Expect(completeOutput).Should(MatchJSON(expectedOutput))
 					Eventually(session).Should(gexec.Exit(0))
 					Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
-				})			
+				})
 			})
 		})
 
@@ -2465,7 +2465,6 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 				})
 			})
 
-	
 			It("returns an error", func() {
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
