@@ -2288,6 +2288,7 @@ Search, filter, and view sources for all Orbs online at https://circleci.com/dev
 					tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_details/pretty_json_output.json"))
 					expectedOutput := string(tmpBytes)
 					completeOutput := string(session.Wait().Out.Contents())
+
 					Expect(completeOutput).Should(MatchJSON(expectedOutput))
 					Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
 				})
@@ -2313,9 +2314,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 			edges {
 				cursor
 				node {
-					versions {
-						source
-						version
+					versions (count: 1){ source, version
 					}
 					name
 	                                statistics {
@@ -2390,6 +2389,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 						"orb", "list", "circleci",
 						"--skip-update-check",
 						"--host", tempSettings.TestServer.URL(),
+						"--details",
 						"--json",
 					)
 				})
@@ -2406,7 +2406,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 					Expect(completeOutput).Should(MatchJSON(expectedOutput))
 					Eventually(session).Should(gexec.Exit(0))
 					Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
-				})
+				})			
 			})
 		})
 
@@ -2429,9 +2429,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 			edges {
 				cursor
 				node {
-					versions {
-						source
-						version
+					versions { version
 					}
 					name
 	                                statistics {
@@ -2467,6 +2465,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 				})
 			})
 
+	
 			It("returns an error", func() {
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -2491,9 +2490,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 			edges {
 				cursor
 				node {
-					versions {
-						source
-						version
+					versions { version
 					}
 					name
 	                                statistics {
