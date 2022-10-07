@@ -1686,14 +1686,14 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 				cursor
 				node {
 					versions `
-						
-						if showDetails {
-							query+=`(count: 1){ source,`
-						} else {
-							query+=`{`
-						}
 
-						query+=` version
+	if showDetails {
+		query += `(count: 1){ source,`
+	} else {
+		query += `{`
+	}
+
+	query += ` version
 					}
 					name
 	                                statistics {
