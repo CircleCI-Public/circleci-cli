@@ -216,6 +216,75 @@ type DecisionRequest struct {
 	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
+// GetSettings calls the GET decision-settings API of policy-service.
+func (c Client) GetSettings(ownerID string, context string) (interface{}, error) {
+	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
+	req, err := http.NewRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
+}
+
+// DecisionSettings represents a request to Policy-Service to configure decision settings.
+type DecisionSettings struct {
+	Enabled *bool `json:"enabled,omitempty"`
+}
+
+// SetSettings calls the PATCH decision-settings API of policy-service.
+func (c Client) SetSettings(ownerID string, context string, request DecisionSettings) (interface{}, error) {
+	payload, err := json.Marshal(request)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal request: %w", err)
+	}
+	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
+	req, err := http.NewRequest("PATCH", path, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct request: %v", err)
+	}
+
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var payload httpError
+		if err := json.NewDecoder(resp.Body).Decode(&payload); err != nil {
+			return nil, fmt.Errorf("unexpected status-code: %d", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status-code: %d - %s", resp.StatusCode, payload.Error)
+	}
+
+	var body interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return nil, fmt.Errorf("failed to decode response body: %v", err)
+	}
+
+	return body, nil
+}
+
 // MakeDecision sends a requests to Policy-Service public decision endpoint and returns the decision response
 func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest) (*cpa.Decision, error) {
 	payload, err := json.Marshal(req)
