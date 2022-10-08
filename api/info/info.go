@@ -31,7 +31,7 @@ type InfoRESTClient struct {
 	client *http.Client
 }
 
-//organization json org info
+// organization json org info
 type Organization struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`

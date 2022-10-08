@@ -14,7 +14,7 @@ type options struct {
 	cfg *settings.Config
 }
 
-//followProject gets the remote data and attempts to follow its git project
+// followProject gets the remote data and attempts to follow its git project
 func followProject(opts options) error {
 
 	remote, err := git.InferProjectFromGitRemotes()
@@ -45,7 +45,7 @@ func followProject(opts options) error {
 	return nil
 }
 
-//followProjectCommand follow cobra command creation
+// followProjectCommand follow cobra command creation
 func followProjectCommand(config *settings.Config) *cobra.Command {
 	opts := options{
 		cfg: config,
