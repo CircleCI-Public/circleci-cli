@@ -98,4 +98,27 @@ var _ = Describe("Root", func() {
 		})
 	})
 
+	Describe("help text", func() {
+		var (
+			command   *exec.Cmd
+			err       error
+			updateCLI string
+		)
+
+		BeforeEach(func() {
+			updateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			command = exec.Command(updateCLI, "help",
+				"--skip-update-check",
+			)
+		})
+
+		It("mentions the completion command", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).Should(gbytes.Say("completion.*Generate the autocompletion script for the specified shell"))
+		})
+	})
 })
