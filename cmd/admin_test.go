@@ -181,7 +181,7 @@ var _ = Describe("Namespace integration tests", func() {
 			}`
 
 			expectedListOrbsRequest := `{
-				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
+				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions { version\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
 				"variables": {
 				  "after": "",
 				  "namespace": "foo-ns",
@@ -236,7 +236,7 @@ var _ = Describe("Namespace integration tests", func() {
 			}`
 
 			expectedListOrbsRequest := `{
-				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
+				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions { version\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
 				"variables": {
 				  "after": "",
 				  "namespace": "foo-ns",
@@ -310,7 +310,7 @@ var _ = Describe("Namespace integration tests", func() {
 			}`
 
 			expectedListOrbsRequest := `{
-				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
+				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions { version\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
 				"variables": {
 				  "after": "",
 				  "namespace": "foo-ns",

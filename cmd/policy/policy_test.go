@@ -874,6 +874,128 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 	}
 }
 
+func TestGetSetSettings(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires owner-id",
+			Args:        []string{"settings"},
+			ExpectedErr: "required flag(s) \"owner-id\" not set",
+		},
+		{
+			Name:        "gets error response",
+			Args:        []string{"settings", "--owner-id", "ownerID", "--context", "someContext"},
+			ExpectedErr: "failed to run settings : unexpected status-code: 403 - Forbidden",
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/someContext/decision/settings")
+				w.WriteHeader(http.StatusForbidden)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
+			},
+		},
+		{
+			Name: "successfully fetches settings",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
+		},
+		{
+			Name: "successfully sets settings (--enabled)",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "PATCH")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
+		},
+		{
+			Name: "successfully sets settings (--enabled=true)",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled=true"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "PATCH")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
+		},
+		{
+			Name: "successfully sets settings (--enabled=false)",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled=false"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "PATCH")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{"enabled": false})
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": false}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": false
+}
+`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.Error(t, err, tc.ExpectedErr)
+				return
+			}
+
+			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
 func makeCMD() (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 	cmd := NewCommand(config, nil)

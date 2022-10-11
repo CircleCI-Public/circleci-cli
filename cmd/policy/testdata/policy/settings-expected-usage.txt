@@ -1,0 +1,13 @@
+Usage:
+  policy settings [flags]
+
+Examples:
+policy settings --enabled=true
+
+Flags:
+      --context string    policy context for decision (default "config")
+      --enabled           enable/disable policy decision evaluation in build pipeline
+      --owner-id string   the id of the policy's owner
+
+Global Flags:
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
