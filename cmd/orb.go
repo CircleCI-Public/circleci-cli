@@ -636,7 +636,7 @@ func listOrbs(opts orbOptions) error {
 func listNamespaceOrbs(opts orbOptions) error {
 	namespace := opts.args[0]
 
-	orbs, err := api.ListNamespaceOrbs(opts.cl, namespace, opts.private)
+	orbs, err := api.ListNamespaceOrbs(opts.cl, namespace, opts.private, opts.listDetails)
 	if err != nil {
 		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
 	}
