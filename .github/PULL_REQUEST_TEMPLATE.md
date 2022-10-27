@@ -8,6 +8,10 @@
 - [ ] This is not a security issue (which should be reported here: https://circleci.com/security/)
 - [ ] I have read [Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/master/CONTRIBUTING.md).
 
+### Internal Checklist
+- [ ] I am requesting a review from my own team as well as the owning team
+- [ ] I have a plan in place for the monitoring of the changes that I am making (this can include new monitors, logs to be aware of, etc...)
+
 ## Changes
 
 =======
