@@ -171,7 +171,7 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 
 			cmd, stdout, stderr := makeCMD()
 
-			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL, "--no-prompt"))
+			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL, "--y"))
 
 			err := cmd.Execute()
 			if tc.ExpectedErr != "" {

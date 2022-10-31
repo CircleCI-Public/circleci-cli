@@ -94,6 +94,8 @@ This group of commands allows the management of polices to be verified against b
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "removes the prompt")
+		cmd.Flags().MarkDeprecated("no-prompt", "please use --y instead.")
+		cmd.Flags().BoolVar(&noPrompt, "y", false, "runs non-interactively, assumes 'yes' to policy push prompt")
 		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
 			panic(err)
 		}
