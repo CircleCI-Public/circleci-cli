@@ -17,15 +17,15 @@ type Actor struct {
 }
 
 type Schedule struct {
-	ID          string            `json:"id"`
-	ProjectSlug string            `json:"project-slug"`
-	Name        string            `json:"name"`
-	Description string            `json:"description,omitempty"`
-	Timetable   Timetable         `json:"timetable"`
-	Actor       Actor             `json:"actor"`
-	Parameters  map[string]string `json:"parameters"`
-	CreatedAt   time.Time         `json:"created-at"`
-	UpdatedAt   time.Time         `json:"updated-at"`
+	ID          string                 `json:"id"`
+	ProjectSlug string                 `json:"project-slug"`
+	Name        string                 `json:"name"`
+	Description string                 `json:"description,omitempty"`
+	Timetable   Timetable              `json:"timetable"`
+	Actor       Actor                  `json:"actor"`
+	Parameters  map[string]interface{} `json:"parameters"`
+	CreatedAt   time.Time              `json:"created-at"`
+	UpdatedAt   time.Time              `json:"updated-at"`
 }
 
 type ScheduleInterface interface {

@@ -36,7 +36,7 @@ type listSchedulesParams struct {
 
 // Creates a new schedule in the supplied project.
 func (c *ScheduleRestClient) CreateSchedule(vcs, org, project, name, description string,
-	useSchedulingSystem bool, timetable Timetable, parameters map[string]string) (*Schedule, error) {
+	useSchedulingSystem bool, timetable Timetable, parameters map[string]interface{}) (*Schedule, error) {
 
 	req, err := c.newCreateScheduleRequest(vcs, org, project, name, description, useSchedulingSystem, timetable, parameters)
 	if err != nil {
@@ -73,7 +73,7 @@ func (c *ScheduleRestClient) CreateSchedule(vcs, org, project, name, description
 
 // Updates an existing schedule.
 func (c *ScheduleRestClient) UpdateSchedule(scheduleID, name, description string,
-	useSchedulingSystem bool, timetable Timetable, parameters map[string]string) (*Schedule, error) {
+	useSchedulingSystem bool, timetable Timetable, parameters map[string]interface{}) (*Schedule, error) {
 
 	req, err := c.newUpdateScheduleRequest(scheduleID, name, description, useSchedulingSystem, timetable, parameters)
 	if err != nil {
@@ -273,7 +273,7 @@ func (c *ScheduleRestClient) newGetScheduleRequest(scheduleID string) (*http.Req
 
 // Builds a request to create a new schedule.
 func (c *ScheduleRestClient) newCreateScheduleRequest(vcs, org, project, name, description string,
-	useSchedulingSystem bool, timetable Timetable, parameters map[string]string) (*http.Request, error) {
+	useSchedulingSystem bool, timetable Timetable, parameters map[string]interface{}) (*http.Request, error) {
 
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -293,11 +293,11 @@ func (c *ScheduleRestClient) newCreateScheduleRequest(vcs, org, project, name, d
 	var bodyReader io.Reader
 
 	var body = struct {
-		Name             string            `json:"name"`
-		Description      string            `json:"description,omitempty"`
-		AttributionActor string            `json:"attribution-actor"`
-		Parameters       map[string]string `json:"parameters"`
-		Timetable        Timetable         `json:"timetable"`
+		Name             string                 `json:"name"`
+		Description      string                 `json:"description,omitempty"`
+		AttributionActor string                 `json:"attribution-actor"`
+		Parameters       map[string]interface{} `json:"parameters"`
+		Timetable        Timetable              `json:"timetable"`
 	}{
 		Name:             name,
 		Description:      description,
@@ -318,7 +318,7 @@ func (c *ScheduleRestClient) newCreateScheduleRequest(vcs, org, project, name, d
 
 // Builds a request to update an existing schedule.
 func (c *ScheduleRestClient) newUpdateScheduleRequest(scheduleID, name, description string,
-	useSchedulingSystem bool, timetable Timetable, parameters map[string]string) (*http.Request, error) {
+	useSchedulingSystem bool, timetable Timetable, parameters map[string]interface{}) (*http.Request, error) {
 
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -338,11 +338,11 @@ func (c *ScheduleRestClient) newUpdateScheduleRequest(scheduleID, name, descript
 	var bodyReader io.Reader
 
 	var body = struct {
-		Name             string            `json:"name,omitempty"`
-		Description      string            `json:"description,omitempty"`
-		AttributionActor string            `json:"attribution-actor,omitempty"`
-		Parameters       map[string]string `json:"parameters,omitempty"`
-		Timetable        Timetable         `json:"timetable,omitempty"`
+		Name             string                 `json:"name,omitempty"`
+		Description      string                 `json:"description,omitempty"`
+		AttributionActor string                 `json:"attribution-actor,omitempty"`
+		Parameters       map[string]interface{} `json:"parameters,omitempty"`
+		Timetable        Timetable              `json:"timetable,omitempty"`
 	}{
 		Name:             name,
 		Description:      description,
