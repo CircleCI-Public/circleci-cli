@@ -34,7 +34,7 @@ function error {
 
 trap error ERR
 
-# Determine release filename. This can be expanded with CPU arch in the future.
+# Determine release filename.
 case "$(uname)" in
 	Linux)
 		OS='linux'
@@ -48,7 +48,20 @@ case "$(uname)" in
 	;;
 esac
 
-RELEASE_URL="${GITHUB_BASE_URL}/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_amd64.tar.gz"
+case "$(uname -m)" in
+	aarch64 | arm64)
+		ARCH='arm64'
+	;;
+	x86_64)
+		ARCH="amd64"
+	;;
+	*)
+		echo "This architecture is not supported."
+		exit 1
+	;;
+esac
+
+RELEASE_URL="${GITHUB_BASE_URL}/releases/download/v${VERSION}/circleci-cli_${VERSION}_${OS}_${ARCH}.tar.gz"
 
 # Download & unpack the release tarball.
 curl -sL --retry 3 "${RELEASE_URL}" | tar zx --strip 1
