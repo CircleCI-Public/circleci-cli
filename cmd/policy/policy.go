@@ -304,8 +304,8 @@ This group of commands allows the management of polices to be verified against b
 					return fmt.Errorf("failed to make decision: %w", err)
 				}
 
-				if strict && decision.Status == cpa.StatusHardFail {
-					return fmt.Errorf("policy decision status: HARD_FAIL")
+				if strict && (decision.Status == cpa.StatusHardFail || decision.Status == cpa.StatusError) {
+					return fmt.Errorf("policy decision status: %s", decision.Status)
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
