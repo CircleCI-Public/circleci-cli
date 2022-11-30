@@ -23,7 +23,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-// NewCommand creates the root policy command with all policy subcommands attached.
+// NewCommand creates the root policy command with all policy subcommands attached
 func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:               "policy",
