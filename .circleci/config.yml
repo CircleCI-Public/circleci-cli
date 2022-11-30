@@ -2,7 +2,7 @@ version: 2.1
 
 orbs:
   shellcheck: circleci/shellcheck@1.2.0
-  windows: circleci/windows@2.2.0
+  windows: circleci/windows@5.0.0
 
 executors:
   go:
@@ -82,19 +82,22 @@ commands:
 
 jobs:
   test_windows:
-    executor: windows/default
+    executor:
+      name: windows/default
+      shell: bash --login -eo pipefail
     steps:
       - run: git config --global core.autocrlf false
       - checkout
-      - run: setx GOPATH %USERPROFILE%\go
-      - run: go get gotest.tools/gotestsum
       - run: mkdir test_results
-      - run: setx TESTING "true"
 
       - run:
           name: Run tests
           command: |
-            C:\Users\circleci\go\bin\gotestsum.exe --junitfile test_results/windows.xml
+            export GOBIN=/c/go/bin
+            export PATH=$GOBIN:$PATH
+            export TESTING="true"
+            go install gotest.tools/gotestsum@latest
+            gotestsum --junitfile test_results/windows.xml
       - store_test_results:
           path: test_results
       - store_artifacts:

@@ -643,6 +643,42 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "policy decision status: HARD_FAIL",
 		},
 		{
+			Name: "passes when decision status = ERROR AND --strict is OFF",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"ERROR", "reason": "some reason"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"ERROR\",\n  \"reason\": \"some reason\"\n}\n",
+		},
+		{
+			Name: "fails when decision status = ERROR AND --strict is ON",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--strict"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"ERROR", "reason": "some reason"}`)
+			},
+			ExpectedErr: "policy decision status: ERROR",
+		},
+		{
 			Name: "sends expected request with context",
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -744,6 +780,20 @@ func TestMakeDecisionCommand(t *testing.T) {
 			Name:        "successfully performs decision for policy FILE provided locally, fails when decision = HARD_FAIL and strict = ON",
 			Args:        []string{"decide", "./testdata/test2/hard_fail_policy.rego", "--input", "./testdata/test0/config.yml", "--strict"},
 			ExpectedErr: "policy decision status: HARD_FAIL",
+		},
+		{
+			Name: "successfully performs decision for policy FILE provided locally, passes when decision = ERROR and strict = OFF",
+			Args: []string{"decide", "./testdata/test3/runtime_error_policy.rego", "--input", "./testdata/test0/config.yml"},
+			ExpectedOutput: `{
+  "status": "ERROR",
+  "reason": "./testdata/test3/runtime_error_policy.rego:8: eval_conflict_error: complete rules must not produce multiple outputs"
+}
+`,
+		},
+		{
+			Name:        "successfully performs decision for policy FILE provided locally, fails when decision = ERROR and strict = ON",
+			Args:        []string{"decide", "./testdata/test3/runtime_error_policy.rego", "--input", "./testdata/test0/config.yml", "--strict"},
+			ExpectedErr: "policy decision status: ERROR",
 		},
 		{
 			Name: "successfully performs decision with metadata for policy FILE provided locally",
