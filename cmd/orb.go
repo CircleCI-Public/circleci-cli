@@ -1196,9 +1196,28 @@ func initOrb(opts orbOptions) error {
 		Message: "Orb name",
 		Default: orbName,
 	}
+
+	orbExists := true
+
 	err = survey.AskOne(iprompt, &orbName)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
+	}
+
+	_, err = api.OrbInfo(opts.cl, namespace+"/"+orbName)
+	if err != nil {
+		orbExists = false
+	}
+
+	if orbExists {
+		mprompt := &survey.Confirm{
+			Message: fmt.Sprintf("Orb %s/%s already exists, would you like to continue?", namespace, orbName),
+		}
+		confirmation := false
+		err = survey.AskOne(mprompt, &confirmation)
+		if err != nil {
+			return errors.Wrap(err, "Orb already exists")
+		}
 	}
 
 	registryCategories, err := api.ListOrbCategories(opts.cl)
@@ -1273,9 +1292,11 @@ func initOrb(opts orbOptions) error {
 	}()
 
 	if !gitAction {
-		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
-		if err != nil {
-			return errors.Wrap(err, "Unable to create orb")
+		if !orbExists {
+			_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
+			if err != nil {
+				return errors.Wrap(err, "Unable to create orb")
+			}
 		}
 		for _, v := range categories {
 			err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
@@ -1410,9 +1431,11 @@ func initOrb(opts orbOptions) error {
 	}
 
 	// Push a dev version of the orb.
-	_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
-	if err != nil {
-		return errors.Wrap(err, "Unable to create orb")
+	if !orbExists {
+		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
+		if err != nil {
+			return errors.Wrap(err, "Unable to create orb")
+		}
 	}
 	for _, v := range categories {
 		err = api.AddOrRemoveOrbCategorization(opts.cl, namespace, orbName, v, api.Add)
