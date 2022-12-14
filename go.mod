@@ -34,6 +34,7 @@ require (
 require (
 	github.com/charmbracelet/lipgloss v0.5.0
 	github.com/erikgeiser/promptkit v0.7.0
+	github.com/hexops/gotextdiff v1.0.3
 )
 
 require (
