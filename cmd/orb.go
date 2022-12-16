@@ -28,6 +28,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -337,7 +338,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Annotations: make(map[string]string),
 	}
 	orbDiff.Annotations["<orb>"] = "An orb with only a namespace and a name. This takes this form namespace/orb"
-	orbDiff.PersistentFlags().StringVar(&opts.color, "color", "auto", "Show colored diff. Can be one of always, never, or auto")
+	orbDiff.PersistentFlags().StringVar(&opts.color, "color", "auto", "Show colored diff. Can be one of \"always\", \"never\", or \"auto\"")
 
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
@@ -1632,7 +1633,8 @@ func orbTemplate(fileContents string, projectName string, orgName string, orbNam
 
 func orbDiff(opts orbOptions) error {
 	colorOpt := opts.color
-	if colorOpt != "auto" && colorOpt != "always" && colorOpt != "never" {
+	allowedColorOpts := []string{"auto", "always", "never"}
+	if !slices.Contains(allowedColorOpts, colorOpt) {
 		return fmt.Errorf("option `color' expects \"always\", \"auto\", or \"never\"")
 	}
 
