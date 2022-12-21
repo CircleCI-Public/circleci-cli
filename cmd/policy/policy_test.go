@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"path/filepath"
+	"regexp"
 	"sync"
 	"testing"
 	"time"
@@ -1042,6 +1043,61 @@ func TestGetSetSettings(t *testing.T) {
 			}
 
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+func TestTestRunner(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Verbose  bool
+		Debug    bool
+		Run      string
+		Json     bool
+		Expected string
+	}{
+		{
+			Name:     "default options",
+			Expected: "ok    testdata/test_policies        \n\n2/2 tests passed \n",
+		},
+		{
+			Name:     "verbose",
+			Verbose:  true,
+			Expected: "ok    test_feature                  \nok    test_main                     \nok    testdata/test_policies        \n\n2/2 tests passed \n",
+		},
+		{
+			Name:     "verbose with run",
+			Verbose:  true,
+			Run:      "test_main",
+			Expected: "ok    test_main                     \nok    testdata/test_policies        \n\n1/1 tests passed \n",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			cmd, stdout, _ := makeCMD()
+
+			args := []string{"test", "./testdata/test_policies"}
+			if tc.Verbose {
+				args = append(args, "-v")
+			}
+			if tc.Debug {
+				args = append(args, "--debug")
+			}
+			if tc.Run != "" {
+				args = append(args, "--run", tc.Run)
+			}
+			if tc.Json {
+				args = append(args, "--json")
+			}
+
+			cmd.SetArgs(args)
+
+			assert.NilError(t, cmd.Execute())
+
+			// remove time from output as this cannot be known ahead of time
+			output := regexp.MustCompile(`\(?\d.\d\d\ds\)?`).ReplaceAllString(stdout.String(), "")
+			assert.Equal(t, output, tc.Expected)
 		})
 	}
 }

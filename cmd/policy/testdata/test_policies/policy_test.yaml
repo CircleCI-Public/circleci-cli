@@ -1,0 +1,16 @@
+test_main:
+  meta:
+    branch: main
+  decision:
+    status: PASS
+  
+test_feature:
+  meta:
+    branch: feature
+  decision:
+    status: SOFT_FAIL
+    enabled_rules:
+      - fail_if_not_main
+    soft_failures:
+      - rule: fail_if_not_main
+        reason: branch must be main!
