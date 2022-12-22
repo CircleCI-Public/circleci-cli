@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1042,6 +1043,85 @@ func TestGetSetSettings(t *testing.T) {
 			}
 
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+func TestTestRunner(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Verbose  bool
+		Debug    bool
+		Run      string
+		Json     bool
+		Expected func(*testing.T, string)
+	}{
+		{
+			Name: "default options",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "testdata/test_policies"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+				assert.Check(t, !strings.Contains(s, "test_feature"), "should not have verbose output")
+			},
+		},
+		{
+			Name:    "verbose",
+			Verbose: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+			},
+		},
+		{
+			Name:    "verbose with run",
+			Verbose: true,
+			Run:     "test_main",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, !strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "1/1 tests passed"))
+			},
+		},
+		{
+			Name:  "debug",
+			Debug: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "---- Debug Test Context ----"))
+			},
+		},
+		{
+			Name: "json",
+			Json: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, s[0] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			cmd, stdout, _ := makeCMD()
+
+			args := []string{"test", "./testdata/test_policies"}
+			if tc.Verbose {
+				args = append(args, "-v")
+			}
+			if tc.Debug {
+				args = append(args, "--debug")
+			}
+			if tc.Run != "" {
+				args = append(args, "--run", tc.Run)
+			}
+			if tc.Json {
+				args = append(args, "--json")
+			}
+
+			cmd.SetArgs(args)
+
+			assert.NilError(t, cmd.Execute(), stdout.String())
+			tc.Expected(t, stdout.String())
 		})
 	}
 }
