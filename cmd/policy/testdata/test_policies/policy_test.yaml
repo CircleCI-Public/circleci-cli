@@ -1,16 +1,17 @@
 test_main:
   meta:
     branch: main
-  decision:
+  decision: &root_decision
     status: PASS
+    enabled_rules:
+      - fail_if_not_main
   
 test_feature:
   meta:
     branch: feature
   decision:
+    <<: *root_decision
     status: SOFT_FAIL
-    enabled_rules:
-      - fail_if_not_main
     soft_failures:
       - rule: fail_if_not_main
         reason: branch must be main!

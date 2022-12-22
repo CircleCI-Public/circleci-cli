@@ -1121,7 +1121,7 @@ func TestTestRunner(t *testing.T) {
 
 			cmd.SetArgs(args)
 
-			assert.NilError(t, cmd.Execute())
+			assert.NilError(t, cmd.Execute(), stdout.String())
 
 			// remove time from output as this cannot be known ahead of time
 			output := regexp.MustCompile(`\(?\d.\d\d\ds\)?`).ReplaceAllString(stdout.String(), "")
