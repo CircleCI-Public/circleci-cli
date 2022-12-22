@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1054,22 +1055,49 @@ func TestTestRunner(t *testing.T) {
 		Debug    bool
 		Run      string
 		Json     bool
-		Expected string
+		Expected func(*testing.T, string)
 	}{
 		{
-			Name:     "default options",
-			Expected: "ok    testdata/test_policies        \n\n2/2 tests passed \n",
+			Name: "default options",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "testdata/test_policies"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+				assert.Check(t, !strings.Contains(s, "test_feature"), "should not have verbose output")
+			},
 		},
 		{
-			Name:     "verbose",
-			Verbose:  true,
-			Expected: "ok    test_feature                  \nok    test_main                     \nok    testdata/test_policies        \n\n2/2 tests passed \n",
+			Name:    "verbose",
+			Verbose: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+			},
 		},
 		{
-			Name:     "verbose with run",
-			Verbose:  true,
-			Run:      "test_main",
-			Expected: "ok    test_main                     \nok    testdata/test_policies        \n\n1/1 tests passed \n",
+			Name:    "verbose with run",
+			Verbose: true,
+			Run:     "test_main",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, !strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "1/1 tests passed"))
+			},
+		},
+		{
+			Name:  "debug",
+			Debug: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "---- Debug Test Context ----"))
+			},
+		},
+		{
+			Name: "json",
+			Json: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, s[0] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
 		},
 	}
 
@@ -1097,7 +1125,7 @@ func TestTestRunner(t *testing.T) {
 
 			// remove time from output as this cannot be known ahead of time
 			output := regexp.MustCompile(`\(?\d.\d\d\ds\)?`).ReplaceAllString(stdout.String(), "")
-			assert.Equal(t, output, tc.Expected)
+			tc.Expected(t, output)
 		})
 	}
 }
