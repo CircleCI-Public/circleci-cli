@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_policy_test</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-policy-test">circleci policy test</h2>
+<p>runs policy tests</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>runs policy tests</p>
+<pre><code>circleci policy test [path] [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>circleci policy test ./policies/...</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --debug        print test debug context. Sets verbose to true
+  -h, --help         help for test
+      --json         print json test results instead of standard output format
+      --run string   select which tests to run based on regular expression
+  -v, --verbose      print all tests instead of only failed tests</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
+      --skip-update-check        Skip the check for updates check run before every command. (default true)
+      --token string             your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_policy.html">circleci policy</a> - Manage security policies</li>
+</ul>
+</body>
+</html>
