@@ -25,8 +25,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/fatih/color"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -34,12 +36,18 @@ import (
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/object"
+
+	"github.com/hexops/gotextdiff"
+	"github.com/hexops/gotextdiff/myers"
+	"github.com/hexops/gotextdiff/span"
 )
 
 type orbOptions struct {
 	cfg  *settings.Config
 	cl   *graphql.Client
 	args []string
+
+	color string
 
 	listUncertified bool
 	listJSON        bool
@@ -320,6 +328,18 @@ Please note that at this time all orbs created in the registry are world-readabl
 	}
 	orbInit.PersistentFlags().BoolVarP(&opts.private, "private", "", false, "initialize a private orb")
 
+	orbDiff := &cobra.Command{
+		Use:   "diff <orb> <version1> <version2>",
+		Short: "Shows the difference between two versions of the same orb",
+		RunE: func(_ *cobra.Command, _ []string) error {
+			return orbDiff(opts)
+		},
+		Args:        cobra.ExactArgs(3),
+		Annotations: make(map[string]string),
+	}
+	orbDiff.Annotations["<orb>"] = "An orb with only a namespace and a name. This takes this form namespace/orb"
+	orbDiff.PersistentFlags().StringVar(&opts.color, "color", "auto", "Show colored diff. Can be one of \"always\", \"never\", or \"auto\"")
+
 	orbCreate.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := orbCreate.Flags().MarkHidden("integration-testing"); err != nil {
 		panic(err)
@@ -354,6 +374,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 	orbCommand.AddCommand(removeCategorizationFromOrbCommand)
 	orbCommand.AddCommand(listCategoriesCommand)
 	orbCommand.AddCommand(orbInit)
+	orbCommand.AddCommand(orbDiff)
 
 	return orbCommand
 }
@@ -1608,4 +1629,82 @@ func orbTemplate(fileContents string, projectName string, orgName string, orbNam
 	x = re.ReplaceAllString(x, "")
 
 	return x
+}
+
+func orbDiff(opts orbOptions) error {
+	colorOpt := opts.color
+	allowedColorOpts := []string{"auto", "always", "never"}
+	if !slices.Contains(allowedColorOpts, colorOpt) {
+		return fmt.Errorf("option `color' expects \"always\", \"auto\", or \"never\"")
+	}
+
+	orbName := opts.args[0]
+	version1 := opts.args[1]
+	version2 := opts.args[2]
+	orb1 := fmt.Sprintf("%s@%s", orbName, version1)
+	orb2 := fmt.Sprintf("%s@%s", orbName, version2)
+
+	orb1Source, err := api.OrbSource(opts.cl, orb1)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get source for '%s'", orb1)
+	}
+	orb2Source, err := api.OrbSource(opts.cl, orb2)
+	if err != nil {
+		return errors.Wrapf(err, "Failed to get source for '%s'", orb2)
+	}
+
+	edits := myers.ComputeEdits(span.URIFromPath(orb1), orb1Source, orb2Source)
+	unified := gotextdiff.ToUnified(orb1, orb2, orb1Source, edits)
+	diff := stringifyDiff(unified, colorOpt)
+	if diff == "" {
+		fmt.Println("No diff found")
+	} else {
+		fmt.Println(diff)
+	}
+
+	return nil
+}
+
+// Stringifies the unified diff passed as argument, and colorize it depending on the colorOpt value
+func stringifyDiff(diff gotextdiff.Unified, colorOpt string) string {
+	if len(diff.Hunks) == 0 {
+		return ""
+	}
+
+	headerColor := color.New(color.BgYellow, color.FgBlack)
+	diffStartColor := color.New(color.BgBlue, color.FgWhite)
+	deleteColor := color.New(color.FgRed)
+	insertColor := color.New(color.FgGreen)
+	untouchedColor := color.New(color.Reset)
+
+	// The color library already takes care of disabling the color when stdout is redirected so we
+	// just enforce the color behavior for "never" and "always" and let the library handle the 'auto'
+	// case
+	oldNoColor := color.NoColor
+	if colorOpt == "never" {
+		color.NoColor = true
+	}
+	if colorOpt == "always" {
+		color.NoColor = false
+	}
+
+	diffString := fmt.Sprintf("%s", diff)
+	lines := strings.Split(diffString, "\n")
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, "--- ") || strings.HasPrefix(line, "+++ ") {
+			lines[i] = headerColor.Sprint(line)
+		} else if strings.HasPrefix(line, "@@ ") {
+			lines[i] = diffStartColor.Sprint(line)
+		} else if strings.HasPrefix(line, "-") {
+			lines[i] = deleteColor.Sprint(line)
+		} else if strings.HasPrefix(line, "+") {
+			lines[i] = insertColor.Sprint(line)
+		} else {
+			lines[i] = untouchedColor.Sprint(line)
+		}
+	}
+
+	color.NoColor = oldNoColor
+	return strings.Join(lines, "\n")
 }
