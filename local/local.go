@@ -24,7 +24,7 @@ var picardRepo = "circleci/picard"
 
 const DefaultConfigPath = ".circleci/config.yml"
 
-func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
+func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var err error
 	var configResponse *api.ConfigResponse
 	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
@@ -82,7 +82,8 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 		return errors.Wrap(err, "Could not find picard image")
 	}
 
-	arguments := generateDockerCommand(processedConfigPath, image, pwd, processedArgs...)
+	job := args[0]
+	arguments := generateDockerCommand(processedConfigPath, image, pwd, job, processedArgs...)
 
 	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
@@ -107,7 +108,6 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 // are public in the original command.
 func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.StringP("config", "c", DefaultConfigPath, "config file")
-	flags.String("job", "build", "job to be executed")
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
@@ -275,7 +275,7 @@ func writeStringToTempFile(data string) (string, error) {
 	return f.Name(), nil
 }
 
-func generateDockerCommand(configPath, image, pwd string, arguments ...string) []string {
+func generateDockerCommand(configPath, image, pwd string, job string, arguments ...string) []string {
 	const configPathInsideContainer = "/tmp/local_build_config.yml"
 	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
 		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
@@ -283,7 +283,7 @@ func generateDockerCommand(configPath, image, pwd string, arguments ...string) [
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
 		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
-		image, "circleci", "build", "--config", configPathInsideContainer}
+		image, "circleci", "build", "--config", configPathInsideContainer, "--job", job}
 	return append(core, arguments...)
 }
 
