@@ -19,22 +19,22 @@
 <p>Run a job in a container on the local machine</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>Run a job in a container on the local machine</p>
-<pre><code>circleci local execute [flags]</code></pre>
+<pre><code>circleci local execute &lt;job-name&gt; [flags]</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>      --branch string         Git branch
-      --checkout-key string   Git Checkout key (default &quot;~/.ssh/id_rsa&quot;)
-  -c, --config string         config file (default &quot;.circleci/config.yml&quot;)
-  -e, --env -e VAR=VAL        Set environment variables, e.g. -e VAR=VAL
-  -h, --help                  help for execute
-      --index int             node index of parallelism
-      --job string            job to be executed (default &quot;build&quot;)
-      --node-total int        total number of parallel nodes (default 1)
-      --org-id string         organization id, used when a config depends on private orbs belonging to that org
-  -o, --org-slug string       organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org
-      --repo-url string       Git Url
-      --revision string       Git Revision
-      --skip-checkout         use local path as-is (default true)
-  -v, --volume stringArray    Volume bind-mounting</code></pre>
+<pre><code>      --branch string                Git branch
+      --build-agent-version string   The version of the build agent image you want to use. This can be configured by writing in $HOME/.circleci/build_agent_settings.json: &#39;{&quot;LatestSha256&quot;:&quot;&lt;version-of-build-agent&gt;&quot;}&#39;
+      --checkout-key string          Git Checkout key (default &quot;~/.ssh/id_rsa&quot;)
+  -c, --config string                config file (default &quot;.circleci/config.yml&quot;)
+  -e, --env -e VAR=VAL               Set environment variables, e.g. -e VAR=VAL
+  -h, --help                         help for execute
+      --index int                    node index of parallelism
+      --node-total int               total number of parallel nodes (default 1)
+      --org-id string                organization id, used when a config depends on private orbs belonging to that org
+  -o, --org-slug string              organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org
+      --repo-url string              Git Url
+      --revision string              Git Revision
+      --skip-checkout                use local path as-is (default true)
+  -v, --volume stringArray           Volume bind-mounting</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
