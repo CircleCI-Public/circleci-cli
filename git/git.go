@@ -119,7 +119,7 @@ func Branch() string {
 	// `git rev-parse` works in all versions.
 	return commandOutputOrDefault(
 		exec.Command("git", "rev-parse", "--abbrev-ref", "HEAD"),
-		"master")
+		"main")
 }
 
 func Revision() string {
