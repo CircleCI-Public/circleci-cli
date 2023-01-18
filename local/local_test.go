@@ -17,7 +17,7 @@ var _ = Describe("build", func() {
 		It("can generate a command line", func() {
 			home, err := os.UserHomeDir()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(generateDockerCommand("/config/path", "docker-image-name", "/current/directory", "extra-1", "extra-2")).To(ConsistOf(
+			Expect(generateDockerCommand("/config/path", "docker-image-name", "/current/directory", "build", "extra-1", "extra-2")).To(ConsistOf(
 				"docker",
 				"run",
 				"--interactive",
@@ -30,6 +30,7 @@ var _ = Describe("build", func() {
 				"--workdir", "/current/directory",
 				"docker-image-name", "circleci", "build",
 				"--config", "/tmp/local_build_config.yml",
+				"--job", "build",
 				"extra-1", "extra-2",
 			))
 		})
@@ -92,9 +93,9 @@ var _ = Describe("build", func() {
 			}),
 
 			Entry("many args", TestCase{
-				input:              []string{"--job", "horse", "--config", "foo", "--index", "9", "d"},
+				input:              []string{"--config", "foo", "--index", "9", "d"},
 				expectedConfigPath: "foo",
-				expectedArgs:       []string{"--index", "9", "--job", "horse", "d"},
+				expectedArgs:       []string{"--index", "9", "d"},
 			}),
 
 			Entry("many args, multiple envs", TestCase{

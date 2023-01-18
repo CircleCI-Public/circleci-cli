@@ -345,4 +345,4 @@ workflows:
             - shellcheck/check
           filters:
             branches:
-              only: master
+              only: main
