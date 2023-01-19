@@ -23,7 +23,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
 			var host string
 			if strings.Contains(config.Host, "https://circleci.com") {
+				//Updating configure for runner api here, we are assuming
+				//this isn't server because of the value of the host.
+				//Since it's not server we are safe to update the host
+				//and runner api version
 				host = "https://runner.circleci.com"
+				config.RestEndpoint = "api/v3"
 			} else {
 				host = config.Host
 			}
