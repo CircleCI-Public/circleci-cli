@@ -27,7 +27,7 @@ const DefaultConfigPath = ".circleci/config.yml"
 func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var err error
 	var configResponse *api.ConfigResponse
-	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
+	cl := graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.UserId, cfg.Debug)
 
 	processedArgs, configPath := buildAgentArguments(flags)
 

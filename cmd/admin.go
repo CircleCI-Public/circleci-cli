@@ -35,7 +35,7 @@ func newAdminCommand(config *settings.Config) *cobra.Command {
 		Short: "Rename a namespace",
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			nsOpts.args = args
-			nsOpts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			nsOpts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 
 			return validateToken(nsOpts.cfg)
 		},
@@ -114,7 +114,7 @@ Example:
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			orbOpts.args = args
 			nsOpts.args = args
-			orbOpts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			orbOpts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 			nsOpts.cl = orbOpts.cl
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd

@@ -95,6 +95,7 @@ func (c *GraphQLContextClient) CreateContextWithOrgID(orgID *string, contextName
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("input", input)
 
 	var response struct {
@@ -145,6 +146,7 @@ func (c *GraphQLContextClient) EnvironmentVariables(contextID string) (*[]Enviro
 	}`
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("id", contextID)
 	var resp struct {
 		Context struct {
@@ -218,6 +220,7 @@ func (c *GraphQLContextClient) Contexts(vcsType, orgName string) (*[]Context, er
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("orgId", org.Organization.ID)
 
@@ -276,6 +279,7 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("input", input)
 
 	var response struct {
@@ -320,6 +324,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	var input struct {
 		ContextId string `json:"contextId"`
@@ -365,6 +370,7 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	var input struct {
 		ContextId string `json:"contextId"`
@@ -383,8 +389,8 @@ func (c *GraphQLContextClient) DeleteContext(contextId string) error {
 
 // NewContextGraphqlClient returns a new client satisfying the
 // api.ContextInterface interface via the GraphQL API.
-func NewContextGraphqlClient(httpClient *http.Client, host, endpoint, token string, debug bool) *GraphQLContextClient {
+func NewContextGraphqlClient(httpClient *http.Client, host, endpoint, token, userId string, debug bool) *GraphQLContextClient {
 	return &GraphQLContextClient{
-		Client: graphql.NewClient(httpClient, host, endpoint, token, debug),
+		Client: graphql.NewClient(httpClient, host, endpoint, token, userId, debug),
 	}
 }

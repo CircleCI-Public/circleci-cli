@@ -73,7 +73,7 @@ func TestDoJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", "", false)
 
 	var resp struct {
 		Something string
@@ -110,7 +110,7 @@ func TestQueryJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", "", false)
 
 	req := NewRequest("query {}")
 	req.Var("username", "matryer")
@@ -173,7 +173,7 @@ func TestDoJSONErr(t *testing.T) {
 
 	defer server.Close()
 
-	client := NewClient(http.DefaultClient, server.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, server.URL, "/", "token", "", false)
 
 	var responseData map[string]interface{}
 
@@ -198,7 +198,7 @@ func TestHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", "", false)
 
 	req := NewRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
@@ -234,7 +234,7 @@ func TestStatusCode200(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", "", false)
 
 	req := NewRequest("query {}")
 
@@ -264,7 +264,7 @@ func TestStatusCode500(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", "", false)
 
 	req := NewRequest("query {}")
 
@@ -298,7 +298,7 @@ func TestStatusCode413(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", "", false)
 
 	req := NewRequest("query {}")
 

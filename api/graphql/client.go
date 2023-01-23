@@ -23,25 +23,28 @@ type Client struct {
 	Endpoint   string
 	Host       string
 	Token      string
+	UserId     string
 	httpClient *http.Client
 }
 
 // NewClient returns a reference to a Client.
-func NewClient(httpClient *http.Client, host, endpoint, token string, debug bool) *Client {
+func NewClient(httpClient *http.Client, host, endpoint, token, userId string, debug bool) *Client {
 	return &Client{
 		httpClient: httpClient,
 		Endpoint:   endpoint,
 		Host:       host,
 		Token:      token,
 		Debug:      debug,
+		UserId:     userId,
 	}
 }
 
 // Reset replaces the existing fields with out creating a new client instance
-func (cl *Client) Reset(host, endpoint, token string, debug bool) {
+func (cl *Client) Reset(host, endpoint, token, userId string, debug bool) {
 	cl.Endpoint = endpoint
 	cl.Host = host
 	cl.Token = token
+	cl.UserId = userId
 	cl.Debug = debug
 }
 
@@ -74,6 +77,10 @@ type Request struct {
 // SetToken sets the Authorization header for the request with the given token.
 func (request *Request) SetToken(token string) {
 	request.Header.Set("Authorization", token)
+}
+
+func (request *Request) SetUserId(userId string) {
+	request.Header.Set("user_id", userId)
 }
 
 // Var sets a variable.

@@ -139,7 +139,7 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 		}, "\n"),
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			return processOrb(opts)
@@ -352,7 +352,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 		Long:  orbHelpLong(config),
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.
@@ -1275,7 +1275,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if createContext == 0 {
-		contextGql := api.NewContextGraphqlClient(opts.cfg.HTTPClient, opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+		contextGql := api.NewContextGraphqlClient(opts.cfg.HTTPClient, opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.UserId, opts.cfg.Debug)
 		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
 		if err != nil {
 			if strings.Contains(err.Error(), "A context named orb-publishing already exists") {

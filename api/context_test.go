@@ -37,7 +37,7 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 		_, err = rw.Write(bytes)
 		Expect(err).ToNot(HaveOccurred())
 	}))
-	client := NewContextGraphqlClient(http.DefaultClient, server.URL, server.URL, "token", false)
+	client := NewContextGraphqlClient(http.DefaultClient, server.URL, server.URL, "token", "", false)
 	return server, client
 }
 

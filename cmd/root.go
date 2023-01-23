@@ -98,6 +98,7 @@ func MakeCommands() *cobra.Command {
 	rootOptions = &settings.Config{
 		Debug:        false,
 		Token:        "",
+		UserId:       "",
 		Host:         defaultHost,
 		RestEndpoint: defaultRestEndpoint,
 		Endpoint:     defaultEndpoint,

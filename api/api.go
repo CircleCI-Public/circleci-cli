@@ -198,6 +198,13 @@ type WhoamiResponse struct {
 	}
 }
 
+// UserIdResponse type matches the data shape of the GQL response for the current user
+type UserIdResponse struct {
+	Me struct {
+		Id string
+	}
+}
+
 // GetNamespaceResponse type wraps the GQL response for fetching a namespace
 type GetNamespaceResponse struct {
 	RegistryNamespace struct {
@@ -513,6 +520,21 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 	return &response, nil
 }
 
+func UserIdQuery(cl *graphql.Client) (*UserIdResponse, error) {
+	response := UserIdResponse{}
+	query := `query { me { id } }`
+
+	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
+
+	err := cl.Run(request, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	return &response, nil
+}
+
 // ConfigQueryLegacy calls the GQL API to validate and process config with the legacy orgSlug
 func ConfigQueryLegacy(cl *graphql.Client, configPath string, orgSlug string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
@@ -561,6 +583,7 @@ func ConfigQueryLegacy(cl *graphql.Client, configPath string, orgSlug string, pa
 	}
 
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	err = cl.Run(request, &response)
 	if err != nil {
@@ -620,6 +643,7 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgId string, params pip
 		request.Var("orgId", orgId)
 	}
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	err = cl.Run(request, &response)
 	if err != nil {
@@ -654,6 +678,7 @@ func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 	request := graphql.NewRequest(query)
 	request.Var("config", config)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	err = cl.Run(request, &response)
 
@@ -689,6 +714,7 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("config", orbSrc)
 	request.Var("orbId", orbID)
@@ -734,6 +760,7 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("config", config)
 	request.Var("orbName", orbName)
@@ -773,6 +800,7 @@ func OrbExists(cl *graphql.Client, namespace string, orb string) (bool, bool, er
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("name", name)
 	request.Var("namespace", namespace)
 
@@ -803,6 +831,7 @@ func OrbID(cl *graphql.Client, namespace string, orb string) (*OrbIDResponse, er
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 	request.Var("namespace", namespace)
@@ -845,6 +874,7 @@ func CreateImportedNamespace(cl *graphql.Client, name string) (*ImportNamespaceR
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 
@@ -881,6 +911,7 @@ func CreateNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string)
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 	request.Var("organizationId", ownerID)
@@ -912,6 +943,7 @@ func getOrganization(cl *graphql.Client, organizationName string, organizationVc
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("organizationName", organizationName)
 	request.Var("organizationVcs", strings.ToUpper(organizationVcs))
@@ -953,6 +985,7 @@ mutation($name: String!) {
 `
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 	err := cl.Run(request, &response)
@@ -991,6 +1024,7 @@ mutation($id: UUID!) {
 `
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("id", id)
 
 	err := cl.Run(request, &response)
@@ -1040,6 +1074,7 @@ func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 
@@ -1069,6 +1104,7 @@ func NamespaceExists(cl *graphql.Client, namespace string) (bool, error) {
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("name", namespace)
 
 	if err := cl.Run(request, &response); err != nil {
@@ -1103,6 +1139,7 @@ func renameNamespaceWithNsID(cl *graphql.Client, id, newName string) (*RenameNam
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("namespaceId", id)
 	request.Var("newName", newName)
@@ -1149,6 +1186,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string, isPr
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 	request.Var("registryNamespaceId", namespaceID)
@@ -1203,6 +1241,7 @@ func CreateImportedOrb(cl *graphql.Client, namespace string, name string) (*Impo
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 	request.Var("registryNamespaceId", res.RegistryNamespace.ID)
@@ -1277,6 +1316,7 @@ func OrbLatestVersion(cl *graphql.Client, namespace string, orb string) (string,
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("name", name)
 
@@ -1325,6 +1365,7 @@ func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("orbName", orbName)
 	request.Var("namespaceName", namespaceName)
@@ -1370,6 +1411,7 @@ func OrbSetOrbListStatus(cl *graphql.Client, namespace string, orb string, list 
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("orbId", id.Orb.ID)
 	request.Var("list", list)
@@ -1423,6 +1465,7 @@ func OrbSource(cl *graphql.Client, orbRef string) (string, error) {
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -1492,6 +1535,7 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 	request.Var("orbVersionRef", ref)
 
 	err := cl.Run(request, &response)
@@ -1561,6 +1605,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 	for {
 		request := graphql.NewRequest(query)
 		request.SetToken(cl.Token)
+		request.SetUserId(cl.UserId)
 		request.Var("after", currentCursor)
 		request.Var("certifiedOnly", !uncertified)
 
@@ -1724,6 +1769,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 	for {
 		request := graphql.NewRequest(query)
 		request.SetToken(cl.Token)
+		request.SetUserId(cl.UserId)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 		request.Var("view", view)
@@ -1795,6 +1841,7 @@ func IntrospectionQuery(cl *graphql.Client) (*IntrospectionResponse, error) {
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	err := cl.Run(request, &response)
 
@@ -1869,6 +1916,7 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 
 	request := graphql.NewRequest(query)
 	request.SetToken(cl.Token)
+	request.SetUserId(cl.UserId)
 
 	request.Var("orbId", orbId.Orb.ID)
 	request.Var("categoryId", categoryId.OrbCategoryByName.ID)

@@ -24,6 +24,7 @@ type Config struct {
 	Host            string            `yaml:"host"`
 	Endpoint        string            `yaml:"endpoint"`
 	Token           string            `yaml:"token"`
+	UserId          string            `yaml:"user_id"`
 	RestEndpoint    string            `yaml:"rest_endpoint"`
 	TLSCert         string            `yaml:"tls_cert"`
 	TLSInsecure     bool              `yaml:"tls_insecure"`

@@ -41,7 +41,7 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 			return validateToken(config)
 		}
 
-		contextClient = api.NewContextGraphqlClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+		contextClient = api.NewContextGraphqlClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 
 		return validateToken(config)
 	}

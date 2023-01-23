@@ -29,7 +29,7 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 		Hidden: true,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 
 			return validateToken(opts.cfg)
 		},
@@ -62,6 +62,7 @@ func query(opts queryOptions) error {
 
 	req := graphql.NewRequest(string(q))
 	req.SetToken(opts.cl.Token)
+	req.SetUserId(opts.cl.UserId)
 
 	err = opts.cl.Run(req, &resp)
 	if err != nil {

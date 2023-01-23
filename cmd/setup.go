@@ -121,7 +121,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		Short: "Setup the CLI with your credentials",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.UserId, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if opts.integrationTesting {
@@ -168,6 +168,7 @@ func setup(opts setupOptions) error {
 			return errors.Wrap(err, "Error reading token")
 		}
 		opts.cfg.Token = token
+		opts.cl.Token = token
 		fmt.Println("API token has been set.")
 	}
 	opts.cfg.Host = opts.tty.readHostFromUser("CircleCI Host", defaultHost)
@@ -177,6 +178,11 @@ func setup(opts setupOptions) error {
 	// This ensures any accidental changes to this field can be fixed simply by rerunning this command.
 	if shouldAskForEndpoint(opts.cfg.Endpoint, opts.tty, defaultEndpoint) {
 		opts.cfg.Endpoint = defaultEndpoint
+	}
+
+	idResponse, err := api.UserIdQuery(opts.cl)
+	if err == nil {
+		opts.cfg.UserId = idResponse.Me.Id
 	}
 
 	if err := opts.cfg.WriteToDisk(); err != nil {
@@ -194,7 +200,7 @@ func setup(opts setupOptions) error {
 
 func setupDiagnosticCheck(opts setupOptions) {
 	// Reset client after setup config
-	opts.cl.Reset(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
+	opts.cl.Reset(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.UserId, opts.cfg.Debug)
 
 	fmt.Printf("\n")
 	fmt.Printf("Trying an introspection query on API to verify your setup... ")
@@ -264,6 +270,12 @@ func setupNoPrompt(opts setupOptions) error {
 	if opts.token == "" {
 		fmt.Println("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.")
 		config.Token = opts.cfg.Token
+	}
+
+	opts.cl.Token = config.Token
+	idResponse, err := api.UserIdQuery(opts.cl)
+	if err == nil {
+		config.UserId = idResponse.Me.Id
 	}
 
 	// Then save the new config to disk

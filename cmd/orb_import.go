@@ -51,7 +51,7 @@ func importOrb(opts orbOptions) error {
 }
 
 func versionsToImport(opts orbOptions) ([]api.OrbVersion, error) {
-	cloudClient := graphql.NewClient(opts.cfg.HTTPClient, "https://circleci.com", "graphql-unstable", "", opts.cfg.Debug)
+	cloudClient := graphql.NewClient(opts.cfg.HTTPClient, "https://circleci.com", "graphql-unstable", "", opts.cfg.UserId, opts.cfg.Debug)
 
 	if opts.integrationTesting {
 		cloudClient = opts.cl

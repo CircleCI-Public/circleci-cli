@@ -76,15 +76,27 @@ var _ = Describe("Setup with prompts", func() {
 				Request:  expected.String(),
 				Response: mockResponse})
 
+			// Stub any "me" queries regardless of token
+			query = `query { me { id } }`
+			request = graphql.NewRequest(query)
+			expected, err = request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			response := `{ "me": { "id": "1234" } }`
+
+			tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expected.String(),
+				Response: response})
+
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
 			request = graphql.NewRequest(query)
 			request.SetToken(token)
-			Expect(err).ShouldNot(HaveOccurred())
 			expected, err = request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
-			response := `{ "me": { "name": "zomg" } }`
+			response = `{ "me": { "name": "zomg" } }`
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
@@ -206,6 +218,19 @@ token: %s
 				Request:  expected.String(),
 				Response: "{}"})
 
+			// Stub any "me" queries regardless of token
+			query = `query { me { id } }`
+			request = graphql.NewRequest(query)
+			expected, err = request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			response := `{ "me": { "id": "1234" } }`
+
+			tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expected.String(),
+				Response: response})
+
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
 			request = graphql.NewRequest(query)
@@ -214,7 +239,7 @@ token: %s
 			expected, err = request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
-			response := `{ "me": { "name": "zomg" } }`
+			response = `{ "me": { "name": "zomg" } }`
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
@@ -282,6 +307,19 @@ Trying to query our API for your profile name... Hello, %s.
 				Status:   http.StatusOK,
 				Request:  expected.String(),
 				Response: mockResponse})
+
+			// Stub any "me" queries regardless of token
+			query = `query { me { id } }`
+			request = graphql.NewRequest(query)
+			expected, err = request.Encode()
+			Expect(err).ShouldNot(HaveOccurred())
+
+			response := `{ "me": { "id": "1234" } }`
+
+			tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+				Status:   http.StatusOK,
+				Request:  expected.String(),
+				Response: response})
 
 			// Here we want to actually validate the token in our test too
 			query = `query { me { name } }`
