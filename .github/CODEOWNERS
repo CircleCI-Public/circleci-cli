@@ -1,5 +1,5 @@
-* @CircleCI-Public/Extensibility
-*orb*.go @CircleCI-Public/CPEng @CircleCI-Public/Extensibility
+* @CircleCI-Public/developer-experience
+*orb*.go @CircleCI-Public/CPEng @CircleCI-Public/developer-experience
 
 /api/runner @CircleCI-Public/runner
 /cmd/runner @CircleCI-Public/runner
