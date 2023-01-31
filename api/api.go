@@ -543,6 +543,7 @@ func ConfigQueryLegacy(cl *graphql.Client, configPath string, orgSlug string, pa
 		fieldAddendums)
 
 	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
 	request.Var("config", config)
 
 	if values != nil {
@@ -559,8 +560,6 @@ func ConfigQueryLegacy(cl *graphql.Client, configPath string, orgSlug string, pa
 	if orgSlug != "" {
 		request.Var("orgSlug", orgSlug)
 	}
-
-	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
 	if err != nil {
@@ -603,6 +602,7 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgId string, params pip
 		fieldAddendums)
 
 	request := graphql.NewRequest(query)
+	request.SetToken(cl.Token)
 	request.Var("config", config)
 
 	if values != nil {
@@ -619,7 +619,6 @@ func ConfigQuery(cl *graphql.Client, configPath string, orgId string, params pip
 	if orgId != "" {
 		request.Var("orgId", orgId)
 	}
-	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
 	if err != nil {
@@ -1634,6 +1633,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 	for {
 		request := graphql.NewRequest(query)
+		request.SetToken(cl.Token)
 		request.Var("after", currentCursor)
 		request.Var("namespace", namespace)
 
@@ -1813,7 +1813,7 @@ func OrbCategoryID(cl *graphql.Client, name string) (*OrbCategoryIDResponse, err
 	}`
 
 	request := graphql.NewRequest(query)
-
+	request.SetToken(cl.Token)
 	request.Var("name", name)
 
 	err := cl.Run(request, &response)
@@ -1917,6 +1917,7 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 	for {
 		request := graphql.NewRequest(query)
+		request.SetToken(cl.Token)
 		request.Var("after", currentCursor)
 
 		err := cl.Run(request, &result)

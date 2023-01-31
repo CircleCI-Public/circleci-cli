@@ -176,6 +176,7 @@ var _ = Describe("Config", func() {
 		}`
 
 				r := graphql.NewRequest(query)
+				r.SetToken(token)
 				r.Variables["config"] = config
 				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
 
@@ -253,6 +254,7 @@ var _ = Describe("Config", func() {
 		}`
 
 				r := graphql.NewRequest(query)
+				r.SetToken(token)
 				r.Variables["config"] = config
 				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
 
@@ -317,6 +319,7 @@ var _ = Describe("Config", func() {
 		}`
 
 				r := graphql.NewRequest(query)
+				r.SetToken(token)
 				r.Variables["config"] = config
 				r.Variables["orgId"] = orgId
 				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
@@ -379,6 +382,7 @@ var _ = Describe("Config", func() {
 		}`
 
 				r := graphql.NewRequest(query)
+				r.SetToken(token)
 				r.Variables["config"] = config
 				r.Variables["orgSlug"] = orgSlug
 				r.Variables["pipelineValues"] = pipeline.PrepareForGraphQL(pipeline.LocalPipelineValues())
