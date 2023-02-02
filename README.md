@@ -62,6 +62,22 @@ You can also set a specific version of the CLI to install with the `VERSION` env
 curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/main/install.sh | VERSION=0.1.5222 sudo bash
 ```
 
+#### Checksum verification
+
+If you would like to verify the checksum yourself, you can download the checksum file from the [GitHub releases page](https://github.com/CircleCI-Public/circleci-cli/releases) and verify the checksum of the archive using the `circleci-cli_<version>_checksums.txt` inside the assets of the release you'd like to install:
+
+On macOS and Linux:
+```sh
+shasum -a 256 circleci-cli_<version>_<os>.tar.gz
+```
+
+and on Windows:
+```powershell
+Get-FileHash .\circleci-cli_<version>_<os>.tar.gz -Algorithm SHA256 | Format-List
+```
+
+And compare it to the right checksum depending on the downloaded version in the `circleci-cli_<version>_checksums.txt` file.
+
 ### Updating
 
 If you installed the CLI without a package manager, you can use its built-in update command to check for pending updates and download them:
