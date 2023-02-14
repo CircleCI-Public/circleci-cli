@@ -2,7 +2,7 @@ module github.com/CircleCI-Public/circleci-cli
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
-	github.com/CircleCI-Public/circle-policy-agent v0.0.462
+	github.com/CircleCI-Public/circle-policy-agent v0.0.469
 	github.com/Masterminds/semver v1.4.2
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/blang/semver v3.5.1+incompatible
@@ -35,7 +35,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.5.0
 	github.com/erikgeiser/promptkit v0.7.0
 	github.com/hexops/gotextdiff v1.0.3
-	golang.org/x/exp v0.0.0-20230118134722-a68e582fa157
+	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
 )
 
 require (
@@ -70,7 +70,7 @@ require (
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.12.0 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
-	github.com/open-policy-agent/opa v0.48.0 // indirect
+	github.com/open-policy-agent/opa v0.49.0 // indirect
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/rogpeppe/go-internal v1.9.0 // indirect
