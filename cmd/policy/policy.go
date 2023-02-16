@@ -434,6 +434,7 @@ This group of commands allows the management of polices to be verified against b
 			verbose bool
 			debug   bool
 			useJSON bool
+			format  string
 		)
 
 		cmd := &cobra.Command{
@@ -465,10 +466,17 @@ This group of commands allows the management of polices to be verified against b
 				}
 
 				handler := func() tester.ResultHandler {
-					if useJSON {
+					switch strings.ToLower(format) {
+					case "json":
 						return tester.MakeJSONResultHandler(handlerOpts)
+					case "junit":
+						return tester.MakeJUnitResultHandler(handlerOpts)
+					default:
+						if useJSON {
+							return tester.MakeJSONResultHandler(handlerOpts)
+						}
+						return tester.MakeDefaultResultHandler(handlerOpts)
 					}
-					return tester.MakeDefaultResultHandler(handlerOpts)
 				}()
 
 				if !runner.RunAndHandleResults(handler) {
@@ -484,8 +492,8 @@ This group of commands allows the management of polices to be verified against b
 		cmd.Flags().StringVar(&run, "run", "", "select which tests to run based on regular expression")
 		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "print all tests instead of only failed tests")
 		cmd.Flags().BoolVar(&debug, "debug", false, "print test debug context. Sets verbose to true")
-		cmd.Flags().BoolVar(&useJSON, "json", false, "print json test results instead of standard output format")
-
+		cmd.Flags().BoolVar(&useJSON, "json", false, "deprecated use format instead. prints json test results instead of standard output format")
+		cmd.Flags().StringVar(&format, "format", "", "select desired format between json or junit")
 		return cmd
 	}()
 

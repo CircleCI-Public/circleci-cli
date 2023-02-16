@@ -1054,6 +1054,7 @@ func TestTestRunner(t *testing.T) {
 		Debug    bool
 		Run      string
 		Json     bool
+		Format   string
 		Expected func(*testing.T, string)
 	}{
 		{
@@ -1098,6 +1099,29 @@ func TestTestRunner(t *testing.T) {
 				assert.Check(t, s[len(s)-2] == ']')
 			},
 		},
+		{
+			Name:   "format:json",
+			Format: "json",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, s[0] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:junit",
+			Format: "junit",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
+		{
+			Name:   "format:junit and json flag",
+			Format: "junit",
+			Json:   true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
 	}
 
 	for _, tc := range cases {
@@ -1116,6 +1140,9 @@ func TestTestRunner(t *testing.T) {
 			}
 			if tc.Json {
 				args = append(args, "--json")
+			}
+			if tc.Format != "" {
+				args = append(args, "--format", tc.Format)
 			}
 
 			cmd.SetArgs(args)
