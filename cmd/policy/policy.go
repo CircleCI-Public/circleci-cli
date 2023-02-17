@@ -493,7 +493,7 @@ This group of commands allows the management of polices to be verified against b
 		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "print all tests instead of only failed tests")
 		cmd.Flags().BoolVar(&debug, "debug", false, "print test debug context. Sets verbose to true")
 		cmd.Flags().BoolVar(&useJSON, "json", false, "sprints json test results instead of standard output format")
-		cmd.Flags().MarkDeprecated("json", "prints json test results instead of standard output format")
+		cmd.Flags().MarkDeprecated("json", "use --format=json to print json test results")
 		cmd.Flags().StringVar(&format, "format", "", "select desired format between json or junit")
 		return cmd
 	}()

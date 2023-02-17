@@ -1047,7 +1047,7 @@ func TestGetSetSettings(t *testing.T) {
 	}
 }
 
-const jsonDeprecationMessage = "Flag --json has been deprecated, prints json test results instead of standard output format\n"
+const jsonDeprecationMessage = "Flag --json has been deprecated, use --format=json to print json test results\n"
 
 func TestTestRunner(t *testing.T) {
 	cases := []struct {
