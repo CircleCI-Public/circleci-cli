@@ -170,6 +170,15 @@ func GenMarkdownTree(cmd *cobra.Command, dir string) error {
 // GenMarkdownTreeCustom is the the same as GenMarkdownTree, but
 // with custom filePrepender and linkHandler.
 func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, filePrepender, linkHandler func(string) string) error {
+	// There is a problem with the tool transforming the markdown into html, the tool transforms the
+	// circleci ascii art bad. By forcing it into a codeblock the formatting problem disappear
+	if cmd.Root() == cmd {
+		oldLong := cmd.Long
+		cmd.Long = fmt.Sprintf("```%s\n```", oldLong)
+		defer func() {
+			cmd.Long = oldLong
+		}()
+	}
 	for _, c := range cmd.Commands() {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
