@@ -35,8 +35,8 @@ github.com/AlecAivazis/survey/v2 v2.1.1 h1:LEMbHE0pLj75faaVEKClEX1TM4AJmmnOh9eim
 github.com/AlecAivazis/survey/v2 v2.1.1/go.mod h1:9FJRdMdDm8rnT+zHVbvQT2RTSTLq0Ttd6q3Vl2fahjk=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
-github.com/CircleCI-Public/circle-policy-agent v0.0.528 h1:oV28adJ7D494A+lovk5NYPQNgfj2+y2gPsIalQtg2Kw=
-github.com/CircleCI-Public/circle-policy-agent v0.0.528/go.mod h1:oySWkeJOAnvT56DRaGL0n2lHmeCEFwrhGg0Bvj9jiI8=
+github.com/CircleCI-Public/circle-policy-agent v0.0.534 h1:NekWjox7QQ2+K1QtNNPRP244JwLCLPze9Km3IOWTB+I=
+github.com/CircleCI-Public/circle-policy-agent v0.0.534/go.mod h1:oySWkeJOAnvT56DRaGL0n2lHmeCEFwrhGg0Bvj9jiI8=
 github.com/Masterminds/semver v1.4.2 h1:WBLTQ37jOCzSLtXNdoo8bNM8876KhNqOKvrlGITgsTc=
 github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Netflix/go-expect v0.0.0-20180615182759-c93bf25de8e8 h1:xzYJEypr/85nBpB11F9br+3HUrpgb+fcm5iADzXXYEw=
