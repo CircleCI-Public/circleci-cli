@@ -1047,6 +1047,8 @@ func TestGetSetSettings(t *testing.T) {
 	}
 }
 
+const jsonDeprecationMessage = "Flag --json has been deprecated, prints json test results instead of standard output format\n"
+
 func TestTestRunner(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -1095,7 +1097,8 @@ func TestTestRunner(t *testing.T) {
 			Name: "json",
 			Json: true,
 			Expected: func(t *testing.T, s string) {
-				assert.Check(t, s[0] == '[')
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, s[len(jsonDeprecationMessage)] == '[')
 				assert.Check(t, s[len(s)-2] == ']')
 			},
 		},
@@ -1119,6 +1122,7 @@ func TestTestRunner(t *testing.T) {
 			Format: "junit",
 			Json:   true,
 			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
 				assert.Check(t, strings.Contains(s, "<?xml"))
 			},
 		},
