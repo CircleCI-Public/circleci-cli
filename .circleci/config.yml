@@ -270,9 +270,9 @@ jobs:
   brew-deploy:
     executor: mac
     environment:
-      - USER: circleci
-      - TRAVIS: circleci
-      - DESTDIR: /Users/distiller/dest
+      USER: circleci
+      TRAVIS: circleci
+      DESTDIR: /Users/distiller/dest
     steps:
       - checkout
       - force-http-1
@@ -335,6 +335,8 @@ workflows:
       - brew-deploy:
           requires:
             - run-brew-deploy-gate
+          context:
+            - devex-release
       - deploy:
           requires:
             - test
@@ -346,3 +348,5 @@ workflows:
           filters:
             branches:
               only: main
+          context:
+            - devex-release
