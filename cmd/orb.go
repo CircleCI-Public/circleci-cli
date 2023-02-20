@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"os"
 	"path"
@@ -390,6 +391,22 @@ func orbHelpLong(config *settings.Config) string {
 See a full explanation and documentation on orbs here: %s`, config.Data.Links.OrbDocs)
 }
 
+// Transform a boolean parameter into a string. Because the value can be a boolean but can also be
+// a string, we need to first parse it as a boolean and then if it is not a boolean, parse it as
+// a string
+//
+// Documentation reference: https://circleci.com/docs/reusing-config/#boolean
+func booleanParameterDefaultToString(parameter api.OrbElementParameter) string {
+	if v, ok := parameter.Default.(bool); ok {
+		return fmt.Sprintf("%t", v)
+	}
+	v, ok := parameter.Default.(string)
+	if !ok {
+		log.Panicf("Unable to parse boolean parameter with value %+v", v)
+	}
+	return v
+}
+
 func parameterDefaultToString(parameter api.OrbElementParameter) string {
 	defaultValue := " (default: '"
 
@@ -401,12 +418,18 @@ func parameterDefaultToString(parameter api.OrbElementParameter) string {
 	}
 
 	switch parameter.Type {
-	case "enum":
-		defaultValue += parameter.Default.(string)
-	case "string":
-		defaultValue += parameter.Default.(string)
+	case "enum", "string":
+		if v, ok := parameter.Default.(string); ok {
+			defaultValue += v
+			break
+		}
+		if v, ok := parameter.Default.(fmt.Stringer); ok {
+			defaultValue += v.String()
+			break
+		}
+		log.Panicf("Unable to parse parameter default with value %+v because it's neither a string nor a stringer", parameter.Default)
 	case "boolean":
-		defaultValue += fmt.Sprintf("%t", parameter.Default.(bool))
+		defaultValue += booleanParameterDefaultToString(parameter)
 	default:
 		defaultValue += ""
 	}
