@@ -1047,6 +1047,8 @@ func TestGetSetSettings(t *testing.T) {
 	}
 }
 
+const jsonDeprecationMessage = "Flag --json has been deprecated, use --format=json to print json test results\n"
+
 func TestTestRunner(t *testing.T) {
 	cases := []struct {
 		Name     string
@@ -1054,6 +1056,7 @@ func TestTestRunner(t *testing.T) {
 		Debug    bool
 		Run      string
 		Json     bool
+		Format   string
 		Expected func(*testing.T, string)
 	}{
 		{
@@ -1094,8 +1097,33 @@ func TestTestRunner(t *testing.T) {
 			Name: "json",
 			Json: true,
 			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, s[len(jsonDeprecationMessage)] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:json",
+			Format: "json",
+			Expected: func(t *testing.T, s string) {
 				assert.Check(t, s[0] == '[')
 				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:junit",
+			Format: "junit",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
+		{
+			Name:   "format:junit and json flag",
+			Format: "junit",
+			Json:   true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, strings.Contains(s, "<?xml"))
 			},
 		},
 	}
@@ -1116,6 +1144,9 @@ func TestTestRunner(t *testing.T) {
 			}
 			if tc.Json {
 				args = append(args, "--json")
+			}
+			if tc.Format != "" {
+				args = append(args, "--format", tc.Format)
 			}
 
 			cmd.SetArgs(args)
