@@ -17,6 +17,7 @@ type Context struct{
 	CreatedAt time.Time `json:"created_at"`
 	ID string `json:"id"`
 	Name string `json:"name"`
+	new string `json:new`
 }
 
 // ContextInterface is the interface to interact with contexts and environment
