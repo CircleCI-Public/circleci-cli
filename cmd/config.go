@@ -139,7 +139,9 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	//if no orgId provided use org slug
 	values := pipeline.LocalPipelineValues()
-	fmt.Println("Validating config with following values :\n", values)
+	fmt.Println("Validating config with following values")
+	printValues(values)
+
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
 		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, values)
@@ -195,7 +197,9 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 
 	//if no orgId provided use org slug
 	values := pipeline.LocalPipelineValues()
-	fmt.Println("Processing config with following values: \n", values)
+	fmt.Println("Processing config with following values")
+	printValues(values)
+
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
 		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, values)
@@ -230,4 +234,10 @@ func packConfig(opts configOptions) error {
 
 func migrateConfig(opts configOptions) error {
 	return proxy.Exec([]string{"config", "migrate"}, opts.args)
+}
+
+func printValues(values pipeline.Values) {
+	for key, value := range values {
+		fmt.Printf("\t%s:\t%s", key, value)
+	}
 }
