@@ -138,15 +138,17 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	}
 
 	//if no orgId provided use org slug
+	values := pipeline.LocalPipelineValues()
+	fmt.Println("Validating config with following values :\n", values)
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQuery(opts.cl, path, orgID, nil, values)
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		response, err = api.ConfigQueryLegacy(opts.cl, path, orgSlug, nil, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQueryLegacy(opts.cl, path, orgSlug, nil, values)
 		if err != nil {
 			return err
 		}
@@ -192,15 +194,17 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	}
 
 	//if no orgId provided use org slug
+	values := pipeline.LocalPipelineValues()
+	fmt.Println("Processing config with following values: \n", values)
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQuery(opts.cl, opts.args[0], orgID, params, values)
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		response, err = api.ConfigQueryLegacy(opts.cl, opts.args[0], orgSlug, params, pipeline.LocalPipelineValues())
+		response, err = api.ConfigQueryLegacy(opts.cl, opts.args[0], orgSlug, params, values)
 		if err != nil {
 			return err
 		}
