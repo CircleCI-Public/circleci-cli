@@ -1167,8 +1167,9 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Eventually(session).Should(gexec.Exit(0))
 
 					stdout := session.Wait().Out.Contents()
-					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
-Please note that any versions you publish of this orb are world-readable.
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Please note that any versions you publish of this orb will be world readable unless you create it with the '--private' flag
+
+Orb %s created.
 You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 				})
 
@@ -1232,8 +1233,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 					Eventually(session).Should(gexec.Exit(0))
 
 					stdout := session.Wait().Out.Contents()
-					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
-This orb will not be listed on the registry and is usable only by org users.
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`This orb will not be listed on the registry and is usable only by org users.
+
+Orb %s created.
 You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 				})
 
@@ -1365,9 +1367,10 @@ You will not be able to change the name of this orb.
 
 If you change your mind about the name, you will have to create a new orb with the new name.
 
+Please note that any versions you publish of this orb will be world readable unless you create it with the '--private' flag
+
 Are you sure you wish to create the orb: %s
 Orb %s created.
-Please note that any versions you publish of this orb are world-readable.
 You can now register versions of %s using %s.`,
 							"bar-ns/foo-orb", "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 					})
