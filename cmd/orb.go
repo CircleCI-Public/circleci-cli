@@ -871,6 +871,16 @@ If you change your mind about the name, you will have to create a new orb with t
 `, namespace, orbName)
 	}
 
+	if opts.private {
+		fmt.Printf(`This orb will not be listed on the registry and is usable only by org users.
+
+`)
+	} else {
+		fmt.Printf(`Please note that any versions you publish of this orb will be world readable unless you create it with the '--private' flag
+
+`)
+	}
+
 	confirm := fmt.Sprintf("Are you sure you wish to create the orb: `%s/%s`", namespace, orbName)
 
 	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
@@ -880,13 +890,7 @@ If you change your mind about the name, you will have to create a new orb with t
 			return err
 		}
 
-		confirmationString := "Please note that any versions you publish of this orb are world-readable."
-		if opts.private {
-			confirmationString = "This orb will not be listed on the registry and is usable only by org users."
-		}
-
 		fmt.Printf("Orb `%s` created.\n", opts.args[0])
-		fmt.Println(confirmationString)
 		fmt.Printf("You can now register versions of `%s` using `circleci orb publish`.\n", opts.args[0])
 	}
 

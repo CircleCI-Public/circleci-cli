@@ -2,7 +2,7 @@ module github.com/CircleCI-Public/circleci-cli
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
-	github.com/CircleCI-Public/circle-policy-agent v0.0.534
+	github.com/CircleCI-Public/circle-policy-agent v0.0.564
 	github.com/Masterminds/semver v1.4.2
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/blang/semver v3.5.1+incompatible
@@ -82,10 +82,10 @@ require (
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
 	github.com/yazgazan/jaydiff v0.3.1 // indirect
 	golang.org/x/crypto v0.3.0 // indirect
-	golang.org/x/net v0.5.0 // indirect
-	golang.org/x/sys v0.4.0 // indirect
-	golang.org/x/term v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
+	golang.org/x/sys v0.5.0 // indirect
+	golang.org/x/term v0.5.0 // indirect
+	golang.org/x/text v0.7.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/tomb.v1 v1.0.0-20141024135613-dd632973f1e7 // indirect
 	gopkg.in/warnings.v0 v0.1.2 // indirect
