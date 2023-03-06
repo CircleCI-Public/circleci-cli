@@ -1,6 +1,7 @@
 package project_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -154,6 +155,168 @@ func Test_projectRestClient_ListAllEnvironmentVariables(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("projectRestClient.ListAllEnvironmentVariables() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_projectRestClient_GetEnvironmentVariable(t *testing.T) {
+	const (
+		vcsType  = "github"
+		orgName  = "test-org"
+		projName = "test-proj"
+	)
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		envName string
+		want    *project.ProjectEnvironmentVariable
+		wantErr bool
+	}{
+		{
+			name: "Should handle a successful request",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Header.Get("circle-token"), "token")
+				assert.Equal(t, r.Header.Get("accept"), "application/json")
+				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/project/%s/%s/%s/envvar/test1", vcsType, orgName, projName))
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`
+				{
+					"name": "foo",
+					"value": "xxxx1234"
+				}`))
+				assert.NilError(t, err)
+			},
+			envName: "test1",
+			want: &project.ProjectEnvironmentVariable{
+				Name:  "foo",
+				Value: "xxxx1234",
+			},
+		},
+		{
+			name: "Should handle an error request",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"message": "error"}`))
+				assert.NilError(t, err)
+			},
+			wantErr: true,
+		},
+		{
+			name: "Should handle an 404 error as a valid request",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusNotFound)
+				_, err := w.Write([]byte(`{"message": "Environment variable not found."}`))
+				assert.NilError(t, err)
+			},
+			want: nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(tt.handler)
+			defer server.Close()
+
+			p, err := getProjectRestClient(server)
+			assert.NilError(t, err)
+
+			got, err := p.GetEnvironmentVariable(vcsType, orgName, projName, tt.envName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("projectRestClient.GetEnvironmentVariable() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("projectRestClient.GetEnvironmentVariable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_projectRestClient_CreateEnvironmentVariable(t *testing.T) {
+	const (
+		vcsType  = "github"
+		orgName  = "test-org"
+		projName = "test-proj"
+	)
+	tests := []struct {
+		name     string
+		handler  http.HandlerFunc
+		variable project.ProjectEnvironmentVariable
+		want     *project.ProjectEnvironmentVariable
+		wantErr  bool
+	}{
+		{
+			name: "Should handle a successful request",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Header.Get("circle-token"), "token")
+				assert.Equal(t, r.Header.Get("accept"), "application/json")
+				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/project/%s/%s/%s/envvar", vcsType, orgName, projName))
+				var pv project.ProjectEnvironmentVariable
+				err := json.NewDecoder(r.Body).Decode(&pv)
+				assert.NilError(t, err)
+				assert.Equal(t, pv, project.ProjectEnvironmentVariable{
+					Name:  "foo",
+					Value: "test1234",
+				})
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err = w.Write([]byte(`
+				{
+					"name": "foo",
+					"value": "xxxx1234"
+				}`))
+				assert.NilError(t, err)
+			},
+			variable: project.ProjectEnvironmentVariable{
+				Name:  "foo",
+				Value: "test1234",
+			},
+			want: &project.ProjectEnvironmentVariable{
+				Name:  "foo",
+				Value: "xxxx1234",
+			},
+		},
+		{
+			name: "Should handle an error request",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"message": "error"}`))
+				assert.NilError(t, err)
+			},
+			variable: project.ProjectEnvironmentVariable{
+				Name:  "bar",
+				Value: "testbar",
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(tt.handler)
+			defer server.Close()
+
+			p, err := getProjectRestClient(server)
+			assert.NilError(t, err)
+
+			got, err := p.CreateEnvironmentVariable(vcsType, orgName, projName, tt.variable)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("projectRestClient.CreateEnvironmentVariable() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("projectRestClient.CreateEnvironmentVariable() = %v, want %v", got, tt.want)
 			}
 		})
 	}
