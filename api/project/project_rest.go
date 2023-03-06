@@ -33,6 +33,11 @@ type listAllProjectEnvVarsResponse struct {
 	NextPageToken string `json:"next_page_token"`
 }
 
+type createProjectEnvVarRequest struct {
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
 // NewProjectRestClient returns a new projectRestClient satisfying the api.ProjectInterface
 // interface via the REST API.
 func NewProjectRestClient(config settings.Config) (*projectRestClient, error) {
@@ -101,4 +106,52 @@ func (c *projectRestClient) listEnvironmentVariables(params *listProjectEnvVarsP
 		return nil, err
 	}
 	return &resp, nil
+}
+
+// GetEnvironmentVariable retrieves and returns a variable with the given name.
+// If the response status code is 404, nil is returned.
+func (c *projectRestClient) GetEnvironmentVariable(vcs string, org string, project string, envName string) (*ProjectEnvironmentVariable, error) {
+	path := fmt.Sprintf("project/%s/%s/%s/envvar/%s", vcs, org, project, envName)
+	req, err := c.client.NewRequest("GET", &url.URL{Path: path}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp projectEnvVarResponse
+	code, err := c.client.DoRequest(req, &resp)
+	if err != nil {
+		if code == 404 {
+			// Note: 404 may mean that the project isn't found.
+			// The cause can't be distinguished except by the response text.
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &ProjectEnvironmentVariable{
+		Name:  resp.Name,
+		Value: resp.Value,
+	}, nil
+}
+
+// CreateEnvironmentVariable creates a variable on the given project.
+// This returns the variable if successfully created.
+func (c *projectRestClient) CreateEnvironmentVariable(vcs string, org string, project string, v ProjectEnvironmentVariable) (*ProjectEnvironmentVariable, error) {
+	path := fmt.Sprintf("project/%s/%s/%s/envvar", vcs, org, project)
+	req, err := c.client.NewRequest("POST", &url.URL{Path: path}, &createProjectEnvVarRequest{
+		Name:  v.Name,
+		Value: v.Value,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var resp projectEnvVarResponse
+	_, err = c.client.DoRequest(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectEnvironmentVariable{
+		Name:  resp.Name,
+		Value: resp.Value,
+	}, nil
 }
