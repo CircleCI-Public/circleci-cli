@@ -17,6 +17,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 var defaultEndpoint = "graphql-unstable"
@@ -111,9 +112,16 @@ func MakeCommands() *cobra.Command {
 
 	rootOptions.Data = &data.Data
 
+	helpWidth := getHelpWidth()
+	// CircleCI Logo will only appear with enough window width
+	longHelp := ""
+	if helpWidth > 85 {
+		longHelp = rootHelpLong()
+	}
+
 	rootCmd = &cobra.Command{
 		Use:   "circleci",
-		Long:  rootHelpLong(),
+		Long:  longHelp,
 		Short: rootHelpShort(rootOptions),
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
@@ -126,7 +134,7 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 
 	if os.Getenv("TESTING") != trueString {
-		helpCmd := helpCmd{cmd: rootCmd}
+		helpCmd := helpCmd{width: helpWidth}
 		rootCmd.SetHelpFunc(helpCmd.helpTemplate)
 	}
 	rootCmd.SetUsageTemplate(usageTemplate)
@@ -325,7 +333,7 @@ For more help, see the documentation here: %s`, short, config.Data.Links.CLIDocs
 }
 
 type helpCmd struct {
-	cmd *cobra.Command
+	width int
 }
 
 // helpTemplate Building a custom help template with more finess and pizazz
@@ -406,9 +414,21 @@ func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 	//Border styles
 	borderStyle := lipgloss.NewStyle().
 		Padding(0, 1, 0, 1).
-		Width(120).
+		Width(helpCmd.width - 2).
 		BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#47A359`}).
 		Border(lipgloss.ThickBorder())
 
 	log.Println("\n" + borderStyle.Render(usageText.String()+"\n"))
+}
+
+func getHelpWidth() int {
+	const defaultHelpWidth = 122
+	if !term.IsTerminal(0) {
+		return defaultHelpWidth
+	}
+	w, _, err := term.GetSize(0)
+	if err == nil && w < defaultHelpWidth {
+		return w
+	}
+	return defaultHelpWidth
 }
