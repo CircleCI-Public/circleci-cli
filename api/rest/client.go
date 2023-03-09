@@ -17,7 +17,12 @@ import (
 )
 
 type Client struct {
-	baseURL     *url.URL
+	baseURL *url.URL
+	// The config api host differs for both cloud and server setups.
+	// For cloud, the base domain will be https://api.circleci.com
+	// for server, this should match the host as we don't have the same
+	// api subdomain setup
+	apiURL      *url.URL
 	circleToken string
 	client      *http.Client
 }
@@ -29,13 +34,15 @@ func New(host string, config *settings.Config) *Client {
 		endpoint += "/"
 	}
 
-	u, _ := url.Parse(host)
+	baseURL, _ := url.Parse(host)
+	apiURL, _ := url.Parse(config.ConfigAPIHost)
 
 	client := config.HTTPClient
 	client.Timeout = 10 * time.Second
 
 	return &Client{
-		baseURL:     u.ResolveReference(&url.URL{Path: endpoint}),
+		apiURL:      apiURL.ResolveReference(&url.URL{Path: endpoint}),
+		baseURL:     baseURL.ResolveReference(&url.URL{Path: endpoint}),
 		circleToken: config.Token,
 		client:      client,
 	}
@@ -57,6 +64,34 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 		return nil, err
 	}
 
+	c.enrichRequestHeaders(req, payload)
+	return req, nil
+}
+
+// NewAPIRequest - similar to NewRequest except it uses the apiURL as the base URL.
+func (c *Client) NewAPIRequest(method string, u *url.URL, payload interface{}) (req *http.Request, err error) {
+	var r io.Reader
+	if payload != nil {
+		buf := &bytes.Buffer{}
+		r = buf
+		err = json.NewEncoder(buf).Encode(payload)
+		if err != nil {
+			fmt.Printf("failed to encode payload as json: %s\n", err.Error())
+			return nil, err
+		}
+	}
+
+	req, err = http.NewRequest(method, c.apiURL.ResolveReference(u).String(), r)
+	if err != nil {
+		fmt.Printf("failed to create new http request: %s\n", err.Error())
+		return nil, err
+	}
+
+	c.enrichRequestHeaders(req, payload)
+	return req, nil
+}
+
+func (c *Client) enrichRequestHeaders(req *http.Request, payload interface{}) {
 	req.Header.Set("Circle-Token", c.circleToken)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
@@ -67,12 +102,12 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return req, nil
 }
 
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
 	httpResp, err := c.client.Do(req)
 	if err != nil {
+		fmt.Printf("failed to make http request: %s\n", err.Error())
 		return 0, err
 	}
 	defer httpResp.Body.Close()
@@ -83,6 +118,7 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 		}{}
 		err = json.NewDecoder(httpResp.Body).Decode(&httpError)
 		if err != nil {
+			fmt.Printf("failed to decode body: %s", err.Error())
 			return httpResp.StatusCode, err
 		}
 		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: httpError.Message}
