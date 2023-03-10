@@ -251,7 +251,7 @@ var _ = Describe("Namespace integration tests", func() {
 				}
 			}`
 
-			expectedDeleteNamespacerequest := `{
+			expectedDeleteNamespaceRequest := `{
 				"query": "\nmutation($id: UUID!) {\n  deleteNamespaceAndRelatedOrbs(namespaceId: $id) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
 				"variables": {
 				  "id": "f13a9e13-538c-435c-8f61-78596661acd6"
@@ -270,7 +270,7 @@ var _ = Describe("Namespace integration tests", func() {
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
-				Request:  expectedDeleteNamespacerequest,
+				Request:  expectedDeleteNamespaceRequest,
 				Response: gqlDeleteNamespaceResponse})
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -324,7 +324,7 @@ var _ = Describe("Namespace integration tests", func() {
 				}
 			}`
 
-			expectedDeleteNamespacerequest := `{
+			expectedDeleteNamespaceRequest := `{
 				"query": "\nmutation($id: UUID!) {\n  deleteNamespaceAndRelatedOrbs(namespaceId: $id) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
 				"variables": {
 				  "id": "f13a9e13-538c-435c-8f61-78596661acd6"
@@ -343,7 +343,7 @@ var _ = Describe("Namespace integration tests", func() {
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
-				Request:  expectedDeleteNamespacerequest,
+				Request:  expectedDeleteNamespaceRequest,
 				Response: gqlDeleteNamespaceResponse})
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
