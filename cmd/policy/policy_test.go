@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -643,6 +644,42 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "policy decision status: HARD_FAIL",
 		},
 		{
+			Name: "passes when decision status = ERROR AND --strict is OFF",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"ERROR", "reason": "some reason"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"ERROR\",\n  \"reason\": \"some reason\"\n}\n",
+		},
+		{
+			Name: "fails when decision status = ERROR AND --strict is ON",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--strict"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"ERROR", "reason": "some reason"}`)
+			},
+			ExpectedErr: "policy decision status: ERROR",
+		},
+		{
 			Name: "sends expected request with context",
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -744,6 +781,20 @@ func TestMakeDecisionCommand(t *testing.T) {
 			Name:        "successfully performs decision for policy FILE provided locally, fails when decision = HARD_FAIL and strict = ON",
 			Args:        []string{"decide", "./testdata/test2/hard_fail_policy.rego", "--input", "./testdata/test0/config.yml", "--strict"},
 			ExpectedErr: "policy decision status: HARD_FAIL",
+		},
+		{
+			Name: "successfully performs decision for policy FILE provided locally, passes when decision = ERROR and strict = OFF",
+			Args: []string{"decide", "./testdata/test3/runtime_error_policy.rego", "--input", "./testdata/test0/config.yml"},
+			ExpectedOutput: `{
+  "status": "ERROR",
+  "reason": "./testdata/test3/runtime_error_policy.rego:8: eval_conflict_error: complete rules must not produce multiple outputs"
+}
+`,
+		},
+		{
+			Name:        "successfully performs decision for policy FILE provided locally, fails when decision = ERROR and strict = ON",
+			Args:        []string{"decide", "./testdata/test3/runtime_error_policy.rego", "--input", "./testdata/test0/config.yml", "--strict"},
+			ExpectedErr: "policy decision status: ERROR",
 		},
 		{
 			Name: "successfully performs decision with metadata for policy FILE provided locally",
@@ -992,6 +1043,116 @@ func TestGetSetSettings(t *testing.T) {
 			}
 
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+const jsonDeprecationMessage = "Flag --json has been deprecated, use --format=json to print json test results\n"
+
+func TestTestRunner(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Verbose  bool
+		Debug    bool
+		Run      string
+		Json     bool
+		Format   string
+		Expected func(*testing.T, string)
+	}{
+		{
+			Name: "default options",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "testdata/test_policies"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+				assert.Check(t, !strings.Contains(s, "test_feature"), "should not have verbose output")
+			},
+		},
+		{
+			Name:    "verbose",
+			Verbose: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+			},
+		},
+		{
+			Name:    "verbose with run",
+			Verbose: true,
+			Run:     "test_main",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, !strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "1/1 tests passed"))
+			},
+		},
+		{
+			Name:  "debug",
+			Debug: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "---- Debug Test Context ----"))
+			},
+		},
+		{
+			Name: "json",
+			Json: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, s[len(jsonDeprecationMessage)] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:json",
+			Format: "json",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, s[0] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:junit",
+			Format: "junit",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
+		{
+			Name:   "format:junit and json flag",
+			Format: "junit",
+			Json:   true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			cmd, stdout, _ := makeCMD()
+
+			args := []string{"test", "./testdata/test_policies"}
+			if tc.Verbose {
+				args = append(args, "-v")
+			}
+			if tc.Debug {
+				args = append(args, "--debug")
+			}
+			if tc.Run != "" {
+				args = append(args, "--run", tc.Run)
+			}
+			if tc.Json {
+				args = append(args, "--json")
+			}
+			if tc.Format != "" {
+				args = append(args, "--format", tc.Format)
+			}
+
+			cmd.SetArgs(args)
+
+			assert.NilError(t, cmd.Execute(), stdout.String())
+			tc.Expected(t, stdout.String())
 		})
 	}
 }

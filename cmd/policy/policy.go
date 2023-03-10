@@ -3,15 +3,19 @@ package policy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
+	"github.com/CircleCI-Public/circle-policy-agent/cpa/tester"
+
 	"github.com/araddon/dateparse"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
@@ -223,7 +227,6 @@ This group of commands allows the management of polices to be verified against b
 					}
 					return getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
 				}()
-
 				if err != nil {
 					return fmt.Errorf("failed to get policy decision logs: %v", err)
 				}
@@ -304,8 +307,8 @@ This group of commands allows the management of polices to be verified against b
 					return fmt.Errorf("failed to make decision: %w", err)
 				}
 
-				if strict && decision.Status == cpa.StatusHardFail {
-					return fmt.Errorf("policy decision status: HARD_FAIL")
+				if strict && (decision.Status == cpa.StatusHardFail || decision.Status == cpa.StatusError) {
+					return fmt.Errorf("policy decision status: %s", decision.Status)
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
@@ -389,7 +392,6 @@ This group of commands allows the management of polices to be verified against b
 		)
 
 		cmd := &cobra.Command{
-
 			Short: "get/set policy decision settings (To read settings: run command without any settings flags)",
 			Use:   "settings",
 			RunE: func(cmd *cobra.Command, args []string) error {
@@ -426,6 +428,76 @@ This group of commands allows the management of polices to be verified against b
 		return cmd
 	}()
 
+	test := func() *cobra.Command {
+		var (
+			run     string
+			verbose bool
+			debug   bool
+			useJSON bool
+			format  string
+		)
+
+		cmd := &cobra.Command{
+			Use:   "test [path]",
+			Short: "runs policy tests",
+			RunE: func(cmd *cobra.Command, args []string) (err error) {
+				var include *regexp.Regexp
+				if run != "" {
+					include, err = regexp.Compile(run)
+					if err != nil {
+						return fmt.Errorf("--run value is not a valid regular expression: %w", err)
+					}
+				}
+
+				runnerOpts := tester.RunnerOptions{
+					Path:    args[0],
+					Include: include,
+				}
+
+				runner, err := tester.NewRunner(runnerOpts)
+				if err != nil {
+					return fmt.Errorf("cannot instantite runner: %w", err)
+				}
+
+				handlerOpts := tester.ResultHandlerOptions{
+					Verbose: verbose,
+					Debug:   debug,
+					Dst:     cmd.OutOrStdout(),
+				}
+
+				handler := func() tester.ResultHandler {
+					switch strings.ToLower(format) {
+					case "json":
+						return tester.MakeJSONResultHandler(handlerOpts)
+					case "junit":
+						return tester.MakeJUnitResultHandler(handlerOpts)
+					default:
+						if useJSON {
+							return tester.MakeJSONResultHandler(handlerOpts)
+						}
+						return tester.MakeDefaultResultHandler(handlerOpts)
+					}
+				}()
+
+				if !runner.RunAndHandleResults(handler) {
+					return errors.New("unsuccessful run")
+				}
+
+				return nil
+			},
+			Args:    cobra.ExactArgs(1),
+			Example: "circleci policy test ./policies/...",
+		}
+
+		cmd.Flags().StringVar(&run, "run", "", "select which tests to run based on regular expression")
+		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "print all tests instead of only failed tests")
+		cmd.Flags().BoolVar(&debug, "debug", false, "print test debug context. Sets verbose to true")
+		cmd.Flags().BoolVar(&useJSON, "json", false, "sprints json test results instead of standard output format")
+		_ = cmd.Flags().MarkDeprecated("json", "use --format=json to print json test results")
+		cmd.Flags().StringVar(&format, "format", "", "select desired format between json or junit")
+		return cmd
+	}()
+
 	cmd.AddCommand(push)
 	cmd.AddCommand(diff)
 	cmd.AddCommand(fetch)
@@ -433,6 +505,7 @@ This group of commands allows the management of polices to be verified against b
 	cmd.AddCommand(decide)
 	cmd.AddCommand(eval)
 	cmd.AddCommand(settings)
+	cmd.AddCommand(test)
 
 	return cmd
 }

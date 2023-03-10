@@ -14,7 +14,7 @@
     <title>circleci-cli (Install)</title>
     <authors>CircleCI</authors>
     <projectUrl>https://circleci.com/docs/2.0/local-cli/</projectUrl>
-    <iconUrl>https://github.com/CircleCI-Public/circleci-cli/raw/master/chocolatey/icons/circleci-128x.png</iconUrl>
+    <iconUrl>https://github.com/CircleCI-Public/circleci-cli/raw/main/chocolatey/icons/circleci-128x.png</iconUrl>
     <licenseUrl>https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/LICENSE</licenseUrl>
     <requireLicenseAcceptance>true</requireLicenseAcceptance>
     <projectSourceUrl>https://github.com/CircleCI-Public/circleci-cli</projectSourceUrl>

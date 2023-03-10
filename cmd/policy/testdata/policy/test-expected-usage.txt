@@ -1,0 +1,14 @@
+Usage:
+  policy test [path] [flags]
+
+Examples:
+circleci policy test ./policies/...
+
+Flags:
+      --debug           print test debug context. Sets verbose to true
+      --format string   select desired format between json or junit
+      --run string      select which tests to run based on regular expression
+  -v, --verbose         print all tests instead of only failed tests
+
+Global Flags:
+      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")

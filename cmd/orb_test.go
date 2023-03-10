@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
+	"time"
 
 	"gotest.tools/v3/golden"
 
@@ -1166,8 +1167,9 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Eventually(session).Should(gexec.Exit(0))
 
 					stdout := session.Wait().Out.Contents()
-					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
-Please note that any versions you publish of this orb are world-readable.
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Please note that any versions you publish of this orb will be world readable unless you create it with the '--private' flag
+
+Orb %s created.
 You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 				})
 
@@ -1231,8 +1233,9 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 					Eventually(session).Should(gexec.Exit(0))
 
 					stdout := session.Wait().Out.Contents()
-					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`Orb %s created.
-This orb will not be listed on the registry and is usable only by org users.
+					Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`This orb will not be listed on the registry and is usable only by org users.
+
+Orb %s created.
 You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 				})
 
@@ -1364,9 +1367,10 @@ You will not be able to change the name of this orb.
 
 If you change your mind about the name, you will have to create a new orb with the new name.
 
+Please note that any versions you publish of this orb will be world readable unless you create it with the '--private' flag
+
 Are you sure you wish to create the orb: %s
 Orb %s created.
-Please note that any versions you publish of this orb are world-readable.
 You can now register versions of %s using %s.`,
 							"bar-ns/foo-orb", "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`bar-ns/foo-orb`", "`circleci orb publish`")))
 					})
@@ -3361,4 +3365,91 @@ examples:
 		})
 
 	})
+
+	Describe("Orb diff", func() {
+		var (
+			token        string
+			tempSettings *clitest.TempSettings
+			command      *exec.Cmd
+		)
+
+		BeforeEach(func() {
+			token = "testtoken"
+			tempSettings = clitest.WithTempSettings()
+		})
+
+		AfterEach(func() {
+			tempSettings.Close()
+		})
+
+		DescribeTable("Shows the expected diff", func(source1, source2, expected, color string) {
+			orbName := "somenamespace/someorb"
+			version1 := "1.0.0"
+			orb1 := fmt.Sprintf("%s@%s", orbName, version1)
+			version2 := "2.0.0"
+			orb2 := fmt.Sprintf("%s@%s", orbName, version2)
+			command = exec.Command(pathCLI, "orb", "diff", orbName, version1, version2,
+				"--token", token,
+				"--host", tempSettings.TestServer.URL())
+
+			mockOrbSource(source1, orb1, token, tempSettings)
+			mockOrbSource(source2, orb2, token, tempSettings)
+
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session.Out).WithTimeout(5 * time.Second).Should(gbytes.Say(expected))
+			Eventually(session).Should(gexec.Exit(0))
+		},
+			Entry("Detect identical sources", "orb-source", "orb-source", "No diff found", "auto"),
+			Entry(
+				"Detect difference",
+				"line1\\nline3\\n",
+				"line1\\nline2\\n",
+				`--- somenamespace/someorb@1.0.0
+\+\+\+ somenamespace/someorb@2.0.0
+@@ -1,2 \+1,2 @@
+ line1
+-line3
+\+line2`,
+				"auto",
+			),
+		)
+	})
 })
+
+func mockOrbSource(source, orbVersion, token string, tempSettings *clitest.TempSettings) {
+	requestStruct := struct {
+		Query     string `json:"query"`
+		Variables struct {
+			OrbVersionRef string `json:"orbVersionRef"`
+		} `json:"variables"`
+	}{
+		Query: `query($orbVersionRef: String!) {
+			    orbVersion(orbVersionRef: $orbVersionRef) {
+			        id
+                                version
+                                orb { id }
+                                source
+			    }
+		      }`,
+		Variables: struct {
+			OrbVersionRef string `json:"orbVersionRef"`
+		}{OrbVersionRef: orbVersion},
+	}
+	request, err := json.Marshal(requestStruct)
+	Expect(err).ToNot(HaveOccurred())
+	response := fmt.Sprintf(`{
+	"orbVersion": {
+			"id": "some-id",
+			"version": "some-version",
+			"orb": { "id": "some-id" },
+			"source": "%s"
+	}
+}`, source)
+	tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+		Status:   http.StatusOK,
+		Request:  string(request),
+		Response: response,
+	})
+}
