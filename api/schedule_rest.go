@@ -375,7 +375,7 @@ func (c *ScheduleRestClient) newDeleteScheduleRequest(scheduleID string) (*http.
 	return c.newHTTPRequest("DELETE", queryURL.String(), nil)
 }
 
-// Builds a requeest to list schedules according to params.
+// Builds a request to list schedules according to params.
 func (c *ScheduleRestClient) newListSchedulesRequest(vcs, org, project string, params *listSchedulesParams) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
