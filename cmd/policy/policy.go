@@ -456,7 +456,7 @@ This group of commands allows the management of polices to be verified against b
 
 				runner, err := tester.NewRunner(runnerOpts)
 				if err != nil {
-					return fmt.Errorf("cannot instantite runner: %w", err)
+					return fmt.Errorf("cannot instantiate runner: %w", err)
 				}
 
 				handlerOpts := tester.ResultHandlerOptions{
