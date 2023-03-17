@@ -9,8 +9,6 @@ import (
 )
 
 type projectRestClient struct {
-	token  string
-	server string
 	client *rest.Client
 }
 
@@ -41,14 +39,7 @@ type createProjectEnvVarRequest struct {
 // NewProjectRestClient returns a new projectRestClient satisfying the api.ProjectInterface
 // interface via the REST API.
 func NewProjectRestClient(config settings.Config) (*projectRestClient, error) {
-	serverURL, err := config.ServerURL()
-	if err != nil {
-		return nil, err
-	}
-
 	client := &projectRestClient{
-		token:  config.Token,
-		server: serverURL.String(),
 		client: rest.New(config.Host, &config),
 	}
 
