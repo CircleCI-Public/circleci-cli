@@ -23,12 +23,6 @@ type Client struct {
 }
 
 func New(host string, config *settings.Config) *Client {
-	// Ensure endpoint ends with a slash
-	endpoint := config.RestEndpoint
-	if !strings.HasSuffix(endpoint, "/") {
-		endpoint += "/"
-	}
-
 	u, _ := url.Parse(host)
 
 	client := config.HTTPClient
