@@ -40,9 +40,8 @@ type createProjectEnvVarRequest struct {
 // interface via the REST API.
 func NewProjectRestClient(config settings.Config) (*projectRestClient, error) {
 	client := &projectRestClient{
-		client: rest.New(config.Host, &config),
+		client: rest.NewFromConfig(config.Host, &config),
 	}
-
 	return client, nil
 }
 

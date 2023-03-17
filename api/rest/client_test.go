@@ -176,5 +176,5 @@ func (f *fixture) Run(statusCode int, respBody string) (c *Client, cleanup func(
 		HTTPClient:   http.DefaultClient,
 	}
 
-	return New(server.URL, cfg), server.Close
+	return NewFromConfig(server.URL, cfg), server.Close
 }
