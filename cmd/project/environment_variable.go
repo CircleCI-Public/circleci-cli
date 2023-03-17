@@ -21,7 +21,7 @@ func newProjectEnvironmentVariableCommand(ops *projectOpts, preRunE validator.Va
 		Use:     "list <vcs-type> <org-name> <project-name>",
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listProjectEnvironmentVariables(cmd, ops.client, args[0], args[1], args[2])
+			return listProjectEnvironmentVariables(cmd, ops.projectClient, args[0], args[1], args[2])
 		},
 		Args: cobra.ExactArgs(3),
 	}
@@ -32,7 +32,7 @@ func newProjectEnvironmentVariableCommand(ops *projectOpts, preRunE validator.Va
 		Use:     "create <vcs-type> <org-name> <project-name> <env-name>",
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createProjectEnvironmentVariable(cmd, ops.client, ops.reader, args[0], args[1], args[2], args[3], envValue)
+			return createProjectEnvironmentVariable(cmd, ops.projectClient, ops.reader, args[0], args[1], args[2], args[3], envValue)
 		},
 		Args: cobra.ExactArgs(4),
 	}

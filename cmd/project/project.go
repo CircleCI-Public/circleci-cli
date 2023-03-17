@@ -1,12 +1,12 @@
 package project
 
 import (
+	"github.com/spf13/cobra"
+
 	projectapi "github.com/CircleCI-Public/circleci-cli/api/project"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
-
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
 )
 
 // UserInputReader displays a message and reads a user input value
@@ -16,8 +16,8 @@ type UserInputReader interface {
 }
 
 type projectOpts struct {
-	client projectapi.ProjectClient
-	reader UserInputReader
+	projectClient projectapi.ProjectClient
+	reader        UserInputReader
 }
 
 // ProjectOption configures a command created by NewProjectCommand
@@ -51,12 +51,13 @@ func NewProjectCommand(config *settings.Config, preRunE validator.Validator, opt
 			if err != nil {
 				return err
 			}
-			pos.client = client
+			pos.projectClient = client
 			return nil
 		},
 	}
 
 	command.AddCommand(newProjectEnvironmentVariableCommand(&pos, preRunE))
+	command.AddCommand(newProjectDLCCommand(config, &pos, preRunE))
 
 	return command
 }
