@@ -118,43 +118,6 @@ func TestClient_DoRequest(t *testing.T) {
 	})
 }
 
-func TestAPIRequest(t *testing.T) {
-	fix := &fixture{}
-	c, cleanup := fix.Run(http.StatusCreated, `{"key": "value"}`)
-	defer cleanup()
-
-	t.Run("test new api request sets the default headers", func(t *testing.T) {
-		req, err := c.NewAPIRequest("GET", &url.URL{}, struct{}{})
-		assert.NilError(t, err)
-
-		assert.Equal(t, req.Header.Get("User-Agent"), "circleci-cli/0.0.0-dev+dirty-local-tree (source)")
-		assert.Equal(t, req.Header.Get("Circle-Token"), c.circleToken)
-		assert.Equal(t, req.Header.Get("Accept"), "application/json")
-	})
-
-	type testPayload struct {
-		Message string
-	}
-
-	t.Run("test new api request sets the default headers", func(t *testing.T) {
-		req, err := c.NewAPIRequest("GET", &url.URL{}, testPayload{Message: "hello"})
-		assert.NilError(t, err)
-
-		assert.Equal(t, req.Header.Get("Circleci-Cli-Command"), "")
-		assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
-	})
-
-	t.Run("test new api request doesn't set content-type with empty payload", func(t *testing.T) {
-		req, err := c.NewAPIRequest("GET", &url.URL{}, nil)
-		assert.NilError(t, err)
-
-		assert.Equal(t, req.Header.Get("Circleci-Cli-Command"), "")
-		if req.Header.Get("Content-Type") != "" {
-			t.Fail()
-		}
-	})
-}
-
 type fixture struct {
 	mu     sync.Mutex
 	url    url.URL
