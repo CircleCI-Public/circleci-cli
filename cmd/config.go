@@ -179,9 +179,9 @@ func validateConfig(opts configOptions, flags *pflag.FlagSet) error {
 	}
 
 	if path == "-" {
-		fmt.Printf("Config input is valid.\n")
+		fmt.Printf("\nConfig input is valid.\n")
 	} else {
-		fmt.Printf("Config file at %s is valid.\n", path)
+		fmt.Printf("\nConfig file at %s is valid.\n", path)
 	}
 
 	return nil
