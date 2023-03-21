@@ -69,12 +69,9 @@ func ConfigQuery(
 	compileRequest := CompileConfigRequest{
 		ConfigYaml: configString,
 		Options: Options{
+			OwnerID:        orgID,
 			PipelineValues: values,
 		},
-	}
-
-	if orgID != "" {
-		compileRequest.Options.OwnerID = orgID
 	}
 
 	if len(params) >= 1 {

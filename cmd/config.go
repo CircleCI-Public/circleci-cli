@@ -276,6 +276,10 @@ func GetOrgCollaborations(client *rest.Client) ([]CollaborationResult, error) {
 
 	var resp []CollaborationResult
 	_, err = client.DoRequest(req, &resp)
+	if err != nil {
+		fmt.Println("Failed to get org collaborations")
+		fmt.Println(err.Error())
+	}
 	return resp, err
 }
 
