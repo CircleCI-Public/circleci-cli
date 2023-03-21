@@ -15,13 +15,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/data"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/CircleCI-Public/circleci-cli/data"
 )
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
 	Host            string            `yaml:"host"`
+	DlHost          string            `yaml:"-"`
 	Endpoint        string            `yaml:"endpoint"`
 	Token           string            `yaml:"token"`
 	RestEndpoint    string            `yaml:"rest_endpoint"`

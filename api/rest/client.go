@@ -22,7 +22,15 @@ type Client struct {
 	client      *http.Client
 }
 
-func New(host string, config *settings.Config) *Client {
+func New(baseURL *url.URL, token string, httpClient *http.Client) *Client {
+	return &Client{
+		baseURL:     baseURL,
+		circleToken: token,
+		client:      httpClient,
+	}
+}
+
+func NewFromConfig(host string, config *settings.Config) *Client {
 	// Ensure endpoint ends with a slash
 	endpoint := config.RestEndpoint
 	if !strings.HasSuffix(endpoint, "/") {
@@ -34,11 +42,11 @@ func New(host string, config *settings.Config) *Client {
 	client := config.HTTPClient
 	client.Timeout = 10 * time.Second
 
-	return &Client{
-		baseURL:     u.ResolveReference(&url.URL{Path: endpoint}),
-		circleToken: config.Token,
-		client:      client,
-	}
+	return New(
+		u.ResolveReference(&url.URL{Path: endpoint}),
+		config.Token,
+		client,
+	)
 }
 
 func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req *http.Request, err error) {

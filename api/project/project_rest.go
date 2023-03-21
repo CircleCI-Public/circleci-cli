@@ -9,8 +9,6 @@ import (
 )
 
 type projectRestClient struct {
-	token  string
-	server string
 	client *rest.Client
 }
 
@@ -38,20 +36,18 @@ type createProjectEnvVarRequest struct {
 	Value string `json:"value"`
 }
 
+// projectInfo is the info returned by "Get a project" API endpoint.
+// This struct does not contain all the fields returned by the API.
+type projectInfo struct {
+	Id string `json:"id"`
+}
+
 // NewProjectRestClient returns a new projectRestClient satisfying the api.ProjectInterface
 // interface via the REST API.
 func NewProjectRestClient(config settings.Config) (*projectRestClient, error) {
-	serverURL, err := config.ServerURL()
-	if err != nil {
-		return nil, err
-	}
-
 	client := &projectRestClient{
-		token:  config.Token,
-		server: serverURL.String(),
-		client: rest.New(config.Host, &config),
+		client: rest.NewFromConfig(config.Host, &config),
 	}
-
 	return client, nil
 }
 
@@ -153,5 +149,23 @@ func (c *projectRestClient) CreateEnvironmentVariable(vcs string, org string, pr
 	return &ProjectEnvironmentVariable{
 		Name:  resp.Name,
 		Value: resp.Value,
+	}, nil
+}
+
+// ProjectInfo retrieves and returns the project info.
+func (c *projectRestClient) ProjectInfo(vcs string, org string, project string) (*ProjectInfo, error) {
+	path := fmt.Sprintf("project/%s/%s/%s", vcs, org, project)
+	req, err := c.client.NewRequest("GET", &url.URL{Path: path}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp projectInfo
+	_, err = c.client.DoRequest(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+	return &ProjectInfo{
+		Id: resp.Id,
 	}, nil
 }
