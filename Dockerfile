@@ -1,4 +1,4 @@
-FROM cimg/go:1.18.3
+FROM cimg/go:1.20
 
 ENV CIRCLECI_CLI_SKIP_UPDATE_CHECK true
 
