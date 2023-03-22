@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/Masterminds/semver"
@@ -511,124 +510,6 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 	}
 
 	return &response, nil
-}
-
-// ConfigQueryLegacy calls the GQL API to validate and process config with the legacy orgSlug
-func ConfigQueryLegacy(cl *graphql.Client, configPath string, orgSlug string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
-	var response BuildConfigResponse
-	var query string
-	config, err := loadYaml(configPath)
-	if err != nil {
-		return nil, err
-	}
-	// GraphQL isn't forwards-compatible, so we are unusually selective here about
-	// passing only non-empty fields on to the API, to minimize user impact if the
-	// backend is out of date.
-	var fieldAddendums string
-	if orgSlug != "" {
-		fieldAddendums += ", orgSlug: $orgSlug"
-	}
-	if len(params) > 0 {
-		fieldAddendums += ", pipelineParametersJson: $pipelineParametersJson"
-	}
-	query = fmt.Sprintf(
-		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`,
-		fieldAddendums)
-
-	request := graphql.NewRequest(query)
-	request.SetToken(cl.Token)
-	request.Var("config", config)
-
-	if values != nil {
-		request.Var("pipelineValues", pipeline.PrepareForGraphQL(values))
-	}
-	if params != nil {
-		pipelineParameters, err := json.Marshal(params)
-		if err != nil {
-			return nil, fmt.Errorf("unable to serialize pipeline values: %s", err.Error())
-		}
-		request.Var("pipelineParametersJson", string(pipelineParameters))
-	}
-
-	if orgSlug != "" {
-		request.Var("orgSlug", orgSlug)
-	}
-
-	err = cl.Run(request, &response)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
-	}
-	if len(response.BuildConfig.ConfigResponse.Errors) > 0 {
-		return nil, &response.BuildConfig.ConfigResponse.Errors
-	}
-
-	return &response.BuildConfig.ConfigResponse, nil
-}
-
-// ConfigQuery calls the GQL API to validate and process config with the org id
-func ConfigQuery(cl *graphql.Client, configPath string, orgId string, params pipeline.Parameters, values pipeline.Values) (*ConfigResponse, error) {
-	var response BuildConfigResponse
-	var query string
-	config, err := loadYaml(configPath)
-	if err != nil {
-		return nil, err
-	}
-	// GraphQL isn't forwards-compatible, so we are unusually selective here about
-	// passing only non-empty fields on to the API, to minimize user impact if the
-	// backend is out of date.
-	var fieldAddendums string
-	if orgId != "" {
-		fieldAddendums += ", orgId: $orgId"
-	}
-	if len(params) > 0 {
-		fieldAddendums += ", pipelineParametersJson: $pipelineParametersJson"
-	}
-	query = fmt.Sprintf(
-		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgId: UUID!) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`,
-		fieldAddendums)
-
-	request := graphql.NewRequest(query)
-	request.SetToken(cl.Token)
-	request.Var("config", config)
-
-	if values != nil {
-		request.Var("pipelineValues", pipeline.PrepareForGraphQL(values))
-	}
-	if params != nil {
-		pipelineParameters, err := json.Marshal(params)
-		if err != nil {
-			return nil, fmt.Errorf("unable to serialize pipeline values: %s", err.Error())
-		}
-		request.Var("pipelineParametersJson", string(pipelineParameters))
-	}
-
-	if orgId != "" {
-		request.Var("orgId", orgId)
-	}
-
-	err = cl.Run(request, &response)
-	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
-	}
-	if len(response.BuildConfig.ConfigResponse.Errors) > 0 {
-		return nil, &response.BuildConfig.ConfigResponse.Errors
-	}
-
-	return &response.BuildConfig.ConfigResponse, nil
 }
 
 // OrbQuery validated and processes an orb.
