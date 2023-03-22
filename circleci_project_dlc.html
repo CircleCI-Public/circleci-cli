@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>circleci_policy_eval</title>
+  <title>circleci_project_dlc</title>
   <style>
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
@@ -15,27 +15,21 @@
   </style>
 </head>
 <body>
-<h2 id="circleci-policy-eval">circleci policy eval</h2>
-<p>perform raw opa evaluation locally</p>
+<h2 id="circleci-project-dlc">circleci project dlc</h2>
+<p>Manage dlc for projects</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>perform raw opa evaluation locally</p>
-<pre><code>circleci policy eval &lt;policy_file_or_dir_path&gt; [flags]</code></pre>
-<h3 id="examples">Examples</h3>
-<pre><code>policy eval ./policies --input ./.circleci/config.yml</code></pre>
+<p>Manage dlc for projects</p>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help              help for eval
-      --input string      path to input file
-      --metafile string   decision metadata file
-      --query string      policy decision query (default &quot;data&quot;)</code></pre>
+<pre><code>  -h, --help   help for dlc</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --config-api-host string   Change the default endpoint for the config api host (default &quot;https://api.circleci.com&quot;)
       --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
-      --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
       --skip-update-check        Skip the check for updates check run before every command. (default true)
       --token string             your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
-<li><a href="circleci_policy.html">circleci policy</a> - Manage security policies</li>
+<li><a href="circleci_project.html">circleci project</a> - Operate on projects</li>
+<li><a href="circleci_project_dlc_purge.html">circleci project dlc purge</a> - Purge DLC for a project</li>
 </ul>
 </body>
 </html>
