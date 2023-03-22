@@ -3,16 +3,18 @@ package project_test
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"reflect"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/project"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"gotest.tools/v3/assert"
 )
 
 func getProjectRestClient(server *httptest.Server) (project.ProjectClient, error) {
@@ -317,6 +319,76 @@ func Test_projectRestClient_CreateEnvironmentVariable(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("projectRestClient.CreateEnvironmentVariable() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_projectRestClient_ProjectInfo(t *testing.T) {
+	const (
+		vcsType  = "github"
+		orgName  = "test-org"
+		projName = "test-proj"
+	)
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		want    *project.ProjectInfo
+		wantErr bool
+	}{
+		{
+			name: "Should handle a successful request",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Header.Get("circle-token"), "token")
+				assert.Equal(t, r.Header.Get("accept"), "application/json")
+				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/project/%s/%s/%s", vcsType, orgName, projName))
+				br := r.Body
+				b, err := io.ReadAll(br)
+				assert.NilError(t, err)
+				assert.Equal(t, string(b), "")
+				assert.NilError(t, br.Close())
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err = w.Write([]byte(`
+				{
+					"id": "this-is-the-id"
+				}`))
+				assert.NilError(t, err)
+			},
+			want: &project.ProjectInfo{
+				Id: "this-is-the-id",
+			},
+		},
+		{
+			name: "Should handle an error request",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"message": "error"}`))
+				assert.NilError(t, err)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(tt.handler)
+			defer server.Close()
+
+			p, err := getProjectRestClient(server)
+			assert.NilError(t, err)
+
+			got, err := p.ProjectInfo(vcsType, orgName, projName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("projectRestClient.ProjectInfo() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("projectRestClient.ProjectInfo() = %v, want %v", got, tt.want)
 			}
 		})
 	}

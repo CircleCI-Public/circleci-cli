@@ -15,13 +15,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/data"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/CircleCI-Public/circleci-cli/data"
 )
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
 	Host            string            `yaml:"host"`
+	DlHost          string            `yaml:"-"`
 	Endpoint        string            `yaml:"endpoint"`
 	Token           string            `yaml:"token"`
 	RestEndpoint    string            `yaml:"rest_endpoint"`
@@ -35,6 +37,10 @@ type Config struct {
 	GitHubAPI       string            `yaml:"-"`
 	SkipUpdateCheck bool              `yaml:"-"`
 	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
+	// Represents the API host we want to use for config compilation and validation
+	// requests - this is typically on the api.circleci.com subdomain for cloud, or the
+	// same domain for server instances.
+	ConfigAPIHost string `yaml:"-"`
 }
 
 type OrbPublishingInfo struct {
@@ -128,6 +134,10 @@ func (cfg *Config) WriteToDisk() error {
 func (cfg *Config) LoadFromEnv(prefix string) {
 	if host := ReadFromEnv(prefix, "host"); host != "" {
 		cfg.Host = host
+		// If the user is a server customer and overwrites the default
+		// https://circleci.com host - we then have to use this as the host for
+		// any config compilation or validation requests as opposed to https://api.circleci.com
+		cfg.ConfigAPIHost = host
 	}
 
 	if restEndpoint := ReadFromEnv(prefix, "rest_endpoint"); restEndpoint != "" {

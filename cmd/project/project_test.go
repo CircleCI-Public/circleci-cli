@@ -11,12 +11,13 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/cmd/project"
-	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/cmd/project"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 const (
@@ -340,6 +341,7 @@ func scaffoldCMD(
 		Token:      "testtoken",
 		HTTPClient: http.DefaultClient,
 		Host:       baseURL,
+		DlHost:     baseURL,
 	}
 	cmd := project.NewProjectCommand(config, validator, opts...)
 
@@ -349,4 +351,95 @@ func scaffoldCMD(
 	cmd.SetErr(stderr)
 
 	return cmd, stdout, stderr
+}
+
+func TestDLCPurge(t *testing.T) {
+	noValidator := func(_ *cobra.Command, _ []string) error {
+		return nil
+	}
+
+	t.Run("Happy path", func(t *testing.T) {
+		handlers := []http.HandlerFunc{
+			func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), fmt.Sprintf("/project/%s/%s/%s", "gh", "whom", "what"))
+				assert.DeepEqual(t, r.Header["Circle-Token"], []string{"testtoken"})
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{ "id": "this-is-the-project-id" }`))
+				assert.NilError(t, err)
+			},
+			func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "DELETE")
+				assert.Equal(t, r.URL.String(), "/private/output/project/this-is-the-project-id/dlc")
+				assert.DeepEqual(t, r.Header["Circle-Token"], []string{"testtoken"})
+				w.WriteHeader(http.StatusOK)
+			},
+		}
+		var h http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+			var handler http.HandlerFunc
+			handler, handlers = handlers[0], handlers[1:]
+			handler(w, r)
+		}
+		server := httptest.NewServer(h)
+		defer server.Close()
+		cmd, outbuf, errbuf := scaffoldCMD(server.URL, noValidator)
+		cmd.SetArgs([]string{"dlc", "purge", "gh", "whom", "what"})
+		err := cmd.Execute()
+		assert.NilError(t, err)
+		assert.Equal(t, outbuf.String(), "Purged DLC for project\n")
+		assert.Equal(t, errbuf.String(), "")
+	})
+	t.Run("Gone", func(t *testing.T) {
+		handlers := []http.HandlerFunc{
+			func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{ "id": "this-is-the-project-id" }`))
+				assert.NilError(t, err)
+			},
+			func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusGone)
+			},
+		}
+		var h http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+			var handler http.HandlerFunc
+			handler, handlers = handlers[0], handlers[1:]
+			handler(w, r)
+		}
+		server := httptest.NewServer(h)
+		defer server.Close()
+		cmd, outbuf, errbuf := scaffoldCMD(server.URL, noValidator)
+		cmd.SetArgs([]string{"dlc", "purge", "gh", "whom", "what"})
+		err := cmd.Execute()
+		assert.Assert(t, err != nil)
+
+		assert.Equal(t, outbuf.String(), "")
+		assert.Equal(t, errbuf.String(),
+			"Error: No longer supported.\n"+
+				"This functionality is no longer supported by this version of the circleci CLI.\n"+
+				"Please upgrade to the latest version of the circleci CLI.\n",
+		)
+	})
+	t.Run("Not cloud", func(t *testing.T) {
+		// (this test doesn't use httptest because it's testing a
+		// misconfiguration and doesn't get as far as making a http request)
+		cmd := project.NewProjectCommand(&settings.Config{
+			Host:       "some custom value but dlhost is not set",
+			HTTPClient: http.DefaultClient,
+		}, noValidator)
+		outbuf := new(bytes.Buffer)
+		errbuf := new(bytes.Buffer)
+		cmd.SetOut(outbuf)
+		cmd.SetErr(errbuf)
+		cmd.SetArgs([]string{"dlc", "purge", "gh", "whom", "what"})
+		err := cmd.Execute()
+		assert.Assert(t, err != nil)
+		assert.Equal(t, outbuf.String(), "")
+		assert.Equal(t, errbuf.String(),
+			"Error: Misconfiguration.\n"+
+				"You have configured a custom API endpoint host for the circleci CLI.\n"+
+				"However, this functionality is only supported on circleci.com API endpoints.\n",
+		)
+	})
 }
