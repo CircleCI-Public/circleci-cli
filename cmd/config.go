@@ -38,6 +38,14 @@ var configAnnotations = map[string]string{
 	"<path>": "The path to your config (use \"-\" for STDIN)",
 }
 
+func GetConfigAPIHost(cfg *settings.Config) string {
+	if cfg.Host != defaultHost {
+		return cfg.Host
+	} else {
+		return cfg.ConfigAPIHost
+	}
+}
+
 func newConfigCommand(config *settings.Config) *cobra.Command {
 	opts := configOptions{
 		cfg: config,
@@ -68,7 +76,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short:   "Check that the config file is well formed.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.rest = rest.NewFromConfig(config.ConfigAPIHost, config)
+			opts.rest = rest.NewFromConfig(GetConfigAPIHost(opts.cfg), config)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return validateConfig(opts, cmd.Flags())
@@ -90,7 +98,7 @@ func newConfigCommand(config *settings.Config) *cobra.Command {
 		Short: "Validate config and display expanded configuration.",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.rest = rest.NewFromConfig(config.ConfigAPIHost, config)
+			opts.rest = rest.NewFromConfig(GetConfigAPIHost(opts.cfg), config)
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return processConfig(opts, cmd.Flags())
