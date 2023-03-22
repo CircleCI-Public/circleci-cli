@@ -4,11 +4,15 @@ import (
 	"fmt"
 	"os/exec"
 	"path/filepath"
+	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/cmd"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
+	"github.com/stretchr/testify/assert"
 	"gotest.tools/v3/golden"
 )
 
@@ -246,3 +250,17 @@ var _ = Describe("Config", func() {
 		})
 	})
 })
+
+func TestGetConfigAPIHost(t *testing.T) {
+	t.Run("tests that we correctly get the config api host when the host is not the default one", func(t *testing.T) {
+		// if the host isn't equal to `https://circleci.com` then this is likely a server instance and
+		// wont have the api.X.com subdomain so we should instead just respect the host for config commands
+		host := cmd.GetConfigAPIHost(&settings.Config{Host: "test"})
+		assert.Equal(t, host, "test")
+
+		// If the host passed in is the same as the defaultHost 'https://circleci.com' - then we know this is cloud
+		// and as such should use the `api.circleci.com` subdomain
+		host = cmd.GetConfigAPIHost(&settings.Config{Host: "https://circleci.com", ConfigAPIHost: "https://api.circleci.com"})
+		assert.Equal(t, host, "https://api.circleci.com")
+	})
+}
