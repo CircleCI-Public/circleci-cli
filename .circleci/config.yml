@@ -7,7 +7,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.18
+      - image: cimg/go:1.20
     environment:
       CGO_ENABLED: 0
   mac:
@@ -108,8 +108,8 @@ jobs:
       - checkout
       - run: |
           brew update
-          brew install go@1.18
-          echo 'export PATH="/usr/local/opt/go@1.18/bin:$PATH"' >> ~/.bash_profile
+          brew install go@1.20
+          echo 'export PATH="/usr/local/opt/go@1.20/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
   build:
