@@ -711,7 +711,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 					"input": "test: config\n",
 					"metadata": map[string]interface{}{
 						"project_id": "test-project-id",
-						"branch":     "main",
+						"vcs":        map[string]any{"branch": "main"},
 					},
 				})
 
@@ -868,12 +868,15 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
 			Args: []string{
-				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
-				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--metafile", "./testdata/test1/meta.yml",
+				"--input", "./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
   "meta": {
-    "branch": "main",
+    "vcs": {
+		"branch": "main"
+	},
     "project_id": "test-project-id"
   },
   "org": {
@@ -890,8 +893,10 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metadata and query",
 			Args: []string{
-				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
-				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml", "--query", "data.org.enable_rule",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--metafile", "./testdata/test1/meta.yml",
+				"--input", "./testdata/test0/config.yml",
+				"--query", "data.org.enable_rule",
 			},
 			ExpectedOutput: `[
   "enabled"
@@ -911,7 +916,9 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 
 			cmd, stdout, _ := makeCMD()
 
-			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+			args := append(tc.Args, "--policy-base-url", svr.URL)
+
+			cmd.SetArgs(args)
 
 			err := cmd.Execute()
 			if tc.ExpectedErr == "" {
@@ -920,7 +927,12 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
-			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+
+			var actual, expected any
+			assert.NilError(t, json.Unmarshal(stdout.Bytes(), &actual))
+			assert.NilError(t, json.Unmarshal([]byte(tc.ExpectedOutput), &expected))
+
+			assert.DeepEqual(t, actual, expected)
 		})
 	}
 }
