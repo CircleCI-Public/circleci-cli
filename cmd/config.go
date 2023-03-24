@@ -84,12 +84,15 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 			pipelineParamsFilePath, _ := cmd.Flags().GetString("pipeline-parameters")
 			orgID, _ := cmd.Flags().GetString("org-id")
 			orgSlug, _ := cmd.Flags().GetString("org-slug")
-			configPath := config.DefaultConfigPath
-			if len(args) >= 1 {
-				configPath = args[0]
+			path := config.DefaultConfigPath
+			if configPath != "" {
+				path = configPath
+			}
+			if len(args) == 1 {
+				path = args[0]
 			}
 			return compiler.ProcessConfig(config.ProcessConfigOpts{
-				ConfigPath:             configPath,
+				ConfigPath:             path,
 				OrgID:                  orgID,
 				OrgSlug:                orgSlug,
 				PipelineParamsFilePath: pipelineParamsFilePath,

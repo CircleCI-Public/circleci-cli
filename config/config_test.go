@@ -106,7 +106,7 @@ func TestCompiler(t *testing.T) {
 				err = json.Unmarshal(reqBody, &req)
 				assert.NoError(t, err)
 				assert.Equal(t, "1234", req.Options.OwnerID)
-				assert.Equal(t, "test: test", req.ConfigYaml)
+				assert.Equal(t, "test: test\n", req.ConfigYaml)
 				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
@@ -125,7 +125,8 @@ func TestCompiler(t *testing.T) {
 
 func TestLoadYaml(t *testing.T) {
 	t.Run("tests load yaml", func(t *testing.T) {
-		expected := `test: test`
+		expected := `test: test
+`
 		actual, err := loadYaml("testdata/test.yml")
 		assert.NoError(t, err)
 		assert.Equal(t, expected, actual)

@@ -22,9 +22,9 @@ type Client struct {
 	client      *http.Client
 }
 
-func New(BaseURL *url.URL, token string, httpClient *http.Client) *Client {
+func New(baseURL *url.URL, token string, httpClient *http.Client) *Client {
 	return &Client{
-		BaseURL:     BaseURL,
+		BaseURL:     baseURL,
 		circleToken: token,
 		client:      httpClient,
 	}
@@ -37,13 +37,13 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 		endpoint += "/"
 	}
 
-	BaseURL, _ := url.Parse(host)
+	baseURL, _ := url.Parse(host)
 
 	client := config.HTTPClient
 	client.Timeout = 10 * time.Second
 
 	return New(
-		BaseURL.ResolveReference(&url.URL{Path: endpoint}),
+		baseURL.ResolveReference(&url.URL{Path: endpoint}),
 		config.Token,
 		client,
 	)

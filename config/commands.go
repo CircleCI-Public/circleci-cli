@@ -111,8 +111,6 @@ type ValidateConfigOpts struct {
 	VerboseOutput          bool
 }
 
-// func determineConfigPath(configPath string)
-
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
 func (c *ConfigCompiler) ValidateConfig(opts ValidateConfigOpts) error {
 	var err error

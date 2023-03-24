@@ -121,7 +121,6 @@ func (c *ConfigCompiler) ConfigQuery(
 	return configCompilationResp, nil
 }
 
-// #nosec
 func loadYaml(path string) (string, error) {
 	var err error
 	var config []byte

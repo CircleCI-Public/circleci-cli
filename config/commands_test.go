@@ -50,7 +50,7 @@ func TestGetOrgID(t *testing.T) {
 
 }
 
-var testYaml = `version: 2.1\n\norbs:\n  node: circleci/node@5.0.3\n\njobs:\n  datadog-hello-world:\n    docker:\n      - image: cimg/base:stable\n    steps:\n      - run: |\n          echo \"doing something really cool\"\nworkflows:\n  datadog-hello-world:\n    jobs:\n      - datadog-hello-world`
+var testYaml = `version: 2.1\n\norbs:\n  node: circleci/node@5.0.3\n\njobs:\n  datadog-hello-world:\n    docker:\n      - image: cimg/base:stable\n    steps:\n      - run: |\n          echo \"doing something really cool\"\nworkflows:\n  datadog-hello-world:\n    jobs:\n      - datadog-hello-world\n`
 
 func TestValidateConfig(t *testing.T) {
 	t.Run("validate config works as expected", func(t *testing.T) {
