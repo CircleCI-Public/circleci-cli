@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -65,7 +64,7 @@ func (upd *UpdateCheck) Load() error {
 
 	upd.FileUsed = path
 
-	content, err := ioutil.ReadFile(path) // #nosec
+	content, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
@@ -81,7 +80,7 @@ func (upd *UpdateCheck) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(upd.FileUsed, enc, 0600)
+	err = os.WriteFile(upd.FileUsed, enc, 0600)
 	return err
 }
 
@@ -106,7 +105,7 @@ func (cfg *Config) LoadFromDisk() error {
 
 	cfg.FileUsed = path
 
-	content, err := ioutil.ReadFile(path) // #nosec
+	content, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
@@ -126,7 +125,7 @@ func (cfg *Config) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(cfg.FileUsed, enc, 0600)
+	err = os.WriteFile(cfg.FileUsed, enc, 0600)
 	return err
 }
 
@@ -220,7 +219,7 @@ func (cfg *Config) WithHTTPClient() error {
 			return fmt.Errorf("invalid tls cert provided: %s", err.Error())
 		}
 
-		pemData, err := ioutil.ReadFile(cfg.TLSCert)
+		pemData, err := os.ReadFile(cfg.TLSCert)
 		if err != nil {
 			return fmt.Errorf("unable to read tls cert: %s", err.Error())
 		}

@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
@@ -204,7 +204,7 @@ func processConfig(opts configOptions, flags *pflag.FlagSet) error {
 	if len(paramsYaml) > 0 {
 		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read successfully,
 		// proceed with the assumption that the value is already valid yaml.
-		raw, err := ioutil.ReadFile(paramsYaml)
+		raw, err := os.ReadFile(paramsYaml)
 		if err != nil {
 			raw = []byte(paramsYaml)
 		}

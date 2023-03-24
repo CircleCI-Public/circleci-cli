@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -51,9 +51,9 @@ func query(opts queryOptions) error {
 	var resp map[string]interface{}
 
 	if opts.args[0] == "-" {
-		q, err = ioutil.ReadAll(os.Stdin)
+		q, err = io.ReadAll(os.Stdin)
 	} else {
-		q, err = ioutil.ReadFile(opts.args[0])
+		q, err = os.ReadFile(opts.args[0])
 	}
 
 	if err != nil {

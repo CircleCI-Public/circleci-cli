@@ -1,7 +1,7 @@
 package local
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 
 	. "github.com/onsi/ginkgo"
@@ -39,7 +39,7 @@ var _ = Describe("build", func() {
 			path, err := writeStringToTempFile("cynosure")
 			Expect(err).NotTo(HaveOccurred())
 			defer os.Remove(path)
-			Expect(ioutil.ReadFile(path)).To(BeEquivalentTo("cynosure"))
+			Expect(os.ReadFile(path)).To(BeEquivalentTo("cynosure"))
 		})
 	})
 
@@ -51,7 +51,7 @@ var _ = Describe("build", func() {
 			// add a 'debug' flag - the build command will inherit this from the
 			// root command when not testing in isolation.
 			flags.Bool("debug", false, "Enable debug logging.")
-			flags.SetOutput(ioutil.Discard)
+			flags.SetOutput(io.Discard)
 			err := flags.Parse(args)
 			return flags, err
 		}
