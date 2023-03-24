@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/url"
 	"os"
 
@@ -38,9 +38,9 @@ func loadYaml(path string) (string, error) {
 	var err error
 	var config []byte
 	if path == "-" {
-		config, err = ioutil.ReadAll(os.Stdin)
+		config, err = io.ReadAll(os.Stdin)
 	} else {
-		config, err = ioutil.ReadFile(path)
+		config, err = os.ReadFile(path)
 	}
 
 	if err != nil {

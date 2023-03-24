@@ -3,7 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -189,7 +189,7 @@ func showContext(client api.ContextInterface, vcsType, orgName, contextName stri
 func readSecretValue() (string, error) {
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		return string(bytes), err
 	} else {
 		fmt.Print("Enter secret value and press enter: ")

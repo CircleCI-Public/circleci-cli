@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -262,7 +261,7 @@ func writeStringToTempFile(data string) (string, error) {
 	// > The path /var/folders/q0/2g2lcf6j79df6vxqm0cg_0zm0000gn/T/287575618-config.yml
 	// > is not shared from OS X and is not known to Docker.
 	// Docker has `/tmp` shared by default.
-	f, err := ioutil.TempFile("/tmp", "*_circleci_config.yml")
+	f, err := os.CreateTemp("/tmp", "*_circleci_config.yml")
 
 	if err != nil {
 		return "", errors.Wrap(err, "Error creating temporary config file")

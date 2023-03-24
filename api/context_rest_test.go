@@ -2,7 +2,7 @@ package api
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -32,7 +32,7 @@ func appendRESTPostHandler(server *ghttp.Server, combineHandlers ...MockRequestR
 				ghttp.VerifyRequest("POST", "/api/v2/context"),
 				ghttp.VerifyContentType("application/json"),
 				func(w http.ResponseWriter, req *http.Request) {
-					body, err := ioutil.ReadAll(req.Body)
+					body, err := io.ReadAll(req.Body)
 					Expect(err).ShouldNot(HaveOccurred())
 					err = req.Body.Close()
 					Expect(err).ShouldNot(HaveOccurred())

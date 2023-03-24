@@ -1,7 +1,6 @@
 package filetree_test
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -22,7 +21,7 @@ var _ = Describe("filetree", func() {
 
 	BeforeEach(func() {
 		var err error
-		tempRoot, err = ioutil.TempDir("", "circleci-cli-test-")
+		tempRoot, err = os.MkdirTemp("", "circleci-cli-test-")
 		Expect(err).ToNot(HaveOccurred())
 	})
 
@@ -39,7 +38,7 @@ var _ = Describe("filetree", func() {
 			emptyDir = filepath.Join(tempRoot, "empty_dir")
 
 			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
-			Expect(ioutil.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
+			Expect(os.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
 			Expect(os.Mkdir(emptyDir, 0700)).To(Succeed())
 
 		})
@@ -48,7 +47,7 @@ var _ = Describe("filetree", func() {
 			anotherDir := filepath.Join(tempRoot, "another_dir")
 			anotherDirFile := filepath.Join(tempRoot, "another_dir", "another_dir_file.yml")
 			Expect(os.Mkdir(anotherDir, 0700)).To(Succeed())
-			Expect(ioutil.WriteFile(anotherDirFile, []byte("1some: in: valid: yaml"), 0600)).To(Succeed())
+			Expect(os.WriteFile(anotherDirFile, []byte("1some: in: valid: yaml"), 0600)).To(Succeed())
 			tree, err := filetree.NewTree(tempRoot)
 			Expect(err).ToNot(HaveOccurred())
 
@@ -118,7 +117,7 @@ sub_dir:
 			emptyDir = filepath.Join(tempRoot, "empty_dir")
 
 			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
-			Expect(ioutil.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
+			Expect(os.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
 			Expect(os.Mkdir(emptyDir, 0700)).To(Succeed())
 
 		})
