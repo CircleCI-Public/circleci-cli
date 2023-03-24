@@ -22,7 +22,6 @@ import (
 
 var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
-var defaultAPIHost = "https://api.circleci.com"
 var defaultRestEndpoint = "api/v2"
 var trueString = "true"
 
@@ -105,11 +104,6 @@ func MakeCommands() *cobra.Command {
 		RestEndpoint: defaultRestEndpoint,
 		Endpoint:     defaultEndpoint,
 		GitHubAPI:    "https://api.github.com/",
-		// The config api host differs for both cloud and server setups.
-		// For cloud, the base domain will be https://api.circleci.com
-		// for server, this should match the host as we don't have the same
-		// api subdomain setup
-		ConfigAPIHost: defaultAPIHost,
 	}
 
 	if err := rootOptions.Load(); err != nil {
@@ -188,7 +182,6 @@ func MakeCommands() *cobra.Command {
 	flags.StringVar(&rootOptions.Host, "host", rootOptions.Host, "URL to your CircleCI host, also CIRCLECI_CLI_HOST")
 	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
-	flags.StringVar(&rootOptions.ConfigAPIHost, "config-api-host", "https://api.circleci.com", "Change the default endpoint for the config api host")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
 
 	hidden := []string{"github-api", "debug", "endpoint"}

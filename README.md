@@ -176,3 +176,8 @@ Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKI
 ## More
 
 Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
+
+
+## Version Compatibility 
+
+As of homebrew version `0.1.24705` - we no longer support Server 3.x instances. In order to upgrade the CLI to the latest version, you'll need to update your instance of server to 4.x.
