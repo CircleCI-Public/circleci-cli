@@ -774,7 +774,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 		{
 			Name:        "fails if both meta and metafile are provided",
 			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--meta", "{}", "--metafile", "somefile"},
-			ExpectedErr: "use either --meta or --metafile flag, but not both",
+			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
@@ -909,7 +909,7 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 		{
 			Name:        "fails if both meta and metafile are provided",
 			Args:        []string{"eval", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--meta", "{}", "--metafile", "somefile"},
-			ExpectedErr: "use either --meta or --metafile flag, but not both",
+			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
 		},
 		{
 			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and meta",
