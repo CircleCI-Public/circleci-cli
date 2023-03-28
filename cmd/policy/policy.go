@@ -261,6 +261,7 @@ This group of commands allows the management of polices to be verified against b
 		var (
 			inputPath  string
 			policyPath string
+			meta       string
 			metaFile   string
 			ownerID    string
 			context    string
@@ -284,15 +285,9 @@ This group of commands allows the management of polices to be verified against b
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				var metadata map[string]interface{}
-				if metaFile != "" {
-					raw, err := os.ReadFile(metaFile)
-					if err != nil {
-						return fmt.Errorf("failed to read meta file: %w", err)
-					}
-					if err := yaml.Unmarshal(raw, &metadata); err != nil {
-						return fmt.Errorf("failed to decode meta content: %w", err)
-					}
+				metadata, err := readMetadata(meta, metaFile)
+				if err != nil {
+					return fmt.Errorf("failed to read metadata: %w", err)
 				}
 
 				decision, err := func() (*cpa.Decision, error) {
@@ -324,6 +319,7 @@ This group of commands allows the management of polices to be verified against b
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&meta, "meta", "", "decision metadata (json string)")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().BoolVar(&strict, "strict", false, "return non-zero status code for decision resulting in HARD_FAIL")
 
@@ -335,7 +331,7 @@ This group of commands allows the management of polices to be verified against b
 	}()
 
 	eval := func() *cobra.Command {
-		var inputPath, metaFile, query string
+		var inputPath, meta, metaFile, query string
 		cmd := &cobra.Command{
 			Short: "perform raw opa evaluation locally",
 			Use:   "eval <policy_file_or_dir_path>",
@@ -346,15 +342,9 @@ This group of commands allows the management of polices to be verified against b
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				var metadata map[string]interface{}
-				if metaFile != "" {
-					raw, err := os.ReadFile(metaFile)
-					if err != nil {
-						return fmt.Errorf("failed to read meta file: %w", err)
-					}
-					if err := yaml.Unmarshal(raw, &metadata); err != nil {
-						return fmt.Errorf("failed to decode meta content: %w", err)
-					}
+				metadata, err := readMetadata(meta, metaFile)
+				if err != nil {
+					return fmt.Errorf("failed to read metadata: %w", err)
 				}
 
 				decision, err := getPolicyEvaluationLocally(policyPath, input, metadata, query)
@@ -373,6 +363,7 @@ This group of commands allows the management of polices to be verified against b
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&meta, "meta", "", "decision metadata (json string)")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
 
@@ -508,6 +499,28 @@ This group of commands allows the management of polices to be verified against b
 	cmd.AddCommand(test)
 
 	return cmd
+}
+
+func readMetadata(meta string, metaFile string) (map[string]interface{}, error) {
+	var metadata map[string]interface{}
+	if meta != "" && metaFile != "" {
+		return nil, fmt.Errorf("use either --meta or --metafile flag, but not both")
+	}
+	if meta != "" {
+		if err := json.Unmarshal([]byte(meta), &metadata); err != nil {
+			return nil, fmt.Errorf("failed to decode meta content: %w", err)
+		}
+	}
+	if metaFile != "" {
+		raw, err := os.ReadFile(metaFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read meta file: %w", err)
+		}
+		if err := yaml.Unmarshal(raw, &metadata); err != nil {
+			return nil, fmt.Errorf("failed to decode metafile content: %w", err)
+		}
+	}
+	return metadata, nil
 }
 
 // prettyJSONEncoder takes a writer and returns a new json encoder with indent set to two space characters
