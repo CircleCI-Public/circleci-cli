@@ -2,7 +2,7 @@ module github.com/CircleCI-Public/circleci-cli
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
-	github.com/CircleCI-Public/circle-policy-agent v0.0.583
+	github.com/CircleCI-Public/circle-policy-agent v0.0.608
 	github.com/Masterminds/semver v1.4.2
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/blang/semver v3.5.1+incompatible
@@ -36,7 +36,7 @@ require (
 	github.com/erikgeiser/promptkit v0.7.0
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/stretchr/testify v1.8.2
-	golang.org/x/exp v0.0.0-20230213192124-5e25df0256eb
+	golang.org/x/exp v0.0.0-20230321023759-10a507213a29
 )
 
 require (
@@ -64,7 +64,6 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.13 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	github.com/mb0/diff v0.0.0-20131118162322-d8d9a906c24d // indirect
 	github.com/mgutz/ansi v0.0.0-20170206155736-9520e82c474b // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/muesli/ansi v0.0.0-20211031195517-c9f0611b6c70 // indirect
@@ -83,7 +82,6 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/yashtewari/glob-intersection v0.1.0 // indirect
-	github.com/yazgazan/jaydiff v0.3.1 // indirect
 	golang.org/x/crypto v0.3.0 // indirect
 	golang.org/x/net v0.8.0 // indirect
 	golang.org/x/sys v0.6.0 // indirect
