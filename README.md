@@ -181,3 +181,5 @@ Please see the [documentation](https://circleci-public.github.io/circleci-cli) o
 ## Version Compatibility 
 
 As of version `0.1.24705` - we no longer support Server 3.x instances. In order to upgrade the CLI to the latest version, you'll need to update your instance of server to 4.x.
+
+`0.1.23845` is the last version to support Server 3.x and 2.x.
