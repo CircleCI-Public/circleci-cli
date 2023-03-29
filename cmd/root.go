@@ -343,7 +343,7 @@ type helpCmd struct {
 	width int
 }
 
-// helpTemplate Building a custom help template with more finess and pizazz
+// helpTemplate Building a custom help template with more finesse and pizazz
 func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 
 	/***Styles ***/
