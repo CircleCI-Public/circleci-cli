@@ -698,7 +698,29 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
 		},
 		{
-			Name: "sends expected request with metadata",
+			Name: "sends expected request with meta",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/custom/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+					"metadata": map[string]interface{}{
+						"project_id": "test-project-id",
+						"vcs":        map[string]any{"branch": "main"},
+					},
+				})
+
+				_, _ = io.WriteString(w, `{"status":"PASS"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
+		},
+		{
+			Name: "sends expected request with metafile",
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--metafile", "./testdata/test1/meta.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
@@ -711,7 +733,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 					"input": "test: config\n",
 					"metadata": map[string]interface{}{
 						"project_id": "test-project-id",
-						"branch":     "main",
+						"vcs":        map[string]any{"branch": "main"},
 					},
 				})
 
@@ -748,6 +770,11 @@ func TestMakeDecisionCommand(t *testing.T) {
 			Name:        "fails for policy FILE/DIRECTORY not found",
 			Args:        []string{"decide", "./testdata/no_such_file.rego", "--input", "./testdata/test1/test.yml"},
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
+		},
+		{
+			Name:        "fails if both meta and metafile are provided",
+			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--meta", "{}", "--metafile", "somefile"},
+			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
 		},
 		{
 			Name: "successfully performs decision for policy FILE provided locally",
@@ -797,7 +824,21 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "policy decision status: ERROR",
 		},
 		{
-			Name: "successfully performs decision with metadata for policy FILE provided locally",
+			Name: "successfully performs decision with meta for policy FILE provided locally",
+			Args: []string{
+				"decide", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--meta",
+				`{"project_id": "test-project-id","vcs": {"branch": "main"}}`, "--input", "./testdata/test0/config.yml",
+			},
+			ExpectedOutput: `{
+  "status": "PASS",
+  "enabled_rules": [
+    "enabled"
+  ]
+}
+`,
+		},
+		{
+			Name: "successfully performs decision with metafile for policy FILE provided locally",
 			Args: []string{
 				"decide", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
 				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
@@ -866,14 +907,22 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
-			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
+			Name:        "fails if both meta and metafile are provided",
+			Args:        []string{"eval", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--meta", "{}", "--metafile", "somefile"},
+			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and meta",
 			Args: []string{
-				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
-				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`,
+				"--input", "./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
   "meta": {
-    "branch": "main",
+    "vcs": {
+		"branch": "main"
+	},
     "project_id": "test-project-id"
   },
   "org": {
@@ -888,10 +937,50 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 `,
 		},
 		{
-			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metadata and query",
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metafile",
 			Args: []string{
-				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
-				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml", "--query", "data.org.enable_rule",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--metafile", "./testdata/test1/meta.yml",
+				"--input", "./testdata/test0/config.yml",
+			},
+			ExpectedOutput: `{
+  "meta": {
+    "vcs": {
+		"branch": "main"
+	},
+    "project_id": "test-project-id"
+  },
+  "org": {
+    "enable_rule": [
+      "enabled"
+    ],
+    "policy_name": [
+      "meta_policy_test"
+    ]
+  }
+}
+`,
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, meta and query",
+			Args: []string{
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`,
+				"--input", "./testdata/test0/config.yml",
+				"--query", "data.org.enable_rule",
+			},
+			ExpectedOutput: `[
+  "enabled"
+]
+`,
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metafile and query",
+			Args: []string{
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--metafile", "./testdata/test1/meta.yml",
+				"--input", "./testdata/test0/config.yml",
+				"--query", "data.org.enable_rule",
 			},
 			ExpectedOutput: `[
   "enabled"
@@ -911,7 +1000,9 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 
 			cmd, stdout, _ := makeCMD()
 
-			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
+			args := append(tc.Args, "--policy-base-url", svr.URL)
+
+			cmd.SetArgs(args)
 
 			err := cmd.Execute()
 			if tc.ExpectedErr == "" {
@@ -920,7 +1011,12 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 				assert.ErrorContains(t, err, tc.ExpectedErr)
 				return
 			}
-			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+
+			var actual, expected any
+			assert.NilError(t, json.Unmarshal(stdout.Bytes(), &actual))
+			assert.NilError(t, json.Unmarshal([]byte(tc.ExpectedOutput), &expected))
+
+			assert.DeepEqual(t, actual, expected)
 		})
 	}
 }
