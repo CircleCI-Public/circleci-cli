@@ -5,7 +5,6 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -37,10 +36,6 @@ type Config struct {
 	GitHubAPI       string            `yaml:"-"`
 	SkipUpdateCheck bool              `yaml:"-"`
 	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
-	// Represents the API host we want to use for config compilation and validation
-	// requests - this is typically on the api.circleci.com subdomain for cloud, or the
-	// same domain for server instances.
-	ConfigAPIHost string `yaml:"-"`
 }
 
 type OrbPublishingInfo struct {
@@ -65,7 +60,7 @@ func (upd *UpdateCheck) Load() error {
 
 	upd.FileUsed = path
 
-	content, err := ioutil.ReadFile(path) // #nosec
+	content, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
@@ -81,7 +76,7 @@ func (upd *UpdateCheck) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(upd.FileUsed, enc, 0600)
+	err = os.WriteFile(upd.FileUsed, enc, 0600)
 	return err
 }
 
@@ -106,7 +101,7 @@ func (cfg *Config) LoadFromDisk() error {
 
 	cfg.FileUsed = path
 
-	content, err := ioutil.ReadFile(path) // #nosec
+	content, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
@@ -126,7 +121,7 @@ func (cfg *Config) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(cfg.FileUsed, enc, 0600)
+	err = os.WriteFile(cfg.FileUsed, enc, 0600)
 	return err
 }
 
@@ -134,10 +129,6 @@ func (cfg *Config) WriteToDisk() error {
 func (cfg *Config) LoadFromEnv(prefix string) {
 	if host := ReadFromEnv(prefix, "host"); host != "" {
 		cfg.Host = host
-		// If the user is a server customer and overwrites the default
-		// https://circleci.com host - we then have to use this as the host for
-		// any config compilation or validation requests as opposed to https://api.circleci.com
-		cfg.ConfigAPIHost = host
 	}
 
 	if restEndpoint := ReadFromEnv(prefix, "rest_endpoint"); restEndpoint != "" {
@@ -220,7 +211,7 @@ func (cfg *Config) WithHTTPClient() error {
 			return fmt.Errorf("invalid tls cert provided: %s", err.Error())
 		}
 
-		pemData, err := ioutil.ReadFile(cfg.TLSCert)
+		pemData, err := os.ReadFile(cfg.TLSCert)
 		if err != nil {
 			return fmt.Errorf("unable to read tls cert: %s", err.Error())
 		}

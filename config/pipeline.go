@@ -1,8 +1,7 @@
-package pipeline
+package config
 
 import (
 	"fmt"
-	"sort"
 
 	"github.com/CircleCI-Public/circleci-cli/git"
 )
@@ -44,28 +43,4 @@ func LocalPipelineValues() Values {
 	}
 
 	return vals
-}
-
-// TODO: type Parameters map[string]string
-
-// KeyVal is a data structure specifically for passing pipeline data to GraphQL which doesn't support free-form maps.
-type KeyVal struct {
-	Key string `json:"key"`
-	Val string `json:"val"`
-}
-
-// PrepareForGraphQL takes a golang homogenous map, and transforms it into a list of keyval pairs, since GraphQL does not support homogenous maps.
-func PrepareForGraphQL(kvMap Values) []KeyVal {
-	// we need to create the slice of KeyVals in a deterministic order for testing purposes
-	keys := make([]string, 0, len(kvMap))
-	for k := range kvMap {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-
-	kvs := make([]KeyVal, 0, len(kvMap))
-	for _, k := range keys {
-		kvs = append(kvs, KeyVal{Key: k, Val: kvMap[k]})
-	}
-	return kvs
 }

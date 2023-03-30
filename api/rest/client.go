@@ -17,14 +17,14 @@ import (
 )
 
 type Client struct {
-	baseURL     *url.URL
+	BaseURL     *url.URL
 	circleToken string
 	client      *http.Client
 }
 
 func New(baseURL *url.URL, token string, httpClient *http.Client) *Client {
 	return &Client{
-		baseURL:     baseURL,
+		BaseURL:     baseURL,
 		circleToken: token,
 		client:      httpClient,
 	}
@@ -60,7 +60,7 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 		}
 	}
 
-	req, err = http.NewRequest(method, c.baseURL.ResolveReference(u).String(), r)
+	req, err = http.NewRequest(method, c.BaseURL.ResolveReference(u).String(), r)
 	if err != nil {
 		return nil, err
 	}

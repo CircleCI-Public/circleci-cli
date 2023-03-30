@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -71,7 +70,7 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -99,7 +98,7 @@ func (c *ContextRestClient) CreateContextWithOrgID(orgID *string, name string) e
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -131,7 +130,7 @@ func (c *ContextRestClient) CreateContext(vcs, org, name string) error {
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -162,7 +161,7 @@ func (c *ContextRestClient) CreateEnvironmentVariable(contextID, variable, value
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -190,7 +189,7 @@ func (c *ContextRestClient) DeleteContext(contextID string) error {
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -300,7 +299,7 @@ func (c *ContextRestClient) listEnvironmentVariables(params *listEnvironmentVari
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -334,7 +333,7 @@ func (c *ContextRestClient) listContexts(params *listContextsParams) (*listConte
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -580,7 +579,7 @@ func (c *ContextRestClient) EnsureExists() error {
 		return errors.New("API v2 test request failed.")
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err

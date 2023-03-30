@@ -2,7 +2,7 @@ package process
 
 import (
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -31,7 +31,7 @@ func MaybeIncludeFile(s string, orbDirectory string) (string, error) {
 		}
 
 		filepath := filepath.Join(orbDirectory, subMatch)
-		file, err := ioutil.ReadFile(filepath)
+		file, err := os.ReadFile(filepath)
 		if err != nil {
 			return "", fmt.Errorf("could not open %s for inclusion", filepath)
 		}

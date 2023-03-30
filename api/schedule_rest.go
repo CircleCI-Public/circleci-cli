@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -49,7 +48,7 @@ func (c *ScheduleRestClient) CreateSchedule(vcs, org, project, name, description
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -86,7 +85,7 @@ func (c *ScheduleRestClient) UpdateSchedule(scheduleID, name, description string
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -121,7 +120,7 @@ func (c *ScheduleRestClient) DeleteSchedule(scheduleID string) error {
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -157,7 +156,7 @@ func (c *ScheduleRestClient) ScheduleByID(scheduleID string) (*Schedule, error) 
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -231,7 +230,7 @@ func (c *ScheduleRestClient) listSchedules(vcs, org, project string, params *lis
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -375,7 +374,7 @@ func (c *ScheduleRestClient) newDeleteScheduleRequest(scheduleID string) (*http.
 	return c.newHTTPRequest("DELETE", queryURL.String(), nil)
 }
 
-// Builds a requeest to list schedules according to params.
+// Builds a request to list schedules according to params.
 func (c *ScheduleRestClient) newListSchedulesRequest(vcs, org, project string, params *listSchedulesParams) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -438,7 +437,7 @@ func (c *ScheduleRestClient) EnsureExists() error {
 		return errors.New("API v2 test request failed.")
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err

@@ -38,8 +38,7 @@ type processedConfig struct {
 }
 
 // Processes the config down to v2.0, then checks image used against the block list
-func DeprecatedImageCheck(response *ConfigResponse) error {
-
+func deprecatedImageCheck(response *ConfigResponse) error {
 	aConfig := processedConfig{}
 	err := yaml.Unmarshal([]byte(response.OutputYaml), &aConfig)
 	if err != nil {

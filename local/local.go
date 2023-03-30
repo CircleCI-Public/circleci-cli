@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
@@ -12,9 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/config"
-	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -27,20 +24,20 @@ const DefaultConfigPath = ".circleci/config.yml"
 func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var err error
 	var configResponse *config.ConfigResponse
-	restClient := rest.NewFromConfig(cfg.Host, cfg)
-
 	processedArgs, configPath := buildAgentArguments(flags)
+
+	compiler := config.New(cfg)
 
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		configResponse, err = config.ConfigQuery(restClient, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		configResponse, err = config.ConfigQuery(restClient, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
+		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
@@ -262,7 +259,7 @@ func writeStringToTempFile(data string) (string, error) {
 	// > The path /var/folders/q0/2g2lcf6j79df6vxqm0cg_0zm0000gn/T/287575618-config.yml
 	// > is not shared from OS X and is not known to Docker.
 	// Docker has `/tmp` shared by default.
-	f, err := ioutil.TempFile("/tmp", "*_circleci_config.yml")
+	f, err := os.CreateTemp("/tmp", "*_circleci_config.yml")
 
 	if err != nil {
 		return "", errors.Wrap(err, "Error creating temporary config file")

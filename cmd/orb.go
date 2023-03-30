@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -1122,7 +1121,7 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Unexpected error")
 	}
 
-	body, err := ioutil.ReadAll(req.Body)
+	body, err := io.ReadAll(req.Body)
 	if err != nil {
 		return errors.Wrap(err, "Unexpected error")
 	}
@@ -1385,46 +1384,46 @@ func initOrb(opts orbOptions) error {
 		return y[0]
 	}()
 
-	circleConfigSetup, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
+	circleConfigSetup, err := os.ReadFile(path.Join(orbPath, ".circleci", "config.yml"))
 	if err != nil {
 		return err
 	}
 
 	configSetupString := string(circleConfigSetup)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace)), 0644)
+	err = os.WriteFile(path.Join(orbPath, ".circleci", "config.yml"), []byte(orbTemplate(configSetupString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
 
-	circleConfigDeploy, err := ioutil.ReadFile(path.Join(orbPath, ".circleci", "test-deploy.yml"))
+	circleConfigDeploy, err := os.ReadFile(path.Join(orbPath, ".circleci", "test-deploy.yml"))
 	if err != nil {
 		return err
 	}
 
 	configDeployString := string(circleConfigDeploy)
-	err = ioutil.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace)), 0644)
+	err = os.WriteFile(path.Join(orbPath, ".circleci", "test-deploy.yml"), []byte(orbTemplate(configDeployString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
 
-	readme, err := ioutil.ReadFile(path.Join(orbPath, "README.md"))
+	readme, err := os.ReadFile(path.Join(orbPath, "README.md"))
 	if err != nil {
 		return err
 	}
 
 	readmeString := string(readme)
-	err = ioutil.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
+	err = os.WriteFile(path.Join(orbPath, "README.md"), []byte(orbTemplate(readmeString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
 
-	orbRoot, err := ioutil.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
+	orbRoot, err := os.ReadFile(path.Join(orbPath, "src", "@orb.yml"))
 	if err != nil {
 		return err
 	}
 
 	orbRootString := string(orbRoot)
-	err = ioutil.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace)), 0644)
+	err = os.WriteFile(path.Join(orbPath, "src", "@orb.yml"), []byte(orbTemplate(orbRootString, projectName, ownerName, orbName, namespace)), 0644)
 	if err != nil {
 		return err
 	}
@@ -1504,7 +1503,7 @@ func initOrb(opts orbOptions) error {
 	}
 
 	tempOrbFile := filepath.Join(tempOrbDir, "orb.yml")
-	err = ioutil.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
+	err = os.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
 	if err != nil {
 		return errors.Wrap(err, "Unable to write packed orb")
 	}
