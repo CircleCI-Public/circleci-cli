@@ -23,16 +23,15 @@
 <h3 id="arguments">Arguments</h3>
 <pre><code>&lt;path&gt;      The path to your config (use &quot;-&quot; for STDIN)</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>      --circleci-api-host string     the api-host you want to use for config processing and validation
-  -h, --help                         help for process
+<pre><code>  -h, --help                         help for process
       --org-id string                organization id used when a config depends on private orbs belonging to that org
   -o, --org-slug string              organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org
-      --pipeline-parameters string   YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)</code></pre>
+      --pipeline-parameters string   YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)
+      --verbose                      adds verbose output to the command</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
-<pre><code>      --config-api-host string   Change the default endpoint for the config api host (default &quot;https://api.circleci.com&quot;)
-      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
-      --skip-update-check        Skip the check for updates check run before every command. (default true)
-      --token string             your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --skip-update-check   Skip the check for updates check run before every command. (default true)
+      --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
 <li><a href="circleci_config.html">circleci config</a> - Operate on build config files</li>
