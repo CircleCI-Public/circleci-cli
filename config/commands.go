@@ -11,7 +11,7 @@ import (
 
 func printValues(values Values) {
 	for key, value := range values {
-		fmt.Printf("\t%s:\t%s", key, value)
+		fmt.Fprintf(os.Stderr, "%-18s %s\n", key+":", value)
 	}
 }
 
