@@ -56,7 +56,7 @@ Feature: Config checking
         jobs:
           - datadog-hello-world
     """
-    When I run `circleci --config-api-host https://k9s.sphereci.com config validate --skip-update-check -c config.yml`
+    When I run `circleci --host https://k9s.sphereci.com config validate --skip-update-check -c config.yml`
     Then the exit status should be 0
     And the output should contain "Config file at config.yml is valid"
 

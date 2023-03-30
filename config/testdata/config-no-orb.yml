@@ -1,0 +1,13 @@
+version: 2.1
+
+jobs:
+  datadog-hello-world:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run: |
+          echo "doing something really cool"
+workflows:
+  datadog-hello-world:
+    jobs:
+      - datadog-hello-world

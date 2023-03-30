@@ -11,9 +11,7 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/config"
-	"github.com/CircleCI-Public/circleci-cli/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -26,20 +24,20 @@ const DefaultConfigPath = ".circleci/config.yml"
 func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var err error
 	var configResponse *config.ConfigResponse
-	restClient := rest.NewFromConfig(cfg.Host, cfg)
-
 	processedArgs, configPath := buildAgentArguments(flags)
+
+	compiler := config.New(cfg)
 
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		configResponse, err = config.ConfigQuery(restClient, configPath, orgID, nil, pipeline.LocalPipelineValues())
+		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		configResponse, err = config.ConfigQuery(restClient, configPath, orgSlug, nil, pipeline.LocalPipelineValues())
+		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues())
 		if err != nil {
 			return err
 		}
