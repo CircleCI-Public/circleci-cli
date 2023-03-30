@@ -1,6 +1,7 @@
 test_main:
   meta:
-    branch: main
+    vcs:
+      branch: main
   decision: &root_decision
     status: PASS
     enabled_rules:
@@ -8,7 +9,8 @@ test_main:
   
 test_feature:
   meta:
-    branch: feature
+    vcs:
+      branch: feature
   decision:
     <<: *root_decision
     status: SOFT_FAIL

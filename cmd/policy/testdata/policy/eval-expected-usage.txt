@@ -6,6 +6,7 @@ policy eval ./policies --input ./.circleci/config.yml
 
 Flags:
       --input string      path to input file
+      --meta string       decision metadata (json string)
       --metafile string   decision metadata file
       --query string      policy decision query (default "data")
 
