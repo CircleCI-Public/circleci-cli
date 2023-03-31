@@ -11,7 +11,7 @@ import (
 
 func printValues(values Values) {
 	for key, value := range values {
-		fmt.Printf("\t%s:\t%s", key, value)
+		fmt.Fprintf(os.Stderr, "%-18s %s\n", key+":", value)
 	}
 }
 
@@ -29,7 +29,6 @@ func (c *ConfigCompiler) getOrgID(
 	optsOrgSlug string,
 ) (string, error) {
 	if optsOrgID == "" && optsOrgSlug == "" {
-		fmt.Println("No org id or slug has been provided")
 		return "", nil
 	}
 

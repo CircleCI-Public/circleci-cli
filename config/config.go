@@ -64,7 +64,7 @@ type CompileConfigRequest struct {
 type Options struct {
 	OwnerID            string                 `json:"owner_id,omitempty"`
 	PipelineParameters map[string]interface{} `json:"pipeline_parameters,omitempty"`
-	PipelineValues     map[string]string      `json:"pipeline_values,omitempty"`
+	PipelineValues     map[string]interface{} `json:"pipeline_values,omitempty"`
 }
 
 // ConfigQuery - attempts to compile or validate a given config file with the
