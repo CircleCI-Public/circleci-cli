@@ -159,6 +159,36 @@ Feature: Config checking
     Then the output should contain "fighters"
     And the exit status should be 0
 
+  Scenario: Testing new type casting works as expected
+    Given a file named "config.yml" with:
+    """
+    version: 2.1
+
+    jobs:
+      datadog-hello-world:
+        docker:
+          - image: cimg/base:stable
+        parameters:
+          an-integer:
+            description: a test case to ensure parameters are passed correctly
+            type: integer
+            default: -1
+        steps:
+          - unless:
+              condition:
+                equal: [<< parameters.an-integer >>, -1]
+              steps:
+                - run: echo "<< parameters.an-integer >> - test" 
+    workflows:
+      main-workflow:
+        jobs:
+        - datadog-hello-world:
+            an-integer: << pipeline.number >>
+    """ 
+    When I run `circleci config process config.yml`
+    Then the output should contain "1 - test"
+    And the exit status should be 0
+
   Scenario: Checking a valid config file with default pipeline params
     Given a file named "config.yml" with:
     """

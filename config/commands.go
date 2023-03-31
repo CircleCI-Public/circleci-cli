@@ -29,7 +29,6 @@ func (c *ConfigCompiler) getOrgID(
 	optsOrgSlug string,
 ) (string, error) {
 	if optsOrgID == "" && optsOrgSlug == "" {
-		fmt.Println("No org id or slug has been provided")
 		return "", nil
 	}
 
