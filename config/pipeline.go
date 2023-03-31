@@ -7,7 +7,7 @@ import (
 )
 
 // CircleCI provides various `<< pipeline.x >>` values to be used in your config, but sometimes we need to fabricate those values when validating config.
-type Values map[string]string
+type Values map[string]interface{}
 
 // Static typing is bypassed using an empty interface here due to pipeline parameters supporting multiple types.
 type Parameters map[string]interface{}
@@ -31,9 +31,9 @@ func LocalPipelineValues() Values {
 		}
 	}
 
-	vals := map[string]string{
+	vals := map[string]interface{}{
 		"id":                "00000000-0000-0000-0000-000000000001",
-		"number":            "1",
+		"number":            1,
 		"project.git_url":   gitUrl,
 		"project.type":      projectType,
 		"git.tag":           git.Tag(),
