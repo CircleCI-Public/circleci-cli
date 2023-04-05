@@ -59,8 +59,10 @@ curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/main/i
 You can also set a specific version of the CLI to install with the `VERSION` environment variable:
 
 ```
-curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/main/install.sh | VERSION=0.1.5222 sudo bash
+curl -fLSs https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/main/install.sh | sudo VERSION=0.1.5222 bash
 ```
+
+Take note that additional environment variables should be passed between sudo and invoking bash.
 
 #### Checksum verification
 
