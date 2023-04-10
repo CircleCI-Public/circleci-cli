@@ -92,7 +92,7 @@ This group of commands allows the management of polices to be verified against b
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
+			Example: `circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -127,7 +127,7 @@ This group of commands allows the management of polices to be verified against b
 				return prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
+			Example: `circleci policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -159,7 +159,7 @@ This group of commands allows the management of polices to be verified against b
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
+			Example: `circleci policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -238,7 +238,7 @@ This group of commands allows the management of polices to be verified against b
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
+			Example: `circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
 		cmd.Flags().StringVar(&request.Status, "status", "", "filter decision logs based on their status")
@@ -313,7 +313,7 @@ This group of commands allows the management of polices to be verified against b
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy decide ./policies --input ./.circleci/config.yml`,
+			Example: `circleci policy decide ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -359,7 +359,7 @@ This group of commands allows the management of polices to be verified against b
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy eval ./policies --input ./.circleci/config.yml`,
+			Example: `circleci policy eval ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
@@ -406,7 +406,7 @@ This group of commands allows the management of polices to be verified against b
 				return nil
 			},
 			Args:    cobra.ExactArgs(0),
-			Example: `policy settings --enabled=true`,
+			Example: `circleci policy settings --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --enabled=true`,
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")

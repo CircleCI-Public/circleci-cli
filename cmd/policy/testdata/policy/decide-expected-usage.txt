@@ -2,7 +2,7 @@ Usage:
   policy decide [policy_file_or_dir_path] [flags]
 
 Examples:
-policy decide ./policies --input ./.circleci/config.yml
+circleci policy decide ./policies --input ./.circleci/config.yml
 
 Flags:
       --context string    policy context for decision (default "config")
