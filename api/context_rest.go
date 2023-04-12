@@ -544,7 +544,9 @@ func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("circle-token", c.token)
+	if c.token != "" {
+		req.Header.Add("circle-token", c.token)
+	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", version.UserAgent())

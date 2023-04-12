@@ -1834,7 +1834,9 @@ func FollowProject(config settings.Config, vcs string, owner string, projectName
 	}
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
-	r.Header.Set("Circle-Token", config.Token)
+	if config.Token != "" {
+		r.Header.Set("Circle-Token", config.Token)
+	}
 
 	response, err := config.HTTPClient.Do(r)
 	if err != nil {
