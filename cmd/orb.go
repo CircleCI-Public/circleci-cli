@@ -719,6 +719,7 @@ func processOrb(opts orbOptions) error {
 }
 
 func publishOrb(opts orbOptions) error {
+	orbInformThatOrbCannotBeDeletedMessage()
 	path := opts.args[0]
 	ref := opts.args[1]
 	namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion(ref)
@@ -794,6 +795,8 @@ func validateSegmentArg(label string) error {
 }
 
 func incrementOrb(opts orbOptions) error {
+	orbInformThatOrbCannotBeDeletedMessage()
+
 	ref := opts.args[1]
 	segment := opts.args[2]
 
@@ -822,6 +825,8 @@ func incrementOrb(opts orbOptions) error {
 }
 
 func promoteOrb(opts orbOptions) error {
+	orbInformThatOrbCannotBeDeletedMessage()
+
 	ref := opts.args[0]
 	segment := opts.args[1]
 
@@ -1103,6 +1108,8 @@ func initOrb(opts orbOptions) error {
 	orbPath := opts.args[0]
 	var err error
 	fmt.Println("Note: This command is in preview. Please report any bugs! https://github.com/CircleCI-Public/circleci-cli/issues/new/choose")
+
+	orbInformThatOrbCannotBeDeletedMessage()
 
 	fullyAutomated := 0
 	prompt := &survey.Select{
@@ -1733,4 +1740,9 @@ func stringifyDiff(diff gotextdiff.Unified, colorOpt string) string {
 
 	color.NoColor = oldNoColor
 	return strings.Join(lines, "\n")
+}
+
+func orbInformThatOrbCannotBeDeletedMessage() {
+	fmt.Println("Once an orb is created it cannot be deleted. Orbs are semver compliant, and each published version is immutable. Publicly released orbs are potential dependencies for other projects.")
+	fmt.Println("Therefore, allowing orb deletion would make users susceptible to unexpected loss of functionality.")
 }
