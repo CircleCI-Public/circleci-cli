@@ -41,6 +41,7 @@ require (
 
 require (
 	github.com/OneOfOne/xxhash v1.2.8 // indirect
+	github.com/a8m/envsubst v1.4.2 // indirect
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
 	github.com/charmbracelet/bubbles v0.11.0 // indirect
