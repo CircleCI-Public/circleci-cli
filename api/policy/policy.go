@@ -341,7 +341,9 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 		// releasing the semaphore after a second ensuring client doesn't make more than cap(sem)/second
 		time.AfterFunc(time.Second, func() { <-sem })
 
-		r.Header.Add("circle-token", config.Token)
+		if config.Token != "" {
+			r.Header.Add("circle-token", config.Token)
+		}
 		r.Header.Add("Accept", "application/json")
 		r.Header.Add("Content-Type", "application/json")
 		r.Header.Add("User-Agent", version.UserAgent())

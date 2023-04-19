@@ -2,7 +2,7 @@ Usage:
   policy logs [decision_id] [flags]
 
 Examples:
-policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json
+circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json
 
 Flags:
       --after string        filter decision logs triggered AFTER this datetime

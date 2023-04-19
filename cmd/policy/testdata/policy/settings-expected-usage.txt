@@ -2,7 +2,7 @@ Usage:
   policy settings [flags]
 
 Examples:
-policy settings --enabled=true
+circleci policy settings --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --enabled=true
 
 Flags:
       --context string    policy context for decision (default "config")
