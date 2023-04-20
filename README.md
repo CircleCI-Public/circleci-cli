@@ -179,25 +179,3 @@ Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKI
 
 Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
 
-
-## Version Compatibility 
-
-| Server Release      | CircleCI Supported Version | 
-| ----------- |  ----------- |
-| 4.2.0      | 0.1.24705 |
-| 4.1.2      | 0.1.23845  |
-| 4.1.1      | 0.1.23845 |
-| 4.1.0      | 0.1.23845 |
-| 4.0.4      | 0.1.23845 |
-| 4.0.3      | 0.1.23845 |
-| 4.0.2      | 0.1.23845 |
-| 4.0.1      | 0.1.23845 |
-| 4.0.0      | 0.1.23845 |
-| 3.4.6      | 0.1.23845 |
-| 3.4.5      | 0.1.23845 |
-| 3.4.4      | 0.1.23845 |
-| 3.4.3      | 0.1.23845 |
-| 3.x        | 0.1.23845 |
-| 2.x        | 0.1.23845 |
-
-

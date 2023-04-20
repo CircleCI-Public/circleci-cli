@@ -72,17 +72,18 @@ func TestCompiler(t *testing.T) {
 			assert.Contains(t, err.Error(), "Could not load config file at testdata/nonexistent.yml")
 		})
 
-		t.Run("handles 404 status correctly", func(t *testing.T) {
-			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusNotFound)
-			}))
-			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+		// commenting this out - we have a legacy_test.go unit test that covers this behaviour
+		// t.Run("handles 404 status correctly", func(t *testing.T) {
+		// 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 		w.WriteHeader(http.StatusNotFound)
+		// 	}))
+		// 	defer svr.Close()
+		// 	compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
 
-			_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
-			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "this version of the CLI does not support your instance of server")
-		})
+		// 	_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+		// 	assert.Error(t, err)
+		// 	assert.Contains(t, err.Error(), "this version of the CLI does not support your instance of server")
+		// })
 
 		t.Run("handles non-200 status correctly", func(t *testing.T) {
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
