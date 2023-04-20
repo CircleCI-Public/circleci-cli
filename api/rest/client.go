@@ -98,7 +98,6 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 		}{}
 		err = json.NewDecoder(httpResp.Body).Decode(&httpError)
 		if err != nil {
-			fmt.Printf("failed to decode body: %s", err.Error())
 			return httpResp.StatusCode, err
 		}
 		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: httpError.Message}

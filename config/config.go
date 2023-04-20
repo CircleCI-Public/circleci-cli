@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
@@ -23,6 +24,9 @@ type ConfigCompiler struct {
 	host                   string
 	compileRestClient      *rest.Client
 	collaboratorRestClient *rest.Client
+
+	cfg                 *settings.Config
+	legacyGraphQLClient *graphql.Client
 }
 
 func New(cfg *settings.Config) *ConfigCompiler {
@@ -31,7 +35,10 @@ func New(cfg *settings.Config) *ConfigCompiler {
 		host:                   hostValue,
 		compileRestClient:      rest.NewFromConfig(hostValue, cfg),
 		collaboratorRestClient: rest.NewFromConfig(cfg.Host, cfg),
+		cfg:                    cfg,
 	}
+
+	configCompiler.legacyGraphQLClient = graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	return configCompiler
 }
 
@@ -102,11 +109,16 @@ func (c *ConfigCompiler) ConfigQuery(
 	}
 
 	configCompilationResp := &ConfigResponse{}
-	statusCode, err := c.compileRestClient.DoRequest(req, configCompilationResp)
-	if err != nil {
-		if statusCode == 404 {
-			return nil, errors.New("this version of the CLI does not support your instance of server, please refer to https://github.com/CircleCI-Public/circleci-cli for version compatibility")
+	statusCode, originalErr := c.compileRestClient.DoRequest(req, configCompilationResp)
+	if statusCode == 404 {
+		fmt.Fprintf(os.Stderr, "You are using a old version of CircleCI Server, please consider updating")
+		legacyResponse, err := c.legacyConfigQueryByOrgID(configString, orgID, params, values, c.cfg)
+		if err != nil {
+			return nil, err
 		}
+		return legacyResponse, nil
+	}
+	if originalErr != nil {
 		return nil, fmt.Errorf("config compilation request returned an error: %w", err)
 	}
 
