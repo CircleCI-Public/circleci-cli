@@ -182,6 +182,37 @@ Please see the [documentation](https://circleci-public.github.io/circleci-cli) o
 
 ## Version Compatibility 
 
-As of version `0.1.24705` - we no longer support Server 3.x instances. In order to upgrade the CLI to the latest version, you'll need to update your instance of server to 4.x.
+| Server Release      | Support Dates | Component | Supported Version |
+| ----------- | ----------- | ----------- | ----------- |
+| 4.2.0      |        |  |  |
+|    |     | CircleCI CLI | 0.1.24705 |
+| 4.1.2      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845  |
+| 4.1.1      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 4.1.0      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 4.0.4      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 4.0.3      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 4.0.2      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 4.0.1      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 4.0.0      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 3.4.6      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 3.4.5      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 3.4.4      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 3.4.3      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 3.x      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
+| 2.x      |        |  |  |
+|    |     | CircleCI CLI | 0.1.23845 |
 
-`0.1.23845` is the last version to support Server 3.x and 2.x.
+
