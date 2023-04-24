@@ -111,7 +111,7 @@ func (c *ConfigCompiler) ConfigQuery(
 	configCompilationResp := &ConfigResponse{}
 	statusCode, originalErr := c.compileRestClient.DoRequest(req, configCompilationResp)
 	if statusCode == 404 {
-		fmt.Fprintf(os.Stderr, "You are using a old version of CircleCI Server, please consider updating")
+		fmt.Fprintf(os.Stderr, "You are using a old version of CircleCI Server, please consider updating\n")
 		legacyResponse, err := c.legacyConfigQueryByOrgID(configString, orgID, params, values, c.cfg)
 		if err != nil {
 			return nil, err
