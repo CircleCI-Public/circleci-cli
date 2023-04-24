@@ -181,7 +181,7 @@ var _ = Describe("Namespace integration tests", func() {
 			}`
 
 			expectedListOrbsRequest := `{
-				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
+				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions { version\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
 				"variables": {
 				  "after": "",
 				  "namespace": "foo-ns",
@@ -236,7 +236,7 @@ var _ = Describe("Namespace integration tests", func() {
 			}`
 
 			expectedListOrbsRequest := `{
-				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
+				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions { version\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
 				"variables": {
 				  "after": "",
 				  "namespace": "foo-ns",
@@ -251,7 +251,7 @@ var _ = Describe("Namespace integration tests", func() {
 				}
 			}`
 
-			expectedDeleteNamespacerequest := `{
+			expectedDeleteNamespaceRequest := `{
 				"query": "\nmutation($id: UUID!) {\n  deleteNamespaceAndRelatedOrbs(namespaceId: $id) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
 				"variables": {
 				  "id": "f13a9e13-538c-435c-8f61-78596661acd6"
@@ -270,7 +270,7 @@ var _ = Describe("Namespace integration tests", func() {
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
-				Request:  expectedDeleteNamespacerequest,
+				Request:  expectedDeleteNamespaceRequest,
 				Response: gqlDeleteNamespaceResponse})
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -310,7 +310,7 @@ var _ = Describe("Namespace integration tests", func() {
 			}`
 
 			expectedListOrbsRequest := `{
-				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions {\n\t\t\t\t\t\tsource\n\t\t\t\t\t\tversion\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
+				"query": "\nquery namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {\n\tregistryNamespace(name: $namespace) {\n\t\tname\n                id\n\t\torbs(first: 20, after: $after, view: $view) {\n\t\t\tedges {\n\t\t\t\tcursor\n\t\t\t\tnode {\n\t\t\t\t\tversions { version\n\t\t\t\t\t}\n\t\t\t\t\tname\n\t                                statistics {\n\t\t                           last30DaysBuildCount,\n\t\t                           last30DaysProjectCount,\n\t\t                           last30DaysOrganizationCount\n\t                               }\n\t\t\t\t}\n\t\t\t}\n\t\t\ttotalCount\n\t\t\tpageInfo {\n\t\t\t\thasNextPage\n\t\t\t}\n\t\t}\n\t}\n}\n",
 				"variables": {
 				  "after": "",
 				  "namespace": "foo-ns",
@@ -324,7 +324,7 @@ var _ = Describe("Namespace integration tests", func() {
 				}
 			}`
 
-			expectedDeleteNamespacerequest := `{
+			expectedDeleteNamespaceRequest := `{
 				"query": "\nmutation($id: UUID!) {\n  deleteNamespaceAndRelatedOrbs(namespaceId: $id) {\n    deleted\n    errors {\n      type\n      message\n    }\n  }\n}\n",
 				"variables": {
 				  "id": "f13a9e13-538c-435c-8f61-78596661acd6"
@@ -343,7 +343,7 @@ var _ = Describe("Namespace integration tests", func() {
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 				Status:   http.StatusOK,
-				Request:  expectedDeleteNamespacerequest,
+				Request:  expectedDeleteNamespaceRequest,
 				Response: gqlDeleteNamespaceResponse})
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)

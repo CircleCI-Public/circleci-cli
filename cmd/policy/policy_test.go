@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -643,6 +644,42 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "policy decision status: HARD_FAIL",
 		},
 		{
+			Name: "passes when decision status = ERROR AND --strict is OFF",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"ERROR", "reason": "some reason"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"ERROR\",\n  \"reason\": \"some reason\"\n}\n",
+		},
+		{
+			Name: "fails when decision status = ERROR AND --strict is ON",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--strict"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+				})
+
+				_, _ = io.WriteString(w, `{"status":"ERROR", "reason": "some reason"}`)
+			},
+			ExpectedErr: "policy decision status: ERROR",
+		},
+		{
 			Name: "sends expected request with context",
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
@@ -661,7 +698,29 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
 		},
 		{
-			Name: "sends expected request with metadata",
+			Name: "sends expected request with meta",
+			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/custom/decision")
+
+				var payload map[string]interface{}
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&payload))
+
+				assert.DeepEqual(t, payload, map[string]interface{}{
+					"input": "test: config\n",
+					"metadata": map[string]interface{}{
+						"project_id": "test-project-id",
+						"vcs":        map[string]any{"branch": "main"},
+					},
+				})
+
+				_, _ = io.WriteString(w, `{"status":"PASS"}`)
+			},
+			ExpectedOutput: "{\n  \"status\": \"PASS\"\n}\n",
+		},
+		{
+			Name: "sends expected request with metafile",
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--metafile", "./testdata/test1/meta.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Method, "POST")
@@ -674,7 +733,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 					"input": "test: config\n",
 					"metadata": map[string]interface{}{
 						"project_id": "test-project-id",
-						"branch":     "main",
+						"vcs":        map[string]any{"branch": "main"},
 					},
 				})
 
@@ -713,6 +772,11 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
+			Name:        "fails if both meta and metafile are provided",
+			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--meta", "{}", "--metafile", "somefile"},
+			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
+		},
+		{
 			Name: "successfully performs decision for policy FILE provided locally",
 			Args: []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test0/config.yml"},
 			ExpectedOutput: `{
@@ -746,7 +810,35 @@ func TestMakeDecisionCommand(t *testing.T) {
 			ExpectedErr: "policy decision status: HARD_FAIL",
 		},
 		{
-			Name: "successfully performs decision with metadata for policy FILE provided locally",
+			Name: "successfully performs decision for policy FILE provided locally, passes when decision = ERROR and strict = OFF",
+			Args: []string{"decide", "./testdata/test3/runtime_error_policy.rego", "--input", "./testdata/test0/config.yml"},
+			ExpectedOutput: `{
+  "status": "ERROR",
+  "reason": "./testdata/test3/runtime_error_policy.rego:8: eval_conflict_error: complete rules must not produce multiple outputs"
+}
+`,
+		},
+		{
+			Name:        "successfully performs decision for policy FILE provided locally, fails when decision = ERROR and strict = ON",
+			Args:        []string{"decide", "./testdata/test3/runtime_error_policy.rego", "--input", "./testdata/test0/config.yml", "--strict"},
+			ExpectedErr: "policy decision status: ERROR",
+		},
+		{
+			Name: "successfully performs decision with meta for policy FILE provided locally",
+			Args: []string{
+				"decide", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--meta",
+				`{"project_id": "test-project-id","vcs": {"branch": "main"}}`, "--input", "./testdata/test0/config.yml",
+			},
+			ExpectedOutput: `{
+  "status": "PASS",
+  "enabled_rules": [
+    "enabled"
+  ]
+}
+`,
+		},
+		{
+			Name: "successfully performs decision with metafile for policy FILE provided locally",
 			Args: []string{
 				"decide", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
 				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
@@ -815,14 +907,22 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 			ExpectedErr: "failed to make decision: failed to load policy files: failed to walk root: ",
 		},
 		{
-			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metadata",
+			Name:        "fails if both meta and metafile are provided",
+			Args:        []string{"eval", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml", "--meta", "{}", "--metafile", "somefile"},
+			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and meta",
 			Args: []string{
-				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
-				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`,
+				"--input", "./testdata/test0/config.yml",
 			},
 			ExpectedOutput: `{
   "meta": {
-    "branch": "main",
+    "vcs": {
+		"branch": "main"
+	},
     "project_id": "test-project-id"
   },
   "org": {
@@ -837,14 +937,182 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 `,
 		},
 		{
-			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metadata and query",
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input and metafile",
 			Args: []string{
-				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego", "--metafile",
-				"./testdata/test1/meta.yml", "--input", "./testdata/test0/config.yml", "--query", "data.org.enable_rule",
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--metafile", "./testdata/test1/meta.yml",
+				"--input", "./testdata/test0/config.yml",
+			},
+			ExpectedOutput: `{
+  "meta": {
+    "vcs": {
+		"branch": "main"
+	},
+    "project_id": "test-project-id"
+  },
+  "org": {
+    "enable_rule": [
+      "enabled"
+    ],
+    "policy_name": [
+      "meta_policy_test"
+    ]
+  }
+}
+`,
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, meta and query",
+			Args: []string{
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`,
+				"--input", "./testdata/test0/config.yml",
+				"--query", "data.org.enable_rule",
 			},
 			ExpectedOutput: `[
   "enabled"
 ]
+`,
+		},
+		{
+			Name: "successfully performs raw opa evaluation for policy FILE provided locally, input, metafile and query",
+			Args: []string{
+				"eval", "./testdata/test0/subdir/meta-policy-subdir/meta-policy.rego",
+				"--metafile", "./testdata/test1/meta.yml",
+				"--input", "./testdata/test0/config.yml",
+				"--query", "data.org.enable_rule",
+			},
+			ExpectedOutput: `[
+  "enabled"
+]
+`,
+		},
+	}
+
+	for _, tc := range testcases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.ServerHandler == nil {
+				tc.ServerHandler = func(w http.ResponseWriter, r *http.Request) {}
+			}
+
+			svr := httptest.NewServer(tc.ServerHandler)
+			defer svr.Close()
+
+			cmd, stdout, _ := makeCMD()
+
+			args := append(tc.Args, "--policy-base-url", svr.URL)
+
+			cmd.SetArgs(args)
+
+			err := cmd.Execute()
+			if tc.ExpectedErr == "" {
+				assert.NilError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tc.ExpectedErr)
+				return
+			}
+
+			var actual, expected any
+			assert.NilError(t, json.Unmarshal(stdout.Bytes(), &actual))
+			assert.NilError(t, json.Unmarshal([]byte(tc.ExpectedOutput), &expected))
+
+			assert.DeepEqual(t, actual, expected)
+		})
+	}
+}
+
+func TestGetSetSettings(t *testing.T) {
+	testcases := []struct {
+		Name           string
+		Args           []string
+		ServerHandler  http.HandlerFunc
+		ExpectedOutput string
+		ExpectedErr    string
+	}{
+		{
+			Name:        "requires owner-id",
+			Args:        []string{"settings"},
+			ExpectedErr: "required flag(s) \"owner-id\" not set",
+		},
+		{
+			Name:        "gets error response",
+			Args:        []string{"settings", "--owner-id", "ownerID", "--context", "someContext"},
+			ExpectedErr: "failed to run settings : unexpected status-code: 403 - Forbidden",
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerID/context/someContext/decision/settings")
+				w.WriteHeader(http.StatusForbidden)
+				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
+				assert.NilError(t, err)
+			},
+		},
+		{
+			Name: "successfully fetches settings",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
+		},
+		{
+			Name: "successfully sets settings (--enabled)",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "PATCH")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
+		},
+		{
+			Name: "successfully sets settings (--enabled=true)",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled=true"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "PATCH")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{"enabled": true})
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": true}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": true
+}
+`,
+		},
+		{
+			Name: "successfully sets settings (--enabled=false)",
+			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f", "--enabled=false"},
+			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
+				var body map[string]interface{}
+				assert.Equal(t, r.Method, "PATCH")
+				assert.Equal(t, r.URL.String(), "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings")
+				assert.NilError(t, json.NewDecoder(r.Body).Decode(&body))
+				assert.DeepEqual(t, body, map[string]interface{}{"enabled": false})
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"enabled": false}`))
+				assert.NilError(t, err)
+			},
+			ExpectedOutput: `{
+  "enabled": false
+}
 `,
 		},
 	}
@@ -866,10 +1134,121 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 			if tc.ExpectedErr == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.ErrorContains(t, err, tc.ExpectedErr)
+				assert.Error(t, err, tc.ExpectedErr)
 				return
 			}
+
 			assert.Equal(t, stdout.String(), tc.ExpectedOutput)
+		})
+	}
+}
+
+const jsonDeprecationMessage = "Flag --json has been deprecated, use --format=json to print json test results\n"
+
+func TestTestRunner(t *testing.T) {
+	cases := []struct {
+		Name     string
+		Verbose  bool
+		Debug    bool
+		Run      string
+		Json     bool
+		Format   string
+		Expected func(*testing.T, string)
+	}{
+		{
+			Name: "default options",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "testdata/test_policies"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+				assert.Check(t, !strings.Contains(s, "test_feature"), "should not have verbose output")
+			},
+		},
+		{
+			Name:    "verbose",
+			Verbose: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, strings.Contains(s, "2/2 tests passed"))
+			},
+		},
+		{
+			Name:    "verbose with run",
+			Verbose: true,
+			Run:     "test_main",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "test_main"))
+				assert.Check(t, !strings.Contains(s, "test_feature"))
+				assert.Check(t, strings.Contains(s, "1/1 tests passed"))
+			},
+		},
+		{
+			Name:  "debug",
+			Debug: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "---- Debug Test Context ----"))
+			},
+		},
+		{
+			Name: "json",
+			Json: true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, s[len(jsonDeprecationMessage)] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:json",
+			Format: "json",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, s[0] == '[')
+				assert.Check(t, s[len(s)-2] == ']')
+			},
+		},
+		{
+			Name:   "format:junit",
+			Format: "junit",
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
+		{
+			Name:   "format:junit and json flag",
+			Format: "junit",
+			Json:   true,
+			Expected: func(t *testing.T, s string) {
+				assert.Check(t, strings.HasPrefix(s, jsonDeprecationMessage))
+				assert.Check(t, strings.Contains(s, "<?xml"))
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			cmd, stdout, _ := makeCMD()
+
+			args := []string{"test", "./testdata/test_policies"}
+			if tc.Verbose {
+				args = append(args, "-v")
+			}
+			if tc.Debug {
+				args = append(args, "--debug")
+			}
+			if tc.Run != "" {
+				args = append(args, "--run", tc.Run)
+			}
+			if tc.Json {
+				args = append(args, "--json")
+			}
+			if tc.Format != "" {
+				args = append(args, "--format", tc.Format)
+			}
+
+			cmd.SetArgs(args)
+
+			assert.NilError(t, cmd.Execute(), stdout.String())
+			tc.Expected(t, stdout.String())
 		})
 	}
 }

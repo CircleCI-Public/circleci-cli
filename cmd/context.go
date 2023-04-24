@@ -3,7 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -47,9 +47,12 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	command := &cobra.Command{
-		Use:   "context",
-		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
-	}
+		Use: "context",
+		Long: `
+Contexts provide a mechanism for securing and sharing environment variables across 
+projects. The environment variables are defined as name/value pairs and 
+are injected at runtime.`,
+		Short: "For securing and sharing environment variables across projects"}
 
 	listCommand := &cobra.Command{
 		Short:   "List all contexts",
@@ -186,7 +189,7 @@ func showContext(client api.ContextInterface, vcsType, orgName, contextName stri
 func readSecretValue() (string, error) {
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		return string(bytes), err
 	} else {
 		fmt.Print("Enter secret value and press enter: ")
@@ -196,8 +199,8 @@ func readSecretValue() (string, error) {
 	}
 }
 
-//createContext determines if the context is being created via orgid or vcs and org name
-//and navigates to corresponding function accordingly
+// createContext determines if the context is being created via orgid or vcs and org name
+// and navigates to corresponding function accordingly
 func createContext(cmd *cobra.Command, client api.ContextInterface, args []string) error {
 	//skip if no orgid provided
 	if orgID != nil && strings.TrimSpace(*orgID) != "" && len(args) == 1 {

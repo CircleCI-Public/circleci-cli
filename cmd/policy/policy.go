@@ -3,15 +3,19 @@ package policy
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
+	"github.com/CircleCI-Public/circle-policy-agent/cpa/tester"
+
 	"github.com/araddon/dateparse"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
@@ -28,8 +32,9 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	cmd := &cobra.Command{
 		Use:               "policy",
 		PersistentPreRunE: preRunE,
-		Short: "Policies ensures security of build configs via security policy management framework. " +
-			"This group of commands allows the management of polices to be verified against build configs.",
+		Short:             "Manage security policies",
+		Long: `Policies ensures security of build configs via security policy management framework.
+This group of commands allows the management of polices to be verified against build configs.`,
 	}
 
 	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
@@ -87,7 +92,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
+			Example: `circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -122,7 +127,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return prettyJSONEncoder(cmd.OutOrStdout()).Encode(diff)
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
+			Example: `circleci policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`,
 		}
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
@@ -154,7 +159,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
+			Example: `circleci policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5`,
 		}
 
 		cmd.Flags().StringVar(&context, "context", "config", "policy context")
@@ -222,7 +227,6 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					}
 					return getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
 				}()
-
 				if err != nil {
 					return fmt.Errorf("failed to get policy decision logs: %v", err)
 				}
@@ -234,7 +238,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
+			Example: `circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --after 2022/03/14 --out output.json`,
 		}
 
 		cmd.Flags().StringVar(&request.Status, "status", "", "filter decision logs based on their status")
@@ -257,6 +261,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		var (
 			inputPath  string
 			policyPath string
+			meta       string
 			metaFile   string
 			ownerID    string
 			context    string
@@ -280,15 +285,9 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				var metadata map[string]interface{}
-				if metaFile != "" {
-					raw, err := os.ReadFile(metaFile)
-					if err != nil {
-						return fmt.Errorf("failed to read meta file: %w", err)
-					}
-					if err := yaml.Unmarshal(raw, &metadata); err != nil {
-						return fmt.Errorf("failed to decode meta content: %w", err)
-					}
+				metadata, err := readMetadata(meta, metaFile)
+				if err != nil {
+					return fmt.Errorf("failed to read metadata: %w", err)
 				}
 
 				decision, err := func() (*cpa.Decision, error) {
@@ -303,8 +302,8 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					return fmt.Errorf("failed to make decision: %w", err)
 				}
 
-				if strict && decision.Status == cpa.StatusHardFail {
-					return fmt.Errorf("policy decision status: HARD_FAIL")
+				if strict && (decision.Status == cpa.StatusHardFail || decision.Status == cpa.StatusError) {
+					return fmt.Errorf("policy decision status: %s", decision.Status)
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(decision); err != nil {
@@ -314,12 +313,13 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.MaximumNArgs(1),
-			Example: `policy decide ./policies --input ./.circleci/config.yml`,
+			Example: `circleci policy decide ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&meta, "meta", "", "decision metadata (json string)")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().BoolVar(&strict, "strict", false, "return non-zero status code for decision resulting in HARD_FAIL")
 
@@ -331,7 +331,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	}()
 
 	eval := func() *cobra.Command {
-		var inputPath, metaFile, query string
+		var inputPath, meta, metaFile, query string
 		cmd := &cobra.Command{
 			Short: "perform raw opa evaluation locally",
 			Use:   "eval <policy_file_or_dir_path>",
@@ -342,15 +342,9 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				var metadata map[string]interface{}
-				if metaFile != "" {
-					raw, err := os.ReadFile(metaFile)
-					if err != nil {
-						return fmt.Errorf("failed to read meta file: %w", err)
-					}
-					if err := yaml.Unmarshal(raw, &metadata); err != nil {
-						return fmt.Errorf("failed to decode meta content: %w", err)
-					}
+				metadata, err := readMetadata(meta, metaFile)
+				if err != nil {
+					return fmt.Errorf("failed to read metadata: %w", err)
 				}
 
 				decision, err := getPolicyEvaluationLocally(policyPath, input, metadata, query)
@@ -365,10 +359,11 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				return nil
 			},
 			Args:    cobra.ExactArgs(1),
-			Example: `policy eval ./policies --input ./.circleci/config.yml`,
+			Example: `circleci policy eval ./policies --input ./.circleci/config.yml`,
 		}
 
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&meta, "meta", "", "decision metadata (json string)")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
 
@@ -379,14 +374,153 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		return cmd
 	}()
 
+	settings := func() *cobra.Command {
+		var (
+			ownerID string
+			context string
+			enabled bool
+			request policy.DecisionSettings
+		)
+
+		cmd := &cobra.Command{
+			Short: "get/set policy decision settings (To read settings: run command without any settings flags)",
+			Use:   "settings",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				client := policy.NewClient(*policyBaseURL, config)
+
+				response, err := func() (interface{}, error) {
+					if cmd.Flag("enabled").Changed {
+						request.Enabled = &enabled
+						return client.SetSettings(ownerID, context, request)
+					}
+					return client.GetSettings(ownerID, context)
+				}()
+				if err != nil {
+					return fmt.Errorf("failed to run settings : %w", err)
+				}
+
+				if err = prettyJSONEncoder(cmd.OutOrStdout()).Encode(response); err != nil {
+					return fmt.Errorf("failed to encode settings: %w", err)
+				}
+
+				return nil
+			},
+			Args:    cobra.ExactArgs(0),
+			Example: `circleci policy settings --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --enabled=true`,
+		}
+
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
+		cmd.Flags().BoolVar(&enabled, "enabled", false, "enable/disable policy decision evaluation in build pipeline")
+		if err := cmd.MarkFlagRequired("owner-id"); err != nil {
+			panic(err)
+		}
+
+		return cmd
+	}()
+
+	test := func() *cobra.Command {
+		var (
+			run     string
+			verbose bool
+			debug   bool
+			useJSON bool
+			format  string
+		)
+
+		cmd := &cobra.Command{
+			Use:   "test [path]",
+			Short: "runs policy tests",
+			RunE: func(cmd *cobra.Command, args []string) (err error) {
+				var include *regexp.Regexp
+				if run != "" {
+					include, err = regexp.Compile(run)
+					if err != nil {
+						return fmt.Errorf("--run value is not a valid regular expression: %w", err)
+					}
+				}
+
+				runnerOpts := tester.RunnerOptions{
+					Path:    args[0],
+					Include: include,
+				}
+
+				runner, err := tester.NewRunner(runnerOpts)
+				if err != nil {
+					return fmt.Errorf("cannot instantiate runner: %w", err)
+				}
+
+				handlerOpts := tester.ResultHandlerOptions{
+					Verbose: verbose,
+					Debug:   debug,
+					Dst:     cmd.OutOrStdout(),
+				}
+
+				handler := func() tester.ResultHandler {
+					switch strings.ToLower(format) {
+					case "json":
+						return tester.MakeJSONResultHandler(handlerOpts)
+					case "junit":
+						return tester.MakeJUnitResultHandler(handlerOpts)
+					default:
+						if useJSON {
+							return tester.MakeJSONResultHandler(handlerOpts)
+						}
+						return tester.MakeDefaultResultHandler(handlerOpts)
+					}
+				}()
+
+				if !runner.RunAndHandleResults(handler) {
+					return errors.New("unsuccessful run")
+				}
+
+				return nil
+			},
+			Args:    cobra.ExactArgs(1),
+			Example: "circleci policy test ./policies/...",
+		}
+
+		cmd.Flags().StringVar(&run, "run", "", "select which tests to run based on regular expression")
+		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "print all tests instead of only failed tests")
+		cmd.Flags().BoolVar(&debug, "debug", false, "print test debug context. Sets verbose to true")
+		cmd.Flags().BoolVar(&useJSON, "json", false, "sprints json test results instead of standard output format")
+		_ = cmd.Flags().MarkDeprecated("json", "use --format=json to print json test results")
+		cmd.Flags().StringVar(&format, "format", "", "select desired format between json or junit")
+		return cmd
+	}()
+
 	cmd.AddCommand(push)
 	cmd.AddCommand(diff)
 	cmd.AddCommand(fetch)
 	cmd.AddCommand(logs)
 	cmd.AddCommand(decide)
 	cmd.AddCommand(eval)
+	cmd.AddCommand(settings)
+	cmd.AddCommand(test)
 
 	return cmd
+}
+
+func readMetadata(meta string, metaFile string) (map[string]interface{}, error) {
+	var metadata map[string]interface{}
+	if meta != "" && metaFile != "" {
+		return nil, fmt.Errorf("use either --meta or --metafile flag, but not both")
+	}
+	if meta != "" {
+		if err := json.Unmarshal([]byte(meta), &metadata); err != nil {
+			return nil, fmt.Errorf("failed to decode meta content: %w", err)
+		}
+	}
+	if metaFile != "" {
+		raw, err := os.ReadFile(metaFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read meta file: %w", err)
+		}
+		if err := yaml.Unmarshal(raw, &metadata); err != nil {
+			return nil, fmt.Errorf("failed to decode metafile content: %w", err)
+		}
+	}
+	return metadata, nil
 }
 
 // prettyJSONEncoder takes a writer and returns a new json encoder with indent set to two space characters

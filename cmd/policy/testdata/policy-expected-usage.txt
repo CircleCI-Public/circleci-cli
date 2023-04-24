@@ -8,6 +8,8 @@ Available Commands:
   fetch       Fetch policy bundle (or a single policy)
   logs        Get policy decision logs / Get decision log (or policy bundle) by decision ID
   push        push policy bundle
+  settings    get/set policy decision settings (To read settings: run command without any settings flags)
+  test        runs policy tests
 
 Flags:
       --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
