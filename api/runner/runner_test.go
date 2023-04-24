@@ -14,6 +14,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
@@ -45,7 +46,7 @@ func TestRunner_CreateResourceClass(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "POST"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"Content-Length":  {"86"},
 			"Content-Type":    {"application/json"},
@@ -82,10 +83,10 @@ func TestRunner_GetResourceClassByName(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource", RawQuery: "namespace=the-namespace"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -133,10 +134,10 @@ func TestRunner_GetResourceClassesByNamespace(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource", RawQuery: "namespace=the-namespace"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -150,7 +151,7 @@ func TestRunner_DeleteResourceClass(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Check resource-class is deleted", func(t *testing.T) {
-		err := runner.DeleteResourceClass("51628548-4627-4813-9f9b-8cc9637ac879")
+		err := runner.DeleteResourceClass("51628548-4627-4813-9f9b-8cc9637ac879", false)
 		assert.NilError(t, err)
 	})
 
@@ -159,12 +160,31 @@ func TestRunner_DeleteResourceClass(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "DELETE"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
 		assert.Check(t, cmp.Equal(fix.Body(), ``))
 	})
+}
+
+func TestRunner_DeleteResourceClass_Force(t *testing.T) {
+	fix := fixture{}
+	runner, cleanup := fix.Run(http.StatusOK, ``)
+	defer cleanup()
+
+	err := runner.DeleteResourceClass("5a1ef22d-444b-45db-8e98-21d7c42fb80b", true)
+	assert.NilError(t, err)
+
+	assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/resource/5a1ef22d-444b-45db-8e98-21d7c42fb80b/force"}))
+	assert.Check(t, cmp.Equal(fix.method, "DELETE"))
+	assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+		"Accept-Encoding": {"gzip"},
+		"Accept":          {"application/json"},
+		"Circle-Token":    {"fake-token"},
+		"User-Agent":      {version.UserAgent()},
+	}))
+	assert.Check(t, cmp.Equal(fix.Body(), ``))
 }
 
 func TestRunner_DeleteResourceClass_PathEscaping(t *testing.T) {
@@ -173,7 +193,7 @@ func TestRunner_DeleteResourceClass_PathEscaping(t *testing.T) {
 	defer cleanup()
 
 	t.Run("Check resource-class is deleted", func(t *testing.T) {
-		err := runner.DeleteResourceClass("escape~,/;?~noescape~$&+:=@")
+		err := runner.DeleteResourceClass("escape~,/;?~noescape~$&+:=@", false)
 		assert.NilError(t, err)
 	})
 
@@ -212,7 +232,7 @@ func TestRunner_CreateToken(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "POST"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"Content-Length":  {"80"},
 			"Content-Type":    {"application/json"},
@@ -279,10 +299,10 @@ func TestRunner_GetRunnerTokensByResourceClass(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner/token", RawQuery: "resource-class=the-namespace%2Fthe-resource-class"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -305,7 +325,7 @@ func TestRunner_DeleteToken(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.method, "DELETE"))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -390,10 +410,10 @@ func TestRunner_GetRunnerInstances_ByNamespace(t *testing.T) {
 
 	t.Run("Check request", func(t *testing.T) {
 		assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/runner", RawQuery: "namespace=the-namespace"}))
-		assert.Check(t, cmp.Equal(fix.method, "GET"))
+		assert.Check(t, cmp.Equal(fix.method, http.MethodGet))
 		assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
 			"Accept-Encoding": {"gzip"},
-			"Accept-Type":     {"application/json"},
+			"Accept":          {"application/json"},
 			"Circle-Token":    {"fake-token"},
 			"User-Agent":      {version.UserAgent()},
 		}))
@@ -470,5 +490,13 @@ func (f *fixture) Run(statusCode int, respBody string) (r *Runner, cleanup func(
 	})
 	server := httptest.NewServer(mux)
 
-	return New(rest.New(server.URL, "api/v2", "fake-token")), server.Close
+	cfg := &settings.Config{
+		Debug:        false,
+		Token:        "fake-token",
+		RestEndpoint: "api/v2",
+		Endpoint:     "api/v2",
+		HTTPClient:   http.DefaultClient,
+	}
+
+	return New(rest.NewFromConfig(server.URL, cfg)), server.Close
 }

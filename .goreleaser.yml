@@ -10,10 +10,6 @@ archives:
       - api/graphql/LICENSE
       - md_docs/LICENSE
 
-before:
-  hooks:
-  - make pack
-
 builds:
   - binary: circleci
     env:
@@ -25,6 +21,7 @@ builds:
       - linux
     goarch:
       - amd64
+      - arm64
     ldflags:
       # -s Omit the symbol table and debug information.
       # -w Omit the DWARF symbol table.

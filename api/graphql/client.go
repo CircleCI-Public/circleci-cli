@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -29,7 +29,7 @@ type Client struct {
 // NewClient returns a reference to a Client.
 func NewClient(httpClient *http.Client, host, endpoint, token string, debug bool) *Client {
 	return &Client{
-		httpClient: http.DefaultClient,
+		httpClient: httpClient,
 		Endpoint:   endpoint,
 		Host:       host,
 		Token:      token,
@@ -254,7 +254,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	if cl.Debug {
 		var bodyBytes []byte
 		if res.Body != nil {
-			bodyBytes, err = ioutil.ReadAll(res.Body)
+			bodyBytes, err = io.ReadAll(res.Body)
 			if err != nil {
 				return errors.Wrap(err, "reading response")
 			}
@@ -262,7 +262,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 			l.Printf("<< %s", string(bodyBytes))
 
 			// Restore the io.ReadCloser to its original state
-			res.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+			res.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 	}
 

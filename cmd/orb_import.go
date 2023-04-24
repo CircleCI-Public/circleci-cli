@@ -216,7 +216,7 @@ func deleteNamespace(nsOpts namespaceOptions) error {
 
 	// Currently, private orbs will not be included in the list of orbs to be deleted.
 	// This can be changed once we have 'listBothPublicAndPrivateOrbs' functionality.
-	orbs, err := api.ListNamespaceOrbs(nsOpts.cl, namespaceArg, false)
+	orbs, err := api.ListNamespaceOrbs(nsOpts.cl, namespaceArg, false, false)
 	if err != nil {
 		return fmt.Errorf("unable to list orbs: %s", err.Error())
 	}
