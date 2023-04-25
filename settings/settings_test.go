@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"gotest.tools/v3/assert"
 )
 
 func TestWithHTTPClient(t *testing.T) {
@@ -79,4 +80,16 @@ func TestWithHTTPClient(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestServerURL(t *testing.T) {
+	config := settings.Config{
+		Host:         "/host",
+		RestEndpoint: "/restendpoint",
+	}
+
+	serverURL, err := config.ServerURL()
+
+	assert.NilError(t, err)
+	assert.Equal(t, serverURL.String(), "/restendpoint/")
 }

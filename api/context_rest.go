@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
 
@@ -70,7 +70,7 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -82,6 +82,37 @@ func (c *ContextRestClient) DeleteEnvironmentVariable(contextID, variable string
 			return err
 		}
 		return errors.New(*dest.Message)
+	}
+	return nil
+}
+
+func (c *ContextRestClient) CreateContextWithOrgID(orgID *string, name string) error {
+	req, err := c.newCreateContextRequestWithOrgID(orgID, name)
+	if err != nil {
+		return err
+	}
+
+	resp, err := c.client.Do(req)
+
+	if err != nil {
+		return err
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	defer resp.Body.Close()
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		var dest errorResponse
+		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+			return err
+		}
+		return errors.New(*dest.Message)
+	}
+	var dest Context
+	if err := json.Unmarshal(bodyBytes, &dest); err != nil {
+		return err
 	}
 	return nil
 }
@@ -99,7 +130,7 @@ func (c *ContextRestClient) CreateContext(vcs, org, name string) error {
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -130,7 +161,7 @@ func (c *ContextRestClient) CreateEnvironmentVariable(contextID, variable, value
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -158,7 +189,7 @@ func (c *ContextRestClient) DeleteContext(contextID string) error {
 		return err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -268,7 +299,7 @@ func (c *ContextRestClient) listEnvironmentVariables(params *listEnvironmentVari
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -302,7 +333,7 @@ func (c *ContextRestClient) listContexts(params *listContextsParams) (*listConte
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -327,6 +358,7 @@ func (c *ContextRestClient) listContexts(params *listContextsParams) (*listConte
 	return &dest, nil
 }
 
+// newCreateContextRequest posts a new context creation with orgname and vcs type using a slug
 func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*http.Request, error) {
 	var err error
 	queryURL, err := url.Parse(c.server)
@@ -350,7 +382,47 @@ func (c *ContextRestClient) newCreateContextRequest(vcs, org, name string) (*htt
 		Owner: struct {
 			Slug *string `json:"slug,omitempty"`
 		}{
+
 			Slug: toSlug(vcs, org),
+		},
+	}
+	buf, err := json.Marshal(body)
+
+	if err != nil {
+		return nil, err
+	}
+
+	bodyReader = bytes.NewReader(buf)
+
+	return c.newHTTPRequest("POST", queryURL.String(), bodyReader)
+}
+
+// newCreateContextRequestWithOrgID posts a new context creation with an orgID
+func (c *ContextRestClient) newCreateContextRequestWithOrgID(orgID *string, name string) (*http.Request, error) {
+	var err error
+	queryURL, err := url.Parse(c.server)
+	if err != nil {
+		return nil, err
+	}
+	queryURL, err = queryURL.Parse("context")
+	if err != nil {
+		return nil, err
+	}
+
+	var bodyReader io.Reader
+
+	var body = struct {
+		Name  string `json:"name"`
+		Owner struct {
+			ID *string `json:"id,omitempty"`
+		} `json:"owner"`
+	}{
+		Name: name,
+		Owner: struct {
+			ID *string `json:"id,omitempty"`
+		}{
+
+			ID: orgID,
 		},
 	}
 	buf, err := json.Marshal(body)
@@ -472,9 +544,16 @@ func (c *ContextRestClient) newHTTPRequest(method, url string, body io.Reader) (
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("circle-token", c.token)
+	if c.token != "" {
+		req.Header.Add("circle-token", c.token)
+	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
+	req.Header.Add("User-Agent", version.UserAgent())
+	commandStr := header.GetCommandStr()
+	if commandStr != "" {
+		req.Header.Add("Circleci-Cli-Command", commandStr)
+	}
 	return req, nil
 }
 
@@ -502,7 +581,7 @@ func (c *ContextRestClient) EnsureExists() error {
 		return errors.New("API v2 test request failed.")
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return err
@@ -526,16 +605,7 @@ func (c *ContextRestClient) EnsureExists() error {
 // NewContextRestClient returns a new client satisfying the api.ContextInterface
 // interface via the REST API.
 func NewContextRestClient(config settings.Config) (*ContextRestClient, error) {
-	// Ensure server ends with a slash
-	if !strings.HasSuffix(config.Endpoint, "/") {
-		config.Endpoint += "/"
-	}
-	serverURL, err := url.Parse(config.Host)
-	if err != nil {
-		return nil, err
-	}
-
-	serverURL, err = serverURL.Parse(config.Endpoint)
+	serverURL, err := config.ServerURL()
 	if err != nil {
 		return nil, err
 	}

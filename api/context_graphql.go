@@ -52,10 +52,21 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 	cl := c.Client
 
 	org, err := getOrganization(cl, orgName, vcsType)
-
 	if err != nil {
 		return err
 	}
+
+	err = c.CreateContextWithOrgID(&org.Organization.ID, contextName)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// CreateContextWithOrgID creates a new Context in the supplied organization.
+func (c *GraphQLContextClient) CreateContextWithOrgID(orgID *string, contextName string) error {
+	cl := c.Client
 
 	query := `
 	mutation CreateContext($input: CreateContextInput!) {
@@ -78,7 +89,7 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		ContextName string `json:"contextName"`
 	}
 
-	input.OwnerId = org.Organization.ID
+	input.OwnerId = *orgID
 	input.OwnerType = "ORGANIZATION"
 	input.ContextName = contextName
 
@@ -94,14 +105,13 @@ func (c *GraphQLContextClient) CreateContext(vcsType, orgName, contextName strin
 		}
 	}
 
-	if err = cl.Run(request, &response); err != nil {
+	if err := cl.Run(request, &response); err != nil {
 		return improveVcsTypeError(err)
 	}
 
 	if response.CreateContext.Error.Type != "" {
 		return fmt.Errorf("Error creating context: %s", response.CreateContext.Error.Type)
 	}
-
 	return nil
 }
 
@@ -275,7 +285,7 @@ func (c *GraphQLContextClient) DeleteEnvironmentVariable(contextId, variableName
 	}
 
 	err := cl.Run(request, &response)
-	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment varaible")
+	return errors.Wrap(improveVcsTypeError(err), "failed to delete environment variable")
 }
 
 // CreateEnvironmentVariable creates a new environment variable in the given
@@ -333,7 +343,7 @@ func (c *GraphQLContextClient) CreateEnvironmentVariable(contextId, variableName
 	}
 
 	if err := cl.Run(request, &response); err != nil {
-		return errors.Wrap(improveVcsTypeError(err), "failed to store environment varaible in context")
+		return errors.Wrap(improveVcsTypeError(err), "failed to store environment variable in context")
 	}
 
 	if response.StoreEnvironmentVariable.Error.Type != "" {

@@ -2,7 +2,6 @@ package filetree
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -117,7 +116,7 @@ func (n Node) marshalLeaf() (interface{}, error) {
 		return content, nil
 	}
 
-	buf, err := ioutil.ReadFile(n.FullPath)
+	buf, err := os.ReadFile(n.FullPath)
 
 	if err != nil {
 		return content, err

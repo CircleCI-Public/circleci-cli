@@ -1,0 +1,60 @@
+version: '3'
+
+tasks:
+  lint:
+    desc: Lint code
+    cmds:
+      - golangci-lint run -c .golangci.yml
+    summary: Lint the project with golangci-lint
+
+  clean:
+    desc: Cleans out the build, out, docs, and dist directories
+    cmds:
+      - GO111MODULE=off go clean -i
+      - rm -rf build out docs dist
+
+  fmt:
+    desc: Run `go fmt` to format the code
+    cmds:
+      - go fmt ./...
+
+  test:
+    desc: Run the tests
+    cmds:
+      - TESTING=true go test -v ./...
+
+  tidy:
+    desc: Run 'go mod tidy' to clean up module files.
+    cmds:
+      - go mod tidy -v
+
+  doc:
+    desc: run's the godocs
+    cmds:
+      - godoc -http=:6060
+
+  check-go-mod:
+    desc: Check go.mod is tidy
+    cmds:
+      - go mod tidy -v
+      - git diff --exit-code -- go.mod go.sum
+
+  vendor:
+    desc: go mod vendor
+    cmds:
+      - go mod vendor
+
+  build:
+    desc: Build main
+    cmds:
+      - go build -v -o build/darwin/amd64/circleci .
+  
+  build-linux:
+    desc: Build main
+    cmds:
+      - go build -v -o build/linux/amd64/circleci .
+ 
+  cover:
+    desc: tests and generates a cover profile
+    cmds:
+      - TESTING=true go test -race -coverprofile=coverage.txt ./...

@@ -3,7 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -392,7 +392,7 @@ var _ = Describe("Import unit testing", func() {
 			nsResp := `{}`
 
 			orbExistsReq := `{
-					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 					"variables": {
 					  "name": "namespace1/orb",
 					  "namespace": "namespace1"
@@ -479,7 +479,7 @@ var _ = Describe("Import unit testing", func() {
 			nsResp := `{}`
 
 			orbExistsReq := `{
-					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 					"variables": {
 					  "name": "%s",
 					  "namespace": "%s"
@@ -572,7 +572,7 @@ var _ = Describe("Import unit testing", func() {
 				}`
 
 			orbExistsReq := `{
-					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
+					"query": "\n\tquery ($name: String!, $namespace: String) {\n\t\torb(name: $name) {\n\t\t  id\n\t\t  isPrivate\n\t\t}\n\t\tregistryNamespace(name: $namespace) {\n\t\t\tid\n\t\t  }\n\t  }\n\t  ",
 					"variables": {
 					  "name": "%s",
 					  "namespace": "%s"
@@ -581,7 +581,8 @@ var _ = Describe("Import unit testing", func() {
 
 			orbExistsResp := `{
 					"orb": {
-						"id": "someid"
+						"id": "someid",
+						"isPrivate": false
 					}
 				}`
 
@@ -677,9 +678,9 @@ The following orb versions already exist:
   ('namespace1/orb@0.0.3')
 
 `
-			actual, err := ioutil.ReadAll(&b)
+			actual, err := io.ReadAll(&b)
 			Expect(err).ShouldNot(HaveOccurred())
-			Expect(fmt.Sprintf("%s", actual)).To(Equal(expOutput))
+			Expect(string(actual)).To(Equal(expOutput))
 		})
 	})
 
