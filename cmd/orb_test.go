@@ -124,8 +124,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					} `json:"variables"`
 				}{
 					Query: `
-		query ValidateOrb ($config: String!) {
-			orbConfig(orbYaml: $config) {
+		query ValidateOrb ($config: String!, $owner: UUID) {
+			orbConfig(orbYaml: $config, ownerId: $owner) {
 				valid,
 				errors { message },
 				sourceYaml,
@@ -184,7 +184,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 						"config": "{}"
 					}
@@ -231,7 +231,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 						"config": "some orb"
 					}
@@ -266,7 +266,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -309,7 +309,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -344,7 +344,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some orb"
 					}
