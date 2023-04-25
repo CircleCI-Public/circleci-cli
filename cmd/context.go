@@ -3,12 +3,13 @@ package cmd
 import (
 	"bufio"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/google/uuid"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
 
@@ -16,33 +17,46 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	orgID              *string
+	integrationTesting bool
+)
+
 func newContextCommand(config *settings.Config) *cobra.Command {
 	var contextClient api.ContextInterface
 
 	initClient := func(cmd *cobra.Command, args []string) (e error) {
-		contextClient, e = api.NewContextRestClient(config.Host, config.RestEndpoint, config.Token)
+		contextClient, e = api.NewContextRestClient(*config)
 		if e != nil {
 			return e
 		}
 
-		// If we're on cloud, we're good.
-		if (config.Host == defaultHost || contextClient.(*api.ContextRestClient).EnsureExists() == nil) {
+		// Ensure does not fallback to graph for testing.
+		if integrationTesting {
 			return validateToken(config)
 		}
 
-		contextClient = api.NewContextGraphqlClient(config.Host, config.Endpoint, config.Token, config.Debug)
+		// If we're on cloud, we're good.
+		if config.Host == defaultHost || contextClient.(*api.ContextRestClient).EnsureExists() == nil {
+			return validateToken(config)
+		}
+
+		contextClient = api.NewContextGraphqlClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 		return validateToken(config)
 	}
 
 	command := &cobra.Command{
-		Use:   "context",
-		Short: "Contexts provide a mechanism for securing and sharing environment variables across projects. The environment variables are defined as name/value pairs and are injected at runtime.",
-	}
+		Use: "context",
+		Long: `
+Contexts provide a mechanism for securing and sharing environment variables across 
+projects. The environment variables are defined as name/value pairs and 
+are injected at runtime.`,
+		Short: "For securing and sharing environment variables across projects"}
 
 	listCommand := &cobra.Command{
-		Short:  "List all contexts",
-		Use:    "list <vcs-type> <org-name>",
+		Short:   "List all contexts",
+		Use:     "list <vcs-type> <org-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return listContexts(contextClient, args[0], args[1])
@@ -51,8 +65,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	showContextCommand := &cobra.Command{
-		Short:  "Show a context",
-		Use:    "show <vcs-type> <org-name> <context-name>",
+		Short:   "Show a context",
+		Use:     "show <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return showContext(contextClient, args[0], args[1], args[2])
@@ -61,8 +75,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	storeCommand := &cobra.Command{
-		Short:  "Store a new environment variable in the named context. The value is read from stdin.",
-		Use:    "store-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Store a new environment variable in the named context. The value is read from stdin.",
+		Use:     "store-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return storeEnvVar(contextClient, args[0], args[1], args[2], args[3])
@@ -71,8 +85,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	removeCommand := &cobra.Command{
-		Short:  "Remove an environment variable from the named context",
-		Use:    "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
+		Short:   "Remove an environment variable from the named context",
+		Use:     "remove-secret <vcs-type> <org-name> <context-name> <secret name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return removeEnvVar(contextClient, args[0], args[1], args[2], args[3])
@@ -81,19 +95,24 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createContextCommand := &cobra.Command{
-		Short:  "Create a new context",
-		Use:    "create <vcs-type> <org-name> <context-name>",
+		Short:   "Create a new context",
+		Use:     "create  [<vcs-type>] [<org-name>] <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return createContext(contextClient, args[0], args[1], args[2])
+			return createContext(cmd, contextClient, args)
 		},
-		Args: cobra.ExactArgs(3),
+		Args:        cobra.RangeArgs(1, 3),
+		Annotations: make(map[string]string),
+		Example: `  circleci context create github OrgName contextName
+circleci context create contextName --org-id "your-org-id-here"`,
 	}
+	createContextCommand.Annotations["[<vcs-type>]"] = `Your VCS provider, can be either "github" or "bitbucket". Optional when passing org-id flag.`
+	createContextCommand.Annotations["[<org-name>]"] = `The name used for your organization. Optional when passing org-id flag.`
 
 	force := false
 	deleteContextCommand := &cobra.Command{
-		Short:  "Delete the named context",
-		Use:    "delete <vcs-type> <org-name> <context-name>",
+		Short:   "Delete the named context",
+		Use:     "delete <vcs-type> <org-name> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return deleteContext(contextClient, force, args[0], args[1], args[2])
@@ -102,6 +121,12 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 	}
 
 	deleteContextCommand.Flags().BoolVarP(&force, "force", "f", false, "Delete the context without asking for confirmation.")
+
+	orgID = createContextCommand.Flags().String("org-id", "", "The id of your organization.")
+	createContextCommand.Flags().BoolVar(&integrationTesting, "integration-testing", false, "Enable test mode to setup rest API")
+	if err := createContextCommand.Flags().MarkHidden("integration-testing"); err != nil {
+		panic(err)
+	}
 
 	command.AddCommand(listCommand)
 	command.AddCommand(showContextCommand)
@@ -164,7 +189,7 @@ func showContext(client api.ContextInterface, vcsType, orgName, contextName stri
 func readSecretValue() (string, error) {
 	stat, _ := os.Stdin.Stat()
 	if (stat.Mode() & os.ModeCharDevice) == 0 {
-		bytes, err := ioutil.ReadAll(os.Stdin)
+		bytes, err := io.ReadAll(os.Stdin)
 		return string(bytes), err
 	} else {
 		fmt.Print("Enter secret value and press enter: ")
@@ -174,9 +199,22 @@ func readSecretValue() (string, error) {
 	}
 }
 
-func createContext(client api.ContextInterface, vcsType, orgName, contextName string) error {
-	err := client.CreateContext(vcsType, orgName, contextName)
-	return err
+// createContext determines if the context is being created via orgid or vcs and org name
+// and navigates to corresponding function accordingly
+func createContext(cmd *cobra.Command, client api.ContextInterface, args []string) error {
+	//skip if no orgid provided
+	if orgID != nil && strings.TrimSpace(*orgID) != "" && len(args) == 1 {
+		_, err := uuid.Parse(*orgID)
+
+		if err == nil {
+			return client.CreateContextWithOrgID(orgID, args[0])
+		}
+
+		//skip if no vcs type and org name provided
+	} else if len(args) == 3 {
+		return client.CreateContext(args[0], args[1], args[2])
+	}
+	return cmd.Help()
 }
 
 func removeEnvVar(client api.ContextInterface, vcsType, orgName, contextName, varName string) error {

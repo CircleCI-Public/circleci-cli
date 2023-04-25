@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+
 	// we can't dot-import ginkgo because api.Context is a thing.
 	"github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -36,11 +37,13 @@ func createSingleUseGraphQLServer(result interface{}, requestAssertions func(req
 		_, err = rw.Write(bytes)
 		Expect(err).ToNot(HaveOccurred())
 	}))
-	client := NewContextGraphqlClient(server.URL, server.URL, "token", false)
+	client := NewContextGraphqlClient(http.DefaultClient, server.URL, server.URL, "token", false)
 	return server, client
 }
 
 var _ = ginkgo.Describe("API", func() {
+	orgID := "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+
 	ginkgo.Describe("FooBar", func() {
 		ginkgo.It("improveVcsTypeError", func() {
 
@@ -49,7 +52,7 @@ var _ = ginkgo.Describe("API", func() {
 			Expect(unrelatedError).Should(Equal(improveVcsTypeError(unrelatedError)))
 
 			errors := []graphql.ResponseError{
-				graphql.ResponseError{
+				{
 					Message: "foo",
 				},
 			}
@@ -93,6 +96,30 @@ var _ = ginkgo.Describe("API", func() {
 
 		})
 
+		ginkgo.It("can handles failure creating contexts", func() {
+
+			var result struct {
+				CreateContext struct {
+					Error struct {
+						Type string
+					}
+				}
+			}
+
+			result.CreateContext.Error.Type = "force-this-error"
+
+			server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequest) {
+				switch count {
+				case 1:
+					Expect(req.Variables["input"].(map[string]interface{})["ownerId"]).To(Equal(orgID))
+				}
+			})
+			defer server.Close()
+			err := client.CreateContextWithOrgID(&orgID, "foo-bar")
+			Expect(err).To(MatchError("Error creating context: force-this-error"))
+
+		})
+
 	})
 
 	ginkgo.It("can handles success creating contexts", func() {
@@ -121,7 +148,30 @@ var _ = ginkgo.Describe("API", func() {
 		})
 		defer server.Close()
 
-		Expect(client.CreateContext( "test-vcs", "test-org", "foo-bar")).To(Succeed())
+		Expect(client.CreateContext("test-vcs", "test-org", "foo-bar")).To(Succeed())
+
+	})
+
+	ginkgo.It("can handles success creating contexts with create context with orgID", func() {
+
+		var result struct {
+			CreateContext struct {
+				Error struct {
+					Type string
+				}
+			}
+		}
+
+		result.CreateContext.Error.Type = ""
+
+		server, client := createSingleUseGraphQLServer(result, func(count uint64, req *graphQLRequest) {
+			switch count {
+			case 1:
+				Expect(req.Variables["input"].(map[string]interface{})["ownerId"]).To(Equal(orgID))
+			}
+		})
+		defer server.Close()
+		Expect(client.CreateContextWithOrgID(&orgID, "foo-bar")).To(Succeed())
 
 	})
 
@@ -138,7 +188,7 @@ var _ = ginkgo.Describe("API", func() {
 
 			list.Organization.Id = "C3D79A95-6BD5-40B4-9958-AB6BDC4CAD50"
 			list.Organization.Contexts.Edges = []struct{ Node circleCIContext }{
-				struct{ Node circleCIContext }{
+				{
 					Node: ctx,
 				},
 			}

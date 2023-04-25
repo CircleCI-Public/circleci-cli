@@ -1,24 +1,35 @@
 package settings
 
 import (
-	"io/ioutil"
+	"crypto/tls"
+	"crypto/x509"
+	"errors"
+	"fmt"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/data"
 	yaml "gopkg.in/yaml.v3"
+
+	"github.com/CircleCI-Public/circleci-cli/data"
 )
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	Host            string
-	Endpoint        string
-	Token           string
+	Host            string            `yaml:"host"`
+	DlHost          string            `yaml:"-"`
+	Endpoint        string            `yaml:"endpoint"`
+	Token           string            `yaml:"token"`
 	RestEndpoint    string            `yaml:"rest_endpoint"`
-	Data            *data.YML         `yaml:"-"`
+	TLSCert         string            `yaml:"tls_cert"`
+	TLSInsecure     bool              `yaml:"tls_insecure"`
+	HTTPClient      *http.Client      `yaml:"-"`
+	Data            *data.DataBag     `yaml:"-"`
 	Debug           bool              `yaml:"-"`
 	Address         string            `yaml:"-"`
 	FileUsed        string            `yaml:"-"`
@@ -49,7 +60,7 @@ func (upd *UpdateCheck) Load() error {
 
 	upd.FileUsed = path
 
-	content, err := ioutil.ReadFile(path) // #nosec
+	content, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
@@ -65,7 +76,7 @@ func (upd *UpdateCheck) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(upd.FileUsed, enc, 0600)
+	err = os.WriteFile(upd.FileUsed, enc, 0600)
 	return err
 }
 
@@ -90,13 +101,17 @@ func (cfg *Config) LoadFromDisk() error {
 
 	cfg.FileUsed = path
 
-	content, err := ioutil.ReadFile(path) // #nosec
+	content, err := os.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
 
 	err = yaml.Unmarshal(content, &cfg)
-	return err
+	if err != nil {
+		return nil
+	}
+
+	return cfg.WithHTTPClient()
 }
 
 // WriteToDisk will write the runtime config instance to disk by serializing the YAML
@@ -106,7 +121,7 @@ func (cfg *Config) WriteToDisk() error {
 		return err
 	}
 
-	err = ioutil.WriteFile(cfg.FileUsed, enc, 0600)
+	err = os.WriteFile(cfg.FileUsed, enc, 0600)
 	return err
 }
 
@@ -183,4 +198,105 @@ func ensureSettingsFileExists(path string) error {
 	err = os.Chmod(path, 0600)
 
 	return err
+}
+
+func (cfg *Config) WithHTTPClient() error {
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: cfg.TLSInsecure,
+	}
+
+	if cfg.TLSCert != "" {
+		err := validateTLSCertPath(cfg.TLSCert)
+		if err != nil {
+			return fmt.Errorf("invalid tls cert provided: %s", err.Error())
+		}
+
+		pemData, err := os.ReadFile(cfg.TLSCert)
+		if err != nil {
+			return fmt.Errorf("unable to read tls cert: %s", err.Error())
+		}
+
+		pool := x509.NewCertPool()
+		if !pool.AppendCertsFromPEM(pemData) {
+			return errors.New("unable to parse certificates")
+		}
+
+		tlsConfig.RootCAs = pool
+	}
+
+	// clone default http transport to retain default transport config values
+	customTransport := http.DefaultTransport.(*http.Transport).Clone()
+	customTransport.ExpectContinueTimeout = time.Second
+	customTransport.IdleConnTimeout = 90 * time.Second
+	customTransport.MaxIdleConns = 10
+	customTransport.TLSHandshakeTimeout = 10 * time.Second
+	customTransport.TLSClientConfig = tlsConfig
+
+	cfg.HTTPClient = &http.Client{
+		Timeout:   60 * time.Second,
+		Transport: customTransport,
+	}
+
+	return nil
+}
+
+func validateTLSCertPath(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+
+	if info.IsDir() {
+		return errors.New("provided TLSCert path must be a file")
+	}
+
+	if runtime.GOOS == "windows" {
+		return nil
+	}
+
+	for path != "." && path != "/" {
+		info, err := os.Stat(path)
+		if err != nil {
+			return err
+		}
+
+		if isWorldWritable(info) {
+			return fmt.Errorf("%s cannot be world-writable", path)
+		}
+
+		path = filepath.Dir(path)
+	}
+
+	return nil
+}
+
+func isWorldWritable(info os.FileInfo) bool {
+	mode := fmt.Sprint(info.Mode())
+	// Parse the system level permissions from the octal mode.
+	// Example: '-rwxrwx-w-' -> '-w-'
+	sysPerms := mode[len(mode)-3:]
+	return strings.Contains(sysPerms, "w")
+}
+
+// ServerURL retrieves and formats a ServerURL from our restEndpoint and host.
+func (cfg *Config) ServerURL() (*url.URL, error) {
+	var URL string
+
+	if !strings.HasSuffix(cfg.RestEndpoint, "/") {
+		URL = fmt.Sprintf("%s/", cfg.RestEndpoint)
+	} else {
+		URL = cfg.RestEndpoint
+	}
+
+	serverURL, err := url.Parse(cfg.Host)
+	if err != nil {
+		return nil, err
+	}
+
+	serverURL, err = serverURL.Parse(URL)
+	if err != nil {
+		return nil, err
+	}
+
+	return serverURL, nil
 }

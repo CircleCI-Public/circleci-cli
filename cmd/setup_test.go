@@ -2,7 +2,7 @@ package cmd_test
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -248,12 +248,14 @@ Your configuration has been saved to %s.
 					file, err := os.Open(tempSettings.Config.Path)
 					Expect(err).ShouldNot(HaveOccurred())
 
-					reread, err := ioutil.ReadAll(file)
+					reread, err := io.ReadAll(file)
 					Expect(err).ShouldNot(HaveOccurred())
 					Expect(string(reread)).To(Equal(`host: https://zomg.com
 endpoint: graphql-unstable
 token: mytoken
 rest_endpoint: api/v2
+tls_cert: ""
+tls_insecure: false
 orb_publishing:
     default_namespace: ""
     default_vcs_provider: ""

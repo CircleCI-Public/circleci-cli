@@ -3,7 +3,7 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -29,7 +29,7 @@ func newQueryCommand(config *settings.Config) *cobra.Command {
 		Hidden: true,
 		PreRunE: func(_ *cobra.Command, args []string) error {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 			return validateToken(opts.cfg)
 		},
@@ -51,9 +51,9 @@ func query(opts queryOptions) error {
 	var resp map[string]interface{}
 
 	if opts.args[0] == "-" {
-		q, err = ioutil.ReadAll(os.Stdin)
+		q, err = io.ReadAll(os.Stdin)
 	} else {
-		q, err = ioutil.ReadFile(opts.args[0])
+		q, err = os.ReadFile(opts.args[0])
 	}
 
 	if err != nil {

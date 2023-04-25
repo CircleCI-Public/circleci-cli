@@ -2,7 +2,6 @@ package graphql
 
 import (
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -53,7 +52,7 @@ func TestDoJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
 
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -73,7 +72,7 @@ func TestDoJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
 	var resp struct {
 		Something string
@@ -96,7 +95,7 @@ func TestQueryJSON(t *testing.T) {
 	var calls int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		calls++
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -110,7 +109,7 @@ func TestQueryJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
 	req := NewRequest("query {}")
 	req.Var("username", "matryer")
@@ -146,7 +145,7 @@ func TestDoJSONErr(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
 		calls++
 
-		body, err := ioutil.ReadAll(req.Body)
+		body, err := io.ReadAll(req.Body)
 		if err != nil {
 			t.Errorf(err.Error())
 		}
@@ -173,7 +172,7 @@ func TestDoJSONErr(t *testing.T) {
 
 	defer server.Close()
 
-	client := NewClient(server.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, server.URL, "/", "token", false)
 
 	var responseData map[string]interface{}
 
@@ -198,7 +197,7 @@ func TestHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
 	req := NewRequest("query {}")
 	req.Header.Set("X-Custom-Header", "123")
@@ -234,7 +233,7 @@ func TestStatusCode200(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
 	req := NewRequest("query {}")
 
@@ -264,7 +263,7 @@ func TestStatusCode500(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
 	req := NewRequest("query {}")
 
@@ -298,7 +297,7 @@ func TestStatusCode413(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := NewClient(srv.URL, "/", "token", false)
+	client := NewClient(http.DefaultClient, srv.URL, "/", "token", false)
 
 	req := NewRequest("query {}")
 

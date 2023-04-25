@@ -1,16 +1,17 @@
 package runner
 
 import (
-	"os"
+	"io"
 	"time"
 
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
 
-func newRunnerInstanceCommand(r *runner.Runner, preRunE validator) *cobra.Command {
+func newRunnerInstanceCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "instance",
 		Short: "Operate on runner instances",
@@ -25,12 +26,12 @@ func newRunnerInstanceCommand(r *runner.Runner, preRunE validator) *cobra.Comman
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
-			runners, err := r.GetRunnerInstances(args[0])
+			runners, err := o.r.GetRunnerInstances(args[0])
 			if err != nil {
 				return err
 			}
 
-			table := newRunnerInstanceTable()
+			table := newRunnerInstanceTable(cmd.OutOrStdout())
 			defer table.Render()
 			for _, r := range runners {
 				appendRunnerInstance(table, r)
@@ -43,8 +44,8 @@ func newRunnerInstanceCommand(r *runner.Runner, preRunE validator) *cobra.Comman
 	return cmd
 }
 
-func newRunnerInstanceTable() *tablewriter.Table {
-	table := tablewriter.NewWriter(os.Stdout)
+func newRunnerInstanceTable(writer io.Writer) *tablewriter.Table {
+	table := tablewriter.NewWriter(writer)
 	table.SetHeader([]string{
 		"Name",
 		"Resource Class",

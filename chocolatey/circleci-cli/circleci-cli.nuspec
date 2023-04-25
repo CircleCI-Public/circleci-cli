@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <!-- == PACKAGE SPECIFIC SECTION == -->
+    <id>circleci-cli</id>
+    <version>$VER</version>
+    <packageSourceUrl>https://github.com/CircleCI-Public/circleci-cli</packageSourceUrl>
+    <!-- owners is a poor name for maintainers of the package. It sticks around by this name for compatibility reasons. It basically means you. -->
+   <owners>CircleCI</owners>
+    <!-- ============================== -->
+
+    <!-- == SOFTWARE SPECIFIC SECTION == -->
+    <!-- This section is about the software itself -->
+    <title>circleci-cli (Install)</title>
+    <authors>CircleCI</authors>
+    <projectUrl>https://circleci.com/docs/2.0/local-cli/</projectUrl>
+    <iconUrl>https://github.com/CircleCI-Public/circleci-cli/raw/main/chocolatey/icons/circleci-128x.png</iconUrl>
+    <licenseUrl>https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>true</requireLicenseAcceptance>
+    <projectSourceUrl>https://github.com/CircleCI-Public/circleci-cli</projectSourceUrl>
+    <docsUrl>https://circleci-public.github.io/circleci-cli/</docsUrl>
+    <tags>ci</tags>
+    <releaseNotes>https://github.com/CircleCI-Public/circleci-cli/releases</releaseNotes>
+    <summary>CircleCI command line tool</summary>
+    <description>
+    Command line tool for performing tasks related to a CircleCI project. Enables you to run local builds, debug your continuous integration config files, and manage Orbs.
+    </description>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

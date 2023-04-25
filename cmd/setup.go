@@ -121,7 +121,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		Short: "Setup the CLI with your credentials",
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
-			opts.cl = graphql.NewClient(config.Host, config.Endpoint, config.Token, config.Debug)
+			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
 			if opts.integrationTesting {

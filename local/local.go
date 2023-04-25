@@ -4,16 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"regexp"
+	"strings"
 	"syscall"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/pipeline"
+	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
@@ -23,30 +21,26 @@ var picardRepo = "circleci/picard"
 
 const DefaultConfigPath = ".circleci/config.yml"
 
-type buildAgentSettings struct {
-	LatestSha256 string
-}
-
-func UpdateBuildAgent() error {
-	latestSha256, err := findLatestPicardSha()
-
-	if err != nil {
-		return err
-	}
-
-	fmt.Printf("Latest build agent is version %s\n", latestSha256)
-
-	return nil
-}
-
-func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
-
+func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
+	var err error
+	var configResponse *config.ConfigResponse
 	processedArgs, configPath := buildAgentArguments(flags)
-	cl := graphql.NewClient(cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
-	configResponse, err := api.ConfigQuery(cl, configPath, pipeline.FabricatedValues())
 
-	if err != nil {
-		return err
+	compiler := config.New(cfg)
+
+	//if no orgId provided use org slug
+	orgID, _ := flags.GetString("org-id")
+	if strings.TrimSpace(orgID) != "" {
+		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
+	} else {
+		orgSlug, _ := flags.GetString("org-slug")
+		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues())
+		if err != nil {
+			return err
+		}
 	}
 
 	if !configResponse.Valid {
@@ -78,13 +72,15 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 		return err
 	}
 
-	image, err := picardImage(os.Stdout)
+	picardVersion, _ := flags.GetString("build-agent-version")
+	image, err := picardImage(os.Stdout, picardVersion)
 
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
 	}
 
-	arguments := generateDockerCommand(processedConfigPath, image, pwd, processedArgs...)
+	job := args[0]
+	arguments := generateDockerCommand(processedConfigPath, image, pwd, job, processedArgs...)
 
 	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
@@ -102,14 +98,13 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config) error {
 }
 
 // The `local execute` command proxies execution to the picard docker container,
-// and ultimately to `build-agent`. We want to pass all arguments passed to the
+// and ultimately to `build-agent`. We want to pass most arguments passed to the
 // `local execute` command on to build-agent
 // These options are here to retain a mock of the flags used by `build-agent`.
 // They don't reflect the entire structure or available flags, only those which
 // are public in the original command.
 func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.StringP("config", "c", DefaultConfigPath, "config file")
-	flags.String("job", "build", "job to be executed")
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
@@ -123,7 +118,8 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 
 // Given the full set of flags that were passed to this command, return the path
 // to the config file, and the list of supplied args _except_ for the `--config`
-// or `-c` argument.
+// or `-c` argument, and except for --debug and --org-slug which are consumed by
+// this program.
 // The `build-agent` can only deal with config version 2.0. In order to feed
 // version 2.0 config to it, we need to process the supplied config file using the
 // GraphQL API, and feed the result of that into `build-agent`. The first step of
@@ -135,7 +131,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "config" && flag.Name != "debug" {
+		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -146,29 +142,42 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 	return result, configPath
 }
 
-func picardImage(output io.Writer) (string, error) {
+func picardImage(output io.Writer, picardVersion string) (string, error) {
 
-	sha, err := loadCurrentBuildAgentSha()
+	fmt.Fprintf(output, "Fetching latest build environment...\n")
 
+	sha, err := getPicardSha(output, picardVersion)
 	if err != nil {
-		fmt.Printf("Failed to load build agent settings: %s\n", err)
+		return "", err
 	}
 
-	if sha == "" {
-
-		fmt.Println("Downloading latest CircleCI build agent...")
-
-		var err error
-
-		sha, err = findLatestPicardSha()
-
-		if err != nil {
-			return "", err
-		}
-
-	}
 	_, _ = fmt.Fprintf(output, "Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
+}
+
+func getPicardSha(output io.Writer, picardVersion string) (string, error) {
+	// If the version was passed as argument, we take it
+	if picardVersion != "" {
+		return picardVersion, nil
+	}
+
+	var sha string
+	var err error
+
+	sha, err = loadBuildAgentShaFromConfig()
+	if sha != "" && err == nil {
+		return sha, nil
+	}
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(output, "Unable to parse JSON file %s because: %s\n", buildAgentSettingsPath(), err)
+		fmt.Fprintf(output, "Falling back to latest build-agent version\n")
+	}
+
+	sha, err = findLatestPicardSha()
+	if err != nil {
+		return "", err
+	}
+	return sha, nil
 }
 
 func ensureDockerIsAvailable() (string, error) {
@@ -209,42 +218,14 @@ func findLatestPicardSha() (string, error) {
 		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
 	}
 
-	// This function still lives in cmd/build.go
-	err = storeBuildAgentSha(latest)
-
-	if err != nil {
-		return "", err
-	}
-
 	return latest, nil
 }
 
-func buildAgentSettingsPath() string {
-	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
+type buildAgentSettings struct {
+	LatestSha256 string
 }
 
-func storeBuildAgentSha(sha256 string) error {
-	agentSettings := buildAgentSettings{
-		LatestSha256: sha256,
-	}
-
-	settingsJSON, err := json.Marshal(agentSettings)
-
-	if err != nil {
-		return errors.Wrap(err, "Failed to serialize build agent settings")
-	}
-
-	if err = os.MkdirAll(settings.SettingsPath(), 0700); err != nil {
-		return errors.Wrap(err, "Could not create settings directory")
-	}
-
-	err = ioutil.WriteFile(buildAgentSettingsPath(), settingsJSON, 0644)
-
-	return errors.Wrap(err, "Failed to write build agent settings file")
-}
-
-func loadCurrentBuildAgentSha() (string, error) {
-
+func loadBuildAgentShaFromConfig() (string, error) {
 	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
 		// Settings file does not exist.
 		return "", nil
@@ -266,6 +247,10 @@ func loadCurrentBuildAgentSha() (string, error) {
 	return settings.LatestSha256, nil
 }
 
+func buildAgentSettingsPath() string {
+	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
+}
+
 // Write data to a temp file, and return the path to that file.
 func writeStringToTempFile(data string) (string, error) {
 	// It's important to specify `/tmp` here as the location of the temp file.
@@ -274,7 +259,7 @@ func writeStringToTempFile(data string) (string, error) {
 	// > The path /var/folders/q0/2g2lcf6j79df6vxqm0cg_0zm0000gn/T/287575618-config.yml
 	// > is not shared from OS X and is not known to Docker.
 	// Docker has `/tmp` shared by default.
-	f, err := ioutil.TempFile("/tmp", "*_circleci_config.yml")
+	f, err := os.CreateTemp("/tmp", "*_circleci_config.yml")
 
 	if err != nil {
 		return "", errors.Wrap(err, "Error creating temporary config file")
@@ -287,7 +272,7 @@ func writeStringToTempFile(data string) (string, error) {
 	return f.Name(), nil
 }
 
-func generateDockerCommand(configPath, image, pwd string, arguments ...string) []string {
+func generateDockerCommand(configPath, image, pwd string, job string, arguments ...string) []string {
 	const configPathInsideContainer = "/tmp/local_build_config.yml"
 	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
 		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
@@ -295,7 +280,7 @@ func generateDockerCommand(configPath, image, pwd string, arguments ...string) [
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
 		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
-		image, "circleci", "build", "--config", configPathInsideContainer}
+		image, "circleci", "build", "--config", configPathInsideContainer, "--job", job}
 	return append(core, arguments...)
 }
 

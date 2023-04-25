@@ -1,20 +1,18 @@
 version: 2.1
 
 orbs:
-  codecov: circleci/codecov-clojure@0.0.4
   shellcheck: circleci/shellcheck@1.2.0
-  slack: circleci/slack@0.1.14
-  windows: circleci/windows@2.2.0
+  windows: circleci/windows@5.0.0
 
 executors:
   go:
     docker:
-      - image: circleci/golang:1.12.15
+      - image: cimg/go:1.20
     environment:
       CGO_ENABLED: 0
   mac:
     macos:
-      xcode: 11.3.1
+      xcode: 12.5.1
     environment:
       CGO_ENABLED: 0
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -24,7 +22,6 @@ commands:
   force-http-1:
     steps:
       - run:
-          # Uploading to codecov has been failing due to HTTP 2.0 issues.
           # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
           #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
           # The issue seems to be on the server-side, so force HTTP 1.1
@@ -52,7 +49,7 @@ commands:
       - persist_to_workspace:
           root: .
           paths:
-            - "dist"
+            - 'dist'
       - store_artifacts:
           path: ./dist
           destination: dist
@@ -63,7 +60,7 @@ commands:
         default: https://github.com/goreleaser/goreleaser/releases/download/v0.127.0/goreleaser_amd64.deb
     steps:
       - restore_cache:
-          keys: [v4-goreleaser-]
+          keys: [v5-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
@@ -73,35 +70,34 @@ commands:
   gomod:
     steps:
       - restore_cache:
-          keys: ["v2-gomod-{{ arch }}-"]
+          keys: ['v3-gomod-{{ arch }}-']
       - run:
           name: Download go module dependencies
           command: go mod download
       - save_cache:
           key: v2-gomod-{{ arch }}-{{ checksum "go.sum" }}
           paths:
-            - /go/pkg/mod  # Linux
+            - /go/pkg/mod # Linux
             - ~/go/pkg/mod # macOS
-  # Wrap the slack/status command to only notify on failures
-  slack-notify-on-failure:
-    steps:
-      - slack/status:
-          fail_only: "true"
-          only_for_branch: "master"
 
 jobs:
   test_windows:
-    executor: windows/default
+    executor:
+      name: windows/default
+      shell: bash --login -eo pipefail
     steps:
       - run: git config --global core.autocrlf false
       - checkout
-      - run: setx GOPATH %USERPROFILE%\go
-      - run: go get gotest.tools/gotestsum
       - run: mkdir test_results
+
       - run:
           name: Run tests
           command: |
-            C:\Users\circleci\go\bin\gotestsum.exe --junitfile test_results/windows.xml
+            export GOBIN=/c/go/bin
+            export PATH=$GOBIN:$PATH
+            export TESTING="true"
+            go install gotest.tools/gotestsum@latest
+            gotestsum --junitfile test_results/windows.xml
       - store_test_results:
           path: test_results
       - store_artifacts:
@@ -111,11 +107,11 @@ jobs:
     steps:
       - checkout
       - run: |
-          brew install go@1.12
-          echo 'export PATH="/usr/local/opt/go@1.12/bin:$PATH"' >> ~/.bash_profile
+          brew update
+          brew install go@1.20
+          echo 'export PATH="/usr/local/opt/go@1.20/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
-      - slack-notify-on-failure
   build:
     executor: go
     steps:
@@ -125,7 +121,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - "build"
+            - 'build'
   cucumber:
     docker:
       - image: cimg/ruby:2.7
@@ -134,7 +130,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: "Install CLI tool from workspace"
+          name: 'Install CLI tool from workspace'
           command: sudo cp ~/project/build/linux/amd64/circleci /usr/local/bin/
       - run:
           command: bundle install
@@ -142,14 +138,14 @@ jobs:
       - run:
           command: bundle exec cucumber
           working_directory: integration_tests
-
+          environment:
+            TESTING: "true"
   test:
     executor: go
     steps:
       - checkout
       - gomod
       - run: make test
-      - slack-notify-on-failure
 
   coverage:
     executor: go
@@ -163,15 +159,16 @@ jobs:
       - store_artifacts:
           path: ./coverage.txt
           destination: coverage.txt
-      - codecov/upload:
-          path: coverage.txt
-      - slack-notify-on-failure
 
   docs:
     executor: go
     steps:
       - checkout
-      - run: sudo apt-get install pandoc
+      - run:
+          name: Install pandoc
+          command: |
+            sudo apt-get update
+            sudo apt-get install pandoc
       - gomod
       - run: go run main.go usage
       - store_artifacts:
@@ -179,16 +176,14 @@ jobs:
           destination: docs
       - run: ./.circleci/generate-docs.sh
       - run: ./.circleci/deploy-gh-pages.sh
-      - slack-notify-on-failure
 
   lint:
-    executor: go
+    docker:
+      - image: golangci/golangci-lint:v1.46-alpine
+    resource_class: large
     steps:
       - checkout
-      - run: make install-lint
-      - run: make build
-      - run: make lint
-      - slack-notify-on-failure
+      - run: golangci-lint run
 
   deploy-test:
     executor: go
@@ -215,7 +210,6 @@ jobs:
       - build-docker-image
       - build-alpine-image
       - deploy-save-cache-workspace-and-artifacts
-      - slack-notify-on-failure
 
   deploy:
     executor: go
@@ -253,7 +247,6 @@ jobs:
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
             docker push     circleci/circleci-cli:alpine
       - deploy-save-cache-workspace-and-artifacts
-      - slack-notify-on-failure
 
   snap:
     docker:
@@ -273,14 +266,13 @@ jobs:
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
-      - slack-notify-on-failure
 
   brew-deploy:
     executor: mac
     environment:
-      - USER: circleci
-      - TRAVIS: circleci
-      - DESTDIR: /Users/distiller/dest
+      USER: circleci
+      TRAVIS: circleci
+      DESTDIR: /Users/distiller/dest
     steps:
       - checkout
       - force-http-1
@@ -292,21 +284,25 @@ jobs:
           git config --global user.name "$GH_NAME" > /dev/null 2>&1
       - run: brew --version
       - run: ./.circleci/brew-deploy.sh
-      - slack-notify-on-failure
 
-  trigger-chocolatey-deploy:
-    docker:
-      - image: cimg/base:edge
+  chocolatey-deploy:
+    executor: windows/default
     steps:
+      - checkout
       - run:
-          name: Trigger Chocolatey repository build
-          command: |
-            curl -X POST https://circleci.com/api/v2/project/gh/CircleCI-Public/chocolatey-circleci-cli/pipeline \
-              --fail --silent \
-              -H 'Content-Type: application/json' \
-              -H 'Accept: application/json' \
-              -H "Circle-Token: $CIRCLE_TOKEN" \
-              --data '{ "parameters": { "deploy-production": true } }'
+          working_directory: chocolatey
+          name: Run update script
+          command: .\update-version.ps1
+      - run:
+          command: choco pack circleci-cli\circleci-cli.nuspec
+          working_directory: chocolatey
+      - run:
+          command: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
+          working_directory: chocolatey
+      - run:
+          name: Push to Chocolatey package repository
+          command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
+          working_directory: chocolatey
 
 workflows:
   ci:
@@ -328,6 +324,9 @@ workflows:
       - snap:
           requires:
             - deploy
+      - chocolatey-deploy:
+          requires:
+            - deploy
       # Only deploy to homebrew after manual approval.
       - run-brew-deploy-gate:
           type: approval
@@ -336,6 +335,8 @@ workflows:
       - brew-deploy:
           requires:
             - run-brew-deploy-gate
+          context:
+            - devex-release
       - deploy:
           requires:
             - test
@@ -346,10 +347,6 @@ workflows:
             - shellcheck/check
           filters:
             branches:
-              only: master
-      - trigger-chocolatey-deploy:
-          requires:
-            - deploy
-          filters:
-            branches:
-              only: master
+              only: main
+          context:
+            - devex-release
