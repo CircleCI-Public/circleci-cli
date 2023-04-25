@@ -9,8 +9,7 @@ import (
 	"sync"
 	"testing"
 
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	"github.com/stretchr/testify/assert"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -30,29 +29,29 @@ func TestClient_DoRequest(t *testing.T) {
 				A: "aaa",
 				B: 123,
 			})
-			assert.NilError(t, err)
+			assert.Nil(t, err)
 
 			resp := make(map[string]interface{})
 			statusCode, err := c.DoRequest(r, &resp)
-			assert.NilError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, statusCode, http.StatusCreated)
-			assert.Check(t, cmp.DeepEqual(resp, map[string]interface{}{
+			assert.Equal(t, resp, map[string]interface{}{
 				"key": "value",
-			}))
+			})
 		})
 
 		t.Run("Check request", func(t *testing.T) {
-			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/my/endpoint"}))
-			assert.Check(t, cmp.Equal(fix.Method(), "PUT"))
-			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+			assert.Equal(t, fix.URL(), url.URL{Path: "/api/v2/my/endpoint"})
+			assert.Equal(t, fix.Method(), "PUT")
+			assert.Equal(t, fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept":          {"application/json"},
 				"Circle-Token":    {"fake-token"},
 				"Content-Length":  {"20"},
 				"Content-Type":    {"application/json"},
 				"User-Agent":      {version.UserAgent()},
-			}))
-			assert.Check(t, cmp.Equal(fix.Body(), `{"A":"aaa","B":123}`+"\n"))
+			})
+			assert.Equal(t, fix.Body(), `{"A":"aaa","B":123}`+"\n")
 		})
 	})
 
@@ -63,25 +62,25 @@ func TestClient_DoRequest(t *testing.T) {
 
 		t.Run("Check result", func(t *testing.T) {
 			r, err := c.NewRequest(http.MethodGet, &url.URL{Path: "my/error/endpoint"}, nil)
-			assert.NilError(t, err)
+			assert.Nil(t, err)
 
 			resp := make(map[string]interface{})
 			statusCode, err := c.DoRequest(r, &resp)
 			assert.Error(t, err, "the error message")
 			assert.Equal(t, statusCode, http.StatusBadRequest)
-			assert.Check(t, cmp.DeepEqual(resp, map[string]interface{}{}))
+			assert.Equal(t, resp, map[string]interface{}{})
 		})
 
 		t.Run("Check request", func(t *testing.T) {
-			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/my/error/endpoint"}))
-			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
-			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+			assert.Equal(t, fix.URL(), url.URL{Path: "/api/v2/my/error/endpoint"})
+			assert.Equal(t, fix.Method(), http.MethodGet)
+			assert.Equal(t, fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept":          {"application/json"},
 				"Circle-Token":    {"fake-token"},
 				"User-Agent":      {version.UserAgent()},
-			}))
-			assert.Check(t, cmp.Equal(fix.Body(), ""))
+			})
+			assert.Equal(t, fix.Body(), "")
 		})
 	})
 
@@ -92,29 +91,91 @@ func TestClient_DoRequest(t *testing.T) {
 
 		t.Run("Check result", func(t *testing.T) {
 			r, err := c.NewRequest(http.MethodGet, &url.URL{Path: "path"}, nil)
-			assert.NilError(t, err)
+			assert.Nil(t, err)
 
 			resp := make(map[string]interface{})
 			statusCode, err := c.DoRequest(r, &resp)
-			assert.NilError(t, err)
+			assert.Nil(t, err)
 			assert.Equal(t, statusCode, http.StatusCreated)
-			assert.Check(t, cmp.DeepEqual(resp, map[string]interface{}{
+			assert.Equal(t, resp, map[string]interface{}{
 				"a": "abc",
 				"b": true,
-			}))
+			})
 		})
 
 		t.Run("Check request", func(t *testing.T) {
-			assert.Check(t, cmp.Equal(fix.URL(), url.URL{Path: "/api/v2/path"}))
-			assert.Check(t, cmp.Equal(fix.Method(), http.MethodGet))
-			assert.Check(t, cmp.DeepEqual(fix.Header(), http.Header{
+			assert.Equal(t, fix.URL(), url.URL{Path: "/api/v2/path"})
+			assert.Equal(t, fix.Method(), http.MethodGet)
+			assert.Equal(t, fix.Header(), http.Header{
 				"Accept-Encoding": {"gzip"},
 				"Accept":          {"application/json"},
 				"Circle-Token":    {"fake-token"},
 				"User-Agent":      {version.UserAgent()},
-			}))
-			assert.Check(t, cmp.Equal(fix.Body(), ""))
+			})
+			assert.Equal(t, fix.Body(), "")
 		})
+	})
+}
+
+func TestAPIRequest(t *testing.T) {
+	fix := &fixture{}
+	c, cleanup := fix.Run(http.StatusCreated, `{"key": "value"}`)
+	defer cleanup()
+
+	t.Run("test new api request sets the default headers", func(t *testing.T) {
+		req, err := c.NewRequest("GET", &url.URL{}, struct{}{})
+		assert.Nil(t, err)
+		assert.Equal(t, req.Header.Get("User-Agent"), "circleci-cli/0.0.0-dev+dirty-local-tree (source)")
+		assert.Equal(t, req.Header.Get("Circle-Token"), c.circleToken)
+		assert.Equal(t, req.Header.Get("Accept"), "application/json")
+	})
+
+	type testPayload struct {
+		Message string
+	}
+
+	t.Run("test new api request sets the default headers", func(t *testing.T) {
+		req, err := c.NewRequest("GET", &url.URL{}, testPayload{Message: "hello"})
+		assert.Nil(t, err)
+		assert.Equal(t, req.Header.Get("Circleci-Cli-Command"), "")
+		assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
+	})
+
+	t.Run("test new api request doesn't set content-type with empty payload", func(t *testing.T) {
+		req, err := c.NewRequest("GET", &url.URL{}, nil)
+		assert.Nil(t, err)
+		assert.Equal(t, req.Header.Get("Circleci-Cli-Command"), "")
+		assert.Equal(t, req.Header.Get("Content-Type"), "")
+	})
+
+	type Options struct {
+		OwnerID            string                 `json:"owner_id,omitempty"`
+		PipelineParameters map[string]interface{} `json:"pipeline_parameters,omitempty"`
+		PipelineValues     map[string]string      `json:"pipeline_values,omitempty"`
+	}
+
+	type CompileConfigRequest struct {
+		ConfigYaml string  `json:"config_yaml"`
+		Options    Options `json:"options"`
+	}
+
+	t.Run("config compile and validate payloads have expected shape", func(t *testing.T) {
+		req, err := c.NewRequest("GET", &url.URL{}, CompileConfigRequest{
+			ConfigYaml: "test-config",
+			Options: Options{
+				OwnerID: "1234",
+				PipelineValues: map[string]string{
+					"key": "val",
+				},
+			},
+		})
+		assert.Nil(t, err)
+		assert.Equal(t, req.Header.Get("Circleci-Cli-Command"), "")
+		assert.Equal(t, req.Header.Get("Content-Type"), "application/json")
+
+		reqBody, _ := io.ReadAll(req.Body)
+		assert.Contains(t, string(reqBody), `"config_yaml":"test-config"`)
+		assert.Contains(t, string(reqBody), `"owner_id":"1234"`)
 	})
 }
 
@@ -176,5 +237,5 @@ func (f *fixture) Run(statusCode int, respBody string) (c *Client, cleanup func(
 		HTTPClient:   http.DefaultClient,
 	}
 
-	return New(server.URL, cfg), server.Close
+	return NewFromConfig(server.URL, cfg), server.Close
 }

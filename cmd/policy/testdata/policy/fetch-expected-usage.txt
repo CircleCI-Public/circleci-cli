@@ -2,7 +2,7 @@ Usage:
   policy fetch [policy_name] [flags]
 
 Examples:
-policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5
+circleci policy fetch --owner-id 516425b2-e369-421b-838d-920e1f51b0f5
 
 Flags:
       --context string    policy context (default "config")

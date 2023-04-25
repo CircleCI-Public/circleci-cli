@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 
@@ -58,7 +57,7 @@ func (c *InfoRESTClient) GetInfo() (*[]Organization, error) {
 		return nil, err
 	}
 
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
+	bodyBytes, err := io.ReadAll(resp.Body)
 	defer resp.Body.Close()
 	if err != nil {
 		return nil, err
@@ -87,7 +86,9 @@ func (c *InfoRESTClient) newHTTPRequest(method, url string, body io.Reader) (*ht
 	if err != nil {
 		return nil, err
 	}
-	req.Header.Add("circle-token", c.token)
+	if c.token != "" {
+		req.Header.Add("circle-token", c.token)
+	}
 	req.Header.Add("Accept", "application/json")
 	req.Header.Add("Content-Type", "application/json")
 	req.Header.Add("User-Agent", version.UserAgent())

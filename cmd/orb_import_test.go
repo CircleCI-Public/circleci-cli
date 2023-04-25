@@ -3,7 +3,7 @@ package cmd
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
@@ -678,7 +678,7 @@ The following orb versions already exist:
   ('namespace1/orb@0.0.3')
 
 `
-			actual, err := ioutil.ReadAll(&b)
+			actual, err := io.ReadAll(&b)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(string(actual)).To(Equal(expOutput))
 		})

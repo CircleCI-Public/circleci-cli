@@ -5,7 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -254,7 +254,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	if cl.Debug {
 		var bodyBytes []byte
 		if res.Body != nil {
-			bodyBytes, err = ioutil.ReadAll(res.Body)
+			bodyBytes, err = io.ReadAll(res.Body)
 			if err != nil {
 				return errors.Wrap(err, "reading response")
 			}
@@ -262,7 +262,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 			l.Printf("<< %s", string(bodyBytes))
 
 			// Restore the io.ReadCloser to its original state
-			res.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+			res.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 		}
 	}
 

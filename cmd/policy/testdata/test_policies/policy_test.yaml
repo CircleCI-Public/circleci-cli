@@ -1,0 +1,19 @@
+test_main:
+  meta:
+    vcs:
+      branch: main
+  decision: &root_decision
+    status: PASS
+    enabled_rules:
+      - fail_if_not_main
+  
+test_feature:
+  meta:
+    vcs:
+      branch: feature
+  decision:
+    <<: *root_decision
+    status: SOFT_FAIL
+    soft_failures:
+      - rule: fail_if_not_main
+        reason: branch must be main!

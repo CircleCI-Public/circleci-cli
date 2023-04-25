@@ -1,0 +1,16 @@
+version: 2.1
+
+orbs:
+  node: circleci/node@5.0.3
+
+jobs:
+  datadog-hello-world:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - run: |
+          echo "doing something really cool"
+workflows:
+  datadog-hello-world:
+    jobs:
+      - datadog-hello-world

@@ -17,28 +17,36 @@ import (
 )
 
 type Client struct {
-	baseURL     *url.URL
+	BaseURL     *url.URL
 	circleToken string
 	client      *http.Client
 }
 
-func New(host string, config *settings.Config) *Client {
+func New(baseURL *url.URL, token string, httpClient *http.Client) *Client {
+	return &Client{
+		BaseURL:     baseURL,
+		circleToken: token,
+		client:      httpClient,
+	}
+}
+
+func NewFromConfig(host string, config *settings.Config) *Client {
 	// Ensure endpoint ends with a slash
 	endpoint := config.RestEndpoint
 	if !strings.HasSuffix(endpoint, "/") {
 		endpoint += "/"
 	}
 
-	u, _ := url.Parse(host)
+	baseURL, _ := url.Parse(host)
 
 	client := config.HTTPClient
 	client.Timeout = 10 * time.Second
 
-	return &Client{
-		baseURL:     u.ResolveReference(&url.URL{Path: endpoint}),
-		circleToken: config.Token,
-		client:      client,
-	}
+	return New(
+		baseURL.ResolveReference(&url.URL{Path: endpoint}),
+		config.Token,
+		client,
+	)
 }
 
 func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req *http.Request, err error) {
@@ -52,12 +60,19 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 		}
 	}
 
-	req, err = http.NewRequest(method, c.baseURL.ResolveReference(u).String(), r)
+	req, err = http.NewRequest(method, c.BaseURL.ResolveReference(u).String(), r)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Circle-Token", c.circleToken)
+	c.enrichRequestHeaders(req, payload)
+	return req, nil
+}
+
+func (c *Client) enrichRequestHeaders(req *http.Request, payload interface{}) {
+	if c.circleToken != "" {
+		req.Header.Set("Circle-Token", c.circleToken)
+	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
 	commandStr := header.GetCommandStr()
@@ -67,12 +82,12 @@ func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req
 	if payload != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	return req, nil
 }
 
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
 	httpResp, err := c.client.Do(req)
 	if err != nil {
+		fmt.Printf("failed to make http request: %s\n", err.Error())
 		return 0, err
 	}
 	defer httpResp.Body.Close()

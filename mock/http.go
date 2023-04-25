@@ -1,7 +1,7 @@
 package mock
 
 import (
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
 )
@@ -23,6 +23,6 @@ func NewHTTPClient(f func(*http.Request) (*http.Response, error)) *http.Client {
 func NewHTTPResponse(code int, body string) *http.Response {
 	return &http.Response{
 		StatusCode: code,
-		Body:       ioutil.NopCloser(strings.NewReader(body)),
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 }

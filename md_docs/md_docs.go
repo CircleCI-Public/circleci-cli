@@ -15,9 +15,9 @@ import (
 
 var introHeader = `
 [Readme](https://github.com/CircleCI-Public/circleci-cli#readme) |
-[Code of Conduct](https://github.com/CircleCI-Public/circleci-cli/blob/master/CODE_OF_CONDUCT.md) |
-[Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/master/CONTRIBUTING.md) |
-[Hacking](https://github.com/CircleCI-Public/circleci-cli/blob/master/HACKING.md)
+[Code of Conduct](https://github.com/CircleCI-Public/circleci-cli/blob/main/CODE_OF_CONDUCT.md) |
+[Contribution Guidelines](https://github.com/CircleCI-Public/circleci-cli/blob/main/CONTRIBUTING.md) |
+[Hacking](https://github.com/CircleCI-Public/circleci-cli/blob/main/HACKING.md)
 
 [![CircleCI](https://circleci.com/gh/CircleCI-Public/circleci-cli.svg?style=svg)](https://circleci.com/gh/CircleCI-Public/circleci-cli)
 [![GitHub release](https://img.shields.io/github/tag/CircleCI-Public/circleci-cli.svg?label=latest)](https://github.com/CircleCI-Public/circleci-cli/releases)
@@ -170,6 +170,15 @@ func GenMarkdownTree(cmd *cobra.Command, dir string) error {
 // GenMarkdownTreeCustom is the the same as GenMarkdownTree, but
 // with custom filePrepender and linkHandler.
 func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, filePrepender, linkHandler func(string) string) error {
+	// There is a problem with the tool transforming the markdown into html, the tool transforms the
+	// circleci ascii art bad. By forcing it into a codeblock the formatting problem disappear
+	if cmd.Root() == cmd {
+		oldLong := cmd.Long
+		cmd.Long = fmt.Sprintf("```%s\n```", oldLong)
+		defer func() {
+			cmd.Long = oldLong
+		}()
+	}
 	for _, c := range cmd.Commands() {
 		if !c.IsAvailableCommand() || c.IsAdditionalHelpTopicCommand() {
 			continue
