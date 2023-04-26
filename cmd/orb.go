@@ -754,8 +754,6 @@ func processOrb(opts orbOptions, org orbOrgOptions) error {
 		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
 	}
 
-	_, err = api.OrbQuery(opts.cl, opts.args[0], orgId)
-
 	response, err := api.OrbQuery(opts.cl, opts.args[0], orgId)
 
 	if err != nil {
