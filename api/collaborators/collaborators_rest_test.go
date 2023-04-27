@@ -1,7 +1,6 @@
 package collaborators_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
@@ -268,7 +267,7 @@ func Test_collaboratorsRestClient_GetCollaborationBySlug(t *testing.T) {
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
 
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/me/collaborations"))
+				assert.Equal(t, r.URL.Path, "/api/v2/me/collaborations")
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
