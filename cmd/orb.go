@@ -1794,27 +1794,27 @@ func orbInformThatOrbCannotBeDeletedMessage() {
 }
 
 func (o *orbOptions) getOrgId(orgInfo orbOrgOptions) (string, error) {
-	if orgInfo.OrgID == "" && orgInfo.OrgSlug == "" {
+	if strings.TrimSpace(orgInfo.OrgID) != "" {
+		return orgInfo.OrgID, nil
+	}
+
+	if strings.TrimSpace(orgInfo.OrgSlug) == "" {
 		return "", nil
 	}
 
-	var orgID string
-	if strings.TrimSpace(orgInfo.OrgID) != "" {
-		orgID = orgInfo.OrgID
-	} else if strings.TrimSpace(orgInfo.OrgSlug) != "" {
-		orgs, err := o.collaborators.GetOrgCollaborations()
-		if err != nil {
-			return "", err
-		}
+	coll, err := o.collaborators.GetCollaborationBySlug(orgInfo.OrgSlug)
 
-		orgID = collaborators.GetOrgIdFromSlug(orgInfo.OrgSlug, orgs)
-
-		if orgID == "" {
-			fmt.Println("Could not fetch a valid org-id from collaborators endpoint.")
-			fmt.Println("Check if you have access to this org by hitting https://circleci.com/api/v2/me/collaborations")
-			fmt.Println("Continuing on - private orb resolution will not work as intended")
-		}
+	if err != nil {
+		return "", err
 	}
 
-	return orgID, nil
+	if coll == nil {
+		fmt.Println("Could not fetch a valid org-id from collaborators endpoint.")
+		fmt.Println("Check if you have access to this org by hitting https://circleci.com/api/v2/me/collaborations")
+		fmt.Println("Continuing on - private orb resolution will not work as intended")
+
+		return "", nil
+	}
+
+	return coll.OrgId, nil
 }
