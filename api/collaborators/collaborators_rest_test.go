@@ -32,14 +32,14 @@ func Test_collaboratorsRestClient_GetOrgCollaborations(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Should handle a successfull request",
+			name: "Should handle a successful request",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Header.Get("circle-token"), "token")
 				assert.Equal(t, r.Header.Get("accept"), "application/json")
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
 
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/me/collaborations"))
+				assert.Equal(t, r.URL.Path, "/api/v2/me/collaborations")
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -133,7 +133,7 @@ func Test_collaboratorsRestClient_GetCollaborationBySlug(t *testing.T) {
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
 
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/me/collaborations"))
+				assert.Equal(t, r.URL.Path, "/api/v2/me/collaborations")
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -178,7 +178,7 @@ func Test_collaboratorsRestClient_GetCollaborationBySlug(t *testing.T) {
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
 
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/me/collaborations"))
+				assert.Equal(t, r.URL.Path, "/api/v2/me/collaborations")
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -223,7 +223,7 @@ func Test_collaboratorsRestClient_GetCollaborationBySlug(t *testing.T) {
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
 
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/me/collaborations"))
+				assert.Equal(t, r.URL.Path, "/api/v2/me/collaborations")
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
@@ -313,7 +313,7 @@ func Test_collaboratorsRestClient_GetCollaborationBySlug(t *testing.T) {
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
 
 				assert.Equal(t, r.Method, "GET")
-				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/me/collaborations"))
+				assert.Equal(t, r.URL.Path, "/api/v2/me/collaborations")
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(http.StatusOK)
