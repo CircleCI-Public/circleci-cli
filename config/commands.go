@@ -39,27 +39,29 @@ func (c *ConfigCompiler) getOrgID(
 	optsOrgID string,
 	optsOrgSlug string,
 ) (string, error) {
-	if optsOrgID == "" && optsOrgSlug == "" {
+	if strings.TrimSpace(optsOrgID) != "" {
+		return optsOrgID, nil
+	}
+
+	if strings.TrimSpace(optsOrgSlug) == "" {
 		return "", nil
 	}
 
-	var orgID string
-	if strings.TrimSpace(optsOrgID) != "" {
-		orgID = optsOrgID
-	} else {
-		orgs, err := c.GetOrgCollaborations()
-		if err != nil {
-			return "", err
-		}
-		orgID = GetOrgIdFromSlug(optsOrgSlug, orgs)
-		if orgID == "" {
-			fmt.Println("Could not fetch a valid org-id from collaborators endpoint.")
-			fmt.Println("Check if you have access to this org by hitting https://circleci.com/api/v2/me/collaborations")
-			fmt.Println("Continuing on - private orb resolution will not work as intended")
-		}
+	coll, err := c.collaborators.GetCollaborationBySlug(optsOrgSlug)
+
+	if err != nil {
+		return "", err
 	}
 
-	return orgID, nil
+	if coll == nil {
+		fmt.Println("Could not fetch a valid org-id from collaborators endpoint.")
+		fmt.Println("Check if you have access to this org by hitting https://circleci.com/api/v2/me/collaborations")
+		fmt.Println("Continuing on - private orb resolution will not work as intended")
+
+		return "", nil
+	}
+
+	return coll.OrgId, nil
 }
 
 func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) error {
