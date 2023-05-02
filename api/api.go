@@ -513,7 +513,7 @@ func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
 }
 
 // OrbQuery validated and processes an orb.
-func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
+func OrbQuery(cl *graphql.Client, configPath string, ownerId string) (*ConfigResponse, error) {
 	var response OrbConfigResponse
 
 	config, err := loadYaml(configPath)
@@ -522,8 +522,8 @@ func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 	}
 
 	query := `
-		query ValidateOrb ($config: String!) {
-			orbConfig(orbYaml: $config) {
+		query ValidateOrb ($config: String!, $owner: UUID) {
+			orbConfig(orbYaml: $config, ownerId: $owner) {
 				valid,
 				errors { message },
 				sourceYaml,
@@ -533,6 +533,11 @@ func OrbQuery(cl *graphql.Client, configPath string) (*ConfigResponse, error) {
 
 	request := graphql.NewRequest(query)
 	request.Var("config", config)
+
+	if ownerId != "" {
+		request.Var("owner", ownerId)
+	}
+
 	request.SetToken(cl.Token)
 
 	err = cl.Run(request, &response)
