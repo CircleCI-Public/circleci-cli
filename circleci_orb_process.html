@@ -26,7 +26,9 @@
 <h3 id="arguments">Arguments</h3>
 <pre><code>&lt;path&gt;      The path to your orb (use &quot;-&quot; for STDIN)</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help   help for process</code></pre>
+<pre><code>  -h, --help              help for process
+      --org-id string     organization id used when an orb depends on private orbs belonging to that org
+      --org-slug string   organization slug (for example: github/example-org), used when an orb depends on private orbs belonging to that org</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
