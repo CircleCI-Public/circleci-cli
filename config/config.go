@@ -126,7 +126,7 @@ func (c *ConfigCompiler) ConfigQuery(
 		return legacyResponse, nil
 	}
 	if originalErr != nil {
-		return nil, fmt.Errorf("config compilation request returned an error: %w", err)
+		return nil, fmt.Errorf("config compilation request returned an error: %w", originalErr)
 	}
 
 	if statusCode != 200 {
