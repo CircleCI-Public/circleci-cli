@@ -20,6 +20,7 @@ import (
 var picardRepo = "circleci/picard"
 
 const DefaultConfigPath = ".circleci/config.yml"
+const DefaultDockerSocketPath = "/var/run/docker.sock"
 
 func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var err error
@@ -80,7 +81,8 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	}
 
 	job := args[0]
-	arguments := generateDockerCommand(processedConfigPath, image, pwd, job, processedArgs...)
+	dockerSocketPath, _ := flags.GetString("docker-socket-path")
+	arguments := generateDockerCommand(processedConfigPath, image, pwd, job, dockerSocketPath, processedArgs...)
 
 	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
@@ -114,6 +116,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.String("branch", "", "Git branch")
 	flags.String("repo-url", "", "Git Url")
 	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
+	flags.String("docker-socket-path", DefaultDockerSocketPath, "Path to the host's docker socket")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -131,7 +134,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" {
+		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -272,10 +275,10 @@ func writeStringToTempFile(data string) (string, error) {
 	return f.Name(), nil
 }
 
-func generateDockerCommand(configPath, image, pwd string, job string, arguments ...string) []string {
+func generateDockerCommand(configPath, image, pwd string, job string, dockerSocketPath string, arguments ...string) []string {
 	const configPathInsideContainer = "/tmp/local_build_config.yml"
 	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
-		"--volume", "/var/run/docker.sock:/var/run/docker.sock",
+		"--volume", fmt.Sprintf("%s:/var/run/docker.sock", dockerSocketPath),
 		"--volume", fmt.Sprintf("%s:%s", configPath, configPathInsideContainer),
 		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
 		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),

@@ -1059,6 +1059,7 @@ type OrbSchema struct {
 
 type ExampleUsageSchema struct {
 	Version   string      `yaml:"version,omitempty"`
+	Setup     bool        `yaml:"setup,omitempty"`
 	Orbs      interface{} `yaml:"orbs,omitempty"`
 	Jobs      interface{} `yaml:"jobs,omitempty"`
 	Workflows interface{} `yaml:"workflows"`
