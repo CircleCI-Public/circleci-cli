@@ -57,7 +57,7 @@ commands:
     parameters:
       GORELEASER_URL:
         type: string
-        default: https://github.com/goreleaser/goreleaser/releases/download/v0.127.0/goreleaser_amd64.deb
+        default: https://github.com/goreleaser/goreleaser/releases/download/v0.184.0/goreleaser_amd64.deb
     steps:
       - restore_cache:
           keys: [v5-goreleaser-]
