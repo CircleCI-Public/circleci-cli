@@ -56,7 +56,7 @@ curl --ssl-reqd -sL --retry 3 "${RELEASE_URL}" | tar zx --strip 1
 echo "Installing to $DESTDIR"
 install circleci "$DESTDIR"
 
-command -v circleci
+command -v "$DESTDIR"circleci
 
 # Delete the working directory when the install was successful.
 rm -r "$SCRATCH"
