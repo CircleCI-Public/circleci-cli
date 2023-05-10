@@ -112,10 +112,9 @@ CircleCI host has been set.
 Setup complete. Your configuration has been saved.
 ```
 
+If you are using this tool on `circleci.com`, accept the provided default `CircleCI Host`.
 
-If you are using this tool on `circleci.com`. accept the provided default `CircleCI Host`.
-
-Server users will have to change the default value to your custom address (i.e. `circleci.my-org.com`).
+Server users will have to change the default value to your custom address (e.g., `circleci.my-org.com`).
 
 **Note**: Server does not yet support config processing and orbs, you will only be able to use `circleci local execute` (previously `circleci build`) for now.
 
@@ -153,7 +152,7 @@ The following commands are affected:
 
 ## Platforms, Deployment and Package Managers
 
-The tool is deployed through a number of channels. The primary release channel is through [GitHub Releases](https://github.com/CircleCI-Public/circleci-cli/releases). Green builds on the `main` branch will publish a new GitHub release. These releases contain binaries for macOS, Linux and Windows. These releases are published from (CircleCI)[https://app.circleci.com/pipelines/github/CircleCI-Public/circleci-cli] using (GoReleaser)[https://goreleaser.com/].
+The tool is deployed through a number of channels. The primary release channel is through [GitHub Releases](https://github.com/CircleCI-Public/circleci-cli/releases). Green builds on the `main` branch will publish a new GitHub release. These releases contain binaries for macOS, Linux and Windows. These releases are published from (CircleCI)[https://app.circleci.com/pipelines/github/CircleCI-Public/circleci-cli] using [GoReleaser](https://goreleaser.com/).
 
 ### Homebrew
 

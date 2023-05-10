@@ -1,0 +1,6 @@
+---
+- id: config-validate
+  name: Validate CircleCI config
+  entry: circleci config validate --skip-update-check
+  language: golang
+  files: .circleci/config.yml

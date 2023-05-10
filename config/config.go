@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 
+	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -21,9 +22,9 @@ var (
 )
 
 type ConfigCompiler struct {
-	host                   string
-	compileRestClient      *rest.Client
-	collaboratorRestClient *rest.Client
+	host              string
+	compileRestClient *rest.Client
+	collaborators     collaborators.CollaboratorsClient
 
 	cfg                 *settings.Config
 	legacyGraphQLClient *graphql.Client
@@ -31,11 +32,17 @@ type ConfigCompiler struct {
 
 func New(cfg *settings.Config) *ConfigCompiler {
 	hostValue := getCompileHost(cfg.Host)
+	collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+
+	if err != nil {
+		panic(err)
+	}
+
 	configCompiler := &ConfigCompiler{
-		host:                   hostValue,
-		compileRestClient:      rest.NewFromConfig(hostValue, cfg),
-		collaboratorRestClient: rest.NewFromConfig(cfg.Host, cfg),
-		cfg:                    cfg,
+		host:              hostValue,
+		compileRestClient: rest.NewFromConfig(hostValue, cfg),
+		collaborators:     collaboratorsClient,
+		cfg:               cfg,
 	}
 
 	configCompiler.legacyGraphQLClient = graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
@@ -119,7 +126,7 @@ func (c *ConfigCompiler) ConfigQuery(
 		return legacyResponse, nil
 	}
 	if originalErr != nil {
-		return nil, fmt.Errorf("config compilation request returned an error: %w", err)
+		return nil, fmt.Errorf("config compilation request returned an error: %w", originalErr)
 	}
 
 	if statusCode != 200 {

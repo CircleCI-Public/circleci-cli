@@ -124,8 +124,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					} `json:"variables"`
 				}{
 					Query: `
-		query ValidateOrb ($config: String!) {
-			orbConfig(orbYaml: $config) {
+		query ValidateOrb ($config: String!, $owner: UUID) {
+			orbConfig(orbYaml: $config, ownerId: $owner) {
 				valid,
 				errors { message },
 				sourceYaml,
@@ -184,7 +184,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 						"config": "{}"
 					}
@@ -231,7 +231,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 						"config": "some orb"
 					}
@@ -266,7 +266,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -309,7 +309,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -344,7 +344,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!) {\n\t\t\torbConfig(orbYaml: $config) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -3311,6 +3311,20 @@ Windows Server 2010
     - run:
         name: Say hello
         command: <<include(scripts/script.sh)>>
+
+examples:
+    example:
+        description: |
+            An example of how to use the orb.
+        usage:
+            version: 2.1
+            orbs:
+                orb-name: company/orb-name@1.2.3
+            setup: true
+            workflows:
+                create-pipeline:
+                    jobs:
+                        orb-name: create-pipeline-x
 `))
 			script = clitest.OpenTmpFile(tempSettings.Home, filepath.Join("scripts", "script.sh"))
 			script.Write([]byte(`echo Hello, world!`))
@@ -3330,13 +3344,22 @@ Windows Server 2010
 		It("Includes a script in the packed Orb file", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Out).Should(gbytes.Say(`commands:
-    orb:
-        steps:
+			Eventually(session.Out).Should(gbytes.Say(`steps:
             - run:
                 command: echo Hello, world!
                 name: Say hello
+`))
+			Eventually(session).Should(gexec.Exit(0))
+		})
+
+		It("Includes the setup key when an orb example uses a dynamic pipeline", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Out).Should(gbytes.Say(`orbs:
+                        orb-name: company/orb-name@1.2.3
+                    setup: true
+                    version: 2.1
+                    workflows:
 `))
 			Eventually(session).Should(gexec.Exit(0))
 		})

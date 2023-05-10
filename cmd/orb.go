@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/process"
@@ -43,9 +44,10 @@ import (
 )
 
 type orbOptions struct {
-	cfg  *settings.Config
-	cl   *graphql.Client
-	args []string
+	cfg           *settings.Config
+	cl            *graphql.Client
+	args          []string
+	collaborators collaborators.CollaboratorsClient
 
 	color string
 
@@ -60,6 +62,11 @@ type orbOptions struct {
 	tty createOrbUserInterface
 	// Linked with --integration-testing flag for stubbing UI in gexec tests
 	integrationTesting bool
+}
+
+type orbOrgOptions struct {
+	OrgID   string
+	OrgSlug string
 }
 
 var orbAnnotations = map[string]string{
@@ -93,9 +100,16 @@ func (ui createOrbTestUI) askUserToConfirm(message string) bool {
 }
 
 func newOrbCommand(config *settings.Config) *cobra.Command {
+	collaborators, err := collaborators.NewCollaboratorsRestClient(*config)
+
+	if err != nil {
+		panic(err)
+	}
+
 	opts := orbOptions{
-		cfg: config,
-		tty: createOrbInteractiveUI{},
+		cfg:           config,
+		tty:           createOrbInteractiveUI{},
+		collaborators: collaborators,
 	}
 
 	listCommand := &cobra.Command{
@@ -121,13 +135,23 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 	validateCommand := &cobra.Command{
 		Use:   "validate <path>",
 		Short: "Validate an orb.yml",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return validateOrb(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			orgID, _ := cmd.Flags().GetString("org-id")
+			orgSlug, _ := cmd.Flags().GetString("org-slug")
+
+			org := orbOrgOptions{
+				OrgID:   orgID,
+				OrgSlug: orgSlug,
+			}
+
+			return validateOrb(opts, org)
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
 	validateCommand.Annotations["<path>"] = orbAnnotations["<path>"]
+	validateCommand.Flags().String("org-slug", "", "organization slug (for example: github/example-org), used when an orb depends on private orbs belonging to that org")
+	validateCommand.Flags().String("org-id", "", "organization id used when an orb depends on private orbs belonging to that org")
 
 	processCommand := &cobra.Command{
 		Use:   "process <path>",
@@ -141,14 +165,24 @@ func newOrbCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return processOrb(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			orgID, _ := cmd.Flags().GetString("org-id")
+			orgSlug, _ := cmd.Flags().GetString("org-slug")
+
+			org := orbOrgOptions{
+				OrgID:   orgID,
+				OrgSlug: orgSlug,
+			}
+
+			return processOrb(opts, org)
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 	}
 	processCommand.Example = `  circleci orb process src/my-orb/@orb.yml`
 	processCommand.Annotations["<path>"] = orbAnnotations["<path>"]
+	processCommand.Flags().String("org-slug", "", "organization slug (for example: github/example-org), used when an orb depends on private orbs belonging to that org")
+	processCommand.Flags().String("org-id", "", "organization id used when an orb depends on private orbs belonging to that org")
 
 	publishCommand := &cobra.Command{
 		Use:   "publish <path> <orb>",
@@ -691,8 +725,14 @@ func listNamespaceOrbs(opts orbOptions) error {
 	return logOrbs(*orbs, opts)
 }
 
-func validateOrb(opts orbOptions) error {
-	_, err := api.OrbQuery(opts.cl, opts.args[0])
+func validateOrb(opts orbOptions, org orbOrgOptions) error {
+	orgId, err := (&opts).getOrgId(org)
+
+	if err != nil {
+		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
+	}
+
+	_, err = api.OrbQuery(opts.cl, opts.args[0], orgId)
 
 	if err != nil {
 		return err
@@ -707,8 +747,14 @@ func validateOrb(opts orbOptions) error {
 	return nil
 }
 
-func processOrb(opts orbOptions) error {
-	response, err := api.OrbQuery(opts.cl, opts.args[0])
+func processOrb(opts orbOptions, org orbOrgOptions) error {
+	orgId, err := (&opts).getOrgId(org)
+
+	if err != nil {
+		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
+	}
+
+	response, err := api.OrbQuery(opts.cl, opts.args[0], orgId)
 
 	if err != nil {
 		return err
@@ -719,6 +765,7 @@ func processOrb(opts orbOptions) error {
 }
 
 func publishOrb(opts orbOptions) error {
+	orbInformThatOrbCannotBeDeletedMessage()
 	path := opts.args[0]
 	ref := opts.args[1]
 	namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion(ref)
@@ -794,6 +841,8 @@ func validateSegmentArg(label string) error {
 }
 
 func incrementOrb(opts orbOptions) error {
+	orbInformThatOrbCannotBeDeletedMessage()
+
 	ref := opts.args[1]
 	segment := opts.args[2]
 
@@ -822,6 +871,8 @@ func incrementOrb(opts orbOptions) error {
 }
 
 func promoteOrb(opts orbOptions) error {
+	orbInformThatOrbCannotBeDeletedMessage()
+
 	ref := opts.args[0]
 	segment := opts.args[1]
 
@@ -1008,6 +1059,7 @@ type OrbSchema struct {
 
 type ExampleUsageSchema struct {
 	Version   string      `yaml:"version,omitempty"`
+	Setup     bool        `yaml:"setup,omitempty"`
 	Orbs      interface{} `yaml:"orbs,omitempty"`
 	Jobs      interface{} `yaml:"jobs,omitempty"`
 	Workflows interface{} `yaml:"workflows"`
@@ -1103,6 +1155,8 @@ func initOrb(opts orbOptions) error {
 	orbPath := opts.args[0]
 	var err error
 	fmt.Println("Note: This command is in preview. Please report any bugs! https://github.com/CircleCI-Public/circleci-cli/issues/new/choose")
+
+	orbInformThatOrbCannotBeDeletedMessage()
 
 	fullyAutomated := 0
 	prompt := &survey.Select{
@@ -1733,4 +1787,35 @@ func stringifyDiff(diff gotextdiff.Unified, colorOpt string) string {
 
 	color.NoColor = oldNoColor
 	return strings.Join(lines, "\n")
+}
+
+func orbInformThatOrbCannotBeDeletedMessage() {
+	fmt.Println("Once an orb is created it cannot be deleted. Orbs are semver compliant, and each published version is immutable. Publicly released orbs are potential dependencies for other projects.")
+	fmt.Println("Therefore, allowing orb deletion would make users susceptible to unexpected loss of functionality.")
+}
+
+func (o *orbOptions) getOrgId(orgInfo orbOrgOptions) (string, error) {
+	if strings.TrimSpace(orgInfo.OrgID) != "" {
+		return orgInfo.OrgID, nil
+	}
+
+	if strings.TrimSpace(orgInfo.OrgSlug) == "" {
+		return "", nil
+	}
+
+	coll, err := o.collaborators.GetCollaborationBySlug(orgInfo.OrgSlug)
+
+	if err != nil {
+		return "", err
+	}
+
+	if coll == nil {
+		fmt.Println("Could not fetch a valid org-id from collaborators endpoint.")
+		fmt.Println("Check if you have access to this org by hitting https://circleci.com/api/v2/me/collaborations")
+		fmt.Println("Continuing on - private orb resolution will not work as intended")
+
+		return "", nil
+	}
+
+	return coll.OrgId, nil
 }
