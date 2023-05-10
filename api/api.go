@@ -564,7 +564,7 @@ func makeOrbRequest(cl *graphql.Client, configContent string, ownerId string) (*
 	}
 
 	if ownerId != "" {
-		return nil, errors.Errorf("Your version of server does not support validating orbs that refer private orbs")
+		return nil, errors.Errorf("Your version of Server does not support validating orbs that refer private orbs. Please refer to the README to see compatibility: https://github.com/CircleCI-Public/circleci-cli#server-compatibility")
 	}
 	query := `
 		query ValidateOrb ($config: String!) {

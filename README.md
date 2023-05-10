@@ -178,3 +178,8 @@ Development instructions for the CircleCI CLI can be found in [HACKING.md](HACKI
 
 Please see the [documentation](https://circleci-public.github.io/circleci-cli) or `circleci help` for more.
 
+## Server compatibility
+
+There are some difference of behavior depending on the version you use:
+ - config validation will use the GraphQL API until **Server v4.0.5, v4.1.3, v4.2.0**. The above versions will use the new route `compile-config-with-defaults`
+ - `circleci orb validate` will only allow you to validate orbs using other private orbs with the option `--org-slug` from version **Server v4.2.0**
