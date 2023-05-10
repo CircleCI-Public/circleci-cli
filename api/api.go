@@ -521,27 +521,12 @@ func OrbQuery(cl *graphql.Client, configPath string, ownerId string) (*ConfigRes
 		return nil, err
 	}
 
-	query := `
-		query ValidateOrb ($config: String!, $owner: UUID) {
-			orbConfig(orbYaml: $config, ownerId: $owner) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
-
-	request := graphql.NewRequest(query)
-	request.Var("config", config)
-
-	if ownerId != "" {
-		request.Var("owner", ownerId)
+	request, err := makeOrbRequest(cl, config, ownerId)
+	if err != nil {
+		return nil, err
 	}
 
-	request.SetToken(cl.Token)
-
 	err = cl.Run(request, &response)
-
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
@@ -551,6 +536,107 @@ func OrbQuery(cl *graphql.Client, configPath string, ownerId string) (*ConfigRes
 	}
 
 	return &response.OrbConfig.ConfigResponse, nil
+}
+
+func makeOrbRequest(cl *graphql.Client, configContent string, ownerId string) (*graphql.Request, error) {
+	handlesOwner := orbQueryHandleOwnerId(cl)
+
+	if handlesOwner {
+		query := `
+		query ValidateOrb ($config: String!, $owner: UUID) {
+			orbConfig(orbYaml: $config, ownerId: $owner) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`
+
+		request := graphql.NewRequest(query)
+		request.Var("config", configContent)
+
+		if ownerId != "" {
+			request.Var("owner", ownerId)
+		}
+
+		request.SetToken(cl.Token)
+		return request, nil
+	}
+
+	if ownerId != "" {
+		return nil, errors.Errorf("Your version of server does not support validating orbs that refer private orbs")
+	}
+	query := `
+		query ValidateOrb ($config: String!) {
+			orbConfig(orbYaml: $config) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`
+
+	request := graphql.NewRequest(query)
+	request.Var("config", configContent)
+
+	request.SetToken(cl.Token)
+	return request, nil
+}
+
+type OrbIntrospectionResponse struct {
+	Schema struct {
+		Query struct {
+			Fields []struct {
+				Name string `json:"name"`
+				Args []struct {
+					Name string `json:"name"`
+				} `json:"args"`
+			} `json:"fields"`
+		} `json:"queryType"`
+	} `json:"__schema"`
+}
+
+func orbQueryHandleOwnerId(cl *graphql.Client) bool {
+	query := `
+query ValidateOrb {
+  __schema {
+    queryType {
+      fields(includeDeprecated: true) {
+        name
+        args {
+          name
+          __typename
+          type {
+            name
+          }
+        }
+      }
+    }
+  }
+}`
+	request := graphql.NewRequest(query)
+	response := OrbIntrospectionResponse{}
+	err := cl.Run(request, &response)
+	if err != nil {
+		return false
+	}
+
+	request.SetToken(cl.Token)
+
+	// Find the orbConfig query method, look at its arguments, if it has the "ownerId" argument, return true
+	for _, field := range response.Schema.Query.Fields {
+		if field.Name == "orbConfig" {
+			for _, arg := range field.Args {
+				if arg.Name == "ownerId" {
+					return true
+				}
+			}
+		}
+	}
+
+	// else return false, ownerId is not supported
+
+	return false
 }
 
 // OrbImportVersion publishes a new version of an orb using the provided source and id.
@@ -1239,18 +1325,18 @@ func OrbSetOrbListStatus(cl *graphql.Client, namespace string, orb string, list 
 	var response OrbSetOrbListStatusResponse
 
 	query := `
-		mutation($orbId: UUID!, $list: Boolean!) {
-			setOrbListStatus(
-				orbId: $orbId,
-				list: $list
-			) {
-				listed
-				errors { 
-					message
-					type 
-				}
-			}
+mutation($orbId: UUID!, $list: Boolean!) {
+	setOrbListStatus(
+		orbId: $orbId,
+		list: $list
+	) {
+		listed
+		errors {
+			message
+			type
 		}
+	}
+}
 	`
 
 	request := graphql.NewRequest(query)
