@@ -64,7 +64,7 @@ var _ = Describe("Root", func() {
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 
-			Eventually(session.Out).Should(gbytes.Say("`update` is not available because this tool was installed using `homebrew`."))
+			Eventually(session.Out).Should(gbytes.Say("update is not available because this tool was installed using homebrew."))
 			Eventually(session.Out).Should(gbytes.Say("Please consult the package manager's documentation on how to update the CLI."))
 			Eventually(session).Should(gexec.Exit(0))
 		})
