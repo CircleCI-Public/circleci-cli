@@ -210,6 +210,77 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 			})
 		})
 
+		Describe("with old server version", func() {
+			BeforeEach(func() {
+				token = "testtoken"
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					_, err := io.WriteString(stdin, "{}")
+					if err != nil {
+						panic(err)
+					}
+				}()
+			})
+
+			It("should use the old GraphQL resolver", func() {
+				By("setting up a mock server")
+
+				mockOrbIntrospection(false, "", tempSettings)
+
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				response := struct {
+					Query     string `json:"query"`
+					Variables struct {
+						Config string `json:"config"`
+					} `json:"variables"`
+				}{
+					Query: `
+		query ValidateOrb ($config: String!) {
+			orbConfig(orbYaml: $config) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`,
+					Variables: struct {
+						Config string `json:"config"`
+					}{
+						Config: "{}",
+					},
+				}
+				expected, err := json.Marshal(response)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  string(expected),
+					Response: gqlResponse})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb input is valid."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+		})
+
 		Context("with 'some orb'", func() {
 			BeforeEach(func() {
 				orb.Write([]byte(`some orb`))
