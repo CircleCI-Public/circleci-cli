@@ -1056,22 +1056,21 @@ func initOrb(opts orbOptions) error {
 	orbPath := opts.args[0]
 	var err error
 
-if !opts.private {
-	prompt := &survey.Select{
-		Message: "Would you like to create a public or private orb?",
-		Options: []string{"Public", "Private"},
-	}
-	var selectedOption string
-	err := survey.AskOne(prompt, &selectedOption)
-	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
-	}
+	if !opts.private {
+		prompt := &survey.Select{
+			Message: "Would you like to create a public or private orb?",
+			Options: []string{"Public", "Private"},
+		}
+		var selectedOption string
+		err := survey.AskOne(prompt, &selectedOption)
+		if err != nil {
+			return errors.Wrap(err, "Unexpected error")
+		}
 
-	if selectedOption == "Private" {
-		opts.private = true
+		if selectedOption == "Private" {
+			opts.private = true
+		}
 	}
-}
-
 
 	fullyAutomated := 0
 	prompt := &survey.Select{
