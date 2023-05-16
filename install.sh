@@ -16,7 +16,7 @@ function error {
 }
 
 # Use a function to ensure connection errors don't partially execute when being piped
-function install {
+function install_cli {
 
 	echo "Starting installation."
 
@@ -78,4 +78,4 @@ function install {
 	rm -r "$SCRATCH"
 }
 
-install
+install_cli
