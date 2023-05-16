@@ -1,0 +1,11 @@
+version: 2.1
+
+orbs:
+  vuln-scanner: cci-internal/snyk-vuln-scanner@0.6.2
+
+jobs:
+  some-job:
+    executor: vuln-scanner/default
+    steps:
+      - run:
+          command: echo "Hello world"

@@ -5,6 +5,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 )
 
@@ -39,7 +40,8 @@ func newDisabledCommand(config *settings.Config, command string) *cobra.Command 
 }
 
 func disableCommand(opts disableOptions) {
-	fmt.Printf("`%s` is not available because this tool was installed using `%s`.\n", opts.command, version.PackageManager())
+	bold := color.New(color.Bold).SprintFunc()
+	fmt.Printf("%s is not available because this tool was installed using %s.\n", bold(opts.command), bold(version.PackageManager()))
 
 	if opts.command == "update" {
 		fmt.Println("Please consult the package manager's documentation on how to update the CLI.")
