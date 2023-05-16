@@ -1154,7 +1154,22 @@ func inlineIncludes(node *yaml.Node, orbRoot string) error {
 func initOrb(opts orbOptions) error {
 	orbPath := opts.args[0]
 	var err error
-	fmt.Println("Note: This command is in preview. Please report any bugs! https://github.com/CircleCI-Public/circleci-cli/issues/new/choose")
+
+	if !opts.private {
+		prompt := &survey.Select{
+			Message: "Would you like to create a public or private orb?",
+			Options: []string{"Public", "Private"},
+		}
+		var selectedOption string
+		err := survey.AskOne(prompt, &selectedOption)
+		if err != nil {
+			return errors.Wrap(err, "Unexpected error")
+		}
+
+		if selectedOption == "Private" {
+			opts.private = true
+		}
+	}
 
 	orbInformThatOrbCannotBeDeletedMessage()
 
