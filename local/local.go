@@ -48,7 +48,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 		return fmt.Errorf("config errors %v", configResponse.Errors)
 	}
 
-	processedConfigPath, err := writeStringToTempFile(configResponse.OutputYaml)
+	processedConfigPath, err := writeStringToTempFile(cfg.TmpMount, configResponse.OutputYaml)
 
 	// The file at processedConfigPath must be left in place until after the call
 	// to `docker run` has completed. Typically, we would `defer` a call to remove
@@ -82,7 +82,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 
 	job := args[0]
 	dockerSocketPath, _ := flags.GetString("docker-socket-path")
-	arguments := generateDockerCommand(processedConfigPath, image, pwd, job, dockerSocketPath, processedArgs...)
+	arguments := generateDockerCommand(cfg.TmpMount, processedConfigPath, image, pwd, job, dockerSocketPath, processedArgs...)
 
 	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
@@ -255,14 +255,14 @@ func buildAgentSettingsPath() string {
 }
 
 // Write data to a temp file, and return the path to that file.
-func writeStringToTempFile(data string) (string, error) {
+func writeStringToTempFile(tmpMount, data string) (string, error) {
 	// It's important to specify `/tmp` here as the location of the temp file.
 	// On macOS, the regular temp directories is not shared with Docker by default.
 	// The error message is along the lines of:
 	// > The path /var/folders/q0/2g2lcf6j79df6vxqm0cg_0zm0000gn/T/287575618-config.yml
 	// > is not shared from OS X and is not known to Docker.
 	// Docker has `/tmp` shared by default.
-	f, err := os.CreateTemp("/tmp", "*_circleci_config.yml")
+	f, err := os.CreateTemp(tmpMount, "*_circleci_config.yml")
 
 	if err != nil {
 		return "", errors.Wrap(err, "Error creating temporary config file")
@@ -275,8 +275,8 @@ func writeStringToTempFile(data string) (string, error) {
 	return f.Name(), nil
 }
 
-func generateDockerCommand(configPath, image, pwd string, job string, dockerSocketPath string, arguments ...string) []string {
-	const configPathInsideContainer = "/tmp/local_build_config.yml"
+func generateDockerCommand(tmpMount, configPath, image, pwd string, job string, dockerSocketPath string, arguments ...string) []string {
+	configPathInsideContainer := fmt.Sprintf("%s/local_build_config.yml", tmpMount)
 	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
 		"--volume", fmt.Sprintf("%s:/var/run/docker.sock", dockerSocketPath),
 		"--volume", fmt.Sprintf("%s:%s", configPath, configPathInsideContainer),

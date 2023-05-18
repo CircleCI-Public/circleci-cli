@@ -23,6 +23,7 @@ import (
 var defaultEndpoint = "graphql-unstable"
 var defaultHost = "https://circleci.com"
 var defaultRestEndpoint = "api/v2"
+var defaultTmpMount = "/tmp"
 var trueString = "true"
 
 // rootCmd is used internally and global to the package but not exported
@@ -104,6 +105,7 @@ func MakeCommands() *cobra.Command {
 		RestEndpoint: defaultRestEndpoint,
 		Endpoint:     defaultEndpoint,
 		GitHubAPI:    "https://api.github.com/",
+		TmpMount:     defaultTmpMount,
 	}
 
 	if err := rootOptions.Load(); err != nil {

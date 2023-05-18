@@ -15,10 +15,11 @@ type setupOptions struct {
 	cfg      *settings.Config
 	cl       *graphql.Client
 	noPrompt bool
-	// Add host and token for use with --no-prompt
-	host  string
-	token string
-	args  []string
+	// Add host, tmpMount and token for use with --no-prompt
+	host     string
+	token    string
+	tmpMount string
+	args     []string
 	// This lets us pass in our own interface for testing
 	tty setupUserInterface
 	// Linked with --integration-testing flag for stubbing UI in gexec tests
@@ -32,8 +33,10 @@ type setupOptions struct {
 type setupUserInterface interface {
 	readTokenFromUser(message string) (string, error)
 	readHostFromUser(message string, defaultValue string) string
+	readTmpMountFromUser(message string, defaultValue string) string
 
 	askUserToConfirmEndpoint(message string) bool
+	askUserToConfirmTmpMount(message string) bool
 	askUserToConfirmToken(message string) bool
 }
 
@@ -42,6 +45,11 @@ type setupInteractiveUI struct{}
 
 // readHostFromUser implements the setupInteractiveUI interface for asking a user's input.
 func (setupInteractiveUI) readHostFromUser(message string, defaultValue string) string {
+	return prompt.ReadStringFromUser(message, defaultValue)
+}
+
+// readTmpMountFromUser implements the setupInteractiveUI interface for asking a user's input.
+func (setupInteractiveUI) readTmpMountFromUser(message string, defaultValue string) string {
 	return prompt.ReadStringFromUser(message, defaultValue)
 }
 
@@ -54,6 +62,10 @@ func (setupInteractiveUI) askUserToConfirmEndpoint(message string) bool {
 	return prompt.AskUserToConfirm(message)
 }
 
+func (setupInteractiveUI) askUserToConfirmTmpMount(message string) bool {
+	return prompt.AskUserToConfirm(message)
+}
+
 func (setupInteractiveUI) askUserToConfirmToken(message string) bool {
 	return prompt.AskUserToConfirm(message)
 }
@@ -62,13 +74,22 @@ func (setupInteractiveUI) askUserToConfirmToken(message string) bool {
 type setupTestUI struct {
 	host            string
 	token           string
+	tmpMount        string
 	confirmEndpoint bool
 	confirmToken    bool
+	confirmTmpMount bool
 }
 
 // readHostFromUser implements the setupTestUI interface for asking a user's input.
 // It works by simply printing the message to standard output and passing the input through.
 func (ui setupTestUI) readHostFromUser(message string, defaultValue string) string {
+	fmt.Println(message)
+	return ui.host
+}
+
+// readTmpMountFromUser implements the setupTestUI interface for asking a user's input.
+// It works by simply printing the message to standard output and passing the input through.
+func (ui setupTestUI) readTmpMountFromUser(message string, defaultValue string) string {
 	fmt.Println(message)
 	return ui.host
 }
@@ -82,6 +103,12 @@ func (ui setupTestUI) readTokenFromUser(message string) (string, error) {
 
 // askUserToConfirmEndpoint works by printing the provided message to standard out and returning a Confirm dialogue up the chain.
 func (ui setupTestUI) askUserToConfirmEndpoint(message string) bool {
+	fmt.Println(message)
+	return ui.confirmEndpoint
+}
+
+// askUserToConfirmTmpMount works by printing the provided message to standard out and returning a Confirm dialogue up the chain.
+func (ui setupTestUI) askUserToConfirmTmpMount(message string) bool {
 	fmt.Println(message)
 	return ui.confirmEndpoint
 }
@@ -110,6 +137,14 @@ func shouldAskForEndpoint(endpoint string, ui setupUserInterface, defaultValue s
 	return ui.askUserToConfirmEndpoint(fmt.Sprintf("Do you want to reset the endpoint? (default: %s)", defaultValue))
 }
 
+func shouldAskForTmpMount(path string, ui setupUserInterface, defaultValue string) bool {
+	if path == defaultValue || path == "" {
+		return true
+	}
+
+	return ui.askUserToConfirmTmpMount(fmt.Sprintf("A mount path is already set. Do you want to change it? (current: %s)", path))
+}
+
 func newSetupCommand(config *settings.Config) *cobra.Command {
 	opts := setupOptions{
 		cfg: config,
@@ -128,8 +163,10 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 				opts.tty = setupTestUI{
 					host:            "boondoggle",
 					token:           "boondoggle",
+					tmpMount:        "boondoggle",
 					confirmEndpoint: true,
 					confirmToken:    true,
+					confirmTmpMount: true,
 				}
 			}
 
@@ -158,6 +195,11 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 		panic(err)
 	}
 
+	setupCommand.Flags().StringVar(&opts.tmpMount, "tmpMount", "", "mountpath of the tmp folder of your docker engine")
+	if err := setupCommand.Flags().MarkHidden("tmpMount"); err != nil {
+		panic(err)
+	}
+
 	return setupCommand
 }
 
@@ -177,6 +219,10 @@ func setup(opts setupOptions) error {
 	// This ensures any accidental changes to this field can be fixed simply by rerunning this command.
 	if shouldAskForEndpoint(opts.cfg.Endpoint, opts.tty, defaultEndpoint) {
 		opts.cfg.Endpoint = defaultEndpoint
+	}
+
+	if shouldAskForTmpMount(opts.cfg.TmpMount, opts.tty, defaultTmpMount) {
+		opts.cfg.TmpMount = opts.tty.readTmpMountFromUser("Tmp mount", opts.cfg.TmpMount)
 	}
 
 	if err := opts.cfg.WriteToDisk(); err != nil {
@@ -236,7 +282,7 @@ func setupNoPrompt(opts setupOptions) error {
 		return nil
 	}
 
-	// Throw an error if both flags are blank are blank!
+	// Throw an error if host and token flags are blank
 	if opts.host == "" && opts.token == "" {
 		return errors.New("No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
 	}
@@ -251,8 +297,10 @@ func setupNoPrompt(opts setupOptions) error {
 	// Use the default endpoint since we don't expose that to users
 	config.Endpoint = defaultEndpoint
 	config.RestEndpoint = defaultRestEndpoint
-	config.Host = opts.host   // Set new host to flag
-	config.Token = opts.token // Set new token to flag
+	config.TmpMount = defaultTmpMount
+	config.Host = opts.host         // Set new host to flag
+	config.Token = opts.token       // Set new token to flag
+	config.TmpMount = opts.tmpMount // Set new tmpMount to flag
 
 	// Reset their host if the flag was blank
 	if opts.host == "" {
@@ -264,6 +312,12 @@ func setupNoPrompt(opts setupOptions) error {
 	if opts.token == "" {
 		fmt.Println("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.")
 		config.Token = opts.cfg.Token
+	}
+
+	// Reset their tmpPath if the flag was blank
+	if opts.tmpMount == "" {
+		fmt.Println("TmpMount unchanged from existing config. Use --tmpMount with --no-prompt to overwrite it.")
+		config.TmpMount = opts.cfg.TmpMount
 	}
 
 	// Then save the new config to disk
