@@ -17,7 +17,7 @@ var _ = Describe("build", func() {
 		It("can generate a command line", func() {
 			home, err := os.UserHomeDir()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(generateDockerCommand("/config/path", "docker-image-name", "/current/directory", "build", "/var/run/docker.sock", "extra-1", "extra-2")).To(ConsistOf(
+			Expect(generateDockerCommand("/tmp", "/config/path", "docker-image-name", "/current/directory", "build", "/var/run/docker.sock", "extra-1", "extra-2")).To(ConsistOf(
 				"docker",
 				"run",
 				"--interactive",
@@ -36,7 +36,7 @@ var _ = Describe("build", func() {
 		})
 
 		It("can write temp files", func() {
-			path, err := writeStringToTempFile("cynosure")
+			path, err := writeStringToTempFile("/tmp", "cynosure")
 			Expect(err).NotTo(HaveOccurred())
 			defer os.Remove(path)
 			Expect(os.ReadFile(path)).To(BeEquivalentTo("cynosure"))
