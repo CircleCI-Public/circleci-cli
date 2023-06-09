@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/CircleCI-Public/circleci-config/generation"
 	"github.com/CircleCI-Public/circleci-config/labeling"
 	"github.com/CircleCI-Public/circleci-config/labeling/codebase"
-	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
