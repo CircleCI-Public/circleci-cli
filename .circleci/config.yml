@@ -179,7 +179,7 @@ jobs:
 
   lint:
     docker:
-      - image: golangci/golangci-lint:v1.46-alpine
+      - image: golangci/golangci-lint:v1.51.0-alpine
     resource_class: large
     steps:
       - checkout

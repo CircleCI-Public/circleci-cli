@@ -2,6 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
+	"github.com/CircleCI-Public/circleci-config/generation"
+	"github.com/CircleCI-Public/circleci-config/labeling"
+	"github.com/CircleCI-Public/circleci-config/labeling/codebase"
 
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
@@ -121,10 +126,19 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 	migrateCommand.PersistentFlags().StringP("config", "c", ".circleci/config.yml", "path to config file")
 	migrateCommand.PersistentFlags().BoolP("in-place", "i", false, "whether to update file in place.  If false, emits to stdout")
 
+	generateCommand := &cobra.Command{
+		Use:   "generate <path>",
+		Short: "Generate a config by analyzing your repository contents",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return generateConfig(args)
+		},
+	}
+
 	configCmd.AddCommand(packCommand)
 	configCmd.AddCommand(validateCommand)
 	configCmd.AddCommand(processCommand)
 	configCmd.AddCommand(migrateCommand)
+	configCmd.AddCommand(generateCommand)
 
 	return configCmd
 }
@@ -145,4 +159,28 @@ func packConfig(args []string) error {
 
 func migrateConfig(args []string) error {
 	return proxy.Exec([]string{"config", "migrate"}, args)
+}
+
+func generateConfig(args []string) error {
+	path := "."
+	if len(args) == 1 {
+		path = args[0]
+	}
+
+	stat, err := os.Stat(path)
+
+	if os.IsNotExist(err) || !stat.IsDir() {
+		return fmt.Errorf("%s is not a directory", path)
+	}
+	if err != nil {
+		return fmt.Errorf("error reading from %s: %v", path, err)
+	}
+
+	cb := codebase.LocalCodebase{BasePath: path}
+	labels := labeling.ApplyAllRules(cb)
+	generatedConfig := generation.GenerateConfig(labels)
+
+	fmt.Print(generatedConfig.String())
+
+	return nil
 }

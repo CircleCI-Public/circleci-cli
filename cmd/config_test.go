@@ -245,4 +245,22 @@ var _ = Describe("Config", func() {
 			})
 		})
 	})
+	Describe("generate", func() {
+		It("works without a path", func() {
+			command := exec.Command(pathCLI, "config", "generate")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			session.Wait()
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err.Contents()).Should(BeEmpty())
+			Eventually(session.Out.Contents()).Should(MatchRegexp("#.*"))
+		})
+		It("works with a path", func() {
+			command := exec.Command(pathCLI, "config", "generate", "..")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			session.Wait()
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session.Err.Contents()).Should(BeEmpty())
+			Eventually(session.Out.Contents()).Should(MatchRegexp("#.*"))
+		})
+	})
 })
