@@ -162,8 +162,15 @@ func migrateConfig(args []string) error {
 }
 
 func generateConfig(args []string) error {
-	path := "."
-	if len(args) == 1 {
+	var err error
+	var path string
+	if len(args) == 0 {
+		// use working directory as default
+		path, err = os.Getwd()
+		if err != nil {
+			return fmt.Errorf("couldn't get working directory")
+		}
+	} else {
 		path = args[0]
 	}
 
