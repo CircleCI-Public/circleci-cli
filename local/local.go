@@ -1,12 +1,10 @@
 package local
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"strings"
 	"syscall"
@@ -73,9 +71,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 		return err
 	}
 
-	picardVersion, _ := flags.GetString("build-agent-version")
-	image, err := picardImage(os.Stdout, picardVersion)
-
+	image, err := picardImage(os.Stdout)
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
 	}
@@ -134,7 +130,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
+		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -145,42 +141,16 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 	return result, configPath
 }
 
-func picardImage(output io.Writer, picardVersion string) (string, error) {
-
+func picardImage(output io.Writer) (string, error) {
 	fmt.Fprintf(output, "Fetching latest build environment...\n")
 
-	sha, err := getPicardSha(output, picardVersion)
+	sha, err := findLatestPicardSha()
 	if err != nil {
 		return "", err
 	}
 
 	_, _ = fmt.Fprintf(output, "Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
-}
-
-func getPicardSha(output io.Writer, picardVersion string) (string, error) {
-	// If the version was passed as argument, we take it
-	if picardVersion != "" {
-		return picardVersion, nil
-	}
-
-	var sha string
-	var err error
-
-	sha, err = loadBuildAgentShaFromConfig()
-	if sha != "" && err == nil {
-		return sha, nil
-	}
-	if err != nil && !os.IsNotExist(err) {
-		fmt.Fprintf(output, "Unable to parse JSON file %s because: %s\n", buildAgentSettingsPath(), err)
-		fmt.Fprintf(output, "Falling back to latest build-agent version\n")
-	}
-
-	sha, err = findLatestPicardSha()
-	if err != nil {
-		return "", err
-	}
-	return sha, nil
 }
 
 func ensureDockerIsAvailable() (string, error) {
@@ -202,12 +172,14 @@ func ensureDockerIsAvailable() (string, error) {
 
 // Still depends on a function in cmd/build.go
 func findLatestPicardSha() (string, error) {
-
 	if _, err := ensureDockerIsAvailable(); err != nil {
 		return "", err
 	}
 
-	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput() // #nosec
+	// We are freezing build-agent cli as we would like to deprecate this path
+	// this is frozen to build-agent branch https://github.com/circleci/build-agent/tree/frozen-circleci-cli
+	imageName := fmt.Sprintf("%s:1.0.183556-5a2aabb6", picardRepo)
+	outputBytes, err := exec.Command("docker", "pull", imageName).CombinedOutput() // #nosec
 
 	if err != nil {
 		return "", errors.Wrap(err, "failed to pull latest docker image")
@@ -222,36 +194,6 @@ func findLatestPicardSha() (string, error) {
 	}
 
 	return latest, nil
-}
-
-type buildAgentSettings struct {
-	LatestSha256 string
-}
-
-func loadBuildAgentShaFromConfig() (string, error) {
-	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
-		// Settings file does not exist.
-		return "", nil
-	}
-
-	file, err := os.Open(buildAgentSettingsPath())
-	if err != nil {
-		return "", errors.Wrap(err, "Could not open build settings config")
-	}
-	defer file.Close()
-
-	var settings buildAgentSettings
-
-	if err := json.NewDecoder(file).Decode(&settings); err != nil {
-
-		return "", errors.Wrap(err, "Could not parse build settings config")
-	}
-
-	return settings.LatestSha256, nil
-}
-
-func buildAgentSettingsPath() string {
-	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
 }
 
 // Write data to a temp file, and return the path to that file.
