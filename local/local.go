@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"strings"
 	"syscall"
 
@@ -174,11 +173,9 @@ func getPicardSha(output io.Writer, picardVersion string) (string, error) {
 		fmt.Fprintf(output, "Falling back to latest build-agent version\n")
 	}
 
-	sha, err = findLatestPicardSha()
-	if err != nil {
-		return "", err
-	}
-	return sha, nil
+	// We are freezing build-agent cli as we would like to deprecate this path
+	fixedSha := "sha256:008ba7f4223f1e26c11df9575283491b620074fa96da6961e0dcde47fb757014"
+	return fixedSha, nil
 }
 
 func ensureDockerIsAvailable() (string, error) {
@@ -196,32 +193,6 @@ func ensureDockerIsAvailable() (string, error) {
 	}
 
 	return dockerPath, nil
-}
-
-// Still depends on a function in cmd/build.go
-func findLatestPicardSha() (string, error) {
-	if _, err := ensureDockerIsAvailable(); err != nil {
-		return "", err
-	}
-
-	// We are freezing build-agent cli as we would like to deprecate this path
-	// this is frozen to build-agent branch https://github.com/circleci/build-agent/tree/frozen-circleci-cli
-	imageName := fmt.Sprintf("%s:1.0.183556-5a2aabb6", picardRepo)
-	outputBytes, err := exec.Command("docker", "pull", imageName).CombinedOutput() // #nosec
-
-	if err != nil {
-		return "", errors.Wrap(err, "failed to pull latest docker image")
-	}
-
-	output := string(outputBytes)
-	sha256 := regexp.MustCompile("(?m)sha256:[0-9a-f]+")
-	latest := sha256.FindString(output)
-
-	if latest == "" {
-		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
-	}
-
-	return latest, nil
 }
 
 // Write data to a temp file, and return the path to that file.
