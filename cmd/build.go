@@ -22,6 +22,7 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 	}
 
 	local.AddFlagsForDocumentation(buildCommand.Flags())
+	buildCommand.Flags().String("build-agent-version", "", `The version of the build agent image you want to use. This can be configured by writing in $HOME/.circleci/build_agent_settings.json: '{"LatestSha256":"<version-of-build-agent>"}'`)
 	buildCommand.Flags().StringP("org-slug", "o", "", "organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org")
 	buildCommand.Flags().String("org-id", "", "organization id, used when a config depends on private orbs belonging to that org")
 
