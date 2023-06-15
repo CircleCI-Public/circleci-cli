@@ -2,6 +2,7 @@ package cmd_test
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -245,22 +246,35 @@ var _ = Describe("Config", func() {
 			})
 		})
 	})
+
 	Describe("generate", func() {
 		It("works without a path", func() {
 			command := exec.Command(pathCLI, "config", "generate")
+			command.Dir = "testdata/node"
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			session.Wait()
 			Expect(err).ShouldNot(HaveOccurred())
+
+			session.Wait()
+
 			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session.Out.Contents()).Should(MatchRegexp("#.*"))
+			Eventually(session.Out.Contents()).Should(MatchRegexp("npm run test"))
+			Eventually(session).Should(gexec.Exit(0))
 		})
+
 		It("works with a path", func() {
-			command := exec.Command(pathCLI, "config", "generate", "..")
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			session.Wait()
+			wd, err := os.Getwd()
 			Expect(err).ShouldNot(HaveOccurred())
+
+			command := exec.Command(pathCLI, "config", "generate", "node")
+			command.Dir = filepath.Join(wd, "testdata")
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			session.Wait()
+
 			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session.Out.Contents()).Should(MatchRegexp("#.*"))
+			Eventually(session.Out.Contents()).Should(MatchRegexp("npm run test"))
+			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
 })

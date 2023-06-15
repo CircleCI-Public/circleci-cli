@@ -7,7 +7,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"regexp"
 	"strings"
 	"syscall"
 
@@ -75,7 +74,6 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 
 	picardVersion, _ := flags.GetString("build-agent-version")
 	image, err := picardImage(os.Stdout, picardVersion)
-
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
 	}
@@ -146,7 +144,6 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 }
 
 func picardImage(output io.Writer, picardVersion string) (string, error) {
-
 	fmt.Fprintf(output, "Fetching latest build environment...\n")
 
 	sha, err := getPicardSha(output, picardVersion)
@@ -176,11 +173,9 @@ func getPicardSha(output io.Writer, picardVersion string) (string, error) {
 		fmt.Fprintf(output, "Falling back to latest build-agent version\n")
 	}
 
-	sha, err = findLatestPicardSha()
-	if err != nil {
-		return "", err
-	}
-	return sha, nil
+	// We are freezing build-agent cli as we would like to deprecate this path
+	fixedSha := "sha256:008ba7f4223f1e26c11df9575283491b620074fa96da6961e0dcde47fb757014"
+	return fixedSha, nil
 }
 
 func ensureDockerIsAvailable() (string, error) {
@@ -198,60 +193,6 @@ func ensureDockerIsAvailable() (string, error) {
 	}
 
 	return dockerPath, nil
-}
-
-// Still depends on a function in cmd/build.go
-func findLatestPicardSha() (string, error) {
-
-	if _, err := ensureDockerIsAvailable(); err != nil {
-		return "", err
-	}
-
-	outputBytes, err := exec.Command("docker", "pull", picardRepo).CombinedOutput() // #nosec
-
-	if err != nil {
-		return "", errors.Wrap(err, "failed to pull latest docker image")
-	}
-
-	output := string(outputBytes)
-	sha256 := regexp.MustCompile("(?m)sha256:[0-9a-f]+")
-	latest := sha256.FindString(output)
-
-	if latest == "" {
-		return "", fmt.Errorf("failed to parse sha256 from docker pull output")
-	}
-
-	return latest, nil
-}
-
-type buildAgentSettings struct {
-	LatestSha256 string
-}
-
-func loadBuildAgentShaFromConfig() (string, error) {
-	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
-		// Settings file does not exist.
-		return "", nil
-	}
-
-	file, err := os.Open(buildAgentSettingsPath())
-	if err != nil {
-		return "", errors.Wrap(err, "Could not open build settings config")
-	}
-	defer file.Close()
-
-	var settings buildAgentSettings
-
-	if err := json.NewDecoder(file).Decode(&settings); err != nil {
-
-		return "", errors.Wrap(err, "Could not parse build settings config")
-	}
-
-	return settings.LatestSha256, nil
-}
-
-func buildAgentSettingsPath() string {
-	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
 }
 
 // Write data to a temp file, and return the path to that file.
@@ -304,4 +245,38 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 		result = append(result, flagName, flag.Value.String())
 	}
 	return result
+}
+
+type buildAgentSettings struct {
+	LatestSha256 string
+}
+
+func loadBuildAgentShaFromConfig() (string, error) {
+	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
+		// Settings file does not exist.
+		return "", nil
+	}
+
+	file, err := os.Open(buildAgentSettingsPath())
+	if err != nil {
+		return "", errors.Wrap(err, "Could not open build settings config")
+	}
+	defer file.Close()
+
+	var settings buildAgentSettings
+
+	buf, err := io.ReadAll(file)
+	if err != nil {
+		return "", errors.Wrap(err, "Couldn't read from build settings file")
+	}
+
+	if err = json.Unmarshal(buf, &settings); err != nil {
+		return "", errors.Wrap(err, "Could not parse build settings config")
+	}
+
+	return settings.LatestSha256, nil
+}
+
+func buildAgentSettingsPath() string {
+	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
 }
