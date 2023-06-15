@@ -1,10 +1,12 @@
 package local
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path"
 	"regexp"
 	"strings"
 	"syscall"
@@ -71,7 +73,8 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 		return err
 	}
 
-	image, err := picardImage(os.Stdout)
+	picardVersion, _ := flags.GetString("build-agent-version")
+	image, err := picardImage(os.Stdout, picardVersion)
 	if err != nil {
 		return errors.Wrap(err, "Could not find picard image")
 	}
@@ -130,7 +133,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
+		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -141,16 +144,41 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 	return result, configPath
 }
 
-func picardImage(output io.Writer) (string, error) {
+func picardImage(output io.Writer, picardVersion string) (string, error) {
 	fmt.Fprintf(output, "Fetching latest build environment...\n")
 
-	sha, err := findLatestPicardSha()
+	sha, err := getPicardSha(output, picardVersion)
 	if err != nil {
 		return "", err
 	}
 
 	_, _ = fmt.Fprintf(output, "Docker image digest: %s\n", sha)
 	return fmt.Sprintf("%s@%s", picardRepo, sha), nil
+}
+
+func getPicardSha(output io.Writer, picardVersion string) (string, error) {
+	// If the version was passed as argument, we take it
+	if picardVersion != "" {
+		return picardVersion, nil
+	}
+
+	var sha string
+	var err error
+
+	sha, err = loadBuildAgentShaFromConfig()
+	if sha != "" && err == nil {
+		return sha, nil
+	}
+	if err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(output, "Unable to parse JSON file %s because: %s\n", buildAgentSettingsPath(), err)
+		fmt.Fprintf(output, "Falling back to latest build-agent version\n")
+	}
+
+	sha, err = findLatestPicardSha()
+	if err != nil {
+		return "", err
+	}
+	return sha, nil
 }
 
 func ensureDockerIsAvailable() (string, error) {
@@ -246,4 +274,38 @@ func unparseFlag(flags *pflag.FlagSet, flag *pflag.Flag) []string {
 		result = append(result, flagName, flag.Value.String())
 	}
 	return result
+}
+
+type buildAgentSettings struct {
+	LatestSha256 string
+}
+
+func loadBuildAgentShaFromConfig() (string, error) {
+	if _, err := os.Stat(buildAgentSettingsPath()); os.IsNotExist(err) {
+		// Settings file does not exist.
+		return "", nil
+	}
+
+	file, err := os.Open(buildAgentSettingsPath())
+	if err != nil {
+		return "", errors.Wrap(err, "Could not open build settings config")
+	}
+	defer file.Close()
+
+	var settings buildAgentSettings
+
+	buf, err := io.ReadAll(file)
+	if err != nil {
+		return "", errors.Wrap(err, "Couldn't read from build settings file")
+	}
+
+	if err = json.Unmarshal(buf, &settings); err != nil {
+		return "", errors.Wrap(err, "Could not parse build settings config")
+	}
+
+	return settings.LatestSha256, nil
+}
+
+func buildAgentSettingsPath() string {
+	return path.Join(settings.SettingsPath(), "build_agent_settings.json")
 }
