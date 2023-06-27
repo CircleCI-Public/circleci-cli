@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/git"
+	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/browser"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
@@ -13,7 +15,7 @@ import (
 
 // errorMessage string containing the error message displayed in both the open command and the follow command
 var errorMessage = `
-This command is intended to be run from a git repository with a remote named 'origin' that is hosted on Github or Bitbucket only. 
+This command is intended to be run from a git repository with a remote named 'origin' that is hosted on Github or Bitbucket only.
 We are not currently supporting any other hosts.`
 
 // projectUrl uses the provided values to create the url to open
@@ -39,12 +41,19 @@ func openProjectInBrowser() error {
 }
 
 // newOpenCommand creates the cli command open
-func newOpenCommand() *cobra.Command {
+func newOpenCommand(config *settings.Config) *cobra.Command {
 	openCommand := &cobra.Command{
 		Use:   "open",
 		Short: "Open the current project in the browser.",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return openProjectInBrowser()
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := openProjectInBrowser()
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateOpenEvent(err))
+			}
+
+			return err
 		},
 	}
 	return openCommand
