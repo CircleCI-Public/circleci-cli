@@ -14,12 +14,9 @@ import (
 	"golang.org/x/term"
 )
 
-const (
-	TelemetryIsActive   = "yes"
-	TelemetryIsInactive = "no"
-
-	// This value means telemetry is disabled because we have no access to stdin and so can't ask user approval
-	TelemetryDefaultDisabled = "default-disabled"
+var (
+	createUUID  = func() string { return uuid.New().String() }
+	isStdinOpen = term.IsTerminal(int(os.Stdin.Fd()))
 )
 
 type telemetryUI interface {
@@ -63,10 +60,11 @@ func askForTelemetryApproval(config *settings.Config, ui telemetryUI) error {
 	}
 
 	// If stdin is not available, send telemetry event, disactive telemetry and return
-	if !term.IsTerminal(int(os.Stdin.Fd())) {
-		telemetry.SendTelemetryApproval(telemetry.User{}, telemetry.NoStdin)
+	if !isStdinOpen {
 		config.Telemetry.IsActive = false
-		return nil
+		return telemetry.SendTelemetryApproval(telemetry.User{
+			UniqueID: config.Telemetry.UniqueID,
+		}, telemetry.NoStdin)
 	}
 
 	// Else ask user for telemetry approval
@@ -79,14 +77,16 @@ func askForTelemetryApproval(config *settings.Config, ui telemetryUI) error {
 	config.Telemetry.HasAnsweredPrompt = true
 
 	// If user allows telemetry, create a telemetry user
-	user := telemetry.User{}
+	user := telemetry.User{
+		UniqueID: config.Telemetry.UniqueID,
+	}
 	if config.Telemetry.UniqueID == "" {
-		user.UniqueID = uuid.New().String()
+		user.UniqueID = createUUID()
 	}
 
 	if config.Telemetry.IsActive && config.Token != "" {
 		me, err := api.GetMe(rest.NewFromConfig(config.Host, config))
-		if err != nil {
+		if err == nil {
 			user.UserID = me.ID
 		}
 	}
@@ -98,7 +98,7 @@ func askForTelemetryApproval(config *settings.Config, ui telemetryUI) error {
 	if !config.Telemetry.IsActive {
 		approval = telemetry.Disabled
 	}
-	if err := telemetry.SendTelemetryApproval(telemetry.User{}, approval); err != nil {
+	if err := telemetry.SendTelemetryApproval(user, approval); err != nil {
 		return err
 	}
 

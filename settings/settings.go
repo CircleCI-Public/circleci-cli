@@ -19,6 +19,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
+	"github.com/spf13/afero"
+)
+
+var (
+	FS afero.Afero = afero.Afero{
+		Fs: afero.NewOsFs(),
+	}
 )
 
 // Config is used to represent the current state of a CLI instance.
@@ -102,7 +109,7 @@ func (tel *TelemetrySettings) Load() error {
 		return err
 	}
 
-	content, err := os.ReadFile(path) // #nosec
+	content, err := FS.ReadFile(path) // #nosec
 	if err != nil {
 		return err
 	}
@@ -119,7 +126,7 @@ func (tel *TelemetrySettings) Write() error {
 	}
 
 	path := filepath.Join(SettingsPath(), telemetryFilename())
-	err = os.WriteFile(path, enc, 0600)
+	err = FS.WriteFile(path, enc, 0600)
 	return err
 }
 

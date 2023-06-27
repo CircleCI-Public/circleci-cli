@@ -126,6 +126,11 @@ func MakeCommands() *cobra.Command {
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			if rootOptions.Telemetry.Client != nil {
+				rootOptions.Telemetry.Client.Close()
+			}
+		},
 	}
 
 	// For supporting "Args" in command usage help

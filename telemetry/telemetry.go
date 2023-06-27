@@ -1,13 +1,17 @@
 package telemetry
 
 import (
-	"fmt"
 	"io"
 
 	"github.com/segmentio/analytics-go"
 )
 
 type Approval string
+
+var (
+	// Overwrite this function for tests
+	CreateActiveTelemetry = newSegmentClient
+)
 
 const (
 	Enabled  Approval = "enabled"
@@ -39,23 +43,12 @@ func CreateClient(user User, enabled bool) Client {
 		return nullClient{}
 	}
 
-	client := newSegmentClient()
-	if err := client.identify(user); err != nil {
-		return nullClient{}
-	}
-
-	return client
+	return CreateActiveTelemetry(user)
 }
 
 // Sends the user's approval event
 func SendTelemetryApproval(user User, approval Approval) error {
-	client := newSegmentClient()
-
-	if approval == Enabled {
-		if err := client.identify(user); err != nil {
-			return err
-		}
-	}
+	client := CreateActiveTelemetry(user)
 
 	return client.Track(Event{
 		Object: "cli-telemetry",
@@ -72,50 +65,46 @@ func (cli nullClient) Close() error { return nil }
 
 func (cli nullClient) Track(_ Event) error { return nil }
 
-// Log telemetry
-// Used for tests
-
-type logClient struct{}
-
-func (cli logClient) Close() error { return nil }
-
-func (cli logClient) identify(_ User) error { return nil }
-
-func (cli logClient) Track(e Event) error {
-	fmt.Printf("\n*** Telemetry event ***\nObject: %s\nAction: %s\nProperties: %+v\n\n", e.Object, e.Action, e.Properties)
-	return nil
-}
-
 // Segment client
 // Used when telemetry is enabled
 
 type segmentClient struct {
-	cli analytics.Client
+	cli    analytics.Client
+	userId string
 }
 
-func newSegmentClient() logClient {
-	return logClient{}
-	// return &segmentClient{
-	// 	cli: analytics.New(""),
-	// }
-}
+const (
+	segmentKey = ""
+)
 
-func (segment *segmentClient) identify(user User) error {
+func newSegmentClient(user User) Client {
+	cli := analytics.New(segmentKey)
+
+	userID := user.UniqueID
+	if userID == "" {
+		userID = "none"
+	}
+
 	traits := analytics.NewTraits().Set("UUID", user.UniqueID)
-
 	if user.UserID != "" {
 		traits = traits.Set("userId", user.UserID)
 	}
-	return segment.cli.Enqueue(
+	cli.Enqueue(
 		analytics.Identify{
-			UserId: user.UniqueID,
+			UserId: userID,
 		},
 	)
+
+	return &segmentClient{cli, userID}
 }
 
 func (segment *segmentClient) Track(event Event) error {
+	if event.Properties == nil {
+		event.Properties = make(map[string]interface{})
+	}
 	event.Properties["action"] = event.Action
 	return segment.cli.Enqueue(analytics.Track{
+		UserId:     segment.userId,
 		Event:      event.Object,
 		Properties: event.Properties,
 	})

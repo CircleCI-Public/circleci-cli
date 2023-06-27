@@ -38,6 +38,7 @@ require (
 	github.com/erikgeiser/promptkit v0.7.0
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/segmentio/analytics-go v3.1.0+incompatible
+	github.com/spf13/afero v1.9.5
 	github.com/stretchr/testify v1.8.3
 	golang.org/x/exp v0.0.0-20230713183714-613f0c0eb8a1
 	golang.org/x/term v0.10.0
