@@ -33,6 +33,7 @@ type TempSettings struct {
 	Home       string
 	TestServer *ghttp.Server
 	Config     *TmpFile
+	Telemetry  *TmpFile
 	Update     *TmpFile
 }
 
@@ -68,6 +69,7 @@ func WithTempSettings() *TempSettings {
 	gomega.Expect(os.Mkdir(settingsPath, 0700)).To(gomega.Succeed())
 
 	tempSettings.Config = OpenTmpFile(settingsPath, "cli.yml")
+	tempSettings.Telemetry = OpenTmpFile(settingsPath, "telemetry.yml")
 	tempSettings.Update = OpenTmpFile(settingsPath, "update_check.yml")
 
 	tempSettings.TestServer = ghttp.NewServer()

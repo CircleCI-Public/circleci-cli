@@ -184,6 +184,7 @@ func MakeCommands() *cobra.Command {
 	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
+	flags.BoolVar(&rootOptions.Telemetry.DisabledFromParams, "disable-telemetry", false, "Do not show telemetry for the actual command")
 
 	hidden := []string{"github-api", "debug", "endpoint"}
 
@@ -227,6 +228,7 @@ func rootCmdPreRun(rootOptions *settings.Config) error {
 		fmt.Printf("Error checking for updates: %s\n", err)
 		fmt.Printf("Please contact support.\n\n")
 	}
+
 	return nil
 }
 
