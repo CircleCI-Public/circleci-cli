@@ -257,7 +257,7 @@ var _ = Describe("Config", func() {
 			session.Wait()
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session.Out.Contents()).Should(MatchRegexp("npm run test"))
+			Eventually(session.Out.Contents()).Should(MatchRegexp("npm test"))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
@@ -273,7 +273,7 @@ var _ = Describe("Config", func() {
 			session.Wait()
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session.Out.Contents()).Should(MatchRegexp("npm run test"))
+			Eventually(session.Out.Contents()).Should(MatchRegexp("npm test"))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
