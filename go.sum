@@ -41,6 +41,8 @@ github.com/CircleCI-Public/circleci-config v0.0.0-20230609041455-d155ae7f0410 h1
 github.com/CircleCI-Public/circleci-config v0.0.0-20230609041455-d155ae7f0410/go.mod h1:XZaQPj2ylXZaz5vW31dRdkUY/Ey8MdpbgrUHbHyzICY=
 github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a h1:RqA4H9p77FsqV++HNNDBq8dJftYuJ+r+KdD9HAX28t4=
 github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a/go.mod h1:XZaQPj2ylXZaz5vW31dRdkUY/Ey8MdpbgrUHbHyzICY=
+github.com/CircleCI-Public/circleci-config v0.0.0-20230629192034-c469d9e9936b h1:emg7uU3bRjVMlwSpOATBiybaBPXNWUIiFE/qbQQXZtE=
+github.com/CircleCI-Public/circleci-config v0.0.0-20230629192034-c469d9e9936b/go.mod h1:0iW5+XMF4XtikTlfCElaBQjT/OTMjQRHM1DgSWxcWuE=
 github.com/Masterminds/semver v1.4.2 h1:WBLTQ37jOCzSLtXNdoo8bNM8876KhNqOKvrlGITgsTc=
 github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Microsoft/go-winio v0.5.2 h1:a9IhgEQBCUEk6QCdml9CiJGhAws+YwffDHEMp1VMrpA=

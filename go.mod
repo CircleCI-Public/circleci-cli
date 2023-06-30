@@ -32,7 +32,7 @@ require (
 )
 
 require (
-	github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a
+	github.com/CircleCI-Public/circleci-config v0.0.0-20230629192034-c469d9e9936b
 	github.com/a8m/envsubst v1.4.2
 	github.com/charmbracelet/lipgloss v0.5.0
 	github.com/erikgeiser/promptkit v0.7.0
