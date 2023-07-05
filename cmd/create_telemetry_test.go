@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"path/filepath"
 	"testing"
 
@@ -15,28 +12,65 @@ import (
 
 type testTelemetry struct {
 	events []telemetry.Event
+	User   telemetry.User
 }
 
 func (cli *testTelemetry) Close() error { return nil }
 
 func (cli *testTelemetry) Track(event telemetry.Event) error {
-	cli.events = append(cli.events, event)
+	newEvent := event
+	properties := map[string]interface{}{}
+	if cli.User.UniqueID != "" {
+		properties["UUID"] = cli.User.UniqueID
+	}
+
+	if cli.User.UserID != "" {
+		properties["user_id"] = cli.User.UserID
+	}
+
+	properties["is_self_hosted"] = cli.User.IsSelfHosted
+
+	if cli.User.OS != "" {
+		properties["os"] = cli.User.OS
+	}
+
+	if cli.User.Version != "" {
+		properties["cli_version"] = cli.User.Version
+	}
+
+	if cli.User.TeamName != "" {
+		properties["team_name"] = cli.User.TeamName
+	}
+
+	if len(properties) > 0 {
+		newEvent.Properties = properties
+	}
+
+	cli.events = append(cli.events, newEvent)
 	return nil
 }
 
-func TestAskForTelemetryApproval(t *testing.T) {
+type telemetryTestUI struct {
+	Approved bool
+}
+
+func (ui telemetryTestUI) AskUserToApproveTelemetry(message string) bool {
+	return ui.Approved
+}
+
+type telemetryTestAPIClient struct {
+	id  string
+	err error
+}
+
+func (me telemetryTestAPIClient) getMyUserId() (string, error) {
+	return me.id, me.err
+}
+
+func TestLoadTelemetrySettings(t *testing.T) {
 	// Mock HTTP
 	userId := "id"
 	uniqueId := "unique-id"
-	response := fmt.Sprintf(`{"id":"%s","login":"login","name":"name"}`, userId)
-	var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, r.Method, "GET")
-		assert.Equal(t, r.URL.String(), "/me")
-		w.Header().Set("Content-Type", "application/json")
-		w.Write([]byte(response))
-	}
-	server := httptest.NewServer(handler)
-	defer server.Close()
 
 	// Mock create UUID
 	oldUUIDCreate := createUUID
@@ -47,10 +81,10 @@ func TestAskForTelemetryApproval(t *testing.T) {
 	type args struct {
 		closeStdin     bool
 		promptApproval bool
-		config         settings.TelemetrySettings
+		settings       settings.TelemetrySettings
 	}
 	type want struct {
-		config          settings.TelemetrySettings
+		settings        settings.TelemetrySettings
 		fileNotCreated  bool
 		telemetryEvents []telemetry.Event
 	}
@@ -65,17 +99,22 @@ func TestAskForTelemetryApproval(t *testing.T) {
 			name: "Prompt approval should be saved in settings",
 			args: args{
 				promptApproval: true,
-				config:         settings.TelemetrySettings{},
+				settings:       settings.TelemetrySettings{},
 			},
 			want: want{
-				config: settings.TelemetrySettings{
+				settings: settings.TelemetrySettings{
 					IsActive:          true,
 					HasAnsweredPrompt: true,
 					UserID:            userId,
 					UniqueID:          uniqueId,
 				},
 				telemetryEvents: []telemetry.Event{
-					{Object: "cli-telemetry", Action: "enabled"},
+					{Object: "cli-telemetry", Action: "enabled",
+						Properties: map[string]interface{}{
+							"UUID":           uniqueId,
+							"user_id":        userId,
+							"is_self_hosted": false,
+						}},
 				},
 			},
 		},
@@ -83,16 +122,17 @@ func TestAskForTelemetryApproval(t *testing.T) {
 			name: "Prompt disapproval should be saved in settings",
 			args: args{
 				promptApproval: false,
-				config:         settings.TelemetrySettings{},
+				settings:       settings.TelemetrySettings{},
 			},
 			want: want{
-				config: settings.TelemetrySettings{
+				settings: settings.TelemetrySettings{
 					IsActive:          false,
 					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
 				},
 				telemetryEvents: []telemetry.Event{
-					{Object: "cli-telemetry", Action: "disabled"},
+					{Object: "cli-telemetry", Action: "disabled", Properties: map[string]interface{}{
+						"is_self_hosted": false,
+					}},
 				},
 			},
 		},
@@ -100,42 +140,37 @@ func TestAskForTelemetryApproval(t *testing.T) {
 			name: "Does not recreate a unique ID if there is one",
 			args: args{
 				promptApproval: true,
-				config: settings.TelemetrySettings{
+				settings: settings.TelemetrySettings{
 					UniqueID: "other-id",
 				},
 			},
 			want: want{
-				config: settings.TelemetrySettings{
+				settings: settings.TelemetrySettings{
 					IsActive:          true,
 					HasAnsweredPrompt: true,
 					UserID:            userId,
 					UniqueID:          "other-id",
 				},
 				telemetryEvents: []telemetry.Event{
-					{Object: "cli-telemetry", Action: "enabled"},
+					{Object: "cli-telemetry", Action: "enabled", Properties: map[string]interface{}{
+						"UUID":           "other-id",
+						"user_id":        userId,
+						"is_self_hosted": false,
+					}},
 				},
 			},
 		},
 		{
 			name: "Does not change telemetry settings if user already answered prompt",
 			args: args{
-				config: settings.TelemetrySettings{
+				settings: settings.TelemetrySettings{
 					HasAnsweredPrompt: true,
 				},
 			},
 			want: want{
-				fileNotCreated:  true,
-				telemetryEvents: []telemetry.Event{},
-			},
-		},
-		{
-			name: "Does not change telemetry settings if user disabled telemetry",
-			args: args{
-				config: settings.TelemetrySettings{
-					DisabledFromParams: true,
+				settings: settings.TelemetrySettings{
+					HasAnsweredPrompt: true,
 				},
-			},
-			want: want{
 				fileNotCreated:  true,
 				telemetryEvents: []telemetry.Event{},
 			},
@@ -146,7 +181,9 @@ func TestAskForTelemetryApproval(t *testing.T) {
 			want: want{
 				fileNotCreated: true,
 				telemetryEvents: []telemetry.Event{
-					{Object: "cli-telemetry", Action: "disabled_default"},
+					{Object: "cli-telemetry", Action: "disabled_default", Properties: map[string]interface{}{
+						"is_self_hosted": false,
+					}},
 				},
 			},
 		},
@@ -160,27 +197,22 @@ func TestAskForTelemetryApproval(t *testing.T) {
 			defer (func() { settings.FS.Fs = oldFS })()
 
 			// Mock stdin
-			oldIsStdinOpen := isStdinOpen
-			isStdinOpen = !tt.args.closeStdin
-			defer (func() { isStdinOpen = oldIsStdinOpen })()
+			oldIsStdinOpen := isStdinATTY
+			isStdinATTY = !tt.args.closeStdin
+			defer (func() { isStdinATTY = oldIsStdinOpen })()
 
 			// Mock telemetry
 			telemetryClient := testTelemetry{events: make([]telemetry.Event, 0)}
 			oldCreateActiveTelemetry := telemetry.CreateActiveTelemetry
-			telemetry.CreateActiveTelemetry = func(_ telemetry.User) telemetry.Client {
+			telemetry.CreateActiveTelemetry = func(user telemetry.User) telemetry.Client {
+				telemetryClient.User = user
 				return &telemetryClient
 			}
 			defer (func() { telemetry.CreateActiveTelemetry = oldCreateActiveTelemetry })()
 
-			// Run askForTelemetryApproval
-			config := settings.Config{
-				Token:      "testtoken",
-				HTTPClient: http.DefaultClient,
-				Host:       server.URL,
-				Telemetry:  tt.args.config,
-			}
-			err := askForTelemetryApproval(&config, telemetryTestUI{tt.args.promptApproval})
-			assert.NilError(t, err)
+			// Run tested function
+			loadTelemetrySettings(&tt.args.settings, &telemetry.User{}, telemetryTestAPIClient{userId, nil}, telemetryTestUI{tt.args.promptApproval})
+			assert.DeepEqual(t, &tt.args.settings, &tt.want.settings)
 
 			// Verify good telemetry events were sent
 			assert.DeepEqual(t, telemetryClient.events, tt.want.telemetryEvents)
@@ -194,10 +226,10 @@ func TestAskForTelemetryApproval(t *testing.T) {
 			}
 
 			// Verify settings file content
-			result := settings.TelemetrySettings{}
-			err = result.Load()
+			loaded := settings.TelemetrySettings{}
+			err = loaded.Load()
 			assert.NilError(t, err)
-			assert.Equal(t, result, tt.want.config)
+			assert.DeepEqual(t, &loaded, &tt.want.settings)
 		})
 	}
 }

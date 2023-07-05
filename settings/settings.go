@@ -17,8 +17,6 @@ import (
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/data"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/spf13/afero"
 )
 
@@ -30,22 +28,22 @@ var (
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	Host            string            `yaml:"host"`
-	DlHost          string            `yaml:"-"`
-	Endpoint        string            `yaml:"endpoint"`
-	Token           string            `yaml:"token"`
-	RestEndpoint    string            `yaml:"rest_endpoint"`
-	TLSCert         string            `yaml:"tls_cert"`
-	TLSInsecure     bool              `yaml:"tls_insecure"`
-	HTTPClient      *http.Client      `yaml:"-"`
-	Data            *data.DataBag     `yaml:"-"`
-	Debug           bool              `yaml:"-"`
-	Address         string            `yaml:"-"`
-	FileUsed        string            `yaml:"-"`
-	GitHubAPI       string            `yaml:"-"`
-	SkipUpdateCheck bool              `yaml:"-"`
-	OrbPublishing   OrbPublishingInfo `yaml:"orb_publishing"`
-	Telemetry       TelemetrySettings `yaml:"-"`
+	Host                string            `yaml:"host"`
+	DlHost              string            `yaml:"-"`
+	Endpoint            string            `yaml:"endpoint"`
+	Token               string            `yaml:"token"`
+	RestEndpoint        string            `yaml:"rest_endpoint"`
+	TLSCert             string            `yaml:"tls_cert"`
+	TLSInsecure         bool              `yaml:"tls_insecure"`
+	HTTPClient          *http.Client      `yaml:"-"`
+	Data                *data.DataBag     `yaml:"-"`
+	Debug               bool              `yaml:"-"`
+	Address             string            `yaml:"-"`
+	FileUsed            string            `yaml:"-"`
+	GitHubAPI           string            `yaml:"-"`
+	SkipUpdateCheck     bool              `yaml:"-"`
+	IsTelemetryDisabled bool              `yaml:"-"`
+	OrbPublishing       OrbPublishingInfo `yaml:"orb_publishing"`
 }
 
 type OrbPublishingInfo struct {
@@ -62,13 +60,10 @@ type UpdateCheck struct {
 
 // TelemetrySettings is used to represent telemetry related settings
 type TelemetrySettings struct {
-	IsActive           bool   `yaml:"is_active"`
-	HasAnsweredPrompt  bool   `yaml:"has_answered_prompt"`
-	DisabledFromParams bool   `yaml:"-"`
-	UniqueID           string `yaml:"unique_id"`
-	UserID             string `yaml:"user_id"`
-
-	Client telemetry.Client `yaml:"-"`
+	IsActive          bool   `yaml:"is_active"`
+	HasAnsweredPrompt bool   `yaml:"has_answered_prompt"`
+	UniqueID          string `yaml:"unique_id"`
+	UserID            string `yaml:"user_id"`
 }
 
 // Load will read the update check settings from the user's disk and then deserialize it into the current instance.
@@ -128,35 +123,6 @@ func (tel *TelemetrySettings) Write() error {
 	path := filepath.Join(SettingsPath(), telemetryFilename())
 	err = FS.WriteFile(path, enc, 0600)
 	return err
-}
-
-// Track takes a telemetry event, enrich with various data and sends it
-// This is the method you must use to send telemetry events
-// This will fail if 'checkTelemetry' has not called before
-func (cfg *Config) Track(event telemetry.Event) error {
-	if cfg.Telemetry.Client == nil {
-		return errors.New("No telemetry client found")
-	}
-
-	if cfg.Telemetry.UniqueID != "" {
-		event.Properties["UUID"] = cfg.Telemetry.UniqueID
-	}
-
-	if cfg.Telemetry.UserID != "" {
-		event.Properties["user_id"] = cfg.Telemetry.UserID
-	}
-
-	if cfg.Host != "" {
-		event.Properties["host"] = cfg.Host
-	} else {
-		event.Properties["host"] = "https://circleci.com"
-	}
-
-	event.Properties["os"] = runtime.GOOS
-	event.Properties["cli_version"] = version.Version
-	event.Properties["team_name"] = "devex"
-
-	return cfg.Telemetry.Client.Track(event)
 }
 
 // Load will read the config from the user's disk and then evaluate possible configuration from the environment.
