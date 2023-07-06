@@ -54,7 +54,7 @@ commands:
     parameters:
       version:
         type: string
-        default: v1.19.1
+        default: "1.19.1"
     steps:
       - restore_cache:
           keys:
