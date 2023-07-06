@@ -1218,7 +1218,8 @@ func initOrb(opts orbOptions) error {
 	defer resp.Body.Close()
 
 	// Create the file
-	out, err := os.Create(filepath.Join(os.TempDir(), "orb-template.zip"))
+	zipPath := filepath.Join(os.TempDir(), "orb-template.zip")
+	out, err := os.Create(zipPath)
 	if err != nil {
 		return err
 	}
@@ -1230,9 +1231,17 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-template.zip"), orbPath)
+	err = unzipToOrbPath(zipPath, orbPath)
 	if err != nil {
 		return err
+	}
+
+	// Remove MIT License file if orb is private
+	if opts.private {
+		err = os.Remove(filepath.Join(orbPath, "LICENSE"))
+		if err != nil && !errors.Is(err, os.ErrNotExist) {
+			return err
+		}
 	}
 
 	if fullyAutomated == 1 {
