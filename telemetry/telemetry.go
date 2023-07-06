@@ -1,8 +1,10 @@
 package telemetry
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
+	"os"
 
 	"github.com/segmentio/analytics-go"
 )
@@ -26,10 +28,13 @@ type Client interface {
 	Track(event Event) error
 }
 
+// A segment event to be sent to the telemetry
+// Important: this is not meant to be constructed directly apart in tests
+// If you want to create a new event, add its constructor in ./events.go
 type Event struct {
-	Object     string
-	Action     string
-	Properties map[string]interface{}
+	Object     string                 `json:"object"`
+	Action     string                 `json:"action"`
+	Properties map[string]interface{} `json:"properties"`
 }
 
 type User struct {
@@ -43,6 +48,7 @@ type User struct {
 
 // Create a telemetry client to be used to send telemetry events
 func CreateClient(user User, enabled bool) Client {
+	fmt.Printf("telemetry enabled = %+v\n", enabled)
 	if !enabled {
 		return nullClient{}
 	}
@@ -137,4 +143,37 @@ func (segment *segmentClient) Track(event Event) error {
 
 func (segment *segmentClient) Close() error {
 	return segment.cli.Close()
+}
+
+// File telemetry
+// Used for E2E tests
+
+type fileTelemetry struct {
+	file *os.File
+}
+
+func CreateFileTelemetry(filePath string) Client {
+	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0666)
+	if err != nil {
+		panic(err)
+	}
+	return &fileTelemetry{file}
+}
+
+func (cli *fileTelemetry) Track(event Event) error {
+	content, err := json.Marshal(&event)
+	if err != nil {
+		return err
+	}
+
+	content = append(content, '\n')
+	_, err = cli.file.Write(content)
+
+	return err
+}
+
+func (cli *fileTelemetry) Close() error {
+	file := cli.file
+	cli.file = nil
+	return file.Close()
 }

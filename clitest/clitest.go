@@ -11,9 +11,11 @@ import (
 	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/onsi/gomega/types"
+	"gopkg.in/yaml.v3"
 
 	"github.com/onsi/gomega"
 )
@@ -70,6 +72,14 @@ func WithTempSettings() *TempSettings {
 
 	tempSettings.Config = OpenTmpFile(settingsPath, "cli.yml")
 	tempSettings.Telemetry = OpenTmpFile(settingsPath, "telemetry.yml")
+	content, err := yaml.Marshal(settings.TelemetrySettings{
+		IsActive:          false,
+		HasAnsweredPrompt: true,
+	})
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	_, err = tempSettings.Telemetry.File.Write(content)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
 	tempSettings.Update = OpenTmpFile(settingsPath, "update_check.yml")
 
 	tempSettings.TestServer = ghttp.NewServer()

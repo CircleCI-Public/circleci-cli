@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"runtime"
 
@@ -33,6 +34,41 @@ var _ = Describe("Setup with prompts", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
+	})
+
+	Describe("telemetry", func() {
+		var (
+			telemetryDestFilePath string
+		)
+
+		BeforeEach(func() {
+			telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
+
+			command = commandWithHome(pathCLI, tempSettings.Home,
+				"setup",
+				"--integration-testing",
+				"--skip-update-check",
+				"--mock-telemetry", telemetryDestFilePath,
+			)
+		})
+
+		AfterEach(func() {
+			tempSettings.Close()
+			if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
+				os.Remove(telemetryDestFilePath)
+			}
+		})
+
+		It("should send telemetry event when", func() {
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session).Should(gexec.Exit(0))
+			content, err := os.ReadFile(telemetryDestFilePath)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(string(content)).To(Equal(`{"object":"cli-setup","action":"called","properties":{"is_server_customer":false}}
+`))
+		})
 	})
 
 	Describe("new config file", func() {

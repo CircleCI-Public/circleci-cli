@@ -186,8 +186,9 @@ func MakeCommands() *cobra.Command {
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
 	flags.BoolVar(&rootOptions.IsTelemetryDisabled, "disable-telemetry", false, "Do not show telemetry for the actual command")
+	flags.StringVar(&rootOptions.MockTelemetry, "mock-telemetry", "", "The path where telemetry must be written")
 
-	hidden := []string{"github-api", "debug", "endpoint"}
+	hidden := []string{"github-api", "debug", "endpoint", "mock-telemetry"}
 
 	for _, f := range hidden {
 		if err := flags.MarkHidden(f); err != nil {

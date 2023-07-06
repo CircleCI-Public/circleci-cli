@@ -46,14 +46,27 @@ func (client telemetryCircleCIAPI) getMyUserId() (string, error) {
 	return me.ID, nil
 }
 
+type nullTelemetryAPIClient struct{}
+
+func (client nullTelemetryAPIClient) getMyUserId() (string, error) {
+	panic("Should not be called")
+}
+
 // Make sure the user gave their approval for the telemetry and
 func createTelemetry(config *settings.Config) telemetry.Client {
+	if config.MockTelemetry != "" {
+		return telemetry.CreateFileTelemetry(config.MockTelemetry)
+	}
+
 	if config.IsTelemetryDisabled {
 		return telemetry.CreateClient(telemetry.User{}, false)
 	}
 
-	apiClient := telemetryCircleCIAPI{
-		cli: rest.NewFromConfig(config.Host, config),
+	var apiClient telemetryAPIClient = nullTelemetryAPIClient{}
+	if config.HTTPClient != nil {
+		apiClient = telemetryCircleCIAPI{
+			cli: rest.NewFromConfig(config.Host, config),
+		}
 	}
 	ui := telemetryInteractiveUI{}
 
@@ -150,6 +163,4 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	if err := settings.Write(); err != nil {
 		fmt.Printf("Error writing telemetry settings to disk: %s\n", err)
 	}
-
-	return
 }

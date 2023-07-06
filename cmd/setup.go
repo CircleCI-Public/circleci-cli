@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -187,6 +188,12 @@ func setup(opts setupOptions) error {
 
 	if !opts.integrationTesting {
 		setupDiagnosticCheck(opts)
+	}
+
+	telemetryClient := createTelemetry(opts.cfg)
+	defer telemetryClient.Close()
+	if err := telemetryClient.Track(telemetry.CreateSetupEvent(opts.cfg.Host == defaultHost)); err != nil {
+		fmt.Printf("Unable to send telemetry event: %s\n", err)
 	}
 
 	return nil
