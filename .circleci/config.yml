@@ -57,18 +57,18 @@ commands:
         default: v1.19.1
     steps:
       - restore_cache:
-          keys: [v5-goreleaser-<< parameters.version >>]
+          keys:
+            - v6-goreleaser-<< parameters.version >>
       - run:
           name: Install GoReleaser
           command: |
-            [ -f ~/goreleaser_amd64.deb ] || curl --silent --location --fail --retry 3 \
-              https://github.com/goreleaser/goreleaser/releases/download/<< parameters.version >>/goreleaser_amd64.deb \
-              > ~/goreleaser_amd64.deb
+            echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
             sudo apt update -y
-            sudo apt install -y --no-install-recommends ~/goreleaser_amd64.deb
+            sudo apt install -y --no-install-recommends goreleaser=<< parameters.version >>
       - save_cache:
-          key: v5-goreleaser-<< parameters.version >>
-          paths: [~/goreleaser_amd64.deb]
+          key: v6-goreleaser-<< parameters.version >>
+          paths:
+            - /var/cache/apt
   gomod:
     steps:
       - restore_cache:
