@@ -48,7 +48,6 @@ type User struct {
 
 // Create a telemetry client to be used to send telemetry events
 func CreateClient(user User, enabled bool) Client {
-	fmt.Printf("telemetry enabled = %+v\n", enabled)
 	if !enabled {
 		return nullClient{}
 	}
@@ -110,7 +109,9 @@ func (segment *segmentClient) Track(event Event) error {
 	if event.Properties == nil {
 		event.Properties = make(map[string]interface{})
 	}
-	event.Properties["action"] = event.Action
+	if event.Action != "" {
+		event.Properties["action"] = event.Action
+	}
 
 	if segment.user.UniqueID != "" {
 		event.Properties["UUID"] = segment.user.UniqueID
@@ -149,31 +150,33 @@ func (segment *segmentClient) Close() error {
 // Used for E2E tests
 
 type fileTelemetry struct {
-	file *os.File
+	filePath string
+	events   []Event
 }
 
 func CreateFileTelemetry(filePath string) Client {
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY, 0666)
-	if err != nil {
-		panic(err)
-	}
-	return &fileTelemetry{file}
+	return &fileTelemetry{filePath, make([]Event, 0)}
 }
 
 func (cli *fileTelemetry) Track(event Event) error {
-	content, err := json.Marshal(&event)
+	cli.events = append(cli.events, event)
+	return nil
+}
+
+func (cli *fileTelemetry) Close() error {
+	file, err := os.OpenFile(cli.filePath, os.O_CREATE|os.O_WRONLY, 0666)
 	if err != nil {
 		return err
 	}
 
-	content = append(content, '\n')
-	_, err = cli.file.Write(content)
+	content, err := json.Marshal(&cli.events)
+	if err != nil {
+		return err
+	}
 
-	return err
-}
+	if _, err = file.Write(content); err != nil {
+		return err
+	}
 
-func (cli *fileTelemetry) Close() error {
-	file := cli.file
-	cli.file = nil
 	return file.Close()
 }

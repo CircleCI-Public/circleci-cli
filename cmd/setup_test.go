@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -59,15 +60,14 @@ var _ = Describe("Setup with prompts", func() {
 			}
 		})
 
-		It("should send telemetry event when", func() {
+		It("should send telemetry event", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			content, err := os.ReadFile(telemetryDestFilePath)
-			Expect(err).ShouldNot(HaveOccurred())
-			Expect(string(content)).To(Equal(`{"object":"cli-setup","action":"called","properties":{"is_server_customer":false}}
-`))
+			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+				telemetry.CreateSetupEvent(false),
+			})
 		})
 	})
 

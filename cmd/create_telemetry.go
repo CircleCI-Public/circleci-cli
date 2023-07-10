@@ -12,6 +12,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/google/uuid"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"golang.org/x/term"
 )
 
@@ -162,5 +164,30 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	// Write telemetry
 	if err := settings.Write(); err != nil {
 		fmt.Printf("Error writing telemetry settings to disk: %s\n", err)
+	}
+}
+
+// Utility function used when creating telemetry events.
+// It takes a cobra Command and creates a telemetry.CommandInfo of it
+// If getParent is true, puts both the command's args in `LocalArgs` and the parent's args
+// Else only put the command's args
+// Note: child flags overwrite parent flags with same name
+func getCommandInformation(cmd *cobra.Command, getParent bool) telemetry.CommandInfo {
+	localArgs := map[string]string{}
+
+	parent := cmd.Parent()
+	if getParent && parent != nil {
+		parent.LocalFlags().VisitAll(func(flag *pflag.Flag) {
+			localArgs[flag.Name] = flag.Value.String()
+		})
+	}
+
+	cmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {
+		localArgs[flag.Name] = flag.Value.String()
+	})
+
+	return telemetry.CommandInfo{
+		Name:      cmd.Name(),
+		LocalArgs: localArgs,
 	}
 }

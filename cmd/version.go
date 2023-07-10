@@ -34,7 +34,7 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 			fmt.Printf("%s+%s (%s)\n", version.Version, version.Commit, version.PackageManager())
 		},
 		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			if err := telemetryClient.Track(telemetry.CreateVersionEvent()); err != nil {
+			if err := telemetryClient.Track(telemetry.CreateVersionEvent(version.Version)); err != nil {
 				return err
 			}
 			return telemetryClient.Close()

@@ -2,10 +2,12 @@ package cmd_test
 
 import (
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -68,6 +70,66 @@ var _ = Describe("Update", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
+	})
+
+	Describe("telemetry", func() {
+		var (
+			telemetryDestFilePath string
+		)
+
+		BeforeEach(func() {
+			telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
+		})
+
+		AfterEach(func() {
+			tempSettings.Close()
+			if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
+				os.Remove(telemetryDestFilePath)
+			}
+		})
+
+		It("should send telemetry event when calling parent command", func() {
+			command = exec.Command(pathCLI,
+				"update",
+				"--github-api", tempSettings.TestServer.URL(),
+				"--mock-telemetry", telemetryDestFilePath,
+			)
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session).Should(gexec.Exit(0))
+			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
+					Name: "update",
+					LocalArgs: map[string]string{
+						"check": "false",
+						"help":  "false",
+					},
+				}),
+			})
+		})
+
+		It("should send telemetry event when calling child command", func() {
+			command = exec.Command(pathCLI,
+				"update",
+				"check",
+				"--github-api", tempSettings.TestServer.URL(),
+				"--mock-telemetry", telemetryDestFilePath,
+			)
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session).Should(gexec.Exit(0))
+			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
+					Name: "check",
+					LocalArgs: map[string]string{
+						"check": "false",
+						"help":  "false",
+					},
+				}),
+			})
+		})
 	})
 
 	Describe("update --check", func() {

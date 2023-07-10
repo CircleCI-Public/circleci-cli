@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/spf13/cobra"
 )
 
@@ -25,6 +26,10 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 		Use:   "diagnostic",
 		Short: "Check the status of your CircleCI CLI.",
 		PreRun: func(cmd *cobra.Command, args []string) {
+			telemetryClient := createTelemetry(config)
+			defer telemetryClient.Close()
+			telemetryClient.Track(telemetry.CreateDiagnosticEvent())
+
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},

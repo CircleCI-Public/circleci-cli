@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
 
@@ -28,8 +29,11 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 	update := &cobra.Command{
 		Use:   "update",
 		Short: "Update the tool to the latest version",
-		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
+			telemetryClient := createTelemetry(config)
+			defer telemetryClient.Close()
+			telemetryClient.Track(telemetry.CreateUpdateEvent(getCommandInformation(cmd, cmd.Name() != "update")))
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
@@ -43,9 +47,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "check",
 		Hidden: true,
 		Short:  "Check if there are any updates available",
-		PersistentPreRun: func(_ *cobra.Command, _ []string) {
-			opts.cfg.SkipUpdateCheck = true
-		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 			opts.dryRun = true
@@ -59,9 +60,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "install",
 		Hidden: true,
 		Short:  "Update the tool to the latest version",
-		PersistentPreRun: func(_ *cobra.Command, _ []string) {
-			opts.cfg.SkipUpdateCheck = true
-		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},
@@ -74,9 +72,6 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Use:    "build-agent",
 		Hidden: true,
 		Short:  "This command has no effect, and is kept for backwards compatibility",
-		PersistentPreRun: func(_ *cobra.Command, _ []string) {
-			opts.cfg.SkipUpdateCheck = true
-		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},
