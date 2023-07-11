@@ -68,6 +68,10 @@ func SendTelemetryApproval(user User, approval Approval) error {
 // Null client
 // Used when telemetry is disabled
 
+func CreateNullClient() Client {
+	return nullClient{}
+}
+
 type nullClient struct{}
 
 func (cli nullClient) Close() error { return nil }

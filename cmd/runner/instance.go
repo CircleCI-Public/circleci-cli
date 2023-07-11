@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func newRunnerInstanceCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
@@ -26,6 +28,14 @@ func newRunnerInstanceCommand(o *runnerOpts, preRunE validator.Validator) *cobra
 		Args:    cobra.ExactArgs(1),
 		PreRunE: preRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
+			var err error
+
+			telemetryClient := o.createTelemetry()
+			defer (func() {
+				_ = telemetryClient.Track(telemetry.CreateRunnerInstanceEvent(create_telemetry.GetCommandInformation(cmd, true), err))
+				_ = telemetryClient.Close()
+			})()
+
 			runners, err := o.r.GetRunnerInstances(args[0])
 			if err != nil {
 				return err

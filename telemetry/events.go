@@ -95,3 +95,19 @@ func CreateOrbEvent(cmdInfo CommandInfo) Event {
 func CreatePolicyEvent(cmdInfo CommandInfo) Event {
 	return createEventFromCommandInfo("policy", cmdInfo)
 }
+
+func CreateRunnerInstanceEvent(cmdInfo CommandInfo, err error) Event {
+	event := createEventFromCommandInfo("runner-instance", cmdInfo)
+	if err != nil {
+		event.Properties["error"] = err.Error()
+	}
+	return event
+}
+
+func CreateRunnerResourceClassEvent(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("runner-resource-class", cmdInfo)
+}
+
+func CreateRunnerToken(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("runner-resource-class", cmdInfo)
+}

@@ -3,7 +3,9 @@ package runner
 import (
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
@@ -12,6 +14,11 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "token",
 		Short: "Operate on runner tokens",
+		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
+			telemetryClient := o.createTelemetry()
+			defer telemetryClient.Close()
+			telemetryClient.Track(telemetry.CreateRunnerResourceClassEvent(create_telemetry.GetCommandInformation(cmd, true)))
+		},
 	}
 
 	cmd.AddCommand(&cobra.Command{

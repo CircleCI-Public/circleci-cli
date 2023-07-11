@@ -12,11 +12,12 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func Test_ResourceClass(t *testing.T) {
 	runner := runnerMock{}
-	cmd := newResourceClassCommand(&runnerOpts{r: &runner}, nil)
+	cmd := newResourceClassCommand(&runnerOpts{r: &runner, createTelemetry: telemetry.CreateNullClient}, nil)
 	stdout := new(bytes.Buffer)
 	stderr := new(bytes.Buffer)
 	cmd.SetOut(stdout)
