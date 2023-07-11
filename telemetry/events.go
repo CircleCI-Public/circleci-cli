@@ -12,12 +12,17 @@ type CommandInfo struct {
 	LocalArgs map[string]string
 }
 
-func localArgsToProperties(cmdInfo CommandInfo) map[string]interface{} {
+func createEventFromCommandInfo(name string, cmdInfo CommandInfo) Event {
 	properties := map[string]interface{}{}
 	for key, value := range cmdInfo.LocalArgs {
 		properties[fmt.Sprintf("cmd.flag.%s", key)] = value
 	}
-	return properties
+
+	return Event{
+		Object:     fmt.Sprintf("cli-%s", name),
+		Action:     cmdInfo.Name,
+		Properties: properties,
+	}
 }
 
 func errorToProperties(err error) map[string]interface{} {
@@ -48,11 +53,7 @@ func CreateVersionEvent(version string) Event {
 }
 
 func CreateUpdateEvent(cmdInfo CommandInfo) Event {
-	return Event{
-		Object:     "cli-update",
-		Action:     cmdInfo.Name,
-		Properties: localArgsToProperties(cmdInfo),
-	}
+	return createEventFromCommandInfo("update", cmdInfo)
 }
 
 func CreateDiagnosticEvent(err error) Event {
@@ -72,17 +73,21 @@ func CreateOpenEvent(err error) Event {
 }
 
 func CreateCompletionCommand(cmdInfo CommandInfo) Event {
-	return Event{
-		Object:     "cli-completion",
-		Action:     cmdInfo.Name,
-		Properties: localArgsToProperties(cmdInfo),
-	}
+	return createEventFromCommandInfo("completion", cmdInfo)
 }
 
 func CreateConfigEvent(cmdInfo CommandInfo) Event {
-	return Event{
-		Object:     "cli-config",
-		Action:     cmdInfo.Name,
-		Properties: localArgsToProperties(cmdInfo),
-	}
+	return createEventFromCommandInfo("config", cmdInfo)
+}
+
+func CreateLocalExecuteEvent(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("local", cmdInfo)
+}
+
+func CreateNamespaceEvent(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("namespace", cmdInfo)
+}
+
+func CreateOrbEvent(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("orb", cmdInfo)
 }

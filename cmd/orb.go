@@ -20,11 +20,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/process"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
@@ -387,6 +389,10 @@ Please note that at this time all orbs created in the registry are world-readabl
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
+
+			telemetryClient := create_telemetry.CreateTelemetry(config)
+			defer telemetryClient.Close()
+			telemetryClient.Track(telemetry.CreateOrbEvent(create_telemetry.GetCommandInformation(cmd, true)))
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.

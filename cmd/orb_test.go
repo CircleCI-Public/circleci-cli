@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -16,12 +17,69 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
 	"github.com/onsi/gomega/gexec"
 )
+
+var _ = Describe("Orb telemetry", func() {
+	var (
+		command               *exec.Cmd
+		orb                   *clitest.TmpFile
+		tempSettings          *clitest.TempSettings
+		telemetryDestFilePath string
+	)
+
+	BeforeEach(func() {
+		tempSettings = clitest.WithTempSettings()
+		telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
+		orb = clitest.OpenTmpFile(tempSettings.Home, "orb.yml")
+		command = exec.Command(pathCLI,
+			"orb", "validate", orb.Path,
+			"--skip-update-check",
+			"--token", "token",
+			"--host", tempSettings.TestServer.URL(),
+			"--mock-telemetry", telemetryDestFilePath,
+		)
+	})
+
+	AfterEach(func() {
+		orb.Close()
+		tempSettings.Close()
+		if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
+			os.Remove(telemetryDestFilePath)
+		}
+	})
+
+	It("works", func() {
+		orb.Write([]byte(`{}`))
+
+		mockOrbIntrospection(true, "", tempSettings)
+
+		tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
+			res.WriteHeader(http.StatusOK)
+			res.Write([]byte(`{"orbConfig": {"sourceYaml": "{}", "valid": true, "errors": []} }`))
+		})
+
+		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+		Expect(err).ShouldNot(HaveOccurred())
+		Eventually(session).Should(gexec.Exit(0))
+
+		clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+			telemetry.CreateOrbEvent(telemetry.CommandInfo{
+				Name: "validate",
+				LocalArgs: map[string]string{
+					"org-slug": "",
+					"help":     "false",
+					"org-id":   "",
+				},
+			}),
+		})
+	})
+})
 
 var _ = Describe("Orb integration tests", func() {
 	Describe("Orb help text", func() {
