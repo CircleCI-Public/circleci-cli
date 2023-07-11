@@ -76,8 +76,12 @@ func CreateCompletionCommand(cmdInfo CommandInfo) Event {
 	return createEventFromCommandInfo("completion", cmdInfo)
 }
 
-func CreateConfigEvent(cmdInfo CommandInfo) Event {
-	return createEventFromCommandInfo("config", cmdInfo)
+func CreateConfigEvent(cmdInfo CommandInfo, err error) Event {
+	event := createEventFromCommandInfo("config", cmdInfo)
+	if err != nil {
+		event.Properties["error"] = err.Error()
+	}
+	return event
 }
 
 func CreateLocalExecuteEvent(cmdInfo CommandInfo) Event {

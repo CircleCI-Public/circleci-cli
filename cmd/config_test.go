@@ -61,7 +61,7 @@ var _ = Describe("Config", func() {
 					telemetry.CreateConfigEvent(telemetry.CommandInfo{
 						Name:      "pack",
 						LocalArgs: map[string]string{"help": "false"},
-					}),
+					}, nil),
 				})
 			})
 		})

@@ -56,7 +56,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			defer closeTelemetryClient()
 			err := packConfig(args)
-			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			_ = telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
 			return err
 		},
 		Args:        cobra.ExactArgs(1),
@@ -89,7 +89,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				IgnoreDeprecatedImages: ignoreDeprecatedImages,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
 
 			return err
 		},
@@ -124,7 +124,6 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
-			telemetryClient.Track(telemetry.CreateConfigEvent(getCommandInformation(cmd, true)))
 			response, err := compiler.ProcessConfig(config.ProcessConfigOpts{
 				ConfigPath:             path,
 				OrgID:                  orgID,
@@ -132,7 +131,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				PipelineParamsFilePath: pipelineParamsFilePath,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
 			if err != nil {
 				return err
 			}
