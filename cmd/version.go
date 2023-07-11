@@ -26,6 +26,9 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 		Short: "Display version information",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			telemetryClient = create_telemetry.CreateTelemetry(config)
+			defer telemetryClient.Close()
+			_ = telemetryClient.Track(telemetry.CreateVersionEvent(version.Version))
+
 			opts.cfg.SkipUpdateCheck = true
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
@@ -33,12 +36,6 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 		},
 		Run: func(_ *cobra.Command, _ []string) {
 			fmt.Printf("%s+%s (%s)\n", version.Version, version.Commit, version.PackageManager())
-		},
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
-			if err := telemetryClient.Track(telemetry.CreateVersionEvent(version.Version)); err != nil {
-				return err
-			}
-			return telemetryClient.Close()
 		},
 	}
 }
