@@ -6,6 +6,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -54,7 +55,13 @@ func followProjectCommand(config *settings.Config) *cobra.Command {
 		Use:   "follow",
 		Short: "Attempt to follow the project for the current git repository.",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return followProject(opts)
+			telemetryClient := createTelemetry(config)
+			defer telemetryClient.Close()
+
+			err := followProject(opts)
+			telemetryClient.Track(telemetry.CreateFollowEvent(err))
+
+			return err
 		},
 	}
 	return followCommand

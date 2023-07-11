@@ -16,6 +16,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 )
 
 // Path to the config.yml file to operate on.
@@ -29,16 +33,34 @@ var configAnnotations = map[string]string{
 }
 
 func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
+	var telemetryClient telemetry.Client
+
+	closeTelemetryClient := func() {
+		if telemetryClient != nil {
+			telemetryClient.Close()
+			telemetryClient = nil
+		}
+	}
+
 	configCmd := &cobra.Command{
 		Use:   "config",
 		Short: "Operate on build config files",
+		PersistentPreRun: func(_ *cobra.Command, _ []string) {
+			telemetryClient = createTelemetry(globalConfig)
+		},
+		PersistentPostRun: func(cmd *cobra.Command, args []string) {
+			closeTelemetryClient()
+		},
 	}
 
 	packCommand := &cobra.Command{
 		Use:   "pack <path>",
 		Short: "Pack up your CircleCI configuration into a single file.",
-		RunE: func(_ *cobra.Command, args []string) error {
-			return packConfig(args)
+		RunE: func(cmd *cobra.Command, args []string) error {
+			defer closeTelemetryClient()
+			err := packConfig(args)
+			telemetryClient.Track(telemetry.CreateConfigEvent(getCommandInformation(cmd, true)))
+			return err
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
@@ -50,6 +72,8 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		Aliases: []string{"check"},
 		Short:   "Check that the config file is well formed.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			defer closeTelemetryClient()
+
 			compiler := config.New(globalConfig)
 			orgID, _ := cmd.Flags().GetString("org-id")
 			orgSlug, _ := cmd.Flags().GetString("org-slug")
@@ -60,13 +84,17 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
-			return compiler.ValidateConfig(config.ValidateConfigOpts{
+
+			err := compiler.ValidateConfig(config.ValidateConfigOpts{
 				ConfigPath:             path,
 				OrgID:                  orgID,
 				OrgSlug:                orgSlug,
 				IgnoreDeprecatedImages: ignoreDeprecatedImages,
 				VerboseOutput:          verboseOutput,
 			})
+			telemetryClient.Track(telemetry.CreateConfigEvent(getCommandInformation(cmd, true)))
+
+			return err
 		},
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: make(map[string]string),
@@ -86,6 +114,8 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		Use:   "process <path>",
 		Short: "Validate config and display expanded configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			defer closeTelemetryClient()
+
 			compiler := config.New(globalConfig)
 			pipelineParamsFilePath, _ := cmd.Flags().GetString("pipeline-parameters")
 			orgID, _ := cmd.Flags().GetString("org-id")
@@ -97,6 +127,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
+			telemetryClient.Track(telemetry.CreateConfigEvent(getCommandInformation(cmd, true)))
 			response, err := compiler.ProcessConfig(config.ProcessConfigOpts{
 				ConfigPath:             path,
 				OrgID:                  orgID,

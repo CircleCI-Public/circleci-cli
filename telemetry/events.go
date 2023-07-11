@@ -20,6 +20,15 @@ func localArgsToProperties(cmdInfo CommandInfo) map[string]interface{} {
 	return properties
 }
 
+func errorToProperties(err error) map[string]interface{} {
+	if err == nil {
+		return nil
+	}
+	return map[string]interface{}{
+		"error": err.Error(),
+	}
+}
+
 func CreateSetupEvent(isServerCustomer bool) Event {
 	return Event{
 		Object: "cli-setup",
@@ -46,8 +55,34 @@ func CreateUpdateEvent(cmdInfo CommandInfo) Event {
 	}
 }
 
-func CreateDiagnosticEvent() Event {
+func CreateDiagnosticEvent(err error) Event {
 	return Event{
-		Object: "cli-diagnostic",
+		Object: "cli-diagnostic", Properties: errorToProperties(err),
+	}
+}
+
+func CreateFollowEvent(err error) Event {
+	return Event{
+		Object: "cli-follow", Properties: errorToProperties(err),
+	}
+}
+
+func CreateOpenEvent(err error) Event {
+	return Event{Object: "cli-open", Properties: errorToProperties(err)}
+}
+
+func CreateCompletionCommand(cmdInfo CommandInfo) Event {
+	return Event{
+		Object:     "cli-completion",
+		Action:     cmdInfo.Name,
+		Properties: localArgsToProperties(cmdInfo),
+	}
+}
+
+func CreateConfigEvent(cmdInfo CommandInfo) Event {
+	return Event{
+		Object:     "cli-config",
+		Action:     cmdInfo.Name,
+		Properties: localArgsToProperties(cmdInfo),
 	}
 }

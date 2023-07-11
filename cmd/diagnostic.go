@@ -26,15 +26,17 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 		Use:   "diagnostic",
 		Short: "Check the status of your CircleCI CLI.",
 		PreRun: func(cmd *cobra.Command, args []string) {
-			telemetryClient := createTelemetry(config)
-			defer telemetryClient.Close()
-			telemetryClient.Track(telemetry.CreateDiagnosticEvent())
-
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
 		RunE: func(_ *cobra.Command, _ []string) error {
-			return diagnostic(opts)
+			telemetryClient := createTelemetry(config)
+			defer telemetryClient.Close()
+
+			err := diagnostic(opts)
+			telemetryClient.Track(telemetry.CreateDiagnosticEvent(err))
+
+			return err
 		},
 	}
 

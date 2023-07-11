@@ -17,6 +17,42 @@ import (
 	"github.com/onsi/gomega/gexec"
 )
 
+var _ = Describe("Setup telemetry", func() {
+	var (
+		command               *exec.Cmd
+		tempSettings          *clitest.TempSettings
+		telemetryDestFilePath string
+	)
+
+	BeforeEach(func() {
+		tempSettings = clitest.WithTempSettings()
+		telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
+		command = commandWithHome(pathCLI, tempSettings.Home,
+			"setup",
+			"--integration-testing",
+			"--skip-update-check",
+			"--mock-telemetry", telemetryDestFilePath,
+		)
+	})
+
+	AfterEach(func() {
+		tempSettings.Close()
+		if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
+			os.Remove(telemetryDestFilePath)
+		}
+	})
+
+	It("should send telemetry event", func() {
+		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		Eventually(session).Should(gexec.Exit(0))
+		clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+			telemetry.CreateSetupEvent(false),
+		})
+	})
+})
+
 var _ = Describe("Setup with prompts", func() {
 	var (
 		command      *exec.Cmd
@@ -35,40 +71,6 @@ var _ = Describe("Setup with prompts", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
-	})
-
-	Describe("telemetry", func() {
-		var (
-			telemetryDestFilePath string
-		)
-
-		BeforeEach(func() {
-			telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
-
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"setup",
-				"--integration-testing",
-				"--skip-update-check",
-				"--mock-telemetry", telemetryDestFilePath,
-			)
-		})
-
-		AfterEach(func() {
-			tempSettings.Close()
-			if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
-				os.Remove(telemetryDestFilePath)
-			}
-		})
-
-		It("should send telemetry event", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
-				telemetry.CreateSetupEvent(false),
-			})
-		})
 	})
 
 	Describe("new config file", func() {

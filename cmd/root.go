@@ -144,7 +144,7 @@ func MakeCommands() *cobra.Command {
 		return validateToken(rootOptions)
 	}
 
-	rootCmd.AddCommand(newOpenCommand())
+	rootCmd.AddCommand(newOpenCommand(rootOptions))
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(project.NewProjectCommand(rootOptions, validator))
@@ -173,7 +173,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newStepCommand(rootOptions))
 	rootCmd.AddCommand(newSwitchCommand(rootOptions))
 	rootCmd.AddCommand(newAdminCommand(rootOptions))
-	rootCmd.AddCommand(newCompletionCommand())
+	rootCmd.AddCommand(newCompletionCommand(rootOptions))
 	rootCmd.AddCommand(newEnvCmd())
 	rootCmd.AddCommand(newTelemetryCommand(rootOptions))
 

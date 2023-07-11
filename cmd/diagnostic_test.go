@@ -3,11 +3,13 @@ package cmd_test
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -17,18 +19,21 @@ import (
 
 var _ = Describe("Diagnostic", func() {
 	var (
-		tempSettings    *clitest.TempSettings
-		command         *exec.Cmd
-		defaultEndpoint = "graphql-unstable"
+		telemetryDestFilePath string
+		tempSettings          *clitest.TempSettings
+		command               *exec.Cmd
+		defaultEndpoint       = "graphql-unstable"
 	)
 
 	BeforeEach(func() {
 		tempSettings = clitest.WithTempSettings()
+		telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
 
 		command = commandWithHome(pathCLI, tempSettings.Home,
 			"diagnostic",
 			"--skip-update-check",
-			"--host", tempSettings.TestServer.URL())
+			"--host", tempSettings.TestServer.URL(),
+			"--mock-telemetry", telemetryDestFilePath)
 
 		query := `query IntrospectionQuery {
 		    __schema {
@@ -77,6 +82,22 @@ var _ = Describe("Diagnostic", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
+		if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
+			os.Remove(telemetryDestFilePath)
+		}
+	})
+
+	Describe("telemetry", func() {
+		It("should send telemetry event", func() {
+			tempSettings.Config.Write([]byte(`token: mytoken`))
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+
+			Eventually(session).Should(gexec.Exit(0))
+			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+				telemetry.CreateDiagnosticEvent(nil),
+			})
+		})
 	})
 
 	Describe("existing config file", func() {

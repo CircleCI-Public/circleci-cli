@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
@@ -27,6 +28,42 @@ var _ = Describe("Config", func() {
 
 		AfterEach(func() {
 			tempSettings.Close()
+		})
+
+		Describe("telemetry", func() {
+			var telemetryDestFilePath string
+
+			BeforeEach(func() {
+				telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
+
+				tempSettings = clitest.WithTempSettings()
+				command = commandWithHome(pathCLI, tempSettings.Home,
+					"config", "pack",
+					"--skip-update-check",
+					"testdata/hugo-pack/.circleci",
+					"--mock-telemetry", telemetryDestFilePath,
+				)
+			})
+
+			AfterEach(func() {
+				tempSettings.Close()
+				if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
+					os.Remove(telemetryDestFilePath)
+				}
+			})
+
+			It("should send telemetry event", func() {
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				Eventually(session).Should(gexec.Exit(0))
+				clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+					telemetry.CreateConfigEvent(telemetry.CommandInfo{
+						Name:      "pack",
+						LocalArgs: map[string]string{"help": "false"},
+					}),
+				})
+			})
 		})
 
 		Describe("a .circleci folder with config.yml and local orbs folder containing the hugo orb", func() {
