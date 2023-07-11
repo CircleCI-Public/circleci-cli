@@ -91,3 +91,7 @@ func CreateNamespaceEvent(cmdInfo CommandInfo) Event {
 func CreateOrbEvent(cmdInfo CommandInfo) Event {
 	return createEventFromCommandInfo("orb", cmdInfo)
 }
+
+func CreatePolicyEvent(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("policy", cmdInfo)
+}
