@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -55,7 +56,7 @@ func followProjectCommand(config *settings.Config) *cobra.Command {
 		Use:   "follow",
 		Short: "Attempt to follow the project for the current git repository.",
 		RunE: func(_ *cobra.Command, _ []string) error {
-			telemetryClient := createTelemetry(config)
+			telemetryClient := create_telemetry.CreateTelemetry(config)
 			defer telemetryClient.Close()
 
 			err := followProject(opts)

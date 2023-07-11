@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -24,7 +25,7 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 		Use:   "version",
 		Short: "Display version information",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
-			telemetryClient = createTelemetry(config)
+			telemetryClient = create_telemetry.CreateTelemetry(config)
 			opts.cfg.SkipUpdateCheck = true
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {

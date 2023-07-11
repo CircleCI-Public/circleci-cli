@@ -8,10 +8,7 @@ import (
 	"github.com/CircleCI-Public/circleci-config/labeling"
 	"github.com/CircleCI-Public/circleci-config/labeling/codebase"
 
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
-
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
@@ -46,7 +43,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		Use:   "config",
 		Short: "Operate on build config files",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
-			telemetryClient = createTelemetry(globalConfig)
+			telemetryClient = create_telemetry.CreateTelemetry(globalConfig)
 		},
 		PersistentPostRun: func(cmd *cobra.Command, args []string) {
 			closeTelemetryClient()
@@ -59,7 +56,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			defer closeTelemetryClient()
 			err := packConfig(args)
-			telemetryClient.Track(telemetry.CreateConfigEvent(getCommandInformation(cmd, true)))
+			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true)))
 			return err
 		},
 		Args:        cobra.ExactArgs(1),
@@ -92,7 +89,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				IgnoreDeprecatedImages: ignoreDeprecatedImages,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient.Track(telemetry.CreateConfigEvent(getCommandInformation(cmd, true)))
+			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true)))
 
 			return err
 		},
@@ -135,6 +132,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				PipelineParamsFilePath: pipelineParamsFilePath,
 				VerboseOutput:          verboseOutput,
 			})
+			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true)))
 			if err != nil {
 				return err
 			}

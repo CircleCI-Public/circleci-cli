@@ -1,4 +1,4 @@
-package cmd
+package create_telemetry
 
 import (
 	"path/filepath"
@@ -63,7 +63,7 @@ type telemetryTestAPIClient struct {
 	err error
 }
 
-func (me telemetryTestAPIClient) getMyUserId() (string, error) {
+func (me telemetryTestAPIClient) GetMyUserId() (string, error) {
 	return me.id, me.err
 }
 
@@ -73,9 +73,9 @@ func TestLoadTelemetrySettings(t *testing.T) {
 	uniqueId := "unique-id"
 
 	// Mock create UUID
-	oldUUIDCreate := createUUID
-	createUUID = func() string { return uniqueId }
-	defer (func() { createUUID = oldUUIDCreate })()
+	oldUUIDCreate := CreateUUID
+	CreateUUID = func() string { return uniqueId }
+	defer (func() { CreateUUID = oldUUIDCreate })()
 
 	// Create test cases
 	type args struct {

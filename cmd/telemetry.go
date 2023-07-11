@@ -3,16 +3,14 @@ package cmd
 import (
 	"os"
 
-	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 func newTelemetryCommand(config *settings.Config) *cobra.Command {
-	apiClient := telemetryCircleCIAPI{
-		cli: rest.NewFromConfig(config.Host, config),
-	}
+	apiClient := create_telemetry.CreateAPIClient(config)
 
 	telemetryEnable := &cobra.Command{
 		Use:   "enable",
@@ -46,7 +44,7 @@ Note: If you have not configured your telemetry preferences and call the CLI wit
 	return telemetryCommand
 }
 
-func setIsTelemetryActive(apiClient telemetryAPIClient, isActive bool) error {
+func setIsTelemetryActive(apiClient create_telemetry.TelemetryAPIClient, isActive bool) error {
 	settings := settings.TelemetrySettings{}
 	if err := settings.Load(); err != nil && !os.IsNotExist(err) {
 		return errors.Wrap(err, "Loading telemetry configuration")
@@ -56,11 +54,11 @@ func setIsTelemetryActive(apiClient telemetryAPIClient, isActive bool) error {
 	settings.IsActive = isActive
 
 	if settings.UniqueID == "" {
-		settings.UniqueID = createUUID()
+		settings.UniqueID = create_telemetry.CreateUUID()
 	}
 
 	if settings.UserID == "" {
-		if myID, err := apiClient.getMyUserId(); err == nil {
+		if myID, err := apiClient.GetMyUserId(); err == nil {
 			settings.UserID = myID
 		}
 	}

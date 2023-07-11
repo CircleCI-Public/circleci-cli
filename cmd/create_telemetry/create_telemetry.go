@@ -1,4 +1,4 @@
-package cmd
+package create_telemetry
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ import (
 )
 
 var (
-	createUUID  = func() string { return uuid.New().String() }
+	CreateUUID  = func() string { return uuid.New().String() }
 	isStdinATTY = term.IsTerminal(int(os.Stdin.Fd()))
 )
 
@@ -32,15 +32,21 @@ func (telemetryInteractiveUI) AskUserToApproveTelemetry(message string) bool {
 	return prompt.AskUserToConfirmWithDefault(message, true)
 }
 
-type telemetryAPIClient interface {
-	getMyUserId() (string, error)
+type TelemetryAPIClient interface {
+	GetMyUserId() (string, error)
+}
+
+func CreateAPIClient(config *settings.Config) TelemetryAPIClient {
+	return telemetryCircleCIAPI{
+		cli: rest.NewFromConfig(config.Host, config),
+	}
 }
 
 type telemetryCircleCIAPI struct {
 	cli *rest.Client
 }
 
-func (client telemetryCircleCIAPI) getMyUserId() (string, error) {
+func (client telemetryCircleCIAPI) GetMyUserId() (string, error) {
 	me, err := api.GetMe(client.cli)
 	if err != nil {
 		return "", err
@@ -50,12 +56,12 @@ func (client telemetryCircleCIAPI) getMyUserId() (string, error) {
 
 type nullTelemetryAPIClient struct{}
 
-func (client nullTelemetryAPIClient) getMyUserId() (string, error) {
+func (client nullTelemetryAPIClient) GetMyUserId() (string, error) {
 	panic("Should not be called")
 }
 
 // Make sure the user gave their approval for the telemetry and
-func createTelemetry(config *settings.Config) telemetry.Client {
+func CreateTelemetry(config *settings.Config) telemetry.Client {
 	if config.MockTelemetry != "" {
 		return telemetry.CreateFileTelemetry(config.MockTelemetry)
 	}
@@ -64,7 +70,7 @@ func createTelemetry(config *settings.Config) telemetry.Client {
 		return telemetry.CreateClient(telemetry.User{}, false)
 	}
 
-	var apiClient telemetryAPIClient = nullTelemetryAPIClient{}
+	var apiClient TelemetryAPIClient = nullTelemetryAPIClient{}
 	if config.HTTPClient != nil {
 		apiClient = telemetryCircleCIAPI{
 			cli: rest.NewFromConfig(config.Host, config),
@@ -74,7 +80,7 @@ func createTelemetry(config *settings.Config) telemetry.Client {
 
 	telemetrySettings := settings.TelemetrySettings{}
 	user := telemetry.User{
-		IsSelfHosted: config.Host == defaultHost,
+		IsSelfHosted: config.Host == "https://circleci.com",
 		OS:           runtime.GOOS,
 		Version:      version.Version,
 		TeamName:     "devex",
@@ -86,7 +92,7 @@ func createTelemetry(config *settings.Config) telemetry.Client {
 	return client
 }
 
-func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry.User, apiClient telemetryAPIClient, ui telemetryUI) {
+func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry.User, apiClient TelemetryAPIClient, ui telemetryUI) {
 	err := settings.Load()
 	if err != nil && !os.IsNotExist(err) {
 		fmt.Printf("Error loading telemetry configuration: %s\n", err)
@@ -99,7 +105,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	if settings.HasAnsweredPrompt {
 		// If we have no user id, we try requesting the user id again
 		if settings.UserID == "" && settings.IsActive {
-			myID, err := apiClient.getMyUserId()
+			myID, err := apiClient.GetMyUserId()
 			if err == nil {
 				settings.UserID = myID
 				user.UserID = myID
@@ -136,12 +142,12 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	// Make sure we have user info and set them
 	if settings.IsActive {
 		if settings.UniqueID == "" {
-			settings.UniqueID = createUUID()
+			settings.UniqueID = CreateUUID()
 		}
 		user.UniqueID = settings.UniqueID
 
 		if settings.UserID == "" {
-			myID, err := apiClient.getMyUserId()
+			myID, err := apiClient.GetMyUserId()
 			if err == nil {
 				settings.UserID = myID
 			}
@@ -172,7 +178,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 // If getParent is true, puts both the command's args in `LocalArgs` and the parent's args
 // Else only put the command's args
 // Note: child flags overwrite parent flags with same name
-func getCommandInformation(cmd *cobra.Command, getParent bool) telemetry.CommandInfo {
+func GetCommandInformation(cmd *cobra.Command, getParent bool) telemetry.CommandInfo {
 	localArgs := map[string]string{}
 
 	parent := cmd.Parent()
