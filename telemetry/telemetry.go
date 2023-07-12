@@ -9,12 +9,15 @@ import (
 	"github.com/segmentio/analytics-go"
 )
 
-type Approval string
-
 var (
 	// Overwrite this function for tests
 	CreateActiveTelemetry = newSegmentClient
+
+	SegmentEndpoint = "localhost"
+	SegmentKey      = ""
 )
+
+type Approval string
 
 const (
 	Enabled  Approval = "enabled"
@@ -86,25 +89,28 @@ type segmentClient struct {
 	user User
 }
 
-const (
-	segmentKey = ""
-)
-
 func newSegmentClient(user User) Client {
-	cli := analytics.New(segmentKey)
+	cli, err := analytics.NewWithConfig(SegmentKey, analytics.Config{
+		Endpoint: SegmentEndpoint,
+	})
 
-	userID := user.UniqueID
-	if userID == "" {
-		userID = "none"
+	if err != nil {
+		return CreateNullClient()
 	}
 
-	err := cli.Enqueue(
+	if len(user.UniqueID) == 0 {
+		user.UniqueID = "null"
+	}
+
+	err = cli.Enqueue(
 		analytics.Identify{
-			UserId: userID,
+			UserId: user.UniqueID,
 			Traits: analytics.NewTraits().Set("os", user.OS),
 		},
 	)
-	fmt.Printf("Error while identifying with telemetry: %s\n", err)
+	if err != nil {
+		fmt.Printf("Error while identifying with telemetry: %s\n", err)
+	}
 
 	return &segmentClient{cli, user}
 }

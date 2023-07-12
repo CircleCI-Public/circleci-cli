@@ -47,13 +47,14 @@ tasks:
   build:
     desc: Build main
     cmds:
-      - go build -v -o build/darwin/amd64/circleci .
-  
+      # LDFlags sets the segment endpoint to an empty string so that all it is replaced by the default value
+      - go build -v -o build/darwin/amd64/circleci -ldflags="-X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=' -X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentKey=AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35'" .
+
   build-linux:
     desc: Build main
     cmds:
       - go build -v -o build/linux/amd64/circleci .
- 
+
   cover:
     desc: tests and generates a cover profile
     cmds:
