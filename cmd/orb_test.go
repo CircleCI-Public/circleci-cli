@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"strconv"
@@ -27,31 +26,26 @@ import (
 
 var _ = Describe("Orb telemetry", func() {
 	var (
-		command               *exec.Cmd
-		orb                   *clitest.TmpFile
-		tempSettings          *clitest.TempSettings
-		telemetryDestFilePath string
+		command      *exec.Cmd
+		orb          *clitest.TmpFile
+		tempSettings *clitest.TempSettings
 	)
 
 	BeforeEach(func() {
 		tempSettings = clitest.WithTempSettings()
-		telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
 		orb = clitest.OpenTmpFile(tempSettings.Home, "orb.yml")
 		command = exec.Command(pathCLI,
 			"orb", "validate", orb.Path,
 			"--skip-update-check",
 			"--token", "token",
 			"--host", tempSettings.TestServer.URL(),
-			"--mock-telemetry", telemetryDestFilePath,
+			"--mock-telemetry", tempSettings.TelemetryDestPath,
 		)
 	})
 
 	AfterEach(func() {
 		orb.Close()
 		tempSettings.Close()
-		if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
-			os.Remove(telemetryDestFilePath)
-		}
 	})
 
 	It("works", func() {
@@ -68,7 +62,7 @@ var _ = Describe("Orb telemetry", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Eventually(session).Should(gexec.Exit(0))
 
-		clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+		clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
 			telemetry.CreateOrbEvent(telemetry.CommandInfo{
 				Name: "validate",
 				LocalArgs: map[string]string{

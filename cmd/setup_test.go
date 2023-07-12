@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 
@@ -19,27 +18,22 @@ import (
 
 var _ = Describe("Setup telemetry", func() {
 	var (
-		command               *exec.Cmd
-		tempSettings          *clitest.TempSettings
-		telemetryDestFilePath string
+		command      *exec.Cmd
+		tempSettings *clitest.TempSettings
 	)
 
 	BeforeEach(func() {
 		tempSettings = clitest.WithTempSettings()
-		telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
 		command = commandWithHome(pathCLI, tempSettings.Home,
 			"setup",
 			"--integration-testing",
 			"--skip-update-check",
-			"--mock-telemetry", telemetryDestFilePath,
+			"--mock-telemetry", tempSettings.TelemetryDestPath,
 		)
 	})
 
 	AfterEach(func() {
 		tempSettings.Close()
-		if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
-			os.Remove(telemetryDestFilePath)
-		}
 	})
 
 	It("should send telemetry event", func() {
@@ -47,7 +41,7 @@ var _ = Describe("Setup telemetry", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 
 		Eventually(session).Should(gexec.Exit(0))
-		clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+		clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
 			telemetry.CreateSetupEvent(false),
 		})
 	})

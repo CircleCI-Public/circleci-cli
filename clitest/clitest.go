@@ -32,11 +32,12 @@ func ShouldFail() types.GomegaMatcher {
 
 // TempSettings contains useful settings for testing the CLI
 type TempSettings struct {
-	Home       string
-	TestServer *ghttp.Server
-	Config     *TmpFile
-	Telemetry  *TmpFile
-	Update     *TmpFile
+	Home              string
+	TestServer        *ghttp.Server
+	Config            *TmpFile
+	Update            *TmpFile
+	Telemetry         *TmpFile
+	TelemetryDestPath string
 }
 
 // Close should be called in an AfterEach and cleans up the temp directory and server process
@@ -44,6 +45,9 @@ func (settings *TempSettings) Close() error {
 	settings.TestServer.Close()
 	settings.Config.Close()
 	settings.Update.Close()
+	if _, err := os.Stat(settings.TelemetryDestPath); err == nil || !os.IsNotExist(err) {
+		os.Remove(settings.TelemetryDestPath)
+	}
 	return os.RemoveAll(settings.Home)
 }
 
@@ -79,6 +83,7 @@ func WithTempSettings() *TempSettings {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 	_, err = tempSettings.Telemetry.File.Write(content)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	tempSettings.TelemetryDestPath = filepath.Join(tempSettings.Home, "telemetry-content")
 
 	tempSettings.Update = OpenTmpFile(settingsPath, "update_check.yml")
 

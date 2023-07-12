@@ -8,8 +8,8 @@ import (
 	"github.com/onsi/gomega"
 )
 
-func CompareTelemetryEvent(filePath string, expected []telemetry.Event) {
-	content, err := os.ReadFile(filePath)
+func CompareTelemetryEvent(settings *TempSettings, expected []telemetry.Event) {
+	content, err := os.ReadFile(settings.TelemetryDestPath)
 	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 
 	result := []telemetry.Event{}

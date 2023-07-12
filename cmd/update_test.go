@@ -2,7 +2,6 @@ package cmd_test
 
 import (
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -73,32 +72,17 @@ var _ = Describe("Update", func() {
 	})
 
 	Describe("telemetry", func() {
-		var (
-			telemetryDestFilePath string
-		)
-
-		BeforeEach(func() {
-			telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
-		})
-
-		AfterEach(func() {
-			tempSettings.Close()
-			if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
-				os.Remove(telemetryDestFilePath)
-			}
-		})
-
 		It("should send telemetry event when calling parent command", func() {
 			command = exec.Command(pathCLI,
 				"update",
 				"--github-api", tempSettings.TestServer.URL(),
-				"--mock-telemetry", telemetryDestFilePath,
+				"--mock-telemetry", tempSettings.TelemetryDestPath,
 			)
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
 				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
 					Name: "update",
 					LocalArgs: map[string]string{
@@ -114,13 +98,13 @@ var _ = Describe("Update", func() {
 				"update",
 				"check",
 				"--github-api", tempSettings.TestServer.URL(),
-				"--mock-telemetry", telemetryDestFilePath,
+				"--mock-telemetry", tempSettings.TelemetryDestPath,
 			)
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
 				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
 					Name: "check",
 					LocalArgs: map[string]string{

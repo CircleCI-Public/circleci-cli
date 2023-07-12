@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
+	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -14,9 +16,10 @@ import (
 
 var _ = Describe("Namespace integration tests", func() {
 	var (
-		tempSettings *clitest.TempSettings
-		token        string = "testtoken"
-		command      *exec.Cmd
+		tempSettings          *clitest.TempSettings
+		token                 string = "testtoken"
+		command               *exec.Cmd
+		telemetryDestFilePath string
 	)
 
 	BeforeEach(func() {
@@ -25,6 +28,33 @@ var _ = Describe("Namespace integration tests", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
+	})
+
+	Describe("telemetry", func() {
+		It("sends expected event", func() {
+			telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
+			command = exec.Command(pathCLI,
+				"namespace", "create",
+				"--skip-update-check",
+				"--token", token,
+				"--host", tempSettings.TestServer.URL(),
+				"--integration-testing",
+				"foo-ns",
+				"--org-id", `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
+				"--mock-telemetry", telemetryDestFilePath,
+			)
+
+			tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
+				res.WriteHeader(http.StatusOK)
+				res.Write([]byte(`{"organization":{name:"test-org","id":"org-id"}}`))
+			})
+
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session).Should(gexec.Exit(0))
+
+			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{})
+		})
 	})
 
 	Context("create, with interactive prompts", func() {

@@ -31,25 +31,18 @@ var _ = Describe("Config", func() {
 		})
 
 		Describe("telemetry", func() {
-			var telemetryDestFilePath string
-
 			BeforeEach(func() {
-				telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
-
 				tempSettings = clitest.WithTempSettings()
 				command = commandWithHome(pathCLI, tempSettings.Home,
 					"config", "pack",
 					"--skip-update-check",
 					"testdata/hugo-pack/.circleci",
-					"--mock-telemetry", telemetryDestFilePath,
+					"--mock-telemetry", tempSettings.TelemetryDestPath,
 				)
 			})
 
 			AfterEach(func() {
 				tempSettings.Close()
-				if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
-					os.Remove(telemetryDestFilePath)
-				}
 			})
 
 			It("should send telemetry event", func() {
@@ -57,7 +50,7 @@ var _ = Describe("Config", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				Eventually(session).Should(gexec.Exit(0))
-				clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+				clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
 					telemetry.CreateConfigEvent(telemetry.CommandInfo{
 						Name:      "pack",
 						LocalArgs: map[string]string{"help": "false"},

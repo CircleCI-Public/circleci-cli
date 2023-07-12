@@ -3,7 +3,6 @@ package cmd_test
 import (
 	"fmt"
 	"net/http"
-	"os"
 	"os/exec"
 	"path/filepath"
 
@@ -19,21 +18,18 @@ import (
 
 var _ = Describe("Diagnostic", func() {
 	var (
-		telemetryDestFilePath string
-		tempSettings          *clitest.TempSettings
-		command               *exec.Cmd
-		defaultEndpoint       = "graphql-unstable"
+		tempSettings    *clitest.TempSettings
+		command         *exec.Cmd
+		defaultEndpoint = "graphql-unstable"
 	)
 
 	BeforeEach(func() {
 		tempSettings = clitest.WithTempSettings()
-		telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
 
 		command = commandWithHome(pathCLI, tempSettings.Home,
 			"diagnostic",
 			"--skip-update-check",
-			"--host", tempSettings.TestServer.URL(),
-			"--mock-telemetry", telemetryDestFilePath)
+			"--host", tempSettings.TestServer.URL())
 
 		query := `query IntrospectionQuery {
 		    __schema {
@@ -82,19 +78,21 @@ var _ = Describe("Diagnostic", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
-		if _, err := os.Stat(telemetryDestFilePath); err == nil || !os.IsNotExist(err) {
-			os.Remove(telemetryDestFilePath)
-		}
 	})
 
 	Describe("telemetry", func() {
 		It("should send telemetry event", func() {
+			command = commandWithHome(pathCLI, tempSettings.Home,
+				"diagnostic",
+				"--skip-update-check",
+				"--host", tempSettings.TestServer.URL(),
+				"--mock-telemetry", tempSettings.TelemetryDestPath)
 			tempSettings.Config.Write([]byte(`token: mytoken`))
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(telemetryDestFilePath, []telemetry.Event{
+			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
 				telemetry.CreateDiagnosticEvent(nil),
 			})
 		})
