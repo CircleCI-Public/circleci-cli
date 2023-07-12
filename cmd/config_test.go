@@ -36,7 +36,7 @@ var _ = Describe("Config", func() {
 				command = commandWithHome(pathCLI, tempSettings.Home,
 					"config", "pack",
 					"--skip-update-check",
-					"testdata/hugo-pack/.circleci",
+					filepath.Join("testdata", "hugo-pack", ".circleci"),
 					"--mock-telemetry", tempSettings.TelemetryDestPath,
 				)
 			})
@@ -64,7 +64,7 @@ var _ = Describe("Config", func() {
 				command = exec.Command(pathCLI,
 					"config", "pack",
 					"--skip-update-check",
-					"testdata/hugo-pack/.circleci")
+					filepath.Join("testdata", "hugo-pack", ".circleci"))
 				results = golden.Get(GinkgoT(), filepath.FromSlash("hugo-pack/result.yml"))
 			})
 

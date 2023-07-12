@@ -45,9 +45,6 @@ func (settings *TempSettings) Close() error {
 	settings.TestServer.Close()
 	settings.Config.Close()
 	settings.Update.Close()
-	if _, err := os.Stat(settings.TelemetryDestPath); err == nil || !os.IsNotExist(err) {
-		os.Remove(settings.TelemetryDestPath)
-	}
 	return os.RemoveAll(settings.Home)
 }
 
