@@ -89,7 +89,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				IgnoreDeprecatedImages: ignoreDeprecatedImages,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
+			_ = telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
 
 			return err
 		},
@@ -131,7 +131,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				PipelineParamsFilePath: pipelineParamsFilePath,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
+			_ = telemetryClient.Track(telemetry.CreateConfigEvent(create_telemetry.GetCommandInformation(cmd, true), err))
 			if err != nil {
 				return err
 			}

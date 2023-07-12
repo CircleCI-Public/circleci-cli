@@ -55,7 +55,7 @@ var _ = Describe("Orb telemetry", func() {
 
 		tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusOK)
-			res.Write([]byte(`{"orbConfig": {"sourceYaml": "{}", "valid": true, "errors": []} }`))
+			_, _ = res.Write([]byte(`{"orbConfig": {"sourceYaml": "{}", "valid": true, "errors": []} }`))
 		})
 
 		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)

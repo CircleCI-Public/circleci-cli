@@ -16,7 +16,7 @@ func newCompletionCommand(config *settings.Config) *cobra.Command {
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			telemetryClient := create_telemetry.CreateTelemetry(config)
 			defer telemetryClient.Close()
-			telemetryClient.Track(telemetry.CreateCompletionCommand(create_telemetry.GetCommandInformation(cmd, false)))
+			_ = telemetryClient.Track(telemetry.CreateCompletionCommand(create_telemetry.GetCommandInformation(cmd, false)))
 		},
 		Run: func(cmd *cobra.Command, _ []string) {
 			err := cmd.Help()

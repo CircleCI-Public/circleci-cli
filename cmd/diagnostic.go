@@ -35,7 +35,7 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 			defer telemetryClient.Close()
 
 			err := diagnostic(opts)
-			telemetryClient.Track(telemetry.CreateDiagnosticEvent(err))
+			_ = telemetryClient.Track(telemetry.CreateDiagnosticEvent(err))
 
 			return err
 		},

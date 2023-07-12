@@ -19,7 +19,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			telemetryClient := o.createTelemetry()
 			defer telemetryClient.Close()
-			telemetryClient.Track(telemetry.CreateRunnerResourceClassEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			_ = telemetryClient.Track(telemetry.CreateRunnerResourceClassEvent(create_telemetry.GetCommandInformation(cmd, true)))
 		},
 	}
 

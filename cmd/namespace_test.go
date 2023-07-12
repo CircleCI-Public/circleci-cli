@@ -46,7 +46,7 @@ var _ = Describe("Namespace integration tests", func() {
 
 			tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
 				res.WriteHeader(http.StatusOK)
-				res.Write([]byte(`{"data":{"organization":{"name":"test-org","id":"bb604b45-b6b0-4b81-ad80-796f15eddf87"}}}`))
+				_, _ = res.Write([]byte(`{"data":{"organization":{"name":"test-org","id":"bb604b45-b6b0-4b81-ad80-796f15eddf87"}}}`))
 			})
 
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)

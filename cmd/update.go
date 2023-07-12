@@ -34,7 +34,7 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 			opts.cfg.SkipUpdateCheck = true
 			telemetryClient := create_telemetry.CreateTelemetry(config)
 			defer telemetryClient.Close()
-			telemetryClient.Track(telemetry.CreateUpdateEvent(create_telemetry.GetCommandInformation(cmd, cmd.Name() != "update")))
+			_ = telemetryClient.Track(telemetry.CreateUpdateEvent(create_telemetry.GetCommandInformation(cmd, cmd.Name() != "update")))
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args

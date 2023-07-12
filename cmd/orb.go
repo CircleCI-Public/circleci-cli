@@ -392,7 +392,7 @@ Please note that at this time all orbs created in the registry are world-readabl
 
 			telemetryClient := create_telemetry.CreateTelemetry(config)
 			defer telemetryClient.Close()
-			telemetryClient.Track(telemetry.CreateOrbEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			_ = telemetryClient.Track(telemetry.CreateOrbEvent(create_telemetry.GetCommandInformation(cmd, true)))
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.

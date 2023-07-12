@@ -60,7 +60,7 @@ func followProjectCommand(config *settings.Config) *cobra.Command {
 			defer telemetryClient.Close()
 
 			err := followProject(opts)
-			telemetryClient.Track(telemetry.CreateFollowEvent(err))
+			_ = telemetryClient.Track(telemetry.CreateFollowEvent(err))
 
 			return err
 		},

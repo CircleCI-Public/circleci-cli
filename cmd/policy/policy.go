@@ -39,7 +39,7 @@ func NewCommand(globalConfig *settings.Config, preRunE validator.Validator) *cob
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			telemetryClient := create_telemetry.CreateTelemetry(globalConfig)
 			defer telemetryClient.Close()
-			telemetryClient.Track(telemetry.CreatePolicyEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			_ = telemetryClient.Track(telemetry.CreatePolicyEvent(create_telemetry.GetCommandInformation(cmd, true)))
 
 			if preRunE != nil {
 				return preRunE(cmd, args)

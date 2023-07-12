@@ -73,11 +73,29 @@ var _ = Describe("Update", func() {
 
 	Describe("telemetry", func() {
 		It("should send telemetry event when calling parent command", func() {
-			command = exec.Command(pathCLI,
+			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
+			Expect(err).ShouldNot(HaveOccurred())
+
+			command = exec.Command(updateCLI,
 				"update",
 				"--github-api", tempSettings.TestServer.URL(),
 				"--mock-telemetry", tempSettings.TelemetryDestPath,
 			)
+
+			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
+			assetResponse := string(assetBytes)
+
+			tempSettings.TestServer.AppendHandlers(
+				ghttp.CombineHandlers(
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.RespondWith(http.StatusOK, response),
+				),
+				ghttp.CombineHandlers(
+					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
+					ghttp.RespondWith(http.StatusOK, assetResponse),
+				),
+			)
+
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
