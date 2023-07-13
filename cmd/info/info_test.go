@@ -2,13 +2,17 @@ package info
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 )
@@ -106,6 +110,46 @@ func TestFailedValidator(t *testing.T) {
 	assert.Error(t, err, errorMessage)
 }
 
+func TestTelemetry(t *testing.T) {
+	tempSettings := clitest.WithTempSettings()
+	defer tempSettings.Close()
+
+	// Test server
+	var serverHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`[{"id":"id", "name":"name"}]`))
+	}
+	server := httptest.NewServer(serverHandler)
+	defer server.Close()
+
+	// Test command
+	config := &settings.Config{
+		Token:         "testtoken",
+		HTTPClient:    http.DefaultClient,
+		Host:          server.URL,
+		MockTelemetry: tempSettings.TelemetryDestPath,
+	}
+	cmd := NewInfoCommand(config, nil)
+
+	// Execute
+	err := cmd.Execute()
+
+	assert.NilError(t, err)
+	// We compare the
+	content, err := os.ReadFile(tempSettings.TelemetryDestPath)
+	assert.NilError(t, err)
+
+	result := []telemetry.Event{}
+	err = json.Unmarshal(content, &result)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, result, []telemetry.Event{
+		telemetry.CreateInfoEvent(telemetry.CommandInfo{
+			Name:      "org",
+			LocalArgs: map[string]string{"help": "false"},
+		}, nil),
+	})
+}
+
 func defaultValidator(cmd *cobra.Command, args []string) error {
 	return nil
 }
@@ -115,9 +159,10 @@ func scaffoldCMD(
 	validator validator.Validator,
 ) (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	config := &settings.Config{
-		Token:      "testtoken",
-		HTTPClient: http.DefaultClient,
-		Host:       baseURL,
+		Token:               "testtoken",
+		HTTPClient:          http.DefaultClient,
+		Host:                baseURL,
+		IsTelemetryDisabled: true,
 	}
 	cmd := NewInfoCommand(config, validator)
 

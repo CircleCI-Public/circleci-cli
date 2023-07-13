@@ -115,3 +115,11 @@ func CreateRunnerResourceClassEvent(cmdInfo CommandInfo) Event {
 func CreateRunnerToken(cmdInfo CommandInfo) Event {
 	return createEventFromCommandInfo("runner-resource-class", cmdInfo)
 }
+
+func CreateInfoEvent(cmdInfo CommandInfo, err error) Event {
+	event := createEventFromCommandInfo("info", cmdInfo)
+	if err != nil {
+		event.Properties["error"] = err.Error()
+	}
+	return event
+}
