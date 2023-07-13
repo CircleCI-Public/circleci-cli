@@ -103,7 +103,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 			},
 			want: want{
 				settings: settings.TelemetrySettings{
-					IsActive:          true,
+					IsEnabled:         true,
 					HasAnsweredPrompt: true,
 					UserID:            userId,
 					UniqueID:          uniqueId,
@@ -126,7 +126,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 			},
 			want: want{
 				settings: settings.TelemetrySettings{
-					IsActive:          false,
+					IsEnabled:         false,
 					HasAnsweredPrompt: true,
 				},
 				telemetryEvents: []telemetry.Event{
@@ -146,7 +146,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 			},
 			want: want{
 				settings: settings.TelemetrySettings{
-					IsActive:          true,
+					IsEnabled:         true,
 					HasAnsweredPrompt: true,
 					UserID:            userId,
 					UniqueID:          "other-id",

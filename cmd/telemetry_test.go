@@ -45,7 +45,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 				apiClient: telemetryTestAPIClient{},
 				isActive:  true,
 				settings: &settings.TelemetrySettings{
-					IsActive:          false,
+					IsEnabled:         false,
 					HasAnsweredPrompt: true,
 					UniqueID:          uniqueId,
 					UserID:            userId,
@@ -53,7 +53,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 			},
 			want: want{
 				settings: &settings.TelemetrySettings{
-					IsActive:          true,
+					IsEnabled:         true,
 					HasAnsweredPrompt: true,
 					UniqueID:          uniqueId,
 					UserID:            userId,
@@ -69,7 +69,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 			},
 			want: want{
 				settings: &settings.TelemetrySettings{
-					IsActive:          true,
+					IsEnabled:         true,
 					HasAnsweredPrompt: true,
 					UniqueID:          uniqueId,
 					UserID:            userId,
@@ -82,7 +82,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 				apiClient: telemetryTestAPIClient{},
 				isActive:  false,
 				settings: &settings.TelemetrySettings{
-					IsActive:          true,
+					IsEnabled:         true,
 					HasAnsweredPrompt: true,
 					UniqueID:          uniqueId,
 					UserID:            userId,
@@ -90,7 +90,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 			},
 			want: want{
 				settings: &settings.TelemetrySettings{
-					IsActive:          false,
+					IsEnabled:         false,
 					HasAnsweredPrompt: true,
 					UniqueID:          uniqueId,
 					UserID:            userId,
@@ -106,7 +106,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 			},
 			want: want{
 				settings: &settings.TelemetrySettings{
-					IsActive:          false,
+					IsEnabled:         false,
 					HasAnsweredPrompt: true,
 					UniqueID:          uniqueId,
 					UserID:            userId,

@@ -87,7 +87,7 @@ func CreateTelemetry(config *settings.Config) telemetry.Client {
 	}
 
 	loadTelemetrySettings(&telemetrySettings, &user, apiClient, ui)
-	client := telemetry.CreateClient(user, telemetrySettings.IsActive)
+	client := telemetry.CreateClient(user, telemetrySettings.IsEnabled)
 
 	return client
 }
@@ -104,7 +104,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	// If we already have telemetry information or that telemetry is explicitly disabled, skip
 	if settings.HasAnsweredPrompt {
 		// If we have no user id, we try requesting the user id again
-		if settings.UserID == "" && settings.IsActive {
+		if settings.UserID == "" && settings.IsEnabled {
 			myID, err := apiClient.GetMyUserId()
 			if err == nil {
 				settings.UserID = myID
@@ -120,7 +120,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 
 	// If stdin is not available, send telemetry event, disable telemetry and return
 	if !isStdinATTY {
-		settings.IsActive = false
+		settings.IsEnabled = false
 		err := telemetry.SendTelemetryApproval(telemetry.User{
 			UniqueID: settings.UniqueID,
 		}, telemetry.NoStdin)
@@ -136,11 +136,11 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	fmt.Println("Participation is voluntary, and your choice can be changed at any time through the command `cli telemetry enable` and `cli telemetry disable`.")
 	fmt.Println("For more information, please see our privacy policy at https://circleci.com/legal/privacy/.")
 	fmt.Println("")
-	settings.IsActive = ui.AskUserToApproveTelemetry("Enable telemetry?")
+	settings.IsEnabled = ui.AskUserToApproveTelemetry("Enable telemetry?")
 	settings.HasAnsweredPrompt = true
 
 	// Make sure we have user info and set them
-	if settings.IsActive {
+	if settings.IsEnabled {
 		if settings.UniqueID == "" {
 			settings.UniqueID = CreateUUID()
 		}
@@ -159,7 +159,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 
 	// Send telemetry approval event
 	approval := telemetry.Enabled
-	if !settings.IsActive {
+	if !settings.IsEnabled {
 		approval = telemetry.Disabled
 	}
 

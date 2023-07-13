@@ -85,8 +85,8 @@ func (cli nullClient) Track(_ Event) error { return nil }
 // Used when telemetry is enabled
 
 type segmentClient struct {
-	cli  analytics.Client
-	user User
+	analyticsClient analytics.Client
+	user            User
 }
 
 func newSegmentClient(user User) Client {
@@ -145,7 +145,7 @@ func (segment *segmentClient) Track(event Event) error {
 		event.Properties["team_name"] = segment.user.TeamName
 	}
 
-	return segment.cli.Enqueue(analytics.Track{
+	return segment.analyticsClient.Enqueue(analytics.Track{
 		UserId:     segment.user.UniqueID,
 		Event:      event.Object,
 		Properties: event.Properties,
@@ -153,7 +153,7 @@ func (segment *segmentClient) Track(event Event) error {
 }
 
 func (segment *segmentClient) Close() error {
-	return segment.cli.Close()
+	return segment.analyticsClient.Close()
 }
 
 // File telemetry

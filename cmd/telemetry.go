@@ -51,7 +51,7 @@ func setIsTelemetryActive(apiClient create_telemetry.TelemetryAPIClient, isActiv
 	}
 
 	settings.HasAnsweredPrompt = true
-	settings.IsActive = isActive
+	settings.IsEnabled = isActive
 
 	if settings.UniqueID == "" {
 		settings.UniqueID = create_telemetry.CreateUUID()

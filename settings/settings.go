@@ -63,7 +63,7 @@ type UpdateCheck struct {
 
 // TelemetrySettings is used to represent telemetry related settings
 type TelemetrySettings struct {
-	IsActive          bool   `yaml:"is_active"`
+	IsEnabled         bool   `yaml:"is_enabled"`
 	HasAnsweredPrompt bool   `yaml:"has_answered_prompt"`
 	UniqueID          string `yaml:"unique_id"`
 	UserID            string `yaml:"user_id"`

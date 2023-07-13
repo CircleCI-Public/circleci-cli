@@ -35,6 +35,7 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 		},
 		Run: func(_ *cobra.Command, _ []string) {
+			fmt.Printf("telemetry.SegmentKey = %+v\n", telemetry.SegmentKey)
 			fmt.Printf("%s+%s (%s)\n", version.Version, version.Commit, version.PackageManager())
 		},
 	}

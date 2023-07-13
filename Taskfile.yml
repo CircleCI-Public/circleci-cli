@@ -47,8 +47,9 @@ tasks:
   build:
     desc: Build main
     cmds:
-      # LDFlags sets the segment endpoint to an empty string so that all it is replaced by the default value
-      - go build -v -o build/darwin/amd64/circleci -ldflags="-X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=' -X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentKey=AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35'" .
+      # LDFlags sets the segment endpoint to an empty string thus letting the analytics library set the default endpoint on its own
+      # Not setting the `SegmentEndpoint` variable would let the value in the code ie "http://localhost"
+      - go build -v -o build/$(go env GOOS)/$(go env GOARCH)/circleci -ldflags="-X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=' -X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentKey="`echo ${SEGMENT_KEY}`"'" .
 
   build-linux:
     desc: Build main

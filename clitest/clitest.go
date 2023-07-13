@@ -74,7 +74,7 @@ func WithTempSettings() *TempSettings {
 	tempSettings.Config = OpenTmpFile(settingsPath, "cli.yml")
 	tempSettings.Telemetry = OpenTmpFile(settingsPath, "telemetry.yml")
 	content, err := yaml.Marshal(settings.TelemetrySettings{
-		IsActive:          false,
+		IsEnabled:         false,
 		HasAnsweredPrompt: true,
 	})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
