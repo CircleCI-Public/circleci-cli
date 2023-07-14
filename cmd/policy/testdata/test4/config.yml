@@ -1,0 +1,4 @@
+test: config
+
+_compiled_:
+  some_key: "some_value"
