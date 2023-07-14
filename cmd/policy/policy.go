@@ -296,7 +296,8 @@ This group of commands allows the management of polices to be verified against b
 				}
 
 				if !noCompile {
-					input, err = mergeCompiledConfig(globalConfig, config.ProcessConfigOpts{
+					compiler := config.New(globalConfig)
+					input, err = mergeCompiledConfig(compiler, config.ProcessConfigOpts{
 						ConfigPath:             inputPath,
 						OrgID:                  ownerID,
 						PipelineParamsFilePath: pipelineParamsFilePath,
@@ -379,7 +380,8 @@ This group of commands allows the management of polices to be verified against b
 				}
 
 				if !noCompile {
-					input, err = mergeCompiledConfig(globalConfig, config.ProcessConfigOpts{
+					compiler := config.New(globalConfig)
+					input, err = mergeCompiledConfig(compiler, config.ProcessConfigOpts{
 						ConfigPath:             inputPath,
 						OrgID:                  ownerID,
 						PipelineParamsFilePath: pipelineParamsFilePath,
@@ -546,11 +548,10 @@ This group of commands allows the management of polices to be verified against b
 	return cmd
 }
 
-func mergeCompiledConfig(globalConfig *settings.Config, processConfigOpts config.ProcessConfigOpts) ([]byte, error) {
+func mergeCompiledConfig(compiler *config.ConfigCompiler, processConfigOpts config.ProcessConfigOpts) ([]byte, error) {
 	var sourceConfigMap, compiledConfigMap map[string]any
 	var err error
 
-	compiler := config.New(globalConfig)
 	response, err := compiler.ProcessConfig(processConfigOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile config: %w", err)
