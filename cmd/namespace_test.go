@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os/exec"
-	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -16,10 +15,9 @@ import (
 
 var _ = Describe("Namespace integration tests", func() {
 	var (
-		tempSettings          *clitest.TempSettings
-		token                 string = "testtoken"
-		command               *exec.Cmd
-		telemetryDestFilePath string
+		tempSettings *clitest.TempSettings
+		token        string = "testtoken"
+		command      *exec.Cmd
 	)
 
 	BeforeEach(func() {
@@ -32,7 +30,6 @@ var _ = Describe("Namespace integration tests", func() {
 
 	Describe("telemetry", func() {
 		It("sends expected event", func() {
-			telemetryDestFilePath = filepath.Join(tempSettings.Home, "telemetry-content")
 			command = exec.Command(pathCLI,
 				"namespace", "create",
 				"--skip-update-check",
@@ -41,8 +38,8 @@ var _ = Describe("Namespace integration tests", func() {
 				"--integration-testing",
 				"foo-ns",
 				"--org-id", `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
-				"--mock-telemetry", telemetryDestFilePath,
 			)
+			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 
 			tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
 				res.WriteHeader(http.StatusOK)

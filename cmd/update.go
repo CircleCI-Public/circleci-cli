@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/update"
@@ -32,9 +31,11 @@ func newUpdateCommand(config *settings.Config) *cobra.Command {
 		Short: "Update the tool to the latest version",
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
-			telemetryClient := create_telemetry.CreateTelemetry(config)
-			defer telemetryClient.Close()
-			_ = telemetryClient.Track(telemetry.CreateUpdateEvent(create_telemetry.GetCommandInformation(cmd, cmd.Name() != "update")))
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateUpdateEvent(telemetry.GetCommandInformation(cmd, cmd.Name() != "update")))
+			}
 		},
 		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args

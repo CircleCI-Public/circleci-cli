@@ -52,8 +52,7 @@ var _ = Describe("Root", func() {
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 
-			Eventually(session.Out).Should(gbytes.Say("update      This command is unavailable on your platform"))
-
+			Eventually(session.Out).Should(gbytes.Say("update\\s+This command is unavailable on your platform"))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
@@ -92,8 +91,7 @@ var _ = Describe("Root", func() {
 
 			Eventually(session.Err.Contents()).Should(BeEmpty())
 
-			Eventually(session.Out).Should(gbytes.Say("update      Update the tool to the latest version"))
-
+			Eventually(session.Out).Should(gbytes.Say("update\\s+Update the tool to the latest version"))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})

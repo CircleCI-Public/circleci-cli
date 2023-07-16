@@ -28,8 +28,8 @@ var _ = Describe("Setup telemetry", func() {
 			"setup",
 			"--integration-testing",
 			"--skip-update-check",
-			"--mock-telemetry", tempSettings.TelemetryDestPath,
 		)
+		command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 	})
 
 	AfterEach(func() {

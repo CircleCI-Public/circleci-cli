@@ -1,6 +1,7 @@
 package cmd_test
 
 import (
+	"fmt"
 	"net/http"
 	"os/exec"
 	"path/filepath"
@@ -79,8 +80,8 @@ var _ = Describe("Update", func() {
 			command = exec.Command(updateCLI,
 				"update",
 				"--github-api", tempSettings.TestServer.URL(),
-				"--mock-telemetry", tempSettings.TelemetryDestPath,
 			)
+			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 
 			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
 			assetResponse := string(assetBytes)
@@ -116,8 +117,8 @@ var _ = Describe("Update", func() {
 				"update",
 				"check",
 				"--github-api", tempSettings.TestServer.URL(),
-				"--mock-telemetry", tempSettings.TelemetryDestPath,
 			)
+			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 

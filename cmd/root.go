@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -14,6 +15,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -36,14 +38,28 @@ var rootOptions *settings.Config
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
 
-// Execute adds all child commands to rootCmd and
-// sets flags appropriately. This function is called
-// by main.main(). It only needs to happen once to
-// the rootCmd.
+// Execute adds all child commands to rootCmd, sets the flags appropriately
+// and put the telemetry client in the command context. This function is
+// called by main.main(). It only needs to happen once to the rootCmd
 func Execute() {
 	header.SetCommandStr(CommandStr())
 	command := MakeCommands()
-	if err := command.Execute(); err != nil {
+
+	// If we have no context, we can't add the telemetry to the context
+	if command.Context() == nil {
+		command.SetContext(context.Background())
+	}
+
+	telemetryClient := CreateTelemetry(rootOptions)
+	// We defer to close the telemetry in case of panic
+	defer telemetryClient.Close()
+	command.SetContext(telemetry.NewContext(command.Context(), telemetryClient))
+
+	err := command.Execute()
+	// We close here because defer is not called when `os.Exit` is called
+	telemetryClient.Close()
+
+	if err != nil {
 		os.Exit(-1)
 	}
 }
@@ -123,7 +139,7 @@ func MakeCommands() *cobra.Command {
 		Use:   "circleci",
 		Long:  longHelp,
 		Short: rootHelpShort(rootOptions),
-		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
+		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
 	}

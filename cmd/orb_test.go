@@ -39,8 +39,8 @@ var _ = Describe("Orb telemetry", func() {
 			"--skip-update-check",
 			"--token", "token",
 			"--host", tempSettings.TestServer.URL(),
-			"--mock-telemetry", tempSettings.TelemetryDestPath,
 		)
+		command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 	})
 
 	AfterEach(func() {

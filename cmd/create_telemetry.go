@@ -1,4 +1,4 @@
-package create_telemetry
+package cmd
 
 import (
 	"fmt"
@@ -62,8 +62,12 @@ func (client nullTelemetryAPIClient) GetMyUserId() (string, error) {
 
 // Make sure the user gave their approval for the telemetry and
 func CreateTelemetry(config *settings.Config) telemetry.Client {
-	if config.MockTelemetry != "" {
-		return telemetry.CreateFileTelemetry(config.MockTelemetry)
+	mockTelemetry := config.MockTelemetry
+	if mockTelemetry == "" {
+		mockTelemetry = os.Getenv("MOCK_TELEMETRY")
+	}
+	if mockTelemetry != "" {
+		return telemetry.CreateFileTelemetry(mockTelemetry)
 	}
 
 	if config.IsTelemetryDisabled {

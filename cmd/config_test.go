@@ -37,8 +37,8 @@ var _ = Describe("Config", func() {
 					"config", "pack",
 					"--skip-update-check",
 					filepath.Join("testdata", "hugo-pack", ".circleci"),
-					"--mock-telemetry", tempSettings.TelemetryDestPath,
 				)
+				command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 			})
 
 			AfterEach(func() {

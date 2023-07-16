@@ -24,7 +24,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/policy"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -37,9 +36,10 @@ func NewCommand(globalConfig *settings.Config, preRunE validator.Validator) *cob
 	cmd := &cobra.Command{
 		Use: "policy",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			telemetryClient := create_telemetry.CreateTelemetry(globalConfig)
-			defer telemetryClient.Close()
-			_ = telemetryClient.Track(telemetry.CreatePolicyEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreatePolicyEvent(telemetry.GetCommandInformation(cmd, true)))
+			}
 
 			if preRunE != nil {
 				return preRunE(cmd, args)

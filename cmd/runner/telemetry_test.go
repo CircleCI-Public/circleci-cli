@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -23,11 +24,16 @@ func Test_RunnerTelemetry(t *testing.T) {
 	t.Run("resource-class", func(t *testing.T) {
 		telemetryClient := &testTelemetryClient{make([]telemetry.Event, 0)}
 		runner := runnerMock{}
-		cmd := newResourceClassCommand(&runnerOpts{r: &runner, createTelemetry: func() telemetry.Client { return telemetryClient }}, nil)
+		cmd := newResourceClassCommand(&runnerOpts{r: &runner}, nil)
 		stdout := new(bytes.Buffer)
 		stderr := new(bytes.Buffer)
 		cmd.SetOut(stdout)
 		cmd.SetErr(stderr)
+		ctx := cmd.Context()
+		if ctx == nil {
+			ctx = context.Background()
+		}
+		cmd.SetContext(telemetry.NewContext(ctx, telemetryClient))
 
 		defer runner.reset()
 		defer stdout.Reset()

@@ -85,8 +85,8 @@ var _ = Describe("Diagnostic", func() {
 			command = commandWithHome(pathCLI, tempSettings.Home,
 				"diagnostic",
 				"--skip-update-check",
-				"--host", tempSettings.TestServer.URL(),
-				"--mock-telemetry", tempSettings.TelemetryDestPath)
+				"--host", tempSettings.TestServer.URL())
+			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 			tempSettings.Config.Write([]byte(`token: mytoken`))
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())

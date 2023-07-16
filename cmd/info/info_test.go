@@ -2,14 +2,12 @@ package info
 
 import (
 	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -110,10 +108,19 @@ func TestFailedValidator(t *testing.T) {
 	assert.Error(t, err, errorMessage)
 }
 
-func TestTelemetry(t *testing.T) {
-	tempSettings := clitest.WithTempSettings()
-	defer tempSettings.Close()
+type testTelemetryClient struct {
+	events []telemetry.Event
+}
 
+func (cli *testTelemetryClient) Track(event telemetry.Event) error {
+	cli.events = append(cli.events, event)
+	return nil
+}
+
+func (cli *testTelemetryClient) Close() error { return nil }
+
+func TestTelemetry(t *testing.T) {
+	telemetryClient := testTelemetryClient{make([]telemetry.Event, 0)}
 	// Test server
 	var serverHandler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -124,25 +131,25 @@ func TestTelemetry(t *testing.T) {
 
 	// Test command
 	config := &settings.Config{
-		Token:         "testtoken",
-		HTTPClient:    http.DefaultClient,
-		Host:          server.URL,
-		MockTelemetry: tempSettings.TelemetryDestPath,
+		Token:      "testtoken",
+		HTTPClient: http.DefaultClient,
+		Host:       server.URL,
 	}
 	cmd := NewInfoCommand(config, nil)
+	cmd.SetArgs([]string{"org"})
+	ctx := cmd.Context()
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd.SetContext(telemetry.NewContext(ctx, &telemetryClient))
 
 	// Execute
 	err := cmd.Execute()
 
 	assert.NilError(t, err)
-	// We compare the
-	content, err := os.ReadFile(tempSettings.TelemetryDestPath)
-	assert.NilError(t, err)
 
-	result := []telemetry.Event{}
-	err = json.Unmarshal(content, &result)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, result, []telemetry.Event{
+	// Read the telemetry events and compare them
+	assert.DeepEqual(t, telemetryClient.events, []telemetry.Event{
 		telemetry.CreateInfoEvent(telemetry.CommandInfo{
 			Name:      "org",
 			LocalArgs: map[string]string{"help": "false"},

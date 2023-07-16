@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -19,24 +18,27 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 	opts := versionOptions{
 		cfg: config,
 	}
-	var telemetryClient telemetry.Client
 
 	return &cobra.Command{
 		Use:   "version",
 		Short: "Display version information",
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
-			telemetryClient = create_telemetry.CreateTelemetry(config)
-			defer telemetryClient.Close()
-			_ = telemetryClient.Track(telemetry.CreateVersionEvent(version.Version))
-
 			opts.cfg.SkipUpdateCheck = true
 		},
-		PreRun: func(cmd *cobra.Command, args []string) {
+		PreRun: func(_ *cobra.Command, args []string) {
 			opts.args = args
 		},
-		Run: func(_ *cobra.Command, _ []string) {
-			fmt.Printf("telemetry.SegmentKey = %+v\n", telemetry.SegmentKey)
-			fmt.Printf("%s+%s (%s)\n", version.Version, version.Commit, version.PackageManager())
+		Run: func(cmd *cobra.Command, _ []string) {
+			version := fmt.Sprintf("%s+%s (%s)", version.Version, version.Commit, version.PackageManager())
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			fmt.Printf("telemetryClient = %+v\n", telemetryClient)
+			fmt.Printf("ok = %+v\n", ok)
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateVersionEvent(version))
+			}
+
+			fmt.Printf("%s\n", version)
 		},
 	}
 }

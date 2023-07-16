@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/local"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -18,11 +17,12 @@ func newLocalExecuteCommand(config *settings.Config) *cobra.Command {
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			telemetryClient := create_telemetry.CreateTelemetry(config)
-			defer telemetryClient.Close()
-
 			err := local.Execute(cmd.Flags(), config, args)
-			_ = telemetryClient.Track(telemetry.CreateLocalExecuteEvent(create_telemetry.GetCommandInformation(cmd, true)))
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateLocalExecuteEvent(telemetry.GetCommandInformation(cmd, true)))
+			}
 
 			return err
 		},

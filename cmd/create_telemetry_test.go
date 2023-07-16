@@ -1,4 +1,4 @@
-package create_telemetry
+package cmd
 
 import (
 	"path/filepath"

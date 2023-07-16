@@ -20,7 +20,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/process"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
@@ -390,9 +389,10 @@ Please note that at this time all orbs created in the registry are world-readabl
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
-			telemetryClient := create_telemetry.CreateTelemetry(config)
-			defer telemetryClient.Close()
-			_ = telemetryClient.Track(telemetry.CreateOrbEvent(create_telemetry.GetCommandInformation(cmd, true)))
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateOrbEvent(telemetry.GetCommandInformation(cmd, true)))
+			}
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.

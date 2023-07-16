@@ -2,7 +2,6 @@ package info
 
 import (
 	"github.com/CircleCI-Public/circleci-cli/api/info"
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -13,9 +12,8 @@ import (
 
 // infoOptions info command options
 type infoOptions struct {
-	cfg             *settings.Config
-	validator       validator.Validator
-	createTelemetry func() telemetry.Client
+	cfg       *settings.Config
+	validator validator.Validator
 }
 
 // NewInfoCommand information cobra command creation
@@ -25,9 +23,6 @@ func NewInfoCommand(config *settings.Config, preRunE validator.Validator) *cobra
 	opts := infoOptions{
 		cfg:       config,
 		validator: preRunE,
-		createTelemetry: func() telemetry.Client {
-			return create_telemetry.CreateTelemetry(config)
-		},
 	}
 	infoCommand := &cobra.Command{
 		Use:   "info",
@@ -47,11 +42,12 @@ func orgInfoCommand(client info.InfoClient, opts infoOptions) *cobra.Command {
 		Long:    `View your Organizations' names and ids.`,
 		PreRunE: opts.validator,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			telemetryClient := opts.createTelemetry()
-			defer telemetryClient.Close()
-
 			err := getOrgInformation(cmd, client)
-			_ = telemetryClient.Track(telemetry.CreateInfoEvent(create_telemetry.GetCommandInformation(cmd, true), err))
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateInfoEvent(telemetry.GetCommandInformation(cmd, true), err))
+			}
 
 			return err
 		},

@@ -5,7 +5,6 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -46,12 +45,13 @@ func newOpenCommand(config *settings.Config) *cobra.Command {
 	openCommand := &cobra.Command{
 		Use:   "open",
 		Short: "Open the current project in the browser.",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			telemetryClient := create_telemetry.CreateTelemetry(config)
-			defer telemetryClient.Close()
-
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			err := openProjectInBrowser()
-			_ = telemetryClient.Track(telemetry.CreateOpenEvent(err))
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateOpenEvent(err))
+			}
 
 			return err
 		},

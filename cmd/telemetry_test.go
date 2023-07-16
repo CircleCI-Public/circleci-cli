@@ -4,24 +4,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/afero"
 	"gotest.tools/v3/assert"
 )
 
-type telemetryTestAPIClient struct {
-	id  string
-	err error
-}
-
-func (me telemetryTestAPIClient) GetMyUserId() (string, error) {
-	return me.id, me.err
-}
-
 func TestSetIsTelemetryActive(t *testing.T) {
 	type args struct {
-		apiClient create_telemetry.TelemetryAPIClient
+		apiClient TelemetryAPIClient
 		isActive  bool
 		settings  *settings.TelemetrySettings
 	}
@@ -116,9 +106,9 @@ func TestSetIsTelemetryActive(t *testing.T) {
 	}
 
 	// Mock create UUID
-	oldUUIDCreate := create_telemetry.CreateUUID
-	create_telemetry.CreateUUID = func() string { return uniqueId }
-	defer (func() { create_telemetry.CreateUUID = oldUUIDCreate })()
+	oldUUIDCreate := CreateUUID
+	CreateUUID = func() string { return uniqueId }
+	defer (func() { CreateUUID = oldUUIDCreate })()
 
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {

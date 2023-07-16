@@ -7,15 +7,12 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
-	"github.com/CircleCI-Public/circleci-cli/cmd/create_telemetry"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 type runnerOpts struct {
-	r               running
-	createTelemetry func() telemetry.Client
+	r running
 }
 
 func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
@@ -31,9 +28,6 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 				host = config.Host
 			}
 			opts.r = runner.New(rest.NewFromConfig(host, config))
-			opts.createTelemetry = func() telemetry.Client {
-				return create_telemetry.CreateTelemetry(config)
-			}
 		},
 	}
 
