@@ -23,11 +23,14 @@
 <h3 id="examples">Examples</h3>
 <pre><code>circleci policy eval ./policies --input ./.circleci/config.yml</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help              help for eval
-      --input string      path to input file
-      --meta string       decision metadata (json string)
-      --metafile string   decision metadata file
-      --query string      policy decision query (default &quot;data&quot;)</code></pre>
+<pre><code>  -h, --help                         help for eval
+      --input string                 path to input file
+      --meta string                  decision metadata (json string)
+      --metafile string              decision metadata file
+      --no-compile                   skip config compilation (evaluate policy against source config only)
+      --owner-id string              the id of the policy&#39;s owner
+      --pipeline-parameters string   YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)
+      --query string                 policy decision query (default &quot;data&quot;)</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
