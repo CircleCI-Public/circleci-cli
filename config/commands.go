@@ -64,10 +64,8 @@ func (c *ConfigCompiler) getOrgID(
 	return coll.OrgId, nil
 }
 
-func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) error {
-	var response *ConfigResponse
+func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) (response *ConfigResponse, err error) {
 	var params Parameters
-	var err error
 
 	if len(opts.PipelineParamsFilePath) > 0 {
 		// The 'src' value can be a filepath, or a yaml string. If the file cannot be read successfully,
@@ -79,7 +77,7 @@ func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) error {
 
 		err = yaml.Unmarshal(raw, &params)
 		if err != nil {
-			return fmt.Errorf("invalid 'pipeline-parameters' provided: %s", err.Error())
+			return nil, fmt.Errorf("invalid 'pipeline-parameters' provided: %s", err.Error())
 		}
 	}
 
@@ -92,7 +90,7 @@ func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) error {
 
 	orgID, err := c.getOrgID(opts.OrgID, opts.OrgSlug)
 	if err != nil {
-		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
+		return nil, fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
 	}
 
 	response, err = c.ConfigQuery(
@@ -102,16 +100,15 @@ func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) error {
 		values,
 	)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if !response.Valid {
 		fmt.Println(response.Errors)
-		return errors.New("config is invalid")
+		return nil, errors.New("config is invalid")
 	}
 
-	fmt.Print(response.OutputYaml)
-	return nil
+	return response, nil
 }
 
 type ValidateConfigOpts struct {
