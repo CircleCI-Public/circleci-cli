@@ -110,7 +110,6 @@ var _ = Describe("Setup with prompts", func() {
 			BeforeEach(func() {
 				opts.cfg.Host = "https://example.com/graphql"
 				opts.cfg.Token = token
-				opts.cfg.TmpMount = defaultTmpMount
 			})
 
 			It("should print setup complete", func() {
@@ -119,7 +118,6 @@ var _ = Describe("Setup with prompts", func() {
 					token:           token,
 					confirmEndpoint: true,
 					confirmToken:    true,
-					confirmTmpMount: true,
 				}
 
 				output := clitest.WithCapturedOutput(func() {
@@ -133,7 +131,6 @@ API token has been set.
 CircleCI Host
 CircleCI host has been set.
 Do you want to reset the endpoint? (default: graphql-unstable)
-Tmp mount
 Setup complete.
 Your configuration has been saved to %s.
 
@@ -153,7 +150,6 @@ token: %s
 					token:           token,
 					confirmEndpoint: true,
 					confirmToken:    false,
-					confirmTmpMount: true,
 				}
 
 				output := clitest.WithCapturedOutput(func() {
@@ -165,7 +161,6 @@ token: %s
 CircleCI Host
 CircleCI host has been set.
 Do you want to reset the endpoint? (default: graphql-unstable)
-Tmp mount
 Setup complete.
 Your configuration has been saved to %s.
 
@@ -233,7 +228,6 @@ token: %s
 				token:           token,
 				confirmEndpoint: true,
 				confirmToken:    true,
-				confirmTmpMount: true,
 			}
 
 			output := clitest.WithCapturedOutput(func() {
@@ -246,7 +240,6 @@ API token has been set.
 CircleCI Host
 CircleCI host has been set.
 Do you want to reset the endpoint? (default: graphql-unstable)
-Tmp mount
 Setup complete.
 Your configuration has been saved to %s.
 
@@ -310,7 +303,6 @@ Trying to query our API for your profile name... Hello, %s.
 				token:           token,
 				confirmEndpoint: true,
 				confirmToken:    true,
-				confirmTmpMount: true,
 			}
 
 			output := clitest.WithCapturedOutput(func() {
@@ -323,7 +315,6 @@ API token has been set.
 CircleCI Host
 CircleCI host has been set.
 Do you want to reset the endpoint? (default: graphql-unstable)
-Tmp mount
 Setup complete.
 Your configuration has been saved to %s.
 

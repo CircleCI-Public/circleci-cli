@@ -166,7 +166,6 @@ var _ = Describe("Setup without prompts", func() {
 				tempSettings.Config.Write([]byte(`
 host: https://example.com
 token: fooBarBaz
-tmp_mount: /tmp
 `))
 			})
 
@@ -196,7 +195,6 @@ token: fooBarBaz
 
 				stdout := session.Wait().Out.Contents()
 				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Token unchanged from existing config. Use --token with --no-prompt to overwrite it.
-TmpMount unchanged from existing config. Use --tmpMount with --no-prompt to overwrite it.
 Setup complete.
 Your configuration has been saved to %s.
 `, tempSettings.Config.Path)))
@@ -223,7 +221,6 @@ token: fooBarBaz
 
 				stdout := session.Wait().Out.Contents()
 				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Host unchanged from existing config. Use --host with --no-prompt to overwrite it.
-TmpMount unchanged from existing config. Use --tmpMount with --no-prompt to overwrite it.
 Setup complete.
 Your configuration has been saved to %s.
 `, tempSettings.Config.Path)))
@@ -271,49 +268,7 @@ token: asdf
 				)
 			})
 
-			It("write the configuration to a file", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(fmt.Sprintf(`TmpMount unchanged from existing config. Use --tmpMount with --no-prompt to overwrite it.
-Setup complete.
-Your configuration has been saved to %s.
-`, tempSettings.Config.Path)))
-
-				Context("re-open the config to check the contents", func() {
-					file, err := os.Open(tempSettings.Config.Path)
-					Expect(err).ShouldNot(HaveOccurred())
-
-					reread, err := io.ReadAll(file)
-					Expect(err).ShouldNot(HaveOccurred())
-					Expect(string(reread)).To(Equal(`host: https://zomg.com
-endpoint: graphql-unstable
-token: mytoken
-rest_endpoint: api/v2
-tls_cert: ""
-tls_insecure: false
-orb_publishing:
-    default_namespace: ""
-    default_vcs_provider: ""
-    default_owner: ""
-tmp_mount: /tmp
-`))
-				})
-			})
-		})
-		Context("with all host, token and tmpMount flags", func() {
-			BeforeEach(func() {
-				command = commandWithHome(pathCLI, tempSettings.Home,
-					"setup",
-					"--host", "https://zomg.com",
-					"--token", "mytoken",
-					"--tmpMount", "/some/folder",
-					"--no-prompt",
-					"--skip-update-check",
-				)
-			})
-
-			It("write the configuration to a file", func() {
+			It("writes the configuration to a file", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				stdout := session.Wait().Out.Contents()
@@ -337,7 +292,6 @@ orb_publishing:
     default_namespace: ""
     default_vcs_provider: ""
     default_owner: ""
-tmp_mount: /some/folder
 `))
 				})
 			})
