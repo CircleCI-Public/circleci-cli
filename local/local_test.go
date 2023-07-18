@@ -1,126 +1,74 @@
-package local
+package local_test
 
 import (
-	"io"
 	"os"
+	"os/exec"
+	"path/filepath"
+	"time"
 
 	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
 	. "github.com/onsi/gomega"
-	"github.com/spf13/pflag"
+	"github.com/onsi/gomega/gexec"
 )
 
-var _ = Describe("build", func() {
+type executeSettings struct {
+	projectDir string
+	config     *os.File
+}
 
-	Describe("invoking docker", func() {
+func newExecuteSettings() *executeSettings {
+	projectDir, err := os.MkdirTemp("", "circleci-cli-test-project")
+	Expect(err).ToNot(HaveOccurred())
 
-		It("can generate a command line", func() {
-			home, err := os.UserHomeDir()
-			Expect(err).NotTo(HaveOccurred())
-			Expect(generateDockerCommand("/tempdir", "/config/path", "docker-image-name", "/current/directory", "build", "/var/run/docker.sock", "extra-1", "extra-2")).To(ConsistOf(
-				"docker",
-				"run",
-				"--interactive",
-				"--tty",
-				"--rm",
-				"--volume", "/var/run/docker.sock:/var/run/docker.sock",
-				"--volume", "/config/path:/tempdir/local_build_config.yml",
-				"--volume", "/current/directory:/current/directory",
-				"--volume", home+"/.circleci:/root/.circleci",
-				"--workdir", "/current/directory",
-				"docker-image-name", "circleci", "build",
-				"--config", "/tempdir/local_build_config.yml",
-				"--job", "build",
-				"extra-1", "extra-2",
-			))
-		})
+	circleCIPath := filepath.Join(projectDir, ".circleci")
+	Expect(os.Mkdir(circleCIPath, 0700)).To(Succeed())
 
-		It("can write temp files", func() {
-			path, err := writeStringToTempFile("/tmp", "cynosure")
-			Expect(err).NotTo(HaveOccurred())
-			defer os.Remove(path)
-			Expect(os.ReadFile(path)).To(BeEquivalentTo("cynosure"))
-		})
+	configFilePath := filepath.Join(circleCIPath, "config.yml")
+	configFile, err := os.OpenFile(configFilePath, os.O_CREATE|os.O_RDWR, 0600)
+	Expect(err).ToNot(HaveOccurred())
+
+	return &executeSettings{
+		projectDir: projectDir,
+		config:     configFile,
+	}
+}
+
+func (es *executeSettings) close() {
+	es.config.Close()
+	os.RemoveAll(es.projectDir)
+}
+
+var _ = Describe("Execute integration tests", func() {
+	var (
+		execSettings *executeSettings
+		command      *exec.Cmd
+	)
+
+	BeforeEach(func() {
+		execSettings = newExecuteSettings()
+		_, err := execSettings.config.Write(
+			[]byte(`version: 2.1
+jobs:
+  build:
+    docker:
+      - image: cimg/base:2023.03
+    steps:
+      - run: echo "hello world"`,
+			),
+		)
+		Expect(err).ShouldNot(HaveOccurred())
+
+		command = exec.Command(pathCLI, "local", "execute", "build")
+		command.Dir = execSettings.projectDir
 	})
 
-	Describe("argument parsing", func() {
+	AfterEach(func() {
+		execSettings.close()
+	})
 
-		makeFlags := func(args []string) (*pflag.FlagSet, error) {
-			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
-			AddFlagsForDocumentation(flags)
-			// add a 'debug' flag - the build command will inherit this from the
-			// root command when not testing in isolation.
-			flags.Bool("debug", false, "Enable debug logging.")
-			flags.SetOutput(io.Discard)
-			err := flags.Parse(args)
-			return flags, err
-		}
-
-		type TestCase struct {
-			input              []string
-			expectedArgs       []string
-			expectedConfigPath string
-			expectedError      string
-		}
-
-		DescribeTable("extracting config", func(testCase TestCase) {
-			flags, err := makeFlags(testCase.input)
-			if testCase.expectedError != "" {
-				Expect(err).To(MatchError(testCase.expectedError))
-			}
-			args, configPath := buildAgentArguments(flags)
-			Expect(args).To(Equal(testCase.expectedArgs))
-			Expect(configPath).To(Equal(testCase.expectedConfigPath))
-
-		},
-			Entry("no args", TestCase{
-				input:              []string{},
-				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{},
-			}),
-
-			Entry("single letter", TestCase{
-				input:              []string{"-c", "b"},
-				expectedConfigPath: "b",
-				expectedArgs:       []string{},
-			}),
-
-			Entry("asking for help", TestCase{
-				input:              []string{"-h", "b"},
-				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{},
-				expectedError:      "pflag: help requested",
-			}),
-
-			Entry("many args", TestCase{
-				input:              []string{"--config", "foo", "--index", "9", "d"},
-				expectedConfigPath: "foo",
-				expectedArgs:       []string{"--index", "9", "d"},
-			}),
-
-			Entry("many args, multiple envs", TestCase{
-				input:              []string{"--env", "foo", "--env", "bar", "--env", "baz"},
-				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{"--env", "foo", "--env", "bar", "--env", "baz"},
-			}),
-
-			Entry("many args, multiple volumes (issue #469)", TestCase{
-				input:              []string{"-v", "/foo:/bar", "--volume", "/bin:/baz", "--volume", "/boo:/bop"},
-				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{"--volume", "/foo:/bar", "--volume", "/bin:/baz", "--volume", "/boo:/bop"},
-			}),
-
-			Entry("comma in env value (issue #440)", TestCase{
-				input:              []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
-				expectedConfigPath: ".circleci/config.yml",
-				expectedArgs:       []string{"--env", "{\"json\":[\"like\",\"value\"]}"},
-			}),
-
-			Entry("args that are not flags", TestCase{
-				input:              []string{"a", "--debug", "b", "--config", "foo", "d"},
-				expectedConfigPath: "foo",
-				expectedArgs:       []string{"a", "b", "d"},
-			}))
-
+	It("should run a local job", func() {
+		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+		Expect(err).ShouldNot(HaveOccurred())
+		Eventually(session, time.Minute).Should(gexec.Exit(0))
 	})
 })
