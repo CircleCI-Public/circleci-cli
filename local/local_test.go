@@ -17,19 +17,19 @@ var _ = Describe("build", func() {
 		It("can generate a command line", func() {
 			home, err := os.UserHomeDir()
 			Expect(err).NotTo(HaveOccurred())
-			Expect(generateDockerCommand("/tmp", "/config/path", "docker-image-name", "/current/directory", "build", "/var/run/docker.sock", "extra-1", "extra-2")).To(ConsistOf(
+			Expect(generateDockerCommand("/tempdir", "/config/path", "docker-image-name", "/current/directory", "build", "/var/run/docker.sock", "extra-1", "extra-2")).To(ConsistOf(
 				"docker",
 				"run",
 				"--interactive",
 				"--tty",
 				"--rm",
 				"--volume", "/var/run/docker.sock:/var/run/docker.sock",
-				"--volume", "/config/path:/tmp/local_build_config.yml",
+				"--volume", "/config/path:/tempdir/local_build_config.yml",
 				"--volume", "/current/directory:/current/directory",
 				"--volume", home+"/.circleci:/root/.circleci",
 				"--workdir", "/current/directory",
 				"docker-image-name", "circleci", "build",
-				"--config", "/tmp/local_build_config.yml",
+				"--config", "/tempdir/local_build_config.yml",
 				"--job", "build",
 				"extra-1", "extra-2",
 			))
