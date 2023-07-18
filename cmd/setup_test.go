@@ -42,7 +42,7 @@ var _ = Describe("Setup telemetry", func() {
 
 		Eventually(session).Should(gexec.Exit(0))
 		clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
-			telemetry.CreateSetupEvent(false),
+			telemetry.CreateSetupEvent(true),
 		})
 	})
 })

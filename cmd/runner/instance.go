@@ -32,7 +32,9 @@ func newRunnerInstanceCommand(o *runnerOpts, preRunE validator.Validator) *cobra
 			telemetryClient, ok := telemetry.FromContext(cmd.Context())
 			if ok {
 				// We defer the call to be sure the `err` has been filled
-				defer telemetryClient.Track(telemetry.CreateRunnerInstanceEvent(telemetry.GetCommandInformation(cmd, true), err))
+				defer (func() {
+					_ = telemetryClient.Track(telemetry.CreateRunnerInstanceEvent(telemetry.GetCommandInformation(cmd, true), err))
+				})()
 			}
 
 			runners, err := o.r.GetRunnerInstances(args[0])

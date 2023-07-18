@@ -32,8 +32,6 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 			version := fmt.Sprintf("%s+%s (%s)", version.Version, version.Commit, version.PackageManager())
 
 			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			fmt.Printf("telemetryClient = %+v\n", telemetryClient)
-			fmt.Printf("ok = %+v\n", ok)
 			if ok {
 				_ = telemetryClient.Track(telemetry.CreateVersionEvent(version))
 			}

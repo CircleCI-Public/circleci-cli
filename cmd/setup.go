@@ -128,7 +128,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 			telemetryClient, ok := telemetry.FromContext(cmd.Context())
 			if ok {
 				// We defer the call to make sure the `opts.cfg.Host` has been filled
-				defer telemetryClient.Track(telemetry.CreateSetupEvent(opts.cfg.Host != defaultHost))
+				defer (func() { _ = telemetryClient.Track(telemetry.CreateSetupEvent(opts.cfg.Host != defaultHost)) })()
 			}
 
 			if opts.integrationTesting {

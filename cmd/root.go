@@ -41,27 +41,20 @@ var rootTokenFromFlag string
 // Execute adds all child commands to rootCmd, sets the flags appropriately
 // and put the telemetry client in the command context. This function is
 // called by main.main(). It only needs to happen once to the rootCmd
-func Execute() {
+func Execute() error {
 	header.SetCommandStr(CommandStr())
 	command := MakeCommands()
 
-	// If we have no context, we can't add the telemetry to the context
-	if command.Context() == nil {
-		command.SetContext(context.Background())
-	}
-
 	telemetryClient := CreateTelemetry(rootOptions)
-	// We defer to close the telemetry in case of panic
 	defer telemetryClient.Close()
-	command.SetContext(telemetry.NewContext(command.Context(), telemetryClient))
 
-	err := command.Execute()
-	// We close here because defer is not called when `os.Exit` is called
-	telemetryClient.Close()
-
-	if err != nil {
-		os.Exit(-1)
+	cmdContext := command.Context()
+	if cmdContext == nil {
+		cmdContext = context.Background()
 	}
+	command.SetContext(telemetry.NewContext(cmdContext, telemetryClient))
+
+	return command.Execute()
 }
 
 // Returns a string (e.g. "circleci context list") indicating what
