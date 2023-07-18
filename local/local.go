@@ -119,7 +119,6 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 // They don't reflect the entire structure or available flags, only those which
 // are public in the original command.
 func AddFlagsForDocumentation(flags *pflag.FlagSet) {
-	flags.String("temp-dir", "", "path to local directory to store temporary config files")
 	flags.StringP("config", "c", DefaultConfigPath, "config file")
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
@@ -148,7 +147,13 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
+		if flag.Name != "build-agent-version" &&
+			flag.Name != "org-slug" &&
+			flag.Name != "config" &&
+			flag.Name != "temp-dir" &&
+			flag.Name != "debug" &&
+			flag.Name != "org-id" &&
+			flag.Name != "docker-socket-path" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
