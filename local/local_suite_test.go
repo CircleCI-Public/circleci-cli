@@ -1,9 +1,6 @@
 package local_test
 
 import (
-	"fmt"
-	"os"
-	"os/exec"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -26,16 +23,4 @@ var _ = AfterSuite(func() {
 func TestLocal(t *testing.T) {
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Local Suite")
-}
-
-func commandWithHome(bin, home string, args ...string) *exec.Cmd {
-	command := exec.Command(bin, args...)
-
-	command.Env = append(
-		os.Environ(),
-		fmt.Sprintf("HOME=%s", home),
-		fmt.Sprintf("USERPROFILE=%s", home), // windows
-	)
-
-	return command
 }
