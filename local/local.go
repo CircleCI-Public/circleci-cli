@@ -237,10 +237,10 @@ func writeStringToTempFile(tempDir, data string) (string, error) {
 func generateDockerCommand(tempDir, configPath, image, pwd string, job string, dockerSocketPath string, arguments ...string) []string {
 	configPathInsideContainer := fmt.Sprintf("%s/local_build_config.yml", tempDir)
 	core := []string{"docker", "run", "--rm",
-		"--volume", fmt.Sprintf("%s:/var/run/docker.sock", dockerSocketPath),
-		"--volume", fmt.Sprintf("%s:%s", configPath, configPathInsideContainer),
-		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
-		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=/var/run/docker.sock", dockerSocketPath),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=%s", configPath, configPathInsideContainer),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=%s", pwd, pwd),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
 		image, "circleci", "build", "--config", configPathInsideContainer, "--job", job}
 	return append(core, arguments...)
