@@ -83,6 +83,7 @@ jobs:
       name: windows/default
       shell: bash --login -eo pipefail
     steps:
+      - setup_remote_docker
       - run: git config --global core.autocrlf false
       - checkout
       - run: mkdir test_results
@@ -102,6 +103,7 @@ jobs:
   test_mac:
     executor: mac
     steps:
+      - setup_remote_docker
       - checkout
       - run: |
           brew update
@@ -123,6 +125,7 @@ jobs:
     docker:
       - image: cimg/ruby:2.7
     steps:
+      - setup_remote_docker
       - checkout
       - attach_workspace:
           at: .
@@ -144,6 +147,7 @@ jobs:
   test:
     executor: go
     steps:
+      - setup_remote_docker
       - checkout
       - gomod
       - run: make test
@@ -153,6 +157,7 @@ jobs:
     environment:
       CGO_ENABLED: 1
     steps:
+      - setup_remote_docker
       - checkout
       - force-http-1
       - gomod
