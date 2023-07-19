@@ -3,12 +3,9 @@ package config
 import (
 	"fmt"
 	"io"
-	"net/url"
 	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 )
@@ -22,29 +19,28 @@ var (
 )
 
 type ConfigCompiler struct {
-	host              string
-	compileRestClient *rest.Client
-	collaborators     collaborators.CollaboratorsClient
-
-	cfg                 *settings.Config
-	legacyGraphQLClient *graphql.Client
+	apiClient     APIClient
+	collaborators collaborators.CollaboratorsClient
 }
 
-func New(cfg *settings.Config) *ConfigCompiler {
-	hostValue := GetCompileHost(cfg.Host)
+func NewWithConfig(cfg *settings.Config) (*ConfigCompiler, error) {
+	apiClient, err := GetAPIClient(cfg)
+	if err != nil {
+		return nil, err
+	}
 	collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
+	return New(apiClient, collaboratorsClient), nil
+}
 
+func New(apiClient APIClient, collaboratorsClient collaborators.CollaboratorsClient) *ConfigCompiler {
 	configCompiler := &ConfigCompiler{
-		host:              hostValue,
-		compileRestClient: rest.NewFromConfig(hostValue, cfg),
-		collaborators:     collaboratorsClient,
-		cfg:               cfg,
+		apiClient:     apiClient,
+		collaborators: collaboratorsClient,
 	}
 
-	configCompiler.legacyGraphQLClient = graphql.NewClient(cfg.HTTPClient, cfg.Host, cfg.Endpoint, cfg.Token, cfg.Debug)
 	return configCompiler
 }
 
@@ -94,49 +90,7 @@ func (c *ConfigCompiler) ConfigQuery(
 		return nil, fmt.Errorf("failed to load yaml config from config path provider: %w", err)
 	}
 
-	compileRequest := CompileConfigRequest{
-		ConfigYaml: configString,
-		Options: Options{
-			OwnerID:            orgID,
-			PipelineValues:     values,
-			PipelineParameters: params,
-		},
-	}
-
-	req, err := c.compileRestClient.NewRequest(
-		"POST",
-		&url.URL{
-			Path: "compile-config-with-defaults",
-		},
-		compileRequest,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("an error occurred creating the request: %w", err)
-	}
-
-	configCompilationResp := &ConfigResponse{}
-	statusCode, originalErr := c.compileRestClient.DoRequest(req, configCompilationResp)
-	if statusCode == 404 {
-		fmt.Fprintf(os.Stderr, "You are using a old version of CircleCI Server, please consider updating\n")
-		legacyResponse, err := c.legacyConfigQueryByOrgID(configString, orgID, params, values, c.cfg)
-		if err != nil {
-			return nil, err
-		}
-		return legacyResponse, nil
-	}
-	if originalErr != nil {
-		return nil, fmt.Errorf("config compilation request returned an error: %w", originalErr)
-	}
-
-	if statusCode != 200 {
-		return nil, errors.New("unable to validate or compile config")
-	}
-
-	if len(configCompilationResp.Errors) > 0 {
-		return nil, fmt.Errorf("config compilation contains errors: %s", configCompilationResp.Errors)
-	}
-
-	return configCompilationResp, nil
+	return c.apiClient.CompileConfig(configString, orgID, params, values)
 }
 
 func loadYaml(path string) (string, error) {

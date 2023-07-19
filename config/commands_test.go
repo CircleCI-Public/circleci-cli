@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/stretchr/testify/assert"
 )
@@ -18,7 +20,11 @@ func TestGetOrgID(t *testing.T) {
 		fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 	}))
 	defer svr.Close()
-	compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+	cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+	apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+	collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+	assert.NoError(t, err)
+	compiler := New(apiClient, collaboratorsClient)
 
 	t.Run("returns the original org-id passed if it is set", func(t *testing.T) {
 		expected := "1234"
@@ -66,9 +72,13 @@ func TestValidateConfig(t *testing.T) {
 				fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
 			}))
 			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
-			err := compiler.ValidateConfig(ValidateConfigOpts{
+			err = compiler.ValidateConfig(ValidateConfigOpts{
 				ConfigPath: "testdata/config.yml",
 			})
 			assert.NoError(t, err)
@@ -87,9 +97,13 @@ func TestValidateConfig(t *testing.T) {
 				fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
 			}))
 			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
-			err := compiler.ValidateConfig(ValidateConfigOpts{
+			err = compiler.ValidateConfig(ValidateConfigOpts{
 				ConfigPath: "testdata/config.yml",
 				OrgID:      "1234",
 			})
@@ -119,9 +133,13 @@ func TestValidateConfig(t *testing.T) {
 			svr := httptest.NewServer(mux)
 			defer svr.Close()
 
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
-			err := compiler.ValidateConfig(ValidateConfigOpts{
+			err = compiler.ValidateConfig(ValidateConfigOpts{
 				ConfigPath: "testdata/config.yml",
 				OrgSlug:    "gh/test",
 			})
@@ -151,9 +169,13 @@ func TestValidateConfig(t *testing.T) {
 			svr := httptest.NewServer(mux)
 			defer svr.Close()
 
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
-			err := compiler.ValidateConfig(ValidateConfigOpts{
+			err = compiler.ValidateConfig(ValidateConfigOpts{
 				ConfigPath: "testdata/config.yml",
 				OrgSlug:    "gh/nonexistent",
 			})

@@ -50,7 +50,11 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		Aliases: []string{"check"},
 		Short:   "Check that the config file is well formed.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			compiler := config.New(globalConfig)
+			compiler, err := config.NewWithConfig(globalConfig)
+			if err != nil {
+				return err
+			}
+
 			orgID, _ := cmd.Flags().GetString("org-id")
 			orgSlug, _ := cmd.Flags().GetString("org-slug")
 			path := config.DefaultConfigPath
@@ -86,7 +90,11 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 		Use:   "process <path>",
 		Short: "Validate config and display expanded configuration.",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			compiler := config.New(globalConfig)
+			compiler, err := config.NewWithConfig(globalConfig)
+			if err != nil {
+				return err
+			}
+
 			pipelineParamsFilePath, _ := cmd.Flags().GetString("pipeline-parameters")
 			orgID, _ := cmd.Flags().GetString("org-id")
 			orgSlug, _ := cmd.Flags().GetString("org-slug")

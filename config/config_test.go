@@ -8,37 +8,25 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestCompiler(t *testing.T) {
-	t.Run("test compiler setup", func(t *testing.T) {
-		svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
-		}))
-		defer svr.Close()
-		compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
-
-		t.Run("assert compiler has correct host", func(t *testing.T) {
-			assert.Equal(t, "http://"+compiler.compileRestClient.BaseURL.Host, svr.URL)
-		})
-
-		t.Run("assert compiler has default api host", func(t *testing.T) {
-			newCompiler := New(&settings.Config{Host: defaultHost, HTTPClient: http.DefaultClient})
-			assert.Equal(t, "https://"+newCompiler.compileRestClient.BaseURL.Host, defaultAPIHost)
-		})
-
-		t.Run("tests that we correctly get the config api host when the host is not the default one", func(t *testing.T) {
+func TestConfig(t *testing.T) {
+	t.Run("test getCompileHost", func(t *testing.T) {
+		t.Run("for Server instances", func(t *testing.T) {
 			// if the host isn't equal to `https://circleci.com` then this is likely a server instance and
 			// wont have the api.X.com subdomain so we should instead just respect the host for config commands
 			host := GetCompileHost("test")
 			assert.Equal(t, host, "test")
+		})
 
+		t.Run("for CircleCI servers", func(t *testing.T) {
 			// If the host passed in is the same as the defaultHost 'https://circleci.com' - then we know this is cloud
 			// and as such should use the `api.circleci.com` subdomain
-			host = GetCompileHost("https://circleci.com")
+			host := GetCompileHost("https://circleci.com")
 			assert.Equal(t, host, "https://api.circleci.com")
 		})
 	})
@@ -50,7 +38,11 @@ func TestCompiler(t *testing.T) {
 				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
 			result, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
 			assert.NoError(t, err)
@@ -65,9 +57,13 @@ func TestCompiler(t *testing.T) {
 				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
-			_, err := compiler.ConfigQuery("testdata/nonexistent.yml", "1234", Parameters{}, Values{})
+			_, err = compiler.ConfigQuery("testdata/nonexistent.yml", "1234", Parameters{}, Values{})
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "Could not load config file at testdata/nonexistent.yml")
 		})
@@ -90,9 +86,13 @@ func TestCompiler(t *testing.T) {
 				w.WriteHeader(http.StatusInternalServerError)
 			}))
 			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
-			_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+			_, err = compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "config compilation request returned an error")
 		})
@@ -111,7 +111,11 @@ func TestCompiler(t *testing.T) {
 				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
-			compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
 
 			resp, err := compiler.ConfigQuery("testdata/test.yml", "1234", Parameters{}, Values{})
 			assert.NoError(t, err)

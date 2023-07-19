@@ -4,12 +4,16 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 )
+
+const v1_string apiClientVersion = "v1"
+
+type v1APIClient struct {
+	gql *graphql.Client
+}
 
 // GQLErrorsCollection is a slice of errors returned by the GraphQL server.
 // Each error is made up of a GQLResponseError type.
@@ -24,13 +28,13 @@ type BuildConfigResponse struct {
 
 // Error turns a GQLErrorsCollection into an acceptable error string that can be printed to the user.
 func (errs GQLErrorsCollection) Error() string {
-	messages := []string{}
+	message := "config compilation contains errors:"
 
 	for i := range errs {
-		messages = append(messages, errs[i].Message)
+		message += fmt.Sprintf("\n\t- %s", errs[i].Message)
 	}
 
-	return strings.Join(messages, "\n")
+	return message
 }
 
 // LegacyConfigResponse is a structure that matches the result of the GQL
@@ -54,6 +58,12 @@ type GQLResponseError struct {
 	Type          string
 }
 
+// KeyVal is a data structure specifically for passing pipeline data to GraphQL which doesn't support free-form maps.
+type KeyVal struct {
+	Key string      `json:"key"`
+	Val interface{} `json:"val"`
+}
+
 // PrepareForGraphQL takes a golang homogenous map, and transforms it into a list of keyval pairs, since GraphQL does not support homogenous maps.
 func PrepareForGraphQL(kvMap Values) []KeyVal {
 	// we need to create the slice of KeyVals in a deterministic order for testing purposes
@@ -70,13 +80,7 @@ func PrepareForGraphQL(kvMap Values) []KeyVal {
 	return kvs
 }
 
-func (c *ConfigCompiler) legacyConfigQueryByOrgID(
-	configString string,
-	orgID string,
-	params Parameters,
-	values Values,
-	cfg *settings.Config,
-) (*ConfigResponse, error) {
+func (client *v1APIClient) CompileConfig(configContent string, orgID string, params Parameters, values Values) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 	// GraphQL isn't forwards-compatible, so we are unusually selective here about
 	// passing only non-empty fields on to the API, to minimize user impact if the
@@ -101,8 +105,8 @@ func (c *ConfigCompiler) legacyConfigQueryByOrgID(
 	)
 
 	request := graphql.NewRequest(query)
-	request.SetToken(cfg.Token)
-	request.Var("config", configString)
+	request.SetToken(client.gql.Token)
+	request.Var("config", configContent)
 
 	if values != nil {
 		request.Var("pipelineValues", PrepareForGraphQL(values))
@@ -119,7 +123,7 @@ func (c *ConfigCompiler) legacyConfigQueryByOrgID(
 		request.Var("orgId", orgID)
 	}
 
-	err := c.legacyGraphQLClient.Run(request, &response)
+	err := client.gql.Run(request, &response)
 	if err != nil {
 		return nil, errors.Wrap(err, "Unable to validate config")
 	}
@@ -132,10 +136,4 @@ func (c *ConfigCompiler) legacyConfigQueryByOrgID(
 		SourceYaml: response.BuildConfig.LegacyConfigResponse.SourceYaml,
 		OutputYaml: response.BuildConfig.LegacyConfigResponse.OutputYaml,
 	}, nil
-}
-
-// KeyVal is a data structure specifically for passing pipeline data to GraphQL which doesn't support free-form maps.
-type KeyVal struct {
-	Key string      `json:"key"`
-	Val interface{} `json:"val"`
 }

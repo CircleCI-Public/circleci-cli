@@ -2,15 +2,17 @@ package config
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLegacyFlow(t *testing.T) {
+func TestAPIV1Flow(t *testing.T) {
 	t.Run("tests that the compiler defaults to the graphQL resolver should the original API request fail with 404", func(t *testing.T) {
 		mux := http.NewServeMux()
 
@@ -31,12 +33,17 @@ func TestLegacyFlow(t *testing.T) {
 		svr := httptest.NewServer(mux)
 		defer svr.Close()
 
-		compiler := New(&settings.Config{
+		cfg := &settings.Config{
 			Host:       svr.URL,
 			Endpoint:   "/graphql-unstable",
 			HTTPClient: http.DefaultClient,
 			Token:      "",
-		})
+		}
+		apiClient, err := newAPIClient(cfg)
+		assert.NoError(t, err)
+		collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+		assert.NoError(t, err)
+		compiler := New(apiClient, collaboratorsClient)
 		resp, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
 
 		assert.Equal(t, true, resp.Valid)
@@ -63,13 +70,18 @@ func TestLegacyFlow(t *testing.T) {
 		svr := httptest.NewServer(mux)
 		defer svr.Close()
 
-		compiler := New(&settings.Config{
+		cfg := &settings.Config{
 			Host:       svr.URL,
 			Endpoint:   "/graphql-unstable",
 			HTTPClient: http.DefaultClient,
 			Token:      "",
-		})
-		_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+		}
+		apiClient, err := newAPIClient(cfg)
+		assert.NoError(t, err)
+		collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+		assert.NoError(t, err)
+		compiler := New(apiClient, collaboratorsClient)
+		_, err = compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "failed to validate")
 	})
@@ -79,8 +91,14 @@ func TestLegacyFlow(t *testing.T) {
 		gqlHitCounter := 0
 
 		mux.HandleFunc("/compile-config-with-defaults", func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(http.StatusInternalServerError)
+			body, err := ioutil.ReadAll(r.Body)
+			assert.NoError(t, err)
+			if len(body) == 0 {
+				w.WriteHeader(http.StatusBadRequest)
+				return
+			}
 
+			w.WriteHeader(http.StatusInternalServerError)
 		})
 
 		mux.HandleFunc("/me/collaborations", func(w http.ResponseWriter, r *http.Request) {
@@ -97,13 +115,18 @@ func TestLegacyFlow(t *testing.T) {
 		svr := httptest.NewServer(mux)
 		defer svr.Close()
 
-		compiler := New(&settings.Config{
+		cfg := &settings.Config{
 			Host:       svr.URL,
 			Endpoint:   "/graphql-unstable",
 			HTTPClient: http.DefaultClient,
 			Token:      "",
-		})
-		_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+		}
+		apiClient, err := newAPIClient(cfg)
+		assert.NoError(t, err)
+		collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+		assert.NoError(t, err)
+		compiler := New(apiClient, collaboratorsClient)
+		_, err = compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "config compilation request returned an error:")
 		assert.Equal(t, 0, gqlHitCounter)
