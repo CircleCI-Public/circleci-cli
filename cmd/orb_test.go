@@ -210,9 +210,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 			})
 		})
 
-		Describe("with old server version", func() {
+		Describe("org-id parameter", func() {
 			BeforeEach(func() {
 				token = "testtoken"
+			})
+
+			It("should use the old GraphQL resolver when the parameter is not present", func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"--skip-update-check",
@@ -229,9 +232,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						panic(err)
 					}
 				}()
-			})
 
-			It("should use the old GraphQL resolver", func() {
 				By("setting up a mock server")
 
 				mockOrbIntrospection(false, "", tempSettings)
@@ -263,6 +264,105 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						Config string `json:"config"`
 					}{
 						Config: "{}",
+					},
+				}
+				expected, err := json.Marshal(response)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  string(expected),
+					Response: gqlResponse})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb input is valid."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("indicate a deprecation error when using the parameter with outdated Server", func() {
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--org-id", "org-id",
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					_, err := io.WriteString(stdin, "{}")
+					if err != nil {
+						panic(err)
+					}
+				}()
+
+				By("setting up a mock server")
+
+				mockOrbIntrospection(false, "", tempSettings)
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Your version of Server does not support validating orbs that refer to other private orbs. Please see the README for more information on server compatibility: https://github.com/CircleCI-Public/circleci-cli#server-compatibility"))
+				Eventually(session).Should(gexec.Exit(-1))
+			})
+
+			It("should work properly with modern Server", func() {
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--org-id", "org-id",
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					_, err := io.WriteString(stdin, "{}")
+					if err != nil {
+						panic(err)
+					}
+				}()
+
+				By("setting up a mock server")
+
+				mockOrbIntrospection(true, "", tempSettings)
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				response := struct {
+					Query     string `json:"query"`
+					Variables struct {
+						Config string `json:"config"`
+						Owner  string `json:"owner"`
+					} `json:"variables"`
+				}{
+					Query: `
+		query ValidateOrb ($config: String!, $owner: UUID) {
+			orbConfig(orbYaml: $config, ownerId: $owner) {
+				valid,
+				errors { message },
+				sourceYaml,
+				outputYaml
+			}
+		}`,
+					Variables: struct {
+						Config string `json:"config"`
+						Owner  string `json:"owner"`
+					}{
+						Config: "{}",
+						Owner:  "org-id",
 					},
 				}
 				expected, err := json.Marshal(response)

@@ -20,6 +20,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/api/orb"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/process"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
@@ -732,7 +733,11 @@ func validateOrb(opts orbOptions, org orbOrgOptions) error {
 		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
 	}
 
-	_, err = api.OrbQuery(opts.cl, opts.args[0], orgId)
+	client := orb.GetClient(opts.cfg)
+	if client == nil {
+		return fmt.Errorf("Unable to validate orb")
+	}
+	_, err = client.OrbQuery(opts.args[0], orgId)
 
 	if err != nil {
 		return err
@@ -754,7 +759,11 @@ func processOrb(opts orbOptions, org orbOrgOptions) error {
 		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
 	}
 
-	response, err := api.OrbQuery(opts.cl, opts.args[0], orgId)
+	client := orb.GetClient(opts.cfg)
+	if client == nil {
+		return fmt.Errorf("Unable to validate orb")
+	}
+	response, err := client.OrbQuery(opts.args[0], orgId)
 
 	if err != nil {
 		return err
