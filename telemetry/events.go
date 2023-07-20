@@ -17,6 +17,7 @@ func createEventFromCommandInfo(name string, cmdInfo CommandInfo) Event {
 	for key, value := range cmdInfo.LocalArgs {
 		properties[fmt.Sprintf("cmd.flag.%s", key)] = value
 	}
+	properties["has_been_executed"] = false
 
 	return Event{
 		Object:     fmt.Sprintf("cli-%s", name),
@@ -26,19 +27,23 @@ func createEventFromCommandInfo(name string, cmdInfo CommandInfo) Event {
 }
 
 func errorToProperties(err error) map[string]interface{} {
-	if err == nil {
-		return nil
+	properties := map[string]interface{}{
+		"has_been_executed": true,
 	}
-	return map[string]interface{}{
-		"error": err.Error(),
+
+	if err != nil {
+		properties["error"] = err.Error()
 	}
+	return properties
 }
 
 func CreateSetupEvent(isServerCustomer bool) Event {
 	return Event{
 		Object: "cli-setup",
+		Action: "setup",
 		Properties: map[string]interface{}{
 			"is_server_customer": isServerCustomer,
+			"has_been_executed":  true,
 		},
 	}
 }
@@ -46,8 +51,10 @@ func CreateSetupEvent(isServerCustomer bool) Event {
 func CreateVersionEvent(version string) Event {
 	return Event{
 		Object: "cli-version",
+		Action: "version",
 		Properties: map[string]interface{}{
-			"version": version,
+			"version":           version,
+			"has_been_executed": true,
 		},
 	}
 }
@@ -58,18 +65,18 @@ func CreateUpdateEvent(cmdInfo CommandInfo) Event {
 
 func CreateDiagnosticEvent(err error) Event {
 	return Event{
-		Object: "cli-diagnostic", Properties: errorToProperties(err),
+		Object: "cli-diagnostic", Action: "diagnostic", Properties: errorToProperties(err),
 	}
 }
 
 func CreateFollowEvent(err error) Event {
 	return Event{
-		Object: "cli-follow", Properties: errorToProperties(err),
+		Object: "cli-follow", Action: "follow", Properties: errorToProperties(err),
 	}
 }
 
 func CreateOpenEvent(err error) Event {
-	return Event{Object: "cli-open", Properties: errorToProperties(err)}
+	return Event{Object: "cli-open", Action: "open", Properties: errorToProperties(err)}
 }
 
 func CreateCompletionCommand(cmdInfo CommandInfo) Event {
@@ -80,6 +87,7 @@ func CreateConfigEvent(cmdInfo CommandInfo, err error) Event {
 	event := createEventFromCommandInfo("config", cmdInfo)
 	if err != nil {
 		event.Properties["error"] = err.Error()
+		event.Properties["has_been_executed"] = true
 	}
 	return event
 }
@@ -104,6 +112,7 @@ func CreateRunnerInstanceEvent(cmdInfo CommandInfo, err error) Event {
 	event := createEventFromCommandInfo("runner-instance", cmdInfo)
 	if err != nil {
 		event.Properties["error"] = err.Error()
+		event.Properties["has_been_executed"] = true
 	}
 	return event
 }
@@ -120,6 +129,7 @@ func CreateInfoEvent(cmdInfo CommandInfo, err error) Event {
 	event := createEventFromCommandInfo("info", cmdInfo)
 	if err != nil {
 		event.Properties["error"] = err.Error()
+		event.Properties["has_been_executed"] = true
 	}
 	return event
 }

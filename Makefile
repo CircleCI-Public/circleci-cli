@@ -4,7 +4,7 @@ GOOS=$(shell go env GOOS)
 GOARCH=$(shell go env GOARCH)
 
 build: always
-	go build -o build/$(GOOS)/$(GOARCH)/circleci
+	go build -o build/$(GOOS)/$(GOARCH)/circleci -ldflags="-X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=' -X 'github.com/CircleCI-Public/circleci-cli/telemetry.SegmentKey="`echo ${SEGMENT_KEY}`"'"
 
 build-all: build/linux/amd64/circleci build/darwin/amd64/circleci
 

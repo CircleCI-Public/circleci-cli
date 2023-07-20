@@ -61,6 +61,7 @@ func CreateClient(user User, enabled bool) Client {
 // Sends the user's approval event
 func SendTelemetryApproval(user User, approval Approval) error {
 	client := CreateActiveTelemetry(user)
+	defer client.Close()
 
 	return client.Track(Event{
 		Object: "cli-telemetry",
@@ -124,11 +125,11 @@ func (segment *segmentClient) Track(event Event) error {
 	}
 
 	if segment.user.UniqueID != "" {
-		event.Properties["UUID"] = segment.user.UniqueID
+		event.Properties["anonymous_id"] = segment.user.UniqueID
 	}
 
 	if segment.user.UserID != "" {
-		event.Properties["user_id"] = segment.user.UserID
+		event.Properties["cci_user_id"] = segment.user.UserID
 	}
 
 	event.Properties["is_self_hosted"] = segment.user.IsSelfHosted
