@@ -70,7 +70,7 @@ func CreateTelemetry(config *settings.Config) telemetry.Client {
 		return telemetry.CreateFileTelemetry(mockTelemetry)
 	}
 
-	if config.IsTelemetryDisabled {
+	if config.IsTelemetryDisabled || len(os.Getenv("CIRCLECI_CLI_TELEMETRY_OPTOUT")) != 0 {
 		return telemetry.CreateClient(telemetry.User{}, false)
 	}
 

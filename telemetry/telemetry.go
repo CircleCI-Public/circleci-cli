@@ -14,7 +14,7 @@ var (
 	CreateActiveTelemetry = newSegmentClient
 
 	SegmentEndpoint = "http://localhost"
-	SegmentKey      = ""
+	segmentKey      = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
 )
 
 type Approval string
@@ -91,7 +91,7 @@ type segmentClient struct {
 }
 
 func newSegmentClient(user User) Client {
-	cli, err := analytics.NewWithConfig(SegmentKey, analytics.Config{
+	cli, err := analytics.NewWithConfig(segmentKey, analytics.Config{
 		Endpoint: SegmentEndpoint,
 	})
 
