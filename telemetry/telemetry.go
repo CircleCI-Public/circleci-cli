@@ -85,6 +85,12 @@ func (cli nullClient) Track(_ Event) error { return nil }
 // Segment client
 // Used when telemetry is enabled
 
+// Nil segment logger
+type nilSegmentEmptyLogger struct{}
+
+func (nilSegmentEmptyLogger) Logf(format string, args ...interface{})   {}
+func (nilSegmentEmptyLogger) Errorf(format string, args ...interface{}) {}
+
 type segmentClient struct {
 	analyticsClient analytics.Client
 	user            User
@@ -93,6 +99,7 @@ type segmentClient struct {
 func newSegmentClient(user User) Client {
 	cli, err := analytics.NewWithConfig(segmentKey, analytics.Config{
 		Endpoint: SegmentEndpoint,
+		Logger:   nilSegmentEmptyLogger{},
 	})
 
 	if err != nil {
