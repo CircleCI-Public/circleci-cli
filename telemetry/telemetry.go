@@ -13,7 +13,7 @@ var (
 	// Overwrite this function for tests
 	CreateActiveTelemetry = newSegmentClient
 
-	SegmentEndpoint = "http://localhost"
+	SegmentEndpoint = "http://localhost:33457"
 	segmentKey      = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
 )
 
