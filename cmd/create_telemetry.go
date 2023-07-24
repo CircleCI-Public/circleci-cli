@@ -84,7 +84,7 @@ func CreateTelemetry(config *settings.Config) telemetry.Client {
 
 	telemetrySettings := settings.TelemetrySettings{}
 	user := telemetry.User{
-		IsSelfHosted: config.Host == "https://circleci.com",
+		IsSelfHosted: config.Host != defaultHost,
 		OS:           runtime.GOOS,
 		Version:      version.Version,
 		TeamName:     "devex",
