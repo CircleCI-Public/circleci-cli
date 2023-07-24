@@ -2,17 +2,23 @@ package orb
 
 import (
 	"fmt"
+	"io"
+	"os"
 	"sync"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/pkg/errors"
 )
 
 var (
-	once   sync.Once
-	client Client
+	once        sync.Once
+	client      Client
+	clientError error
 )
+
+type clientVersion string
 
 // ConfigResponse is a structure that matches the result of the GQL
 // query, so that we can use mapstructure to convert from
@@ -27,25 +33,41 @@ type Client interface {
 	OrbQuery(configPath string, ownerId string) (*api.ConfigResponse, error)
 }
 
-func GetClient(config *settings.Config) Client {
+func GetClient(config *settings.Config) (Client, error) {
 	once.Do(func() {
-		createClient(config)
+		client, clientError = newClient(config)
 	})
-	return client
+
+	return client, clientError
 }
 
-func createClient(config *settings.Config) {
+func newClient(config *settings.Config) (Client, error) {
 	gql := graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
-	ok, err := orbQueryHandleOwnerId(gql)
+	clientVersion, err := detectClientVersion(gql)
 	if err != nil {
-		fmt.Printf("While requesting orb server: %s", err)
-		return
-	} else if ok {
-		client = &latestClient{gql}
-	} else {
-		client = &deprecatedClient{gql}
+		return nil, err
 	}
+
+	switch clientVersion {
+	case v1_string:
+		return &v1Client{gql}, nil
+	case v2_string:
+		return &v2Client{gql}, nil
+	default:
+		return nil, fmt.Errorf("Unable to recognise your server orb API")
+	}
+}
+
+func detectClientVersion(gql *graphql.Client) (clientVersion, error) {
+	handlesOwnerId, err := orbQueryHandleOwnerId(gql)
+	if err != nil {
+		return "", err
+	}
+	if !handlesOwnerId {
+		return v1_string, nil
+	}
+	return v2_string, nil
 }
 
 type OrbIntrospectionResponse struct {
@@ -62,22 +84,21 @@ type OrbIntrospectionResponse struct {
 }
 
 func orbQueryHandleOwnerId(gql *graphql.Client) (bool, error) {
-	query := `
-query ValidateOrb {
-  __schema {
-    queryType {
-      fields(includeDeprecated: true) {
-        name
-        args {
-          name
-          __typename
-          type {
-            name
-          }
-        }
-      }
-    }
-  }
+	query := `query IntrospectionQuery {
+	_schema {
+		queryType {
+			fields(includeDeprecated: true) {
+				name
+				args {
+					name
+					__typename
+					type {
+						name
+					}
+				}
+			}
+		}
+	}
 }`
 	request := graphql.NewRequest(query)
 	response := OrbIntrospectionResponse{}
@@ -102,4 +123,20 @@ query ValidateOrb {
 	// else return false, ownerId is not supported
 
 	return false, nil
+}
+
+func loadYaml(path string) (string, error) {
+	var err error
+	var config []byte
+	if path == "-" {
+		config, err = io.ReadAll(os.Stdin)
+	} else {
+		config, err = os.ReadFile(path)
+	}
+
+	if err != nil {
+		return "", errors.Wrapf(err, "Could not load config file at %s", path)
+	}
+
+	return string(config), nil
 }

@@ -6,11 +6,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-type latestClient struct {
+// This client makes request to servers that **DO** have the field `ownerId` in the GraphQL query method: `orbConfig`
+
+const v2_string clientVersion = "v2"
+
+type v2Client struct {
 	gql *graphql.Client
 }
 
-func (latest *latestClient) OrbQuery(configPath string, ownerId string) (*api.ConfigResponse, error) {
+func (client *v2Client) OrbQuery(configPath string, ownerId string) (*api.ConfigResponse, error) {
 	var response QueryResponse
 
 	configContent, err := loadYaml(configPath)
@@ -18,26 +22,26 @@ func (latest *latestClient) OrbQuery(configPath string, ownerId string) (*api.Co
 		return nil, err
 	}
 
-	query := `
-		query ValidateOrb ($config: String!, $owner: UUID) {
-			orbConfig(orbYaml: $config, ownerId: $owner) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
+	query := `query ValidateOrb ($config: String!, $owner: UUID) {
+	orbConfig(orbYaml: $config, ownerId: $owner) {
+		valid,
+		errors { message },
+		sourceYaml,
+		outputYaml
+	}
+}`
+
 	request := graphql.NewRequest(query)
 	request.Var("config", configContent)
 
 	if ownerId != "" {
 		request.Var("owner", ownerId)
 	}
-	request.SetToken(latest.gql.Token)
+	request.SetToken(client.gql.Token)
 
-	err = latest.gql.Run(request, &response)
+	err = client.gql.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
+		return nil, errors.Wrap(err, "Validating config")
 	}
 
 	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {

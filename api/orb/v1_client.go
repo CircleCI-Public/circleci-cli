@@ -6,11 +6,15 @@ import (
 	"github.com/pkg/errors"
 )
 
-type deprecatedClient struct {
+// This client makes request to servers that **DON'T** have the field `ownerId` in the GraphQL query method: `orbConfig`
+
+const v1_string clientVersion = "v1"
+
+type v1Client struct {
 	gql *graphql.Client
 }
 
-func (deprecated *deprecatedClient) OrbQuery(configPath string, ownerId string) (*api.ConfigResponse, error) {
+func (client *v1Client) OrbQuery(configPath string, ownerId string) (*api.ConfigResponse, error) {
 	if ownerId != "" {
 		return nil, errors.New("Your version of Server does not support validating orbs that refer to other private orbs. Please see the README for more information on server compatibility: https://github.com/CircleCI-Public/circleci-cli#server-compatibility")
 	}
@@ -22,24 +26,23 @@ func (deprecated *deprecatedClient) OrbQuery(configPath string, ownerId string) 
 		return nil, err
 	}
 
-	query := `
-		query ValidateOrb ($config: String!) {
-			orbConfig(orbYaml: $config) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`
+	query := `query ValidateOrb ($config: String!) {
+	orbConfig(orbYaml: $config) {
+		valid,
+		errors { message },
+		sourceYaml,
+		outputYaml
+	}
+}`
 
 	request := graphql.NewRequest(query)
 	request.Var("config", configContent)
 
-	request.SetToken(deprecated.gql.Token)
+	request.SetToken(client.gql.Token)
 
-	err = deprecated.gql.Run(request, &response)
+	err = client.gql.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
+		return nil, errors.Wrap(err, "Validating config")
 	}
 
 	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {
