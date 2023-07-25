@@ -8,13 +8,14 @@ import (
 	"github.com/CircleCI-Public/circleci-config/labeling"
 	"github.com/CircleCI-Public/circleci-config/labeling/codebase"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // Path to the config.yml file to operate on.
@@ -96,13 +97,18 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
-			return compiler.ProcessConfig(config.ProcessConfigOpts{
+			response, err := compiler.ProcessConfig(config.ProcessConfigOpts{
 				ConfigPath:             path,
 				OrgID:                  orgID,
 				OrgSlug:                orgSlug,
 				PipelineParamsFilePath: pipelineParamsFilePath,
 				VerboseOutput:          verboseOutput,
 			})
+			if err != nil {
+				return err
+			}
+			fmt.Print(response.OutputYaml)
+			return nil
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
