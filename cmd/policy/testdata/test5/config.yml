@@ -1,0 +1,9 @@
+test: config
+
+parameters:
+  string_param:
+    type: string
+    default: "default string value"
+  integer_param:
+    type: integer
+    default: 42
