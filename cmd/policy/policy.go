@@ -490,12 +490,7 @@ This group of commands allows the management of polices to be verified against b
 					}
 				}
 
-				host := globalConfig.Host
-				if host == "https://circleci.com" {
-					host = "https://api.circleci.com"
-				}
-
-				client := rest.NewFromConfig(host, globalConfig)
+				client := rest.NewFromConfig(config.GetCompileHost(globalConfig.Host), globalConfig)
 
 				runnerOpts := tester.RunnerOptions{
 					Path:    args[0],

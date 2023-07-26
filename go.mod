@@ -2,7 +2,7 @@ module github.com/CircleCI-Public/circleci-cli
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
-	github.com/CircleCI-Public/circle-policy-agent v0.0.663
+	github.com/CircleCI-Public/circle-policy-agent v0.0.683
 	github.com/Masterminds/semver v1.4.2
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/blang/semver v3.5.1+incompatible
@@ -119,9 +119,6 @@ require (
 )
 
 // fix vulnerability: CVE-2020-15114 in etcd v3.3.10+incompatible
-replace (
-	github.com/CircleCI-Public/circle-policy-agent => ../circle-policy-agent
-	github.com/coreos/etcd => github.com/coreos/etcd v3.3.24+incompatible
-)
+replace github.com/coreos/etcd => github.com/coreos/etcd v3.3.24+incompatible
 
 go 1.20

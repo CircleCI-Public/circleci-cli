@@ -31,9 +31,8 @@ type ConfigCompiler struct {
 }
 
 func New(cfg *settings.Config) *ConfigCompiler {
-	hostValue := getCompileHost(cfg.Host)
+	hostValue := GetCompileHost(cfg.Host)
 	collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
-
 	if err != nil {
 		panic(err)
 	}
@@ -49,7 +48,7 @@ func New(cfg *settings.Config) *ConfigCompiler {
 	return configCompiler
 }
 
-func getCompileHost(cfgHost string) string {
+func GetCompileHost(cfgHost string) string {
 	if cfgHost != defaultHost {
 		return cfgHost
 	} else {
