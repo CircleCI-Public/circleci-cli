@@ -331,6 +331,8 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 		client = http.DefaultClient
 	}
 
+	// Make sure to create a copy of the client so that any modifications we make to the transport
+	// doesn't affect the http.DefaultClient
 	client = func(c http.Client) *http.Client { return &c }(*client)
 
 	transport := client.Transport
@@ -349,13 +351,13 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 		time.AfterFunc(time.Second, func() { <-sem })
 
 		if config.Token != "" {
-			r.Header.Add("circle-token", config.Token)
+			r.Header.Set("circle-token", config.Token)
 		}
-		r.Header.Add("Accept", "application/json")
-		r.Header.Add("Content-Type", "application/json")
-		r.Header.Add("User-Agent", version.UserAgent())
+		r.Header.Set("Accept", "application/json")
+		r.Header.Set("Content-Type", "application/json")
+		r.Header.Set("User-Agent", version.UserAgent())
 		if commandStr := header.GetCommandStr(); commandStr != "" {
-			r.Header.Add("Circleci-Cli-Command", commandStr)
+			r.Header.Set("Circleci-Cli-Command", commandStr)
 		}
 		return transport.RoundTrip(r)
 	})
