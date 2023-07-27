@@ -321,7 +321,7 @@ jobs:
                   name: Cleanup RemoteRepoURL
                   command: echo 'export REMOTE_REPO_URL="${CIRCLE_REPOSITORY_URL%".git"}"' >> "$BASH_ENV"
               - snyk/scan:
-                  organization: "CircleCI-Public"
+                  organization: "circleci-public"
                   fail-on-issues: true
                   severity-threshold: high
                   monitor-on-build: true
@@ -336,7 +336,7 @@ jobs:
                   name: Launching Snyk Orb Scanning
                   command: echo "Running snyk/scan on branch; not uploading the results"
               - snyk/scan:
-                  organization: "CircleCI-Public"
+                  organization: "circleci-public"
                   fail-on-issues: true
                   severity-threshold: high
                   monitor-on-build: false
