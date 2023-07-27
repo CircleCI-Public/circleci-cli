@@ -326,7 +326,6 @@ jobs:
                   severity-threshold: high
                   monitor-on-build: true
                   additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
-                  project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}'
       - unless:
           condition:
               or:
@@ -341,7 +340,6 @@ jobs:
                   severity-threshold: high
                   monitor-on-build: false
                   additional-arguments: "--all-projects -d"
-                  project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BRANCH}'
 
 workflows:
   ci:
