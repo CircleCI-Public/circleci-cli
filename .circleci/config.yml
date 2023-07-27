@@ -2,6 +2,7 @@ version: 2.1
 
 orbs:
   shellcheck: circleci/shellcheck@1.2.0
+  snyk: snyk/snyk@1.4.0
   windows: circleci/windows@5.0.0
 
 executors:
@@ -304,6 +305,43 @@ jobs:
           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
           working_directory: chocolatey
 
+  vulnerability-scan:
+    executor: go
+    steps:
+      - checkout
+      - run:
+          name: Setup Scanning
+          command: |
+              git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
+      - when:
+          condition:
+              or:
+                - equal: [ main, << pipeline.git.branch >> ]
+                - equal: [ develop, << pipeline.git.branch >> ]
+          steps:
+              - run:
+                  name: Launching Snyk Orb Scanning
+                  command: echo "Running snyk/scan on main; uploading the results"
+              - snyk/scan:
+                  fail-on-issues: false
+                  severity-threshold: high
+                  monitor-on-build: true
+                  project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}'
+      - unless:
+          condition:
+              or:
+                - equal: [ main, << pipeline.git.branch >> ]
+                - equal: [ develop, << pipeline.git.branch >> ]
+          steps:
+              - run:
+                  name: Launching Snyk Orb Scanning
+                  command: echo "Running snyk/scan on branch; not uploading the results"
+              - snyk/scan:
+                  fail-on-issues: false
+                  severity-threshold: high
+                  monitor-on-build: false
+                  project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BRANCH}'
+
 workflows:
   ci:
     jobs:
@@ -317,6 +355,8 @@ workflows:
       - test_windows
       - coverage
       - lint
+      - vulnerability-scan:
+          context: org-global-employees
       - deploy-test
       - docs:
           requires:
