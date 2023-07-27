@@ -313,29 +313,34 @@ jobs:
           condition:
               or:
                 - equal: [ main, << pipeline.git.branch >> ]
-                - equal: [ develop, << pipeline.git.branch >> ]
           steps:
               - run:
                   name: Launching Snyk Orb Scanning
                   command: echo "Running snyk/scan on main; uploading the results"
+              - run:
+                  name: Cleanup RemoteRepoURL
+                  command: echo 'export REMOTE_REPO_URL="${CIRCLE_REPOSITORY_URL%".git"}"' >> "$BASH_ENV"
               - snyk/scan:
-                  fail-on-issues: false
+                  organization: "CircleCI-Public"
+                  fail-on-issues: true
                   severity-threshold: high
                   monitor-on-build: true
+                  additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
                   project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}'
       - unless:
           condition:
               or:
                 - equal: [ main, << pipeline.git.branch >> ]
-                - equal: [ develop, << pipeline.git.branch >> ]
           steps:
               - run:
                   name: Launching Snyk Orb Scanning
                   command: echo "Running snyk/scan on branch; not uploading the results"
               - snyk/scan:
-                  fail-on-issues: false
+                  organization: "CircleCI-Public"
+                  fail-on-issues: true
                   severity-threshold: high
                   monitor-on-build: false
+                  additional-arguments: "--all-projects -d"
                   project: '${CIRCLE_PROJECT_USERNAME}/${CIRCLE_PROJECT_REPONAME}/${CIRCLE_BRANCH}'
 
 workflows:
