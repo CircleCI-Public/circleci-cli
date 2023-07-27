@@ -49,7 +49,7 @@ func New(cfg *settings.Config) *ConfigCompiler {
 }
 
 func GetCompileHost(cfgHost string) string {
-	if cfgHost != defaultHost {
+	if cfgHost != defaultHost && cfgHost != "" {
 		return cfgHost
 	} else {
 		return defaultAPIHost

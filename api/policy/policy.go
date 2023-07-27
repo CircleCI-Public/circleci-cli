@@ -326,7 +326,14 @@ func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest
 // NewClient returns a new policy client that will use the provided settings.Config to automatically inject appropriate
 // Circle-Token authentication and other relevant CLI headers.
 func NewClient(baseURL string, config *settings.Config) *Client {
-	transport := config.HTTPClient.Transport
+	client := config.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	client = func(c http.Client) *http.Client { return &c }(*client)
+
+	transport := client.Transport
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
@@ -334,7 +341,7 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 	// Throttling the client so that it cannot make more than 10 concurrent requests at time
 	sem := make(chan struct{}, 10)
 
-	config.HTTPClient.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
+	client.Transport = transportFunc(func(r *http.Request) (*http.Response, error) {
 		// Acquiring semaphore to respect throttling
 		sem <- struct{}{}
 
@@ -355,7 +362,7 @@ func NewClient(baseURL string, config *settings.Config) *Client {
 
 	return &Client{
 		serverUrl: strings.TrimSuffix(baseURL, "/"),
-		client:    config.HTTPClient,
+		client:    client,
 	}
 }
 

@@ -479,8 +479,9 @@ This group of commands allows the management of polices to be verified against b
 		)
 
 		cmd := &cobra.Command{
-			Use:   "test [path]",
-			Short: "runs policy tests",
+			Use:          "test [path]",
+			Short:        "runs policy tests",
+			SilenceUsage: true,
 			RunE: func(cmd *cobra.Command, args []string) (err error) {
 				var include *regexp.Regexp
 				if run != "" {
@@ -490,14 +491,15 @@ This group of commands allows the management of polices to be verified against b
 					}
 				}
 
-				client := rest.NewFromConfig(config.GetCompileHost(globalConfig.Host), globalConfig)
-
 				runnerOpts := tester.RunnerOptions{
 					Path:    args[0],
 					Include: include,
 					Compile: func(data []byte, pipelineValues map[string]any) ([]byte, error) {
 						parameters, _ := pipelineValues["parameters"].(map[string]any)
 						delete(pipelineValues, "parameters")
+
+						host := config.GetCompileHost(globalConfig.Host)
+						client := rest.NewFromConfig(host, globalConfig)
 
 						req, err := client.NewRequest(
 							"POST",
