@@ -23,11 +23,12 @@
 <h3 id="examples">Examples</h3>
 <pre><code>circleci policy test ./policies/...</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>      --debug           print test debug context. Sets verbose to true
-      --format string   select desired format between json or junit
-  -h, --help            help for test
-      --run string      select which tests to run based on regular expression
-  -v, --verbose         print all tests instead of only failed tests</code></pre>
+<pre><code>      --debug             print test debug context. Sets verbose to true
+      --format string     select desired format between json or junit
+  -h, --help              help for test
+      --owner-id string   the id of the policy&#39;s owner
+      --run string        select which tests to run based on regular expression
+  -v, --verbose           print all tests instead of only failed tests</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string              URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --policy-base-url string   base url for policy api (default &quot;https://internal.circleci.com&quot;)
