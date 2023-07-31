@@ -1,0 +1,25 @@
+test_compile_policy:
+  compile: true
+  pipeline_parameters:
+    parameters:
+      size: small
+  input:
+    version: 2.1
+    parameters:
+      size:
+        type: string
+        default: medium
+    jobs:
+      test:
+        docker:
+          - image: go
+        resource_class: << pipeline.parameters.size >>
+        steps:
+          - run: it
+    workflows:
+      main:
+        jobs:
+          - test
+  decision:
+    status: PASS
+    enabled_rules: [enforce_small_jobs]

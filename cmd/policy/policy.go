@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -22,6 +23,7 @@ import (
 	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/api/policy"
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -473,11 +475,13 @@ This group of commands allows the management of polices to be verified against b
 			debug   bool
 			useJSON bool
 			format  string
+			ownerID string
 		)
 
 		cmd := &cobra.Command{
-			Use:   "test [path]",
-			Short: "runs policy tests",
+			Use:          "test [path]",
+			Short:        "runs policy tests",
+			SilenceUsage: true,
 			RunE: func(cmd *cobra.Command, args []string) (err error) {
 				var include *regexp.Regexp
 				if run != "" {
@@ -490,6 +494,44 @@ This group of commands allows the management of polices to be verified against b
 				runnerOpts := tester.RunnerOptions{
 					Path:    args[0],
 					Include: include,
+					Compile: func(data []byte, pipelineValues map[string]any) ([]byte, error) {
+						parameters, _ := pipelineValues["parameters"].(map[string]any)
+						delete(pipelineValues, "parameters")
+
+						host := config.GetCompileHost(globalConfig.Host)
+						client := rest.NewFromConfig(host, globalConfig)
+
+						req, err := client.NewRequest(
+							"POST",
+							&url.URL{Path: "compile-config-with-defaults"},
+							config.CompileConfigRequest{
+								ConfigYaml: string(data),
+								Options: config.Options{
+									OwnerID:            ownerID,
+									PipelineValues:     pipelineValues,
+									PipelineParameters: parameters,
+								},
+							},
+						)
+						if err != nil {
+							return nil, fmt.Errorf("an error occurred creating the request: %w", err)
+						}
+
+						var resp config.ConfigResponse
+						if _, err := client.DoRequest(req, &resp); err != nil {
+							return nil, fmt.Errorf("failed to get compilation response: %w", err)
+						}
+
+						if len(resp.Errors) > 0 {
+							messages := make([]error, len(resp.Errors))
+							for i := range resp.Errors {
+								messages[i] = errors.New(resp.Errors[i].Message)
+							}
+							return nil, errors.Join(messages...)
+						}
+
+						return []byte(resp.OutputYaml), nil
+					},
 				}
 
 				runner, err := tester.NewRunner(runnerOpts)
@@ -531,8 +573,10 @@ This group of commands allows the management of polices to be verified against b
 		cmd.Flags().BoolVarP(&verbose, "verbose", "v", false, "print all tests instead of only failed tests")
 		cmd.Flags().BoolVar(&debug, "debug", false, "print test debug context. Sets verbose to true")
 		cmd.Flags().BoolVar(&useJSON, "json", false, "sprints json test results instead of standard output format")
-		_ = cmd.Flags().MarkDeprecated("json", "use --format=json to print json test results")
 		cmd.Flags().StringVar(&format, "format", "", "select desired format between json or junit")
+		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
+
+		_ = cmd.Flags().MarkDeprecated("json", "use --format=json to print json test results")
 		return cmd
 	}()
 

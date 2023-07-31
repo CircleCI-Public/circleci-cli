@@ -1,7 +1,7 @@
 github.com/AlecAivazis/survey/v2 v2.1.1 h1:LEMbHE0pLj75faaVEKClEX1TM4AJmmnOh9eimREzLWI=
 github.com/AlecAivazis/survey/v2 v2.1.1/go.mod h1:9FJRdMdDm8rnT+zHVbvQT2RTSTLq0Ttd6q3Vl2fahjk=
-github.com/CircleCI-Public/circle-policy-agent v0.0.663 h1:v2DbMYrzcoO6x5KN8y7hxByXMdUjntm8eM5DGnXhKeg=
-github.com/CircleCI-Public/circle-policy-agent v0.0.663/go.mod h1:72U4Q4OtvAGRGGo/GqlCCO0tARg1cSG9xwxWyz3ktQI=
+github.com/CircleCI-Public/circle-policy-agent v0.0.683 h1:EzZaLy9mUGl4dwDNWceBHeDb3X0KAAjV4eFOk3C7lts=
+github.com/CircleCI-Public/circle-policy-agent v0.0.683/go.mod h1:72U4Q4OtvAGRGGo/GqlCCO0tARg1cSG9xwxWyz3ktQI=
 github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a h1:RqA4H9p77FsqV++HNNDBq8dJftYuJ+r+KdD9HAX28t4=
 github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a/go.mod h1:XZaQPj2ylXZaz5vW31dRdkUY/Ey8MdpbgrUHbHyzICY=
 github.com/Masterminds/semver v1.4.2 h1:WBLTQ37jOCzSLtXNdoo8bNM8876KhNqOKvrlGITgsTc=
