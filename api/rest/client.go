@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -97,7 +96,7 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 		httpError := struct {
 			Message string `json:"message"`
 		}{}
-		body, err := ioutil.ReadAll(httpResp.Body)
+		body, err := io.ReadAll(httpResp.Body)
 		if err != nil {
 			return httpResp.StatusCode, err
 		}

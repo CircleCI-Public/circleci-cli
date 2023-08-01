@@ -34,7 +34,7 @@ func GetAPIClient(config *settings.Config) (APIClient, error) {
 }
 
 func newAPIClient(config *settings.Config) (APIClient, error) {
-	hostValue := getCompileHost(config.Host)
+	hostValue := GetCompileHost(config.Host)
 	restClient := rest.NewFromConfig(hostValue, config)
 
 	version, err := detectAPIClientVersion(restClient)
