@@ -173,7 +173,7 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
-			cmd, stdout, stderr := makeCMD("")
+			cmd, stdout, stderr := makeCMD("", "testtoken")
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL, "--no-prompt"))
 
@@ -266,7 +266,7 @@ func TestDiffPolicyBundle(t *testing.T) {
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
-			cmd, stdout, stderr := makeCMD("")
+			cmd, stdout, stderr := makeCMD("", "testtoken")
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
@@ -382,7 +382,7 @@ func TestFetchPolicyBundle(t *testing.T) {
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
-			cmd, stdout, _ := makeCMD("")
+			cmd, stdout, _ := makeCMD("", "testtoken")
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
@@ -567,7 +567,7 @@ func TestGetDecisionLogs(t *testing.T) {
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
-			cmd, stdout, _ := makeCMD("")
+			cmd, stdout, _ := makeCMD("", "testtoken")
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
@@ -637,7 +637,7 @@ test: config
 				err := json.NewDecoder(r.Body).Decode(&req)
 				require.NoError(t, err)
 
-				//dummy compilation here (remove the _compiled_ key in compiled config, as compiled config can't have that at top-level key).
+				// dummy compilation here (remove the _compiled_ key in compiled config, as compiled config can't have that at top-level key).
 				var yamlResp map[string]any
 				err = yaml.Unmarshal([]byte(req.ConfigYaml), &yamlResp)
 				require.NoError(t, err)
@@ -927,7 +927,7 @@ test: config
 			compilerServer := httptest.NewServer(tc.CompilerServerHandler)
 			defer compilerServer.Close()
 
-			cmd, stdout, _ := makeCMD(compilerServer.URL)
+			cmd, stdout, _ := makeCMD(compilerServer.URL, "testtoken")
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
@@ -1118,7 +1118,7 @@ test: config
 			compilerServer := httptest.NewServer(tc.CompilerServerHandler)
 			defer compilerServer.Close()
 
-			cmd, stdout, _ := makeCMD(compilerServer.URL)
+			cmd, stdout, _ := makeCMD(compilerServer.URL, "testtoken")
 
 			args := append(tc.Args, "--policy-base-url", svr.URL)
 
@@ -1234,7 +1234,7 @@ func TestGetSetSettings(t *testing.T) {
 			svr := httptest.NewServer(tc.ServerHandler)
 			defer svr.Close()
 
-			cmd, stdout, _ := makeCMD("")
+			cmd, stdout, _ := makeCMD("", "testtoken")
 
 			cmd.SetArgs(append(tc.Args, "--policy-base-url", svr.URL))
 
@@ -1256,6 +1256,7 @@ const jsonDeprecationMessage = "Flag --json has been deprecated, use --format=js
 func TestTestRunner(t *testing.T) {
 	cases := []struct {
 		Name     string
+		Path     string
 		Verbose  bool
 		Debug    bool
 		Run      string
@@ -1330,13 +1331,31 @@ func TestTestRunner(t *testing.T) {
 				assert.Contains(t, s, "<?xml")
 			},
 		},
+		{
+			Name:    "compile",
+			Path:    "./testdata/compile_policies",
+			Verbose: false,
+			Debug:   false,
+			Run:     "",
+			Json:    false,
+			Format:  "json",
+			Expected: func(t *testing.T, s string) {
+				require.Contains(t, s, `"Passed": true`)
+				require.Contains(t, s, `"Name": "test_compile_policy"`)
+			},
+		},
 	}
 
 	for _, tc := range cases {
 		t.Run(tc.Name, func(t *testing.T) {
-			cmd, stdout, _ := makeCMD("")
+			cmd, stdout, _ := makeCMD("", "")
 
-			args := []string{"test", "./testdata/test_policies"}
+			path := tc.Path
+			if path == "" {
+				path = "./testdata/test_policies"
+			}
+
+			args := []string{"test", path}
 			if tc.Verbose {
 				args = append(args, "-v")
 			}
@@ -1361,8 +1380,14 @@ func TestTestRunner(t *testing.T) {
 	}
 }
 
-func makeCMD(circleHost string) (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
-	config := &settings.Config{Host: circleHost, Token: "testtoken", HTTPClient: http.DefaultClient}
+func makeCMD(circleHost string, token string) (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
+	config := &settings.Config{
+		Host:         circleHost,
+		Token:        token,
+		RestEndpoint: "/api/v2",
+		HTTPClient:   http.DefaultClient,
+	}
+
 	cmd := NewCommand(config, nil)
 
 	stdout := new(bytes.Buffer)
