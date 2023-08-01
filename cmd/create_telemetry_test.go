@@ -131,6 +131,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 				},
 				telemetryEvents: []telemetry.Event{
 					{Object: "cli-telemetry", Action: "disabled", Properties: map[string]interface{}{
+						"UUID":           "cli-anonymous-telemetry",
 						"is_self_hosted": false,
 					}},
 				},
@@ -182,6 +183,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 				fileNotCreated: true,
 				telemetryEvents: []telemetry.Event{
 					{Object: "cli-telemetry", Action: "disabled_default", Properties: map[string]interface{}{
+						"UUID":           "cli-anonymous-telemetry",
 						"is_self_hosted": false,
 					}},
 				},

@@ -1,143 +1,58 @@
-package cmd
+package cmd_test
 
 import (
-	"path/filepath"
-	"testing"
+	"fmt"
+	"os/exec"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/afero"
-	"gotest.tools/v3/assert"
+	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
+	"github.com/onsi/gomega/gexec"
+
+	. "github.com/onsi/ginkgo"
+	. "github.com/onsi/gomega"
 )
 
-func TestSetIsTelemetryActive(t *testing.T) {
-	type args struct {
-		apiClient TelemetryAPIClient
-		isActive  bool
-		settings  *settings.TelemetrySettings
-	}
-	type want struct {
-		settings *settings.TelemetrySettings
-	}
+var _ = Describe("Telemetry events on telemetry commands", func() {
+	var (
+		tempSettings *clitest.TempSettings
+		command      *exec.Cmd
+	)
 
-	type testCase struct {
-		name string
-		args args
-		want want
-	}
+	BeforeEach(func() {
+		tempSettings = clitest.WithTempSettings()
+	})
 
-	userId := "user-id"
-	uniqueId := "unique-id"
+	AfterEach(func() {
+		tempSettings.Close()
+	})
 
-	testCases := []testCase{
-		{
-			name: "Enabling telemetry with settings should just update the is active field",
-			args: args{
-				apiClient: telemetryTestAPIClient{},
-				isActive:  true,
-				settings: &settings.TelemetrySettings{
-					IsEnabled:         false,
-					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
-					UserID:            userId,
-				},
-			},
-			want: want{
-				settings: &settings.TelemetrySettings{
-					IsEnabled:         true,
-					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
-					UserID:            userId,
-				},
-			},
-		},
-		{
-			name: "Enabling telemetry without settings should fill the settings fields",
-			args: args{
-				apiClient: telemetryTestAPIClient{id: userId, err: nil},
-				isActive:  true,
-				settings:  nil,
-			},
-			want: want{
-				settings: &settings.TelemetrySettings{
-					IsEnabled:         true,
-					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
-					UserID:            userId,
-				},
-			},
-		},
-		{
-			name: "Disabling telemetry with settings should just update the is active field",
-			args: args{
-				apiClient: telemetryTestAPIClient{},
-				isActive:  false,
-				settings: &settings.TelemetrySettings{
-					IsEnabled:         true,
-					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
-					UserID:            userId,
-				},
-			},
-			want: want{
-				settings: &settings.TelemetrySettings{
-					IsEnabled:         false,
-					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
-					UserID:            userId,
-				},
-			},
-		},
-		{
-			name: "Enabling telemetry without settings should fill the settings fields",
-			args: args{
-				apiClient: telemetryTestAPIClient{id: userId, err: nil},
-				isActive:  false,
-				settings:  nil,
-			},
-			want: want{
-				settings: &settings.TelemetrySettings{
-					IsEnabled:         false,
-					HasAnsweredPrompt: true,
-					UniqueID:          uniqueId,
-					UserID:            userId,
-				},
-			},
-		},
-	}
+	Describe("telemetry enable", func() {
+		It("should send an event", func() {
+			command = exec.Command(pathCLI, "telemetry", "enable")
+			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 
-	// Mock create UUID
-	oldUUIDCreate := CreateUUID
-	CreateUUID = func() string { return uniqueId }
-	defer (func() { CreateUUID = oldUUIDCreate })()
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session).Should(gexec.Exit(0))
 
-	for _, tt := range testCases {
-		t.Run(tt.name, func(t *testing.T) {
-			// Mock FS
-			oldFS := settings.FS.Fs
-			settings.FS.Fs = afero.NewMemMapFs()
-			defer (func() { settings.FS.Fs = oldFS })()
-
-			if tt.args.settings != nil {
-				err := tt.args.settings.Write()
-				assert.NilError(t, err)
-			}
-
-			err := setIsTelemetryActive(tt.args.apiClient, tt.args.isActive)
-			assert.NilError(t, err)
-
-			exist, err := settings.FS.Exists(filepath.Join(settings.SettingsPath(), "telemetry.yml"))
-			assert.NilError(t, err)
-			if tt.want.settings == nil {
-				assert.Equal(t, exist, false)
-			} else {
-				assert.Equal(t, exist, true)
-
-				loadedSettings := &settings.TelemetrySettings{}
-				err := loadedSettings.Load()
-				assert.NilError(t, err)
-
-				assert.DeepEqual(t, tt.want.settings, loadedSettings)
-			}
+			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+				telemetry.CreateChangeTelemetryStatusEvent("enabled", "telemetry-command", nil),
+			})
 		})
-	}
-}
+	})
+
+	Describe("telemetry disable", func() {
+		It("should send an event", func() {
+			command = exec.Command(pathCLI, "telemetry", "disable")
+			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
+
+			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+			Expect(err).ShouldNot(HaveOccurred())
+			Eventually(session).Should(gexec.Exit(0))
+
+			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+				telemetry.CreateChangeTelemetryStatusEvent("disabled", "telemetry-command", nil),
+			})
+		})
+	})
+})

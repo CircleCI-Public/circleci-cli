@@ -133,3 +133,17 @@ func CreateInfoEvent(cmdInfo CommandInfo, err error) Event {
 	}
 	return event
 }
+
+func CreateChangeTelemetryStatusEvent(action string, origin string, err error) Event {
+	event := Event{
+		Object: "cli-telemetry",
+		Action: action,
+		Properties: map[string]interface{}{
+			"origin": origin,
+		},
+	}
+	if err != nil {
+		event.Properties["error"] = err.Error()
+	}
+	return event
+}

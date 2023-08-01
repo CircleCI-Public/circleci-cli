@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -14,8 +15,12 @@ func newTelemetryCommand(config *settings.Config) *cobra.Command {
 	telemetryEnable := &cobra.Command{
 		Use:   "enable",
 		Short: "Allow telemetry events to be sent to CircleCI servers",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return setIsTelemetryActive(apiClient, true)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := setIsTelemetryActive(apiClient, true)
+			if telemetryClient, ok := telemetry.FromContext(cmd.Context()); ok {
+				_ = telemetryClient.Track(telemetry.CreateChangeTelemetryStatusEvent("enabled", "telemetry-command", err))
+			}
+			return err
 		},
 		Args: cobra.ExactArgs(0),
 	}
@@ -23,8 +28,12 @@ func newTelemetryCommand(config *settings.Config) *cobra.Command {
 	telemetryDisable := &cobra.Command{
 		Use:   "disable",
 		Short: "Make sure no telemetry events is sent to CircleCI servers",
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return setIsTelemetryActive(apiClient, false)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := setIsTelemetryActive(apiClient, false)
+			if telemetryClient, ok := telemetry.FromContext(cmd.Context()); ok {
+				_ = telemetryClient.Track(telemetry.CreateChangeTelemetryStatusEvent("disabled", "telemetry-command", err))
+			}
+			return err
 		},
 		Args: cobra.ExactArgs(0),
 	}
