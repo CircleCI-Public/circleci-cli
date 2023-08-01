@@ -18,8 +18,11 @@ import (
 )
 
 var (
-	CreateUUID  = func() string { return uuid.New().String() }
-	isStdinATTY = term.IsTerminal(int(os.Stdin.Fd()))
+	CreateUUID    = func() string { return uuid.New().String() }
+	isStdinATTY   = term.IsTerminal(int(os.Stdin.Fd()))
+	anonymousUser = telemetry.User{
+		UniqueID: "cli-anonymous-telemetry",
+	}
 )
 
 type telemetryUI interface {
@@ -125,9 +128,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 	// If stdin is not available, send telemetry event, disable telemetry and return
 	if !isStdinATTY {
 		settings.IsEnabled = false
-		err := telemetry.SendTelemetryApproval(telemetry.User{
-			UniqueID: settings.UniqueID,
-		}, telemetry.NoStdin)
+		err := telemetry.SendTelemetryApproval(anonymousUser, telemetry.NoStdin)
 		if err != nil {
 			fmt.Printf("Error while sending telemetry approval %s\n", err)
 		}
@@ -158,7 +159,7 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 		}
 		user.UserID = settings.UserID
 	} else {
-		*user = telemetry.User{}
+		*user = anonymousUser
 	}
 
 	// Send telemetry approval event

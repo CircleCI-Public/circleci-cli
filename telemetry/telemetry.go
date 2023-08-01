@@ -107,7 +107,7 @@ func newSegmentClient(user User) Client {
 	}
 
 	if len(user.UniqueID) == 0 {
-		user.UniqueID = "null"
+		return CreateNullClient()
 	}
 
 	err = cli.Enqueue(
