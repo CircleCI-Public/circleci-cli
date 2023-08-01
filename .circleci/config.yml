@@ -309,7 +309,7 @@ jobs:
           name: Setup Scanning
           command: |
               git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
-      - when:
+      - unless:
           condition:
               or:
                 - equal: [ main, << pipeline.git.branch >> ]
@@ -326,7 +326,7 @@ jobs:
                   severity-threshold: high
                   monitor-on-build: true
                   additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
-      - unless:
+      - when:
           condition:
               or:
                 - equal: [ main, << pipeline.git.branch >> ]
