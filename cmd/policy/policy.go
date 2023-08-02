@@ -283,9 +283,6 @@ This group of commands allows the management of polices to be verified against b
 				if policyPath == "" && ownerID == "" {
 					return fmt.Errorf("either [policy_file_or_dir_path] or --owner-id is required")
 				}
-				if !noCompile && ownerID == "" {
-					return fmt.Errorf("--owner-id is required for compiling config (use --no-compile to evaluate policy against source config only)")
-				}
 
 				metadata, err := readMetadata(meta, metaFile)
 				if err != nil {
@@ -297,7 +294,7 @@ This group of commands allows the management of polices to be verified against b
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				if !noCompile {
+				if !noCompile && context == "config" {
 					compiler := config.New(globalConfig)
 					input, err = mergeCompiledConfig(compiler, config.ProcessConfigOpts{
 						ConfigPath:             inputPath,
@@ -356,6 +353,7 @@ This group of commands allows the management of polices to be verified against b
 			inputPath              string
 			meta                   string
 			metaFile               string
+			context                string
 			ownerID                string
 			query                  string
 			noCompile              bool
@@ -367,10 +365,6 @@ This group of commands allows the management of polices to be verified against b
 			RunE: func(cmd *cobra.Command, args []string) error {
 				policyPath := args[0]
 
-				if !noCompile && ownerID == "" {
-					return fmt.Errorf("--owner-id is required for compiling config (use --no-compile to evaluate policy against source config only)")
-				}
-
 				metadata, err := readMetadata(meta, metaFile)
 				if err != nil {
 					return fmt.Errorf("failed to read metadata: %w", err)
@@ -381,7 +375,7 @@ This group of commands allows the management of polices to be verified against b
 					return fmt.Errorf("failed to read input file: %w", err)
 				}
 
-				if !noCompile {
+				if !noCompile && context == "config" {
 					compiler := config.New(globalConfig)
 					input, err = mergeCompiledConfig(compiler, config.ProcessConfigOpts{
 						ConfigPath:             inputPath,
@@ -410,6 +404,7 @@ This group of commands allows the management of polices to be verified against b
 
 		cmd.Flags().StringVar(&ownerID, "owner-id", "", "the id of the policy's owner")
 		cmd.Flags().StringVar(&inputPath, "input", "", "path to input file")
+		cmd.Flags().StringVar(&context, "context", "config", "policy context for decision")
 		cmd.Flags().StringVar(&meta, "meta", "", "decision metadata (json string)")
 		cmd.Flags().StringVar(&metaFile, "metafile", "", "decision metadata file")
 		cmd.Flags().StringVar(&query, "query", "data", "policy decision query")
