@@ -8,19 +8,12 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "resource-class",
 		Short: "Operate on runner resource-classes",
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateRunnerResourceClassEvent(telemetry.GetCommandInformation(cmd, true)))
-			}
-		},
 	}
 
 	genToken := false

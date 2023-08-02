@@ -25,7 +25,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/fatih/color"
 	"github.com/pkg/errors"
@@ -388,11 +387,6 @@ Please note that at this time all orbs created in the registry are world-readabl
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
-
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateOrbEvent(telemetry.GetCommandInformation(cmd, true)))
-			}
 
 			// PersistentPreRunE overwrites the inherited persistent hook from rootCmd
 			// So we explicitly call it here to retain that behavior.
@@ -1224,8 +1218,7 @@ func initOrb(opts orbOptions) error {
 	defer resp.Body.Close()
 
 	// Create the file
-	zipPath := filepath.Join(os.TempDir(), "orb-template.zip")
-	out, err := os.Create(zipPath)
+	out, err := os.Create(filepath.Join(os.TempDir(), "orb-template.zip"))
 	if err != nil {
 		return err
 	}
@@ -1237,17 +1230,9 @@ func initOrb(opts orbOptions) error {
 		return err
 	}
 
-	err = unzipToOrbPath(zipPath, orbPath)
+	err = unzipToOrbPath(filepath.Join(os.TempDir(), "orb-template.zip"), orbPath)
 	if err != nil {
 		return err
-	}
-
-	// Remove MIT License file if orb is private
-	if opts.private {
-		err = os.Remove(filepath.Join(orbPath, "LICENSE"))
-		if err != nil && !errors.Is(err, os.ErrNotExist) {
-			return err
-		}
 	}
 
 	if fullyAutomated == 1 {

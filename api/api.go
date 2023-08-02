@@ -6,13 +6,11 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"sort"
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/Masterminds/semver"
@@ -1946,21 +1944,4 @@ func FollowProject(config settings.Config, vcs string, owner string, projectName
 	}
 
 	return fr, nil
-}
-
-type Me struct {
-	ID    string `json:"id"`
-	Login string `json:"login"`
-	Name  string `json:"name"`
-}
-
-func GetMe(client *rest.Client) (Me, error) {
-	req, err := client.NewRequest("GET", &url.URL{Path: "me"}, nil)
-	if err != nil {
-		return Me{}, errors.Wrap(err, "Unable to get user info")
-	}
-
-	var me Me
-	_, err = client.DoRequest(req, &me)
-	return me, err
 }
