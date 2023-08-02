@@ -59,10 +59,8 @@ func detectAPIClientVersion(restClient *rest.Client) (apiClientVersion, error) {
 	}
 
 	statusCode, err := restClient.DoRequest(req, nil)
-	if err != nil {
-		if _, ok := err.(*rest.HTTPError); ok {
-			return "", err
-		}
+	if _, ok := err.(*rest.HTTPError); !ok {
+		return "", err
 	}
 	if statusCode == 404 {
 		return v1_string, nil

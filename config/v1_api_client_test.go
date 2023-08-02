@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -91,7 +91,7 @@ func TestAPIV1Flow(t *testing.T) {
 		gqlHitCounter := 0
 
 		mux.HandleFunc("/compile-config-with-defaults", func(w http.ResponseWriter, r *http.Request) {
-			body, err := ioutil.ReadAll(r.Body)
+			body, err := io.ReadAll(r.Body)
 			assert.NoError(t, err)
 			if len(body) == 0 {
 				w.WriteHeader(http.StatusBadRequest)

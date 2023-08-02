@@ -295,7 +295,10 @@ This group of commands allows the management of polices to be verified against b
 				}
 
 				if !noCompile && context == "config" {
-					compiler := config.New(globalConfig)
+					compiler, err := config.NewWithConfig(globalConfig)
+					if err != nil {
+						return err
+					}
 					input, err = mergeCompiledConfig(compiler, config.ProcessConfigOpts{
 						ConfigPath:             inputPath,
 						OrgID:                  ownerID,
@@ -376,7 +379,10 @@ This group of commands allows the management of polices to be verified against b
 				}
 
 				if !noCompile && context == "config" {
-					compiler := config.New(globalConfig)
+					compiler, err := config.NewWithConfig(globalConfig)
+					if err != nil {
+						return err
+					}
 					input, err = mergeCompiledConfig(compiler, config.ProcessConfigOpts{
 						ConfigPath:             inputPath,
 						OrgID:                  ownerID,
