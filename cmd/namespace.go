@@ -8,7 +8,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 )
@@ -75,14 +74,7 @@ Please note that at this time all namespaces created in the registry are world-r
 				}
 			}
 
-			err := createNamespace(cmd, opts)
-
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateNamespaceEvent(telemetry.GetCommandInformation(cmd, true)))
-			}
-
-			return err
+			return createNamespace(cmd, opts)
 		},
 		Args:        cobra.RangeArgs(1, 3),
 		Annotations: make(map[string]string),

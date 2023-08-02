@@ -57,7 +57,7 @@ func TestPushPolicyWithPrompt(t *testing.T) {
 	}))
 	defer svr.Close()
 
-	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient, IsTelemetryDisabled: true}
+	config := &settings.Config{Token: "testtoken", HTTPClient: http.DefaultClient}
 	cmd := NewCommand(config, nil)
 
 	buffer := makeSafeBuffer()
@@ -1382,11 +1382,10 @@ func TestTestRunner(t *testing.T) {
 
 func makeCMD(circleHost string, token string) (*cobra.Command, *bytes.Buffer, *bytes.Buffer) {
 	config := &settings.Config{
-		Host:                circleHost,
-		Token:               token,
-		RestEndpoint:        "/api/v2",
-		HTTPClient:          http.DefaultClient,
-		IsTelemetryDisabled: true,
+		Host:         circleHost,
+		Token:        token,
+		RestEndpoint: "/api/v2",
+		HTTPClient:   http.DefaultClient,
 	}
 
 	cmd := NewCommand(config, nil)

@@ -8,14 +8,14 @@ import (
 	"github.com/CircleCI-Public/circleci-config/labeling"
 	"github.com/CircleCI-Public/circleci-config/labeling/codebase"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // Path to the config.yml file to operate on.
@@ -37,14 +37,8 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 	packCommand := &cobra.Command{
 		Use:   "pack <path>",
 		Short: "Pack up your CircleCI configuration into a single file.",
-		RunE: func(cmd *cobra.Command, args []string) error {
-			err := packConfig(args)
-
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateConfigEvent(telemetry.GetCommandInformation(cmd, true), err))
-			}
-			return err
+		RunE: func(_ *cobra.Command, args []string) error {
+			return packConfig(args)
 		},
 		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
@@ -66,20 +60,13 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
-
-			err := compiler.ValidateConfig(config.ValidateConfigOpts{
+			return compiler.ValidateConfig(config.ValidateConfigOpts{
 				ConfigPath:             path,
 				OrgID:                  orgID,
 				OrgSlug:                orgSlug,
 				IgnoreDeprecatedImages: ignoreDeprecatedImages,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateConfigEvent(telemetry.GetCommandInformation(cmd, true), err))
-			}
-
-			return err
 		},
 		Args:        cobra.MaximumNArgs(1),
 		Annotations: make(map[string]string),
@@ -117,10 +104,6 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				PipelineParamsFilePath: pipelineParamsFilePath,
 				VerboseOutput:          verboseOutput,
 			})
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateConfigEvent(telemetry.GetCommandInformation(cmd, true), err))
-			}
 			if err != nil {
 				return err
 			}

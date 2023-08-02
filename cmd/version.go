@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/spf13/cobra"
 )
@@ -25,18 +24,11 @@ func newVersionCommand(config *settings.Config) *cobra.Command {
 		PersistentPreRun: func(_ *cobra.Command, _ []string) {
 			opts.cfg.SkipUpdateCheck = true
 		},
-		PreRun: func(_ *cobra.Command, args []string) {
+		PreRun: func(cmd *cobra.Command, args []string) {
 			opts.args = args
 		},
-		Run: func(cmd *cobra.Command, _ []string) {
-			version := fmt.Sprintf("%s+%s (%s)", version.Version, version.Commit, version.PackageManager())
-
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateVersionEvent(version))
-			}
-
-			fmt.Printf("%s\n", version)
+		Run: func(_ *cobra.Command, _ []string) {
+			fmt.Printf("%s+%s (%s)\n", version.Version, version.Commit, version.PackageManager())
 		},
 	}
 }
