@@ -187,4 +187,13 @@ Please see the [documentation](https://circleci-public.github.io/circleci-cli) o
 
 ## Telemetry
 
-There is some telemetry in the CLI. Be assured that we tried to keep it as little as possible. The first time you will run a command with the CLI you will be asked for your approval for the telemetry events. If your STDIN is not a TTY the telemetry will be automatically disabled, making it easier to use the CLI in scripts. Would you decide to change your mind about the telemetry, you can run the commands `circleci telemetry enable` and `circleci telemetry disable`. Setting the env variable `CIRCLECI_CLI_TELEMETRY_OPTOUT` will also disable the telemetry.
+The CircleCI CLI includes a telemetry feature that collects basic errors and feature usage data in order to help us improve the experience for everyone.
+
+Telemetry works on an opt-in basis: when running a command for the first time, you will be asked for consent to enable telemetry. For non-TTY STDIN, telemetry is disabled by default, ensuring that scripts that use the CLI run smoothly.
+
+You can disable or enable telemetry anytime in one of the following ways:
+
+* Run the commands `circleci telemetry enable` or `circleci telemetry disable`
+
+* Set the `CIRCLECI_CLI_TELEMETRY_OPTOUT` environment variable to `1` or `true` to disable it
+
