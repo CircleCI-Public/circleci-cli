@@ -34,9 +34,7 @@ func (client *v2APIClient) CompileConfig(configContent string, orgID string, par
 
 	req, err := client.restClient.NewRequest(
 		"POST",
-		&url.URL{
-			Path: "compile-config-with-defaults",
-		},
+		&url.URL{Path: compilePath},
 		compileRequest,
 	)
 	if err != nil {

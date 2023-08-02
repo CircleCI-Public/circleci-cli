@@ -3,7 +3,6 @@ package config
 import (
 	"fmt"
 	"net/url"
-	"sync"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
@@ -11,10 +10,6 @@ import (
 )
 
 var (
-	compiler      APIClient
-	compilerError error
-	once          sync.Once
-
 	compilePath = "compile-config-with-defaults"
 )
 
@@ -22,15 +17,6 @@ type apiClientVersion string
 
 type APIClient interface {
 	CompileConfig(configContent string, orgID string, params Parameters, values Values) (*ConfigResponse, error)
-}
-
-func GetAPIClient(config *settings.Config) (APIClient, error) {
-	if compiler == nil {
-		once.Do(func() {
-			compiler, compilerError = newAPIClient(config)
-		})
-	}
-	return compiler, compilerError
 }
 
 func newAPIClient(config *settings.Config) (APIClient, error) {

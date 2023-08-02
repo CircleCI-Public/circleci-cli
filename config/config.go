@@ -24,7 +24,7 @@ type ConfigCompiler struct {
 }
 
 func NewWithConfig(cfg *settings.Config) (*ConfigCompiler, error) {
-	apiClient, err := GetAPIClient(cfg)
+	apiClient, err := newAPIClient(cfg)
 	if err != nil {
 		return nil, err
 	}
