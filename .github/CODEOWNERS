@@ -1,5 +1,5 @@
 * @CircleCI-Public/developer-experience
 *orb*.go @CircleCI-Public/orb-publishers @CircleCI-Public/developer-experience
 
-/api/runner @CircleCI-Public/runner
-/cmd/runner @CircleCI-Public/runner
+/api/runner @CircleCI-Public/on-prem
+/cmd/runner @CircleCI-Public/on-prem
