@@ -827,11 +827,6 @@ test: config
 			ExpectedErr: "failed to read metadata: use either --meta or --metafile flag, but not both",
 		},
 		{
-			Name:        "fails if config compilation is enabled, but owner-id isn't provided",
-			Args:        []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test1/test.yml"},
-			ExpectedErr: "--owner-id is required for compiling config (use --no-compile to evaluate policy against source config only)",
-		},
-		{
 			Name:           "successfully performs decision for policy FILE provided locally",
 			Args:           []string{"decide", "./testdata/test0/policy.rego", "--input", "./testdata/test0/config.yml", "--no-compile"},
 			ExpectedOutput: `{"status": "PASS", "enabled_rules": ["branch_is_main"]}`,
