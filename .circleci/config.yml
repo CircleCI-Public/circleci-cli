@@ -9,7 +9,6 @@ executors:
   go:
     docker:
       - image: cimg/go:1.20
-    resource_class: large
     environment:
       CGO_ENABLED: 0
   mac:
@@ -27,7 +26,7 @@ commands:
           # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
           #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
           # The issue seems to be on the server-side, so force HTTP 1.1
-          name: "cURL: Force HTTP 1.1"
+          name: 'cURL: Force HTTP 1.1'
           command: echo '--http1.1' >> ~/.curlrc
   build-docker-image:
     steps:
@@ -43,31 +42,36 @@ commands:
           command: |
             docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine --file Dockerfile.alpine .
             docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine update check
-  deploy-save-workspace-and-artifacts:
+  deploy-save-cache-workspace-and-artifacts:
     steps:
+      - save_cache:
+          key: v4-goreleaser-{{ checksum "~/goreleaser_amd64.deb" }}
+          paths: [~/goreleaser_amd64.deb]
       - persist_to_workspace:
           root: .
           paths:
-            - "dist"
+            - 'dist'
       - store_artifacts:
           path: ./dist
           destination: dist
   install-goreleaser:
     parameters:
-      version:
+      GORELEASER_URL:
         type: string
-        default: "1.19.1"
+        default: https://github.com/goreleaser/goreleaser/releases/download/v0.184.0/goreleaser_amd64.deb
     steps:
+      - restore_cache:
+          keys: [v5-goreleaser-]
       - run:
           name: Install GoReleaser
           command: |
-            echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
-            sudo apt -q update -y
-            sudo apt -q install -y --no-install-recommends goreleaser=<< parameters.version >>
+            [ -f ~/goreleaser_amd64.deb ] || curl --silent --location --fail --retry 3 << parameters.GORELEASER_URL >> > ~/goreleaser_amd64.deb
+            sudo apt-get update -y
+            sudo apt install ~/goreleaser_amd64.deb
   gomod:
     steps:
       - restore_cache:
-          keys: ["v3-gomod-{{ arch }}-"]
+          keys: ['v3-gomod-{{ arch }}-']
       - run:
           name: Download go module dependencies
           command: go mod download
@@ -118,7 +122,7 @@ jobs:
       - persist_to_workspace:
           root: .
           paths:
-            - "build"
+            - 'build'
   cucumber:
     docker:
       - image: cimg/ruby:2.7
@@ -127,7 +131,7 @@ jobs:
       - attach_workspace:
           at: .
       - run:
-          name: "Install CLI tool from workspace"
+          name: 'Install CLI tool from workspace'
           command: sudo cp ~/project/build/linux/amd64/circleci /usr/local/bin/
       - run:
           command: bundle install
@@ -206,7 +210,7 @@ jobs:
           docker_layer_caching: true
       - build-docker-image
       - build-alpine-image
-      - deploy-save-workspace-and-artifacts
+      - deploy-save-cache-workspace-and-artifacts
 
   deploy:
     executor: go
@@ -243,7 +247,7 @@ jobs:
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
             docker push     circleci/circleci-cli:alpine
-      - deploy-save-workspace-and-artifacts
+      - deploy-save-cache-workspace-and-artifacts
 
   snap:
     docker:
