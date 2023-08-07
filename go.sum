@@ -2,8 +2,8 @@ github.com/AlecAivazis/survey/v2 v2.1.1 h1:LEMbHE0pLj75faaVEKClEX1TM4AJmmnOh9eim
 github.com/AlecAivazis/survey/v2 v2.1.1/go.mod h1:9FJRdMdDm8rnT+zHVbvQT2RTSTLq0Ttd6q3Vl2fahjk=
 github.com/CircleCI-Public/circle-policy-agent v0.0.683 h1:EzZaLy9mUGl4dwDNWceBHeDb3X0KAAjV4eFOk3C7lts=
 github.com/CircleCI-Public/circle-policy-agent v0.0.683/go.mod h1:72U4Q4OtvAGRGGo/GqlCCO0tARg1cSG9xwxWyz3ktQI=
-github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a h1:RqA4H9p77FsqV++HNNDBq8dJftYuJ+r+KdD9HAX28t4=
-github.com/CircleCI-Public/circleci-config v0.0.0-20230609135034-182164ce950a/go.mod h1:XZaQPj2ylXZaz5vW31dRdkUY/Ey8MdpbgrUHbHyzICY=
+github.com/CircleCI-Public/circleci-config v0.0.0-20230629192034-c469d9e9936b h1:emg7uU3bRjVMlwSpOATBiybaBPXNWUIiFE/qbQQXZtE=
+github.com/CircleCI-Public/circleci-config v0.0.0-20230629192034-c469d9e9936b/go.mod h1:0iW5+XMF4XtikTlfCElaBQjT/OTMjQRHM1DgSWxcWuE=
 github.com/Masterminds/semver v1.4.2 h1:WBLTQ37jOCzSLtXNdoo8bNM8876KhNqOKvrlGITgsTc=
 github.com/Masterminds/semver v1.4.2/go.mod h1:MB6lktGJrhw8PrUyiEoblNEGEQ+RzHPF078ddwwvV3Y=
 github.com/Microsoft/go-winio v0.5.2 h1:a9IhgEQBCUEk6QCdml9CiJGhAws+YwffDHEMp1VMrpA=
@@ -20,8 +20,6 @@ github.com/acomagu/bufpipe v1.0.4 h1:e3H4WUzM3npvo5uv95QuJM3cQspFNtFBzvJ2oNjKIDQ
 github.com/acomagu/bufpipe v1.0.4/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=
 github.com/agnivade/levenshtein v1.1.1 h1:QY8M92nrzkmr798gCo3kmMyqXFzdQVpxLlGPRBij0P8=
 github.com/agnivade/levenshtein v1.1.1/go.mod h1:veldBMzWxcCG2ZvUTKD2kJNRdCk5hVbJomOvKkmgYbo=
-github.com/alessio/shellescape v1.4.1 h1:V7yhSDDn8LP4lc4jS8pFkt0zCnzVJlG5JXy9BVKJUX0=
-github.com/alessio/shellescape v1.4.1/go.mod h1:PZAiSCk0LJaZkiCSkPv8qIobYglO3FPpyFjDCtHLS30=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de h1:FxWPpzIjnTlhPwqqXc4/vE0f7GvRjuAsbW+HOIe8KnA=
 github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de/go.mod h1:DCaWoUhZrYW9p1lxo/cm8EmUOOzAPSEZNGF2DK1dJgw=
