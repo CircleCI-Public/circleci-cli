@@ -44,6 +44,10 @@ func NewClient(config *settings.Config) (Client, error) {
 	}
 }
 
+// detectClientVersion returns the highest available version of the orb API
+//
+// To do that it checks that whether the GraphQL query has the parameter "ownerId" or not.
+// If it does not have the parameter, the function returns `v1_string` else it returns `v2_string`
 func detectClientVersion(gql *graphql.Client) (clientVersion, error) {
 	handlesOwnerId, err := orbQueryHandleOwnerId(gql)
 	if err != nil {
