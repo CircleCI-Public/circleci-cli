@@ -635,7 +635,10 @@ test: config
 			CompilerServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var req config.CompileConfigRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
 
 				// dummy compilation here (remove the _compiled_ key in compiled config, as compiled config can't have that at top-level key).
 				var yamlResp map[string]any
@@ -678,7 +681,10 @@ test: config
 			CompilerServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var req config.CompileConfigRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
 
 				response := config.ConfigResponse{Valid: true, SourceYaml: req.ConfigYaml, OutputYaml: req.ConfigYaml}
 
@@ -837,7 +843,10 @@ test: config
 			CompilerServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var req config.CompileConfigRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
 
 				response := config.ConfigResponse{Valid: true, SourceYaml: req.ConfigYaml, OutputYaml: req.ConfigYaml}
 
@@ -1082,7 +1091,10 @@ test: config
 			CompilerServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var req config.CompileConfigRequest
 				err := json.NewDecoder(r.Body).Decode(&req)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusBadRequest)
+					return
+				}
 
 				response := config.ConfigResponse{Valid: true, SourceYaml: req.ConfigYaml, OutputYaml: req.ConfigYaml}
 
