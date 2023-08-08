@@ -98,7 +98,7 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 		}{}
 		body, err := io.ReadAll(httpResp.Body)
 		if err != nil {
-			return httpResp.StatusCode, err
+			return 0, err
 		}
 		err = json.Unmarshal(body, &httpError)
 		if err != nil {
