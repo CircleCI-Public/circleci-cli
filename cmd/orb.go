@@ -733,7 +733,7 @@ func validateOrb(opts orbOptions, org orbOrgOptions) error {
 		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
 	}
 
-	client, err := orb.GetClient(opts.cfg)
+	client, err := orb.NewClient(opts.cfg)
 	if err != nil {
 		return errors.Wrap(err, "Getting orb client")
 	}
@@ -759,7 +759,7 @@ func processOrb(opts orbOptions, org orbOrgOptions) error {
 		return fmt.Errorf("failed to get the appropriate org-id: %s", err.Error())
 	}
 
-	client, err := orb.GetClient(opts.cfg)
+	client, err := orb.NewClient(opts.cfg)
 	if err != nil {
 		return errors.Wrap(err, "Getting orb client")
 	}

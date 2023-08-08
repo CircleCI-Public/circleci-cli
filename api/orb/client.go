@@ -4,18 +4,11 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"sync"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
-)
-
-var (
-	once        sync.Once
-	client      Client
-	clientError error
 )
 
 type clientVersion string
@@ -33,15 +26,7 @@ type Client interface {
 	OrbQuery(configPath string, ownerId string) (*api.ConfigResponse, error)
 }
 
-func GetClient(config *settings.Config) (Client, error) {
-	once.Do(func() {
-		client, clientError = newClient(config)
-	})
-
-	return client, clientError
-}
-
-func newClient(config *settings.Config) (Client, error) {
+func NewClient(config *settings.Config) (Client, error) {
 	gql := graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 
 	clientVersion, err := detectClientVersion(gql)
