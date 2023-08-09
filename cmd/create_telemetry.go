@@ -20,6 +20,7 @@ import (
 var (
 	CreateUUID    = func() string { return uuid.New().String() }
 	isStdinATTY   = term.IsTerminal(int(os.Stdin.Fd()))
+	isStdoutATTY  = term.IsTerminal(int(os.Stdout.Fd()))
 	anonymousUser = telemetry.User{
 		UniqueID: "cli-anonymous-telemetry",
 	}
@@ -125,8 +126,9 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 		return
 	}
 
-	// If stdin is not available, send telemetry event, disable telemetry and return
-	if !isStdinATTY {
+	// If stdin is not a TTY, stdout is not a TTY or we are in a CI environment, send telemetry event, disable telemetry and return
+	isDisabledByDefault := !isStdinATTY || !isStdoutATTY || os.Getenv("CI") == trueString
+	if isDisabledByDefault {
 		settings.IsEnabled = false
 		err := telemetry.SendTelemetryApproval(anonymousUser, telemetry.NoStdin)
 		if err != nil {

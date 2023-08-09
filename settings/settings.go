@@ -28,21 +28,22 @@ var (
 
 // Config is used to represent the current state of a CLI instance.
 type Config struct {
-	Host                string        `yaml:"host"`
-	DlHost              string        `yaml:"-"`
-	Endpoint            string        `yaml:"endpoint"`
-	Token               string        `yaml:"token"`
-	RestEndpoint        string        `yaml:"rest_endpoint"`
-	TLSCert             string        `yaml:"tls_cert"`
-	TLSInsecure         bool          `yaml:"tls_insecure"`
-	HTTPClient          *http.Client  `yaml:"-"`
-	Data                *data.DataBag `yaml:"-"`
-	Debug               bool          `yaml:"-"`
-	Address             string        `yaml:"-"`
-	FileUsed            string        `yaml:"-"`
-	GitHubAPI           string        `yaml:"-"`
-	SkipUpdateCheck     bool          `yaml:"-"`
-	IsTelemetryDisabled bool          `yaml:"-"`
+	Host            string        `yaml:"host"`
+	DlHost          string        `yaml:"-"`
+	Endpoint        string        `yaml:"endpoint"`
+	Token           string        `yaml:"token"`
+	RestEndpoint    string        `yaml:"rest_endpoint"`
+	TLSCert         string        `yaml:"tls_cert"`
+	TLSInsecure     bool          `yaml:"tls_insecure"`
+	HTTPClient      *http.Client  `yaml:"-"`
+	Data            *data.DataBag `yaml:"-"`
+	Debug           bool          `yaml:"-"`
+	Address         string        `yaml:"-"`
+	FileUsed        string        `yaml:"-"`
+	GitHubAPI       string        `yaml:"-"`
+	SkipUpdateCheck bool          `yaml:"-"`
+	// Parameter used to disable telemetry from tests
+	IsTelemetryDisabled bool `yaml:"-"`
 	// If this value is defined, the telemetry will write all its events a file
 	// The value of this field is the path where the telemetry will be written
 	MockTelemetry string            `yaml:"-"`
