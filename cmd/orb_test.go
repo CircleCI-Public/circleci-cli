@@ -3713,7 +3713,7 @@ func mockOrbIntrospection(isValid bool, token string, tempSettings *clitest.Temp
 
 	requestStruct := map[string]interface{}{
 		"query": `query IntrospectionQuery {
-	_schema {
+	__schema {
 		queryType {
 			fields(includeDeprecated: true) {
 				name
