@@ -74,7 +74,7 @@ type OrbIntrospectionResponse struct {
 
 func orbQueryHandleOwnerId(gql *graphql.Client) (bool, error) {
 	query := `query IntrospectionQuery {
-	_schema {
+	__schema {
 		queryType {
 			fields(includeDeprecated: true) {
 				name
