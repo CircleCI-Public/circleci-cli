@@ -31,7 +31,7 @@ func NewClient(config *settings.Config) (Client, error) {
 
 	clientVersion, err := detectClientVersion(gql)
 	if err != nil {
-		return nil, err
+		return &v1Client{gql}, nil
 	}
 
 	switch clientVersion {
