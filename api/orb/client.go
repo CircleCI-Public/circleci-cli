@@ -31,7 +31,7 @@ func NewClient(config *settings.Config) (Client, error) {
 
 	clientVersion, err := detectClientVersion(gql)
 	if err != nil {
-		return &v1Client{gql}, nil
+		return nil, err
 	}
 
 	switch clientVersion {
@@ -74,7 +74,7 @@ type OrbIntrospectionResponse struct {
 
 func orbQueryHandleOwnerId(gql *graphql.Client) (bool, error) {
 	query := `query IntrospectionQuery {
-	_schema {
+	__schema {
 		queryType {
 			fields(includeDeprecated: true) {
 				name
