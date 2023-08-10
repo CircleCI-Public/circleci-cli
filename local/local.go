@@ -26,7 +26,10 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var configResponse *config.ConfigResponse
 	processedArgs, configPath := buildAgentArguments(flags)
 
-	compiler := config.New(cfg)
+	compiler, err := config.NewWithConfig(cfg)
+	if err != nil {
+		return err
+	}
 
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")

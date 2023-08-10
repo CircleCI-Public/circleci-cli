@@ -84,7 +84,7 @@ func (c *Client) enrichRequestHeaders(req *http.Request, payload interface{}) {
 	}
 }
 
-func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int, err error) {
+func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 	httpResp, err := c.client.Do(req)
 	if err != nil {
 		fmt.Printf("failed to make http request: %s\n", err.Error())
@@ -96,9 +96,13 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (statusCode int,
 		httpError := struct {
 			Message string `json:"message"`
 		}{}
-		err = json.NewDecoder(httpResp.Body).Decode(&httpError)
+		body, err := io.ReadAll(httpResp.Body)
 		if err != nil {
-			return httpResp.StatusCode, err
+			return 0, err
+		}
+		err = json.Unmarshal(body, &httpError)
+		if err != nil {
+			return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: string(body)}
 		}
 		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: httpError.Message}
 	}

@@ -125,15 +125,14 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						Config string `json:"config"`
 					} `json:"variables"`
 				}{
-					Query: `
-		query ValidateOrb ($config: String!, $owner: UUID) {
-			orbConfig(orbYaml: $config, ownerId: $owner) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`,
+					Query: `query ValidateOrb ($config: String!, $owner: UUID) {
+	orbConfig(orbYaml: $config, ownerId: $owner) {
+		valid,
+		errors { message },
+		sourceYaml,
+		outputYaml
+	}
+}`,
 					Variables: struct {
 						Config string `json:"config"`
 					}{
@@ -189,7 +188,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 				expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "query ValidateOrb ($config: String!, $owner: UUID) {\n\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\tvalid,\n\t\terrors { message },\n\t\tsourceYaml,\n\t\toutputYaml\n\t}\n}",
 					"variables": {
 						"config": "{}"
 					}
@@ -210,9 +209,12 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 			})
 		})
 
-		Describe("with old server version", func() {
+		Describe("when using org-id parameter", func() {
 			BeforeEach(func() {
 				token = "testtoken"
+			})
+
+			It("should use the old GraphQL resolver when the parameter is not present on the server pointed by host", func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"--skip-update-check",
@@ -229,9 +231,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						panic(err)
 					}
 				}()
-			})
 
-			It("should use the old GraphQL resolver", func() {
 				By("setting up a mock server")
 
 				mockOrbIntrospection(false, "", tempSettings)
@@ -250,19 +250,116 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						Config string `json:"config"`
 					} `json:"variables"`
 				}{
-					Query: `
-		query ValidateOrb ($config: String!) {
-			orbConfig(orbYaml: $config) {
-				valid,
-				errors { message },
-				sourceYaml,
-				outputYaml
-			}
-		}`,
+					Query: `query ValidateOrb ($config: String!) {
+	orbConfig(orbYaml: $config) {
+		valid,
+		errors { message },
+		sourceYaml,
+		outputYaml
+	}
+}`,
 					Variables: struct {
 						Config string `json:"config"`
 					}{
 						Config: "{}",
+					},
+				}
+				expected, err := json.Marshal(response)
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  string(expected),
+					Response: gqlResponse})
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("Orb input is valid."))
+				Eventually(session).Should(gexec.Exit(0))
+			})
+
+			It("indicate a deprecation error when the parameter is not present on the server pointed by host", func() {
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--org-id", "org-id",
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					_, err := io.WriteString(stdin, "{}")
+					if err != nil {
+						panic(err)
+					}
+				}()
+
+				By("setting up a mock server")
+
+				mockOrbIntrospection(false, "", tempSettings)
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Err).Should(gbytes.Say("Your version of Server does not support validating orbs that refer to other private orbs. Please see the README for more information on server compatibility: https://github.com/CircleCI-Public/circleci-cli#server-compatibility"))
+				Eventually(session).Should(gexec.Exit(-1))
+			})
+
+			It("should work properly when the parameter is present", func() {
+				command = exec.Command(pathCLI,
+					"orb", "validate",
+					"--skip-update-check",
+					"--token", token,
+					"--host", tempSettings.TestServer.URL(),
+					"--org-id", "org-id",
+					"-",
+				)
+				stdin, err := command.StdinPipe()
+				Expect(err).ToNot(HaveOccurred())
+				go func() {
+					defer stdin.Close()
+					_, err := io.WriteString(stdin, "{}")
+					if err != nil {
+						panic(err)
+					}
+				}()
+
+				By("setting up a mock server")
+
+				mockOrbIntrospection(true, "", tempSettings)
+				gqlResponse := `{
+							"orbConfig": {
+								"sourceYaml": "{}",
+								"valid": true,
+								"errors": []
+							}
+						}`
+
+				response := struct {
+					Query     string `json:"query"`
+					Variables struct {
+						Config string `json:"config"`
+						Owner  string `json:"owner"`
+					} `json:"variables"`
+				}{
+					Query: `query ValidateOrb ($config: String!, $owner: UUID) {
+	orbConfig(orbYaml: $config, ownerId: $owner) {
+		valid,
+		errors { message },
+		sourceYaml,
+		outputYaml
+	}
+}`,
+					Variables: struct {
+						Config string `json:"config"`
+						Owner  string `json:"owner"`
+					}{
+						Config: "{}",
+						Owner:  "org-id",
 					},
 				}
 				expected, err := json.Marshal(response)
@@ -310,7 +407,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "query ValidateOrb ($config: String!, $owner: UUID) {\n\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\tvalid,\n\t\terrors { message },\n\t\tsourceYaml,\n\t\toutputYaml\n\t}\n}",
 					"variables": {
 						"config": "some orb"
 					}
@@ -347,7 +444,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "query ValidateOrb ($config: String!, $owner: UUID) {\n\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\tvalid,\n\t\terrors { message },\n\t\tsourceYaml,\n\t\toutputYaml\n\t}\n}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -392,7 +489,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "query ValidateOrb ($config: String!, $owner: UUID) {\n\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\tvalid,\n\t\terrors { message },\n\t\tsourceYaml,\n\t\toutputYaml\n\t}\n}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -429,7 +526,7 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 						}`
 
 					expectedRequestJson := ` {
-					"query": "\n\t\tquery ValidateOrb ($config: String!, $owner: UUID) {\n\t\t\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\t\t\tvalid,\n\t\t\t\terrors { message },\n\t\t\t\tsourceYaml,\n\t\t\t\toutputYaml\n\t\t\t}\n\t\t}",
+					"query": "query ValidateOrb ($config: String!, $owner: UUID) {\n\torbConfig(orbYaml: $config, ownerId: $owner) {\n\t\tvalid,\n\t\terrors { message },\n\t\tsourceYaml,\n\t\toutputYaml\n\t}\n}",
 					"variables": {
 					  "config": "some orb"
 					}
@@ -3615,22 +3712,21 @@ func mockOrbIntrospection(isValid bool, token string, tempSettings *clitest.Temp
 	Expect(err).ToNot(HaveOccurred())
 
 	requestStruct := map[string]interface{}{
-		"query": `
-query ValidateOrb {
-  __schema {
-    queryType {
-      fields(includeDeprecated: true) {
-        name
-        args {
-          name
-          __typename
-          type {
-            name
-          }
-        }
-      }
-    }
-  }
+		"query": `query IntrospectionQuery {
+	_schema {
+		queryType {
+			fields(includeDeprecated: true) {
+				name
+				args {
+					name
+					__typename
+					type {
+						name
+					}
+				}
+			}
+		}
+	}
 }`,
 		"variables": map[string]interface{}{},
 	}
