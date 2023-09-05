@@ -36,14 +36,3 @@ func AskUserToConfirm(message string) bool {
 	result, err := input.RunPrompt()
 	return err == nil && result
 }
-
-func AskUserToConfirmWithDefault(message string, defaultValue bool) bool {
-	def := confirmation.No
-	if defaultValue {
-		def = confirmation.Yes
-	}
-
-	input := confirmation.New(message, def)
-	result, err := input.RunPrompt()
-	return err == nil && result
-}

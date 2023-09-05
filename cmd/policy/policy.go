@@ -26,27 +26,15 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/config"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
-
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 // NewCommand creates the root policy command with all policy subcommands attached.
 func NewCommand(globalConfig *settings.Config, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use: "policy",
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreatePolicyEvent(telemetry.GetCommandInformation(cmd, true)))
-			}
-
-			if preRunE != nil {
-				return preRunE(cmd, args)
-			}
-			return nil
-		},
-		Short: "Manage security policies",
+		Use:               "policy",
+		PersistentPreRunE: preRunE,
+		Short:             "Manage security policies",
 		Long: `Policies ensures security of build configs via security policy management framework.
 This group of commands allows the management of polices to be verified against build configs.`,
 	}

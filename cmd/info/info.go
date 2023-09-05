@@ -4,7 +4,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/info"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/olekukonko/tablewriter"
 
 	"github.com/spf13/cobra"
@@ -42,14 +41,7 @@ func orgInfoCommand(client info.InfoClient, opts infoOptions) *cobra.Command {
 		Long:    `View your Organizations' names and ids.`,
 		PreRunE: opts.validator,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			err := getOrgInformation(cmd, client)
-
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateInfoEvent(telemetry.GetCommandInformation(cmd, true), err))
-			}
-
-			return err
+			return getOrgInformation(cmd, client)
 		},
 		Annotations: make(map[string]string),
 		Example:     `circleci info org`,
