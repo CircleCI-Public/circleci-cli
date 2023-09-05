@@ -7,9 +7,10 @@ import (
 // An EnvironmentVariable has a Variable, a ContextID (its owner), and a
 // CreatedAt date.
 type EnvironmentVariable struct {
-	Variable  string
-	ContextID string
-	CreatedAt time.Time
+	Variable  string    `json:"variable"`
+	ContextID string    `json:"context_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // A Context is the owner of EnvironmentVariables.
