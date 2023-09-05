@@ -1,13 +1,11 @@
 package cmd_test
 
 import (
-	"fmt"
 	"net/http"
 	"os/exec"
 	"path/filepath"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -70,69 +68,6 @@ var _ = Describe("Update", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
-	})
-
-	Describe("telemetry", func() {
-		It("should send telemetry event when calling parent command", func() {
-			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
-			Expect(err).ShouldNot(HaveOccurred())
-
-			command = exec.Command(updateCLI,
-				"update",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-
-			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
-			assetResponse := string(assetBytes)
-
-			tempSettings.TestServer.AppendHandlers(
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
-					ghttp.RespondWith(http.StatusOK, response),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
-					ghttp.RespondWith(http.StatusOK, assetResponse),
-				),
-			)
-
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
-				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
-					Name: "update",
-					LocalArgs: map[string]string{
-						"check": "false",
-						"help":  "false",
-					},
-				}),
-			})
-		})
-
-		It("should send telemetry event when calling child command", func() {
-			command = exec.Command(pathCLI,
-				"update",
-				"check",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
-				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
-					Name: "check",
-					LocalArgs: map[string]string{
-						"check": "false",
-						"help":  "false",
-					},
-				}),
-			})
-		})
 	})
 
 	Describe("update --check", func() {

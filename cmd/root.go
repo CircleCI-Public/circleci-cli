@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
@@ -15,7 +14,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/spf13/cobra"
@@ -38,23 +36,16 @@ var rootOptions *settings.Config
 // rootTokenFromFlag stores the value passed in through the flag --token
 var rootTokenFromFlag string
 
-// Execute adds all child commands to rootCmd, sets the flags appropriately
-// and put the telemetry client in the command context. This function is
-// called by main.main(). It only needs to happen once to the rootCmd
-func Execute() error {
+// Execute adds all child commands to rootCmd and
+// sets flags appropriately. This function is called
+// by main.main(). It only needs to happen once to
+// the rootCmd.
+func Execute() {
 	header.SetCommandStr(CommandStr())
 	command := MakeCommands()
-
-	telemetryClient := CreateTelemetry(rootOptions)
-	defer telemetryClient.Close()
-
-	cmdContext := command.Context()
-	if cmdContext == nil {
-		cmdContext = context.Background()
+	if err := command.Execute(); err != nil {
+		os.Exit(-1)
 	}
-	command.SetContext(telemetry.NewContext(cmdContext, telemetryClient))
-
-	return command.Execute()
 }
 
 // Returns a string (e.g. "circleci context list") indicating what
@@ -132,7 +123,7 @@ func MakeCommands() *cobra.Command {
 		Use:   "circleci",
 		Long:  longHelp,
 		Short: rootHelpShort(rootOptions),
-		PersistentPreRunE: func(cmd *cobra.Command, _ []string) error {
+		PersistentPreRunE: func(_ *cobra.Command, _ []string) error {
 			return rootCmdPreRun(rootOptions)
 		},
 	}
@@ -153,7 +144,7 @@ func MakeCommands() *cobra.Command {
 		return validateToken(rootOptions)
 	}
 
-	rootCmd.AddCommand(newOpenCommand(rootOptions))
+	rootCmd.AddCommand(newOpenCommand())
 	rootCmd.AddCommand(newTestsCommand())
 	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(project.NewProjectCommand(rootOptions, validator))
@@ -182,9 +173,8 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newStepCommand(rootOptions))
 	rootCmd.AddCommand(newSwitchCommand(rootOptions))
 	rootCmd.AddCommand(newAdminCommand(rootOptions))
-	rootCmd.AddCommand(newCompletionCommand(rootOptions))
+	rootCmd.AddCommand(newCompletionCommand())
 	rootCmd.AddCommand(newEnvCmd())
-	rootCmd.AddCommand(newTelemetryCommand(rootOptions))
 
 	flags := rootCmd.PersistentFlags()
 
@@ -194,9 +184,8 @@ func MakeCommands() *cobra.Command {
 	flags.StringVar(&rootOptions.Endpoint, "endpoint", rootOptions.Endpoint, "URI to your CircleCI GraphQL API endpoint")
 	flags.StringVar(&rootOptions.GitHubAPI, "github-api", "https://api.github.com/", "Change the default endpoint to GitHub API for retrieving updates")
 	flags.BoolVar(&rootOptions.SkipUpdateCheck, "skip-update-check", skipUpdateByDefault(), "Skip the check for updates check run before every command.")
-	flags.StringVar(&rootOptions.MockTelemetry, "mock-telemetry", "", "The path where telemetry must be written")
 
-	hidden := []string{"github-api", "debug", "endpoint", "mock-telemetry"}
+	hidden := []string{"github-api", "debug", "endpoint"}
 
 	for _, f := range hidden {
 		if err := flags.MarkHidden(f); err != nil {
@@ -238,7 +227,6 @@ func rootCmdPreRun(rootOptions *settings.Config) error {
 		fmt.Printf("Error checking for updates: %s\n", err)
 		fmt.Printf("Please contact support.\n\n")
 	}
-
 	return nil
 }
 
