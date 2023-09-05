@@ -8,7 +8,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gbytes"
@@ -78,24 +77,6 @@ var _ = Describe("Diagnostic", func() {
 
 	AfterEach(func() {
 		tempSettings.Close()
-	})
-
-	Describe("telemetry", func() {
-		It("should send telemetry event", func() {
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"diagnostic",
-				"--skip-update-check",
-				"--host", tempSettings.TestServer.URL())
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-			tempSettings.Config.Write([]byte(`token: mytoken`))
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
-				telemetry.CreateDiagnosticEvent(nil),
-			})
-		})
 	})
 
 	Describe("existing config file", func() {

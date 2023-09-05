@@ -137,10 +137,6 @@ jobs:
           working_directory: integration_tests
           environment:
             TESTING: "true"
-      - run:
-          name: "Make sure simple command do not cause any timeout"
-          command: circleci version
-
   test:
     executor: go
     steps:
@@ -382,14 +378,12 @@ workflows:
             - devex-release
       - deploy:
           requires:
-            - cucumber
             - test
             - test_mac
             - coverage
             - lint
             - deploy-test
             - shellcheck/check
-            - vulnerability-scan
           filters:
             branches:
               only: main
