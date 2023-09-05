@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/spf13/cobra"
 )
 
@@ -28,8 +29,15 @@ func newDiagnosticCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return diagnostic(opts)
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			err := diagnostic(opts)
+
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				_ = telemetryClient.Track(telemetry.CreateDiagnosticEvent(err))
+			}
+
+			return err
 		},
 	}
 

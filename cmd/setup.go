@@ -7,6 +7,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -123,7 +124,13 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 			opts.args = args
 			opts.cl = graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug)
 		},
-		RunE: func(_ *cobra.Command, _ []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			telemetryClient, ok := telemetry.FromContext(cmd.Context())
+			if ok {
+				// We defer the call to make sure the `opts.cfg.Host` has been filled
+				defer (func() { _ = telemetryClient.Track(telemetry.CreateSetupEvent(opts.cfg.Host != defaultHost)) })()
+			}
+
 			if opts.integrationTesting {
 				opts.tty = setupTestUI{
 					host:            "boondoggle",
