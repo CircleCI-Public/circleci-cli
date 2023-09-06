@@ -13,19 +13,25 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 	cmd := &cobra.Command{
 		Use:   "token",
 		Short: "Operate on runner tokens",
-		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
-			telemetryClient, ok := telemetry.FromContext(cmd.Context())
-			if ok {
-				_ = telemetryClient.Track(telemetry.CreateRunnerTokenEvent(telemetry.GetCommandInformation(cmd, true)))
-			}
-		},
+	}
+
+	telemetryWrappedPreRunE := func(cmd *cobra.Command, args []string) error {
+		telemetryClient, ok := telemetry.FromContext(cmd.Context())
+		if ok {
+			_ = telemetryClient.Track(telemetry.CreateRunnerTokenEvent(telemetry.GetCommandInformation(cmd, true)))
+		}
+
+		if preRunE != nil {
+			return preRunE(cmd, args)
+		}
+		return nil
 	}
 
 	cmd.AddCommand(&cobra.Command{
 		Use:     "create <resource-class> <nickname>",
 		Short:   "Create a token for a resource-class",
 		Args:    cobra.ExactArgs(2),
-		PreRunE: preRunE,
+		PreRunE: telemetryWrappedPreRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
 			token, err := o.r.CreateToken(args[0], args[1])
 			if err != nil {
@@ -40,7 +46,7 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 		Short:   "Delete a token",
 		Aliases: []string{"rm"},
 		Args:    cobra.ExactArgs(1),
-		PreRunE: preRunE,
+		PreRunE: telemetryWrappedPreRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
 			return o.r.DeleteToken(args[0])
 		},
@@ -51,7 +57,7 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 		Aliases: []string{"ls"},
 		Short:   "List tokens for a resource-class",
 		Args:    cobra.ExactArgs(1),
-		PreRunE: preRunE,
+		PreRunE: telemetryWrappedPreRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
 			tokens, err := o.r.GetRunnerTokensByResourceClass(args[0])
 			if err != nil {
