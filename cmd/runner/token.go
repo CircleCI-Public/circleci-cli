@@ -16,7 +16,7 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {
 			telemetryClient, ok := telemetry.FromContext(cmd.Context())
 			if ok {
-				_ = telemetryClient.Track(telemetry.CreateRunnerResourceClassEvent(telemetry.GetCommandInformation(cmd, true)))
+				_ = telemetryClient.Track(telemetry.CreateRunnerTokenEvent(telemetry.GetCommandInformation(cmd, true)))
 			}
 		},
 	}

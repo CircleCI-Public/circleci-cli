@@ -121,8 +121,8 @@ func CreateRunnerResourceClassEvent(cmdInfo CommandInfo) Event {
 	return createEventFromCommandInfo("runner-resource-class", cmdInfo)
 }
 
-func CreateRunnerToken(cmdInfo CommandInfo) Event {
-	return createEventFromCommandInfo("runner-resource-class", cmdInfo)
+func CreateRunnerTokenEvent(cmdInfo CommandInfo) Event {
+	return createEventFromCommandInfo("runner-token", cmdInfo)
 }
 
 func CreateInfoEvent(cmdInfo CommandInfo, err error) Event {
