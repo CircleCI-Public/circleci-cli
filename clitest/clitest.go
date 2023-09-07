@@ -11,9 +11,11 @@ import (
 	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/onsi/gomega/gexec"
 	"github.com/onsi/gomega/ghttp"
 	"github.com/onsi/gomega/types"
+	"gopkg.in/yaml.v3"
 
 	"github.com/onsi/gomega"
 )
@@ -30,10 +32,12 @@ func ShouldFail() types.GomegaMatcher {
 
 // TempSettings contains useful settings for testing the CLI
 type TempSettings struct {
-	Home       string
-	TestServer *ghttp.Server
-	Config     *TmpFile
-	Update     *TmpFile
+	Home              string
+	TestServer        *ghttp.Server
+	Config            *TmpFile
+	Update            *TmpFile
+	Telemetry         *TmpFile
+	TelemetryDestPath string
 }
 
 // Close should be called in an AfterEach and cleans up the temp directory and server process
@@ -68,6 +72,16 @@ func WithTempSettings() *TempSettings {
 	gomega.Expect(os.Mkdir(settingsPath, 0700)).To(gomega.Succeed())
 
 	tempSettings.Config = OpenTmpFile(settingsPath, "cli.yml")
+	tempSettings.Telemetry = OpenTmpFile(settingsPath, "telemetry.yml")
+	content, err := yaml.Marshal(settings.TelemetrySettings{
+		IsEnabled:         false,
+		HasAnsweredPrompt: true,
+	})
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	_, err = tempSettings.Telemetry.File.Write(content)
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
+	tempSettings.TelemetryDestPath = filepath.Join(tempSettings.Home, "telemetry-content")
+
 	tempSettings.Update = OpenTmpFile(settingsPath, "update_check.yml")
 
 	tempSettings.TestServer = ghttp.NewServer()
