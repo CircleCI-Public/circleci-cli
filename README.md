@@ -180,6 +180,20 @@ Please see the [documentation](https://circleci-public.github.io/circleci-cli) o
 
 ## Server compatibility
 
-There are some difference of behavior depending on the version you use:
- - config validation will use the GraphQL API until **Server v4.0.5, v4.1.3, v4.2.0**. The above versions will use the new route `compile-config-with-defaults`
- - `circleci orb validate` will only allow you to validate orbs using other private orbs with the option `--org-slug` from version **Server v4.2.0**
+| Functionality | Impacted commands | Change description | Compatibility with Server |
+| --- | --- | --- | --- |
+| Config compilation and validation | <ul><li>`circleci config validate`</li><li>`circleci config process`</li><li>`circleci local execute`</li> | The config validation has been moved from the GraphQL API to a specific API endpoint | <ul><li>**Server v4.0.5, v4.1.3, v4.2.0 and above**: Commands use the new specific endpoint</li><li>**Previous version**: Commands use the GraphQL API</li></ul> |
+| Orb compilation and validation of orb using private orbs | <ul><li>`circleci orb process`</li><li>`circleci orb validate`</li></ul> | To support the validation of orbs requesting private orbs (see [issue](https://github.com/CircleCI-Public/circleci-cli/issues/751)). A field `ownerId` has been added to the GraphQL orb validation endpoint. Thus allowing the `Impacted commands` to use the `--org-id` parameter to enable the orb compilation / validation  | <ul><li>**Server v4.2.0 and above**: The field is accessible so you can use the parameter</li><li>**Previous versions**: The field does not exist making the functionality unavailable</li></ul> |
+
+## Telemetry
+
+The CircleCI CLI includes a telemetry feature that collects basic errors and feature usage data in order to help us improve the experience for everyone.
+
+Telemetry works on an opt-in basis: when running a command for the first time, you will be asked for consent to enable telemetry. For non-TTY STDIN, telemetry is disabled by default, ensuring that scripts that use the CLI run smoothly.
+
+You can disable or enable telemetry anytime in one of the following ways:
+
+* Run the commands `circleci telemetry enable` or `circleci telemetry disable`
+
+* Set the `CIRCLECI_CLI_TELEMETRY_OPTOUT` environment variable to `1` or `true` to disable it
+

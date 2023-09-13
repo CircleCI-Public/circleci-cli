@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"testing"
+	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
@@ -14,6 +15,8 @@ import (
 var pathCLI string
 
 var _ = BeforeSuite(func() {
+	SetDefaultEventuallyTimeout(time.Second * 30)
+
 	var err error
 	pathCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
 	Ω(err).ShouldNot(HaveOccurred())

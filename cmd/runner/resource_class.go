@@ -8,6 +8,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/runner"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {
@@ -16,12 +17,23 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		Short: "Operate on runner resource-classes",
 	}
 
+	telemetryWrappedPreRunE := func(cmd *cobra.Command, args []string) error {
+		telemetryClient, ok := telemetry.FromContext(cmd.Context())
+		if ok {
+			_ = telemetryClient.Track(telemetry.CreateRunnerResourceClassEvent(telemetry.GetCommandInformation(cmd, true)))
+		}
+		if preRunE != nil {
+			return preRunE(cmd, args)
+		}
+		return nil
+	}
+
 	genToken := false
 	createCmd := &cobra.Command{
 		Use:     "create <resource-class> <description>",
 		Short:   "Create a resource-class",
 		Args:    cobra.ExactArgs(2),
-		PreRunE: preRunE,
+		PreRunE: telemetryWrappedPreRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
 			cmd.PrintErr(terms)
 
@@ -54,7 +66,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		Short:   "Delete a resource-class",
 		Aliases: []string{"rm"},
 		Args:    cobra.ExactArgs(1),
-		PreRunE: preRunE,
+		PreRunE: telemetryWrappedPreRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
 			rc, err := o.r.GetResourceClassByName(args[0])
 			if err != nil {
@@ -72,7 +84,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		Short:   "List resource-classes for a namespace",
 		Aliases: []string{"ls"},
 		Args:    cobra.ExactArgs(1),
-		PreRunE: preRunE,
+		PreRunE: telemetryWrappedPreRunE,
 		RunE: func(_ *cobra.Command, args []string) error {
 			rcs, err := o.r.GetResourceClassesByNamespace(args[0])
 			if err != nil {
