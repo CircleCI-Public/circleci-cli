@@ -255,7 +255,7 @@ func validateToken(rootOptions *settings.Config) error {
 	}
 
 	if rootOptions.Token == "token" || rootOptions.Token == "" {
-		err = fmt.Errorf(`please set a token with 'circleci setup'
+		err = fmt.Errorf(`please set a token by running 'circleci setup'
 You can create a new personal API token here:
 %s`, url)
 	}
