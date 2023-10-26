@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -15,6 +16,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
+
+const defaultTimeout = 10 * time.Second
 
 type Client struct {
 	BaseURL     *url.URL
@@ -38,9 +41,17 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 	}
 
 	baseURL, _ := url.Parse(host)
+	timeout := defaultTimeout
+	if timeoutEnv, ok := os.LookupEnv("HTTP_TIMEOUT"); ok {
+		if parsedTimeout, err := time.ParseDuration(timeoutEnv); err == nil {
+			timeout = parsedTimeout
+		} else {
+			fmt.Printf("failed to parse HTTP_TIMEOUT_SECONDS: %s\n", err.Error())
+		}
+	}
 
 	client := config.HTTPClient
-	client.Timeout = 10 * time.Second
+	client.Timeout = timeout
 
 	return New(
 		baseURL.ResolveReference(&url.URL{Path: endpoint}),
