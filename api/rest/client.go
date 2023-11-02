@@ -42,7 +42,7 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 
 	baseURL, _ := url.Parse(host)
 	timeout := defaultTimeout
-	if timeoutEnv, ok := os.LookupEnv("HTTP_TIMEOUT"); ok {
+	if timeoutEnv, ok := os.LookupEnv("CIRCLECI_CLI_TIMEOUT"); ok {
 		if parsedTimeout, err := time.ParseDuration(timeoutEnv); err == nil {
 			timeout = parsedTimeout
 		} else {
