@@ -17,8 +17,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
-const defaultTimeout = 10 * time.Second
-
 type Client struct {
 	BaseURL     *url.URL
 	circleToken string
@@ -41,7 +39,7 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 	}
 
 	baseURL, _ := url.Parse(host)
-	timeout := defaultTimeout
+	timeout := header.GetDefaultTimeout()
 	if timeoutEnv, ok := os.LookupEnv("CIRCLECI_CLI_TIMEOUT"); ok {
 		if parsedTimeout, err := time.ParseDuration(timeoutEnv); err == nil {
 			timeout = parsedTimeout

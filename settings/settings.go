@@ -16,6 +16,7 @@ import (
 
 	yaml "gopkg.in/yaml.v3"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/data"
 	"github.com/spf13/afero"
 )
@@ -287,7 +288,7 @@ func (cfg *Config) WithHTTPClient() error {
 	customTransport.TLSClientConfig = tlsConfig
 
 	cfg.HTTPClient = &http.Client{
-		Timeout:   60 * time.Second,
+		Timeout:   header.GetDefaultTimeout(),
 		Transport: customTransport,
 	}
 
