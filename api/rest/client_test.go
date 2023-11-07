@@ -6,15 +6,37 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
+func TestNewFromConfigTimeout(t *testing.T) {
+	cfg := &settings.Config{
+		Debug:        false,
+		Token:        "fake-token",
+		RestEndpoint: "api/v2",
+		Endpoint:     "api/v2",
+		HTTPClient:   http.DefaultClient,
+	}
+	t.Run("create new client without custom timeout", func(t *testing.T) {
+		api := NewFromConfig("host", cfg)
+		assert.Equal(t, api.client.Timeout, header.GetDefaultTimeout())
+	})
+	t.Run("create new client with custom timeout", func(t *testing.T) {
+		customTimeout := 20 * time.Second
+		os.Setenv("CIRCLECI_CLI_TIMEOUT", customTimeout.String())
+		api := NewFromConfig("host", cfg)
+		assert.Equal(t, api.client.Timeout, customTimeout)
+	})
+}
 func TestClient_DoRequest(t *testing.T) {
 	t.Run("PUT with req and resp", func(t *testing.T) {
 		fix := &fixture{}
