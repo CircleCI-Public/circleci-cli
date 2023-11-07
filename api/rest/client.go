@@ -44,7 +44,7 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 		if parsedTimeout, err := time.ParseDuration(timeoutEnv); err == nil {
 			timeout = parsedTimeout
 		} else {
-			fmt.Printf("failed to parse HTTP_TIMEOUT_SECONDS: %s\n", err.Error())
+			fmt.Printf("failed to parse CIRCLECI_CLI_TIMEOUT: %s\n", err.Error())
 		}
 	}
 
