@@ -16,10 +16,10 @@ Write-Verbose "getting checksum from $checksumURL to $tmpFile"
 ### replace hash
 $hash = (Get-Content $tmpFile | where {$_ -like "*windows_amd64.zip"}).split(" ")[0]
 $installerPath = ".\circleci-cli\tools\chocolateyinstall.ps1"
-(Get-Content $installerPath).Replace('$HASH',$hash) | Out-File $installerPath -Force
+(Get-Content $installerPath).Replace('$HASH',$hash) | Out-File $installerPath -Force -Encoding ASCII
 
 $downloadURL = "https://github.com/CircleCI-Public/circleci-cli/releases/download/v$curVersion/circleci-cli_$($curVersion)_windows_amd64.zip"
-(Get-Content $installerPath).Replace('$DOWNLOAD_URL',$downloadURL) | Out-File $installerPath -Force
+(Get-Content $installerPath).Replace('$DOWNLOAD_URL',$downloadURL) | Out-File $installerPath -Force -Encoding ASCII
 
 $nuspecPath = "./circleci-cli/circleci-cli.nuspec"
-(Get-Content $nuspecPath).Replace('$VER',$curVersion) | Out-File $nuspecPath -Force
+(Get-Content $nuspecPath).Replace('$VER',$curVersion) | Out-File $nuspecPath -Force -Encoding ASCII

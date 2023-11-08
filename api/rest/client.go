@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -38,9 +39,17 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 	}
 
 	baseURL, _ := url.Parse(host)
+	timeout := header.GetDefaultTimeout()
+	if timeoutEnv, ok := os.LookupEnv("CIRCLECI_CLI_TIMEOUT"); ok {
+		if parsedTimeout, err := time.ParseDuration(timeoutEnv); err == nil {
+			timeout = parsedTimeout
+		} else {
+			fmt.Printf("failed to parse CIRCLECI_CLI_TIMEOUT: %s\n", err.Error())
+		}
+	}
 
 	client := config.HTTPClient
-	client.Timeout = 10 * time.Second
+	client.Timeout = timeout
 
 	return New(
 		baseURL.ResolveReference(&url.URL{Path: endpoint}),
