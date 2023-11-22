@@ -1522,6 +1522,9 @@ func initOrb(opts orbOptions) error {
 	}
 
 	r, err := git.PlainInit(orbPath, false)
+	if errors.Is(err, git.ErrRepositoryAlreadyExists) {
+		return errors.New("the folder is already a repository because it has .git folder. Try deleting it and retrying")
+	}
 	if err != nil {
 		return err
 	}
