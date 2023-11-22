@@ -1,0 +1,5 @@
+Usage:
+  pipeline list
+
+Aliases:
+  list, ls

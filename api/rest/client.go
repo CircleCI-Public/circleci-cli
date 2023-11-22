@@ -3,7 +3,6 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -117,10 +116,6 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 	}
 
 	if resp != nil {
-		if !strings.Contains(httpResp.Header.Get("Content-Type"), "application/json") {
-			return httpResp.StatusCode, errors.New("wrong content type received")
-		}
-
 		err = json.NewDecoder(httpResp.Body).Decode(resp)
 		if err != nil {
 			return httpResp.StatusCode, err
