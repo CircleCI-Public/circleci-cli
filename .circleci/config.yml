@@ -83,7 +83,6 @@ jobs:
       name: windows/default
       shell: bash --login -eo pipefail
     steps:
-      - setup_remote_docker
       - run: git config --global core.autocrlf false
       - checkout
       - run: mkdir test_results
@@ -103,7 +102,6 @@ jobs:
   test_mac:
     executor: mac
     steps:
-      - setup_remote_docker
       - checkout
       - run: |
           brew update
@@ -317,38 +315,38 @@ jobs:
       - run:
           name: Setup Scanning
           command: |
-              git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
+            git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
       - when:
           condition:
-              or:
-                - equal: [ main, << pipeline.git.branch >> ]
+            or:
+              - equal: [main, << pipeline.git.branch >>]
           steps:
-              - run:
-                  name: Launching Snyk Orb Scanning
-                  command: echo "Running snyk/scan on main; uploading the results"
-              - run:
-                  name: Cleanup RemoteRepoURL
-                  command: echo 'export REMOTE_REPO_URL="${CIRCLE_REPOSITORY_URL%".git"}"' >> "$BASH_ENV"
-              - snyk/scan:
-                  organization: "circleci-public"
-                  fail-on-issues: true
-                  severity-threshold: high
-                  monitor-on-build: true
-                  additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
+            - run:
+                name: Launching Snyk Orb Scanning
+                command: echo "Running snyk/scan on main; uploading the results"
+            - run:
+                name: Cleanup RemoteRepoURL
+                command: echo 'export REMOTE_REPO_URL="${CIRCLE_REPOSITORY_URL%".git"}"' >> "$BASH_ENV"
+            - snyk/scan:
+                organization: "circleci-public"
+                fail-on-issues: true
+                severity-threshold: high
+                monitor-on-build: true
+                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
       - unless:
           condition:
-              or:
-                - equal: [ main, << pipeline.git.branch >> ]
+            or:
+              - equal: [main, << pipeline.git.branch >>]
           steps:
-              - run:
-                  name: Launching Snyk Orb Scanning
-                  command: echo "Running snyk/scan on branch; not uploading the results"
-              - snyk/scan:
-                  organization: "circleci-public"
-                  fail-on-issues: true
-                  severity-threshold: high
-                  monitor-on-build: false
-                  additional-arguments: "--all-projects -d"
+            - run:
+                name: Launching Snyk Orb Scanning
+                command: echo "Running snyk/scan on branch; not uploading the results"
+            - snyk/scan:
+                organization: "circleci-public"
+                fail-on-issues: true
+                severity-threshold: high
+                monitor-on-build: false
+                additional-arguments: "--all-projects -d"
 
 workflows:
   ci:
