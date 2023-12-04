@@ -1,6 +1,7 @@
 package local_test
 
 import (
+	"runtime"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -21,6 +22,9 @@ var _ = AfterSuite(func() {
 })
 
 func TestLocal(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("Skipping test on non-linux OS")
+	}
 	RegisterFailHandler(Fail)
 	RunSpecs(t, "Local Suite")
 }
