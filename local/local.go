@@ -24,6 +24,18 @@ const DefaultDockerSocketPath = "/var/run/docker.sock"
 func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	var err error
 	var configResponse *config.ConfigResponse
+
+	// Get temp dir from flags
+	tempDir, _ := flags.GetString("temp-dir")
+	if tempDir == "" {
+		// If not specified, get from config
+		tempDir = cfg.TempDir
+		if tempDir == "" {
+			// If not specified, use system default
+			tempDir = os.TempDir()
+		}
+	}
+
 	processedArgs, configPath := buildAgentArguments(flags)
 
 	compiler, err := config.NewWithConfig(cfg)
@@ -50,14 +62,14 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 		return fmt.Errorf("config errors %v", configResponse.Errors)
 	}
 
-	processedConfigPath, err := writeStringToTempFile(configResponse.OutputYaml)
+	processedConfigPath, err := writeStringToTempFile(tempDir, configResponse.OutputYaml)
 
 	// The file at processedConfigPath must be left in place until after the call
 	// to `docker run` has completed. Typically, we would `defer` a call to remove
 	// the file. In this case, we execute `docker` using `syscall.Exec`, which
 	// replaces the current process, and no more go code will execute at that
 	// point, so we cannot delete the file easily. We choose to leave the file
-	// in-place in /tmp.
+	// in-place in the temporary directory.
 
 	if err != nil {
 		return err
@@ -83,7 +95,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 
 	job := args[0]
 	dockerSocketPath, _ := flags.GetString("docker-socket-path")
-	arguments := generateDockerCommand(processedConfigPath, image, pwd, job, dockerSocketPath, processedArgs...)
+	arguments := generateDockerCommand(tempDir, processedConfigPath, image, pwd, job, dockerSocketPath, processedArgs...)
 
 	if cfg.Debug {
 		_, err = fmt.Fprintf(os.Stderr, "Starting docker with args: %s", arguments)
@@ -111,13 +123,13 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 	flags.Int("node-total", 1, "total number of parallel nodes")
 	flags.Int("index", 0, "node index of parallelism")
 	flags.Bool("skip-checkout", true, "use local path as-is")
-	flags.StringArrayP("volume", "v", nil, "Volume bind-mounting")
-	flags.String("checkout-key", "~/.ssh/id_rsa", "Git Checkout key")
-	flags.String("revision", "", "Git Revision")
-	flags.String("branch", "", "Git branch")
-	flags.String("repo-url", "", "Git Url")
-	flags.StringArrayP("env", "e", nil, "Set environment variables, e.g. `-e VAR=VAL`")
-	flags.String("docker-socket-path", DefaultDockerSocketPath, "Path to the host's docker socket")
+	flags.StringArrayP("volume", "v", nil, "volume bind-mounting")
+	flags.String("checkout-key", "~/.ssh/id_rsa", "git checkout key")
+	flags.String("revision", "", "git revision")
+	flags.String("branch", "", "git branch")
+	flags.String("repo-url", "", "git URL")
+	flags.StringArrayP("env", "e", nil, "set environment variables, e.g. `-e VAR=VAL`")
+	flags.String("docker-socket-path", DefaultDockerSocketPath, "path to the host's docker socket")
 }
 
 // Given the full set of flags that were passed to this command, return the path
@@ -135,7 +147,13 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
-		if flag.Name != "build-agent-version" && flag.Name != "org-slug" && flag.Name != "config" && flag.Name != "debug" && flag.Name != "org-id" && flag.Name != "docker-socket-path" {
+		if flag.Name != "build-agent-version" &&
+			flag.Name != "org-slug" &&
+			flag.Name != "config" &&
+			flag.Name != "temp-dir" &&
+			flag.Name != "debug" &&
+			flag.Name != "org-id" &&
+			flag.Name != "docker-socket-path" {
 			result = append(result, unparseFlag(flags, flag)...)
 		}
 	})
@@ -199,14 +217,11 @@ func ensureDockerIsAvailable() (string, error) {
 }
 
 // Write data to a temp file, and return the path to that file.
-func writeStringToTempFile(data string) (string, error) {
-	// It's important to specify `/tmp` here as the location of the temp file.
-	// On macOS, the regular temp directories is not shared with Docker by default.
-	// The error message is along the lines of:
-	// > The path /var/folders/q0/2g2lcf6j79df6vxqm0cg_0zm0000gn/T/287575618-config.yml
-	// > is not shared from OS X and is not known to Docker.
-	// Docker has `/tmp` shared by default.
-	f, err := os.CreateTemp("/tmp", "*_circleci_config.yml")
+func writeStringToTempFile(tempDir, data string) (string, error) {
+	if tempDir == "" {
+		tempDir = os.TempDir()
+	}
+	f, err := os.CreateTemp(tempDir, "*_circleci_config.yml")
 
 	if err != nil {
 		return "", errors.Wrap(err, "Error creating temporary config file")
@@ -219,13 +234,13 @@ func writeStringToTempFile(data string) (string, error) {
 	return f.Name(), nil
 }
 
-func generateDockerCommand(configPath, image, pwd string, job string, dockerSocketPath string, arguments ...string) []string {
-	const configPathInsideContainer = "/tmp/local_build_config.yml"
-	core := []string{"docker", "run", "--interactive", "--tty", "--rm",
-		"--volume", fmt.Sprintf("%s:/var/run/docker.sock", dockerSocketPath),
-		"--volume", fmt.Sprintf("%s:%s", configPath, configPathInsideContainer),
-		"--volume", fmt.Sprintf("%s:%s", pwd, pwd),
-		"--volume", fmt.Sprintf("%s:/root/.circleci", settings.SettingsPath()),
+func generateDockerCommand(tempDir, configPath, image, pwd string, job string, dockerSocketPath string, arguments ...string) []string {
+	configPathInsideContainer := fmt.Sprintf("%s/local_build_config.yml", tempDir)
+	core := []string{"docker", "run", "--rm",
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=/var/run/docker.sock", dockerSocketPath),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=%s", configPath, configPathInsideContainer),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=%s", pwd, pwd),
+		"--mount", fmt.Sprintf("type=bind,src=%s,dst=/root/.circleci", settings.SettingsPath()),
 		"--workdir", pwd,
 		image, "circleci", "build", "--config", configPathInsideContainer, "--job", job}
 	return append(core, arguments...)

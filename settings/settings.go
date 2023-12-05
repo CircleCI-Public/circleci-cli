@@ -49,6 +49,7 @@ type Config struct {
 	// The value of this field is the path where the telemetry will be written
 	MockTelemetry string            `yaml:"-"`
 	OrbPublishing OrbPublishingInfo `yaml:"orb_publishing"`
+	TempDir       string            `yaml:"temp_dir,omitempty"`
 }
 
 type OrbPublishingInfo struct {

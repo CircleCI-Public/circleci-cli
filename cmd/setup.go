@@ -243,7 +243,7 @@ func setupNoPrompt(opts setupOptions) error {
 		return nil
 	}
 
-	// Throw an error if both flags are blank are blank!
+	// Throw an error if host and token flags are blank
 	if opts.host == "" && opts.token == "" {
 		return errors.New("No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
 	}
