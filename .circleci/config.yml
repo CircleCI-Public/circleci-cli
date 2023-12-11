@@ -8,13 +8,14 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.20
+      - image: cimg/go:1.21.5
     resource_class: large
     environment:
       CGO_ENABLED: 0
   mac:
     macos:
-      xcode: 12.5.1
+      xcode: 15.1.0
+    resource_class: macos.m1.medium.gen1
     environment:
       CGO_ENABLED: 0
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -92,7 +93,6 @@ jobs:
           command: |
             export GOBIN=/c/go/bin
             export PATH=$GOBIN:$PATH
-            export TESTING="true"
             go install gotest.tools/gotestsum@latest
             gotestsum --junitfile test_results/windows.xml
       - store_test_results:
@@ -104,9 +104,9 @@ jobs:
     steps:
       - checkout
       - run: |
-          brew update
-          brew install go@1.20
-          echo 'export PATH="/usr/local/opt/go@1.20/bin:$PATH"' >> ~/.bash_profile
+          curl -OL https://go.dev/dl/go1.21.5.darwin-arm64.pkg
+          sudo installer -pkg ./go1.21.5.darwin-arm64.pkg -target /
+          echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
   build:
@@ -135,8 +135,6 @@ jobs:
       - run:
           command: bundle exec cucumber
           working_directory: integration_tests
-          environment:
-            TESTING: "true"
       - run:
           name: "Make sure simple command do not cause any timeout"
           command: circleci version

@@ -22,10 +22,12 @@ import (
 	"golang.org/x/term"
 )
 
-var defaultEndpoint = "graphql-unstable"
-var defaultHost = "https://circleci.com"
-var defaultRestEndpoint = "api/v2"
-var trueString = "true"
+var (
+	defaultEndpoint     = "graphql-unstable"
+	defaultHost         = "https://circleci.com"
+	defaultRestEndpoint = "api/v2"
+	trueString          = "true"
+)
 
 // rootCmd is used internally and global to the package but not exported
 // therefore we can use it in other commands, like `usage`
@@ -142,10 +144,8 @@ func MakeCommands() *cobra.Command {
 	cobra.AddTemplateFunc("PositionalArgs", md_docs.PositionalArgs)
 	cobra.AddTemplateFunc("FormatPositionalArg", md_docs.FormatPositionalArg)
 
-	if os.Getenv("TESTING") != trueString {
-		helpCmd := helpCmd{width: helpWidth}
-		rootCmd.SetHelpFunc(helpCmd.helpTemplate)
-	}
+	helpCmd := helpCmd{width: helpWidth}
+	rootCmd.SetHelpFunc(helpCmd.helpTemplate)
 	rootCmd.SetUsageTemplate(usageTemplate)
 	rootCmd.DisableAutoGenTag = true
 
@@ -351,7 +351,6 @@ type helpCmd struct {
 
 // helpTemplate Building a custom help template with more finesse and pizazz
 func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
-
 	/***Styles ***/
 	titleStyle := lipgloss.NewStyle().Bold(true).
 		Foreground(lipgloss.AdaptiveColor{Light: `#003740`, Dark: `#3B6385`}).
@@ -369,14 +368,14 @@ func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 	/** Building Usage String **/
 	usageText := strings.Builder{}
 
-	//get command path
+	// get command path
 	usageText.WriteString(titleStyle.Render(cmd.CommandPath()))
 
-	//get command short or long
+	// get command short or long
 	cmdDesc := titleStyle.Render(cmd.Long)
 	if strings.TrimSpace(cmdDesc) == "" || cmd.Name() == "circleci" {
 		if cmd.Name() == "circleci" {
-			cmdDesc += "\n\n" //add some spaces for circleci command
+			cmdDesc += "\n\n" // add some spaces for circleci command
 		}
 		cmdDesc += subCmdStyle.Render(cmd.Short)
 	}
@@ -424,7 +423,7 @@ func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 		usageText.WriteString(flags)
 	}
 
-	//Border styles
+	// Border styles
 	borderStyle := lipgloss.NewStyle().
 		Padding(0, 1, 0, 1).
 		Width(helpCmd.width - 2).
