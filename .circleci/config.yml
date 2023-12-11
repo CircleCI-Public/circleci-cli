@@ -93,7 +93,6 @@ jobs:
           command: |
             export GOBIN=/c/go/bin
             export PATH=$GOBIN:$PATH
-            export TESTING="true"
             go install gotest.tools/gotestsum@latest
             gotestsum --junitfile test_results/windows.xml
       - store_test_results:
@@ -136,8 +135,6 @@ jobs:
       - run:
           command: bundle exec cucumber
           working_directory: integration_tests
-          environment:
-            TESTING: "true"
       - run:
           name: "Make sure simple command do not cause any timeout"
           command: circleci version
