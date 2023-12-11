@@ -15,6 +15,7 @@ executors:
   mac:
     macos:
       xcode: 12.5.1
+    resource_class: macos.m1.medium.gen1
     environment:
       CGO_ENABLED: 0
       HOMEBREW_NO_AUTO_UPDATE: 1
@@ -104,8 +105,8 @@ jobs:
     steps:
       - checkout
       - run: |
-          curl -OL https://go.dev/dl/go1.21.5.darwin-amd64.pkg
-          sudo installer -pkg ./go1.21.5.darwin-amd64.pkg -target /
+          curl -OL https://go.dev/dl/go1.21.5.darwin-arm64.pkg
+          sudo installer -pkg ./go1.21.5.darwin-arm64.pkg -target /
           echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
