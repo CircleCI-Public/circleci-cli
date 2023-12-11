@@ -50,9 +50,7 @@ var _ = Describe("Root", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-
-			Eventually(session.Out).Should(gbytes.Say("update\\s+This command is unavailable on your platform"))
+			Eventually(session.Err).Should(gbytes.Say("update\\s+This command is unavailable on your platform"))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
@@ -89,11 +87,8 @@ var _ = Describe("Root", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-
-			Eventually(session.Out).Should(gbytes.Say("update\\s+Update the tool to the latest version"))
+			Eventually(session.Err).Should(gbytes.Say("update\\s+Update the tool to the latest version"))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 	})
-
 })

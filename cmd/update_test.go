@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -36,21 +37,7 @@ var _ = Describe("Update", func() {
     "assets": [
       {
         "id": 1,
-        "name": "linux_amd64.zip",
-        "label": "short description",
-        "content_type": "application/zip",
-        "size": 1024
-      },
-	  {
-        "id": 1,
-        "name": "darwin_amd64.tar.gz",
-		"label": "short description",
-        "content_type": "application/zip",
-		"size": 1024
-      },
-      {
-        "id": 1,
-        "name": "windows_amd64.tar.gz",
+        "name": "` + runtime.GOOS + "_" + runtime.GOARCH + `.zip",
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
