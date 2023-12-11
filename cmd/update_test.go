@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -36,21 +37,7 @@ var _ = Describe("Update", func() {
     "assets": [
       {
         "id": 1,
-        "name": "linux_amd64.zip",
-        "label": "short description",
-        "content_type": "application/zip",
-        "size": 1024
-      },
-	  {
-        "id": 1,
-        "name": "darwin_amd64.tar.gz",
-		"label": "short description",
-        "content_type": "application/zip",
-		"size": 1024
-      },
-      {
-        "id": 1,
-        "name": "windows_amd64.tar.gz",
+        "name": "` + runtime.GOOS + "_" + runtime.GOARCH + `.zip",
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
@@ -62,7 +49,7 @@ var _ = Describe("Update", func() {
 
 		tempSettings.TestServer.AppendHandlers(
 			ghttp.CombineHandlers(
-				ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
+				ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
 				ghttp.RespondWith(http.StatusOK, response),
 			),
 		)
@@ -88,11 +75,11 @@ var _ = Describe("Update", func() {
 
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
+					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
 					ghttp.RespondWith(http.StatusOK, assetResponse),
 				),
 			)
@@ -151,7 +138,6 @@ var _ = Describe("Update", func() {
 
 			Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
 			Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-
 			Eventually(session.Out).Should(gbytes.Say("You can visit the Github releases page for the CLI to manually download and install:"))
 			Eventually(session.Out).Should(gbytes.Say("https://github.com/CircleCI-Public/circleci-cli/releases"))
 
@@ -197,11 +183,11 @@ var _ = Describe("Update", func() {
 
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
+					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
 					ghttp.RespondWith(http.StatusOK, assetResponse),
 				),
 			)
@@ -231,7 +217,7 @@ var _ = Describe("Update", func() {
 			tempSettings.TestServer.Reset()
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusForbidden, []byte("Forbidden")),
 				),
 			)

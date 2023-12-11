@@ -82,10 +82,9 @@ var _ = Describe("Orb integration tests", func() {
 			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 			Expect(err).ShouldNot(HaveOccurred())
 
-			Eventually(session.Out).Should(gbytes.Say(`Operate on orbs
+			Eventually(session.Err).Should(gbytes.Say("Operate on orbs"))
+			Eventually(session.Err).Should(gbytes.Say("See a full explanation and documentation on orbs here: https://circleci.com/docs/2.0/orb-intro/"))
 
-See a full explanation and documentation on orbs here: https://circleci.com/docs/2.0/orb-intro/
-`))
 			Eventually(session).Should(gexec.Exit(0))
 		})
 
@@ -197,7 +196,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  string(expected),
-					Response: gqlResponse})
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -249,7 +249,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  expectedRequestJson,
-					Response: gqlResponse})
+					Response: gqlResponse,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -322,7 +323,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  string(expected),
-					Response: gqlResponse})
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -420,7 +422,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  string(expected),
-					Response: gqlResponse})
+					Response: gqlResponse,
+				})
 
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -596,7 +599,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
-
 				})
 			})
 
@@ -650,11 +652,13 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -690,7 +694,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -698,7 +703,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
-
 				})
 
 				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
@@ -739,11 +743,13 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -805,11 +811,13 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -845,7 +853,8 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -853,7 +862,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
-
 				})
 
 				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
@@ -894,11 +902,13 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -975,15 +985,18 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
-						Response: gqlVersionResponse})
+						Response: gqlVersionResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1034,11 +1047,13 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
-						Response: gqlVersionResponse})
+						Response: gqlVersionResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1046,7 +1061,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
-
 				})
 
 				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
@@ -1102,15 +1116,18 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
-						Response: gqlVersionResponse})
+						Response: gqlVersionResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPublishRequest,
-						Response: gqlPublishResponse})
+						Response: gqlPublishResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1188,15 +1205,18 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
-						Response: gqlVersionResponse})
+						Response: gqlVersionResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPromoteRequest,
-						Response: gqlPromoteResponse})
+						Response: gqlPromoteResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1247,11 +1267,13 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
-						Response: gqlVersionResponse})
+						Response: gqlVersionResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPromoteRequest,
-						Response: gqlPromoteResponse})
+						Response: gqlPromoteResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1259,7 +1281,6 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					Expect(err).ShouldNot(HaveOccurred())
 					Eventually(session.Err).Should(gbytes.Say("Error: error1\nerror2"))
 					Eventually(session).ShouldNot(gexec.Exit(0))
-
 				})
 
 				It("returns no error message if no orb is found from orbIsPrivateOrNotExists", func() {
@@ -1316,15 +1337,18 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedVersionRequest,
-						Response: gqlVersionResponse})
+						Response: gqlVersionResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedPromoteRequest,
-						Response: gqlPromoteResponse})
+						Response: gqlPromoteResponse,
+					})
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbIDRequest,
-						Response: gqlOrbIDResponse})
+						Response: gqlOrbIDResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1387,12 +1411,14 @@ See a full explanation and documentation on orbs here: https://circleci.com/docs
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedNamespaceRequest,
-						Response: gqlNamespaceResponse})
+						Response: gqlNamespaceResponse,
+					})
 
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbRequest,
-						Response: gqlOrbResponse})
+						Response: gqlOrbResponse,
+					})
 
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1444,12 +1470,14 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedNamespaceRequest,
-						Response: gqlNamespaceResponse})
+						Response: gqlNamespaceResponse,
+					})
 
 					tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 						Status:   http.StatusOK,
 						Request:  expectedOrbRequest,
-						Response: gqlOrbResponse})
+						Response: gqlOrbResponse,
+					})
 
 					By("running the command")
 					command = exec.Command(pathCLI,
@@ -1581,12 +1609,14 @@ You can now register versions of %s using %s`, "`bar-ns/foo-orb`", "`bar-ns/foo-
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedNamespaceRequest,
-							Response: gqlNamespaceResponse})
+							Response: gqlNamespaceResponse,
+						})
 
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbRequest,
-							Response: gqlOrbResponse})
+							Response: gqlOrbResponse,
+						})
 
 						By("running the command")
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -1730,12 +1760,14 @@ mutation($orbId: UUID!, $list: Boolean!) {
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  string(expectedOrbRequest),
-							Response: gqlOrbResponse})
+							Response: gqlOrbResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -1814,12 +1846,14 @@ mutation($orbId: UUID!, $list: Boolean!) {
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  string(expectedOrbRequest),
-							Response: gqlOrbResponse})
+							Response: gqlOrbResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -1859,7 +1893,8 @@ mutation($orbId: UUID!, $list: Boolean!) {
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -1901,7 +1936,8 @@ mutation($orbId: UUID!, $list: Boolean!) {
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -1979,12 +2015,14 @@ mutation($orbId: UUID!, $list: Boolean!) {
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  string(expectedOrbRequest),
-							Response: gqlOrbResponse})
+							Response: gqlOrbResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -1999,10 +2037,12 @@ mutation($orbId: UUID!, $list: Boolean!) {
 			Context("incorrect number of arguments supplied", func() {
 				DescribeTable("when setting the listed status of an orb",
 					func(args ...string) {
-						argList := []string{"orb", "unlist",
+						argList := []string{
+							"orb", "unlist",
 							"--skip-update-check",
 							"--token", token,
-							"--host", tempSettings.TestServer.URL()}
+							"--host", tempSettings.TestServer.URL(),
+						}
 						newArgList := append(argList, args...)
 						command = exec.Command(pathCLI,
 							newArgList...,
@@ -2021,10 +2061,12 @@ mutation($orbId: UUID!, $list: Boolean!) {
 			Context("invalid arguments supplied", func() {
 				DescribeTable("when setting the listed status of an orb",
 					func(expectedError string, args ...string) {
-						argList := []string{"orb", "unlist",
+						argList := []string{
+							"orb", "unlist",
 							"--skip-update-check",
 							"--token", token,
-							"--host", tempSettings.TestServer.URL()}
+							"--host", tempSettings.TestServer.URL(),
+						}
 						newArgList := append(argList, args...)
 						command = exec.Command(pathCLI,
 							newArgList...,
@@ -2117,7 +2159,6 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
-
 		})
 
 		Describe("when sorting orbs by builds with --sort", func() {
@@ -2165,7 +2206,6 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 					Request:  encoded.String(),
 					Response: response,
 				})
-
 			})
 
 			It("should sort by builds", func() {
@@ -2248,7 +2288,6 @@ In order to see more details about each orb, type: ` + "`circleci orb info orb-n
 Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
-
 		})
 
 		Describe("when using --sort with invalid option", func() {
@@ -2681,7 +2720,6 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 				})
 
 				It("sends a GraphQL request with 'uncertifiedOnly: false' and prints out json", func() {
-
 					By("running the command")
 					session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 
@@ -2934,7 +2972,8 @@ foo.bar/account/api`))
 				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
 					Status:   http.StatusOK,
 					Request:  encoded.String(),
-					Response: response})
+					Response: response,
+				})
 
 				By("running the command")
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -3233,9 +3272,11 @@ https://circleci.com/developer/orbs/orb/my/orb
 			Context("with mock server", func() {
 				DescribeTable("sends multiple requests when there are more than 1 page of orb categories",
 					func(json bool) {
-						argList := []string{"orb", "list-categories",
+						argList := []string{
+							"orb", "list-categories",
 							"--skip-update-check",
-							"--host", tempSettings.TestServer.URL()}
+							"--host", tempSettings.TestServer.URL(),
+						}
 						if json {
 							argList = append(argList, "--json")
 						}
@@ -3428,17 +3469,20 @@ Windows Server 2010
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedCategoryIDRequest,
-							Response: gqlCategoryIDResponse})
+							Response: gqlCategoryIDResponse,
+						})
 
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbCategorizationRequest,
-							Response: gqlCategorizationResponse})
+							Response: gqlCategorizationResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 						Expect(err).ShouldNot(HaveOccurred())
@@ -3495,7 +3539,8 @@ Windows Server 2010
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 						Expect(err).ShouldNot(HaveOccurred())
@@ -3553,12 +3598,14 @@ Windows Server 2010
 						tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedOrbIDRequest,
-							Response: gqlOrbIDResponse})
+							Response: gqlOrbIDResponse,
+						})
 
 						tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
 							Status:   http.StatusOK,
 							Request:  expectedCategoryIDRequest,
-							Response: gqlCategoryIDResponse})
+							Response: gqlCategoryIDResponse,
+						})
 
 						session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 						Expect(err).ShouldNot(HaveOccurred())
@@ -3645,7 +3692,6 @@ examples:
 `))
 			Eventually(session).Should(gexec.Exit(0))
 		})
-
 	})
 
 	Describe("Orb diff", func() {

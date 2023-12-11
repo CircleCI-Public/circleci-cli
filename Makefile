@@ -18,11 +18,11 @@ clean:
 
 .PHONY: test
 test:
-	TESTING=true go test -v ./...
+	go test -v ./...
 
 .PHONY: cover
 cover:
-	TESTING=true go test -race -coverprofile=coverage.txt ./...
+	go test -race -coverprofile=coverage.txt ./...
 
 .PHONY: lint
 lint:

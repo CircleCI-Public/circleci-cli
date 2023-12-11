@@ -3,6 +3,7 @@ package cmd_test
 import (
 	"net/http"
 	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
@@ -70,21 +71,7 @@ var _ = Describe("Check", func() {
     "assets": [
       {
         "id": 1,
-        "name": "linux_amd64.zip",
-        "label": "short description",
-        "content_type": "application/zip",
-        "size": 1024
-      },
-	  {
-        "id": 1,
-        "name": "darwin_amd64.tar.gz",
-		"label": "short description",
-        "content_type": "application/zip",
-		"size": 1024
-      },
-      {
-        "id": 1,
-        "name": "windows_amd64.tar.gz",
+        "name": "` + runtime.GOOS + "_" + runtime.GOARCH + `.zip",
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
@@ -96,11 +83,10 @@ var _ = Describe("Check", func() {
 
 			tempSettings.TestServer.AppendHandlers(
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/repos/CircleCI-Public/circleci-cli/releases"),
+					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
 					ghttp.RespondWith(http.StatusOK, response),
 				),
 			)
-
 		})
 
 		Context("using a binary release", func() {

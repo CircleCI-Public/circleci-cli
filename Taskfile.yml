@@ -1,4 +1,4 @@
-version: '3'
+version: "3"
 
 tasks:
   lint:
@@ -21,7 +21,7 @@ tasks:
   test:
     desc: Run the tests
     cmds:
-      - TESTING=true go test -v ./...
+      - go test -v ./...
 
   tidy:
     desc: Run 'go mod tidy' to clean up module files.
@@ -59,4 +59,4 @@ tasks:
   cover:
     desc: tests and generates a cover profile
     cmds:
-      - TESTING=true go test -race -coverprofile=coverage.txt ./...
+      - go test -race -coverprofile=coverage.txt ./...

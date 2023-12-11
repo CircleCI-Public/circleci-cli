@@ -1286,8 +1286,8 @@ func initOrb(opts orbOptions) error {
 	if !useDefaultVcs {
 		vcsSelect := "github"
 		prompt = &survey.Select{
-			Message: "Are you using GitHub or Bitbucket?",
-			Options: []string{"GitHub", "Bitbucket"},
+			Message: "Are you using GitHub or Bitbucket or GitHub app (if GH App use circleci as the entry)?",
+			Options: []string{"GitHub", "Bitbucket", "circleci"},
 		}
 		err = survey.AskOne(prompt, &vcsSelect)
 		if err != nil {
@@ -1522,6 +1522,9 @@ func initOrb(opts orbOptions) error {
 	}
 
 	r, err := git.PlainInit(orbPath, false)
+	if errors.Is(err, git.ErrRepositoryAlreadyExists) {
+		return errors.New("the folder is already a repository because it has .git folder. Try deleting it and retrying")
+	}
 	if err != nil {
 		return err
 	}

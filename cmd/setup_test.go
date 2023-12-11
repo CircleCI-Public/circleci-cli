@@ -268,7 +268,7 @@ token: asdf
 				)
 			})
 
-			It("write the configuration to a file", func() {
+			It("writes the configuration to a file", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 				stdout := session.Wait().Out.Contents()
