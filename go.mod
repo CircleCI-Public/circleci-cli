@@ -19,7 +19,7 @@ require (
 	github.com/onsi/gomega v1.27.10
 	github.com/pkg/browser v0.0.0-20210911075715-681adbf594b8
 	github.com/pkg/errors v0.9.1
-	github.com/rhysd/go-github-selfupdate v0.0.0-20180520142321-41c1bbb0804a
+	github.com/rhysd/go-github-selfupdate v1.2.3
 	github.com/spf13/cobra v1.8.0
 	github.com/spf13/pflag v1.0.5
 	github.com/tcnksm/go-gitconfig v0.1.2 // indirect
