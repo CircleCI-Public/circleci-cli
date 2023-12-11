@@ -21,21 +21,22 @@
 <p>Run a job in a container on the local machine</p>
 <pre><code>circleci local execute &lt;job-name&gt; [flags]</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>      --branch string                Git branch
+<pre><code>      --branch string                git branch
       --build-agent-version string   The version of the build agent image you want to use. This can be configured by writing in $HOME/.circleci/build_agent_settings.json: &#39;{&quot;LatestSha256&quot;:&quot;&lt;version-of-build-agent&gt;&quot;}&#39;
-      --checkout-key string          Git Checkout key (default &quot;~/.ssh/id_rsa&quot;)
+      --checkout-key string          git checkout key (default &quot;~/.ssh/id_rsa&quot;)
   -c, --config string                config file (default &quot;.circleci/config.yml&quot;)
-      --docker-socket-path string    Path to the host&#39;s docker socket (default &quot;/var/run/docker.sock&quot;)
-  -e, --env -e VAR=VAL               Set environment variables, e.g. -e VAR=VAL
+      --docker-socket-path string    path to the host&#39;s docker socket (default &quot;/var/run/docker.sock&quot;)
+  -e, --env -e VAR=VAL               set environment variables, e.g. -e VAR=VAL
   -h, --help                         help for execute
       --index int                    node index of parallelism
       --node-total int               total number of parallel nodes (default 1)
       --org-id string                organization id, used when a config depends on private orbs belonging to that org
   -o, --org-slug string              organization slug (for example: github/example-org), used when a config depends on private orbs belonging to that org
-      --repo-url string              Git Url
-      --revision string              Git Revision
+      --repo-url string              git URL
+      --revision string              git revision
       --skip-checkout                use local path as-is (default true)
-  -v, --volume stringArray           Volume bind-mounting</code></pre>
+      --temp-dir string              path to local directory to store temporary config files
+  -v, --volume stringArray           volume bind-mounting</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
