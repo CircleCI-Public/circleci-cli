@@ -17,6 +17,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/fatih/color"
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -28,11 +34,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/fatih/color"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
-	"gopkg.in/yaml.v3"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/go-git/go-git/v5"
@@ -1300,6 +1301,12 @@ func initOrb(opts orbOptions) error {
 	iprompt := &survey.Input{
 		Message: fmt.Sprintf("Enter your %s username or organization", vcsProvider),
 		Default: opts.cfg.OrbPublishing.DefaultOwner,
+	}
+	if vcsProvider == "GitHub" {
+		iprompt = &survey.Input{
+			Message: fmt.Sprintf("If your organization is using CircleCI’s GitHub App integration (see %s to check), enter your organization ID found in Organization Settings. If not, enter your organization name as a string.",
+				"https://circleci.com/docs/github-apps-integration/"),
+		}
 	}
 	err = survey.AskOne(iprompt, &ownerName)
 	if err != nil {
