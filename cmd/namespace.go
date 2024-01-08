@@ -58,7 +58,7 @@ func newNamespaceCommand(config *settings.Config) *cobra.Command {
 	}
 
 	createCmd := &cobra.Command{
-		Use:   "create <name> [<vcs-type>] [<org-name>]",
+		Use:   "create <name> --org-id <your-organization-id>",
 		Short: "Create a namespace",
 		Long: `Create a namespace.
 Please note that at this time all namespaces created in the registry are world-readable.`,
@@ -86,13 +86,10 @@ Please note that at this time all namespaces created in the registry are world-r
 		},
 		Args:        cobra.RangeArgs(1, 3),
 		Annotations: make(map[string]string),
-		Example: `  circleci namespace create NamespaceName github OrgName
-  circleci namespace create NamespaceName --org-id "your-org-id-here"`,
+		Example: `  circleci namespace create NamespaceName --org-id 00000000-0000-0000-0000-000000000000`,
 	}
 
 	createCmd.Annotations["<name>"] = "The name to give your new namespace"
-	createCmd.Annotations["[<vcs-type>]"] = `Your VCS provider, can be either "github" or "bitbucket". Optional when passing org-id flag.`
-	createCmd.Annotations["[<org-name>]"] = `The name used for your organization. Optional when passing org-id flag.`
 
 	createCmd.Flags().BoolVar(&opts.integrationTesting, "integration-testing", false, "Enable test mode to bypass interactive UI.")
 	if err := createCmd.Flags().MarkHidden("integration-testing"); err != nil {
