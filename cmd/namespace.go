@@ -83,7 +83,7 @@ Please note that at this time all namespaces created in the registry are world-r
 
 			return err
 		},
-		Args:        cobra.RangeArgs(1, 1),
+		Args:        cobra.ExactArgs(1),
 		Annotations: make(map[string]string),
 		Example:     `  circleci namespace create NamespaceName --org-id 00000000-0000-0000-0000-000000000000`,
 	}
