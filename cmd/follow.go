@@ -53,7 +53,7 @@ func followProjectCommand(config *settings.Config) *cobra.Command {
 	}
 	followCommand := &cobra.Command{
 		Use:   "follow",
-		Short: "Attempt to follow the project for the current git repository.",
+		Short: "Attempt to follow the project for the current git repository.\nThis command is intended to be run from a git repository with a remote named 'origin' that is hosted on Github or Bitbucket only. NOTE: this command is deprecated and is not reliable on Github projects created after September 2023",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			err := followProject(opts)
 
@@ -64,6 +64,7 @@ func followProjectCommand(config *settings.Config) *cobra.Command {
 
 			return err
 		},
+		Deprecated: "This command is deprecated and is not reliable on Github projects created after September 2023",
 	}
 	return followCommand
 }
