@@ -15,4 +15,4 @@ Flags:
       --query string                 policy decision query (default "data")
 
 Global Flags:
-      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+      --policy-base-url string   base url for policy api. For Server, set this to the URL of your instance i.e. https://customer.domain.com (default "https://internal.circleci.com")

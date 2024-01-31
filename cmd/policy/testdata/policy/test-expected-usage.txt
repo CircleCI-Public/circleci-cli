@@ -12,4 +12,4 @@ Flags:
   -v, --verbose           print all tests instead of only failed tests
 
 Global Flags:
-      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+      --policy-base-url string   base url for policy api. For Server, set this to the URL of your instance i.e. https://customer.domain.com (default "https://internal.circleci.com")

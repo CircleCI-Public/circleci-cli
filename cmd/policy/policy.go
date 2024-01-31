@@ -51,7 +51,7 @@ func NewCommand(globalConfig *settings.Config, preRunE validator.Validator) *cob
 This group of commands allows the management of polices to be verified against build configs.`,
 	}
 
-	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api")
+	policyBaseURL := cmd.PersistentFlags().String("policy-base-url", "https://internal.circleci.com", "base url for policy api. For Server, set this to the URL of your instance i.e. https://customer.domain.com")
 
 	push := func() *cobra.Command {
 		var ownerID, context string
