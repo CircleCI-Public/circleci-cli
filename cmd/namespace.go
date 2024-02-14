@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -83,9 +84,9 @@ Please note that at this time all namespaces created in the registry are world-r
 
 			return err
 		},
-		Args:        cobra.ExactArgs(1),
+		Args:        cobra.RangeArgs(1, 3),
 		Annotations: make(map[string]string),
-		Example:     `  circleci namespace create NamespaceName --org-id 00000000-0000-0000-0000-000000000000`,
+		Example:     `circleci namespace create NamespaceName --org-id 00000000-0000-0000-0000-000000000000`,
 	}
 
 	createCmd.Annotations["<name>"] = "The name to give your new namespace"
@@ -137,11 +138,42 @@ To change the namespace, you will have to contact CircleCI customer support.
 	return nil
 }
 
+func createNamespaceWithVcsTypeAndOrgName(opts namespaceOptions, namespaceName, vcsType, orgName string) error {
+	if !opts.noPrompt {
+		fmt.Printf(`You are creating a namespace called "%s".
+
+This is the only namespace permitted for your %s organization, %s.
+
+To change the namespace, you will have to contact CircleCI customer support.
+
+`, namespaceName, strings.ToLower(opts.args[1]), opts.args[2])
+	}
+
+	confirm := fmt.Sprintf("Are you sure you wish to create the namespace: `%s`", namespaceName)
+	if opts.noPrompt || opts.tty.askUserToConfirm(confirm) {
+		_, err := api.CreateNamespace(opts.cl, namespaceName, opts.args[2], strings.ToUpper(opts.args[1]))
+		if err != nil {
+			return err
+		}
+
+		fmt.Printf("Namespace `%s` created.\n", namespaceName)
+		fmt.Println("Please note that any orbs you publish in this namespace are open orbs and are world-readable.")
+	}
+	return nil
+}
+
 func createNamespace(cmd *cobra.Command, opts namespaceOptions) error {
 	namespaceName := opts.args[0]
-	_, err := uuid.Parse(*opts.orgID)
-	if err == nil {
-		return createNamespaceWithOrgId(opts, namespaceName, *opts.orgID)
+	//skip if no orgid provided
+	if opts.orgID != nil && strings.TrimSpace(*opts.orgID) != "" {
+		_, err := uuid.Parse(*opts.orgID)
+		if err == nil {
+			return createNamespaceWithOrgId(opts, namespaceName, *opts.orgID)
+		}
+
+		//skip if no vcs type and org name provided
+	} else if len(opts.args) == 3 {
+		return createNamespaceWithVcsTypeAndOrgName(opts, namespaceName, opts.args[1], opts.args[2])
 	}
 	return cmd.Help()
 }
