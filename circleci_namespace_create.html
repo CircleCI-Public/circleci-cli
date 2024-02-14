@@ -19,14 +19,11 @@
 <p>Create a namespace</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>Create a namespace. Please note that at this time all namespaces created in the registry are world-readable.</p>
-<pre><code>circleci namespace create &lt;name&gt; [&lt;vcs-type&gt;] [&lt;org-name&gt;] [flags]</code></pre>
+<pre><code>circleci namespace create &lt;name&gt; --org-id &lt;your-organization-id&gt; [flags]</code></pre>
 <h3 id="examples">Examples</h3>
-<pre><code>  circleci namespace create NamespaceName github OrgName
-  circleci namespace create NamespaceName --org-id &quot;your-org-id-here&quot;</code></pre>
+<pre><code>  circleci namespace create NamespaceName --org-id 00000000-0000-0000-0000-000000000000</code></pre>
 <h3 id="arguments">Arguments</h3>
-<pre><code>&lt;name&gt;      The name to give your new namespace
-[&lt;vcs-type&gt;] Your VCS provider, can be either &quot;github&quot; or &quot;bitbucket&quot;. Optional when passing org-id flag.
-[&lt;org-name&gt;] The name used for your organization. Optional when passing org-id flag.</code></pre>
+<pre><code>&lt;name&gt;      The name to give your new namespace</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>  -h, --help            help for create
       --no-prompt       Disable prompt to bypass interactive UI.
