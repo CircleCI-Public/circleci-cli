@@ -3,7 +3,6 @@ package rest
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -101,24 +100,25 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 	}
 	defer httpResp.Body.Close()
 
-	if httpResp.StatusCode >= 300 {
-		httpError := struct {
+	if httpResp.StatusCode >= 400 {
+		var msgErr struct {
 			Message string `json:"message"`
-		}{}
+		}
 		body, err := io.ReadAll(httpResp.Body)
 		if err != nil {
-			return 0, err
+			return httpResp.StatusCode, err
 		}
-		err = json.Unmarshal(body, &httpError)
+		err = json.Unmarshal(body, &msgErr)
 		if err != nil {
 			return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: string(body)}
 		}
-		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: httpError.Message}
+		return httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: msgErr.Message}
 	}
 
 	if resp != nil {
 		if !strings.Contains(httpResp.Header.Get("Content-Type"), "application/json") {
-			return httpResp.StatusCode, errors.New("wrong content type received")
+			body, _ := io.ReadAll(httpResp.Body)
+			return httpResp.StatusCode, fmt.Errorf("wrong content type received. method: %s. path: %s. content-type: %s. body: %s", req.Method, req.URL.Path, httpResp.Header.Get("Content-Type"), string(body))
 		}
 
 		err = json.NewDecoder(httpResp.Body).Decode(resp)

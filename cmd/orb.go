@@ -25,6 +25,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
+	"github.com/CircleCI-Public/circleci-cli/api/context"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/orb"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
@@ -1401,8 +1402,8 @@ func initOrb(opts orbOptions) error {
 	}
 
 	if createContext == 0 {
-		contextGql := api.NewContextGraphqlClient(opts.cfg.HTTPClient, opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
-		err = contextGql.CreateContext(vcsProvider, ownerName, "orb-publishing")
+		contextAPI := context.NewContextClient(opts.cfg, "", vcsProvider, ownerName)
+		err = contextAPI.CreateContext("orb-publishing")
 		if err != nil {
 			if strings.Contains(err.Error(), "A context named orb-publishing already exists") {
 				fmt.Println("`orb-publishing` context already exists, continuing on")
@@ -1410,11 +1411,11 @@ func initOrb(opts orbOptions) error {
 				return err
 			}
 		}
-		ctx, err := contextGql.ContextByName(vcsProvider, ownerName, "orb-publishing")
+		ctx, err := contextAPI.ContextByName("orb-publishing")
 		if err != nil {
 			return err
 		}
-		err = contextGql.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
+		err = contextAPI.CreateEnvironmentVariable(ctx.ID, "CIRCLE_TOKEN", opts.cfg.Token)
 		if err != nil && !strings.Contains(err.Error(), "ALREADY_EXISTS") {
 			return err
 		}
