@@ -20,20 +20,15 @@ import (
 
 var (
 	contentTypeHeader http.Header = map[string][]string{"Content-Type": {"application/json"}}
-)
-
-func mockServerForREST(tempSettings *clitest.TempSettings) {
-	tempSettings.TestServer.AppendHandlers(
-		ghttp.CombineHandlers(
-			ghttp.VerifyRequest("GET", "/api/v2/openapi.json"),
-			ghttp.RespondWith(
-				http.StatusOK,
-				`{"paths":{"/context":{}}}`,
-				contentTypeHeader,
-			),
+	openAPIHandler                = ghttp.CombineHandlers(
+		ghttp.VerifyRequest("GET", "/api/v2/openapi.json"),
+		ghttp.RespondWith(
+			http.StatusOK,
+			`{"paths":{"/context":{}}}`,
+			contentTypeHeader,
 		),
 	)
-}
+)
 
 var _ = Describe("Context integration tests", func() {
 	var (
@@ -45,6 +40,19 @@ var _ = Describe("Context integration tests", func() {
 		vcsType      string = "bitbucket"
 		orgName      string = "test-org"
 		orgSlug      string = fmt.Sprintf("%s/%s", vcsType, orgName)
+
+		gqlGetOrgHandler = ghttp.CombineHandlers(
+			ghttp.VerifyRequest("POST", "/graphql-unstable"),
+			ghttp.RespondWith(http.StatusOK, fmt.Sprintf(`{
+	"data": {
+		"organization": {
+			"id": "%s",
+			"name": "%s",
+			"vcsType": "%s"
+		}
+	}
+}`, orgID, orgName, vcsType)),
+		)
 	)
 
 	BeforeEach(func() {
@@ -73,20 +81,21 @@ https://circleci.com/account/api`))
 		})
 
 		It("should handle errors", func() {
-			mockServerForREST(tempSettings)
+			contextName := "context-name"
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
+					ghttp.VerifyRequest("POST", "/api/v2/context"),
 					ghttp.RespondWith(
-						http.StatusBadRequest,
-						`{"message":"no context found"}`,
+						http.StatusUnauthorized,
+						`{"message":"permission issue"}`,
 						contentTypeHeader,
 					),
 				),
 			)
 
 			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "list", "--org-id", orgID,
+				"context", "create", "--org-id", orgID, contextName,
 				"--skip-update-check",
 				"--token", token,
 				"--host", tempSettings.TestServer.URL(),
@@ -97,14 +106,15 @@ https://circleci.com/account/api`))
 			Eventually(session).Should(gexec.Exit())
 			// Exit codes are different between Unix and Windows so we're only checking that it does not equal 0
 			Expect(session.ExitCode()).ToNot(Equal(0))
-			Expect(string(session.Err.Contents())).To(Equal("Error: no context found\n"))
+			Expect(string(session.Err.Contents())).To(Equal("Error: permission issue\n"))
 		})
 	})
 
 	Describe("list", func() {
-		It("should list context with VCS / org name", func() {
-			mockServerForREST(tempSettings)
+		It("should list contexts with the right columns", func() {
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
+				gqlGetOrgHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
 					ghttp.RespondWith(
@@ -125,10 +135,10 @@ https://circleci.com/account/api`))
 
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session).Should(gexec.Exit(0))
-			Expect(string(session.Out.Contents())).To(Equal(`+----+------+------------+
-| ID | NAME | CREATED AT |
-+----+------+------------+
-+----+------+------------+
+			Expect(string(session.Out.Contents())).To(Equal(`+--------------+--------+------+------------+
+| ORGANIZATION | ORG ID | NAME | CREATED AT |
++--------------+--------+------+------------+
++--------------+--------+------+------------+
 `))
 		})
 
@@ -139,8 +149,9 @@ https://circleci.com/account/api`))
 			}
 			body, err := json.Marshal(struct{ Items []context.Context }{contexts})
 			Expect(err).ShouldNot(HaveOccurred())
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
+				gqlGetOrgHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
 					ghttp.RespondWith(
@@ -162,7 +173,7 @@ https://circleci.com/account/api`))
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session).Should(gexec.Exit(0))
 			lines := strings.Split(string(session.Out.Contents()), "\n")
-			Expect(lines[1]).To(MatchRegexp("|\\w+ID\\w+|\\w+NAME\\w+|\\w+CREATED AT\\w+|"))
+			Expect(lines[1]).To(MatchRegexp("|\\w+ORGANIZATION\\w+|\\w+ORG ID\\w+|\\w+NAME\\w+|\\w+CREATED AT\\w+|"))
 			Expect(lines).To(HaveLen(7))
 		})
 
@@ -173,8 +184,9 @@ https://circleci.com/account/api`))
 			}
 			body, err := json.Marshal(struct{ Items []context.Context }{contexts})
 			Expect(err).ShouldNot(HaveOccurred())
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
+				gqlGetOrgHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
 					ghttp.RespondWith(
@@ -216,8 +228,8 @@ https://circleci.com/account/api`))
 		)
 
 		It("should show context with vcs type / org name", func() {
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
 					ghttp.RespondWith(
@@ -252,8 +264,8 @@ https://circleci.com/account/api`))
 		})
 
 		It("should show context with org id", func() {
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
 					ghttp.RespondWith(
@@ -306,8 +318,8 @@ https://circleci.com/account/api`))
 
 		It("should store value when giving vcs type / org name", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
 					ghttp.RespondWith(
@@ -342,8 +354,8 @@ https://circleci.com/account/api`))
 
 		It("should store value when giving vcs type / org name", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
 					ghttp.RespondWith(
@@ -389,8 +401,8 @@ https://circleci.com/account/api`))
 
 		It("should remove environment variable with vcs type / org name", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
 					ghttp.RespondWith(
@@ -424,8 +436,8 @@ https://circleci.com/account/api`))
 
 		It("should remove environment variable with org id", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
 					ghttp.RespondWith(
@@ -469,8 +481,9 @@ https://circleci.com/account/api`))
 
 		It("should delete context with vcs type / org name", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
+				gqlGetOrgHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
 					ghttp.RespondWith(
@@ -504,8 +517,9 @@ https://circleci.com/account/api`))
 
 		It("should delete context with org id", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
+				gqlGetOrgHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
 					ghttp.RespondWith(
@@ -550,8 +564,8 @@ https://circleci.com/account/api`))
 
 		It("should create new context using an org id", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/api/v2/context"),
 					ghttp.VerifyContentType("application/json"),
@@ -575,8 +589,8 @@ https://circleci.com/account/api`))
 
 		It("should create new context using vcs type / org name", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/api/v2/context"),
 					ghttp.VerifyContentType("application/json"),
@@ -604,8 +618,8 @@ https://circleci.com/account/api`))
 
 		It("handles errors", func() {
 			By("setting up a mock server")
-			mockServerForREST(tempSettings)
 			tempSettings.TestServer.AppendHandlers(
+				openAPIHandler,
 				ghttp.CombineHandlers(
 					ghttp.VerifyRequest("POST", "/api/v2/context"),
 					ghttp.VerifyContentType("application/json"),

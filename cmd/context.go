@@ -8,7 +8,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/context"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/olekukonko/tablewriter"
 	"github.com/pkg/errors"
@@ -78,7 +80,21 @@ are injected at runtime.`,
 		Use:     "list --org-id <org-id>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return listContexts(contextClient)
+			gqlClient := graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, false)
+			params := api.GetOrganizationParams{
+				OrgID:   orgID,
+				VCSType: vcsType,
+				OrgName: orgName,
+			}
+			params.OrgID = orgID
+			params.VCSType = vcsType
+			params.OrgName = orgName
+			org, err := api.GetOrganization(gqlClient, params)
+			if err != nil {
+				return err
+			}
+
+			return listContexts(contextClient, org.Organization.Name, org.Organization.ID)
 		},
 		Args: MultiExactArgs(0, 2),
 		Example: `circleci context list --org-id 00000000-0000-0000-0000-000000000000
@@ -158,7 +174,20 @@ are injected at runtime.`,
 		Use:     "delete --org-id <org-id> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return deleteContext(contextClient, force, initiatedArgs[0])
+			gqlClient := graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, false)
+			params := api.GetOrganizationParams{
+				OrgID:   orgID,
+				VCSType: vcsType,
+				OrgName: orgName,
+			}
+			params.OrgID = orgID
+			params.VCSType = vcsType
+			params.OrgName = orgName
+			org, err := api.GetOrganization(gqlClient, params)
+			if err != nil {
+				return err
+			}
+			return deleteContext(contextClient, org.Organization.Name, force, initiatedArgs[0])
 		},
 		Args: MultiExactArgs(1, 3),
 		Example: `circleci context delete --org-id 00000000-0000-0000-0000-000000000000 contextName
@@ -177,17 +206,18 @@ are injected at runtime.`,
 	return command
 }
 
-func listContexts(contextClient context.ContextInterface) error {
+func listContexts(contextClient context.ContextInterface, orgName string, orgId string) error {
 	contexts, err := contextClient.Contexts()
 	if err != nil {
 		return err
 	}
 
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Id", "Name", "Created At"})
+	table.SetHeader([]string{"Organization", "Org ID", "Name", "Created At"})
 	for _, context := range contexts {
 		table.Append([]string{
-			context.ID,
+			orgName,
+			orgId,
 			context.Name,
 			context.CreatedAt.Format(time.RFC3339),
 		})
@@ -282,27 +312,16 @@ func storeEnvVar(client context.ContextInterface, prompt storeEnvVarPrompt, cont
 	return err
 }
 
-func askForConfirmation(message string) bool {
-	fmt.Println(message)
-	var response string
-	if _, err := fmt.Scanln(&response); err != nil {
-		return false
-	}
-	return strings.HasPrefix(strings.ToLower(response), "y")
-}
-
-func deleteContext(client context.ContextInterface, force bool, contextName string) error {
+func deleteContext(client context.ContextInterface, orgName string, force bool, contextName string) error {
 	context, err := client.ContextByName(contextName)
 	if err != nil {
 		return err
 	}
 
-	message := fmt.Sprintf("Are you sure that you want to delete this context: %s (y/n)?", context.Name)
-
-	shouldDelete := force || askForConfirmation(message)
-
+	shouldDelete := force || prompt.AskUserToConfirm(fmt.Sprintf("Are you sure that you want to delete this context: %s %s (y/n)?", orgName, context.Name))
 	if !shouldDelete {
-		return errors.New("OK, cancelling")
+		fmt.Printf("Cancelling context deletion")
+		return nil
 	}
 
 	err = client.DeleteContext(context.ID)

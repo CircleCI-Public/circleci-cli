@@ -770,7 +770,7 @@ func GetOrganization(cl *graphql.Client, params GetOrganizationParams) (*GetOrga
 
 	var request *graphql.Request
 	if params.OrgID != "" {
-		request = graphql.NewRequest(`query($orgId: UUID!) {
+		request = graphql.NewRequest(`query($orgId: ID!) {
 	organization(id: $orgId) {
 		id
 		name
@@ -787,14 +787,14 @@ func GetOrganization(cl *graphql.Client, params GetOrganizationParams) (*GetOrga
 	}
 }`)
 		request.Var("orgName", params.OrgName)
-		request.Var("vcsType", params.VCSType)
+		request.Var("vcsType", strings.ToUpper(params.VCSType))
 	}
 
 	var response GetOrganizationResponse
 	request.SetToken(cl.Token)
 	err := cl.Run(request, &response)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "fetching organization")
 	}
 	return &response, nil
 }
