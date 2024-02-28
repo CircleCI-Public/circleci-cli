@@ -55,11 +55,11 @@ func (c *ScheduleRestClient) CreateSchedule(vcs, org, project, name, description
 	}
 
 	if resp.StatusCode != 201 {
-		var dest errorResponse
+		var dest ErrorWithMessage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		return nil, errors.New(*dest.Message)
+		return nil, dest
 	}
 
 	var schedule Schedule
@@ -92,11 +92,11 @@ func (c *ScheduleRestClient) UpdateSchedule(scheduleID, name, description string
 	}
 
 	if resp.StatusCode != 200 {
-		var dest errorResponse
+		var dest ErrorWithMessage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		return nil, errors.New(*dest.Message)
+		return nil, dest
 	}
 
 	var schedule Schedule
@@ -126,11 +126,11 @@ func (c *ScheduleRestClient) DeleteSchedule(scheduleID string) error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		var dest errorResponse
+		var dest ErrorWithMessage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return err
 		}
-		return errors.New(*dest.Message)
+		return dest
 	}
 	return nil
 }
@@ -162,11 +162,11 @@ func (c *ScheduleRestClient) ScheduleByID(scheduleID string) (*Schedule, error) 
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		var dest errorResponse
+		var dest ErrorWithMessage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
 		}
-		return nil, errors.New(*dest.Message)
+		return nil, dest
 	}
 
 	schedule := Schedule{}
@@ -236,12 +236,11 @@ func (c *ScheduleRestClient) listSchedules(vcs, org, project string, params *lis
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
-		var dest errorResponse
+		var dest ErrorWithMessage
 		if err := json.Unmarshal(bodyBytes, &dest); err != nil {
 			return nil, err
-
 		}
-		return nil, errors.New(*dest.Message)
+		return nil, dest
 
 	}
 

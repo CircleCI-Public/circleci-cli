@@ -25,3 +25,4 @@ stage/
 bin/golangci-lint
 integration_tests/tmp
 *.exe
+cmd/.circleci

@@ -27,6 +27,17 @@ const (
 	Remove
 )
 
+type ErrorWithMessage struct {
+	Message string `json:"message"`
+}
+
+func (e ErrorWithMessage) Error() string {
+	if e.Message != "" {
+		return e.Message
+	}
+	return "unknown error"
+}
+
 // GQLErrorsCollection is a slice of errors returned by the GraphQL server.
 // Each error is made up of a GQLResponseError type.
 type GQLErrorsCollection []GQLResponseError
@@ -182,13 +193,6 @@ type RenameNamespaceResponse struct {
 		}
 
 		Errors GQLErrorsCollection
-	}
-}
-
-// GetOrganizationResponse type wraps the GQL response for fetching an organization and ID.
-type GetOrganizationResponse struct {
-	Organization struct {
-		ID string
 	}
 }
 
@@ -744,30 +748,54 @@ func CreateNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string)
 	return &response, nil
 }
 
-func getOrganization(cl *graphql.Client, organizationName string, organizationVcs string) (*GetOrganizationResponse, error) {
-	var response GetOrganizationResponse
+type GetOrganizationParams struct {
+	OrgName string
+	VCSType string
+	OrgID   string
+}
 
-	query := `query($organizationName: String!, $organizationVcs: VCSType!) {
-				organization(
-					name: $organizationName
-					vcsType: $organizationVcs
-				) {
-					id
-				}
-			}`
+// GetOrganizationResponse type wraps the GQL response for fetching an organization and ID.
+type GetOrganizationResponse struct {
+	Organization struct {
+		ID      string
+		Name    string
+		VCSType string
+	}
+}
 
-	request := graphql.NewRequest(query)
-	request.SetToken(cl.Token)
-
-	request.Var("organizationName", organizationName)
-	request.Var("organizationVcs", strings.ToUpper(organizationVcs))
-
-	err := cl.Run(request, &response)
-
-	if err != nil {
-		return nil, errors.Wrapf(err, "Unable to find organization %s of vcs-type %s", organizationName, organizationVcs)
+func GetOrganization(cl *graphql.Client, params GetOrganizationParams) (*GetOrganizationResponse, error) {
+	if params.OrgID == "" && (params.VCSType == "" || params.OrgName == "") {
+		return nil, errors.New("need to define either org-id or vcs-type and org name")
 	}
 
+	var request *graphql.Request
+	if params.OrgID != "" {
+		request = graphql.NewRequest(`query($orgId: UUID!) {
+	organization(id: $orgId) {
+		id
+		name
+		vcsType
+	}
+}`)
+		request.Var("orgId", params.OrgID)
+	} else {
+		request = graphql.NewRequest(`query($orgName: String!, $vcsType: VCSType!) {
+	organization(name: $orgName, vcsType: $vcsType) {
+		id
+		name
+		vcsType
+	}
+}`)
+		request.Var("orgName", params.OrgName)
+		request.Var("vcsType", params.VCSType)
+	}
+
+	var response GetOrganizationResponse
+	request.SetToken(cl.Token)
+	err := cl.Run(request, &response)
+	if err != nil {
+		return nil, err
+	}
 	return &response, nil
 }
 
@@ -857,7 +885,7 @@ mutation($id: UUID!) {
 
 // CreateNamespace creates (reserves) a namespace for an organization
 func CreateNamespace(cl *graphql.Client, name string, organizationName string, organizationVcs string) (*CreateNamespaceResponse, error) {
-	getOrgResponse, getOrgError := getOrganization(cl, organizationName, organizationVcs)
+	getOrgResponse, getOrgError := GetOrganization(cl, GetOrganizationParams{OrgName: organizationName, VCSType: organizationVcs})
 
 	if getOrgError != nil {
 		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
