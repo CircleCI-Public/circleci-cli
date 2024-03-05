@@ -2,7 +2,7 @@ module github.com/CircleCI-Public/circleci-cli
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/CircleCI-Public/circle-policy-agent v0.0.702
+	github.com/CircleCI-Public/circle-policy-agent v0.0.727
 	github.com/Masterminds/semver v1.5.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
 	github.com/blang/semver v3.5.1+incompatible
