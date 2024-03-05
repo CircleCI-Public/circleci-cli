@@ -145,7 +145,12 @@ Please note that any orbs you publish in this namespace are open orbs and are wo
   				}`
 
 				expectedOrganizationRequest := `{
-            "query": "query($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}","variables":{"organizationName":"test-org","organizationVcs":"BITBUCKET"}}`
+	"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
+	"variables": {
+		"orgName": "test-org",
+		"vcsType": "BITBUCKET"
+	}
+}`
 
 				gqlNsResponse := `{
 									"createNamespace": {
@@ -217,12 +222,12 @@ Please note that any orbs you publish in this namespace are open orbs and are wo
   				}`
 
 				expectedOrganizationRequest := `{
-            "query": "query($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
-            "variables": {
-              "organizationName": "test-org",
-              "organizationVcs": "BITBUCKET"
-            }
-          }`
+	"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
+	"variables": {
+		"orgName": "test-org",
+		"vcsType": "BITBUCKET"
+	}
+}`
 
 				gqlNsResponse := `{
 									"createNamespace": {
@@ -279,12 +284,12 @@ Please note that any orbs you publish in this namespace are open orbs and are wo
   				}`
 
 				expectedOrganizationRequest := `{
-            "query": "query($organizationName: String!, $organizationVcs: VCSType!) {\n\t\t\t\torganization(\n\t\t\t\t\tname: $organizationName\n\t\t\t\t\tvcsType: $organizationVcs\n\t\t\t\t) {\n\t\t\t\t\tid\n\t\t\t\t}\n\t\t\t}",
-            "variables": {
-              "organizationName": "test-org",
-              "organizationVcs": "BITBUCKET"
-            }
-          }`
+	"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
+	"variables": {
+		"orgName": "test-org",
+		"vcsType": "BITBUCKET"
+	}
+}`
 
 				gqlResponse := `{
 									"createNamespace": {

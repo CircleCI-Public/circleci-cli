@@ -25,6 +25,10 @@ var introHeader = `
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
 `
 
+const (
+	mdExt = ".md"
+)
+
 // PositionalArgs returns a slice of the given command's positional arguments
 func PositionalArgs(cmd *cobra.Command) []string {
 	args := strings.Split(cmd.Use, " ")
@@ -124,7 +128,7 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 		if cmd.HasParent() {
 			parent := cmd.Parent()
 			pname := parent.CommandPath()
-			link := pname + ".md"
+			link := pname + mdExt
 			link = strings.Replace(link, " ", "_", -1)
 			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", pname, linkHandler(link), parent.Short))
 			cmd.VisitParents(func(c *cobra.Command) {
@@ -142,7 +146,7 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 				continue
 			}
 			cname := name + " " + child.Name()
-			link := cname + ".md"
+			link := cname + mdExt
 			link = strings.Replace(link, " ", "_", -1)
 			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", cname, linkHandler(link), child.Short))
 		}
@@ -188,7 +192,7 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, filePrepender, linkHa
 		}
 	}
 
-	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + ".md"
+	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + mdExt
 	filename := filepath.Join(dir, basename)
 	f, err := os.Create(filename)
 	if err != nil {
