@@ -19,10 +19,14 @@
 <p>Delete the named context</p>
 <h3 id="synopsis">Synopsis</h3>
 <p>Delete the named context</p>
-<pre><code>circleci context delete &lt;vcs-type&gt; &lt;org-name&gt; &lt;context-name&gt; [flags]</code></pre>
+<pre><code>circleci context delete --org-id &lt;org-id&gt; &lt;context-name&gt; [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>circleci context delete --org-id 00000000-0000-0000-0000-000000000000 contextName
+(deprecated usage) circleci context create github OrgName contextName</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -f, --force   Delete the context without asking for confirmation.
-  -h, --help    help for delete</code></pre>
+<pre><code>  -f, --force           Delete the context without asking for confirmation.
+  -h, --help            help for delete
+      --org-id string   Your organization id. You can obtain it on the &quot;Overview&quot; section of your organization settings page.</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
