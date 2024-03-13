@@ -5,9 +5,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/pkg/errors"
+
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 )
 
 var (
@@ -71,7 +72,9 @@ type CompileConfigRequest struct {
 }
 
 type Options struct {
-	OwnerID            string                 `json:"owner_id,omitempty"`
+	OwnerID string `json:"owner_id,omitempty"`
+	// PipelineParameters are deprecated and will be removed in the future.
+	// Use PipelineValues instead.
 	PipelineParameters map[string]interface{} `json:"pipeline_parameters,omitempty"`
 	PipelineValues     map[string]interface{} `json:"pipeline_values,omitempty"`
 }

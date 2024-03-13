@@ -12,9 +12,9 @@ type Values map[string]interface{}
 // Static typing is bypassed using an empty interface here due to pipeline parameters supporting multiple types.
 type Parameters map[string]interface{}
 
-// vars should contain any pipeline parameters that should be accessible via
-// << pipeline.parameters.foo >>
-func LocalPipelineValues() Values {
+// LocalPipelineValues returns a map of pipeline values that can be used for local validation.
+// The given parameters will be prefixed with "pipeline.parameters." and accessible via << pipeline.parameters.foo >>.
+func LocalPipelineValues(parameters Parameters) Values {
 	revision := git.Revision()
 	gitUrl := "https://github.com/CircleCI-Public/circleci-cli"
 	projectType := "github"
@@ -32,14 +32,18 @@ func LocalPipelineValues() Values {
 	}
 
 	vals := map[string]interface{}{
-		"id":                "00000000-0000-0000-0000-000000000001",
-		"number":            1,
-		"project.git_url":   gitUrl,
-		"project.type":      projectType,
-		"git.tag":           git.Tag(),
-		"git.branch":        git.Branch(),
-		"git.revision":      revision,
-		"git.base_revision": revision,
+		"pipeline.id":                "00000000-0000-0000-0000-000000000001",
+		"pipeline.number":            1,
+		"pipeline.project.git_url":   gitUrl,
+		"pipeline.project.type":      projectType,
+		"pipeline.git.tag":           git.Tag(),
+		"pipeline.git.branch":        git.Branch(),
+		"pipeline.git.revision":      revision,
+		"pipeline.git.base_revision": revision,
+	}
+
+	for k, v := range parameters {
+		vals[fmt.Sprintf("pipeline.parameters.%s", k)] = v
 	}
 
 	return vals
