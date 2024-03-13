@@ -521,7 +521,7 @@ This group of commands allows the management of polices to be verified against b
 								ConfigYaml: string(data),
 								Options: config.Options{
 									OwnerID:            ownerID,
-									PipelineValues:     pipelineValues,
+									PipelineValues:     config.LocalPipelineValues(parameters),
 									PipelineParameters: parameters,
 								},
 							},

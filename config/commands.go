@@ -82,7 +82,7 @@ func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) (response *Config
 	}
 
 	//if no orgId provided use org slug
-	values := LocalPipelineValues()
+	values := LocalPipelineValues(params)
 	if opts.VerboseOutput {
 		fmt.Fprintln(os.Stderr, "Processing config with following values:")
 		printValues(values)
@@ -126,7 +126,7 @@ func (c *ConfigCompiler) ValidateConfig(opts ValidateConfigOpts) error {
 	var response *ConfigResponse
 
 	//if no orgId provided use org slug
-	values := LocalPipelineValues()
+	values := LocalPipelineValues(nil)
 	if opts.VerboseOutput {
 		fmt.Fprintln(os.Stderr, "Validating config with following values:")
 		printValues(values)
@@ -141,7 +141,7 @@ func (c *ConfigCompiler) ValidateConfig(opts ValidateConfigOpts) error {
 		opts.ConfigPath,
 		orgID,
 		nil,
-		LocalPipelineValues(),
+		values,
 	)
 	if err != nil {
 		return err
