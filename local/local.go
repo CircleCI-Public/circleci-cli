@@ -10,10 +10,11 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/CircleCI-Public/circleci-cli/config"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
+
+	"github.com/CircleCI-Public/circleci-cli/config"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 var picardRepo = "circleci/picard"
@@ -46,13 +47,13 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
 	if strings.TrimSpace(orgID) != "" {
-		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues())
+		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues(nil))
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues())
+		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues(nil))
 		if err != nil {
 			return err
 		}
