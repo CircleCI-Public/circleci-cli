@@ -2513,7 +2513,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--skip-update-check",
-					"--host", tempSettings.TestServer.URL(),
+					"--host", "https://circleci.com",
 					"--details",
 				)
 				By("setting up a mock server")
