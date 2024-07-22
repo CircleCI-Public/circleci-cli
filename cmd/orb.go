@@ -1015,12 +1015,14 @@ func orbInfo(opts orbOptions) error {
 		}
 	}
 
-	orbVersionSplit := strings.Split(ref, "@")
-	orbRef := orbVersionSplit[0]
-	fmt.Printf(`
-Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/developer/orbs/orb/%s
-`, orbRef)
+	if opts.cfg.Host == defaultHost {
+		orbVersionSplit := strings.Split(ref, "@")
+		orbRef := orbVersionSplit[0]
+		fmt.Printf(`
+		Learn more about this orb online in the CircleCI Orb Registry:
+		https://circleci.com/developer/orbs/orb/%s
+		`, orbRef)
+	}
 
 	return nil
 }
