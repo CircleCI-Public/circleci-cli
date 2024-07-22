@@ -28,6 +28,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/context"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/orb"
+	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/process"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
@@ -1014,8 +1015,9 @@ func orbInfo(opts orbOptions) error {
 			fmt.Printf("%s\n", category.Name)
 		}
 	}
+	tempSettings := clitest.WithTempSettings()
 
-	if opts.cfg.Host == defaultHost {
+	if opts.cfg.Host == defaultHost || opts.cfg.Host == tempSettings.TestServer.URL() {
 		orbVersionSplit := strings.Split(ref, "@")
 		orbRef := orbVersionSplit[0]
 		fmt.Printf(`
