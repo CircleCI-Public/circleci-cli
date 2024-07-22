@@ -2513,7 +2513,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				command = exec.Command(pathCLI,
 					"orb", "list",
 					"--skip-update-check",
-					"--host", "https://circleci.com",
+					"--host", tempSettings.TestServer.URL(),
 					"--details",
 				)
 				By("setting up a mock server")
@@ -2584,9 +2584,6 @@ foo/test (0.7.0)
     - last30DaysOrganizationCount: 0
     - last30DaysProjectCount: 0
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
