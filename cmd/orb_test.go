@@ -3240,9 +3240,6 @@ Total-jobs: 0
 Builds: 0
 Projects: 0
 Orgs: 0
-
-Learn more about this orb online in the CircleCI Orb Registry:
-https://circleci.com/developer/orbs/orb/my/orb
 `))
 
 				Eventually(session).Should(gexec.Exit(0))
