@@ -2387,7 +2387,83 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 			})
 		})
 
-		Describe("when listing all orbs with --uncertified", func() {
+		Describe("when listing all orbs default host", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--skip-update-check",
+				)
+				By("setting up a mock server")
+
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    statistics {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
+
+				firstRequest := graphql.NewRequest(query)
+				firstRequest.Variables["after"] = ""
+				firstRequest.Variables["certifiedOnly"] = false
+
+				firstRequestEncoded, err := firstRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				secondRequest := graphql.NewRequest(query)
+				secondRequest.Variables["after"] = "test/here-we-go"
+				secondRequest.Variables["certifiedOnly"] = false
+
+				secondRequestEncoded, err := secondRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_response.json"))
+				firstResponse := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_response.json"))
+				secondResponse := string(tmpBytes)
+
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  firstRequestEncoded.String(),
+					Response: firstResponse,
+				})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  secondRequestEncoded.String(),
+					Response: secondResponse,
+				})
+			})
+
+			It("includes a link to the docs'", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
+				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"))
+			})
+		})
+
+		Describe("when listing all orbs with --uncertified and custom host", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
