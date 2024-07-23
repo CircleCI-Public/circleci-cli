@@ -2229,9 +2229,6 @@ second (0.8.0)
 third (0.9.0)
 first (0.7.0)
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -2256,9 +2253,6 @@ third (0.9.0)
 first (0.7.0)
 second (0.8.0)
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -2283,9 +2277,6 @@ second (0.8.0)
 first (0.7.0)
 third (0.9.0)
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 		})
@@ -2475,9 +2466,6 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
-
-				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
-				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
