@@ -15,7 +15,12 @@ type runnerOpts struct {
 	r running
 }
 
-func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
+func NewCommand(rootConfig *settings.Config, preRunE validator.Validator) *cobra.Command {
+	// The runner API versioning is decoupled from the other Circle APIs. Here we make a copy of the root configuration,
+	// and update the rest endpoint accordingly
+	config := *rootConfig
+	config.RestEndpoint = "/api/v3"
+
 	var opts runnerOpts
 	cmd := &cobra.Command{
 		Use:   "runner",
@@ -27,7 +32,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			} else {
 				host = config.Host
 			}
-			opts.r = runner.New(rest.NewFromConfig(host, config))
+			opts.r = runner.New(rest.NewFromConfig(host, &config))
 		},
 	}
 
