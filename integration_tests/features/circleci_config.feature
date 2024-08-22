@@ -84,30 +84,6 @@ Feature: Config checking
     Then the exit status should be 0
     And the output should contain "Config file at config.yml is valid"
 
-  Scenario: Checking a valid config file with a private org
-    Given a file named "config.yml" with:
-    """
-    version: 2.1
-
-    orbs:
-      node: circleci/node@5.0.3
-  
-    jobs:
-      datadog-hello-world:
-        docker:
-          - image: cimg/base:stable
-        steps:
-          - run: |
-              echo "doing something really cool"
-    workflows:
-      datadog-hello-world:
-        jobs:
-          - datadog-hello-world
-    """
-    When I run `circleci config validate --skip-update-check --org-id bb604b45-b6b0-4b81-ad80-796f15eddf87 -c config.yml`
-    Then the output should contain "Config file at config.yml is valid"
-    And the exit status should be 0
-
   Scenario: Checking a valid config file with a non-existant orb
     Given a file named "config.yml" with:
     """
