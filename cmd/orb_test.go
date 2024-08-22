@@ -2229,9 +2229,6 @@ second (0.8.0)
 third (0.9.0)
 first (0.7.0)
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -2256,9 +2253,6 @@ third (0.9.0)
 first (0.7.0)
 second (0.8.0)
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 
@@ -2283,9 +2277,6 @@ second (0.8.0)
 first (0.7.0)
 third (0.9.0)
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 			})
 		})
@@ -2396,7 +2387,83 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 			})
 		})
 
-		Describe("when listing all orbs with --uncertified", func() {
+		Describe("when listing all orbs default host", func() {
+			BeforeEach(func() {
+				command = exec.Command(pathCLI,
+					"orb", "list",
+					"--skip-update-check",
+				)
+				By("setting up a mock server")
+
+				query := `
+query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
+  orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
+	totalCount,
+    edges {
+		cursor
+	  node {
+	    name
+	    statistics {
+		last30DaysBuildCount,
+		last30DaysProjectCount,
+		last30DaysOrganizationCount
+	    }
+		  versions(count: 1) {
+			version,
+			source
+		  }
+		}
+	}
+    pageInfo {
+      hasNextPage
+    }
+  }
+}
+`
+
+				firstRequest := graphql.NewRequest(query)
+				firstRequest.Variables["after"] = ""
+				firstRequest.Variables["certifiedOnly"] = false
+
+				firstRequestEncoded, err := firstRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				secondRequest := graphql.NewRequest(query)
+				secondRequest.Variables["after"] = "test/here-we-go"
+				secondRequest.Variables["certifiedOnly"] = false
+
+				secondRequestEncoded, err := secondRequest.Encode()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/first_response.json"))
+				firstResponse := string(tmpBytes)
+
+				tmpBytes = golden.Get(GinkgoT(), filepath.FromSlash("gql_orb_list_uncertified/second_response.json"))
+				secondResponse := string(tmpBytes)
+
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  firstRequestEncoded.String(),
+					Response: firstResponse,
+				})
+				tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
+					Status:   http.StatusOK,
+					Request:  secondRequestEncoded.String(),
+					Response: secondResponse,
+				})
+			})
+
+			It("includes a link to the docs'", func() {
+				By("running the command")
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
+				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"))
+			})
+		})
+
+		Describe("when listing all orbs with --uncertified and custom host", func() {
 			BeforeEach(func() {
 				command = exec.Command(pathCLI,
 					"orb", "list",
@@ -2475,9 +2542,6 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				Eventually(session.Out).Should(gbytes.Say("circleci/codecov-clojure \\(0.0.4\\)"))
 				// Include an orb with contents from the second mocked response
 				Eventually(session.Out).Should(gbytes.Say("zzak/test4 \\(0.1.0\\)"))
-
-				Eventually(session.Out).Should(gbytes.Say("In order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`"))
-				Eventually(session.Out).Should(gbytes.Say("Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/"))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(2))
 			})
 
@@ -2584,9 +2648,6 @@ foo/test (0.7.0)
     - last30DaysOrganizationCount: 0
     - last30DaysProjectCount: 0
 
-In order to see more details about each orb, type: ` + "`circleci orb info orb-namespace/orb-name`" + `
-
-Search, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/
 `))
 				Eventually(session).Should(gexec.Exit(0))
 				Expect(tempSettings.TestServer.ReceivedRequests()).Should(HaveLen(1))
