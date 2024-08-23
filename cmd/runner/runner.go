@@ -15,24 +15,22 @@ type runnerOpts struct {
 	r running
 }
 
-func NewCommand(rootConfig *settings.Config, preRunE validator.Validator) *cobra.Command {
-	// The runner API versioning is decoupled from the other Circle APIs. Here we make a copy of the root configuration,
-	// and update the rest endpoint accordingly
-	config := *rootConfig
-	config.RestEndpoint = "/api/v3"
-
+func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
 	var opts runnerOpts
 	cmd := &cobra.Command{
 		Use:   "runner",
 		Short: "Operate on runners",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// The runner API versioning is decoupled from the other Circle APIs. Here we update the rest endpoint accordingly
+			config.RestEndpoint = "/api/v3"
+
 			var host string
 			if strings.Contains(config.Host, "https://circleci.com") {
 				host = "https://runner.circleci.com"
 			} else {
 				host = config.Host
 			}
-			opts.r = runner.New(rest.NewFromConfig(host, &config))
+			opts.r = runner.New(rest.NewFromConfig(host, config))
 		},
 	}
 
