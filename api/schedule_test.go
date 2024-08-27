@@ -28,8 +28,9 @@ func mockSchedule() Schedule {
 			Login: "test-actor",
 			Name:  "T. Actor",
 		},
-		Parameters: map[string]string{
+		Parameters: map[string]interface{}{
 			"test": "parameter",
+			"bool": true,
 		},
 	}
 }
