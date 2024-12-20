@@ -3,3 +3,6 @@ Usage:
 
 Aliases:
   list, ls
+
+Flags:
+      --json             Return output back in JSON format

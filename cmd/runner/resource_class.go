@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"io"
 
 	"github.com/olekukonko/tablewriter"
@@ -28,6 +29,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		return nil
 	}
 
+	jsonFormat := false
 	genToken := false
 	createCmd := &cobra.Command{
 		Use:     "create <resource-class> <description>",
@@ -41,21 +43,48 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 			if err != nil {
 				return err
 			}
-			table := newResourceClassTable(cmd.OutOrStdout())
-			defer table.Render()
-			appendResourceClass(table, *rc)
 
-			if !genToken {
-				return nil
+			var token *runner.Token
+			if genToken {
+				token, err = o.r.CreateToken(args[0], "default")
+				if err != nil {
+					return err
+				}
 			}
 
-			token, err := o.r.CreateToken(args[0], "default")
-			if err != nil {
-				return err
+			if jsonFormat && !genToken {
+				// return JSON formatted output for resource-class (without generated token)
+				jsonRc, err := json.Marshal(rc)
+				if err != nil {
+					return err
+				}
+				jsonWriter := cmd.OutOrStdout()
+				jsonWriter.Write(jsonRc)
+			} else if jsonFormat && genToken {
+				// return JSON formatted output for token since it contains enough related resource-class info
+				jsonToken, err := json.Marshal(token)
+				if err != nil {
+					return err
+				}
+				jsonWriter := cmd.OutOrStdout()
+				jsonWriter.Write(jsonToken)
+			} else {
+				// return default ASCII table format for output
+				table := newResourceClassTable(cmd.OutOrStdout())
+				defer table.Render()
+				appendResourceClass(table, *rc)
+
+				// check to conditionally return YAML formatted resource-class token
+				if genToken {
+					return generateConfig(*token, cmd.OutOrStdout())
+				}
 			}
-			return generateConfig(*token, cmd.OutOrStdout())
+
+			return nil
 		},
 	}
+	createCmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return stdout output in JSON format.")
 	createCmd.PersistentFlags().BoolVar(&genToken, "generate-token", false,
 		"Generate a default token")
 	cmd.AddCommand(createCmd)
@@ -79,7 +108,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		"Delete resource-class and any associated tokens")
 	cmd.AddCommand(deleteCmd)
 
-	cmd.AddCommand(&cobra.Command{
+	listCmd := &cobra.Command{
 		Use:     "list <namespace>",
 		Short:   "List resource-classes for a namespace",
 		Aliases: []string{"ls"},
@@ -91,15 +120,29 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 				return err
 			}
 
-			table := newResourceClassTable(cmd.OutOrStdout())
-			defer table.Render()
-			for _, rc := range rcs {
-				appendResourceClass(table, rc)
+			if jsonFormat {
+				// return JSON formatted for output
+				jsonRcs, err := json.Marshal(rcs)
+				if err != nil {
+					return err
+				}
+				jsonWriter := cmd.OutOrStdout()
+				jsonWriter.Write(jsonRcs)
+			} else {
+				// return default ASCII table format for output
+				table := newResourceClassTable(cmd.OutOrStdout())
+				defer table.Render()
+				for _, rc := range rcs {
+					appendResourceClass(table, rc)
+				}
 			}
 
 			return nil
 		},
-	})
+	}
+	listCmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return stdout output in JSON format.")
+	cmd.AddCommand(listCmd)
 
 	return cmd
 }
