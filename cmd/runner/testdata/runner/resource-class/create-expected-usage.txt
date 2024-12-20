@@ -3,3 +3,4 @@ Usage:
 
 Flags:
       --generate-token   Generate a default token
+      --json             Return output back in JSON format

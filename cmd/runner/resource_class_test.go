@@ -47,6 +47,31 @@ func Test_ResourceClass(t *testing.T) {
 			assert.Check(t, cmp.Contains(stderr.String(), terms))
 		})
 
+		t.Run("without default token and json", func(t *testing.T) {
+			defer runner.reset()
+			defer stdout.Reset()
+			defer stderr.Reset()
+
+			cmd.SetArgs([]string{
+				"create",
+				"my-namespace/my-resource-class",
+				"my-description",
+				"--json",
+			})
+
+			err := cmd.Execute()
+			assert.NilError(t, err)
+
+			assert.Check(t, cmp.Equal(len(runner.resourceClasses), 1))
+			assert.Check(t, cmp.Equal(runner.resourceClasses[0].ResourceClass, "my-namespace/my-resource-class"))
+			assert.Check(t, cmp.Equal(runner.resourceClasses[0].Description, "my-description"))
+			assert.Check(t, cmp.Contains(stdout.String(), "my-namespace/my-resource-class"))
+
+			assert.Check(t, cmp.Equal(len(runner.tokens), 0))
+
+			assert.Check(t, cmp.Contains(stderr.String(), terms))
+		})
+
 		t.Run("with default token", func(t *testing.T) {
 			defer runner.reset()
 			defer stdout.Reset()
@@ -57,6 +82,36 @@ func Test_ResourceClass(t *testing.T) {
 				"my-namespace/my-other-resource-class",
 				"my-description",
 				"--generate-token",
+			})
+
+			err := cmd.Execute()
+			assert.NilError(t, err)
+			out := stdout.String()
+
+			assert.Check(t, cmp.Equal(len(runner.resourceClasses), 1))
+			assert.Check(t, cmp.Equal(runner.resourceClasses[0].ResourceClass, "my-namespace/my-other-resource-class"))
+			assert.Check(t, cmp.Equal(runner.resourceClasses[0].Description, "my-description"))
+			assert.Check(t, cmp.Contains(out, "my-namespace/my-other-resource-class"))
+
+			assert.Check(t, cmp.Equal(len(runner.tokens), 1))
+			assert.Check(t, cmp.Equal(runner.tokens[0].ResourceClass, "my-namespace/my-other-resource-class"))
+			assert.Check(t, cmp.Equal(runner.tokens[0].Nickname, "default"))
+			assert.Check(t, cmp.Contains(out, "fake-token"))
+
+			assert.Check(t, cmp.Contains(stderr.String(), terms))
+		})
+
+		t.Run("with default token and json", func(t *testing.T) {
+			defer runner.reset()
+			defer stdout.Reset()
+			defer stderr.Reset()
+
+			cmd.SetArgs([]string{
+				"create",
+				"my-namespace/my-other-resource-class",
+				"my-description",
+				"--generate-token",
+				"--json",
 			})
 
 			err := cmd.Execute()
