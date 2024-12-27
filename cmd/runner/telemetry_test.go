@@ -55,6 +55,7 @@ func Test_RunnerTelemetry(t *testing.T) {
 				LocalArgs: map[string]string{
 					"generate-token": "true",
 					"help":           "false",
+					"json":           "false",
 				},
 			}),
 		})

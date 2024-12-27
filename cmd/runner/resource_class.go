@@ -84,7 +84,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		},
 	}
 	createCmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
-		"Return stdout output in JSON format.")
+		"Return output back in JSON format")
 	createCmd.PersistentFlags().BoolVar(&genToken, "generate-token", false,
 		"Generate a default token")
 	cmd.AddCommand(createCmd)
@@ -141,7 +141,7 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 		},
 	}
 	listCmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
-		"Return stdout output in JSON format.")
+		"Return output back in JSON format")
 	cmd.AddCommand(listCmd)
 
 	return cmd
