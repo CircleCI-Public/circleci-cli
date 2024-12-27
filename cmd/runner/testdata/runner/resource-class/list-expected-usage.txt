@@ -1,8 +1,8 @@
 Usage:
-  runner resource-class list <namespace>
+  runner resource-class list <namespace> [flags]
 
 Aliases:
   list, ls
 
 Flags:
-      --json             Return output back in JSON format
+      --json   Return output back in JSON format

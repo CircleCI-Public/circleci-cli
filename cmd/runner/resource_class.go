@@ -59,7 +59,9 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 					return err
 				}
 				jsonWriter := cmd.OutOrStdout()
-				jsonWriter.Write(jsonRc)
+				if _, err := jsonWriter.Write(jsonRc); err != nil {
+					return err
+				}
 			} else if jsonFormat && genToken {
 				// return JSON formatted output for token since it contains enough related resource-class info
 				jsonToken, err := json.Marshal(token)
@@ -67,7 +69,9 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 					return err
 				}
 				jsonWriter := cmd.OutOrStdout()
-				jsonWriter.Write(jsonToken)
+				if _, err := jsonWriter.Write(jsonToken); err != nil {
+					return err
+				}
 			} else {
 				// return default ASCII table format for output
 				table := newResourceClassTable(cmd.OutOrStdout())
@@ -127,7 +131,9 @@ func newResourceClassCommand(o *runnerOpts, preRunE validator.Validator) *cobra.
 					return err
 				}
 				jsonWriter := cmd.OutOrStdout()
-				jsonWriter.Write(jsonRcs)
+				if _, err := jsonWriter.Write(jsonRcs); err != nil {
+					return err
+				}
 			} else {
 				// return default ASCII table format for output
 				table := newResourceClassTable(cmd.OutOrStdout())

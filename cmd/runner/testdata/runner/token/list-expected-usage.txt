@@ -1,5 +1,5 @@
 Usage:
-  runner token list <resource-class> [flags]
+  runner token list <resource-class>
 
 Aliases:
   list, ls
