@@ -1437,7 +1437,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
-					l.Printf(errors.Wrapf(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version).Error())
+					l.Printf("%s", errors.Wrap(err, fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version)).Error())
 					continue Orbs
 				}
 
@@ -1606,7 +1606,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
-					l.Printf(errors.Wrapf(err, "Corrupt Orb %s %s", edge.Node.Name, v.Version).Error())
+					l.Printf("%s", errors.Wrap(err, fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version)).Error())
 					continue NamespaceOrbs
 				}
 			} else {

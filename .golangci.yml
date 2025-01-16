@@ -1,10 +1,9 @@
 ---
 service:
-  golangci-lint-version: 1.46.x
+  golangci-lint-version: 1.63.x
 
 linters:
   enable:
-    - deadcode
     - errcheck
     - goconst
     - gofmt
@@ -18,12 +17,10 @@ linters:
     - nakedret
     # - revive
     - staticcheck
-    - structcheck
     - typecheck
     - unconvert
     # - unparam
     - unused
-    - varcheck
     - vet
     - vetshadow
 
