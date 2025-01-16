@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -56,25 +55,6 @@ func diagnostic(opts diagnosticOptions) error {
 	}
 
 	fmt.Println("OK, got a token.")
-
-	fmt.Println("Trying an introspection query on API... ")
-
-	responseIntro, err := api.IntrospectionQuery(opts.cl)
-	if responseIntro.Schema.QueryType.Name == "" {
-		fmt.Println("Unable to make a query against the GraphQL API, please check your settings")
-		if err != nil {
-			return err
-		}
-	}
-
-	fmt.Println("Ok.")
-
-	if opts.cfg.Debug {
-		_, err = fmt.Fprintf(os.Stderr, "Introspection query result with Schema.QueryType of %s", responseIntro.Schema.QueryType.Name)
-		if err != nil {
-			return err
-		}
-	}
 
 	responseWho, err := api.WhoamiQuery(opts.cl)
 
