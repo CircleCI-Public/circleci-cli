@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -12,7 +11,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	"gotest.tools/v3/golden"
 )
 
 var _ = Describe("Setup with prompts", func() {
@@ -45,43 +43,10 @@ var _ = Describe("Setup with prompts", func() {
 
 	Context("with happy diagnostic responses", func() {
 		BeforeEach(func() {
-			query := `query IntrospectionQuery {
-		    __schema {
-		      queryType { name }
-		      mutationType { name }
-		      types {
-		        ...FullType
-		      }
-		    }
-		  }
-
-		  fragment FullType on __Type {
-		    kind
-		    name
-		    description
-		    fields(includeDeprecated: true) {
-		      name
-		    }
-		  }`
-
+			query := `query { me { name } }`
 			request := graphql.NewRequest(query)
-			expected, err := request.Encode()
-			Expect(err).ShouldNot(HaveOccurred())
-
-			tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("diagnostic/response.json"))
-			mockResponse := string(tmpBytes)
-
-			tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
-				Status:   http.StatusOK,
-				Request:  expected.String(),
-				Response: mockResponse})
-
-			// Here we want to actually validate the token in our test too
-			query = `query { me { name } }`
-			request = graphql.NewRequest(query)
 			request.SetToken(token)
-			Expect(err).ShouldNot(HaveOccurred())
-			expected, err = request.Encode()
+			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
 			response := `{ "me": { "name": "zomg" } }`
@@ -134,7 +99,6 @@ Do you want to reset the endpoint? (default: graphql-unstable)
 Setup complete.
 Your configuration has been saved to %s.
 
-Trying an introspection query on API to verify your setup... Ok.
 Trying to query our API for your profile name... Hello, %s.
 `, tempSettings.Config.Path, `zomg`)))
 
@@ -164,7 +128,6 @@ Do you want to reset the endpoint? (default: graphql-unstable)
 Setup complete.
 Your configuration has been saved to %s.
 
-Trying an introspection query on API to verify your setup... Ok.
 Trying to query our API for your profile name... Hello, %s.
 `, tempSettings.Config.Path, `zomg`)))
 
@@ -176,119 +139,13 @@ token: %s
 		})
 	})
 
-	Context("when introspection query returns an error", func() {
-		BeforeEach(func() {
-			query := `query IntrospectionQuery {
-		    __schema {
-		      queryType { name }
-		      mutationType { name }
-		      types {
-		        ...FullType
-		      }
-		    }
-		  }
-
-		  fragment FullType on __Type {
-		    kind
-		    name
-		    description
-		    fields(includeDeprecated: true) {
-		      name
-		    }
-		  }`
-
-			request := graphql.NewRequest(query)
-			expected, err := request.Encode()
-			Expect(err).ShouldNot(HaveOccurred())
-
-			tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
-				Status:   http.StatusInternalServerError,
-				Request:  expected.String(),
-				Response: "{}"})
-
-			// Here we want to actually validate the token in our test too
-			query = `query { me { name } }`
-			request = graphql.NewRequest(query)
-			request.SetToken(token)
-			Expect(err).ShouldNot(HaveOccurred())
-			expected, err = request.Encode()
-			Expect(err).ShouldNot(HaveOccurred())
-
-			response := `{ "me": { "name": "zomg" } }`
-
-			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-				Status:   http.StatusOK,
-				Request:  expected.String(),
-				Response: response})
-		})
-
-		It("should show an error", func() {
-			opts.tty = setupTestUI{
-				host:            tempSettings.TestServer.URL(),
-				token:           token,
-				confirmEndpoint: true,
-				confirmToken:    true,
-			}
-
-			output := clitest.WithCapturedOutput(func() {
-				err := setup(opts)
-				Expect(err).ShouldNot(HaveOccurred())
-			})
-
-			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token
-API token has been set.
-CircleCI Host
-CircleCI host has been set.
-Do you want to reset the endpoint? (default: graphql-unstable)
-Setup complete.
-Your configuration has been saved to %s.
-
-Trying an introspection query on API to verify your setup... 
-Unable to make a query against the GraphQL API, please check your settings.
-Trying to query our API for your profile name... Hello, %s.
-`, tempSettings.Config.Path, `zomg`)))
-		})
-	})
-
 	Context("when whoami query returns an auth error", func() {
 		BeforeEach(func() {
-			query := `query IntrospectionQuery {
-		    __schema {
-		      queryType { name }
-		      mutationType { name }
-		      types {
-		        ...FullType
-		      }
-		    }
-		  }
-
-		  fragment FullType on __Type {
-		    kind
-		    name
-		    description
-		    fields(includeDeprecated: true) {
-		      name
-		    }
-		  }`
-
-			request := graphql.NewRequest(query)
-			expected, err := request.Encode()
-			Expect(err).ShouldNot(HaveOccurred())
-
-			tmpBytes := golden.Get(GinkgoT(), filepath.FromSlash("diagnostic/response.json"))
-			mockResponse := string(tmpBytes)
-
-			tempSettings.AppendPostHandler("", clitest.MockRequestResponse{
-				Status:   http.StatusOK,
-				Request:  expected.String(),
-				Response: mockResponse})
-
 			// Here we want to actually validate the token in our test too
-			query = `query { me { name } }`
-			request = graphql.NewRequest(query)
+			query := `query { me { name } }`
+			request := graphql.NewRequest(query)
 			request.SetToken(token)
-			Expect(err).ShouldNot(HaveOccurred())
-			expected, err = request.Encode()
+			expected, err := request.Encode()
 			Expect(err).ShouldNot(HaveOccurred())
 
 			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
@@ -318,7 +175,6 @@ Do you want to reset the endpoint? (default: graphql-unstable)
 Setup complete.
 Your configuration has been saved to %s.
 
-Trying an introspection query on API to verify your setup... Ok.
 Trying to query our API for your profile name... 
 Unable to query our API for your profile name, please check your settings.
 `, tempSettings.Config.Path)))
