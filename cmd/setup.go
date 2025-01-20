@@ -204,14 +204,6 @@ func setupDiagnosticCheck(opts setupOptions) {
 	opts.cl.Reset(opts.cfg.Host, opts.cfg.Endpoint, opts.cfg.Token, opts.cfg.Debug)
 
 	fmt.Printf("\n")
-	fmt.Printf("Trying an introspection query on API to verify your setup... ")
-
-	responseIntro, err := api.IntrospectionQuery(opts.cl)
-	if err != nil || responseIntro.Schema.QueryType.Name == "" {
-		fmt.Println("\nUnable to make a query against the GraphQL API, please check your settings.")
-	} else {
-		fmt.Println("Ok.")
-	}
 
 	fmt.Printf("Trying to query our API for your profile name... ")
 	responseWho, err := api.WhoamiQuery(opts.cl)

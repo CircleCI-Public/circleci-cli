@@ -237,7 +237,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	defer func() {
 		responseBodyCloseErr := res.Body.Close()
 		if responseBodyCloseErr != nil {
-			l.Printf(responseBodyCloseErr.Error())
+			l.Printf("%s", responseBodyCloseErr.Error())
 		}
 	}()
 
