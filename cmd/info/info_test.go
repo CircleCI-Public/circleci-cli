@@ -94,7 +94,7 @@ func TestFailedValidator(t *testing.T) {
 
 	// Test command
 	cmd, _, _ := scaffoldCMD(server.URL, func(_ *cobra.Command, _ []string) error {
-		return fmt.Errorf(errorMessage)
+		return fmt.Errorf("%s", errorMessage)
 	})
 	args := []string{
 		"org",

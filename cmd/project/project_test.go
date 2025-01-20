@@ -104,7 +104,7 @@ func TestListSecretsErrorWithValidator(t *testing.T) {
 	cmd, _, _ := scaffoldCMD(
 		server.URL,
 		func(_ *cobra.Command, _ []string) error {
-			return fmt.Errorf(errorMsg)
+			return fmt.Errorf("%s", errorMsg)
 		},
 	)
 	cmd.SetArgs(getListProjectsArg())

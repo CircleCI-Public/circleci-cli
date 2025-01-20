@@ -54,7 +54,7 @@ func TestDoJSON(t *testing.T) {
 
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 
 		if string(b) != `{"query":"query {}","variables":null}`+"\n" {
@@ -67,7 +67,7 @@ func TestDoJSON(t *testing.T) {
 			}
 		}`)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 	defer srv.Close()
@@ -79,7 +79,7 @@ func TestDoJSON(t *testing.T) {
 	}
 	err := client.Run(&Request{Query: "query {}"}, &resp)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	if calls != 1 {
@@ -97,14 +97,14 @@ func TestQueryJSON(t *testing.T) {
 		calls++
 		b, err := io.ReadAll(r.Body)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 		if string(b) != `{"query":"query {}","variables":{"username":"matryer"}}`+"\n" {
 			t.Errorf("expected %s", b)
 		}
 		_, err = io.WriteString(w, `{"data":{"value":"some data"}}`)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 	defer srv.Close()
@@ -128,7 +128,7 @@ func TestQueryJSON(t *testing.T) {
 	}
 	err := client.Run(req, &resp)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	if calls != 1 {
@@ -147,7 +147,7 @@ func TestDoJSONErr(t *testing.T) {
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 
 		if string(body) != `{"query":"query {}","variables":null}`+"\n" {
@@ -166,7 +166,7 @@ func TestDoJSONErr(t *testing.T) {
 				]
 			}`)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 
@@ -178,7 +178,7 @@ func TestDoJSONErr(t *testing.T) {
 
 	err := client.Run(&Request{Query: "query {}"}, &responseData)
 	if err.Error() != "Something went wrong\nSomething else went wrong" {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 }
 
@@ -192,7 +192,7 @@ func TestHeader(t *testing.T) {
 
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 	defer srv.Close()
@@ -207,7 +207,7 @@ func TestHeader(t *testing.T) {
 	}
 	err := client.Run(req, &resp)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	if calls != 1 {
@@ -228,7 +228,7 @@ func TestStatusCode200(t *testing.T) {
 
 		_, err := io.WriteString(w, `{"data":{"value":"some data"}}`)
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 	defer srv.Close()
@@ -241,7 +241,7 @@ func TestStatusCode200(t *testing.T) {
 
 	err := client.Run(req, &resp)
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Errorf("%s", err.Error())
 	}
 
 	if calls != 1 {
@@ -258,7 +258,7 @@ func TestStatusCode500(t *testing.T) {
 
 		_, err := io.WriteString(w, "some: data")
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 	defer srv.Close()
@@ -292,7 +292,7 @@ func TestStatusCode413(t *testing.T) {
 
 		_, err := io.WriteString(w, "some: data")
 		if err != nil {
-			t.Errorf(err.Error())
+			t.Errorf("%s", err.Error())
 		}
 	}))
 	defer srv.Close()
