@@ -34,6 +34,7 @@ func LocalPipelineValues(parameters Parameters) Values {
 	vals := map[string]interface{}{
 		"pipeline.id":                                                "00000000-0000-0000-0000-000000000001",
 		"pipeline.number":                                            1,
+		"pipeline.name":											  "",
 		"pipeline.project.git_url":                                   gitUrl,
 		"pipeline.project.type":                                      projectType,
 		"pipeline.git.tag":                                           git.Tag(),
@@ -41,6 +42,18 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.git.revision":                                      revision,
 		"pipeline.git.base_revision":                                 revision,
 		"pipeline.git.branch.is_default":                             false,
+		"pipeline.git.commit.author_avatar_url":                      "",
+		"pipeline.git.commit.author_email":                           "",
+		"pipeline.git.commit.author_login":                           "",
+		"pipeline.git.commit.author_name":                            "",
+		"pipeline.git.commit.body":                                   "",
+		"pipeline.git.commit.subject":                                "",
+		"pipeline.git.commit.url":                                    "",
+		"pipeline.git.repo_id":                                       "",
+		"pipeline.git.repo_name":                                     "",
+		"pipeline.git.repo_owner":                                    "",
+		"pipeline.git.repo_url":                                      gitUrl,
+		"pipeline.git.ssh_checkout_url":                              "",
 		"pipeline.trigger_parameters.circleci.event_time":            "2020-01-01T00:00:00Z",
 		"pipeline.trigger_parameters.webhook.body":                   "",
 		"pipeline.trigger_parameters.github_app.branch":              "main",
@@ -63,6 +76,12 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.trigger_parameters.gitlab.default_branch":          "main",
 		"pipeline.trigger_parameters.gitlab.x_gitlab_event_id":       "00000000-0000-0000-0000-000000000001",
 		"pipeline.trigger_parameters.gitlab.is_fork_merge_request":   false,
+		"pipeline.trigger.type":                                      "",
+        "pipeline.trigger.id":                                        "00000000-0000-0000-0000-000000000001",
+        "pipeline.trigger.name":                                      "",
+        "pipeline.trigger.type":                                      "",
+        "pipeline.event.name":                                        "",
+        "pipeline.event.action":                                      "",
 	}
 
 	for k, v := range parameters {
@@ -71,3 +90,4 @@ func LocalPipelineValues(parameters Parameters) Values {
 
 	return vals
 }
+
