@@ -34,7 +34,7 @@ func LocalPipelineValues(parameters Parameters) Values {
 	vals := map[string]interface{}{
 		"pipeline.id":                                                "00000000-0000-0000-0000-000000000001",
 		"pipeline.number":                                            1,
-		"pipeline.name":											  "",
+		"pipeline.name":                                              "",
 		"pipeline.project.git_url":                                   gitUrl,
 		"pipeline.project.type":                                      projectType,
 		"pipeline.git.tag":                                           git.Tag(),
@@ -77,11 +77,10 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.trigger_parameters.gitlab.x_gitlab_event_id":       "00000000-0000-0000-0000-000000000001",
 		"pipeline.trigger_parameters.gitlab.is_fork_merge_request":   false,
 		"pipeline.trigger.type":                                      "",
-        "pipeline.trigger.id":                                        "00000000-0000-0000-0000-000000000001",
-        "pipeline.trigger.name":                                      "",
-        "pipeline.trigger.type":                                      "",
-        "pipeline.event.name":                                        "",
-        "pipeline.event.action":                                      "",
+		"pipeline.trigger.id":                                        "00000000-0000-0000-0000-000000000001",
+		"pipeline.trigger.name":                                      "",
+		"pipeline.event.name":                                        "",
+		"pipeline.event.action":                                      "",
 	}
 
 	for k, v := range parameters {
@@ -90,4 +89,3 @@ func LocalPipelineValues(parameters Parameters) Values {
 
 	return vals
 }
-
