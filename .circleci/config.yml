@@ -265,25 +265,6 @@ jobs:
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
 
-  brew-deploy:
-    executor: mac
-    environment:
-      USER: circleci
-      TRAVIS: circleci
-      DESTDIR: /Users/distiller/dest
-    steps:
-      - checkout
-      - force-http-1
-      - run: |
-          mkdir $DESTDIR
-          curl -fLSs https://circle.ci/cli | DESTDIR="$DESTDIR" bash
-      - run: |
-          git config --global user.email "$GH_EMAIL" > /dev/null 2>&1
-          git config --global user.name "$GH_NAME" > /dev/null 2>&1
-      - run: brew --version
-      - run: brew tap --force homebrew/core
-      - run: ./.circleci/brew-deploy.sh
-
   chocolatey-deploy:
     executor: windows/default
     steps:
@@ -368,16 +349,6 @@ workflows:
       - chocolatey-deploy:
           requires:
             - deploy
-      # Only deploy to homebrew after manual approval.
-      - run-brew-deploy-gate:
-          type: approval
-          requires:
-            - deploy
-      - brew-deploy:
-          requires:
-            - run-brew-deploy-gate
-          context:
-            - devex-release
       - deploy:
           requires:
             - cucumber
