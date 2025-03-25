@@ -103,7 +103,7 @@ are injected at runtime.`,
 	listCommand.Flags().StringVar(&orgID, "org-id", "", orgIDUsage)
 
 	showContextCommand := &cobra.Command{
-		Short:   "Show a context",
+		Short:   "Show a list of all environment variables stored in a context.",
 		Use:     "show --org-id <org-id> <context-name>",
 		PreRunE: initClient,
 		RunE: func(cmd *cobra.Command, args []string) error {
