@@ -621,7 +621,7 @@ func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, err
 		}
 	}
 
-	if !opts.private {
+	if !opts.private && opts.cfg.Host == defaultHost {
 		b.WriteString("\nIn order to see more details about each orb, type: `circleci orb info orb-namespace/orb-name`\n")
 		b.WriteString("\nSearch, filter, and view sources for all Orbs online at https://circleci.com/developer/orbs/")
 	}

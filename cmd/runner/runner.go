@@ -21,6 +21,9 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 		Use:   "runner",
 		Short: "Operate on runners",
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			// The runner API versioning is decoupled from the other Circle APIs. Here we update the rest endpoint accordingly
+			config.RestEndpoint = "/api/v3"
+
 			var host string
 			if strings.Contains(config.Host, "https://circleci.com") {
 				host = "https://runner.circleci.com"
