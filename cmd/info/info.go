@@ -1,6 +1,8 @@
 package info
 
 import (
+	"encoding/json"
+
 	"github.com/CircleCI-Public/circleci-cli/api/info"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -20,6 +22,8 @@ type infoOptions struct {
 func NewInfoCommand(config *settings.Config, preRunE validator.Validator) *cobra.Command {
 	client, _ := info.NewInfoClient(*config)
 
+	jsonFormat := false
+
 	opts := infoOptions{
 		cfg:       config,
 		validator: preRunE,
@@ -29,6 +33,8 @@ func NewInfoCommand(config *settings.Config, preRunE validator.Validator) *cobra
 		Short: "Check information associated to your user account.",
 	}
 	orgInfoCmd := orgInfoCommand(client, opts)
+	orgInfoCmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return output back in JSON format")
 	infoCommand.AddCommand(orgInfoCmd)
 
 	return infoCommand
@@ -63,15 +69,33 @@ func getOrgInformation(cmd *cobra.Command, client info.InfoClient) error {
 		return err
 	}
 
-	table := tablewriter.NewWriter(cmd.OutOrStdout())
-
-	table.SetHeader([]string{"ID", "Name"})
-
-	for _, info := range *resp {
-		table.Append([]string{
-			info.ID, info.Name,
-		})
+	jsonVal, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		return err
 	}
-	table.Render()
+
+	if jsonVal {
+		// return JSON formatted for output
+		jsonResp, err := json.Marshal(resp)
+		if err != nil {
+			return err
+		}
+		jsonWriter := cmd.OutOrStdout()
+		if _, err := jsonWriter.Write(jsonResp); err != nil {
+			return err
+		}
+	} else {
+		table := tablewriter.NewWriter(cmd.OutOrStdout())
+
+		table.SetHeader([]string{"ID", "Name"})
+
+		for _, info := range *resp {
+			table.Append([]string{
+				info.ID, info.Name,
+			})
+		}
+		table.Render()
+	}
+
 	return nil
 }

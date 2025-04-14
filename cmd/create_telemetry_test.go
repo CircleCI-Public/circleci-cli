@@ -60,12 +60,14 @@ func TestLoadTelemetrySettings(t *testing.T) {
 					UniqueID:          uniqueId,
 				},
 				telemetryEvents: []telemetry.Event{
-					{Object: "cli-telemetry", Action: "enabled",
+					{
+						Object: "cli-telemetry", Action: "enabled",
 						Properties: map[string]interface{}{
 							"UUID":           uniqueId,
 							"user_id":        userId,
 							"is_self_hosted": false,
-						}},
+						},
+					},
 				},
 			},
 		},
