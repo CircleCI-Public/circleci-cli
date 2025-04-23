@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"io"
 	"time"
 
@@ -17,6 +18,8 @@ func newRunnerInstanceCommand(o *runnerOpts, preRunE validator.Validator) *cobra
 		Use:   "instance",
 		Short: "Operate on runner instances",
 	}
+
+	jsonFormat := false
 
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list <namespace or resource-class>",
@@ -42,15 +45,30 @@ func newRunnerInstanceCommand(o *runnerOpts, preRunE validator.Validator) *cobra
 				return err
 			}
 
-			table := newRunnerInstanceTable(cmd.OutOrStdout())
-			defer table.Render()
-			for _, r := range runners {
-				appendRunnerInstance(table, r)
+			if jsonFormat {
+				// return JSON formatted for output
+				jsonRunners, err := json.Marshal(runners)
+				if err != nil {
+					return err
+				}
+				jsonWriter := cmd.OutOrStdout()
+				if _, err := jsonWriter.Write(jsonRunners); err != nil {
+					return err
+				}
+			} else {
+				table := newRunnerInstanceTable(cmd.OutOrStdout())
+				defer table.Render()
+				for _, r := range runners {
+					appendRunnerInstance(table, r)
+				}
 			}
 
 			return nil
 		},
 	})
+
+	cmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return output back in JSON format")
 
 	return cmd
 }

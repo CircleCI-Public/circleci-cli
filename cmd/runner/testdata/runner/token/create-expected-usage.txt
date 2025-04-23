@@ -1,2 +1,5 @@
 Usage:
-  runner token create <resource-class> <nickname>
+  runner token create <resource-class> <nickname> [flags]
+
+Global Flags:
+      --json   Return output back in JSON format

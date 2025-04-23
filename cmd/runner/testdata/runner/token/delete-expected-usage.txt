@@ -1,5 +1,8 @@
 Usage:
-  runner token delete <token-id>
+  runner token delete <token-id> [flags]
 
 Aliases:
   delete, rm
+
+Global Flags:
+      --json   Return output back in JSON format

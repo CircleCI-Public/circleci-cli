@@ -1,6 +1,7 @@
 package project
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -15,6 +16,8 @@ func newProjectEnvironmentVariableCommand(ops *projectOpts, preRunE validator.Va
 		Use:   "secret",
 		Short: "Operate on environment variables of projects",
 	}
+
+	jsonFormat := false
 
 	listVarsCommand := &cobra.Command{
 		Short:   "List all environment variables of a project",
@@ -39,6 +42,11 @@ func newProjectEnvironmentVariableCommand(ops *projectOpts, preRunE validator.Va
 
 	createVarCommand.Flags().StringVar(&envValue, "env-value", "", "An environment variable value to be created. You can also pass it by stdin without this option.")
 
+	listVarsCommand.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return output back in JSON format")
+	createVarCommand.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return output back in JSON format")
+
 	cmd.AddCommand(listVarsCommand)
 	cmd.AddCommand(createVarCommand)
 	return cmd
@@ -50,14 +58,31 @@ func listProjectEnvironmentVariables(cmd *cobra.Command, client projectapi.Proje
 		return err
 	}
 
-	table := tablewriter.NewWriter(cmd.OutOrStdout())
-
-	table.SetHeader([]string{"Environment Variable", "Value"})
-
-	for _, envVar := range envVars {
-		table.Append([]string{envVar.Name, envVar.Value})
+	jsonVal, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		return err
 	}
-	table.Render()
+
+	if jsonVal {
+		// return JSON formatted for output
+		jsonEnvVars, err := json.Marshal(envVars)
+		if err != nil {
+			return err
+		}
+		jsonWriter := cmd.OutOrStdout()
+		if _, err := jsonWriter.Write(jsonEnvVars); err != nil {
+			return err
+		}
+	} else {
+		table := tablewriter.NewWriter(cmd.OutOrStdout())
+
+		table.SetHeader([]string{"Environment Variable", "Value"})
+
+		for _, envVar := range envVars {
+			table.Append([]string{envVar.Name, envVar.Value})
+		}
+		table.Render()
+	}
 
 	return nil
 }
@@ -95,11 +120,28 @@ func createProjectEnvironmentVariable(cmd *cobra.Command, client projectapi.Proj
 		return err
 	}
 
-	table := tablewriter.NewWriter(cmd.OutOrStdout())
+	jsonVal, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		return err
+	}
 
-	table.SetHeader([]string{"Environment Variable", "Value"})
-	table.Append([]string{v.Name, v.Value})
-	table.Render()
+	if jsonVal {
+		// return JSON formatted for output
+		jsonV, err := json.Marshal(v)
+		if err != nil {
+			return err
+		}
+		jsonWriter := cmd.OutOrStdout()
+		if _, err := jsonWriter.Write(jsonV); err != nil {
+			return err
+		}
+	} else {
+		table := tablewriter.NewWriter(cmd.OutOrStdout())
+
+		table.SetHeader([]string{"Environment Variable", "Value"})
+		table.Append([]string{v.Name, v.Value})
+		table.Render()
+	}
 
 	return nil
 }

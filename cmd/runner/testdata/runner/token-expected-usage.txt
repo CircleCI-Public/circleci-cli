@@ -6,4 +6,7 @@ Available Commands:
   delete      Delete a token
   list        List tokens for a resource-class
 
+Flags:
+      --json   Return output back in JSON format
+
 Use "runner token [command] --help" for more information about a command.

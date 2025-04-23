@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -67,6 +68,8 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 		return validateToken(config)
 	}
 
+	jsonFormat := false
+
 	command := &cobra.Command{
 		Use: "context",
 		Long: `Contexts provide a mechanism for securing and sharing environment variables across
@@ -94,13 +97,14 @@ are injected at runtime.`,
 				return err
 			}
 
-			return listContexts(contextClient, org.Organization.Name, org.Organization.ID)
+			return listContexts(cmd, contextClient, org.Organization.Name, org.Organization.ID)
 		},
 		Args: MultiExactArgs(0, 2),
 		Example: `circleci context list --org-id 00000000-0000-0000-0000-000000000000
 (deprecated usage) circleci context list <vcs-type> <org-name>`,
 	}
 	listCommand.Flags().StringVar(&orgID, "org-id", "", orgIDUsage)
+	listCommand.Flags().BoolVar(&jsonFormat, "json", false, "Return output back in JSON format")
 
 	showContextCommand := &cobra.Command{
 		Short:   "Show a context",
@@ -206,23 +210,41 @@ are injected at runtime.`,
 	return command
 }
 
-func listContexts(contextClient context.ContextInterface, orgName string, orgId string) error {
+func listContexts(cmd *cobra.Command, contextClient context.ContextInterface, orgName string, orgId string) error {
 	contexts, err := contextClient.Contexts()
 	if err != nil {
 		return err
 	}
 
-	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"Organization", "Org ID", "Name", "Created At"})
-	for _, context := range contexts {
-		table.Append([]string{
-			orgName,
-			orgId,
-			context.Name,
-			context.CreatedAt.Format(time.RFC3339),
-		})
+	jsonVal, err := cmd.Flags().GetBool("json")
+	if err != nil {
+		return err
 	}
-	table.Render()
+
+	if jsonVal {
+		// return JSON formatted for output
+		jsonCtxs, err := json.Marshal(contexts)
+		if err != nil {
+			return err
+		}
+		jsonWriter := cmd.OutOrStdout()
+		if _, err := jsonWriter.Write(jsonCtxs); err != nil {
+			return err
+		}
+	} else {
+		table := tablewriter.NewWriter(os.Stdout)
+		table.SetHeader([]string{"Organization", "Org ID", "Name", "Created At"})
+		for _, context := range contexts {
+			table.Append([]string{
+				orgName,
+				orgId,
+				context.Name,
+				context.CreatedAt.Format(time.RFC3339),
+			})
+		}
+		table.Render()
+	}
+
 	return nil
 }
 

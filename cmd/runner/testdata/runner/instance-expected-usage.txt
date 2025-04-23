@@ -4,4 +4,7 @@ Usage:
 Available Commands:
   list        List runner instances
 
+Flags:
+      --json   Return output back in JSON format
+
 Use "runner instance [command] --help" for more information about a command.
