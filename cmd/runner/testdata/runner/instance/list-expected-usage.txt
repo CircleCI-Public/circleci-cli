@@ -1,5 +1,5 @@
 Usage:
-  runner instance list <namespace or resource-class>
+  runner instance list <namespace or resource-class> [flags]
 
 Aliases:
   list, ls
@@ -7,3 +7,6 @@ Aliases:
 Examples:
   circleci runner instance ls my-namespace
   circleci runner instance ls my-namespace/my-resource-class
+
+Global Flags:
+      --json   Return output back in JSON format

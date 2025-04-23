@@ -160,9 +160,13 @@ We publish the tool to [Homebrew](https://brew.sh/). The tool is [part of `homeb
 
 The particular considerations that we make are:
 
-
 1. Since Homebrew [doesn't "like tools that upgrade themselves"](https://docs.brew.sh/Acceptable-Formulae#we-dont-like-tools-that-upgrade-themselves), we disable the `circleci update` command when the tool is released through homebrew. We do this by [defining the PackageManager](https://github.com/Homebrew/homebrew-core/blob/eb1fdb84e2924289bcc8c85ee45081bf83dc024d/Formula/circleci.rb#L28) constant to `homebrew`, which allows us to [disable the `update` command at runtime](https://github.com/CircleCI-Public/circleci-cli/blob/67c7d52bace63846f87a1ed79f67f257c94a55b4/cmd/root.go#L119-L123).
-1. We want to avoid every push to `main` from creating a Pull Request to the `circleci` formula on Homebrew. We want to avoid overloading the Homebrew team with pull requests to update our formula for small changes (changes to docs or other files that don't change functionality in the tool).
+
+#### Releasing to Homebrew
+
+This project is on Homebrew's special [autobump list](https://github.com/Homebrew/homebrew-core/blob/master/.github/autobump.txt) which effectively means that it will check our `main` branch every 3 hours for updates and create a PR automagically if there are any changes. This is great, but you do have to monitor the generated PRs to ensure they pass and do get merged in successfully. The PRs will be raised in this repo: [github.com/Homebrew/homebrew-core](https://github.com/Homebrew/homebrew-core) and you can search the Pull requests for `circleci` to see the generated PRs. 
+
+Upon successful merge, you'll be able to upgrade the tool by running `brew upgrade circleci` and then you can validate any changes you may have made.
 
 ### Snap
 

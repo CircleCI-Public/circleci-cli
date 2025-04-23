@@ -1,5 +1,8 @@
 Usage:
-  runner token list <resource-class>
+  runner token list <resource-class> [flags]
 
 Aliases:
   list, ls
+
+Global Flags:
+      --json   Return output back in JSON format

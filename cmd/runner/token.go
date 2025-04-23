@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
@@ -14,6 +15,8 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 		Use:   "token",
 		Short: "Operate on runner tokens",
 	}
+
+	jsonFormat := false
 
 	telemetryWrappedPreRunE := func(cmd *cobra.Command, args []string) error {
 		telemetryClient, ok := telemetry.FromContext(cmd.Context())
@@ -64,15 +67,30 @@ func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command 
 				return err
 			}
 
-			table := tablewriter.NewWriter(cmd.OutOrStdout())
-			defer table.Render()
-			table.SetHeader([]string{"ID", "Nickname", "Created At"})
-			for _, token := range tokens {
-				table.Append([]string{token.ID, token.Nickname, token.CreatedAt.Format(time.RFC3339)})
+			if jsonFormat {
+				// return JSON formatted for output
+				jsonTokens, err := json.Marshal(tokens)
+				if err != nil {
+					return err
+				}
+				jsonWriter := cmd.OutOrStdout()
+				if _, err := jsonWriter.Write(jsonTokens); err != nil {
+					return err
+				}
+			} else {
+				table := tablewriter.NewWriter(cmd.OutOrStdout())
+				defer table.Render()
+				table.SetHeader([]string{"ID", "Nickname", "Created At"})
+				for _, token := range tokens {
+					table.Append([]string{token.ID, token.Nickname, token.CreatedAt.Format(time.RFC3339)})
+				}
 			}
 			return nil
 		},
 	})
+
+	cmd.PersistentFlags().BoolVar(&jsonFormat, "json", false,
+		"Return output back in JSON format")
 
 	return cmd
 }

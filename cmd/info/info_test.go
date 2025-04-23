@@ -152,7 +152,7 @@ func TestTelemetry(t *testing.T) {
 	assert.DeepEqual(t, telemetryClient.events, []telemetry.Event{
 		telemetry.CreateInfoEvent(telemetry.CommandInfo{
 			Name:      "org",
-			LocalArgs: map[string]string{"help": "false"},
+			LocalArgs: map[string]string{"help": "false", "json": "false"},
 		}, nil),
 	})
 }
