@@ -100,10 +100,10 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.event.github.pull_request.draft":                   false,
 		"pipeline.event.github.label":                                "",
 		"pipeline.config.file_path":                                  "",
-		"pipeline.config.repository.url":                             gitUrl
+		"pipeline.config.repository.url":                             gitUrl,
 		"pipeline.config.repository.name":                            "",
 		"pipeline.config.sha":                                        revision,
-		"pipeline.config.ref":                                        "refs/head/master"
+		"pipeline.config.ref":                                        "refs/head/master",
 	}
 
 	for k, v := range parameters {
