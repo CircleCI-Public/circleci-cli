@@ -81,6 +81,29 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.trigger.name":                                      "",
 		"pipeline.event.name":                                        "",
 		"pipeline.event.action":                                      "",
+		"pipeline.event.github.repository.url":                       gitUrl,
+		"pipeline.event.github.repository.name":                      "repo-name",
+		"pipeline.event.github.repository.owner.login":               "repo-owner",
+		"pipeline.event.github.sender.avatar_url":                    "",
+		"pipeline.event.github.sender.login":                         "user-login",
+		"pipeline.event.github.ref":                                  "branch-name",
+		"pipeline.event.github.after":                                revision,
+		"pipeline.event.github.head_commit.url":                      "",
+		"pipeline.event.github.pull_request.title":                   "",
+		"pipeline.event.github.pull_request.url":                     gitUrl,
+		"pipeline.event.github.pull_request.head.sha":                revision,
+		"pipeline.event.github.pull_request.base.sha":                revision,
+		"pipeline.event.github.pull_request.base.ref":                "base-branch",
+		"pipeline.event.github.pull_request.head.ref":                "head-branch",
+		"pipeline.event.github.pull_request.merged":                  false,
+		"pipeline.event.github.pull_request.number":                  111,
+		"pipeline.event.github.pull_request.draft":                   false,
+		"pipeline.event.github.label":                                "",
+		"pipeline.config.file_path":                                  "",
+		"pipeline.config.repository.url":                             gitUrl
+		"pipeline.config.repository.name":                            "",
+		"pipeline.config.sha":                                        revision,
+		"pipeline.config.ref":                                        "refs/head/master"
 	}
 
 	for k, v := range parameters {
