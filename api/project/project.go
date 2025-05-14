@@ -11,6 +11,13 @@ type ProjectInfo struct {
 	Id string
 }
 
+type CreateProjectInfo struct {
+	Id      string
+	Name    string
+	Slug    string
+	OrgName string
+}
+
 // ProjectClient is the interface to interact with project and it's
 // components.
 type ProjectClient interface {
@@ -18,5 +25,5 @@ type ProjectClient interface {
 	ListAllEnvironmentVariables(vcs, org, project string) ([]*ProjectEnvironmentVariable, error)
 	GetEnvironmentVariable(vcs, org, project, envName string) (*ProjectEnvironmentVariable, error)
 	CreateEnvironmentVariable(vcs, org, project string, v ProjectEnvironmentVariable) (*ProjectEnvironmentVariable, error)
-	CreateProject(vcs, org, project string) (*ProjectInfo, error)
+	CreateProject(vcs, org, project string) (*CreateProjectInfo, error)
 }

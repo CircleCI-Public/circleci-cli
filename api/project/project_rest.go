@@ -147,15 +147,17 @@ func (c *projectRestClient) GetEnvironmentVariable(vcs string, org string, proje
 	}, nil
 }
 
-func (c *projectRestClient) CreateProject(vcs string, org string, name string) (*ProjectInfo, error) {
-	orgSlug := url.PathEscape(fmt.Sprintf("%s/%s", vcs, org))
+func (c *projectRestClient) CreateProject(vcs string, org string, name string) (*CreateProjectInfo, error) {
+	orgSlug := fmt.Sprintf("%s/%s", vcs, org)
+
 	path := fmt.Sprintf("organization/%s/project", orgSlug)
 
 	reqBody := createProjectRequest{
 		Name: name,
 	}
 
-	req, err := c.client.NewRequest("POST", &url.URL{Path: path}, reqBody)
+	urlObj := &url.URL{Path: path}
+	req, err := c.client.NewRequest("POST", urlObj, reqBody)
 	if err != nil {
 		return nil, err
 	}
@@ -166,8 +168,11 @@ func (c *projectRestClient) CreateProject(vcs string, org string, name string) (
 		return nil, err
 	}
 
-	return &ProjectInfo{
-		Id: resp.Id,
+	return &CreateProjectInfo{
+		Id:      resp.Id,
+		Name:    resp.Name,
+		Slug:    resp.Slug,
+		OrgName: resp.OrganizationName,
 	}, nil
 }
 

@@ -243,21 +243,22 @@ func Test_projectRestClient_GetEnvironmentVariable(t *testing.T) {
 
 func Test_projectRestClient_CreateProject(t *testing.T) {
 	const (
-		vcsType  = "github"
-		orgName  = "test-org"
-		projName = "test-proj"
-		testId   = "this-is-the-id"
+		vcsType     = "github"
+		orgName     = "test-org"
+		projName    = "test-proj"
+		testId      = "this-is-the-id"
+		projectSlug = "github/test-org/test-proj"
 	)
 	tests := []struct {
 		name    string
 		handler http.HandlerFunc
-		want    *project.ProjectInfo
+		want    *project.CreateProjectInfo
 		wantErr bool
 	}{
 		{
 			name: "Should handle a successful request",
 			handler: func(w http.ResponseWriter, r *http.Request) {
-				orgSlug := url.PathEscape(fmt.Sprintf("%s/%s", vcsType, orgName))
+				orgSlug := fmt.Sprintf("%s/%s", vcsType, orgName)
 				assert.Equal(t, r.Header.Get("circle-token"), "token")
 				assert.Equal(t, r.Header.Get("accept"), "application/json")
 				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
@@ -267,12 +268,18 @@ func Test_projectRestClient_CreateProject(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`
 				{
-					"id": "` + testId + `"
+					"id": "` + testId + `",
+					"name": "` + projName + `",
+					"slug": "` + projectSlug + `",
+					"organization_name": "` + orgName + `"
 				}`))
 				assert.NilError(t, err)
 			},
-			want: &project.ProjectInfo{
-				Id: testId,
+			want: &project.CreateProjectInfo{
+				Id:      testId,
+				Name:    projName,
+				Slug:    projectSlug,
+				OrgName: orgName,
 			},
 		},
 		{
