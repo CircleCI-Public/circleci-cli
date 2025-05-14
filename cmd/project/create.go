@@ -17,8 +17,9 @@ Example:
 
 Note: For those with the circleci vcs type, you must use the hashed organization name, not the human readable name.
 You can get this from the URL of the organization on the web.
+
 Example: 
-  https://github.com/organization/circleci/GQERGDFG13454135 -> GQERGDFG13454135
+  https://app.circleci.com/organization/circleci/GQERGDFG13454135 -> GQERGDFG13454135
   Not the org name like: "test-org"`,
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
