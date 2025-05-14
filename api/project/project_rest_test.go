@@ -241,6 +241,70 @@ func Test_projectRestClient_GetEnvironmentVariable(t *testing.T) {
 	}
 }
 
+func Test_projectRestClient_CreateProject(t *testing.T) {
+	const (
+		vcsType  = "github"
+		orgName  = "test-org"
+		projName = "test-proj"
+		testId   = "this-is-the-id"
+	)
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		want    *project.ProjectInfo
+		wantErr bool
+	}{
+		{
+			name: "Should handle a successful request",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				orgSlug := url.PathEscape(fmt.Sprintf("%s/%s", vcsType, orgName))
+				assert.Equal(t, r.Header.Get("circle-token"), "token")
+				assert.Equal(t, r.Header.Get("accept"), "application/json")
+				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/organization/%s/project", orgSlug))
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`
+				{
+					"id": "` + testId + `"
+				}`))
+				assert.NilError(t, err)
+			},
+			want: &project.ProjectInfo{
+				Id: testId,
+			},
+		},
+		{
+			name: "Should handle an error request",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"message": "error"}`))
+				assert.NilError(t, err)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(tt.handler)
+			defer server.Close()
+			p, err := getProjectRestClient(server)
+			assert.NilError(t, err)
+
+			got, err := p.CreateProject(vcsType, orgName, projName)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("projectRestClient.CreateProject() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("projectRestClient.CreateProject() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
 func Test_projectRestClient_CreateEnvironmentVariable(t *testing.T) {
 	const (
 		vcsType  = "github"
