@@ -356,7 +356,7 @@ func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 		Foreground(lipgloss.AdaptiveColor{Light: `#003740`, Dark: `#3B6385`}).
 		BorderBottom(true).
 		Margin(1, 0, 1, 0).
-		Padding(0, 1, 0, 1).Align(lipgloss.Center)
+		Padding(0, 1, 0, 1).Align(lipgloss.Left)
 	subCmdStyle := lipgloss.NewStyle().
 		Foreground(lipgloss.AdaptiveColor{Light: `#161616`, Dark: `#FFFFFF`}).
 		Padding(0, 4, 0, 4).Align(lipgloss.Left)

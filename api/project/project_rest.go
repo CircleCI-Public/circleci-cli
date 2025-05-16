@@ -31,6 +31,24 @@ type listAllProjectEnvVarsResponse struct {
 	NextPageToken string `json:"next_page_token"`
 }
 
+type createProjectRequest struct {
+	Name string `json:"name"`
+}
+
+type createProjectResponse struct {
+	Slug             string `json:"slug"`
+	Name             string `json:"name"`
+	Id               string `json:"id"`
+	OrganizationName string `json:"organization_name"`
+	OrganizationSlug string `json:"organization_slug"`
+	OrganizationId   string `json:"organization_id"`
+	VcsInfo          struct {
+		VcsUrl        string `json:"vcs_url"`
+		Provider      string `json:"provider"`
+		DefaultBranch string `json:"default_branch"`
+	} `json:"vcs_info"`
+}
+
 type createProjectEnvVarRequest struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
@@ -126,6 +144,35 @@ func (c *projectRestClient) GetEnvironmentVariable(vcs string, org string, proje
 	return &ProjectEnvironmentVariable{
 		Name:  resp.Name,
 		Value: resp.Value,
+	}, nil
+}
+
+func (c *projectRestClient) CreateProject(vcs string, org string, name string) (*CreateProjectInfo, error) {
+	orgSlug := fmt.Sprintf("%s/%s", vcs, org)
+
+	path := fmt.Sprintf("organization/%s/project", orgSlug)
+
+	reqBody := createProjectRequest{
+		Name: name,
+	}
+
+	urlObj := &url.URL{Path: path}
+	req, err := c.client.NewRequest("POST", urlObj, reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var resp createProjectResponse
+	_, err = c.client.DoRequest(req, &resp)
+	if err != nil {
+		return nil, err
+	}
+
+	return &CreateProjectInfo{
+		Id:      resp.Id,
+		Name:    resp.Name,
+		Slug:    resp.Slug,
+		OrgName: resp.OrganizationName,
 	}, nil
 }
 
