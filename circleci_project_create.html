@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>circleci_project</title>
+  <title>circleci_project_create</title>
   <style>
     code{white-space: pre-wrap;}
     span.smallcaps{font-variant: small-caps;}
@@ -15,22 +15,25 @@
   </style>
 </head>
 <body>
-<h2 id="circleci-project">circleci project</h2>
-<p>Operate on projects</p>
+<h2 id="circleci-project-create">circleci project create</h2>
+<p>Create a new project in a CircleCI organization.</p>
 <h3 id="synopsis">Synopsis</h3>
-<p>Operate on projects</p>
+<p>Create a new project in a CircleCI organization.</p>
+<p>The project name can be provided using the –name flag. If not provided, you will be prompted to enter it.</p>
+<p>Example: circleci project create github my-org –name my-new-project</p>
+<p>Note: For those with the circleci vcs type, you must use the hashed organization name, not the human readable name. You can get this from the URL of the organization on the web.</p>
+<p>Example: https://app.circleci.com/organization/circleci/GQERGDFG13454135 -&gt; GQERGDFG13454135 Not the org name like: “test-org”</p>
+<pre><code>circleci project create &lt;vcs-type&gt; &lt;org-name&gt; [--name &lt;project-name&gt;] [flags]</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help   help for project</code></pre>
+<pre><code>  -h, --help          help for create
+      --name string   Name of the project to create</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
 <pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
       --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
-<li><a href="index.html">circleci</a> - Use CircleCI from the command line. This project is the seed for CircleCI’s new command-line application. For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/</li>
-<li><a href="circleci_project_create.html">circleci project create</a> - Create a new project in a CircleCI organization.</li>
-<li><a href="circleci_project_dlc.html">circleci project dlc</a> - Manage dlc for projects</li>
-<li><a href="circleci_project_secret.html">circleci project secret</a> - Operate on environment variables of projects</li>
+<li><a href="circleci_project.html">circleci project</a> - Operate on projects</li>
 </ul>
 </body>
 </html>
