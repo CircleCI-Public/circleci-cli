@@ -4,11 +4,14 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/prompt"
 )
+
+var projectName string
 
 func newProjectCreateCommand(ops *projectOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <vcs-type> <org-name> <new-project-name>",
+		Use:   "create <vcs-type> <org-name> --name my-new-project",
 		Short: "Create a new project in a CircleCI organization.",
 		Long: `Create a new project in a CircleCI organization.
 
@@ -25,7 +28,9 @@ Example:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vcsType := args[0]
 			orgName := args[1]
-			projectName := args[2]
+			if projectName == "" {
+				projectName = prompt.ReadStringFromUser("Enter a name for the project", "")
+			}
 			res, err := ops.projectClient.CreateProject(vcsType, orgName, projectName)
 			if err != nil {
 				return err
@@ -35,8 +40,10 @@ Example:
 			cmd.Println("You may view your new project at: https://app.circleci.com/projects/" + res.Slug)
 			return nil
 		},
-		Args: cobra.ExactArgs(3),
+		Args: cobra.ExactArgs(2),
 	}
+
+	cmd.Flags().StringVar(&projectName, "name", "", "Name of the project to create")
 
 	return cmd
 }
