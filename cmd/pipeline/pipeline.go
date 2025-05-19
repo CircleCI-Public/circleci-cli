@@ -1,0 +1,75 @@
+package pipeline
+
+import (
+	"github.com/spf13/cobra"
+
+	pipelineapi "github.com/CircleCI-Public/circleci-cli/api/pipeline"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/prompt"
+	"github.com/CircleCI-Public/circleci-cli/settings"
+)
+
+// UserInputReader displays a message and reads a user input value
+type UserInputReader interface {
+	ReadSecretString(msg string) (string, error)
+	AskConfirm(msg string) bool
+}
+
+type pipelineOpts struct {
+	pipelineClient pipelineapi.PipelineClient
+	reader         UserInputReader
+}
+
+// ProjectOption configures a command created by NewProjectCommand
+type PipelineOption interface {
+	apply(*pipelineOpts)
+}
+
+type promptReader struct{}
+
+func (p promptReader) ReadSecretString(msg string) (string, error) {
+	return prompt.ReadSecretStringFromUser(msg)
+}
+
+func (p promptReader) AskConfirm(msg string) bool {
+	return prompt.AskUserToConfirm(msg)
+}
+
+// NewPipelineCommand generates a cobra command for managing pipelines
+func NewPipelineCommand(config *settings.Config, preRunE validator.Validator, opts ...PipelineOption) *cobra.Command {
+	pos := pipelineOpts{
+		reader: &promptReader{},
+	}
+	for _, o := range opts {
+		o.apply(&pos)
+	}
+	command := &cobra.Command{
+		Use:   "pipeline",
+		Short: "Operate on pipelines",
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			client, err := pipelineapi.NewPipelineRestClient(*config)
+			if err != nil {
+				return err
+			}
+			pos.pipelineClient = client
+			return nil
+		},
+	}
+
+	command.AddCommand(newPipelineCreateCommand(&pos, preRunE))
+
+	return command
+}
+
+type customReaderPipelineOption struct {
+	r UserInputReader
+}
+
+func (c customReaderPipelineOption) apply(opts *pipelineOpts) {
+	opts.reader = c.r
+}
+
+// CustomReader returns a ProjectOption that sets a given UserInputReader to a project command
+func CustomReader(r UserInputReader) PipelineOption {
+	return customReaderPipelineOption{r}
+}
