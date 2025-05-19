@@ -20,10 +20,10 @@
 <h3 id="synopsis">Synopsis</h3>
 <p>Create a new project in a CircleCI organization.</p>
 <p>The project name can be provided using the –name flag. If not provided, you will be prompted to enter it.</p>
-<p>Example: circleci project create github my-org –name my-new-project</p>
-<p>Note: For those with the circleci vcs type, you must use the hashed organization name, not the human readable name. You can get this from the URL of the organization on the web.</p>
-<p>Example: https://app.circleci.com/organization/circleci/GQERGDFG13454135 -&gt; GQERGDFG13454135 Not the org name like: “test-org”</p>
-<pre><code>circleci project create &lt;vcs-type&gt; &lt;org-name&gt; [--name &lt;project-name&gt;] [flags]</code></pre>
+<p>Examples: circleci project create github orgSlug –name my-new-project circleci project create circleci orgSlug –name my-new-project</p>
+<p>The orgSlug can be retrieved from the CircleCI web app &gt; Organization Settings &gt; Organization slug.</p>
+<p>Example orgSlug: in the CircleCI web app, circleci/9YytKzouJxzu4TjCRFqAoD -&gt; 9YytKzouJxzu4TjCRFqAoD is the organization slug</p>
+<pre><code>circleci project create &lt;vcs-type&gt; &lt;orgSlug&gt; [--name &lt;project-name&gt;] [flags]</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>  -h, --help          help for create
       --name string   Name of the project to create</code></pre>
