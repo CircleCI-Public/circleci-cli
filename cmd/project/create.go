@@ -21,7 +21,7 @@ Examples:
   circleci project create github orgSlug --name my-new-project
   circleci project create circleci orgSlug --name my-new-project
 
-The orgSlug can be retrived from the CircleCI web app > Organization Settings > Organization slug.
+The orgSlug can be retrieved from the CircleCI web app > Organization Settings > Organization slug.
 
 Example orgSlug: 
   in the CircleCI web app, circleci/9YytKzouJxzu4TjCRFqAoD -> 9YytKzouJxzu4TjCRFqAoD is the organization slug`,
