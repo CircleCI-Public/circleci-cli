@@ -188,7 +188,7 @@ func TestCreatePipeline(t *testing.T) {
 			}
 
 			cmd, stdout, _ := scaffoldCMD(server.URL, noValidator, opts...)
-			cmd.SetArgs([]string{"create-pipeline", tt.args.projectID})
+			cmd.SetArgs([]string{"create", tt.args.projectID})
 
 			err := cmd.Execute()
 
