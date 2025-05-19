@@ -11,21 +11,20 @@ var projectName string
 
 func newProjectCreateCommand(ops *projectOpts, preRunE validator.Validator) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "create <vcs-type> <org-name> [--name <project-name>]",
+		Use:   "create <vcs-type> <orgSlug> [--name <project-name>]",
 		Short: "Create a new project in a CircleCI organization.",
 		Long: `Create a new project in a CircleCI organization.
 
 The project name can be provided using the --name flag. If not provided, you will be prompted to enter it.
 
-Example:
-  circleci project create github my-org --name my-new-project
+Examples:
+  circleci project create github orgSlug --name my-new-project
+  circleci project create circleci orgSlug --name my-new-project
 
-Note: For those with the circleci vcs type, you must use the hashed organization name, not the human readable name.
-You can get this from the URL of the organization on the web.
+The orgSlug can be retrieved from the CircleCI web app > Organization Settings > Organization slug.
 
-Example: 
-  https://app.circleci.com/organization/circleci/GQERGDFG13454135 -> GQERGDFG13454135
-  Not the org name like: "test-org"`,
+Example orgSlug: 
+  in the CircleCI web app, circleci/9YytKzouJxzu4TjCRFqAoD -> 9YytKzouJxzu4TjCRFqAoD is the organization slug`,
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vcsType := args[0]
