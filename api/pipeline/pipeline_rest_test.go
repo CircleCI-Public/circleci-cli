@@ -26,13 +26,14 @@ func getPipelineRestClient(server *httptest.Server) (pipeline.PipelineClient, er
 
 func Test_pipelineRestClient_CreatePipeline(t *testing.T) {
 	const (
-		vcsType     = "github"
-		orgName     = "test-org"
-		projectID   = "test-project-id"
-		repoID      = "test-repo-id"
-		filePath    = ".circleci/config.yml"
-		testName    = "test-pipeline"
-		description = "test-description"
+		vcsType      = "github"
+		orgName      = "test-org"
+		projectID    = "test-project-id"
+		repoID       = "test-repo-id"
+		configRepoID = "test-config-repo-id"
+		filePath     = ".circleci/config.yml"
+		testName     = "test-pipeline"
+		description  = "test-description"
 	)
 	tests := []struct {
 		name    string
@@ -41,7 +42,7 @@ func Test_pipelineRestClient_CreatePipeline(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "Should handle a successful request with ListAllEnvironmentVariables",
+			name: "Should handle a successful request with CreatePipeline",
 			handler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, r.Header.Get("circle-token"), "token")
 				assert.Equal(t, r.Header.Get("accept"), "application/json")
@@ -64,14 +65,21 @@ func Test_pipelineRestClient_CreatePipeline(t *testing.T) {
 							"full_name": "test-repo"
 						}
 					},
-					"file_path": "test-file"
+					"config_source": {
+						"provider": "github_app",
+						"repo": {
+							"external_id": "test-repo-id",
+							"full_name": "test-repo"
+						}
+					}
 				}`))
 				assert.NilError(t, err)
 			},
 			want: &pipeline.CreatePipelineInfo{
-				Id:           "123",
-				Name:         testName,
-				RepoFullName: "test-repo",
+				Id:                         "123",
+				Name:                       testName,
+				CheckoutSourceRepoFullName: "test-repo",
+				ConfigSourceRepoFullName:   "test-repo",
 			},
 		},
 		{
@@ -84,6 +92,47 @@ func Test_pipelineRestClient_CreatePipeline(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Should handle a successful request with CreatePipeline with configRepoID",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Header.Get("circle-token"), "token")
+				assert.Equal(t, r.Header.Get("accept"), "application/json")
+				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+
+				assert.Equal(t, r.Method, "POST")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/projects/%s/pipeline-definitions", projectID))
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`
+				{
+					"id": "123",
+					"name": "test-pipeline",
+					"description": "test-description",
+					"checkout_source": {
+						"provider": "github_app",
+						"repo": {
+							"external_id": "test-repo-id",
+							"full_name": "test-repo"
+						}
+					},
+					"config_source": {
+						"provider": "github_app",
+						"repo": {
+							"external_id": "test-config-repo-id",
+							"full_name": "test-config-repo"
+						}
+					}
+				}`))
+				assert.NilError(t, err)
+			},
+			want: &pipeline.CreatePipelineInfo{
+				Id:                         "123",
+				Name:                       testName,
+				CheckoutSourceRepoFullName: "test-repo",
+				ConfigSourceRepoFullName:   "test-config-repo",
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -93,7 +142,7 @@ func Test_pipelineRestClient_CreatePipeline(t *testing.T) {
 			p, err := getPipelineRestClient(server)
 			assert.NilError(t, err)
 
-			got, err := p.CreatePipeline(projectID, testName, description, repoID, filePath)
+			got, err := p.CreatePipeline(projectID, testName, description, repoID, configRepoID, filePath)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("pipelineRestClient.CreatePipeline() error = %v, wantErr %v", err, tt.wantErr)
 				return

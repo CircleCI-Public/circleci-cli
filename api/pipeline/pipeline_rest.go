@@ -69,14 +69,14 @@ func NewPipelineRestClient(config settings.Config) (*pipelineRestClient, error) 
 	return client, nil
 }
 
-func (c *pipelineRestClient) CreatePipeline(projectID string, name string, description string, repoID string, filePath string) (*CreatePipelineInfo, error) {
+func (c *pipelineRestClient) CreatePipeline(projectID string, name string, description string, repoID string, configRepoID string, filePath string) (*CreatePipelineInfo, error) {
 	reqBody := createPipelineDefinitionRequest{
 		Name:        name,
 		Description: description,
 		ConfigSource: ConfigSource{
 			Provider: "github_app",
 			Repo: Repo{
-				ExternalID: repoID,
+				ExternalID: configRepoID,
 			},
 			FilePath: filePath,
 		},
@@ -101,8 +101,9 @@ func (c *pipelineRestClient) CreatePipeline(projectID string, name string, descr
 	}
 
 	return &CreatePipelineInfo{
-		Id:           resp.ID,
-		Name:         resp.Name,
-		RepoFullName: resp.CheckoutSource.Repo.FullName,
+		Id:                         resp.ID,
+		Name:                       resp.Name,
+		CheckoutSourceRepoFullName: resp.CheckoutSource.Repo.FullName,
+		ConfigSourceRepoFullName:   resp.ConfigSource.Repo.FullName,
 	}, nil
 }
