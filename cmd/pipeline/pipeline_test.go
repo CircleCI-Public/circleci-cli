@@ -17,12 +17,15 @@ import (
 )
 
 type testCreatePipelineArgs struct {
-	projectID    string
-	statusCode   int
-	pipelineName string
-	description  string
-	repoID       string
-	filePath     string
+	projectID        string
+	statusCode       int
+	pipelineName     string
+	description      string
+	repoID           string
+	filePath         string
+	configRepoID     string
+	useConfigRepoID  bool
+	differentRepoYes bool
 }
 
 type pipelineTestReader struct {
@@ -63,12 +66,16 @@ func scaffoldCMD(
 
 func TestCreatePipeline(t *testing.T) {
 	const (
-		projectID    = "test-project-id"
-		pipelineName = "Test Pipeline"
-		description  = "Test pipeline description"
-		repoID       = "123456"
-		filePath     = ".circleci/config.yml"
+		projectID                = "test-project-id"
+		pipelineName             = "Test Pipeline"
+		description              = "Test pipeline description"
+		repoID                   = "123456"
+		filePath                 = ".circleci/config.yml"
+		configRepoID             = "987654"
+		configRepoLocationPrompt = "Enter the ID of the GitHub repository where the CircleCI config file is located"
 	)
+
+	differentRepoQuestion := "Does your CircleCI config file exist in a different repository? (y/n)"
 
 	tests := []struct {
 		name    string
@@ -100,6 +107,34 @@ func TestCreatePipeline(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "Create pipeline with config in different repo (prompt)",
+			args: testCreatePipelineArgs{
+				projectID:        projectID,
+				statusCode:       http.StatusOK,
+				pipelineName:     pipelineName,
+				description:      description,
+				repoID:           repoID,
+				filePath:         filePath,
+				configRepoID:     configRepoID,
+				differentRepoYes: true,
+			},
+			want: fmt.Sprintf("Pipeline '%s' successfully created for repository 'test-org/test-repo'\nConfig is successfully referenced from 'test-org/config-repo' repository at path '%s'\nYou may view your new pipeline in your project settings: https://app.circleci.com/settings/project/<vcs>/<org>/<project>/configurations\n", pipelineName, filePath),
+		},
+		{
+			name: "Create pipeline with config in different repo (flag)",
+			args: testCreatePipelineArgs{
+				projectID:       projectID,
+				statusCode:      http.StatusOK,
+				pipelineName:    pipelineName,
+				description:     description,
+				repoID:          repoID,
+				filePath:        filePath,
+				configRepoID:    configRepoID,
+				useConfigRepoID: true,
+			},
+			want: fmt.Sprintf("Pipeline '%s' successfully created for repository 'test-org/test-repo'\nConfig is successfully referenced from 'test-org/config-repo' repository at path '%s'\nYou may view your new pipeline in your project settings: https://app.circleci.com/settings/project/<vcs>/<org>/<project>/configurations\n", pipelineName, filePath),
+		},
 	}
 
 	for _, tt := range tests {
@@ -128,12 +163,26 @@ func TestCreatePipeline(t *testing.T) {
 
 				repo, ok := configSource["repo"].(map[string]interface{})
 				assert.Assert(t, ok, "repo should be a map")
-				assert.Equal(t, repo["external_id"].(string), tt.args.repoID)
+
+				// Check if we're expecting config repo ID to be set
+				expectedRepoID := tt.args.repoID
+				if tt.args.useConfigRepoID || tt.args.differentRepoYes {
+					expectedRepoID = tt.args.configRepoID
+				}
+				assert.Equal(t, repo["external_id"].(string), expectedRepoID)
 
 				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tt.args.statusCode)
 
 				if tt.args.statusCode == http.StatusOK {
+					configRepoID := tt.args.repoID
+					configRepoFullName := "test-org/test-repo"
+
+					if tt.args.useConfigRepoID || tt.args.differentRepoYes {
+						configRepoID = tt.args.configRepoID
+						configRepoFullName = "test-org/config-repo"
+					}
+
 					responseBody := map[string]interface{}{
 						"id":          "pipeline-123",
 						"name":        tt.args.pipelineName,
@@ -141,8 +190,8 @@ func TestCreatePipeline(t *testing.T) {
 						"config_source": map[string]interface{}{
 							"provider": "github_app",
 							"repo": map[string]interface{}{
-								"external_id": tt.args.repoID,
-								"full_name":   "test-org/test-repo",
+								"external_id": configRepoID,
+								"full_name":   configRepoFullName,
 							},
 							"file_path": tt.args.filePath,
 						},
@@ -179,6 +228,16 @@ func TestCreatePipeline(t *testing.T) {
 				"Enter the path to your circleci config file":     tt.args.filePath,
 			}
 
+			if tt.args.differentRepoYes {
+				inputs[differentRepoQuestion] = "y"
+			} else {
+				inputs[differentRepoQuestion] = "n"
+			}
+
+			if tt.args.differentRepoYes {
+				inputs[configRepoLocationPrompt] = tt.args.configRepoID
+			}
+
 			opts := []pipeline.PipelineOption{
 				pipeline.CustomReader(pipelineTestReader{inputs: inputs}),
 			}
@@ -188,7 +247,26 @@ func TestCreatePipeline(t *testing.T) {
 			}
 
 			cmd, stdout, _ := scaffoldCMD(server.URL, noValidator, opts...)
-			cmd.SetArgs([]string{"create", tt.args.projectID})
+
+			// Set command args based on test case
+			cmdArgs := []string{"create", tt.args.projectID}
+			if tt.args.pipelineName != "" {
+				cmdArgs = append(cmdArgs, "--name", tt.args.pipelineName)
+			}
+			if tt.args.description != "" {
+				cmdArgs = append(cmdArgs, "--description", tt.args.description)
+			}
+			if tt.args.repoID != "" {
+				cmdArgs = append(cmdArgs, "--repo-id", tt.args.repoID)
+			}
+			if tt.args.filePath != "" {
+				cmdArgs = append(cmdArgs, "--file-path", tt.args.filePath)
+			}
+			if tt.args.useConfigRepoID && tt.args.configRepoID != "" {
+				cmdArgs = append(cmdArgs, "--config-repo-id", tt.args.configRepoID)
+			}
+
+			cmd.SetArgs(cmdArgs)
 
 			err := cmd.Execute()
 
