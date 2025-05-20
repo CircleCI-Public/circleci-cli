@@ -11,7 +11,7 @@ import (
 
 // UserInputReader displays a message and reads a user input value
 type UserInputReader interface {
-	ReadSecretString(msg string) (string, error)
+	ReadStringFromUser(msg string) string
 	AskConfirm(msg string) bool
 }
 
@@ -27,8 +27,8 @@ type PipelineOption interface {
 
 type promptReader struct{}
 
-func (p promptReader) ReadSecretString(msg string) (string, error) {
-	return prompt.ReadSecretStringFromUser(msg)
+func (p promptReader) ReadStringFromUser(msg string) string {
+	return prompt.ReadStringFromUser(msg, "")
 }
 
 func (p promptReader) AskConfirm(msg string) bool {
@@ -56,7 +56,7 @@ func NewPipelineCommand(config *settings.Config, preRunE validator.Validator, op
 		},
 	}
 
-	command.AddCommand(newPipelineCreateCommand(&pos, preRunE))
+	command.AddCommand(newCreateCommand(&pos, preRunE))
 
 	return command
 }

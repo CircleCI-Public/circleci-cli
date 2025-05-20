@@ -29,11 +29,11 @@ type pipelineTestReader struct {
 	inputs map[string]string
 }
 
-func (r pipelineTestReader) ReadSecretString(msg string) (string, error) {
+func (r pipelineTestReader) ReadStringFromUser(msg string) string {
 	if val, ok := r.inputs[msg]; ok {
-		return val, nil
+		return val
 	}
-	return "", nil
+	return ""
 }
 
 func (r pipelineTestReader) AskConfirm(msg string) bool {
@@ -86,7 +86,7 @@ func TestCreatePipeline(t *testing.T) {
 				repoID:       repoID,
 				filePath:     filePath,
 			},
-			want: fmt.Sprintf("Pipeline '%s' successfully created in repository 'test-org/test-repo'\nYou may view your new pipeline at: https://app.circleci.com/projects/%s/pipelines\n", pipelineName, projectID),
+			want: fmt.Sprintf("Pipeline '%s' successfully created for repository 'test-org/test-repo'\nYou may view your new pipeline in your project settings: https://app.circleci.com/settings/project/<vcs>/<org>/<project>/configurations\n", pipelineName),
 		},
 		{
 			name: "Handle API error when creating pipeline",
