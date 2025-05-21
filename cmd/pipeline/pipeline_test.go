@@ -143,7 +143,6 @@ func TestCreatePipeline(t *testing.T) {
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.String(), fmt.Sprintf("/projects/%s/pipeline-definitions", tt.args.projectID))
 
-				// Validate request body
 				body, err := io.ReadAll(r.Body)
 				assert.NilError(t, err)
 
@@ -151,11 +150,9 @@ func TestCreatePipeline(t *testing.T) {
 				err = json.Unmarshal(body, &requestBody)
 				assert.NilError(t, err)
 
-				// Check the main fields
 				assert.Equal(t, requestBody["name"].(string), tt.args.pipelineName)
 				assert.Equal(t, requestBody["description"].(string), tt.args.description)
 
-				// Check nested fields
 				configSource, ok := requestBody["config_source"].(map[string]interface{})
 				assert.Assert(t, ok, "config_source should be a map")
 				assert.Equal(t, configSource["provider"].(string), "github_app")
@@ -164,7 +161,6 @@ func TestCreatePipeline(t *testing.T) {
 				repo, ok := configSource["repo"].(map[string]interface{})
 				assert.Assert(t, ok, "repo should be a map")
 
-				// Check if we're expecting config repo ID to be set
 				expectedRepoID := tt.args.repoID
 				if tt.args.useConfigRepoID || tt.args.differentRepoYes {
 					expectedRepoID = tt.args.configRepoID
@@ -248,7 +244,6 @@ func TestCreatePipeline(t *testing.T) {
 
 			cmd, stdout, _ := scaffoldCMD(server.URL, noValidator, opts...)
 
-			// Set command args based on test case
 			cmdArgs := []string{"create", tt.args.projectID}
 			if tt.args.pipelineName != "" {
 				cmdArgs = append(cmdArgs, "--name", tt.args.pipelineName)
