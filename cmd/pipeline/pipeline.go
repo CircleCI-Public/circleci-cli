@@ -20,7 +20,7 @@ type pipelineOpts struct {
 	reader         UserInputReader
 }
 
-// ProjectOption configures a command created by NewProjectCommand
+// PipelineOption configures a command created by NewPipelineCommand
 type PipelineOption interface {
 	apply(*pipelineOpts)
 }
@@ -69,7 +69,7 @@ func (c customReaderPipelineOption) apply(opts *pipelineOpts) {
 	opts.reader = c.r
 }
 
-// CustomReader returns a ProjectOption that sets a given UserInputReader to a project command
+// CustomReader returns a PipelineOption that sets a given UserInputReader to a pipeline command
 func CustomReader(r UserInputReader) PipelineOption {
 	return customReaderPipelineOption{r}
 }

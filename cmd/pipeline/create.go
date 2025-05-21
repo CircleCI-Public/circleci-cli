@@ -17,20 +17,22 @@ func newCreateCommand(ops *pipelineOpts, preRunE validator.Validator) *cobra.Com
 
 	cmd := &cobra.Command{
 		Use:   "create <project-id> [--name <pipeline-name>] [--description <description>] [--repo-id <github-repo-id>] [--file-path <circleci-config-file-path>] [--config-repo-id <github-repo-id>]",
-		Short: "Create a new pipeline in a CircleCI project.",
-		Long: `Create a new pipeline in a CircleCI project.
+		Short: "Create a new pipeline for a CircleCI project.",
+		Long: `Create a new pipeline for a CircleCI project.
 
-This command allows you to create a pipeline with the following options:
-  --name        Name of the pipeline
-  --repo-id     GitHub repository ID where the pipeline is configured
-  --file-path   Path to the CircleCI config file
-  --description Description of the pipeline (optional, you will not be prompted if this flag doesn't exist)
-  --config-repo-id GitHub repository ID where the CircleCI config file is located (optional, you will not be prompted if this flag doesn't exist)
+All flags are optional - if not provided, you will be prompted interactively for the required values:
+  --name            Name of the pipeline
+  --repo-id         GitHub repository ID where the codebase you wish to build a pipeline for
+  --file-path       Path to the CircleCI config file
+  --config-repo-id  GitHub repository ID where the CircleCI config file is located (if different from code repository)
+  --description     Description of the pipeline (will not prompt if omitted)
 
-If flags are not provided, the command will prompt for input interactively.
-
-Example:
-  circleci pipeline create 1662d941-6e28-43ab-bea2-aa678c098d4c --name my-pipeline --description "My pipeline description" --repo-id 123456 --file-path .circleci/config.yml
+Examples:
+  # Minimal usage (will prompt for required values):
+  circleci pipeline create 1662d941-6e28-43ab-bea2-aa678c098d4c
+  
+  # Full usage with all flags:
+  circleci pipeline create 1662d941-6e28-43ab-bea2-aa678c098d4c --name my-pipeline --description "My pipeline description" --repo-id 123456 --file-path .circleci/config.yml --config-repo-id 987654
 
 Note: You will need our GitHub App installed in your repository.
 
@@ -49,11 +51,6 @@ Note: To get the repository id you can use https://docs.github.com/en/rest/repos
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
 			}
 
-			if filePath == "" {
-				filePathPrompt := "Enter the path to your circleci config file"
-				filePath = ops.reader.ReadStringFromUser(filePathPrompt)
-			}
-
 			if configRepoID == "" {
 				yOrN := promptTillYOrN(ops.reader)
 				if yOrN == "y" {
@@ -64,6 +61,10 @@ Note: To get the repository id you can use https://docs.github.com/en/rest/repos
 				}
 			}
 
+			if filePath == "" {
+				filePathPrompt := "Enter the path to your circleci config file"
+				filePath = ops.reader.ReadStringFromUser(filePathPrompt)
+			}
 			res, err := ops.pipelineClient.CreatePipeline(projectID, name, description, repoID, configRepoID, filePath)
 			if err != nil {
 				return err
@@ -81,7 +82,7 @@ Note: To get the repository id you can use https://docs.github.com/en/rest/repos
 
 	cmd.Flags().StringVar(&name, "name", "", "Name of the pipeline to create")
 	cmd.Flags().StringVar(&description, "description", "", "Description of the pipeline to create")
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID of the pipeline to create")
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID of the codebase you wish to build a pipeline for")
 	cmd.Flags().StringVar(&filePath, "file-path", "", "Path to the circleci config file to create")
 	cmd.Flags().StringVar(&configRepoID, "config-repo-id", "", "Repository ID of the CircleCI config file")
 	return cmd
