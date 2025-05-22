@@ -67,6 +67,7 @@ Note: To get the repository id you can use https://docs.github.com/en/rest/repos
 			}
 			res, err := ops.pipelineClient.CreatePipeline(projectID, name, description, repoID, configRepoID, filePath)
 			if err != nil {
+				cmd.Println("\nThere was an error creating your pipeline. Do you have Github App installed in your repository?")
 				return err
 			}
 
