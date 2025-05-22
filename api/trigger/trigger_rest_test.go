@@ -34,11 +34,9 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 		testName             = "test-trigger"
 		description          = "test-description"
 		eventPreset          = "all-pushes"
+		configRef            = ""
+		checkoutRef          = ""
 	)
-
-	// Use variables for optional fields
-	// checkoutRef := "test-checkout-ref"
-	// configRef := "test-config-ref"
 
 	tests := []struct {
 		name    string
@@ -60,15 +58,8 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`
 				{
-					"name": "test-trigger",
-					"description": "test-description",
-					"event_source": {
-						"provider": "github_app",
-						"repo": {
-							"external_id": "test-repo-id",
-						}
-					},
-					"event_preset": "all-pushes",
+					"id": "123",
+					"name": "test-trigger"
 				}`))
 				assert.NilError(t, err)
 			},
@@ -101,17 +92,8 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`
 				{
-					"name": "test-trigger",
-					"description": "test-description",
-					"event_source": {
-						"provider": "github_app",
-						"repo": {
-							"external_id": "test-repo-id",
-						}
-					},
-					"event_preset": "all-pushes",
-					"config_ref": "test-config-ref",
-					"checkout_ref": "test-checkout-ref"
+					"id": "123",
+					"name": "test-trigger"
 				}`))
 				assert.NilError(t, err)
 			},
@@ -136,6 +118,8 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				Description:          description,
 				RepoID:               repoID,
 				EventPreset:          eventPreset,
+				ConfigRef:            configRef,
+				CheckoutRef:          checkoutRef,
 			}
 
 			got, err := p.CreateTrigger(options)
@@ -144,7 +128,7 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("pipelineRestClient.CreatePipeline() = %v, want %v", got, tt.want)
+				t.Errorf("triggerRestClient.CreateTrigger() = %v, want %v", got, tt.want)
 			}
 		})
 	}

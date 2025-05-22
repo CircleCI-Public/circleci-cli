@@ -32,8 +32,8 @@ type createTriggerRequest struct {
 	Description string      `json:"description"`
 	EventSource EventSource `json:"event_source"`
 	EventPreset string      `json:"event_preset"`
-	ConfigRef   *string     `json:"config_ref"`
-	CheckoutRef *string     `json:"checkout_ref"`
+	ConfigRef   string      `json:"config_ref,omitempty"`
+	CheckoutRef string      `json:"checkout_ref,omitempty"`
 }
 
 type createTriggerResponse struct {
@@ -43,8 +43,8 @@ type createTriggerResponse struct {
 	CreatedAt   string      `json:"created_at"`
 	EventSource EventSource `json:"event_source"`
 	EventPreset string      `json:"event_preset"`
-	ConfigRef   *string     `json:"config_ref"`
-	CheckoutRef *string     `json:"checkout_ref"`
+	ConfigRef   string      `json:"config_ref,omitempty"`
+	CheckoutRef string      `json:"checkout_ref,omitempty"`
 }
 
 type CreateTriggerOptions struct {
@@ -54,8 +54,8 @@ type CreateTriggerOptions struct {
 	Description          string
 	RepoID               string
 	EventPreset          string
-	ConfigRef            *string
-	CheckoutRef          *string
+	ConfigRef            string
+	CheckoutRef          string
 }
 
 // NewTriggerRestClient returns a new triggerRestClient satisfying the api.TriggerInterface
@@ -78,14 +78,8 @@ func (c *triggerRestClient) CreateTrigger(options CreateTriggerOptions) (*Create
 			},
 		},
 		EventPreset: options.EventPreset,
-	}
-
-	// Only set optional fields if they are provided
-	if options.ConfigRef != nil {
-		reqBody.ConfigRef = options.ConfigRef
-	}
-	if options.CheckoutRef != nil {
-		reqBody.CheckoutRef = options.CheckoutRef
+		CheckoutRef: options.CheckoutRef,
+		ConfigRef:   options.ConfigRef,
 	}
 
 	path := fmt.Sprintf("projects/%s/pipeline-definitions/%s/triggers", options.ProjectID, options.PipelineDefinitionID)
