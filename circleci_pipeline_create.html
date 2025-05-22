@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_pipeline_create</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-pipeline-create">circleci pipeline create</h2>
+<p>Create a new pipeline for a CircleCI project.</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>Create a new pipeline for a CircleCI project.</p>
+<p>All flags are optional - if not provided, you will be prompted interactively for the required values: –name Name of the pipeline –repo-id GitHub repository ID where the codebase you wish to build a pipeline for –file-path Path to the CircleCI config file –config-repo-id GitHub repository ID where the CircleCI config file is located (if different from code repository) –description Description of the pipeline (will not prompt if omitted)</p>
+<p>Examples: # Minimal usage (will prompt for required values): circleci pipeline create 1662d941-6e28-43ab-bea2-aa678c098d4c</p>
+<p># Full usage with all flags: circleci pipeline create 1662d941-6e28-43ab-bea2-aa678c098d4c –name my-pipeline –description “My pipeline description” –repo-id 123456 –file-path .circleci/config.yml –config-repo-id 987654</p>
+<p>Note: You will need our GitHub App installed in your repository.</p>
+<p>Note: To get the repository id you can use https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository</p>
+<pre><code>circleci pipeline create &lt;project-id&gt; [--name &lt;pipeline-name&gt;] [--description &lt;description&gt;] [--repo-id &lt;github-repo-id&gt;] [--file-path &lt;circleci-config-file-path&gt;] [--config-repo-id &lt;github-repo-id&gt;] [flags]</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --config-repo-id string   Repository ID of the CircleCI config file
+      --description string      Description of the pipeline to create
+      --file-path string        Path to the circleci config file to create
+  -h, --help                    help for create
+      --name string             Name of the pipeline to create
+      --repo-id string          Repository ID of the codebase you wish to build a pipeline for</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --skip-update-check   Skip the check for updates check run before every command. (default true)
+      --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_pipeline.html">circleci pipeline</a> - Operate on pipelines</li>
+</ul>
+</body>
+</html>
