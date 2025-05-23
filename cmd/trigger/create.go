@@ -39,6 +39,7 @@ Examples:
 Note: This is only supporting pipeline definitions created with GitHub App provider. You will need our GitHub App installed in your repository.
 Note: To get the repository id you can use https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository
 Note: To get the pipeline definition id you can visit the Pipelines tab in project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations
+Note: --config_ref and --checkout_ref flags are only required if your config source or checkout source exist in a different repo to your trigger repo
 `,
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -59,6 +60,17 @@ Note: To get the pipeline definition id you can visit the Pipelines tab in proje
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
 			}
 
+			if checkoutRef == "" || configRef == "" {
+				refPrompt := "Is your config source and/or checkout source repository different repository for this triggger (y/n)?"
+				refPromptResponse := ops.reader.ReadStringFromUser(refPrompt)
+				if refPromptResponse == "y" {
+					configRefPrompt := "Enter the git ref to use when fetching config for pipeline runs created from this trigger"
+					configRef = ops.reader.ReadStringFromUser(configRefPrompt)
+					checkoutRefPrompt := "Enter the git ref to use when checking out code for pipeline runs created from this trigger"
+					checkoutRef = ops.reader.ReadStringFromUser(checkoutRefPrompt)
+				}
+			}
+
 			triggerOptions := trigger.CreateTriggerOptions{
 				ProjectID:            projectID,
 				PipelineDefinitionID: pipelineDefinitionID,
@@ -76,7 +88,7 @@ Note: To get the pipeline definition id you can visit the Pipelines tab in proje
 				return err
 			}
 
-			cmd.Printf("Trigger '%s' successfully\n", res.Name)
+			cmd.Printf("Trigger '%s' created successfully\n", res.Name)
 			cmd.Println("You may view your new trigger in your project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/triggers")
 			return nil
 		},
