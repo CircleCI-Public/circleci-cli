@@ -26,8 +26,8 @@ All flags are optional - if not provided, you will be prompted interactively for
 	--description             Description of the trigger (will not prompt if omitted)
 	--repo-id                 GitHub repository ID you wish to create a trigger for (required)
 	--event-preset            The name of the event preset to use when filtering events for this trigger (will not prompt if omitted)
-	--checkout-ref            Git ref to check out code for pipeline runs (only required different repository, will not prompt if omitted)
-	--config-ref              Git ref to fetch config for pipeline runs (only required different repository, will not prompt if omitted)
+	--checkout-ref            Git ref (branch, or tag for example) to check out code for pipeline runs (only required if different repository, will not prompt if omitted)
+	--config-ref              Git ref (branch, or tag for example) to fetch config for pipeline runs (only required if different repository, will not prompt if omitted)
 To api/v2 documentation for creating a trigger, see: https://circleci.com/docs/api/v2/index.html#tag/Trigger/operation/createTrigger
 
 Examples:
@@ -60,13 +60,20 @@ Note: --config_ref and --checkout_ref flags are only required if your config sou
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
 			}
 
-			if checkoutRef == "" || configRef == "" {
-				refPrompt := "Is your config source and/or checkout source repository different repository for this triggger (y/n)?"
+			if configRef == "" {
+				refPrompt := "Is your config source source repository different to the repository for this trigger (y/n)?"
 				refPromptResponse := ops.reader.ReadStringFromUser(refPrompt)
 				if refPromptResponse == "y" {
-					configRefPrompt := "Enter the git ref to use when fetching config for pipeline runs created from this trigger"
+					configRefPrompt := "Enter the branch or tag to use when fetching config for pipeline runs created from this trigger"
 					configRef = ops.reader.ReadStringFromUser(configRefPrompt)
-					checkoutRefPrompt := "Enter the git ref to use when checking out code for pipeline runs created from this trigger"
+				}
+			}
+
+			if checkoutRef == "" {
+				refPrompt := "Is your checkout source repository different to the repository for this trigger (y/n)?"
+				refPromptResponse := ops.reader.ReadStringFromUser(refPrompt)
+				if refPromptResponse == "y" {
+					checkoutRefPrompt := "Enter the branch or tag to use when checking out code for pipeline runs created from this trigger"
 					checkoutRef = ops.reader.ReadStringFromUser(checkoutRefPrompt)
 				}
 			}
@@ -100,7 +107,7 @@ Note: --config_ref and --checkout_ref flags are only required if your config sou
 	cmd.Flags().StringVar(&description, "description", "", "Description of the trigger to create")
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID of the codebase you wish to create a trigger for")
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", "The name of the event preset to use when filtering events for this trigger")
-	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref to use when fetching config for pipeline runs created from this trigger")
-	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref to use when checking out code for pipeline runs created from this trigger")
+	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref (branch, or tag for example) to use when fetching config for pipeline runs created from this trigger")
+	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref (branch, or tag for example) to use when checking out code for pipeline runs created from this trigger")
 	return cmd
 }
