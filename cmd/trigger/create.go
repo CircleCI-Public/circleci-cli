@@ -37,7 +37,7 @@ Examples:
   circleci trigger create 1662d941-6e28-43ab-bea2-aa678c098d4c --name my-trigger --description "Trigger description" --repo-id 123456 --event-preset all-pushes --config-ref my-config --checkout-ref my-checkout
 Note: This is only supporting pipeline definitions created with GitHub App provider. You will need our GitHub App installed in your repository.
 Note: To get the repository id you can use https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository
-Note: To get the pipeline defintion id you can visit the Pipelines tab in project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations
+Note: To get the pipeline definition id you can visit the Pipelines tab in project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations
 `,
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
