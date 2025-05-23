@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_trigger_create</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-trigger-create">circleci trigger create</h2>
+<p>Create a new trigger for a CircleCI project.</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>Create a new trigger for a CircleCI project. All flags are optional - if not provided, you will be prompted interactively for the required values: –pipeline-definition-id Pipeline definition ID you wish to create a trigger for (required) –name Name of the trigger (required) –description Description of the trigger (will not prompt if omitted) –repo-id GitHub repository ID you wish to create a trigger for (required) –event-preset The name of the event preset to use when filtering events for this trigger (will not prompt if omitted) –checkout-ref Git ref (branch, or tag for example) to check out code for pipeline runs (only required if different repository, will not prompt if omitted) –config-ref Git ref (branch, or tag for example) to fetch config for pipeline runs (only required if different repository, will not prompt if omitted) To api/v2 documentation for creating a trigger, see: https://circleci.com/docs/api/v2/index.html#tag/Trigger/operation/createTrigger</p>
+<p>Examples: # Minimal usage (will prompt for required values): circleci trigger create 1662d941-6e28-43ab-bea2-aa678c098d4c</p>
+<p># Full usage with all flags: circleci trigger create 1662d941-6e28-43ab-bea2-aa678c098d4c –name my-trigger –description “Trigger description” –repo-id 123456 –event-preset all-pushes –config-ref my-config –checkout-ref my-checkout Note: This is only supporting pipeline definitions created with GitHub App provider. You will need our GitHub App installed in your repository. Note: To get the repository id you can use https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository Note: To get the pipeline definition id you can visit the Pipelines tab in project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations Note: –config_ref and –checkout_ref flags are only required if your config source or checkout source exist in a different repo to your trigger repo</p>
+<pre><code>circleci trigger create &lt;project-id&gt; [--name &lt;trigger-name&gt;] [--description &lt;description&gt;] [--repo-id &lt;github-repo-id&gt;] [--event-preset &lt;preset-to-filter-triggers&gt;] [--config-ref &lt;ref-to-fetch-config&gt;] [--checkout-ref &lt;ref-to-checkout-code&gt;] [flags]</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --checkout-ref string             Git ref (branch, or tag for example) to use when checking out code for pipeline runs created from this trigger
+      --config-ref string               Git ref (branch, or tag for example) to use when fetching config for pipeline runs created from this trigger
+      --description string              Description of the trigger to create
+      --event-preset string             The name of the event preset to use when filtering events for this trigger
+  -h, --help                            help for create
+      --name string                     Name of the trigger to create
+      --pipeline-definition-id string   Pipeline definition ID you wish to create a trigger for
+      --repo-id string                  Repository ID of the codebase you wish to create a trigger for</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --skip-update-check   Skip the check for updates check run before every command. (default true)
+      --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_trigger.html">circleci trigger</a> - Operate on triggers</li>
+</ul>
+</body>
+</html>
