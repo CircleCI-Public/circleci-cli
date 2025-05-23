@@ -21,20 +21,20 @@ func newCreateCommand(ops *triggerOpts, preRunE validator.Validator) *cobra.Comm
 		Short: "Create a new trigger for a CircleCI project.",
 		Long: `Create a new trigger for a CircleCI project.
 All flags are optional - if not provided, you will be prompted interactively for the required values:
-	--pipeline-definition-id 			Pipeline definition ID you wish to create a trigger for (required)
-  --name            						Name of the trigger (required)
-	--description									Description of the trigger (will not prompt if omitted)
-  --repo-id         						GitHub repository ID you wish to create a trigger for (required)
-  --event-preset    						The name of the event preset to use when filtering events for this trigger (required)
-	--checkout-ref 								Git ref to use when checking out code for pipeline runs created from this trigger (only required if different from the repository you are creating a trigger for, will not prompt if omitted,and default to the repository you are creating a trigger for)
-  --config-ref 									Git ref to use when fetching config for pipeline runs created from this trigger (only required if different from the repository you are creating a trigger for, will not prompt if omitted, and default to the repository you are creating a trigger for)
+	--pipeline-definition-id	Pipeline definition ID you wish to create a trigger for (required)
+  --name            Name of the trigger (required)
+	--description			Description of the trigger (will not prompt if omitted)
+  --repo-id         GitHub repository ID you wish to create a trigger for (required)
+  --event-preset    The name of the event preset to use when filtering events for this trigger (will not prompt if omitted)
+	--checkout-ref 		Git ref to check out code for pipeline runs (only required different repository, will not prompt if omitted)
+  --config-ref 		  Git ref to fetch config for pipeline runs (only required different repository, will not prompt if omitted)
 
 Examples:
   # Minimal usage (will prompt for required values):
   circleci trigger create 1662d941-6e28-43ab-bea2-aa678c098d4c
   
   # Full usage with all flags:
-  circleci trigger create 1662d941-6e28-43ab-bea2-aa678c098d4c --name my-trigger --description "My trigger description" --repo-id 123456 --event-preset all-pushes --config-ref my-config --checkout-ref my-checkou
+  circleci trigger create 1662d941-6e28-43ab-bea2-aa678c098d4c --name my-trigger --description "Trigger description" --repo-id 123456 --event-preset all-pushes --config-ref my-config --checkout-ref my-checkout
 Note: This is only supporting pipeline definitions created with GitHub App provider. You will need our GitHub App installed in your repository.
 Note: To get the repository id you can use https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository
 Note: To get the pipeline defintion id you can visit the Pipelines tab in project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations
@@ -56,11 +56,6 @@ Note: To get the pipeline defintion id you can visit the Pipelines tab in projec
 			if repoID == "" {
 				repoPrompt := "Enter the ID of your github repository"
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
-			}
-
-			if eventPreset == "" {
-				eventPresetPrompt := "Enter the event preset you want to use for filtering events for this trigger"
-				eventPreset = ops.reader.ReadStringFromUser(eventPresetPrompt)
 			}
 
 			triggerOptions := trigger.CreateTriggerOptions{
