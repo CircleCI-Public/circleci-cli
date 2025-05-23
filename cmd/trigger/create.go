@@ -21,13 +21,14 @@ func newCreateCommand(ops *triggerOpts, preRunE validator.Validator) *cobra.Comm
 		Short: "Create a new trigger for a CircleCI project.",
 		Long: `Create a new trigger for a CircleCI project.
 All flags are optional - if not provided, you will be prompted interactively for the required values:
-	--pipeline-definition-id	Pipeline definition ID you wish to create a trigger for (required)
-  --name            Name of the trigger (required)
-	--description			Description of the trigger (will not prompt if omitted)
-  --repo-id         GitHub repository ID you wish to create a trigger for (required)
-  --event-preset    The name of the event preset to use when filtering events for this trigger (will not prompt if omitted)
-	--checkout-ref 		Git ref to check out code for pipeline runs (only required different repository, will not prompt if omitted)
-  --config-ref 		  Git ref to fetch config for pipeline runs (only required different repository, will not prompt if omitted)
+	--pipeline-definition-id  Pipeline definition ID you wish to create a trigger for (required)
+	--name                    Name of the trigger (required)
+	--description             Description of the trigger (will not prompt if omitted)
+	--repo-id                 GitHub repository ID you wish to create a trigger for (required)
+	--event-preset            The name of the event preset to use when filtering events for this trigger (will not prompt if omitted)
+	--checkout-ref            Git ref to check out code for pipeline runs (only required different repository, will not prompt if omitted)
+	--config-ref              Git ref to fetch config for pipeline runs (only required different repository, will not prompt if omitted)
+To api/v2 documentation for creating a trigger, see: https://circleci.com/docs/api/v2/index.html#tag/Trigger/operation/createTrigger
 
 Examples:
   # Minimal usage (will prompt for required values):
