@@ -65,21 +65,20 @@ Note: --config_ref and --checkout_ref flags are only required if your config sou
 				PipelineDefinitionID: pipelineDefinitionID,
 			}
 			pipelineResp, pipelineErr := ops.triggerClient.GetPipelineDefinition(pipelineOptions)
-			cmd.Println("\nconfigSourceId what is this: ", pipelineResp.ConfigSourceId)
-			cmd.Println("\nrepoID what is this: ", repoID)
+
 			if pipelineErr != nil {
 				cmd.Println("\nThere was an error fetching your pipeline definition")
 				return pipelineErr
 			}
 
 			if configRef == "" && pipelineResp.ConfigSourceId != repoID {
-				configRefPrompt := "Your pipeline repo and config source repo are different. Enter the branch or tag to use when fetching config for pipeline runs created from this trigger"
+				configRefPrompt := "Your pipeline repo and config source repo are different. Enter the branch or tag to use when fetching config for pipeline runs"
 				configRef = ops.reader.ReadStringFromUser(configRefPrompt)
 
 			}
 
 			if checkoutRef == "" && pipelineResp.CheckoutSourceId != repoID {
-				checkoutRefPrompt := "Your pipeline repo and checkout source repo are different. Enter the branch or tag to use when checking out code for pipeline runs created from this trigger"
+				checkoutRefPrompt := "Your pipeline repo and checkout source repo are different. Enter the branch or tag to use when checking out code for pipeline runs"
 				checkoutRef = ops.reader.ReadStringFromUser(checkoutRefPrompt)
 			}
 
