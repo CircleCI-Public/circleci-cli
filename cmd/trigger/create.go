@@ -60,22 +60,27 @@ Note: --config_ref and --checkout_ref flags are only required if your config sou
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
 			}
 
-			if configRef == "" {
-				refPrompt := "Is your config source source repository different to the repository for this trigger (y/n)?"
-				refPromptResponse := ops.reader.ReadStringFromUser(refPrompt)
-				if refPromptResponse == "y" {
-					configRefPrompt := "Enter the branch or tag to use when fetching config for pipeline runs created from this trigger"
-					configRef = ops.reader.ReadStringFromUser(configRefPrompt)
-				}
+			pipelineOptions := trigger.GetPipelineDefinitionOptions{
+				ProjectID:            projectID,
+				PipelineDefinitionID: pipelineDefinitionID,
+			}
+			pipelineResp, pipelineErr := ops.triggerClient.GetPipelineDefinition(pipelineOptions)
+			cmd.Println("\nconfigSourceId what is this: ", pipelineResp.ConfigSourceId)
+			cmd.Println("\nrepoID what is this: ", repoID)
+			if pipelineErr != nil {
+				cmd.Println("\nThere was an error fetching your pipeline definition")
+				return pipelineErr
 			}
 
-			if checkoutRef == "" {
-				refPrompt := "Is your checkout source repository different to the repository for this trigger (y/n)?"
-				refPromptResponse := ops.reader.ReadStringFromUser(refPrompt)
-				if refPromptResponse == "y" {
-					checkoutRefPrompt := "Enter the branch or tag to use when checking out code for pipeline runs created from this trigger"
-					checkoutRef = ops.reader.ReadStringFromUser(checkoutRefPrompt)
-				}
+			if configRef == "" && pipelineResp.ConfigSourceId != repoID {
+				configRefPrompt := "Your pipeline repo and config source repo are different. Enter the branch or tag to use when fetching config for pipeline runs created from this trigger"
+				configRef = ops.reader.ReadStringFromUser(configRefPrompt)
+
+			}
+
+			if checkoutRef == "" && pipelineResp.CheckoutSourceId != repoID {
+				checkoutRefPrompt := "Your pipeline repo and checkout source repo are different. Enter the branch or tag to use when checking out code for pipeline runs created from this trigger"
+				checkoutRef = ops.reader.ReadStringFromUser(checkoutRefPrompt)
 			}
 
 			triggerOptions := trigger.CreateTriggerOptions{

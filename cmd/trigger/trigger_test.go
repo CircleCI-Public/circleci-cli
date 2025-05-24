@@ -117,6 +117,35 @@ func TestCreateTrigger(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var handler http.HandlerFunc = func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+
+				if r.Method == "GET" {
+					// Handle GET request for pipeline definition
+					assert.Equal(t, r.URL.String(), fmt.Sprintf("/projects/%s/pipeline-definitions/%s", tt.args.projectID, tt.args.pipelineDefinitionID))
+
+					responseBody := map[string]interface{}{
+						"id":   tt.args.pipelineDefinitionID,
+						"name": "Test Pipeline",
+						"config_source": map[string]interface{}{
+							"repo": map[string]interface{}{
+								"external_id": tt.args.repoID,
+							},
+						},
+						"checkout_source": map[string]interface{}{
+							"repo": map[string]interface{}{
+								"external_id": tt.args.repoID,
+							},
+						},
+					}
+					responseJSON, err := json.Marshal(responseBody)
+					assert.NilError(t, err)
+					w.WriteHeader(http.StatusOK)
+					_, err = w.Write(responseJSON)
+					assert.NilError(t, err)
+					return
+				}
+
+				// Handle POST request for trigger creation
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.URL.String(), fmt.Sprintf("/projects/%s/pipeline-definitions/%s/triggers", tt.args.projectID, tt.args.pipelineDefinitionID))
 
@@ -138,11 +167,9 @@ func TestCreateTrigger(t *testing.T) {
 				expectedRepoID := tt.args.repoID
 				assert.Equal(t, repo["external_id"].(string), expectedRepoID)
 
-				w.Header().Set("Content-Type", "application/json")
 				w.WriteHeader(tt.args.statusCode)
 
 				if tt.args.statusCode == http.StatusOK {
-
 					responseBody := map[string]interface{}{
 						"id":   "trigger-id",
 						"name": tt.args.triggerName,
