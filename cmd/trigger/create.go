@@ -3,6 +3,7 @@ package trigger
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/api/trigger"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
@@ -81,11 +82,11 @@ Notes:
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
 			}
 
-			pipelineOptions := trigger.GetPipelineDefinitionOptions{
+			pipelineOptions := pipeline.GetPipelineDefinitionOptions{
 				ProjectID:            projectID,
 				PipelineDefinitionID: pipelineDefinitionID,
 			}
-			pipelineResp, pipelineErr := ops.triggerClient.GetPipelineDefinition(pipelineOptions)
+			pipelineResp, pipelineErr := ops.pipelineClient.GetPipelineDefinition(pipelineOptions)
 
 			if pipelineErr != nil {
 				cmd.Println("\nThere was an error fetching your pipeline definition")

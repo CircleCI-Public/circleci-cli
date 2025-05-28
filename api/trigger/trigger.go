@@ -13,5 +13,4 @@ type GetPipelineDefinitionOptions struct {
 // TriggerClient is the interface to interact with trigger
 type TriggerClient interface {
 	CreateTrigger(options CreateTriggerOptions) (*CreateTriggerInfo, error)
-	GetPipelineDefinition(options GetPipelineDefinitionOptions) (*PipelineDefinition, error)
 }
