@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
@@ -98,38 +97,5 @@ func (c *triggerRestClient) CreateTrigger(options CreateTriggerOptions) (*Create
 	return &CreateTriggerInfo{
 		Id:   resp.ID,
 		Name: resp.Name,
-	}, nil
-}
-
-type PipelineDefinition struct {
-	ConfigSourceId   string
-	CheckoutSourceId string
-}
-
-type GetPipelineDefinitionResponse struct {
-	ID             string                          `json:"id"`
-	Name           string                          `json:"name"`
-	Description    string                          `json:"description"`
-	CreatedAt      string                          `json:"created_at"`
-	ConfigSource   pipeline.ConfigSourceResponse   `json:"config_source"`
-	CheckoutSource pipeline.CheckoutSourceResponse `json:"checkout_source"`
-}
-
-func (c *triggerRestClient) GetPipelineDefinition(options GetPipelineDefinitionOptions) (*PipelineDefinition, error) {
-	path := fmt.Sprintf("projects/%s/pipeline-definitions/%s", options.ProjectID, options.PipelineDefinitionID)
-	req, err := c.client.NewRequest("GET", &url.URL{Path: path}, nil)
-	if err != nil {
-		return nil, err
-	}
-
-	var resp GetPipelineDefinitionResponse
-	_, err = c.client.DoRequest(req, &resp)
-	if err != nil {
-		return nil, err
-	}
-
-	return &PipelineDefinition{
-		ConfigSourceId:   resp.ConfigSource.Repo.ExternalID,
-		CheckoutSourceId: resp.CheckoutSource.Repo.ExternalID,
 	}, nil
 }

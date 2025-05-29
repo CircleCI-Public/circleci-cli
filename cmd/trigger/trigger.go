@@ -3,6 +3,7 @@ package trigger
 import (
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	triggerapi "github.com/CircleCI-Public/circleci-cli/api/trigger"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
@@ -16,8 +17,9 @@ type UserInputReader interface {
 }
 
 type triggerOpts struct {
-	triggerClient triggerapi.TriggerClient
-	reader        UserInputReader
+	triggerClient  triggerapi.TriggerClient
+	pipelineClient pipeline.PipelineClient
+	reader         UserInputReader
 }
 
 // TriggerOption configures a command created by NewTriggerCommand
@@ -47,11 +49,18 @@ func NewTriggerCommand(config *settings.Config, preRunE validator.Validator, opt
 		Use:   "trigger",
 		Short: "Operate on triggers",
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			client, err := triggerapi.NewTriggerRestClient(*config)
+			triggerClient, err := triggerapi.NewTriggerRestClient(*config)
 			if err != nil {
 				return err
 			}
-			pos.triggerClient = client
+			pos.triggerClient = triggerClient
+
+			pipelineClient, err := pipeline.NewPipelineRestClient(*config)
+			if err != nil {
+				return err
+			}
+			pos.pipelineClient = pipelineClient
+
 			return nil
 		},
 	}
