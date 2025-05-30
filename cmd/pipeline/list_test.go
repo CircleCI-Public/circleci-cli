@@ -73,12 +73,14 @@ Checkout Source:
 				w.Header().Set("Content-Type", "application/json")
 				if tt.response == nil {
 					w.WriteHeader(http.StatusInternalServerError)
-					json.NewEncoder(w).Encode(map[string]string{"message": "error"})
+					err := json.NewEncoder(w).Encode(map[string]string{"message": "error"})
+					assert.NoError(t, err)
 					return
 				}
-				json.NewEncoder(w).Encode(map[string]interface{}{
+				err := json.NewEncoder(w).Encode(map[string]interface{}{
 					"items": tt.response,
 				})
+				assert.NoError(t, err)
 			}))
 			defer server.Close()
 
