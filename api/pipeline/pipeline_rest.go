@@ -69,6 +69,19 @@ type GetPipelineDefinitionResponse struct {
 	CheckoutSource CheckoutSourceResponse `json:"checkout_source"`
 }
 
+// PipelineDefinitionInfo represents a pipeline definition in a project
+type PipelineDefinitionInfo struct {
+	ID             string                 `json:"id"`
+	Name           string                 `json:"name"`
+	Description    string                 `json:"description"`
+	ConfigSource   ConfigSourceResponse   `json:"config_source"`
+	CheckoutSource CheckoutSourceResponse `json:"checkout_source"`
+}
+
+type listPipelineDefinitionsResponse struct {
+	Items []PipelineDefinitionInfo `json:"items"`
+}
+
 // NewPipelineRestClient returns a new pipelineRestClient satisfying the api.PipelineInterface
 // interface via the REST API.
 func NewPipelineRestClient(config settings.Config) (*pipelineRestClient, error) {
@@ -134,4 +147,26 @@ func (c *pipelineRestClient) GetPipelineDefinition(options GetPipelineDefinition
 		ConfigSourceId:   resp.ConfigSource.Repo.ExternalID,
 		CheckoutSourceId: resp.CheckoutSource.Repo.ExternalID,
 	}, nil
+}
+
+// ListPipelineDefinitions returns a list of pipeline definitions for a project
+func (c *pipelineRestClient) ListPipelineDefinitions(projectID string) ([]*PipelineDefinitionInfo, error) {
+	path := fmt.Sprintf("projects/%s/pipeline-definitions", projectID)
+	req, err := c.client.NewRequest("GET", &url.URL{Path: path}, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	var response listPipelineDefinitionsResponse
+	_, err = c.client.DoRequest(req, &response)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]*PipelineDefinitionInfo, len(response.Items))
+	for i := range response.Items {
+		items[i] = &response.Items[i]
+	}
+
+	return items, nil
 }

@@ -22,4 +22,5 @@ type GetPipelineDefinitionOptions struct {
 type PipelineClient interface {
 	CreatePipeline(projectID string, name string, description string, repoID string, configRepoID string, filePath string) (*CreatePipelineInfo, error)
 	GetPipelineDefinition(options GetPipelineDefinitionOptions) (*PipelineDefinition, error)
+	ListPipelineDefinitions(projectID string) ([]*PipelineDefinitionInfo, error)
 }

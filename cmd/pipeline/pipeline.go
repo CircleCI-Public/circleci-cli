@@ -57,6 +57,7 @@ func NewPipelineCommand(config *settings.Config, preRunE validator.Validator, op
 	}
 
 	command.AddCommand(newCreateCommand(&pos, preRunE))
+	command.AddCommand(newListCommand(&pos, preRunE))
 
 	return command
 }
