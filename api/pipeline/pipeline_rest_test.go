@@ -7,6 +7,10 @@ import (
 	"reflect"
 	"testing"
 
+	"encoding/json"
+	"io"
+	"os"
+
 	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
@@ -354,6 +358,137 @@ func Test_pipelineRestClient_ListPipelineDefinitions(t *testing.T) {
 			}
 			if !tt.wantErr {
 				assert.DeepEqual(t, got, tt.want)
+			}
+		})
+	}
+}
+
+func Test_pipelineRestClient_TriggerConfigTestRun(t *testing.T) {
+	const (
+		organization = "test-org"
+		project      = "test-project"
+		definitionID = "pipeline-def-id"
+	)
+	expectedContent := "version: 2.1\njobs:\n  test:\n    docker:\n      - image: cimg/base:stable\n    steps:\n      - run: echo Hello, world!"
+
+	tests := []struct {
+		name         string
+		setupFile    bool
+		filePath     string
+		wantContent  string
+		wantErr      bool
+		statusCode   int
+		responseBody string
+		wantCreated  bool
+		wantMessage  bool
+	}{
+		{
+			name:         "no config file, pipeline created",
+			setupFile:    false,
+			filePath:     "",
+			wantContent:  "",
+			wantErr:      false,
+			statusCode:   201,
+			responseBody: `{"id": "pipeline-id-123", "number": 42, "state": "created", "created_at": "2024-06-01T12:00:00Z"}`,
+			wantCreated:  true,
+		},
+		{
+			name:         "no config file, no pipeline created",
+			setupFile:    false,
+			filePath:     "",
+			wantContent:  "",
+			wantErr:      false,
+			statusCode:   200,
+			responseBody: `{"message": "No pipeline was triggered"}`,
+			wantMessage:  true,
+		},
+		{
+			name:         "valid config file, pipeline created",
+			setupFile:    true,
+			wantContent:  expectedContent,
+			wantErr:      false,
+			statusCode:   201,
+			responseBody: `{"id": "pipeline-id-123", "number": 42, "state": "created", "created_at": "2024-06-01T12:00:00Z"}`,
+			wantCreated:  true,
+		},
+		{
+			name:         "invalid config file path",
+			setupFile:    false,
+			filePath:     "/tmp/this-file-should-not-exist-1234567890.yml",
+			wantContent:  "",
+			wantErr:      true,
+			statusCode:   201, // won't matter, file read fails first
+			responseBody: `{"id": "pipeline-id-123", "number": 42, "state": "created", "created_at": "2024-06-01T12:00:00Z"}`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var configPath string
+			if tt.setupFile {
+				tmpDir := t.TempDir()
+				configDir := tmpDir + "/.circleci"
+				err := os.MkdirAll(configDir, 0755)
+				assert.NilError(t, err)
+				configPath = configDir + "/config.yml"
+				tmpFile, err := os.Create(configPath)
+				assert.NilError(t, err)
+				_, err = tmpFile.WriteString(expectedContent)
+				assert.NilError(t, err)
+				tmpFile.Close()
+			} else {
+				configPath = tt.filePath
+			}
+
+			var receivedContent string
+			handler := func(w http.ResponseWriter, r *http.Request) {
+				body, err := io.ReadAll(r.Body)
+				assert.NilError(t, err)
+				var reqBody map[string]interface{}
+				_ = json.Unmarshal(body, &reqBody)
+				if configObj, ok := reqBody["config"].(map[string]interface{}); ok {
+					receivedContent, _ = configObj["content"].(string)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(tt.statusCode)
+				_, err = w.Write([]byte(tt.responseBody))
+				assert.NilError(t, err)
+			}
+
+			server := httptest.NewServer(http.HandlerFunc(handler))
+			defer server.Close()
+
+			client, err := pipeline.NewPipelineRestClient(settings.Config{
+				RestEndpoint: "api/v2",
+				Host:         server.URL,
+				HTTPClient:   &http.Client{},
+				Token:        "token",
+			})
+			assert.NilError(t, err)
+
+			resp, err := client.TriggerConfigTestRun(pipeline.TriggerConfigTestRunOptions{
+				Organization:         organization,
+				Project:              project,
+				PipelineDefinitionID: definitionID,
+				ConfigBranch:         "main",
+				ConfigTag:            "",
+				CheckoutBranch:       "main",
+				CheckoutTag:          "",
+				Parameters:           map[string]interface{}{"foo": "bar"},
+				ConfigFilePath:       configPath,
+			})
+
+			if tt.wantErr {
+				assert.ErrorContains(t, err, "failed to read config file")
+				return
+			}
+			assert.NilError(t, err)
+			assert.Equal(t, receivedContent, tt.wantContent)
+			if tt.wantCreated {
+				assert.Assert(t, resp.Created != nil)
+			}
+			if tt.wantMessage {
+				assert.Assert(t, resp.Message != nil)
 			}
 		})
 	}
