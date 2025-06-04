@@ -23,6 +23,7 @@ func ReadStringFromUser(message string, defaultValue string) string {
 	input := textinput.New(message)
 	input.Placeholder = defaultValue
 	input.InitialValue = defaultValue
+	input.Validate = func(s string) error { return nil }
 	result, err := input.RunPrompt()
 	if err != nil {
 		panic(err)

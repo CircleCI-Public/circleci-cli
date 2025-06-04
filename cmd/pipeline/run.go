@@ -9,9 +9,9 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
 
-func newConfigTestRunCommand(ops *pipelineOpts, preRunE validator.Validator) *cobra.Command {
-	var organization string
-	var project string
+func newRunCommand(ops *pipelineOpts, preRunE validator.Validator) *cobra.Command {
+	var orgSlug string
+	var projectID string
 	var pipelineDefinitionID string
 	var configBranch string
 	var configTag string
@@ -21,17 +21,15 @@ func newConfigTestRunCommand(ops *pipelineOpts, preRunE validator.Validator) *co
 	var parameters map[string]string
 
 	cmd := &cobra.Command{
-		Use:   "config-test-run <organization> <project> --pipeline-definition-id <id> [options...]",
-		Short: "Test run a pipeline configuration. When a local config is supplied, it runs it via a ci pipeline in circleci's cloud.",
-		Long: `Test run a pipeline configuration. When a local config is supplied, it runs it via a ci pipeline in circleci's cloud.
+		Use:   "run <orgSlug> <project-id> --pipeline-definition-id <id> [options...]",
+		Short: "Run a pipeline configuration. When a local config is supplied, it runs it via a ci pipeline in circleci's cloud.",
+		Long: `Run a pipeline configuration. When a local config is supplied, it runs it via a ci pipeline in circleci's cloud.
 
 Required arguments:
-  organization             Depending on the organization type, this may be the org name (e.g. my-org)
-                           or an ID (e.g. 43G3lM5RtFE7v5sa4nWAU). The second segment of the slash-separated project
-                           slug, as shown in Project Settings > Overview. 													
-  project                  Depending on the organization type, this may be the project name (e.g. my-project)
-                           or an ID (e.g. 44n9wujWcTnVZ2b5S8Fnat). The third segment of the slash-separated
-                           project slug, as shown in Project Settings > Overview. 													
+  orgSlug                 The second segment of the slash-separated project slug, as shown in 
+                          Project Settings > Overview. For example, in circleci/6phtklsjdlskE/cLKSdlksdn
+                          it would be 6phtklsjdlskE 													
+  project-id              Project ID (e.g. 44n9wujWcTnVZ2b5S8Fnat). You can view it in Project Settings > Overview. 													
   --pipeline-definition-id The unique id for the pipeline definition. This can be found in the page
                            Project Settings > Pipelines.
 
@@ -46,22 +44,18 @@ Optional flags:
   --parameters             Pipeline parameters in key=value format (can be specified multiple times)
 
 Examples:
-  # Test with a config branch and checkout branch:
-  circleci pipeline config-test-run my-org my-project --pipeline-definition-id abc123 \
-    --config-branch main --checkout-branch feature-branch
+  # Minimal usage (will prompt for required values):
+  circleci pipeline run circleci/6phtklsjdlskE/cLKSdlksdn 44n9wujWcTnVZ2b5S8Fnat
 
-  # Test with a config file and parameters:
-  circleci pipeline config-test-run my-org my-project --pipeline-definition-id abc123 \
-    --config-file .circleci/config.yml --parameters "key1=value1" --parameters "key2=value2"
-
-  # Test with tags instead of branches:
-  circleci pipeline config-test-run my-org my-project --pipeline-definition-id abc123 \
-    --config-tag v1.0.0 --checkout-tag v1.0.0
+  # Full usage with all flags:
+  circleci pipeline run 5e16180a-023b-4c3v-9bd9-43a8eb6cdb8f 44n9wujWcTnVZ2b5S8Fnat --pipeline-definition-id abc123 \
+    --config-branch main --checkout-branch feature-branch --config-file .circleci/config.yml \ 
+    --parameters "key1=value1"
 `,
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			organization = args[0]
-			project = args[1]
+			orgSlug = args[0]
+			projectID = args[1]
 
 			if pipelineDefinitionID == "" {
 				pipelineDefinitionIDPrompt := "Enter the pipeline definition ID for your pipeline"
@@ -70,7 +64,7 @@ Examples:
 
 			// If no config file is specified, ask if user wants to use a local config
 			if configFilePath == "" {
-				useLocalConfigPrompt := "Do you want to test with a local config file? This will override the config file in the repository. (Y/n)"
+				useLocalConfigPrompt := "Do you want to test with a local config file? This will bypass the config file in the repository."
 				if ops.reader.AskConfirm(useLocalConfigPrompt) {
 					configFilePathPrompt := "Enter the path to your local config file"
 					configFilePath = ops.reader.ReadStringFromUser(configFilePathPrompt)
@@ -87,13 +81,11 @@ Examples:
 				}
 			}
 
-			// Prompt for checkout branch or tag if neither is provided
-			if checkoutBranch == "" && checkoutTag == "" {
-				checkoutPrompt := "You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):"
-				checkoutBranch = ops.reader.ReadStringFromUser(checkoutPrompt)
+			// Always prompt for checkout branch/tag if neither is provided
+			for checkoutBranch == "" && checkoutTag == "" {
+				checkoutBranch = ops.reader.ReadStringFromUser("You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):")
 				if checkoutBranch == "" {
-					checkoutTagPrompt := "Enter a checkout tag:"
-					checkoutTag = ops.reader.ReadStringFromUser(checkoutTagPrompt)
+					checkoutTag = ops.reader.ReadStringFromUser("Enter a checkout tag:")
 				}
 			}
 
@@ -104,8 +96,8 @@ Examples:
 			}
 
 			options := pipeline.TriggerConfigTestRunOptions{
-				Organization:         organization,
-				Project:              project,
+				Organization:         orgSlug,
+				Project:              projectID,
 				PipelineDefinitionID: pipelineDefinitionID,
 				ConfigBranch:         configBranch,
 				ConfigTag:            configTag,

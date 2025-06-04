@@ -14,7 +14,7 @@ import (
 	"gotest.tools/v3/assert"
 )
 
-func Test_newConfigTestRunCommand(t *testing.T) {
+func Test_newRunCommand(t *testing.T) {
 	tests := []struct {
 		name           string
 		args           []string
@@ -42,7 +42,7 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": false,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
@@ -66,7 +66,7 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": false,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
@@ -86,7 +86,7 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--config-branch", "main", "--checkout-branch", "feature"},
 			reader: &mockReader{
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": false,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
@@ -106,7 +106,7 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--config-tag", "v1.0.0", "--checkout-tag", "v1.0.0"},
 			reader: &mockReader{
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": false,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
@@ -130,7 +130,7 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": false,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
@@ -164,18 +164,17 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 			reader: &mockReader{
 				responses: map[string]string{
 					"Enter the path to your local config file":                                                          "/path/to/config.yml",
-					"You must specify either a config branch or tag. Enter a branch (or leave blank to enter a tag):":   "main",
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": true,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": true,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
-				ConfigBranch:         "main",
+				ConfigBranch:         "",
 				ConfigTag:            "",
 				CheckoutBranch:       "feature",
 				CheckoutTag:          "",
@@ -190,18 +189,17 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 				responses: map[string]string{
 					"Enter the pipeline definition ID for your pipeline":                                                "abc123",
 					"Enter the path to your local config file":                                                          "/path/to/config.yml",
-					"You must specify either a config branch or tag. Enter a branch (or leave blank to enter a tag):":   "main",
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will override the config file in the repository. (Y/n)": true,
+					"Do you want to test with a local config file? This will bypass the config file in the repository.": true,
 				},
 			},
 			expectedConfig: pipeline.TriggerConfigTestRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
-				ConfigBranch:         "main",
+				ConfigBranch:         "",
 				ConfigTag:            "",
 				CheckoutBranch:       "feature",
 				CheckoutTag:          "",
@@ -314,7 +312,7 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 				ops.reader = &mockReader{}
 			}
 
-			cmd := newConfigTestRunCommand(ops, validator.Validator(func(cmd *cobra.Command, args []string) error {
+			cmd := newRunCommand(ops, validator.Validator(func(cmd *cobra.Command, args []string) error {
 				return nil
 			}))
 			cmd.SetArgs(tt.args)
