@@ -220,7 +220,9 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 			if tt.expectedConfig.ConfigFilePath != "" {
 				tmpfile, err := os.CreateTemp("", "config-*.yml")
 				assert.NilError(t, err)
-				tmpfile.WriteString("version: 2.1\njobs: {}\n")
+				if _, err := tmpfile.WriteString("version: 2.1\njobs: {}\n"); err != nil {
+					assert.NilError(t, err)
+				}
 				tmpfile.Close()
 				tempConfigFile = tmpfile.Name()
 				cleanup = func() { os.Remove(tempConfigFile) }
@@ -240,7 +242,9 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 				w.Header().Set("Content-Type", "application/json")
 				if tt.expectedError != "" {
 					w.WriteHeader(400)
-					w.Write([]byte(`{"message": "error"}`))
+					if _, err := w.Write([]byte(`{"message": "error"}`)); err != nil {
+						panic(err)
+					}
 					return
 				}
 				var reqBody map[string]interface{}
@@ -283,12 +287,14 @@ func Test_newConfigTestRunCommand(t *testing.T) {
 				}
 
 				w.WriteHeader(201)
-				w.Write([]byte(`{
+				if _, err := w.Write([]byte(`{
 					"id": "pipeline-id-123",
 					"number": 42,
 					"state": "created",
 					"created_at": "2024-06-01T12:00:00Z"
-				}`))
+				}`)); err != nil {
+					panic(err)
+				}
 			}))
 			defer server.Close()
 

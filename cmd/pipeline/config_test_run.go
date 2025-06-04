@@ -118,7 +118,7 @@ Examples:
 			resp, err := ops.pipelineClient.TriggerConfigTestRun(options)
 			if err != nil {
 				cmd.Println("\nThere was an error running the config test")
-				if err != nil && strings.Contains(err.Error(), "Permission denied") {
+				if strings.Contains(err.Error(), "Permission denied") {
 					cmd.Printf("Please ensure you have \"Allow triggering pipelines with unversioned config\" enabled in Organization Settings > Advanced\n")
 				}
 				return err
