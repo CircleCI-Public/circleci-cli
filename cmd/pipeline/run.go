@@ -1,6 +1,9 @@
 package pipeline
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/spf13/cobra"
 
 	"strings"
@@ -71,13 +74,25 @@ Examples:
 				}
 			}
 
-			// Prompt for config branch or tag if neither is provided
-			if configBranch == "" && configTag == "" {
-				configPrompt := "You must specify either a config branch or tag. Enter a branch (or leave blank to enter a tag):"
-				configBranch = ops.reader.ReadStringFromUser(configPrompt)
-				if configBranch == "" {
-					configTagPrompt := "Enter a config tag:"
-					configTag = ops.reader.ReadStringFromUser(configTagPrompt)
+			// If a config file path is supplied, check if the file is empty
+			if configFilePath != "" {
+				//We want to bypass needed to pass a config branch if a config file is supplied
+				configBranch = "cli-run"
+				data, err := os.ReadFile(configFilePath)
+				if err != nil {
+					return fmt.Errorf("failed to read config file: %w", err)
+				}
+				if len(data) == 0 {
+					cmd.Println("The supplied config file is empty. Please provide a valid CircleCI config file, and try again.")
+					return fmt.Errorf("empty config file")
+				}
+			} else {
+				// Only prompt for config branch/tag if no config file is supplied
+				for configBranch == "" && configTag == "" {
+					configBranch = ops.reader.ReadStringFromUser("You must specify either a config branch or tag. Enter a branch (or leave blank to enter a tag):")
+					if configBranch == "" {
+						configTag = ops.reader.ReadStringFromUser("Enter a config tag:")
+					}
 				}
 			}
 
