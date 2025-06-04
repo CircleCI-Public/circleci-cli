@@ -244,3 +244,117 @@ func Test_pipelineRestClient_GetPipelineDefinition(t *testing.T) {
 		})
 	}
 }
+
+func Test_pipelineRestClient_ListPipelineDefinitions(t *testing.T) {
+	const (
+		projectID = "test-project-id"
+	)
+	tests := []struct {
+		name    string
+		handler http.HandlerFunc
+		want    []*pipeline.PipelineDefinitionInfo
+		wantErr bool
+	}{
+		{
+			name: "Should handle a successful request",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Header.Get("circle-token"), "token")
+				assert.Equal(t, r.Header.Get("accept"), "application/json")
+				assert.Equal(t, r.Header.Get("user-agent"), version.UserAgent())
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/projects/%s/pipeline-definitions", projectID))
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{
+					"items": [
+						{
+							"id": "123",
+							"name": "test-pipeline",
+							"description": "test-description",
+							"config_source": {
+								"provider": "github_app",
+								"repo": {
+									"external_id": "test-repo-id",
+									"full_name": "test-repo"
+								},
+								"file_path": ".circleci/config.yml"
+							},
+							"checkout_source": {
+								"provider": "github_app",
+								"repo": {
+									"external_id": "test-repo-id",
+									"full_name": "test-repo"
+								}
+							}
+						}
+					]
+				}`))
+				assert.NilError(t, err)
+			},
+			want: []*pipeline.PipelineDefinitionInfo{
+				{
+					ID:          "123",
+					Name:        "test-pipeline",
+					Description: "test-description",
+					ConfigSource: pipeline.ConfigSourceResponse{
+						Provider: "github_app",
+						Repo: pipeline.RepoResponse{
+							ExternalID: "test-repo-id",
+							FullName:   "test-repo",
+						},
+						FilePath: ".circleci/config.yml",
+					},
+					CheckoutSource: pipeline.CheckoutSourceResponse{
+						Provider: "github_app",
+						Repo: pipeline.RepoResponse{
+							ExternalID: "test-repo-id",
+							FullName:   "test-repo",
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Should handle empty list response",
+			handler: func(w http.ResponseWriter, r *http.Request) {
+				assert.Equal(t, r.Method, "GET")
+				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/projects/%s/pipeline-definitions", projectID))
+
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusOK)
+				_, err := w.Write([]byte(`{"items": []}`))
+				assert.NilError(t, err)
+			},
+			want: []*pipeline.PipelineDefinitionInfo{},
+		},
+		{
+			name: "Should handle an error request",
+			handler: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("content-type", "application/json")
+				w.WriteHeader(http.StatusInternalServerError)
+				_, err := w.Write([]byte(`{"message": "error"}`))
+				assert.NilError(t, err)
+			},
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server := httptest.NewServer(tt.handler)
+			defer server.Close()
+
+			p, err := getPipelineRestClient(server)
+			assert.NilError(t, err)
+
+			got, err := p.ListPipelineDefinitions(projectID)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("pipelineRestClient.ListPipelineDefinitions() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr {
+				assert.DeepEqual(t, got, tt.want)
+			}
+		})
+	}
+}
