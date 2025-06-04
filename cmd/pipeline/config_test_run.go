@@ -3,6 +3,8 @@ package pipeline
 import (
 	"github.com/spf13/cobra"
 
+	"strings"
+
 	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
@@ -38,7 +40,9 @@ Optional flags:
   --config-tag             Tag to use for config (mutually exclusive with --config-branch)
   --checkout-branch        Branch to checkout (mutually exclusive with --checkout-tag)
   --checkout-tag           Tag to checkout (mutually exclusive with --checkout-branch)
-  --config-file            Path to a local config file to use
+  --config-file            Path to a local config file to use. If not provided, the config file in the repository
+                           will be used. Please note you must have "Allow triggering pipelines with unversioned
+                           config" enabled in Organization Settings > Advanced.
   --parameters             Pipeline parameters in key=value format (can be specified multiple times)
 
 Examples:
@@ -114,6 +118,9 @@ Examples:
 			resp, err := ops.pipelineClient.TriggerConfigTestRun(options)
 			if err != nil {
 				cmd.Println("\nThere was an error running the config test")
+				if err != nil && strings.Contains(err.Error(), "Permission denied") {
+					cmd.Printf("Please ensure you have \"Allow triggering pipelines with unversioned config\" enabled in Organization Settings > Advanced\n")
+				}
 				return err
 			}
 
