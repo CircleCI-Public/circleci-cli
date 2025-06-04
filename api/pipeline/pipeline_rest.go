@@ -84,7 +84,7 @@ type listPipelineDefinitionsResponse struct {
 	Items []PipelineDefinitionInfo `json:"items"`
 }
 
-type triggerConfigTestRunRequest struct {
+type pipelineRunRequest struct {
 	DefinitionID string                 `json:"definition_id"`
 	Config       *Config                `json:"config,omitempty"`
 	Checkout     *Checkout              `json:"checkout,omitempty"`
@@ -180,8 +180,8 @@ func (c *pipelineRestClient) ListPipelineDefinitions(projectID string) ([]*Pipel
 	return items, nil
 }
 
-// TriggerConfigTestRun triggers a new pipeline run for testing configuration
-func (c *pipelineRestClient) TriggerConfigTestRun(options TriggerConfigTestRunOptions) (*TriggerConfigTestRunResponse, error) {
+// PipelineRun triggers a new pipeline run
+func (c *pipelineRestClient) PipelineRun(options PipelineRunOptions) (*PipelineRunResponse, error) {
 	var fileContent string
 	if options.ConfigFilePath != "" {
 		bytes, err := os.ReadFile(options.ConfigFilePath)
@@ -199,7 +199,7 @@ func (c *pipelineRestClient) TriggerConfigTestRun(options TriggerConfigTestRunOp
 		configRef.Content = fileContent
 	}
 
-	reqBody := triggerConfigTestRunRequest{
+	reqBody := pipelineRunRequest{
 		DefinitionID: options.PipelineDefinitionID,
 		Config:       configRef,
 		Checkout: &Checkout{
@@ -221,17 +221,17 @@ func (c *pipelineRestClient) TriggerConfigTestRun(options TriggerConfigTestRunOp
 		return nil, err
 	}
 
-	response := &TriggerConfigTestRunResponse{}
+	response := &PipelineRunResponse{}
 	if _, ok := rawResp["message"]; ok && status == 200 {
 		b, _ := json.Marshal(rawResp)
-		var msgResp TriggerConfigTestRunMessageResponse
+		var msgResp PipelineRunMessageResponse
 		if err := json.Unmarshal(b, &msgResp); err != nil {
 			return nil, err
 		}
 		response.Message = &msgResp
 	} else if status == 201 {
 		b, _ := json.Marshal(rawResp)
-		var createdResp TriggerConfigTestRunCreatedResponse
+		var createdResp PipelineRunCreatedResponse
 		if err := json.Unmarshal(b, &createdResp); err != nil {
 			return nil, err
 		}

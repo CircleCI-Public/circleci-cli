@@ -19,7 +19,7 @@ func Test_newRunCommand(t *testing.T) {
 		name           string
 		args           []string
 		expectedError  string
-		expectedConfig pipeline.TriggerConfigTestRunOptions
+		expectedConfig pipeline.PipelineRunOptions
 		reader         *mockReader
 	}{
 		{
@@ -45,7 +45,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
@@ -69,7 +69,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
@@ -89,7 +89,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
@@ -109,7 +109,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
@@ -133,7 +133,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
@@ -170,7 +170,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": true,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
@@ -195,7 +195,7 @@ func Test_newRunCommand(t *testing.T) {
 					"Do you want to test with a local config file? This will bypass the config file in the repository.": true,
 				},
 			},
-			expectedConfig: pipeline.TriggerConfigTestRunOptions{
+			expectedConfig: pipeline.PipelineRunOptions{
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",

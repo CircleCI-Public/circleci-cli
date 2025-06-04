@@ -363,7 +363,7 @@ func Test_pipelineRestClient_ListPipelineDefinitions(t *testing.T) {
 	}
 }
 
-func Test_pipelineRestClient_TriggerConfigTestRun(t *testing.T) {
+func Test_pipelineRestClient_PipelineRun(t *testing.T) {
 	const (
 		organization = "test-org"
 		project      = "test-project"
@@ -466,7 +466,7 @@ func Test_pipelineRestClient_TriggerConfigTestRun(t *testing.T) {
 			})
 			assert.NilError(t, err)
 
-			resp, err := client.TriggerConfigTestRun(pipeline.TriggerConfigTestRunOptions{
+			resp, err := client.PipelineRun(pipeline.PipelineRunOptions{
 				Organization:         organization,
 				Project:              project,
 				PipelineDefinitionID: definitionID,

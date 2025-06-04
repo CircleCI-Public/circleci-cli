@@ -17,20 +17,20 @@ type GetPipelineDefinitionOptions struct {
 	PipelineDefinitionID string
 }
 
-type TriggerConfigTestRunCreatedResponse struct {
+type PipelineRunCreatedResponse struct {
 	State     string `json:"state"`
 	CreatedAt string `json:"created_at"`
 	Number    int    `json:"number"`
 	ID        string `json:"id"`
 }
 
-type TriggerConfigTestRunMessageResponse struct {
+type PipelineRunMessageResponse struct {
 	Message string `json:"message"`
 }
 
-type TriggerConfigTestRunResponse struct {
-	Created *TriggerConfigTestRunCreatedResponse
-	Message *TriggerConfigTestRunMessageResponse
+type PipelineRunResponse struct {
+	Created *PipelineRunCreatedResponse
+	Message *PipelineRunMessageResponse
 }
 
 type Config struct {
@@ -44,7 +44,7 @@ type Checkout struct {
 	Tag    string `json:"tag,omitempty"`
 }
 
-type TriggerConfigTestRunOptions struct {
+type PipelineRunOptions struct {
 	Project              string
 	PipelineDefinitionID string
 	Organization         string
@@ -62,5 +62,5 @@ type PipelineClient interface {
 	CreatePipeline(projectID string, name string, description string, repoID string, configRepoID string, filePath string) (*CreatePipelineInfo, error)
 	GetPipelineDefinition(options GetPipelineDefinitionOptions) (*PipelineDefinition, error)
 	ListPipelineDefinitions(projectID string) ([]*PipelineDefinitionInfo, error)
-	TriggerConfigTestRun(options TriggerConfigTestRunOptions) (*TriggerConfigTestRunResponse, error)
+	PipelineRun(options PipelineRunOptions) (*PipelineRunResponse, error)
 }

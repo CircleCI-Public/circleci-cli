@@ -67,7 +67,7 @@ Examples:
 
 			// If no config file is specified, ask if user wants to use a local config
 			if configFilePath == "" {
-				useLocalConfigPrompt := "Do you want to test with a local config file? This will bypass the config file in the repository."
+				useLocalConfigPrompt := "Do you want to test with a local config file? This will bypass the config file in the repository?"
 				if ops.reader.AskConfirm(useLocalConfigPrompt) {
 					configFilePathPrompt := "Enter the path to your local config file"
 					configFilePath = ops.reader.ReadStringFromUser(configFilePathPrompt)
@@ -110,7 +110,7 @@ Examples:
 				paramMap[k] = v
 			}
 
-			options := pipeline.TriggerConfigTestRunOptions{
+			options := pipeline.PipelineRunOptions{
 				Organization:         orgSlug,
 				Project:              projectID,
 				PipelineDefinitionID: pipelineDefinitionID,
@@ -122,7 +122,7 @@ Examples:
 				ConfigFilePath:       configFilePath,
 			}
 
-			resp, err := ops.pipelineClient.TriggerConfigTestRun(options)
+			resp, err := ops.pipelineClient.PipelineRun(options)
 			if err != nil {
 				cmd.Println("\nThere was an error running the config test")
 				if strings.Contains(err.Error(), "Permission denied") {
