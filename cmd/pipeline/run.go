@@ -37,6 +37,8 @@ Required arguments:
                            Project Settings > Pipelines.
 
 Optional flags:
+  # Note for config-* and checkout-*: Both required if running a pipeline run without a local config file.
+  If you are using a local config file, you can omit the config-* flags.
   --config-branch          Branch to use for config (mutually exclusive with --config-tag)
   --config-tag             Tag to use for config (mutually exclusive with --config-branch)
   --checkout-branch        Branch to checkout (mutually exclusive with --checkout-tag)
@@ -53,7 +55,7 @@ Examples:
   # Full usage with all flags:
   circleci pipeline run 5e16180a-023b-4c3v-9bd9-43a8eb6cdb8f 44n9wujWcTnVZ2b5S8Fnat --pipeline-definition-id abc123 \
     --config-branch main --checkout-branch feature-branch --config-file .circleci/config.yml \ 
-    --parameters "key1=value1"
+    "--parameters", "key1=value1", "--parameters", "key2=value2"
 `,
 		PreRunE: preRunE,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -67,7 +69,7 @@ Examples:
 
 			// If no config file is specified, ask if user wants to use a local config
 			if configFilePath == "" {
-				useLocalConfigPrompt := "Do you want to test with a local config file? This will bypass the config file in the repository?"
+				useLocalConfigPrompt := "Do you want to test run with a local config file?"
 				if ops.reader.AskConfirm(useLocalConfigPrompt) {
 					configFilePathPrompt := "Enter the path to your local config file"
 					configFilePath = ops.reader.ReadStringFromUser(configFilePathPrompt)
@@ -137,6 +139,7 @@ Examples:
 				cmd.Printf("Pipeline Number: %d\n", resp.Created.Number)
 				cmd.Printf("State: %s\n", resp.Created.State)
 				cmd.Printf("Created at: %s\n", resp.Created.CreatedAt)
+				cmd.Printf("You may view your pipeline run on the pipelines page: https://app.circleci.com/pipelines/circleci/%s\n", orgSlug)
 			} else if resp.Message != nil {
 				cmd.Printf("Message: %s\n", resp.Message.Message)
 			}
