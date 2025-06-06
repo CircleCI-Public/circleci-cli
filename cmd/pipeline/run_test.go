@@ -42,7 +42,7 @@ func Test_newRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
+					"Do you want to test run with a local config file?": false,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -66,7 +66,7 @@ func Test_newRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
+					"Do you want to test run with a local config file?": false,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -86,7 +86,7 @@ func Test_newRunCommand(t *testing.T) {
 			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--config-branch", "main", "--checkout-branch", "feature"},
 			reader: &mockReader{
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
+					"Do you want to test run with a local config file?": false,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -106,7 +106,7 @@ func Test_newRunCommand(t *testing.T) {
 			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--config-tag", "v1.0.0", "--checkout-tag", "v1.0.0"},
 			reader: &mockReader{
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
+					"Do you want to test run with a local config file?": false,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -130,7 +130,7 @@ func Test_newRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": false,
+					"Do you want to test run with a local config file?": false,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -167,7 +167,7 @@ func Test_newRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": true,
+					"Do you want to test run with a local config file?": true,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -192,7 +192,7 @@ func Test_newRunCommand(t *testing.T) {
 					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
 				},
 				confirmPrompts: map[string]bool{
-					"Do you want to test with a local config file? This will bypass the config file in the repository.": true,
+					"Do you want to test run with a local config file?": true,
 				},
 			},
 			expectedConfig: pipeline.PipelineRunOptions{
@@ -204,6 +204,54 @@ func Test_newRunCommand(t *testing.T) {
 				CheckoutBranch:       "feature",
 				CheckoutTag:          "",
 				ConfigFilePath:       "/path/to/config.yml",
+				Parameters:           map[string]interface{}{},
+			},
+		},
+		{
+			name: "with both local config file and repo config flags - confirm local config",
+			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--local-config-file", "/path/to/config.yml", "--repo-config"},
+			reader: &mockReader{
+				responses: map[string]string{
+					"Enter the path to your local config file":                                                          "/path/to/config.yml",
+					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
+				},
+				confirmPrompts: map[string]bool{
+					"Do you want to test run with a local config file?": true,
+				},
+			},
+			expectedConfig: pipeline.PipelineRunOptions{
+				Organization:         "my-org",
+				Project:              "my-project",
+				PipelineDefinitionID: "abc123",
+				ConfigBranch:         "cli-run",
+				ConfigTag:            "",
+				CheckoutBranch:       "feature",
+				CheckoutTag:          "",
+				ConfigFilePath:       "/path/to/config.yml",
+				Parameters:           map[string]interface{}{},
+			},
+		},
+		{
+			name: "with both local config file and repo config flags - decline local config",
+			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--repo-config"},
+			reader: &mockReader{
+				responses: map[string]string{
+					"You must specify either a config branch or tag. Enter a branch (or leave blank to enter a tag):":   "main",
+					"You must specify either a checkout branch or tag. Enter a branch (or leave blank to enter a tag):": "feature",
+				},
+				confirmPrompts: map[string]bool{
+					"Do you want to test run with a local config file?": false,
+				},
+			},
+			expectedConfig: pipeline.PipelineRunOptions{
+				Organization:         "my-org",
+				Project:              "my-project",
+				PipelineDefinitionID: "abc123",
+				ConfigBranch:         "main",
+				ConfigTag:            "",
+				CheckoutBranch:       "feature",
+				CheckoutTag:          "",
+				ConfigFilePath:       "",
 				Parameters:           map[string]interface{}{},
 			},
 		},

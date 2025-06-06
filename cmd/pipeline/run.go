@@ -20,8 +20,9 @@ func newRunCommand(ops *pipelineOpts, preRunE validator.Validator) *cobra.Comman
 	var configTag string
 	var checkoutBranch string
 	var checkoutTag string
-	var configFilePath string
+	var localConfigFilePath string
 	var parameters map[string]string
+	var repoConfig bool
 
 	cmd := &cobra.Command{
 		Use:   "run <orgSlug> <project-id> --pipeline-definition-id <id> [options...]",
@@ -38,15 +39,16 @@ Required arguments:
 
 Optional flags:
   # Note for config-* and checkout-*: Both required if running a pipeline run without a local config file.
-  If you are using a local config file, you can omit the config-* flags.
+	If you are using a local config file, you can omit the config-* flags.
+  # Note for --local-config-file: If you want to run a pipeline with a local config file, you need to enable
+	"Allow triggering pipelines with unversioned config" in Organization Settings > Advanced.
   --config-branch          Branch to use for config (mutually exclusive with --config-tag)
   --config-tag             Tag to use for config (mutually exclusive with --config-branch)
   --checkout-branch        Branch to checkout (mutually exclusive with --checkout-tag)
   --checkout-tag           Tag to checkout (mutually exclusive with --checkout-branch)
-  --config-file            Path to a local config file to use. If not provided, the config file in the repository
-                           will be used. Please note you must have "Allow triggering pipelines with unversioned
-                           config" enabled in Organization Settings > Advanced.
+  --local-config-file      Path to a local config file to use
   --parameters             Pipeline parameters in key=value format (can be specified multiple times)
+  --repo-config            Use repository config
 
 Examples:
   # Minimal usage (will prompt for required values):
@@ -54,7 +56,7 @@ Examples:
 
   # Full usage with all flags:
   circleci pipeline run 5e16180a-023b-4c3v-9bd9-43a8eb6cdb8f 44n9wujWcTnVZ2b5S8Fnat --pipeline-definition-id abc123 \
-    --config-branch main --checkout-branch feature-branch --config-file .circleci/config.yml \ 
+    --config-branch main --checkout-branch feature-branch --local-config-file .circleci/config.yml \ 
     "--parameters", "key1=value1", "--parameters", "key2=value2"
 `,
 		PreRunE: preRunE,
@@ -67,20 +69,25 @@ Examples:
 				pipelineDefinitionID = ops.reader.ReadStringFromUser(pipelineDefinitionIDPrompt)
 			}
 
-			// If no config file is specified, ask if user wants to use a local config
-			if configFilePath == "" {
+			// Prompt logic for local config file
+			useLocalConfig := false
+			if (localConfigFilePath == "" && !repoConfig) || (localConfigFilePath != "" && repoConfig) {
 				useLocalConfigPrompt := "Do you want to test run with a local config file?"
 				if ops.reader.AskConfirm(useLocalConfigPrompt) {
 					configFilePathPrompt := "Enter the path to your local config file"
-					configFilePath = ops.reader.ReadStringFromUser(configFilePathPrompt)
+					localConfigFilePath = ops.reader.ReadStringFromUser(configFilePathPrompt)
+					useLocalConfig = true
+				} else {
+					localConfigFilePath = ""
 				}
+			} else if localConfigFilePath != "" {
+				useLocalConfig = true
 			}
 
-			// If a config file path is supplied, check if the file is empty
-			if configFilePath != "" {
-				//We want to bypass needed to pass a config branch if a config file is supplied
+			// If a config file path is supplied and confirmed, check if the file is empty
+			if useLocalConfig && localConfigFilePath != "" {
 				configBranch = "cli-run"
-				data, err := os.ReadFile(configFilePath)
+				data, err := os.ReadFile(localConfigFilePath)
 				if err != nil {
 					return fmt.Errorf("failed to read config file: %w", err)
 				}
@@ -121,7 +128,7 @@ Examples:
 				CheckoutBranch:       checkoutBranch,
 				CheckoutTag:          checkoutTag,
 				Parameters:           paramMap,
-				ConfigFilePath:       configFilePath,
+				ConfigFilePath:       localConfigFilePath,
 			}
 
 			resp, err := ops.pipelineClient.PipelineRun(options)
@@ -154,8 +161,9 @@ Examples:
 	cmd.Flags().StringVar(&configTag, "config-tag", "", "Tag to use for config (mutually exclusive with --config-branch)")
 	cmd.Flags().StringVar(&checkoutBranch, "checkout-branch", "", "Branch to checkout (mutually exclusive with --checkout-tag)")
 	cmd.Flags().StringVar(&checkoutTag, "checkout-tag", "", "Tag to checkout (mutually exclusive with --checkout-branch)")
-	cmd.Flags().StringVar(&configFilePath, "config-file", "", "Path to a local config file to use")
+	cmd.Flags().StringVar(&localConfigFilePath, "local-config-file", "", "Path to a local config file to use")
 	cmd.Flags().StringToStringVar(&parameters, "parameters", nil, "Pipeline parameters in key=value format (can be specified multiple times)")
+	cmd.Flags().BoolVar(&repoConfig, "repo-config", false, "Use repository config")
 
 	// Add mutual exclusivity rules
 	cmd.MarkFlagsMutuallyExclusive("config-branch", "config-tag")
