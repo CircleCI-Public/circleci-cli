@@ -52,10 +52,10 @@ Optional flags:
 
 Examples:
   # Minimal usage (will prompt for required values):
-  circleci pipeline run circleci/6phtklsjdlskE/cLKSdlksdn 44n9wujWcTnVZ2b5S8Fnat
+  circleci pipeline run 6phtklsjdlskE 44n9wujWcTnVZ2b5S8Fnat
 
   # Full usage with all flags:
-  circleci pipeline run 5e16180a-023b-4c3v-9bd9-43a8eb6cdb8f 44n9wujWcTnVZ2b5S8Fnat --pipeline-definition-id abc123 \
+  circleci pipeline run 6phtklsjdlskE 44n9wujWcTnVZ2b5S8Fnat --pipeline-definition-id abc123 \
     --config-branch main --checkout-branch feature-branch --local-config-file .circleci/config.yml \ 
     "--parameters", "key1=value1", "--parameters", "key2=value2"
 `,
