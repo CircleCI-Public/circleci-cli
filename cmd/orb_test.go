@@ -51,8 +51,6 @@ var _ = Describe("Orb telemetry", func() {
 	It("works", func() {
 		orb.Write([]byte(`{}`))
 
-		mockOrbIntrospection(true, "", tempSettings)
-
 		tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
 			res.WriteHeader(http.StatusOK)
 			_, _ = res.Write([]byte(`{"orbConfig": {"sourceYaml": "{}", "valid": true, "errors": []} }`))
@@ -160,8 +158,6 @@ var _ = Describe("Orb integration tests", func() {
 			It("works", func() {
 				By("setting up a mock server")
 
-				mockOrbIntrospection(true, "", tempSettings)
-
 				gqlResponse := `{
 							"orbConfig": {
 								"sourceYaml": "{}",
@@ -229,8 +225,6 @@ var _ = Describe("Orb integration tests", func() {
 				By("setting up a mock server")
 				orb.Write([]byte(`{}`))
 
-				mockOrbIntrospection(true, "", tempSettings)
-
 				gqlResponse := `{
 							"orbConfig": {
 								"sourceYaml": "{}",
@@ -267,73 +261,7 @@ var _ = Describe("Orb integration tests", func() {
 				token = "testtoken"
 			})
 
-			It("should use the old GraphQL resolver when the parameter is not present on the server pointed by host", func() {
-				command = exec.Command(pathCLI,
-					"orb", "validate",
-					"--skip-update-check",
-					"--token", token,
-					"--host", tempSettings.TestServer.URL(),
-					"-",
-				)
-				stdin, err := command.StdinPipe()
-				Expect(err).ToNot(HaveOccurred())
-				go func() {
-					defer stdin.Close()
-					_, err := io.WriteString(stdin, "{}")
-					if err != nil {
-						panic(err)
-					}
-				}()
-
-				By("setting up a mock server")
-
-				mockOrbIntrospection(false, "", tempSettings)
-
-				gqlResponse := `{
-							"orbConfig": {
-								"sourceYaml": "{}",
-								"valid": true,
-								"errors": []
-							}
-						}`
-
-				response := struct {
-					Query     string `json:"query"`
-					Variables struct {
-						Config string `json:"config"`
-					} `json:"variables"`
-				}{
-					Query: `query ValidateOrb ($config: String!) {
-	orbConfig(orbYaml: $config) {
-		valid,
-		errors { message },
-		sourceYaml,
-		outputYaml
-	}
-}`,
-					Variables: struct {
-						Config string `json:"config"`
-					}{
-						Config: "{}",
-					},
-				}
-				expected, err := json.Marshal(response)
-				Expect(err).ShouldNot(HaveOccurred())
-
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  string(expected),
-					Response: gqlResponse,
-				})
-
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("Orb input is valid."))
-				Eventually(session).Should(gexec.Exit(0))
-			})
-
-			It("indicate a deprecation error when the parameter is not present on the server pointed by host", func() {
+			It("should use the GraphQL resolver with ownerId parameter", func() {
 				command = exec.Command(pathCLI,
 					"orb", "validate",
 					"--skip-update-check",
@@ -354,37 +282,6 @@ var _ = Describe("Orb integration tests", func() {
 
 				By("setting up a mock server")
 
-				mockOrbIntrospection(false, "", tempSettings)
-
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say("Your version of Server does not support validating orbs that refer to other private orbs. Please see the README for more information on server compatibility: https://github.com/CircleCI-Public/circleci-cli#server-compatibility"))
-				Eventually(session).Should(gexec.Exit(-1))
-			})
-
-			It("should work properly when the parameter is present", func() {
-				command = exec.Command(pathCLI,
-					"orb", "validate",
-					"--skip-update-check",
-					"--token", token,
-					"--host", tempSettings.TestServer.URL(),
-					"--org-id", "org-id",
-					"-",
-				)
-				stdin, err := command.StdinPipe()
-				Expect(err).ToNot(HaveOccurred())
-				go func() {
-					defer stdin.Close()
-					_, err := io.WriteString(stdin, "{}")
-					if err != nil {
-						panic(err)
-					}
-				}()
-
-				By("setting up a mock server")
-
-				mockOrbIntrospection(true, "", tempSettings)
 				gqlResponse := `{
 							"orbConfig": {
 								"sourceYaml": "{}",
@@ -451,8 +348,6 @@ var _ = Describe("Orb integration tests", func() {
 				It("works", func() {
 					By("setting up a mock server")
 
-					mockOrbIntrospection(true, "", tempSettings)
-
 					gqlResponse := `{
 							"orbConfig": {
 								"sourceYaml": "{}",
@@ -485,8 +380,6 @@ var _ = Describe("Orb integration tests", func() {
 
 				It("prints errors if invalid", func() {
 					By("setting up a mock server")
-
-					mockOrbIntrospection(true, "", tempSettings)
 
 					gqlResponse := `{
 							"orbConfig": {
@@ -533,8 +426,6 @@ var _ = Describe("Orb integration tests", func() {
 				It("works", func() {
 					By("setting up a mock server")
 
-					mockOrbIntrospection(true, "", tempSettings)
-
 					gqlResponse := `{
 							"orbConfig": {
 								"outputYaml": "hello world",
@@ -566,8 +457,6 @@ var _ = Describe("Orb integration tests", func() {
 
 				It("prints errors if invalid", func() {
 					By("setting up a mock server")
-
-					mockOrbIntrospection(true, "", tempSettings)
 
 					gqlResponse := `{
 							"orbConfig": {
@@ -3840,61 +3729,5 @@ func mockOrbSource(source, orbVersion, token string, tempSettings *clitest.TempS
 		Status:   http.StatusOK,
 		Request:  string(request),
 		Response: response,
-	})
-}
-
-func mockOrbIntrospection(isValid bool, token string, tempSettings *clitest.TempSettings) {
-	args := []map[string]interface{}{
-		{
-			"name": "orbYaml",
-		},
-	}
-	if isValid {
-		args = append(args, map[string]interface{}{
-			"name": "ownerId",
-		})
-	}
-
-	responseStruct := map[string]interface{}{
-		"__schema": map[string]interface{}{
-			"queryType": map[string]interface{}{
-				"fields": []map[string]interface{}{
-					{
-						"name": "orbConfig",
-						"args": args,
-					},
-				},
-			},
-		},
-	}
-	response, err := json.Marshal(responseStruct)
-	Expect(err).ToNot(HaveOccurred())
-
-	requestStruct := map[string]interface{}{
-		"query": `query IntrospectionQuery {
-	__schema {
-		queryType {
-			fields(includeDeprecated: true) {
-				name
-				args {
-					name
-					__typename
-					type {
-						name
-					}
-				}
-			}
-		}
-	}
-}`,
-		"variables": map[string]interface{}{},
-	}
-	request, err := json.Marshal(requestStruct)
-	Expect(err).ToNot(HaveOccurred())
-
-	tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-		Status:   http.StatusOK,
-		Request:  string(request),
-		Response: string(response),
 	})
 }

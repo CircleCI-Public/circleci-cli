@@ -6,10 +6,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-// This client makes request to servers that **DO** have the field `ownerId` in the GraphQL query method: `orbConfig`
-
-const v2_string clientVersion = "v2"
-
 type v2Client struct {
 	gql *graphql.Client
 }
