@@ -1,8 +1,10 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
+	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -80,6 +82,13 @@ type PipelineDefinitionInfo struct {
 
 type listPipelineDefinitionsResponse struct {
 	Items []PipelineDefinitionInfo `json:"items"`
+}
+
+type pipelineRunRequest struct {
+	DefinitionID string                 `json:"definition_id"`
+	Config       *Config                `json:"config,omitempty"`
+	Checkout     *Checkout              `json:"checkout,omitempty"`
+	Parameters   map[string]interface{} `json:"parameters,omitempty"`
 }
 
 // NewPipelineRestClient returns a new pipelineRestClient satisfying the api.PipelineInterface
@@ -169,4 +178,67 @@ func (c *pipelineRestClient) ListPipelineDefinitions(projectID string) ([]*Pipel
 	}
 
 	return items, nil
+}
+
+// PipelineRun triggers a new pipeline run
+func (c *pipelineRestClient) PipelineRun(options PipelineRunOptions) (*PipelineRunResponse, error) {
+	var fileContent string
+	if options.ConfigFilePath != "" {
+		bytes, err := os.ReadFile(options.ConfigFilePath)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read config file: %w", err)
+		}
+		fileContent = string(bytes)
+	}
+
+	configRef := &Config{
+		Branch: options.ConfigBranch,
+		Tag:    options.ConfigTag,
+	}
+	if fileContent != "" {
+		configRef.Content = fileContent
+	}
+
+	reqBody := pipelineRunRequest{
+		DefinitionID: options.PipelineDefinitionID,
+		Config:       configRef,
+		Checkout: &Checkout{
+			Branch: options.CheckoutBranch,
+			Tag:    options.CheckoutTag,
+		},
+		Parameters: options.Parameters,
+	}
+
+	path := fmt.Sprintf("project/circleci/%s/%s/pipeline/run", options.Organization, options.Project)
+	req, err := c.client.NewRequest("POST", &url.URL{Path: path}, reqBody)
+	if err != nil {
+		return nil, err
+	}
+
+	var rawResp map[string]interface{}
+	status, err := c.client.DoRequest(req, &rawResp)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &PipelineRunResponse{}
+	if _, ok := rawResp["message"]; ok && status == 200 {
+		b, _ := json.Marshal(rawResp)
+		var msgResp PipelineRunMessageResponse
+		if err := json.Unmarshal(b, &msgResp); err != nil {
+			return nil, err
+		}
+		response.Message = &msgResp
+	} else if status == 201 {
+		b, _ := json.Marshal(rawResp)
+		var createdResp PipelineRunCreatedResponse
+		if err := json.Unmarshal(b, &createdResp); err != nil {
+			return nil, err
+		}
+		response.Created = &createdResp
+	} else {
+		return nil, fmt.Errorf("unexpected status code or response: %d", status)
+	}
+
+	return response, nil
 }

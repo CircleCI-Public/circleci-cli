@@ -78,7 +78,7 @@ Notes:
 			}
 
 			if repoID == "" {
-				repoPrompt := "Enter the ID of your github repository"
+				repoPrompt := "Enter the ID of the triggering github repository"
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
 			}
 
