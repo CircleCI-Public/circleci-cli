@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_pipeline_run</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-pipeline-run">circleci pipeline run</h2>
+<p>Run a pipeline configuration. When a local config is supplied, it runs it via a ci pipeline in circleci’s cloud.</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>Run a pipeline configuration. When a local config is supplied, it runs it via a ci pipeline in circleci’s cloud.</p>
+<p>Required arguments: orgSlug The second segment of the slash-separated project slug, as shown in Project Settings &gt; Overview. For example, in circleci/6phtklsjdlskE/cLKSdlksdn it would be 6phtklsjdlskE<br />
+project-id Project ID (e.g. 44n9wujWcTnVZ2b5S8Fnat). You can view it in Project Settings &gt; Overview.<br />
+–pipeline-definition-id The unique id for the pipeline definition. This can be found in the page Project Settings &gt; Pipelines.</p>
+<p>Optional flags: # Note for config-* and checkout-<em>: Both required if running a pipeline run without a local config file. If you are using a local config file, you can omit the config-</em> flags. # Note for –local-config-file: If you want to run a pipeline with a local config file, you need to enable “Allow triggering pipelines with unversioned config” in Organization Settings &gt; Advanced. –config-branch Branch to use for config (mutually exclusive with –config-tag) –config-tag Tag to use for config (mutually exclusive with –config-branch) –checkout-branch Branch to checkout (mutually exclusive with –checkout-tag) –checkout-tag Tag to checkout (mutually exclusive with –checkout-branch) –local-config-file Path to a local config file to use –parameters Pipeline parameters in key=value format (can be specified multiple times) –repo-config Use repository config</p>
+<p>Examples: # Minimal usage (will prompt for required values): circleci pipeline run 6phtklsjdlskE 44n9wujWcTnVZ2b5S8Fnat</p>
+<p># Full usage with all flags: circleci pipeline run 6phtklsjdlskE 44n9wujWcTnVZ2b5S8Fnat –pipeline-definition-id abc123<br />
+–config-branch main –checkout-branch feature-branch –local-config-file .circleci/config.yml   “–parameters”, “key1=value1”, “–parameters”, “key2=value2”</p>
+<pre><code>circleci pipeline run &lt;orgSlug&gt; &lt;project-id&gt; --pipeline-definition-id &lt;id&gt; [options...] [flags]</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --checkout-branch string          Branch to checkout (mutually exclusive with --checkout-tag)
+      --checkout-tag string             Tag to checkout (mutually exclusive with --checkout-branch)
+      --config-branch string            Branch to use for config (mutually exclusive with --config-tag)
+      --config-tag string               Tag to use for config (mutually exclusive with --config-branch)
+  -h, --help                            help for run
+      --local-config-file string        Path to a local config file to use
+      --parameters stringToString       Pipeline parameters in key=value format (can be specified multiple times) (default [])
+      --pipeline-definition-id string   Pipeline definition ID to test
+      --repo-config                     Use repository config</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --skip-update-check   Skip the check for updates check run before every command. (default true)
+      --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="circleci_pipeline.html">circleci pipeline</a> - Operate on pipelines</li>
+</ul>
+</body>
+</html>
