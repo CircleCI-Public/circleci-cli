@@ -251,7 +251,7 @@ func selectRepository(reader UserInputReader) (string, error) {
 // waitForEnter waits for the user to press Enter
 func waitForEnter(message string) {
 	fmt.Print(message)
-	bufio.NewReader(os.Stdin).ReadBytes('\n')
+	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
 }
 
 // validateProjectName validates that the project name meets CircleCI requirements
