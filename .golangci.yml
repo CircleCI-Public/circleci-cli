@@ -21,8 +21,7 @@ linters:
     - unconvert
     # - unparam
     - unused
-    - vet
-    - vetshadow
+    - govet
 
 # Instead of disabling tests entirely, just ignore goconst, which is the only
 # one with issues there currently.
