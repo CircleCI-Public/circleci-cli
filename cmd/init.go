@@ -53,6 +53,11 @@ type UserInputReader interface {
 
 type initPromptReader struct{}
 
+const (
+	githubVCS   = "github"
+	circleciVCS = "circleci"
+)
+
 func (p initPromptReader) ReadStringFromUser(msg string, defaultValue string, validator ...func(string) error) string {
 	return prompt.ReadStringFromUser(msg, defaultValue, validator...)
 }
@@ -308,7 +313,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	}
 
 	// Check GitHub app installation for CircleCI VCS
-	if opts.vcsType == "circleci" {
+	if opts.vcsType == circleciVCS {
 		vcsConnectionsURL := fmt.Sprintf("https://app.circleci.com/settings/organization/%s/%s/vcs-connections", opts.vcsType, opts.orgName)
 
 		fmt.Println("🔗 GitHub App Installation Check")
