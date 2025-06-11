@@ -903,7 +903,7 @@ func promoteOrb(opts orbOptions) error {
 	}
 
 	if !references.IsDevVersion(version) {
-		return fmt.Errorf("The version '%s' must be a dev version (the string should begin `dev:`)", version)
+		return fmt.Errorf("the version '%s' must be a dev version (the string should begin `dev:`)", version)
 	}
 
 	response, err := api.OrbPromoteByName(opts.cl, namespace, orb, version, segment)

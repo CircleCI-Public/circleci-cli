@@ -41,7 +41,7 @@ func openProjectInBrowser() error {
 }
 
 // newOpenCommand creates the cli command open
-func newOpenCommand(config *settings.Config) *cobra.Command {
+func newOpenCommand(_ *settings.Config) *cobra.Command {
 	openCommand := &cobra.Command{
 		Use:   "open",
 		Short: "Open the current project in the browser.",

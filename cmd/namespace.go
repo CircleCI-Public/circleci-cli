@@ -138,7 +138,7 @@ To change the namespace, you will have to contact CircleCI customer support.
 	return nil
 }
 
-func createNamespaceWithVcsTypeAndOrgName(opts namespaceOptions, namespaceName, vcsType, orgName string) error {
+func createNamespaceWithVcsTypeAndOrgName(opts namespaceOptions, namespaceName, _, _ string) error {
 	if !opts.noPrompt {
 		fmt.Printf(`You are creating a namespace called "%s".
 
