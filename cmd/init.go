@@ -1,9 +1,7 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -12,6 +10,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	pipelineapi "github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	projectapi "github.com/CircleCI-Public/circleci-cli/api/project"
+	"github.com/CircleCI-Public/circleci-cli/api/repository"
 	triggerapi "github.com/CircleCI-Public/circleci-cli/api/trigger"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -24,9 +23,11 @@ type initOptions struct {
 	pipelineClient      pipelineapi.PipelineClient
 	triggerClient       triggerapi.TriggerClient
 	collaboratorsClient collaborators.CollaboratorsClient
+	repositoryClient    repository.RepositoryClient
 	// Project creation options
 	vcsType     string
 	orgName     string
+	orgID       string
 	projectName string
 	// Pipeline creation options
 	pipelineName        string
@@ -42,7 +43,6 @@ type initOptions struct {
 	checkoutRef        string
 }
 
-// UserInputReader interface for prompting user input
 type UserInputReader interface {
 	ReadStringFromUser(msg string, defaultValue string, validator ...func(string) error) string
 	AskConfirm(msg string) bool
@@ -120,6 +120,13 @@ Examples:
 			}
 			opts.collaboratorsClient = collaboratorsClient
 
+			// Initialize repository client
+			repositoryClient, err := repository.NewRepositoryRestClient(*config)
+			if err != nil {
+				return err
+			}
+			opts.repositoryClient = repositoryClient
+
 			return nil
 		},
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -183,19 +190,17 @@ func promptTillYOrN(reader UserInputReader) string {
 	}
 }
 
-func selectOrganization(collaboratorsClient collaborators.CollaboratorsClient) (string, string, error) {
-	// Fetch user's organizations
+func selectOrganization(collaboratorsClient collaborators.CollaboratorsClient) (string, string, string, error) {
 	fmt.Println("🔍 Fetching your organizations...")
 	collaborations, err := collaboratorsClient.GetOrgCollaborations()
 	if err != nil {
-		return "", "", fmt.Errorf("failed to fetch organizations: %w", err)
+		return "", "", "", fmt.Errorf("failed to fetch organizations: %w", err)
 	}
 
 	if len(collaborations) == 0 {
-		return "", "", fmt.Errorf("no organizations found for your account")
+		return "", "", "", fmt.Errorf("no organizations found for your account")
 	}
 
-	// Prepare options for selection
 	options := make([]string, len(collaborations))
 	orgMap := make(map[string]collaborators.CollaborationResult)
 
@@ -205,7 +210,6 @@ func selectOrganization(collaboratorsClient collaborators.CollaboratorsClient) (
 		orgMap[displayName] = collab
 	}
 
-	// Present selection to user
 	var selectedOption string
 	prompt := &survey.Select{
 		Message: "Select an organization:",
@@ -214,26 +218,90 @@ func selectOrganization(collaboratorsClient collaborators.CollaboratorsClient) (
 
 	err = survey.AskOne(prompt, &selectedOption)
 	if err != nil {
-		return "", "", fmt.Errorf("organization selection failed: %w", err)
+		return "", "", "", fmt.Errorf("organization selection failed: %w", err)
 	}
 
-	// Extract selected organization details
 	selectedOrg := orgMap[selectedOption]
 
-	// Parse VCS type and org name from slug (format: "vcs/orgname")
 	slugParts := strings.Split(selectedOrg.OrgSlug, "/")
 	if len(slugParts) != 2 {
-		return "", "", fmt.Errorf("invalid organization slug format: %s", selectedOrg.OrgSlug)
+		return "", "", "", fmt.Errorf("invalid organization slug format: %s", selectedOrg.OrgSlug)
 	}
 
 	vcsType := slugParts[0]
 	orgName := slugParts[1]
+	orgID := selectedOrg.OrgId
 
-	return vcsType, orgName, nil
+	return vcsType, orgName, orgID, nil
 }
 
-func selectRepository(reader UserInputReader) (string, error) {
-	// Manual repository ID input
+func selectRepository(reader UserInputReader, repositoryClient repository.RepositoryClient, orgID string) (string, error) {
+	if orgID == "" {
+		fmt.Println("📝 Organization ID not available, using manual repository ID input...")
+		return selectRepositoryManually(reader)
+	}
+
+	fmt.Println("🔍 Fetching available repositories...")
+
+	repositories, err := repositoryClient.GetGitHubRepositories(orgID)
+	if err != nil {
+		fmt.Printf("⚠️  Unable to fetch repositories from GitHub (%v)\n", err)
+		fmt.Println("📝 Falling back to manual repository ID input...")
+		return selectRepositoryManually(reader)
+	}
+
+	if len(repositories.Repositories) == 0 {
+		fmt.Println("📝 No repositories found for this organization. Please enter repository ID manually...")
+		return selectRepositoryManually(reader)
+	}
+
+	fmt.Printf("✅ Found %d repositories\n", repositories.TotalCount)
+
+	maxOptions := 50
+	repoCount := len(repositories.Repositories)
+	if repoCount > maxOptions {
+		repoCount = maxOptions
+		fmt.Printf("   Showing first %d repositories (you can enter ID manually if needed)\n", maxOptions)
+	}
+
+	options := make([]string, repoCount+1) // +1 for manual input option
+	repoMap := make(map[string]repository.Repository)
+
+	for i := range repoCount {
+		repo := repositories.Repositories[i]
+		displayName := fmt.Sprintf("%s (%s) - %s", repo.FullName, repo.Language, repo.Description)
+		if len(displayName) > 80 {
+			displayName = displayName[:77] + "..."
+		}
+		options[i] = displayName
+		repoMap[displayName] = repo
+	}
+
+	options[repoCount] = "📝 Enter repository ID manually"
+
+	var selectedOption string
+	prompt := &survey.Select{
+		Message:  "Select a repository:",
+		Options:  options,
+		PageSize: 10,
+	}
+
+	err = survey.AskOne(prompt, &selectedOption)
+	if err != nil {
+		return "", fmt.Errorf("repository selection failed: %w", err)
+	}
+
+	if selectedOption == "📝 Enter repository ID manually" {
+		return selectRepositoryManually(reader)
+	}
+
+	selectedRepo := repoMap[selectedOption]
+	fmt.Printf("✅ Selected repository: %s (ID: %d)\n", selectedRepo.FullName, selectedRepo.ID)
+
+	return strconv.Itoa(selectedRepo.ID), nil
+}
+
+func selectRepositoryManually(reader UserInputReader) (string, error) {
 	fmt.Println("📝 Repository ID Input")
 	fmt.Println("   You can get your repository ID using the appropriate API:")
 	fmt.Println("   For GitHub: curl -H \"Accept: application/vnd.github.v3+json\" https://api.github.com/repos/{owner}/{repo}")
@@ -250,25 +318,15 @@ func selectRepository(reader UserInputReader) (string, error) {
 	return repoID, nil
 }
 
-// waitForEnter waits for the user to press Enter
-func waitForEnter(message string) {
-	fmt.Print(message)
-	_, _ = bufio.NewReader(os.Stdin).ReadBytes('\n')
-}
-
-// validateProjectName validates that the project name meets CircleCI requirements
 func validateProjectName(name string) error {
-	// Check length (3-40 characters)
 	if len(name) < 3 || len(name) > 40 {
 		return fmt.Errorf("project name must be between 3 and 40 characters long, got %d characters", len(name))
 	}
 
-	// Check that it starts with a letter
 	if !regexp.MustCompile(`^[a-zA-Z]`).MatchString(name) {
 		return fmt.Errorf("project name must begin with a letter")
 	}
 
-	// Check allowed characters: letters, numbers, spaces, and -_.:!&+[]
 	allowedPattern := regexp.MustCompile(`^[a-zA-Z0-9 \-_.:!&+\[\]]+$`)
 	if !allowedPattern.MatchString(name) {
 		return fmt.Errorf("project name can only contain letters, numbers, spaces, and the following characters: -_.:!&+[]")
@@ -278,16 +336,13 @@ func validateProjectName(name string) error {
 }
 
 func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
-	// Step 1: Create project
 	fmt.Println("🚀 Initializing CircleCI project...")
 	fmt.Println()
 
-	// Handle organization selection
 	if opts.vcsType == "" || opts.orgName == "" {
 		fmt.Println("📋 Organization Selection")
-		selectedVCS, selectedOrg, err := selectOrganization(opts.collaboratorsClient)
+		selectedVCS, selectedOrg, selectedOrgID, err := selectOrganization(opts.collaboratorsClient)
 		if err != nil {
-			// Fallback to manual input if org selection fails
 			fmt.Printf("⚠️  Unable to fetch organizations (%v)\n", err)
 			fmt.Println("📝 Please enter organization details manually:")
 
@@ -305,11 +360,13 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 			if opts.orgName == "" {
 				opts.orgName = selectedOrg
 			}
+			if opts.orgID == "" {
+				opts.orgID = selectedOrgID
+			}
 		}
 		fmt.Println()
 	}
 
-	// Check GitHub app installation for CircleCI VCS
 	if opts.vcsType == circleciVCS {
 		vcsConnectionsURL := fmt.Sprintf("https://app.circleci.com/settings/organization/%s/%s/vcs-connections", opts.vcsType, opts.orgName)
 
@@ -319,16 +376,18 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		fmt.Printf("   Visit: %s\n", vcsConnectionsURL)
 		fmt.Println()
 
-		// Ask user to press enter to open the URL
-		waitForEnter("Press Enter to open the GitHub App installation page in your browser...")
+		openBrowser := reader.AskConfirm("Would you like to open the GitHub App installation page in your browser?")
 
-		// Open the URL in the browser
-		err := browser.OpenURL(vcsConnectionsURL)
-		if err != nil {
-			fmt.Printf("⚠️  Could not open browser automatically: %v\n", err)
-			fmt.Printf("   Please manually visit: %s\n", vcsConnectionsURL)
+		if openBrowser {
+			err := browser.OpenURL(vcsConnectionsURL)
+			if err != nil {
+				fmt.Printf("⚠️  Could not open browser automatically: %v\n", err)
+				fmt.Printf("   Please manually visit: %s\n", vcsConnectionsURL)
+			} else {
+				fmt.Println("✅ Opened GitHub App installation page in your browser")
+			}
 		} else {
-			fmt.Println("✅ Opened GitHub App installation page in your browser")
+			fmt.Printf("   You can manually visit: %s\n", vcsConnectionsURL)
 		}
 		fmt.Println()
 
@@ -343,7 +402,6 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		fmt.Println()
 	}
 
-	// Prompt for missing project values
 	if opts.projectName == "" {
 		for {
 			opts.projectName = reader.ReadStringFromUser("Enter project name", "", func(s string) error {
@@ -359,18 +417,15 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 			break
 		}
 	} else {
-		// Validate project name provided via flag
 		if err := validateProjectName(opts.projectName); err != nil {
 			return fmt.Errorf("invalid project name: %w", err)
 		}
 	}
 
-	// Validate required project fields
 	if opts.vcsType == "" || opts.orgName == "" || opts.projectName == "" {
 		return fmt.Errorf("all project fields are required: vcs-type, org-name, and project-name")
 	}
 
-	// Create the project
 	fmt.Printf("📁 Creating project '%s' in organization '%s'...\n", opts.projectName, opts.orgName)
 
 	projectRes, err := opts.projectClient.CreateProject(opts.vcsType, opts.orgName, opts.projectName)
@@ -383,18 +438,15 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Printf("   View project: https://app.circleci.com/projects/%s\n", projectRes.Slug)
 	fmt.Println()
 
-	// Step 2: Create pipeline
 	fmt.Println("📋 Creating pipeline definition...")
 
-	// Prompt for missing pipeline values
 	if opts.pipelineName == "" {
 		opts.pipelineName = reader.ReadStringFromUser("Enter a name for the pipeline", fmt.Sprintf("%s-pipeline", opts.projectName), nil)
 	}
 
-	// Repository selection
 	if opts.repoID == "" {
 		fmt.Println()
-		selectedRepoID, err := selectRepository(reader)
+		selectedRepoID, err := selectRepository(reader, opts.repositoryClient, opts.orgID)
 		if err != nil {
 			return fmt.Errorf("repository selection failed: %w", err)
 		}
@@ -406,7 +458,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		yOrN := promptTillYOrN(reader)
 		if yOrN == "y" {
 			fmt.Println("📝 For the config repository, you'll need to provide another repository ID.")
-			configRepoID, err := selectRepository(reader)
+			configRepoID, err := selectRepository(reader, opts.repositoryClient, opts.orgID)
 			if err != nil {
 				return fmt.Errorf("config repository selection failed: %w", err)
 			}
@@ -420,12 +472,10 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		opts.filePath = reader.ReadStringFromUser("Enter the path to your CircleCI config file", ".circleci/config.yml", nil)
 	}
 
-	// Validate required pipeline fields
 	if opts.pipelineName == "" || opts.repoID == "" || opts.configRepoID == "" || opts.filePath == "" {
 		return fmt.Errorf("all pipeline fields are required: pipeline-name, repo-id, config-repo-id, and file-path")
 	}
 
-	// Create the pipeline
 	fmt.Printf("📋 Creating pipeline '%s' for project '%s'...\n", opts.pipelineName, projectRes.Id)
 
 	pipelineRes, err := opts.pipelineClient.CreatePipeline(
@@ -450,15 +500,12 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Printf("   Pipeline ID: %s\n", pipelineRes.Id)
 	fmt.Println()
 
-	// Step 3: Create trigger
 	fmt.Println("⚡ Creating trigger for the pipeline...")
 
-	// Prompt for missing trigger values
 	if opts.triggerName == "" {
 		opts.triggerName = reader.ReadStringFromUser("Enter a name for the trigger", fmt.Sprintf("%s-trigger", opts.pipelineName), nil)
 	}
 
-	// Get pipeline definition to check if we need config/checkout refs
 	pipelineOptions := pipelineapi.GetPipelineDefinitionOptions{
 		ProjectID:            projectRes.Id,
 		PipelineDefinitionID: pipelineRes.Id,
@@ -469,17 +516,14 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		return fmt.Errorf("failed to get pipeline definition: %w", err)
 	}
 
-	// Check if we need config ref (only if config source is different from trigger repo)
 	if opts.configRef == "" && pipelineResp.ConfigSourceId != opts.repoID {
 		opts.configRef = reader.ReadStringFromUser("Your pipeline repo and config source repo are different. Enter the branch or tag to use when fetching config for pipeline runs", "", nil)
 	}
 
-	// Check if we need checkout ref (only if checkout source is different from trigger repo)
 	if opts.checkoutRef == "" && pipelineResp.CheckoutSourceId != opts.repoID {
 		opts.checkoutRef = reader.ReadStringFromUser("Your pipeline repo and checkout source repo are different. Enter the branch or tag to use when checking out code for pipeline runs", "", nil)
 	}
 
-	// Create the trigger
 	fmt.Printf("⚡ Creating trigger '%s' for pipeline '%s'...\n", opts.triggerName, pipelineRes.Id)
 
 	triggerOptions := triggerapi.CreateTriggerOptions{
