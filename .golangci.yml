@@ -12,7 +12,6 @@ linters:
     - gosimple
     - govet
     - ineffassign
-    - megacheck
     - misspell
     - nakedret
     # - revive
@@ -21,8 +20,7 @@ linters:
     - unconvert
     # - unparam
     - unused
-    - vet
-    - vetshadow
+    - govet
 
 # Instead of disabling tests entirely, just ignore goconst, which is the only
 # one with issues there currently.

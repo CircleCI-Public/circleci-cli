@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newCompletionCommand(config *settings.Config) *cobra.Command {
+func newCompletionCommand(_ *settings.Config) *cobra.Command {
 	completionCmd := &cobra.Command{
 		Use:   "completion",
 		Short: "Generate shell completion scripts",
