@@ -154,6 +154,11 @@ Examples:
 				}
 			}
 
+			// Validate event preset
+			if err := validateEventPreset(opts.eventPreset); err != nil {
+				return err
+			}
+
 			return initCmd(opts, reader, cmd)
 		},
 	}
@@ -173,7 +178,7 @@ Examples:
 	// Trigger creation flags
 	initCmd.Flags().StringVar(&opts.triggerName, "trigger-name", "", "Name of the trigger to create")
 	initCmd.Flags().StringVar(&opts.triggerDescription, "trigger-description", "", "Description of the trigger")
-	initCmd.Flags().StringVar(&opts.eventPreset, "event-preset", "", "Event preset to filter triggers (e.g., 'all-pushes')")
+	initCmd.Flags().StringVar(&opts.eventPreset, "event-preset", "all-pushes", "Event preset to filter triggers. Valid values: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-merged-prs, only-ready-for-review-prs, only-labeled-prs, only-build-pushes-to-non-draft-prs")
 	initCmd.Flags().StringVar(&opts.configRef, "config-ref", "", "Git ref to use when fetching config (only needed if different from trigger repo)")
 	initCmd.Flags().StringVar(&opts.checkoutRef, "checkout-ref", "", "Git ref to use when checking out code (only needed if different from trigger repo)")
 
@@ -316,6 +321,27 @@ func selectRepositoryManually(reader UserInputReader) (string, error) {
 	})
 
 	return repoID, nil
+}
+
+// validateEventPreset validates that the event preset is one of the allowed values
+func validateEventPreset(preset string) error {
+	validPresets := map[string]bool{
+		"all-pushes":                         true,
+		"only-tags":                          true,
+		"default-branch-pushes":              true,
+		"only-build-prs":                     true,
+		"only-open-prs":                      true,
+		"only-merged-prs":                    true,
+		"only-ready-for-review-prs":          true,
+		"only-labeled-prs":                   true,
+		"only-build-pushes-to-non-draft-prs": true,
+	}
+
+	if !validPresets[preset] {
+		return fmt.Errorf("invalid event preset '%s'. Valid values are: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-merged-prs, only-ready-for-review-prs, only-labeled-prs, only-build-pushes-to-non-draft-prs", preset)
+	}
+
+	return nil
 }
 
 func validateProjectName(name string) error {
@@ -505,6 +531,8 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	if opts.triggerName == "" {
 		opts.triggerName = reader.ReadStringFromUser("Enter a name for the trigger", fmt.Sprintf("%s-trigger", opts.pipelineName), nil)
 	}
+
+	fmt.Printf("✅ Using trigger event: %s\n", opts.eventPreset)
 
 	pipelineOptions := pipelineapi.GetPipelineDefinitionOptions{
 		ProjectID:            projectRes.Id,
