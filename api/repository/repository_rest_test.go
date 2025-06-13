@@ -59,7 +59,10 @@ func TestGetGitHubRepositories(t *testing.T) {
 		// Send mock response - array directly
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(mockRepositories)
+		if err := json.NewEncoder(w).Encode(mockRepositories); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
 	}))
 	defer server.Close()
 
@@ -108,9 +111,12 @@ func TestGetGitHubRepositories_ErrorResponse(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{
+		if err := json.NewEncoder(w).Encode(map[string]string{
 			"message": "Organization not found",
-		})
+		}); err != nil {
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			return
+		}
 	}))
 	defer server.Close()
 
