@@ -178,7 +178,7 @@ Examples:
 	// Trigger creation flags
 	initCmd.Flags().StringVar(&opts.triggerName, "trigger-name", "", "Name of the trigger to create")
 	initCmd.Flags().StringVar(&opts.triggerDescription, "trigger-description", "", "Description of the trigger")
-	initCmd.Flags().StringVar(&opts.eventPreset, "event-preset", "all-pushes", "Event preset to filter triggers. Valid values: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-merged-prs, only-ready-for-review-prs, only-labeled-prs, only-build-pushes-to-non-draft-prs")
+	initCmd.Flags().StringVar(&opts.eventPreset, "event-preset", "", "Event preset to filter triggers. Valid values: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-merged-prs, only-ready-for-review-prs, only-labeled-prs, only-build-pushes-to-non-draft-prs")
 	initCmd.Flags().StringVar(&opts.configRef, "config-ref", "", "Git ref to use when fetching config (only needed if different from trigger repo)")
 	initCmd.Flags().StringVar(&opts.checkoutRef, "checkout-ref", "", "Git ref to use when checking out code (only needed if different from trigger repo)")
 
@@ -323,8 +323,60 @@ func selectRepositoryManually(reader UserInputReader) (string, error) {
 	return repoID, nil
 }
 
+// selectEventPreset prompts the user to select an event preset
+func selectEventPreset() (string, error) {
+	presetOptions := []string{
+		"all-pushes",
+		"only-tags",
+		"default-branch-pushes",
+		"only-build-prs",
+		"only-open-prs",
+		"only-merged-prs",
+		"only-ready-for-review-prs",
+		"only-labeled-prs",
+		"only-build-pushes-to-non-draft-prs",
+	}
+
+	presetDescriptions := map[string]string{
+		"all-pushes":                         "All pushes - Trigger your pipeline on all pushes to your repo",
+		"only-tags":                          "Only tags - Trigger on pushes to tags",
+		"default-branch-pushes":              "Default branch pushes - Trigger only on pushes to the default branch",
+		"only-build-prs":                     "PR opened or pushed to, default branch and tag pushes",
+		"only-open-prs":                      "Only open PRs - Trigger only when pull requests are opened",
+		"only-merged-prs":                    "Only merged PRs - Trigger only when pull requests are merged",
+		"only-ready-for-review-prs":          "Only ready for review PRs - Trigger when PRs are marked ready for review",
+		"only-labeled-prs":                   "Only labeled PRs - Trigger only when `run-ci` label added to PR",
+		"only-build-pushes-to-non-draft-prs": "Only build pushes to non-draft PRs - Trigger on pushes to non-draft pull requests",
+	}
+
+	displayOptions := make([]string, len(presetOptions))
+	for i, preset := range presetOptions {
+		displayOptions[i] = fmt.Sprintf("%s - %s", preset, presetDescriptions[preset])
+	}
+
+	var selectedOption string
+	prompt := &survey.Select{
+		Message:  "Select an event preset for your trigger:",
+		Options:  displayOptions,
+		PageSize: 10,
+	}
+
+	err := survey.AskOne(prompt, &selectedOption)
+	if err != nil {
+		return "", fmt.Errorf("event preset selection failed: %w", err)
+	}
+
+	// Extract the actual preset value from the display string
+	selectedPreset := strings.Split(selectedOption, " - ")[0]
+	return selectedPreset, nil
+}
+
 // validateEventPreset validates that the event preset is one of the allowed values
 func validateEventPreset(preset string) error {
+	if preset == "" {
+		return nil // Allow empty preset, will be prompted for
+	}
+
 	validPresets := map[string]bool{
 		"all-pushes":                         true,
 		"only-tags":                          true,
@@ -530,6 +582,16 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 
 	if opts.triggerName == "" {
 		opts.triggerName = reader.ReadStringFromUser("Enter a name for the trigger", fmt.Sprintf("%s-trigger", opts.pipelineName), nil)
+	}
+
+	if opts.eventPreset == "" {
+		fmt.Println("📋 Event Preset Selection")
+		selectedPreset, err := selectEventPreset()
+		if err != nil {
+			return fmt.Errorf("event preset selection failed: %w", err)
+		}
+		opts.eventPreset = selectedPreset
+		fmt.Println()
 	}
 
 	fmt.Printf("✅ Using trigger event: %s\n", opts.eventPreset)
