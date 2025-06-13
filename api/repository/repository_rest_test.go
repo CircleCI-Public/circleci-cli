@@ -47,16 +47,13 @@ func TestGetGitHubRepositories(t *testing.T) {
 		},
 	}
 
-	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Verify request details
 		assert.Equal(t, "GET", r.Method)
 		assert.Equal(t, "/private/soc/github-app/organization/test-org-id/repositories", r.URL.Path)
 		assert.Equal(t, "test-token", r.Header.Get("Circle-Token"))
 		assert.Equal(t, "application/json", r.Header.Get("Accept"))
 		assert.Equal(t, version.UserAgent(), r.Header.Get("User-Agent"))
 
-		// Send mock response - array directly
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(mockRepositories); err != nil {
@@ -66,7 +63,6 @@ func TestGetGitHubRepositories(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Create client with test server URL
 	config := settings.Config{
 		Token:      "test-token",
 		HTTPClient: http.DefaultClient,
@@ -78,16 +74,13 @@ func TestGetGitHubRepositories(t *testing.T) {
 		httpClient: config.HTTPClient,
 	}
 
-	// Test the API call
 	result, err := client.GetGitHubRepositories("test-org-id")
 
-	// Assertions
 	assert.NoError(t, err)
 	assert.NotNil(t, result)
 	assert.Equal(t, 2, result.TotalCount)
 	assert.Len(t, result.Repositories, 2)
 
-	// Check first repository
 	repo1 := result.Repositories[0]
 	assert.Equal(t, 123456, repo1.ID)
 	assert.Equal(t, "example-repo", repo1.Name)
@@ -96,7 +89,6 @@ func TestGetGitHubRepositories(t *testing.T) {
 	assert.Equal(t, "Go", repo1.Language)
 	assert.Equal(t, "main", repo1.DefaultBranch)
 
-	// Check second repository
 	repo2 := result.Repositories[1]
 	assert.Equal(t, 789012, repo2.ID)
 	assert.Equal(t, "another-repo", repo2.Name)
@@ -107,7 +99,6 @@ func TestGetGitHubRepositories(t *testing.T) {
 }
 
 func TestGetGitHubRepositories_ErrorResponse(t *testing.T) {
-	// Create test server that returns an error
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusNotFound)
@@ -120,7 +111,6 @@ func TestGetGitHubRepositories_ErrorResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// Create client with test server URL
 	config := settings.Config{
 		Token:      "test-token",
 		HTTPClient: http.DefaultClient,
@@ -132,17 +122,14 @@ func TestGetGitHubRepositories_ErrorResponse(t *testing.T) {
 		httpClient: config.HTTPClient,
 	}
 
-	// Test the API call
 	result, err := client.GetGitHubRepositories("nonexistent-org")
 
-	// Assertions
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "Organization not found")
 }
 
 func TestGetGitHubRepositories_NetworkError(t *testing.T) {
-	// Create client with invalid URL to simulate network error
 	config := settings.Config{
 		Token:      "test-token",
 		HTTPClient: http.DefaultClient,
@@ -154,10 +141,8 @@ func TestGetGitHubRepositories_NetworkError(t *testing.T) {
 		httpClient: config.HTTPClient,
 	}
 
-	// Test the API call
 	result, err := client.GetGitHubRepositories("test-org-id")
 
-	// Assertions
 	assert.Error(t, err)
 	assert.Nil(t, result)
 	assert.Contains(t, err.Error(), "failed to execute request")

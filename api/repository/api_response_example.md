@@ -67,28 +67,6 @@ result := &GetRepositoriesResponse{
 return result, nil
 ```
 
-## Error That Was Fixed
-
-**Before (Incorrect):**
-
-```go
-// This failed because API doesn't return an object
-var result GetRepositoriesResponse
-if err := json.Unmarshal(bodyBytes, &result); err != nil {
-    // Error: json: cannot unmarshal array into Go value of type repository.GetRepositoriesResponse
-}
-```
-
-**After (Correct):**
-
-```go
-// This works because we unmarshal the array directly
-var repositories []Repository
-if err := json.Unmarshal(bodyBytes, &repositories); err != nil {
-    return nil, fmt.Errorf("failed to decode response: %w", err)
-}
-```
-
 ## Benefits of This Approach
 
 ✅ **Matches API Response**: Correctly handles the actual JSON array format  

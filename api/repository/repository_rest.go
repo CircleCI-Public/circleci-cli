@@ -11,7 +11,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
-// repositoryRestClient implements the RepositoryClient interface using REST API calls
 type repositoryRestClient struct {
 	token      string
 	baseURL    string
@@ -20,7 +19,6 @@ type repositoryRestClient struct {
 
 var _ RepositoryClient = &repositoryRestClient{}
 
-// NewRepositoryRestClient creates a new repository REST client
 func NewRepositoryRestClient(config settings.Config) (*repositoryRestClient, error) {
 	return &repositoryRestClient{
 		token:      config.Token,
@@ -29,7 +27,6 @@ func NewRepositoryRestClient(config settings.Config) (*repositoryRestClient, err
 	}, nil
 }
 
-// GetGitHubRepositories fetches GitHub repositories for the given organization ID
 func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetRepositoriesResponse, error) {
 	path := fmt.Sprintf("/private/soc/github-app/organization/%s/repositories", orgID)
 
@@ -73,7 +70,7 @@ func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetReposito
 		return nil, fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	// Create the response structure
+	// We want to return a struct with the total count of repositories
 	result := &GetRepositoriesResponse{
 		Repositories: repositories,
 		TotalCount:   len(repositories),
@@ -82,7 +79,6 @@ func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetReposito
 	return result, nil
 }
 
-// newHTTPRequest creates a new HTTP request with standard headers
 func (c *repositoryRestClient) newHTTPRequest(method, path string, body io.Reader) (*http.Request, error) {
 	fullURL := c.baseURL + path
 
@@ -91,19 +87,16 @@ func (c *repositoryRestClient) newHTTPRequest(method, path string, body io.Reade
 		return nil, err
 	}
 
-	// Add standard headers
 	if c.token != "" {
 		req.Header.Set("Circle-Token", c.token)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", version.UserAgent())
 
-	// Add CLI command context if available
 	if commandStr := header.GetCommandStr(); commandStr != "" {
 		req.Header.Set("Circleci-Cli-Command", commandStr)
 	}
 
-	// Set content type for requests with body
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

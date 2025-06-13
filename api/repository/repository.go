@@ -1,6 +1,5 @@
 package repository
 
-// Repository represents a GitHub repository from the BFF API
 type Repository struct {
 	ID            int    `json:"repository_id"`
 	Name          string `json:"repository_name"`
@@ -27,7 +26,6 @@ type GetRepositoriesResponse struct {
 	TotalCount   int
 }
 
-// RepositoryClient is the interface to interact with repository-related APIs
 type RepositoryClient interface {
 	GetGitHubRepositories(orgID string) (*GetRepositoriesResponse, error)
 }
