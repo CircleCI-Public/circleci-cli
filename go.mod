@@ -2,8 +2,6 @@ module github.com/CircleCI-Public/circleci-cli
 
 go 1.23.8
 
-toolchain go1.24.2
-
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
 	github.com/CircleCI-Public/circle-policy-agent v0.0.779
