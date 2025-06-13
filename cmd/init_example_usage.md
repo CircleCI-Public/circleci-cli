@@ -1,18 +1,29 @@
 # Enhanced Init Command with Repository Selection
 
-The `circleci init` command now includes automatic GitHub repository discovery and selection, making it much easier to set up new CircleCI projects.
+The `circleci init` command now includes automatic organization and repository discovery and selection, making it much easier to set up new CircleCI projects.
 
 ## New Repository Selection Features
 
-### 🔍 **Automatic Repository Discovery**
+### 🔍 **Automatic Organization and Repository Discovery**
 
 When creating a new project, the init command will:
 
-1. Fetch your organization's GitHub repositories using the CircleCI BFF API
+1. Fetch a list of organizations to which you have access
 2. Present them in an interactive selection menu
-3. Automatically extract the repository ID for you
+3. Automatically extract the organization ID for you
+4. Fetch a list of repositories for the selected organization
+5. Present them in an interactive selection menu
+6. Automatically extract the repository ID for you
 
-### 📋 **Interactive Repository Menu**
+```
+🔍 Fetching available organizations...
+✅ Found 3 organizations
+? Select an organization:
+  > myorg (My Organization) - Main development organization
+    client-org (Client Organization) - External client projects
+    open-source (Open Source Projects) - Community contributions
+    📝 Enter organization/repository manually
+```
 
 ```
 🔍 Fetching available repositories...
@@ -122,7 +133,16 @@ The enhanced init command handles errors gracefully:
 
 ## Technical Details
 
-- **API Endpoint**: `https://bff.circleci.com/private/soc/github-app/organization/:orgId/repositories`
+- **API Endpoints**:
+
+```
+# Organization lookup
+https://circleci.com/api/v2/me/collaborations
+
+# Repository lookup
+https://bff.circleci.com/private/soc/github-app/organization/:orgId/repositories
+```
+
 - **Authentication**: Uses standard CircleCI token via `Circle-Token` header
 - **Error Handling**: Comprehensive error handling with user-friendly messages
 - **Performance**: Efficient caching and smart pagination
