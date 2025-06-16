@@ -450,33 +450,59 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 
 		fmt.Println("🔗 GitHub App Installation Check")
 		fmt.Printf("   For GitHub repositories, you'll need the CircleCI GitHub App installed.\n")
-		fmt.Printf("   The app should be installed for organization: %s\n", opts.orgName)
-		fmt.Printf("   Visit: %s\n", vcsConnectionsURL)
+		fmt.Printf("   Checking app installation for organization: %s\n", opts.orgName)
 		fmt.Println()
 
-		openBrowser := reader.AskConfirm("Would you like to open the GitHub App installation page in your browser?")
+		// Check if GitHub App is installed using the API
+		installation, err := opts.repositoryClient.CheckGitHubAppInstallation(opts.orgID)
+		if err != nil {
+			fmt.Printf("⚠️  Unable to check GitHub App installation status: %v\n", err)
+			fmt.Printf("   Please verify manually: %s\n", vcsConnectionsURL)
+			fmt.Println()
 
-		if openBrowser {
-			err := browser.OpenURL(vcsConnectionsURL)
-			if err != nil {
-				fmt.Printf("⚠️  Could not open browser automatically: %v\n", err)
-				fmt.Printf("   Please manually visit: %s\n", vcsConnectionsURL)
-			} else {
-				fmt.Println("✅ Opened GitHub App installation page in your browser")
+			// Fall back to manual confirmation if API check fails
+			hasApp := reader.AskConfirm("Have you installed the CircleCI GitHub App for this organization?")
+			if !hasApp {
+				fmt.Println("⚠️  You'll need to install the CircleCI GitHub App before proceeding.")
+				fmt.Println("   Please install it and run this command again.")
+				fmt.Printf("   Install at: %s\n", vcsConnectionsURL)
+				return fmt.Errorf("CircleCI GitHub App is required for GitHub organizations")
 			}
-		} else {
-			fmt.Printf("   You can manually visit: %s\n", vcsConnectionsURL)
-		}
-		fmt.Println()
+			fmt.Println("✅ GitHub App installation confirmed!")
+		} else if installation.ID == 0 {
+			// App is not installed
+			fmt.Printf("❌ CircleCI GitHub App is not installed for organization: %s\n", opts.orgName)
+			fmt.Printf("   Visit: %s\n", vcsConnectionsURL)
+			fmt.Println()
 
-		hasApp := reader.AskConfirm("Have you installed the CircleCI GitHub App for this organization?")
-		if !hasApp {
-			fmt.Println("⚠️  You'll need to install the CircleCI GitHub App before proceeding.")
-			fmt.Println("   Please install it and run this command again.")
-			fmt.Printf("   Install at: %s\n", vcsConnectionsURL)
-			return fmt.Errorf("CircleCI GitHub App is required for GitHub organizations")
+			openBrowser := reader.AskConfirm("Would you like to open the GitHub App installation page in your browser?")
+
+			if openBrowser {
+				err := browser.OpenURL(vcsConnectionsURL)
+				if err != nil {
+					fmt.Printf("⚠️  Could not open browser automatically: %v\n", err)
+					fmt.Printf("   Please manually visit: %s\n", vcsConnectionsURL)
+				} else {
+					fmt.Println("✅ Opened GitHub App installation page in your browser")
+				}
+			} else {
+				fmt.Printf("   You can manually visit: %s\n", vcsConnectionsURL)
+			}
+			fmt.Println()
+
+			hasApp := reader.AskConfirm("Have you installed the CircleCI GitHub App for this organization?")
+			if !hasApp {
+				fmt.Println("⚠️  You'll need to install the CircleCI GitHub App before proceeding.")
+				fmt.Println("   Please install it and run this command again.")
+				fmt.Printf("   Install at: %s\n", vcsConnectionsURL)
+				return fmt.Errorf("CircleCI GitHub App is required for GitHub organizations")
+			}
+			fmt.Println("✅ GitHub App installation confirmed!")
+		} else {
+			// App is installed
+			fmt.Printf("✅ GitHub App is installed for organization: %s\n", installation.Login)
+			fmt.Printf("   Installation ID: %d\n", installation.ID)
 		}
-		fmt.Println("✅ GitHub App installation confirmed!")
 		fmt.Println()
 	}
 

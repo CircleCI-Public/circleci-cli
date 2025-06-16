@@ -79,6 +79,68 @@ func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetReposito
 	return result, nil
 }
 
+func (c *repositoryRestClient) CheckGitHubAppInstallation(orgID string) (*GitHubAppInstallationResponse, error) {
+	path := fmt.Sprintf("/private/soc/github-app/organization/%s/installation", orgID)
+
+	req, err := c.newHTTPRequest("GET", path, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		var errorResp struct {
+			Message string `json:"message"`
+			Error   string `json:"error"`
+		}
+		if err := json.Unmarshal(bodyBytes, &errorResp); err != nil {
+			// If the app is not installed, we might get a 404 or 403, treat as not installed
+			return &GitHubAppInstallationResponse{
+				ID:         0,
+				Login:      "",
+				TargetType: "",
+				AvatarUrl:  "",
+			}, nil
+		}
+		message := errorResp.Message
+		if message == "" {
+			message = errorResp.Error
+		}
+		if message == "" {
+			message = fmt.Sprintf("HTTP %d", resp.StatusCode)
+		}
+
+		// For GitHub App installation checks, 404 or 403 typically means not installed
+		if resp.StatusCode == 404 || resp.StatusCode == 403 {
+			return &GitHubAppInstallationResponse{
+				ID:         0,
+				Login:      "",
+				TargetType: "",
+				AvatarUrl:  "",
+			}, nil
+		}
+
+		return nil, fmt.Errorf("API request failed: %s", message)
+	}
+
+	var installation GitHubAppInstallationResponse
+	if err := json.Unmarshal(bodyBytes, &installation); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return &installation, nil
+}
+
 func (c *repositoryRestClient) newHTTPRequest(method, path string, body io.Reader) (*http.Request, error) {
 	fullURL := c.baseURL + path
 

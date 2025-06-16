@@ -19,13 +19,19 @@ type Repository struct {
 	PushedAt    string `json:"pushed_at"`
 }
 
-// GetRepositoriesResponse represents the response from the BFF repositories endpoint
-// The API returns an array of repositories directly
 type GetRepositoriesResponse struct {
 	Repositories []Repository
 	TotalCount   int
 }
 
+type GitHubAppInstallationResponse struct {
+	ID         int    `json:"id"`
+	Login      string `json:"login,omitempty"`
+	TargetType string `json:"targetType,omitempty"`
+	AvatarUrl  string `json:"avatarUrl,omitempty"`
+}
+
 type RepositoryClient interface {
 	GetGitHubRepositories(orgID string) (*GetRepositoriesResponse, error)
+	CheckGitHubAppInstallation(orgID string) (*GitHubAppInstallationResponse, error)
 }

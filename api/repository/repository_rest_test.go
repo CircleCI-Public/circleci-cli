@@ -162,3 +162,166 @@ func TestNewRepositoryRestClient(t *testing.T) {
 	assert.Equal(t, "https://bff.circleci.com", client.baseURL)
 	assert.Equal(t, http.DefaultClient, client.httpClient)
 }
+
+func TestCheckGitHubAppInstallation_Success(t *testing.T) {
+	mockInstallation := GitHubAppInstallationResponse{
+		ID:         12345,
+		Login:      "test-login",
+		TargetType: "Organization",
+		AvatarUrl:  "https://example.com/avatar.png",
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "GET", r.Method)
+		assert.Equal(t, "/private/soc/github-app/organization/test-org-id/installation", r.URL.Path)
+		assert.Equal(t, "test-token", r.Header.Get("Circle-Token"))
+		assert.Equal(t, "application/json", r.Header.Get("Accept"))
+		assert.Equal(t, version.UserAgent(), r.Header.Get("User-Agent"))
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(mockInstallation); err != nil {
+			http.Error(w, "Failed to encode response", http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer server.Close()
+
+	config := settings.Config{
+		Token:      "test-token",
+		HTTPClient: http.DefaultClient,
+	}
+
+	client := &repositoryRestClient{
+		token:      config.Token,
+		baseURL:    server.URL,
+		httpClient: config.HTTPClient,
+	}
+
+	result, err := client.CheckGitHubAppInstallation("test-org-id")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 12345, result.ID)
+	assert.Equal(t, "test-login", result.Login)
+	assert.Equal(t, "Organization", result.TargetType)
+	assert.Equal(t, "https://example.com/avatar.png", result.AvatarUrl)
+}
+
+func TestCheckGitHubAppInstallation_NotInstalled_404(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusNotFound)
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"message": "GitHub App not found for this organization",
+		}); err != nil {
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer server.Close()
+
+	config := settings.Config{
+		Token:      "test-token",
+		HTTPClient: http.DefaultClient,
+	}
+
+	client := &repositoryRestClient{
+		token:      config.Token,
+		baseURL:    server.URL,
+		httpClient: config.HTTPClient,
+	}
+
+	result, err := client.CheckGitHubAppInstallation("test-org-id")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ID)
+	assert.Equal(t, "", result.Login)
+	assert.Equal(t, "", result.TargetType)
+	assert.Equal(t, "", result.AvatarUrl)
+}
+
+func TestCheckGitHubAppInstallation_NotInstalled_403(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusForbidden)
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"message": "Forbidden: GitHub App not installed or insufficient permissions",
+		}); err != nil {
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer server.Close()
+
+	config := settings.Config{
+		Token:      "test-token",
+		HTTPClient: http.DefaultClient,
+	}
+
+	client := &repositoryRestClient{
+		token:      config.Token,
+		baseURL:    server.URL,
+		httpClient: config.HTTPClient,
+	}
+
+	result, err := client.CheckGitHubAppInstallation("test-org-id")
+
+	assert.NoError(t, err)
+	assert.NotNil(t, result)
+	assert.Equal(t, 0, result.ID)
+	assert.Equal(t, "", result.Login)
+	assert.Equal(t, "", result.TargetType)
+	assert.Equal(t, "", result.AvatarUrl)
+}
+
+func TestCheckGitHubAppInstallation_ServerError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		if err := json.NewEncoder(w).Encode(map[string]string{
+			"message": "Internal server error",
+		}); err != nil {
+			http.Error(w, "Failed to encode error response", http.StatusInternalServerError)
+			return
+		}
+	}))
+	defer server.Close()
+
+	config := settings.Config{
+		Token:      "test-token",
+		HTTPClient: http.DefaultClient,
+	}
+
+	client := &repositoryRestClient{
+		token:      config.Token,
+		baseURL:    server.URL,
+		httpClient: config.HTTPClient,
+	}
+
+	result, err := client.CheckGitHubAppInstallation("test-org-id")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "Internal server error")
+}
+
+func TestCheckGitHubAppInstallation_NetworkError(t *testing.T) {
+	config := settings.Config{
+		Token:      "test-token",
+		HTTPClient: http.DefaultClient,
+	}
+
+	client := &repositoryRestClient{
+		token:      config.Token,
+		baseURL:    "http://invalid-url-that-does-not-exist.local",
+		httpClient: config.HTTPClient,
+	}
+
+	result, err := client.CheckGitHubAppInstallation("test-org-id")
+
+	assert.Error(t, err)
+	assert.Nil(t, result)
+	assert.Contains(t, err.Error(), "failed to execute request")
+}
