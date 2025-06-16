@@ -401,10 +401,6 @@ func validateProjectName(name string) error {
 		return fmt.Errorf("project name must be between 3 and 40 characters long, got %d characters", len(name))
 	}
 
-	if !regexp.MustCompile(`^[a-zA-Z]`).MatchString(name) {
-		return fmt.Errorf("project name must begin with a letter")
-	}
-
 	allowedPattern := regexp.MustCompile(`^[a-zA-Z0-9 \-_.:!&+\[\]]+$`)
 	if !allowedPattern.MatchString(name) {
 		return fmt.Errorf("project name can only contain letters, numbers, spaces, and the following characters: -_.:!&+[]")
