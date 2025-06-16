@@ -541,7 +541,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Println("📋 Creating pipeline definition...")
 
 	if opts.pipelineName == "" {
-		opts.pipelineName = reader.ReadStringFromUser("Enter a name for the pipeline", fmt.Sprintf("%s-pipeline", opts.projectName), nil)
+		opts.pipelineName = reader.ReadStringFromUser("Enter a name for the pipeline", "build-and-test", nil)
 	}
 
 	if opts.repoID == "" {
