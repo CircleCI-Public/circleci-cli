@@ -286,7 +286,7 @@ func selectRepository(reader UserInputReader, repositoryClient repository.Reposi
 
 	var selectedOption string
 	prompt := &survey.Select{
-		Message:  "Select a repository:",
+		Message:  "Select the repository you want this pipeline to build, test, and deploy:",
 		Options:  options,
 		PageSize: 10,
 	}
@@ -496,15 +496,14 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 			fmt.Println("✅ GitHub App installation confirmed!")
 		} else {
 			// App is installed
-			fmt.Printf("✅ GitHub App is installed for organization: %s\n", installation.Login)
-			fmt.Printf("   Installation ID: %d\n", installation.ID)
+			fmt.Printf("✅ GitHub App is installed for organization: %s\n", opts.orgName)
 		}
 		fmt.Println()
 	}
 
 	if opts.projectName == "" {
 		for {
-			opts.projectName = reader.ReadStringFromUser("Enter project name", "", func(s string) error {
+			opts.projectName = reader.ReadStringFromUser("Enter your new project name", "", func(s string) error {
 				if err := validateProjectName(s); err != nil {
 					return err
 				}
@@ -539,6 +538,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Println()
 
 	fmt.Println("📋 Creating pipeline definition...")
+	fmt.Println("   Pipelines orchestrate the execution of workflows, which run jobs to build, test, and deploy your code.")
 
 	if opts.pipelineName == "" {
 		opts.pipelineName = reader.ReadStringFromUser("Enter a name for the pipeline", "build-and-test", nil)
@@ -576,7 +576,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		return fmt.Errorf("all pipeline fields are required: pipeline-name, repo-id, config-repo-id, and file-path")
 	}
 
-	fmt.Printf("📋 Creating pipeline '%s' for project '%s'...\n", opts.pipelineName, projectRes.Id)
+	fmt.Printf("📋 Creating pipeline '%s' for project '%s'...\n", opts.pipelineName, projectRes.Name)
 
 	pipelineRes, err := opts.pipelineClient.CreatePipeline(
 		projectRes.Id,
@@ -597,10 +597,9 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	if pipelineRes.CheckoutSourceRepoFullName != pipelineRes.ConfigSourceRepoFullName {
 		fmt.Printf("   Config referenced from '%s' repository at path '%s'\n", pipelineRes.ConfigSourceRepoFullName, opts.filePath)
 	}
-	fmt.Printf("   Pipeline ID: %s\n", pipelineRes.Id)
-	fmt.Println()
 
 	fmt.Println("⚡ Creating trigger for the pipeline...")
+	fmt.Println("   Triggers determine when your pipeline runs - on code pushes, pull requests, or custom webhooks.")
 
 	if opts.triggerName == "" {
 		opts.triggerName = reader.ReadStringFromUser("Enter a name for the trigger", fmt.Sprintf("%s-trigger", opts.pipelineName), nil)
@@ -636,7 +635,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		opts.checkoutRef = reader.ReadStringFromUser("Your pipeline repo and checkout source repo are different. Enter the branch or tag to use when checking out code for pipeline runs", "", nil)
 	}
 
-	fmt.Printf("⚡ Creating trigger '%s' for pipeline '%s'...\n", opts.triggerName, pipelineRes.Id)
+	fmt.Printf("⚡ Creating trigger '%s' for pipeline '%s'...\n", opts.triggerName, pipelineRes.Name)
 
 	triggerOptions := triggerapi.CreateTriggerOptions{
 		ProjectID:            projectRes.Id,
@@ -658,7 +657,6 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	}
 
 	fmt.Printf("✅ Trigger '%s' successfully created!\n", triggerRes.Name)
-	fmt.Printf("   Trigger ID: %s\n", triggerRes.Id)
 	fmt.Println()
 
 	fmt.Println("🎉 Project initialization completed successfully! Summary:")
@@ -677,6 +675,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Println("   3. Monitor your pipeline runs in the CircleCI dashboard")
 	fmt.Println()
 	fmt.Println("🎊 Your CircleCI project is now fully configured and ready to use!")
+	fmt.Println("   To create additional pipelines or triggers, run the `circleci pipeline create` or `circleci trigger create` commands.")
 
 	return nil
 }
