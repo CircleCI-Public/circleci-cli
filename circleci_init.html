@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>circleci_init</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+</head>
+<body>
+<h2 id="circleci-init">circleci init</h2>
+<p>Initialize a new CircleCI project</p>
+<h3 id="synopsis">Synopsis</h3>
+<p>Creates a new project, pipeline, and trigger in one easy step.</p>
+<p>This command will guide you through setting up a complete CircleCI project by: 1. Creating a new project in your CircleCI organization 2. Setting up a pipeline definition with your repository 3. Creating a trigger to automatically run the pipeline</p>
+<p>Examples: # Interactive mode - prompts for all required values circleci init</p>
+<p># With org slug argument circleci init github/myorg circleci init circleci/myorg</p>
+<p># With flags to skip some prompts circleci init github/myorg –project-name myproject –repo-id 123456</p>
+<p># Full specification with all flags circleci init github/myorg –project-name myproject<br />
+–pipeline-name my-pipeline –repo-id 123456 –trigger-name my-trigger</p>
+<pre><code>circleci init [org-slug] [flags]</code></pre>
+<h3 id="flags">Flags</h3>
+<pre><code>      --checkout-ref string           Git ref to use when checking out code (only needed if different from trigger repo)
+      --config-ref string             Git ref to use when fetching config (only needed if different from trigger repo)
+      --config-repo-id string         GitHub repository ID where the CircleCI config file is located (defaults to same as repo-id)
+      --event-preset string           Event preset to filter triggers. Valid values: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-merged-prs, only-ready-for-review-prs, only-labeled-prs, only-build-pushes-to-non-draft-prs
+      --file-path string              Path to the CircleCI config file (default: .circleci/config.yml)
+  -h, --help                          help for init
+      --org-name string               Organization name or slug
+      --pipeline-description string   Description of the pipeline
+      --pipeline-name string          Name of the pipeline to create
+      --project-name string           Name of the project to create
+      --repo-id string                GitHub repository ID of the codebase
+      --trigger-description string    Description of the trigger
+      --trigger-name string           Name of the trigger to create
+      --vcs-type string               Version control system type (e.g., &#39;github&#39;, &#39;circleci&#39;)</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
+<pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+      --skip-update-check   Skip the check for updates check run before every command. (default true)
+      --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
+<h3 id="see-also">SEE ALSO</h3>
+<ul>
+<li><a href="index.html">circleci</a> - Use CircleCI from the command line. This project is the seed for CircleCI’s new command-line application. For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/</li>
+</ul>
+</body>
+</html>
