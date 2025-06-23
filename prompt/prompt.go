@@ -19,11 +19,18 @@ func ReadSecretStringFromUser(message string) (string, error) {
 }
 
 // ReadStringFromUser can be used to read any value from the user or the defaultValue when provided.
-func ReadStringFromUser(message string, defaultValue string) string {
+// An optional validator function can be provided to validate the input.
+func ReadStringFromUser(message string, defaultValue string, validator ...func(string) error) string {
 	input := textinput.New(message)
 	input.Placeholder = defaultValue
 	input.InitialValue = defaultValue
 	input.Validate = func(s string) error { return nil }
+
+	// If a validator is provided, set it on the input
+	if len(validator) > 0 && validator[0] != nil {
+		input.Validate = validator[0]
+	}
+
 	result, err := input.RunPrompt()
 	if err != nil {
 		panic(err)

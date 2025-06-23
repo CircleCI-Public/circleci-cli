@@ -29,7 +29,7 @@ func newSwitchCommand(config *settings.Config) *cobra.Command {
 	}
 }
 
-func runSwitch(opts switchOptions) error {
+func runSwitch(_ switchOptions) error {
 	fmt.Println("You've already updated to the latest CLI. Please see `circleci help` for usage.")
 	return nil
 }
