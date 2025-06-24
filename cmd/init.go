@@ -445,7 +445,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		vcsConnectionsURL := fmt.Sprintf("https://app.circleci.com/settings/organization/%s/%s/vcs-connections", opts.vcsType, opts.orgName)
 
 		fmt.Println("🔗 GitHub App Installation Check")
-		fmt.Printf("   For GitHub repositories, you'll need the CircleCI GitHub App installed.\n")
+		fmt.Printf("   The CLI currently only supports GitHub repositories with the CircleCI GitHub App installed. We do not currently offer Bitbucket or GitLab support via the CLI.\n")
 		fmt.Printf("   Checking app installation for organization: %s\n", opts.orgName)
 		fmt.Println()
 
