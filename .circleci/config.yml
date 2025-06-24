@@ -260,9 +260,8 @@ jobs:
       - run:
           name: Publish to store
           command: |
-            # The Snapcraft login file here will expire: 2021-03-05T18:12:13. A new one will need to be created then.
-            mkdir .snapcraft
-            echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
+            # See https://circleci.atlassian.net/wiki/spaces/DE/pages/6780420117/Change+the+snapcraft+credentials
+            # for details on how to update the credentials for the snapcraft store.
             snapcraft push *.snap --release stable
 
   chocolatey-deploy:
