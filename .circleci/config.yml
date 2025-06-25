@@ -248,7 +248,7 @@ jobs:
 
   snap:
     docker:
-      - image: yakshaveinc/snapcraft:core24
+      - image: ghcr.io/canonical/snapcraft:8_core24
     steps:
       - checkout
       - attach_workspace:
