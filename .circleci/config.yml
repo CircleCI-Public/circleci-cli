@@ -265,7 +265,7 @@ jobs:
             #snapcraft push *.snap --release stable
             snapcraft whoami
       - store_artifacts:
-          path: /root/local/state/snapcraft/log/
+          path: /root/.local/state/snapcraft/log/
 
   chocolatey-deploy:
     executor: windows/default
