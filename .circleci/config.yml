@@ -258,23 +258,14 @@ jobs:
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
       - run: snapcraft
       - run:
-          name: Debug snapcraft login
-          command: ls -la /root/.local/state/snapcraft/log/
-      - run:
           name: Publish to store
           command: |
             # See https://circleci.atlassian.net/wiki/spaces/DE/pages/6780420117/Change+the+snapcraft+credentials
             # for details on how to update the credentials for the snapcraft store.
             #snapcraft push *.snap --release stable
             snapcraft whoami
-      - run:
-          name: Create logs artifact directory
-          command: mkdir -p /tmp/snapcraft-logs
-      - run:
-          name: Copy snapcraft logs to artifact directory
-          command: cp -r /root/.local/state/snapcraft/log/*.log /tmp/snapcraft-logs
       - store_artifacts:
-          path: /tmp/snapcraft-logs
+          path: /root/local/state/snapcraft/log/
 
   chocolatey-deploy:
     executor: windows/default
