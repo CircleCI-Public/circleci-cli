@@ -264,7 +264,8 @@ jobs:
             # for details on how to update the credentials for the snapcraft store.
             mkdir .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
-            snapcraft push *.snap --release stable
+            snapcraft whoami
+            #snapcraft push *.snap --release stable
 
   chocolatey-deploy:
     executor: windows/default
@@ -346,7 +347,16 @@ workflows:
             - deploy
       - snap:
           requires:
-            - deploy
+            - cucumber
+            - test
+            - test_mac
+            - coverage
+            - lint
+            - deploy-test
+            - shellcheck/check
+            - vulnerability-scan
+          context:
+            - devex-release
       - chocolatey-deploy:
           requires:
             - deploy
