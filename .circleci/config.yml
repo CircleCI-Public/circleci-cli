@@ -265,6 +265,14 @@ jobs:
             #snapcraft push *.snap --release stable
             echo $SNAPCRAFT_STORE_CREDENTIALS
             snapcraft whoami
+      - run:
+          name: Create logs artifact directory
+          command: mkdir -p /tmp/snapcraft-logs
+      - run:
+          name: Copy snapcraft logs to artifact directory
+          command: cp -r /root/.local/state/snapcraft/log/*.log /tmp/snapcraft-logs
+      - store_artifacts:
+          path: /tmp/snapcraft-logs
 
   chocolatey-deploy:
     executor: windows/default
