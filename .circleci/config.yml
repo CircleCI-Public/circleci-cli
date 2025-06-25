@@ -257,7 +257,7 @@ jobs:
           TAG=$(./dist/circleci-cli_linux_amd64_v1/circleci version | cut -d' ' -f 1) && export TAG
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
       - run: |
-          sudo apt update && sudo apt install -y snapd
+          apt update && apt install -y snapd
       - run: snapcraft
       - run:
           name: Publish to store
