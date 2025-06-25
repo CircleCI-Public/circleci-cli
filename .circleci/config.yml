@@ -262,6 +262,8 @@ jobs:
           command: |
             # See https://circleci.atlassian.net/wiki/spaces/DE/pages/6780420117/Change+the+snapcraft+credentials
             # for details on how to update the credentials for the snapcraft store.
+            mkdir .snapcraft
+            echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
 
   chocolatey-deploy:
