@@ -256,6 +256,9 @@ jobs:
       - run: |
           TAG=$(./dist/circleci-cli_linux_amd64_v1/circleci version | cut -d' ' -f 1) && export TAG
           sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
+      - run:
+          name: Debug snapcraft login
+          command: echo $SNAPCRAFT_STORE_CREDENTIALS
       - run: snapcraft
       - run:
           name: Publish to store
@@ -263,7 +266,6 @@ jobs:
             # See https://circleci.atlassian.net/wiki/spaces/DE/pages/6780420117/Change+the+snapcraft+credentials
             # for details on how to update the credentials for the snapcraft store.
             #snapcraft push *.snap --release stable
-            echo $SNAPCRAFT_STORE_CREDENTIALS
             snapcraft whoami
       - run:
           name: Create logs artifact directory
