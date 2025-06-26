@@ -262,6 +262,7 @@ jobs:
       - run:
           name: Copy artifacts
           command: |
+            ls -al
             mkdir -p /tmp/artifacts
             cp *.snap /tmp/artifacts/
       - store_artifacts:
