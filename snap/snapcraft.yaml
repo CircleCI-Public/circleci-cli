@@ -5,7 +5,7 @@ description: |
   The CircleCI Local CLI allows you to run builds on your local machine as if they were running within CircleCI. This allows quick interation over small changes and easier debugging of issues. The Local CLI can also validate your CircleCI configuration file.
 grade: stable
 confinement: strict
-base: core24
+base: core
 parts:
   circleci:
     plugin: nil
