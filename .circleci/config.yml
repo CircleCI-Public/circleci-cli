@@ -248,7 +248,7 @@ jobs:
 
   snap:
     docker:
-      - image: ghcr.io/canonical/snapcraft:8_core24
+      - image: cibuilds/snapcraft:stable
     steps:
       - checkout
       - attach_workspace:
@@ -259,6 +259,13 @@ jobs:
       - run: |
           apt update && apt install -y snapd
       - run: snapcraft
+      - run:
+          name: Copy artifacts
+          command: |
+            mkdir -p /tmp/artifacts
+            cp *.snap /tmp/artifacts/
+      - store_artifacts:
+          path: /tmp/artifacts
       - run:
           name: Publish to store
           command: |
