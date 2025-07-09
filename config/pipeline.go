@@ -104,6 +104,12 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.config.repository.name":                            "",
 		"pipeline.config.sha":                                        revision,
 		"pipeline.config.ref":                                        "refs/head/master",
+		"pipeline.deploy.component_name":                             "",
+		"pipeline.deploy.environment_name":                           "",
+		"pipeline.deploy.target_version":                             "",
+		"pipeline.deploy.current_version":                            "",
+		"pipeline.deploy.namespace":                                  "",
+		"pipeline.deploy.reason":                                     "",
 	}
 
 	for k, v := range parameters {
