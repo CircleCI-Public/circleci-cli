@@ -36,11 +36,9 @@ type initOptions struct {
 	configRepoID        string
 	filePath            string
 	// Trigger creation options
-	triggerName        string
-	triggerDescription string
-	eventPreset        string
-	configRef          string
-	checkoutRef        string
+	eventPreset string
+	configRef   string
+	checkoutRef string
 }
 
 type UserInputReader interface {
@@ -176,8 +174,6 @@ Examples:
 	initCmd.Flags().StringVar(&opts.filePath, "file-path", "", "Path to the CircleCI config file (default: .circleci/config.yml)")
 
 	// Trigger creation flags
-	initCmd.Flags().StringVar(&opts.triggerName, "trigger-name", "", "Name of the trigger to create")
-	initCmd.Flags().StringVar(&opts.triggerDescription, "trigger-description", "", "Description of the trigger")
 	initCmd.Flags().StringVar(&opts.eventPreset, "event-preset", "", "Event preset to filter triggers. Valid values: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-merged-prs, only-ready-for-review-prs, only-labeled-prs, only-build-pushes-to-non-draft-prs")
 	initCmd.Flags().StringVar(&opts.configRef, "config-ref", "", "Git ref to use when fetching config (only needed if different from trigger repo)")
 	initCmd.Flags().StringVar(&opts.checkoutRef, "checkout-ref", "", "Git ref to use when checking out code (only needed if different from trigger repo)")
@@ -601,10 +597,6 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Println("⚡ Creating trigger for the pipeline...")
 	fmt.Println("   Triggers determine when your pipeline runs - on code pushes, pull requests, or custom webhooks.")
 
-	if opts.triggerName == "" {
-		opts.triggerName = reader.ReadStringFromUser("Enter a name for the trigger", fmt.Sprintf("%s-trigger", opts.pipelineName), nil)
-	}
-
 	if opts.eventPreset == "" {
 		fmt.Println("📋 Event Preset Selection")
 		selectedPreset, err := selectEventPreset()
@@ -635,13 +627,11 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		opts.checkoutRef = reader.ReadStringFromUser("Your pipeline repo and checkout source repo are different. Enter the branch or tag to use when checking out code for pipeline runs", "", nil)
 	}
 
-	fmt.Printf("⚡ Creating trigger '%s' for pipeline '%s'...\n", opts.triggerName, pipelineRes.Name)
+	fmt.Printf("⚡ Creating trigger for pipeline '%s'...\n", pipelineRes.Name)
 
 	triggerOptions := triggerapi.CreateTriggerOptions{
 		ProjectID:            projectRes.Id,
 		PipelineDefinitionID: pipelineRes.Id,
-		Name:                 opts.triggerName,
-		Description:          opts.triggerDescription,
 		RepoID:               opts.repoID,
 		EventPreset:          opts.eventPreset,
 		ConfigRef:            opts.configRef,
@@ -656,13 +646,13 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		return fmt.Errorf("failed to create trigger: %w", err)
 	}
 
-	fmt.Printf("✅ Trigger '%s' successfully created!\n", triggerRes.Name)
+	fmt.Printf("✅ Trigger successfully created!\n")
 	fmt.Println()
 
 	fmt.Println("🎉 Project initialization completed successfully! Summary:")
 	fmt.Printf("   ✅ Project: %s (ID: %s)\n", projectRes.Name, projectRes.Id)
 	fmt.Printf("   ✅ Pipeline: %s (ID: %s)\n", pipelineRes.Name, pipelineRes.Id)
-	fmt.Printf("   ✅ Trigger: %s (ID: %s)\n", triggerRes.Name, triggerRes.Id)
+	fmt.Printf("   ✅ Trigger: (ID: %s)\n", triggerRes.Id)
 	fmt.Println()
 	fmt.Println("🔗 Useful links:")
 	fmt.Printf("   Project: https://app.circleci.com/projects/%s\n", projectRes.Slug)

@@ -9,8 +9,6 @@ import (
 )
 
 func newCreateCommand(ops *triggerOpts, preRunE validator.Validator) *cobra.Command {
-	var name string
-	var description string
 	var pipelineDefinitionID string
 	var repoID string
 	var eventPreset string
@@ -18,7 +16,7 @@ func newCreateCommand(ops *triggerOpts, preRunE validator.Validator) *cobra.Comm
 	var checkoutRef string
 
 	cmd := &cobra.Command{
-		Use:   "create <project-id> [--name <trigger-name>] [--description <description>] [--repo-id <github-repo-id>] [--event-preset <preset-to-filter-triggers>] [--config-ref <ref-to-fetch-config>] [--checkout-ref <ref-to-checkout-code>]",
+		Use:   "create <project-id> [--repo-id <github-repo-id>] [--event-preset <preset-to-filter-triggers>] [--config-ref <ref-to-fetch-config>] [--checkout-ref <ref-to-checkout-code>]",
 		Short: "Create a new trigger for a CircleCI project.",
 		Long: `Create a new trigger for a CircleCI project.
 
@@ -67,11 +65,6 @@ Notes:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
 
-			if name == "" {
-				namePrompt := "Enter a name for the trigger"
-				name = ops.reader.ReadStringFromUser(namePrompt)
-			}
-
 			if pipelineDefinitionID == "" {
 				pipelineDefinitionIDPrompt := "Enter the pipeline definition ID you wish to create a trigger for"
 				pipelineDefinitionID = ops.reader.ReadStringFromUser(pipelineDefinitionIDPrompt)
@@ -107,30 +100,26 @@ Notes:
 			triggerOptions := trigger.CreateTriggerOptions{
 				ProjectID:            projectID,
 				PipelineDefinitionID: pipelineDefinitionID,
-				Name:                 name,
-				Description:          description,
 				RepoID:               repoID,
 				EventPreset:          eventPreset,
 				ConfigRef:            configRef,
 				CheckoutRef:          checkoutRef,
 			}
 
-			res, err := ops.triggerClient.CreateTrigger(triggerOptions)
+			_, err := ops.triggerClient.CreateTrigger(triggerOptions)
 			if err != nil {
 				cmd.Println("\nThere was an error creating your trigger. Do you have Github App installed in your repository?")
 				return err
 			}
 
-			cmd.Printf("Trigger '%s' created successfully\n", res.Name)
+			cmd.Printf("Trigger created successfully\n")
 			cmd.Println("You may view your new trigger in your project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/triggers")
 			return nil
 		},
 		Args: cobra.ExactArgs(1),
 	}
 
-	cmd.Flags().StringVar(&name, "name", "", "Name of the trigger to create")
 	cmd.Flags().StringVar(&pipelineDefinitionID, "pipeline-definition-id", "", "Pipeline definition ID you wish to create a trigger for")
-	cmd.Flags().StringVar(&description, "description", "", "Description of the trigger to create")
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID of the codebase you wish to create a trigger for")
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", "The name of the event preset to use when filtering events for this trigger")
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref (branch, or tag for example) to use when fetching config for pipeline runs created from this trigger")

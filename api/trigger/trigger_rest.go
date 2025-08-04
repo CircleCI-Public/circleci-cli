@@ -28,8 +28,6 @@ type EventSource struct {
 }
 
 type createTriggerRequest struct {
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
 	EventSource EventSource `json:"event_source"`
 	EventPreset string      `json:"event_preset"`
 	ConfigRef   string      `json:"config_ref,omitempty"`
@@ -38,8 +36,6 @@ type createTriggerRequest struct {
 
 type createTriggerResponse struct {
 	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Description string      `json:"description"`
 	CreatedAt   string      `json:"created_at"`
 	EventSource EventSource `json:"event_source"`
 	EventPreset string      `json:"event_preset"`
@@ -50,8 +46,6 @@ type createTriggerResponse struct {
 type CreateTriggerOptions struct {
 	ProjectID            string
 	PipelineDefinitionID string
-	Name                 string
-	Description          string
 	RepoID               string
 	EventPreset          string
 	ConfigRef            string
@@ -69,8 +63,6 @@ func NewTriggerRestClient(config settings.Config) (*triggerRestClient, error) {
 
 func (c *triggerRestClient) CreateTrigger(options CreateTriggerOptions) (*CreateTriggerInfo, error) {
 	reqBody := createTriggerRequest{
-		Name:        options.Name,
-		Description: options.Description,
 		EventSource: EventSource{
 			Provider: "github_app",
 			Repo: Repo{
@@ -95,7 +87,6 @@ func (c *triggerRestClient) CreateTrigger(options CreateTriggerOptions) (*Create
 	}
 
 	return &CreateTriggerInfo{
-		Id:   resp.ID,
-		Name: resp.Name,
+		Id: resp.ID,
 	}, nil
 }
