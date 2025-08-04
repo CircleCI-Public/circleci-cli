@@ -37,7 +37,7 @@ GEM
       diff-lcs (>= 1.2.0, < 2.0)
       rspec-support (~> 3.9.0)
     rspec-support (3.9.3)
-    thor (1.0.1)
+    thor (1.4.0)
 
 PLATFORMS
   ruby
