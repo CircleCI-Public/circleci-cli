@@ -307,7 +307,7 @@ jobs:
                 fail-on-issues: true
                 severity-threshold: high
                 monitor-on-build: true
-                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
+                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL}"
       - unless:
           condition:
             or:
@@ -321,7 +321,7 @@ jobs:
                 fail-on-issues: true
                 severity-threshold: high
                 monitor-on-build: false
-                additional-arguments: "--all-projects -d"
+                additional-arguments: "--all-projects"
 
 workflows:
   ci:

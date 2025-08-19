@@ -1,3 +1,4 @@
 # frozen_string_literal: true
 source "https://rubygems.org"
-gem 'aruba'
+gem 'aruba', '~> 0.14.14'
+gem 'cucumber', '~> 7.0.0'
