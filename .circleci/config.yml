@@ -120,7 +120,7 @@ jobs:
             - "build"
   cucumber:
     docker:
-      - image: cimg/ruby:2.7
+      - image: cimg/ruby:3.2
     steps:
       - checkout
       - attach_workspace:
