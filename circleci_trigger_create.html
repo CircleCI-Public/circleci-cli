@@ -27,14 +27,12 @@
 –description “Trigger description” –repo-id 123456 –event-preset all-pushes<br />
 –config-ref my-config –checkout-ref my-checkout</p>
 <p>Notes: - This is only supporting pipeline definitions created with GitHub App provider. You will need our GitHub App installed in your repository. - To get the repository id you can use: https://docs.github.com/en/rest/repos/repos?apiVersion=2022-11-28#get-a-repository - To get the pipeline definition id you can visit the Pipelines tab in project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations - –config_ref and –checkout_ref flags are only required if your config source or checkout source exist in a different repo to your trigger repo</p>
-<pre><code>circleci trigger create &lt;project-id&gt; [--name &lt;trigger-name&gt;] [--description &lt;description&gt;] [--repo-id &lt;github-repo-id&gt;] [--event-preset &lt;preset-to-filter-triggers&gt;] [--config-ref &lt;ref-to-fetch-config&gt;] [--checkout-ref &lt;ref-to-checkout-code&gt;] [flags]</code></pre>
+<pre><code>circleci trigger create &lt;project-id&gt; [--repo-id &lt;github-repo-id&gt;] [--event-preset &lt;preset-to-filter-triggers&gt;] [--config-ref &lt;ref-to-fetch-config&gt;] [--checkout-ref &lt;ref-to-checkout-code&gt;] [flags]</code></pre>
 <h3 id="flags">Flags</h3>
 <pre><code>      --checkout-ref string             Git ref (branch, or tag for example) to use when checking out code for pipeline runs created from this trigger
       --config-ref string               Git ref (branch, or tag for example) to use when fetching config for pipeline runs created from this trigger
-      --description string              Description of the trigger to create
       --event-preset string             The name of the event preset to use when filtering events for this trigger
   -h, --help                            help for create
-      --name string                     Name of the trigger to create
       --pipeline-definition-id string   Pipeline definition ID you wish to create a trigger for
       --repo-id string                  Repository ID of the codebase you wish to create a trigger for</code></pre>
 <h3 id="flags-inherited-from-parent-commands">Flags inherited from parent commands</h3>
