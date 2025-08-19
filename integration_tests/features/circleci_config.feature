@@ -39,6 +39,7 @@ Feature: Config checking
     Then the exit status should be 0
     And the output should contain "Config file at config.yml is valid"
 
+  @k9s
   Scenario: Checking a valid config against the k9s server
     Given a file named "config.yml" with:
     """
