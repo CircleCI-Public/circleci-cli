@@ -283,7 +283,8 @@ Feature: Config checking
     And the output should contain "command: date '+%Y-%m-%dT%T%z'"
 
   Scenario: Running validate in a directory that is not a git repo
-    When I cd to "/tmp"
+    When I run `sh -c "cd /tmp && git status"`
+    And the output should contain "fatal: not a git repository (or any of the parent directories): .git"
     And I write to "config.yml" with:
     """
     jobs:
@@ -291,8 +292,6 @@ Feature: Config checking
         machine: true
         steps: [checkout]
     """
-    Then I run `git status`
-    And the output should contain "fatal: not a git repository (or any of the parent directories): .git"
     And I run `circleci config validate --skip-update-check -c config.yml`
     And the output should contain "Config file at config.yml is valid."
     And the exit status should be 0
