@@ -20,8 +20,6 @@ type testCreateTriggerArgs struct {
 	projectID            string
 	pipelineDefinitionID string
 	statusCode           int
-	triggerName          string
-	description          string
 	repoID               string
 	eventPreset          string
 	configRef            string
@@ -68,8 +66,6 @@ func TestCreateTrigger(t *testing.T) {
 	const (
 		pipelineDefinitionID = "test-pipeline-definition-id"
 		projectID            = "test-project-id"
-		triggerName          = "Test Trigger"
-		description          = "Test trigger description"
 		repoID               = "123456"
 		eventPreset          = "all-pushes"
 		configRef            = "main"
@@ -88,14 +84,12 @@ func TestCreateTrigger(t *testing.T) {
 				projectID:            projectID,
 				pipelineDefinitionID: pipelineDefinitionID,
 				statusCode:           http.StatusOK,
-				triggerName:          triggerName,
-				description:          description,
 				repoID:               repoID,
 				eventPreset:          eventPreset,
 				configRef:            configRef,
 				checkoutRef:          checkoutRef,
 			},
-			want: fmt.Sprintf("Trigger '%s' created successfully\nYou may view your new trigger in your project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/triggers\n", triggerName),
+			want: "Trigger created successfully\nYou may view your new trigger in your project settings: https://app.circleci.com/settings/project/circleci/<org>/<project>/triggers\n",
 		},
 		{
 			name: "Handle API error when creating trigger",
@@ -103,8 +97,6 @@ func TestCreateTrigger(t *testing.T) {
 				projectID:            projectID,
 				pipelineDefinitionID: pipelineDefinitionID,
 				statusCode:           http.StatusInternalServerError,
-				triggerName:          triggerName,
-				description:          description,
 				repoID:               repoID,
 				eventPreset:          eventPreset,
 				configRef:            configRef,
@@ -156,8 +148,6 @@ func TestCreateTrigger(t *testing.T) {
 				err = json.Unmarshal(body, &requestBody)
 				assert.NilError(t, err)
 
-				assert.Equal(t, requestBody["name"].(string), tt.args.triggerName)
-
 				eventSource, ok := requestBody["event_source"].(map[string]interface{})
 				assert.Assert(t, ok, "event_source should be a map")
 
@@ -171,8 +161,7 @@ func TestCreateTrigger(t *testing.T) {
 
 				if tt.args.statusCode == http.StatusOK {
 					responseBody := map[string]interface{}{
-						"id":   "trigger-id",
-						"name": tt.args.triggerName,
+						"id": "trigger-id",
 						"repo": map[string]interface{}{
 							"external_id": tt.args.repoID,
 						},
@@ -196,7 +185,6 @@ func TestCreateTrigger(t *testing.T) {
 			defer server.Close()
 
 			inputs := map[string]string{
-				"Enter a name for the trigger":                                      tt.args.triggerName,
 				"Enter the pipeline definition ID you wish to create a trigger for": tt.args.pipelineDefinitionID,
 				"Enter the ID of your github repository":                            tt.args.repoID,
 			}
@@ -212,9 +200,6 @@ func TestCreateTrigger(t *testing.T) {
 			cmd, stdout, _ := scaffoldCMD(server.URL, noValidator, opts...)
 
 			cmdArgs := []string{"create", tt.args.projectID}
-			if tt.args.triggerName != "" {
-				cmdArgs = append(cmdArgs, "--name", tt.args.triggerName)
-			}
 			if tt.args.pipelineDefinitionID != "" {
 				cmdArgs = append(cmdArgs, "--pipeline-definition-id", tt.args.pipelineDefinitionID)
 			}

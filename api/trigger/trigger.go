@@ -1,8 +1,7 @@
 package trigger
 
 type CreateTriggerInfo struct {
-	Id   string
-	Name string
+	Id string
 }
 
 type GetPipelineDefinitionOptions struct {

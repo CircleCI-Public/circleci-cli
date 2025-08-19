@@ -39,8 +39,6 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 			options: trigger.CreateTriggerOptions{
 				ProjectID:            "testProjectID",
 				PipelineDefinitionID: "pipelineDefinitionID",
-				Name:                 "testName",
-				Description:          "description",
 				RepoID:               "repoID",
 				EventPreset:          "eventPreset",
 			},
@@ -56,16 +54,14 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 
 				resp, err := json.Marshal(map[string]any{
-					"id":   "123",
-					"name": "testName",
+					"id": "123",
 				})
 				assert.NilError(t, err)
 				_, err = w.Write(resp)
 				assert.NilError(t, err)
 			},
 			want: &trigger.CreateTriggerInfo{
-				Id:   "123",
-				Name: "testName",
+				Id: "123",
 			},
 		},
 		{
@@ -73,8 +69,6 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 			options: trigger.CreateTriggerOptions{
 				ProjectID:            "projectID",
 				PipelineDefinitionID: "pipelineDefinitionID",
-				Name:                 "testName",
-				Description:          "description",
 				RepoID:               "repoID",
 				EventPreset:          "eventPreset",
 				ConfigRef:            "configRef",
@@ -89,8 +83,6 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/projects/%s/pipeline-definitions/%s/triggers", "projectID", "pipelineDefinitionID"))
 
 				expectedRequestBody := map[string]any{
-					"name":         "testName",
-					"description":  "description",
 					"event_preset": "eventPreset",
 					"event_source": map[string]any{
 						"provider": "github_app",
@@ -115,16 +107,14 @@ func Test_triggerRestClient_CreateTrigger(t *testing.T) {
 				w.WriteHeader(http.StatusOK)
 
 				resp, err := json.Marshal(map[string]any{
-					"id":   "123",
-					"name": "testName",
+					"id": "123",
 				})
 				assert.NilError(t, err)
 				_, err = w.Write(resp)
 				assert.NilError(t, err)
 			},
 			want: &trigger.CreateTriggerInfo{
-				Id:   "123",
-				Name: "testName",
+				Id: "123",
 			},
 		},
 		{
