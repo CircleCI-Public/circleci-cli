@@ -3,11 +3,12 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/spf13/cobra"
 )
 
 type diagnosticOptions struct {
@@ -56,14 +57,13 @@ func diagnostic(opts diagnosticOptions) error {
 
 	fmt.Println("OK, got a token.")
 
-	responseWho, err := api.WhoamiQuery(opts.cl)
-
+	responseWho, err := api.WhoamiQuery(opts.cfg)
 	if err != nil {
 		return err
 	}
 
-	if responseWho.Me.Name != "" {
-		fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
+	if responseWho.Name != "" {
+		fmt.Printf("Hello, %s.\n", responseWho.Name)
 	}
 
 	return nil

@@ -6,11 +6,12 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/CircleCI-Public/circleci-cli/clitest"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	. "github.com/onsi/gomega/ghttp"
+
+	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 var _ = Describe("Setup with prompts", func() {
@@ -24,7 +25,9 @@ var _ = Describe("Setup with prompts", func() {
 		tempSettings = clitest.WithTempSettings()
 		opts = setupOptions{
 			cfg: &settings.Config{
-				FileUsed: tempSettings.Config.Path,
+				FileUsed:   tempSettings.Config.Path,
+				Host:       tempSettings.TestServer.URL(),
+				HTTPClient: http.DefaultClient,
 			},
 			noPrompt: false,
 			tty: setupTestUI{
@@ -33,6 +36,7 @@ var _ = Describe("Setup with prompts", func() {
 				confirmEndpoint: true,
 				confirmToken:    true,
 			},
+			token: token,
 		}
 		opts.cl = tempSettings.NewFakeClient(opts.cfg.Endpoint, token)
 	})
@@ -43,18 +47,15 @@ var _ = Describe("Setup with prompts", func() {
 
 	Context("with happy diagnostic responses", func() {
 		BeforeEach(func() {
-			query := `query { me { name } }`
-			request := graphql.NewRequest(query)
-			request.SetToken(token)
-			expected, err := request.Encode()
-			Expect(err).ShouldNot(HaveOccurred())
-
-			response := `{ "me": { "name": "zomg" } }`
-
-			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-				Status:   http.StatusOK,
-				Request:  expected.String(),
-				Response: response})
+			tempSettings.TestServer.AppendHandlers(CombineHandlers(
+				VerifyRequest("GET", "/api/v2/me"),
+				RespondWithJSONEncoded(http.StatusOK, map[string]any{
+					"name":       "zomg",
+					"login":      "zomg",
+					"id":         "97491110-fea3-49b1-83da-ffd38ac8840c",
+					"avatar_url": "https://avatars.githubusercontent.com/u/980172390812730912?v=4",
+				}),
+			))
 		})
 
 		Describe("new config file", func() {
@@ -141,17 +142,12 @@ token: %s
 
 	Context("when whoami query returns an auth error", func() {
 		BeforeEach(func() {
-			// Here we want to actually validate the token in our test too
-			query := `query { me { name } }`
-			request := graphql.NewRequest(query)
-			request.SetToken(token)
-			expected, err := request.Encode()
-			Expect(err).ShouldNot(HaveOccurred())
-
-			tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-				Status:   http.StatusUnauthorized,
-				Request:  expected.String(),
-				Response: `{}`})
+			tempSettings.TestServer.AppendHandlers(CombineHandlers(
+				VerifyRequest("GET", "/api/v2/me"),
+				RespondWithJSONEncoded(http.StatusUnauthorized, map[string]any{
+					"message": "You must log in first",
+				}),
+			))
 		})
 
 		It("should show an error", func() {
