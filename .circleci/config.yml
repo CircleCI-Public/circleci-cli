@@ -8,7 +8,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.23.4
+      - image: cimg/go:1.24
     resource_class: large
     environment:
       CGO_ENABLED: 0
@@ -103,8 +103,8 @@ jobs:
     steps:
       - checkout
       - run: |
-          curl -OL https://go.dev/dl/go1.23.4.darwin-arm64.pkg
-          sudo installer -pkg ./go1.23.4.darwin-arm64.pkg -target /
+          curl -OL https://go.dev/dl/go1.24.7.darwin-arm64.pkg
+          sudo installer -pkg ./go1.24.7.darwin-arm64.pkg -target /
           echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
@@ -177,7 +177,7 @@ jobs:
 
   lint:
     docker:
-      - image: golangci/golangci-lint:v1.63.4-alpine
+      - image: golangci/golangci-lint:v1.64.8-alpine
     resource_class: large
     steps:
       - checkout

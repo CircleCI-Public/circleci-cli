@@ -11,13 +11,14 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/Masterminds/semver"
+	"github.com/pkg/errors"
+	"gopkg.in/yaml.v3"
+
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/Masterminds/semver"
-	"github.com/pkg/errors"
-	"gopkg.in/yaml.v3"
 )
 
 type UpdateOrbCategorizationRequestType int
@@ -178,9 +179,10 @@ type RenameNamespaceResponse struct {
 
 // WhoamiResponse type matches the data shape of the GQL response for the current user
 type WhoamiResponse struct {
-	Me struct {
-		Name string
-	}
+	Name      string `json:"name"`
+	Login     string `json:"login"`
+	ID        string `json:"id"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 // GetNamespaceResponse type wraps the GQL response for fetching a namespace
@@ -483,19 +485,30 @@ func loadYaml(path string) (string, error) {
 }
 
 // WhoamiQuery returns the result of querying the `/me` endpoint of the API
-func WhoamiQuery(cl *graphql.Client) (*WhoamiResponse, error) {
-	response := WhoamiResponse{}
-	query := `query { me { name } }`
-
-	request := graphql.NewRequest(query)
-	request.SetToken(cl.Token)
-
-	err := cl.Run(request, &response)
+func WhoamiQuery(config *settings.Config) (*WhoamiResponse, error) {
+	r, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v2/me", config.Host), nil)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, errorMessage)
+	}
+	r.Header.Set("Content-Type", "application/json; charset=utf-8")
+	r.Header.Set("Accept", "application/json; charset=utf-8")
+	r.Header.Set("Circle-Token", config.Token)
+
+	response, err := config.HTTPClient.Do(r)
+	if err != nil {
+		return nil, fmt.Errorf("could not make a request to %s: %s", config.Host, err)
+	}
+	if response.StatusCode >= 400 {
+		return nil, errors.New("Could not get user info")
 	}
 
-	return &response, nil
+	var res WhoamiResponse
+	err = json.NewDecoder(response.Body).Decode(&res)
+	if err != nil {
+		return nil, errors.Wrap(err, errorMessage)
+	}
+
+	return &res, nil
 }
 
 // OrbImportVersion publishes a new version of an orb using the provided source and id.

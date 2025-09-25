@@ -3,13 +3,14 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/pkg/errors"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/errors"
-	"github.com/spf13/cobra"
 )
 
 type setupOptions struct {
@@ -206,15 +207,14 @@ func setupDiagnosticCheck(opts setupOptions) {
 	fmt.Printf("\n")
 
 	fmt.Printf("Trying to query our API for your profile name... ")
-	responseWho, err := api.WhoamiQuery(opts.cl)
-
+	responseWho, err := api.WhoamiQuery(opts.cfg)
 	if err != nil {
 		fmt.Println("\nUnable to query our API for your profile name, please check your settings.")
 		// If user does not have a name set in their VCS, let's just say hi :)
-	} else if responseWho.Me.Name == "" {
+	} else if responseWho.Name == "" {
 		fmt.Printf("Hello!")
 	} else {
-		fmt.Printf("Hello, %s.\n", responseWho.Me.Name)
+		fmt.Printf("Hello, %s.\n", responseWho.Name)
 	}
 }
 
