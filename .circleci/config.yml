@@ -143,7 +143,11 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: make test
+      - run: gotestsum --junitfile test_results/linux.xml
+      - store_test_results:
+          path: test_results
+      - store_artifacts:
+          path: test_results
 
   coverage:
     executor: go
