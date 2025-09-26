@@ -1552,6 +1552,13 @@ func initOrb(opts orbOptions) error {
 		return errors.Wrap(err, "Git error")
 	}
 
+	branchRef := fmt.Sprintf("refs/heads/%s", gitBranch)
+	head := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.ReferenceName(branchRef))
+	err = r.Storer.SetReference(head)
+	if err != nil {
+		return err
+	}
+
 	w, err := r.Worktree()
 	if err != nil {
 		return err
