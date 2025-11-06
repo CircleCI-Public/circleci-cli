@@ -191,6 +191,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newCompletionCommand(rootOptions))
 	rootCmd.AddCommand(newEnvCmd())
 	rootCmd.AddCommand(newTelemetryCommand(rootOptions))
+	rootCmd.AddCommand(newTestsuiteCommand())
 
 	flags := rootCmd.PersistentFlags()
 
