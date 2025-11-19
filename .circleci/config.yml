@@ -4,7 +4,6 @@ orbs:
   shellcheck: circleci/shellcheck@1.2.0
   snyk: snyk/snyk@1.7.0
   windows: circleci/windows@5.0.0
-  vuln-scanner: cci-internal/vuln-scanner@0.11.4
 
 executors:
   go:
@@ -288,6 +287,46 @@ jobs:
           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
           working_directory: chocolatey
 
+  vulnerability-scan:
+    executor: go
+    steps:
+      - checkout
+      - run:
+          name: Setup Scanning
+          command: |
+            git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
+      - when:
+          condition:
+            or:
+              - equal: [main, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Launching Snyk Orb Scanning
+                command: echo "Running snyk/scan on main; uploading the results"
+            - run:
+                name: Cleanup RemoteRepoURL
+                command: echo 'export REMOTE_REPO_URL="${CIRCLE_REPOSITORY_URL%".git"}"' >> "$BASH_ENV"
+            - snyk/scan:
+                organization: "circleci-public"
+                fail-on-issues: true
+                severity-threshold: high
+                monitor-on-build: true
+                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL}"
+      - unless:
+          condition:
+            or:
+              - equal: [main, << pipeline.git.branch >>]
+          steps:
+            - run:
+                name: Launching Snyk Orb Scanning
+                command: echo "Running snyk/scan on branch; not uploading the results"
+            - snyk/scan:
+                organization: "circleci-public"
+                fail-on-issues: true
+                severity-threshold: high
+                monitor-on-build: false
+                additional-arguments: "--all-projects"
+
 workflows:
   ci:
     jobs:
@@ -301,13 +340,8 @@ workflows:
       - test_windows
       - coverage
       - lint
-      - vuln-scanner/vuln_scan:
-          context:
-            - security-scanning
-            - dockerhub-readonly
-            - github-readonly
-          upload_on_merge: true
-          default_branch: main
+      - vulnerability-scan:
+          context: org-global-employees
       - deploy-test
       - docs:
           requires:
@@ -327,7 +361,7 @@ workflows:
             - lint
             - deploy-test
             - shellcheck/check
-            - vuln-scanner/vuln_scan
+            - vulnerability-scan
           filters:
             branches:
               only: main
