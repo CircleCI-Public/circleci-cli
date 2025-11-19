@@ -157,6 +157,7 @@ func MakeCommands() *cobra.Command {
 
 	rootCmd.AddCommand(newOpenCommand(rootOptions))
 	rootCmd.AddCommand(newTestsCommand())
+	rootCmd.AddCommand(newRunCommand(rootOptions))
 	rootCmd.AddCommand(newContextCommand(rootOptions))
 	rootCmd.AddCommand(project.NewProjectCommand(rootOptions, validator))
 	rootCmd.AddCommand(trigger.NewTriggerCommand(rootOptions, validator))
