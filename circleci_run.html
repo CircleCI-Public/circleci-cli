@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="generator" content="pandoc" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
-  <title>circleci</title>
+  <title>circleci_run</title>
   <style>
     html {
       color: #1a1a1a;
@@ -165,79 +165,32 @@
   </style>
 </head>
 <body>
-<h2 id="circleci">circleci</h2>
-<p>Use CircleCI from the command line. This project is the seed for
-CircleCI’s new command-line application. For more help, see the
-documentation here: https://circleci.com/docs/2.0/local-cli/</p>
-<p><a
-href="https://github.com/CircleCI-Public/circleci-cli#readme">Readme</a>
-| <a
-href="https://github.com/CircleCI-Public/circleci-cli/blob/main/CODE_OF_CONDUCT.md">Code
-of Conduct</a> | <a
-href="https://github.com/CircleCI-Public/circleci-cli/blob/main/CONTRIBUTING.md">Contribution
-Guidelines</a> | <a
-href="https://github.com/CircleCI-Public/circleci-cli/blob/main/HACKING.md">Hacking</a></p>
-<p><a href="https://circleci.com/gh/CircleCI-Public/circleci-cli"><img
-src="https://circleci.com/gh/CircleCI-Public/circleci-cli.svg?style=svg"
-alt="CircleCI" /></a> <a
-href="https://github.com/CircleCI-Public/circleci-cli/releases"><img
-src="https://img.shields.io/github/tag/CircleCI-Public/circleci-cli.svg?label=latest"
-alt="GitHub release" /></a> <a
-href="https://godoc.org/github.com/CircleCI-Public/circleci-cli"><img
-src="https://img.shields.io/badge/godoc-reference-blue.svg"
-alt="GoDoc" /></a> <a href="./LICENSE"><img
-src="https://img.shields.io/badge/license-MIT-red.svg"
-alt="License" /></a></p>
+<h2 id="circleci-run">circleci run</h2>
+<p>Execute a circleci plugin</p>
 <h3 id="synopsis">Synopsis</h3>
-<pre><code></code></pre>
+<p>Execute a circleci plugin by looking for a binary called
+circleci-<name> in your PATH. This command implements a plugin system
+similar to git, where you can extend circleci functionality by creating
+executables with the ‘circleci-’ prefix.</p>
+<p>For example, if you have a binary called ‘circleci-foo’ in your PATH,
+you can run it with: circleci run foo [args…]</p>
+<pre><code>circleci run &lt;name&gt; [args...] [flags]</code></pre>
+<h3 id="examples">Examples</h3>
+<pre><code>  circleci run foo --help
+  circleci run my-plugin arg1 arg2</code></pre>
 <h3 id="flags">Flags</h3>
-<pre><code>  -h, --help                help for circleci
-      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
+<pre><code>  -h, --help   help for run</code></pre>
+<h3 id="flags-inherited-from-parent-commands">Flags inherited from
+parent commands</h3>
+<pre><code>      --host string         URL to your CircleCI host, also CIRCLECI_CLI_HOST (default &quot;https://circleci.com&quot;)
       --skip-update-check   Skip the check for updates check run before every command. (default true)
       --token string        your token for using CircleCI, also CIRCLECI_CLI_TOKEN</code></pre>
 <h3 id="see-also">SEE ALSO</h3>
 <ul>
-<li><a href="circleci_completion.html">circleci completion</a> -
-Generate shell completion scripts</li>
-<li><a href="circleci_config.html">circleci config</a> - Operate on
-build config files</li>
-<li><a href="circleci_context.html">circleci context</a> - For securing
-and sharing environment variables across projects</li>
-<li><a href="circleci_diagnostic.html">circleci diagnostic</a> - Check
-the status of your CircleCI CLI.</li>
-<li><a href="circleci_env.html">circleci env</a> - Manage environment
-variables</li>
-<li><a href="circleci_info.html">circleci info</a> - Check information
-associated to your user account.</li>
-<li><a href="circleci_init.html">circleci init</a> - Initialize a new
-CircleCI project</li>
-<li><a href="circleci_local.html">circleci local</a> - Debug jobs on the
-local machine</li>
-<li><a href="circleci_namespace.html">circleci namespace</a> - Operate
-on namespaces</li>
-<li><a href="circleci_open.html">circleci open</a> - Open the current
-project in the browser.</li>
-<li><a href="circleci_orb.html">circleci orb</a> - Operate on orbs</li>
-<li><a href="circleci_pipeline.html">circleci pipeline</a> - Operate on
-pipelines</li>
-<li><a href="circleci_policy.html">circleci policy</a> - Manage security
-policies</li>
-<li><a href="circleci_project.html">circleci project</a> - Operate on
-projects</li>
-<li><a href="circleci_run.html">circleci run</a> - Execute a circleci
-plugin</li>
-<li><a href="circleci_runner.html">circleci runner</a> - Operate on
-runners</li>
-<li><a href="circleci_setup.html">circleci setup</a> - Setup the CLI
-with your credentials</li>
-<li><a href="circleci_telemetry.html">circleci telemetry</a> - Configure
-telemetry preferences</li>
-<li><a href="circleci_trigger.html">circleci trigger</a> - Operate on
-triggers</li>
-<li><a href="circleci_update.html">circleci update</a> - Update the tool
-to the latest version</li>
-<li><a href="circleci_version.html">circleci version</a> - Display
-version information</li>
+<li><a href="index.html">circleci</a> - Use CircleCI from the command
+line. This project is the seed for CircleCI’s new command-line
+application. For more help, see the documentation here:
+https://circleci.com/docs/2.0/local-cli/</li>
 </ul>
 </body>
 </html>
