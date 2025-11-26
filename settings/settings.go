@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,11 +15,12 @@ import (
 	"strings"
 	"time"
 
-	yaml "gopkg.in/yaml.v3"
+	"gopkg.in/yaml.v3"
+
+	"github.com/spf13/afero"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/data"
-	"github.com/spf13/afero"
 )
 
 var (
@@ -50,6 +52,8 @@ type Config struct {
 	MockTelemetry string            `yaml:"-"`
 	OrbPublishing OrbPublishingInfo `yaml:"orb_publishing"`
 	TempDir       string            `yaml:"temp_dir,omitempty"`
+	Stdout        io.Writer         `yaml:"-"`
+	Stderr        io.Writer         `yaml:"-"`
 }
 
 type OrbPublishingInfo struct {
@@ -161,6 +165,9 @@ func (cfg *Config) LoadFromDisk() error {
 	if err != nil {
 		return nil
 	}
+
+	cfg.Stdout = os.Stdout
+	cfg.Stderr = os.Stderr
 
 	return cfg.WithHTTPClient()
 }

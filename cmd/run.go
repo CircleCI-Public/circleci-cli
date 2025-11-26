@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/api/project"
+	"github.com/CircleCI-Public/circleci-cli/git"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 func newRunCommand(config *settings.Config) *cobra.Command {
@@ -36,6 +40,11 @@ you can run it with: circleci run foo [args...]`,
 			pluginName := args[0]
 			pluginArgs := args[1:]
 
+			projectClient, err := project.NewProjectRestClient(*config)
+			if err != nil {
+				return err
+			}
+
 			// Construct the plugin binary name
 			binaryName := fmt.Sprintf("circleci-%s", pluginName)
 
@@ -47,11 +56,23 @@ you can run it with: circleci run foo [args...]`,
 
 			// Create the command to execute the plugin
 			pluginCmd := exec.Command(binaryPath, pluginArgs...)
-
 			// Connect stdin, stdout, and stderr to the current process
 			pluginCmd.Stdin = os.Stdin
-			pluginCmd.Stdout = os.Stdout
-			pluginCmd.Stderr = os.Stderr
+			pluginCmd.Stdout = config.Stdout
+			pluginCmd.Stderr = config.Stderr
+			pluginCmd.Env = os.Environ()
+
+			info := autoDetectProject(projectClient)
+			configEnv := map[string]string{
+				"CIRCLE_URL":   config.Host,
+				"CIRCLE_TOKEN": config.Token,
+			}
+			if info != nil {
+				configEnv["CIRCLE_PROJECT_ID"] = info.Id
+			}
+			for k, v := range configEnv {
+				pluginCmd.Env = append(pluginCmd.Env, fmt.Sprintf("%s=%s", k, v))
+			}
 
 			// Run the plugin
 			if err := pluginCmd.Run(); err != nil {
@@ -63,4 +84,20 @@ you can run it with: circleci run foo [args...]`,
 	}
 
 	return runCmd
+}
+
+func autoDetectProject(projectClient project.ProjectClient) *project.ProjectInfo {
+	remote, err := git.InferProjectFromGitRemotes()
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "unable to autodetect project from git remotes")
+		return nil
+	}
+
+	info, err := projectClient.ProjectInfo(strings.ToLower(string(remote.VcsType)), remote.Organization, remote.Project)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "failed to get project info: %s\n", err)
+		return nil
+	}
+
+	return info
 }

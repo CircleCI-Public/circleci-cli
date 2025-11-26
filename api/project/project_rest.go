@@ -8,11 +8,11 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
-type projectRestClient struct {
+type ProjectRestClient struct {
 	client *rest.Client
 }
 
-var _ ProjectClient = &projectRestClient{}
+var _ ProjectClient = &ProjectRestClient{}
 
 type listProjectEnvVarsParams struct {
 	vcs       string
@@ -60,10 +60,10 @@ type projectInfo struct {
 	Id string `json:"id"`
 }
 
-// NewProjectRestClient returns a new projectRestClient satisfying the api.ProjectInterface
+// NewProjectRestClient returns a new ProjectRestClient satisfying the api.ProjectInterface
 // interface via the REST API.
-func NewProjectRestClient(config settings.Config) (*projectRestClient, error) {
-	client := &projectRestClient{
+func NewProjectRestClient(config settings.Config) (*ProjectRestClient, error) {
+	client := &ProjectRestClient{
 		client: rest.NewFromConfig(config.Host, &config),
 	}
 	return client, nil
@@ -72,7 +72,7 @@ func NewProjectRestClient(config settings.Config) (*projectRestClient, error) {
 // ListAllEnvironmentVariables returns all of the environment variables owned by the
 // given project. Note that pagination is not supported - we get all
 // pages of env vars and return them all.
-func (p *projectRestClient) ListAllEnvironmentVariables(vcs, org, project string) ([]*ProjectEnvironmentVariable, error) {
+func (p *ProjectRestClient) ListAllEnvironmentVariables(vcs, org, project string) ([]*ProjectEnvironmentVariable, error) {
 	res := make([]*ProjectEnvironmentVariable, 0)
 	var nextPageToken string
 	for {
@@ -102,7 +102,7 @@ func (p *projectRestClient) ListAllEnvironmentVariables(vcs, org, project string
 	return res, nil
 }
 
-func (c *projectRestClient) listEnvironmentVariables(params *listProjectEnvVarsParams) (*listAllProjectEnvVarsResponse, error) {
+func (c *ProjectRestClient) listEnvironmentVariables(params *listProjectEnvVarsParams) (*listAllProjectEnvVarsResponse, error) {
 	path := fmt.Sprintf("project/%s/%s/%s/envvar", params.vcs, params.org, params.project)
 	urlParams := url.Values{}
 	if params.pageToken != "" {
@@ -124,7 +124,7 @@ func (c *projectRestClient) listEnvironmentVariables(params *listProjectEnvVarsP
 
 // GetEnvironmentVariable retrieves and returns a variable with the given name.
 // If the response status code is 404, nil is returned.
-func (c *projectRestClient) GetEnvironmentVariable(vcs string, org string, project string, envName string) (*ProjectEnvironmentVariable, error) {
+func (c *ProjectRestClient) GetEnvironmentVariable(vcs string, org string, project string, envName string) (*ProjectEnvironmentVariable, error) {
 	path := fmt.Sprintf("project/%s/%s/%s/envvar/%s", vcs, org, project, envName)
 	req, err := c.client.NewRequest("GET", &url.URL{Path: path}, nil)
 	if err != nil {
@@ -147,7 +147,7 @@ func (c *projectRestClient) GetEnvironmentVariable(vcs string, org string, proje
 	}, nil
 }
 
-func (c *projectRestClient) CreateProject(vcs string, org string, name string) (*CreateProjectInfo, error) {
+func (c *ProjectRestClient) CreateProject(vcs string, org string, name string) (*CreateProjectInfo, error) {
 	orgSlug := fmt.Sprintf("%s/%s", vcs, org)
 
 	path := fmt.Sprintf("organization/%s/project", orgSlug)
@@ -178,7 +178,7 @@ func (c *projectRestClient) CreateProject(vcs string, org string, name string) (
 
 // CreateEnvironmentVariable creates a variable on the given project.
 // This returns the variable if successfully created.
-func (c *projectRestClient) CreateEnvironmentVariable(vcs string, org string, project string, v ProjectEnvironmentVariable) (*ProjectEnvironmentVariable, error) {
+func (c *ProjectRestClient) CreateEnvironmentVariable(vcs string, org string, project string, v ProjectEnvironmentVariable) (*ProjectEnvironmentVariable, error) {
 	path := fmt.Sprintf("project/%s/%s/%s/envvar", vcs, org, project)
 	req, err := c.client.NewRequest("POST", &url.URL{Path: path}, &createProjectEnvVarRequest{
 		Name:  v.Name,
@@ -200,7 +200,7 @@ func (c *projectRestClient) CreateEnvironmentVariable(vcs string, org string, pr
 }
 
 // ProjectInfo retrieves and returns the project info.
-func (c *projectRestClient) ProjectInfo(vcs string, org string, project string) (*ProjectInfo, error) {
+func (c *ProjectRestClient) ProjectInfo(vcs string, org string, project string) (*ProjectInfo, error) {
 	path := fmt.Sprintf("project/%s/%s/%s", vcs, org, project)
 	req, err := c.client.NewRequest("GET", &url.URL{Path: path}, nil)
 	if err != nil {
