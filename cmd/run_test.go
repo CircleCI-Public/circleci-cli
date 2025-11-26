@@ -1,13 +1,17 @@
 package cmd
 
 import (
+	"bytes"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 var _ = Describe("run", func() {
@@ -15,6 +19,9 @@ var _ = Describe("run", func() {
 		tempDir    string
 		pluginPath string
 		config     *settings.Config
+		fakeSrv    *httptest.Server
+		stdout     bytes.Buffer
+		stderr     bytes.Buffer
 	)
 
 	BeforeEach(func() {
@@ -23,23 +30,51 @@ var _ = Describe("run", func() {
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create a test plugin
+		var pluginScript string
 		pluginPath = filepath.Join(tempDir, "circleci-test-plugin")
 		if runtime.GOOS == "windows" {
 			pluginPath = pluginPath + ".bat"
-		}
-		pluginScript := `#!/bin/bash
+			pluginScript = `#!/bin/bash
 echo "Plugin executed"
-echo "Args: $@"
+echo "Args: %@%"
+echo "Project ID: %CIRCLE_PROJECT_ID%"
+echo "Circle URL: %CIRCLE_URL%"
+echo "Circle Token: %CIRCLE_TOKEN%"
 exit 0
 `
+		} else {
+			pluginScript = `#!/bin/bash
+echo "Plugin executed"
+echo "Args: $@"
+echo "Project ID: $CIRCLE_PROJECT_ID"
+echo "Circle URL: $CIRCLE_URL"
+echo "Circle Token: $CIRCLE_TOKEN"
+exit 0
+`
+		}
 		err = os.WriteFile(pluginPath, []byte(pluginScript), 0755)
 		Expect(err).ToNot(HaveOccurred())
 
-		config = &settings.Config{}
+		fakeSrv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, err := w.Write([]byte(`{"id": "test-project-id"}`))
+			Expect(err).ToNot(HaveOccurred())
+		}))
+
+		config = &settings.Config{
+			Host:   fakeSrv.URL,
+			Token:  "test-token",
+			Stdout: &stdout,
+			Stderr: &stderr,
+		}
+		err = config.WithHTTPClient()
+		Expect(err).ToNot(HaveOccurred())
 	})
 
 	AfterEach(func() {
 		os.RemoveAll(tempDir)
+		fakeSrv.Close()
 	})
 
 	Describe("plugin execution", func() {
@@ -52,6 +87,9 @@ exit 0
 			cmd := newRunCommand(config)
 			cmd.SetArgs([]string{"test-plugin", "arg1", "arg2"})
 			err := cmd.Execute()
+			Expect(stdout.String()).To(ContainSubstring("Project ID: test-project-id"))
+			Expect(stdout.String()).To(ContainSubstring("Circle Token: test-token"))
+			Expect(stdout.String()).To(ContainSubstring("Circle URL: %s", fakeSrv.URL))
 			Expect(err).ToNot(HaveOccurred())
 		})
 
