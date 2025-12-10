@@ -81,7 +81,7 @@ var _ = Describe("Orb integration tests", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session.Err).Should(gbytes.Say("Operate on orbs"))
-			Eventually(session.Err).Should(gbytes.Say("See a full explanation and documentation on orbs here: https://circleci.com/docs/2.0/orb-intro/"))
+			Eventually(session.Err).Should(gbytes.Say("See a full explanation and documentation on orbs here: https://circleci.com/docs/orbs/use/orb-intro/"))
 
 			Eventually(session).Should(gexec.Exit(0))
 		})
@@ -110,7 +110,7 @@ var _ = Describe("Orb integration tests", func() {
 				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
 				Expect(err).ShouldNot(HaveOccurred())
 
-				Consistently(session.Out).ShouldNot(gbytes.Say("See a full explanation and documentation on orbs here: https://circleci.com/docs/2.0/orb-intro/"))
+				Consistently(session.Out).ShouldNot(gbytes.Say("See a full explanation and documentation on orbs here: https://circleci.com/docs/orbs/use/orb-intro/"))
 				Eventually(session).Should(gexec.Exit(0))
 			})
 		})

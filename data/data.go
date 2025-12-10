@@ -14,8 +14,8 @@ var Data = DataBag{
 		OrbDocs     string
 		NewAPIToken string
 	}{
-		CLIDocs:     "https://circleci.com/docs/2.0/local-cli/",
-		OrbDocs:     "https://circleci.com/docs/2.0/orb-intro/",
+		CLIDocs:     "https://circleci.com/docs/guides/toolkit/local-cli/",
+		OrbDocs:     "https://circleci.com/docs/orbs/use/orb-intro/",
 		NewAPIToken: "https://circleci.com/account/api",
 	},
 }
