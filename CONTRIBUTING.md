@@ -25,7 +25,7 @@ Think you've found a bug? Let us know!
 
 Security is a top priority for us. If you have encountered a security issue
 please responsibly disclose it by following our [security
-disclosure](https://circleci.com/docs/2.0/security/) document.
+disclosure](https://circleci.com/security/) process.
 
 # Creating an Issue
 
