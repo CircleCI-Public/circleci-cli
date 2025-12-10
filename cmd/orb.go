@@ -1668,7 +1668,7 @@ func finalizeOrbInit(ownerName string, vcsProvider string, vcsShort string, name
 
 	if !opts.private {
 		fmt.Printf("Once the first public version is published, you'll be able to see it here: https://circleci.com/developer/orbs/orb/%s/%s\n", namespace, orbName)
-		fmt.Println("View orb publishing doc: https://circleci.com/docs/2.0/orb-author")
+		fmt.Println("View orb publishing doc: https://circleci.com/docs/orbs/author/orb-author/")
 	}
 
 	return nil
