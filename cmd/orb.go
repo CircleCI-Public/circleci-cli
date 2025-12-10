@@ -1306,7 +1306,7 @@ func initOrb(opts orbOptions) error {
 	if vcsProvider == "GitHub" {
 		iprompt = &survey.Input{
 			Message: fmt.Sprintf("If your organization is using CircleCI’s GitHub App integration (see %s to check), enter your organization ID found in Organization Settings. If not, enter your organization name as a string.",
-				"https://circleci.com/docs/github-apps-integration/"),
+				"https://circleci.com/docs/guides/integration/github-apps-integration/"),
 		}
 	}
 	err = survey.AskOne(iprompt, &ownerName)
