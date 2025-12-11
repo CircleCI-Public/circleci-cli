@@ -110,6 +110,8 @@ func LocalPipelineValues(parameters Parameters) Values {
 		"pipeline.deploy.current_version":                            "",
 		"pipeline.deploy.namespace":                                  "",
 		"pipeline.deploy.reason":                                     "",
+		"pipeline.event.github.comment.body":                         "",
+		"pipeline.event.github.sender.type":                          "",
 	}
 
 	for k, v := range parameters {

@@ -95,6 +95,8 @@ func TestLocalPipelineValues(t *testing.T) {
 				"pipeline.deploy.current_version",
 				"pipeline.deploy.namespace",
 				"pipeline.deploy.reason",
+				"pipeline.event.github.comment.body",
+				"pipeline.event.github.sender.type",
 			},
 		},
 		{
@@ -181,6 +183,8 @@ func TestLocalPipelineValues(t *testing.T) {
 				"pipeline.deploy.current_version",
 				"pipeline.deploy.namespace",
 				"pipeline.deploy.reason",
+				"pipeline.event.github.comment.body",
+				"pipeline.event.github.sender.type",
 			},
 		},
 	}
