@@ -17,7 +17,7 @@ Feature: Root Commands
     When I run `circleci help`
     Then the output should not contain:
     """
-    For more help, see the documentation here: https://circleci.com/docs/2.0/local-cli/
+    For more help, see the documentation here: https://circleci.com/docs/guides/toolkit/local-cli/
     """
     And the exit status should be 0
 
