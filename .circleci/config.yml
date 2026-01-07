@@ -290,13 +290,6 @@ jobs:
   vulnerability-scan:
     executor: go
     steps:
-      - run:
-          name: Skip this job if this is a forked pull request
-          command: |
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
-              echo "Forked PRs can't run this step."
-              circleci step halt
-            fi
       - checkout
       - run:
           name: Setup Scanning
@@ -349,6 +342,9 @@ workflows:
       - lint
       - vulnerability-scan:
           context: org-global-employees
+          filters:
+            branches:
+              ignore: /^pull\/.*/
       - deploy-test
       - docs:
           requires:
