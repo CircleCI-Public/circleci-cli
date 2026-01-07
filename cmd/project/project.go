@@ -59,6 +59,7 @@ func NewProjectCommand(config *settings.Config, preRunE validator.Validator, opt
 	command.AddCommand(newProjectEnvironmentVariableCommand(&pos, preRunE))
 	command.AddCommand(newProjectDLCCommand(config, &pos, preRunE))
 	command.AddCommand(newProjectCreateCommand(&pos, preRunE))
+	command.AddCommand(newProjectIDCommand(&pos, preRunE))
 
 	return command
 }

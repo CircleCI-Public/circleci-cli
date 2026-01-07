@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 
 	pipelineapi "github.com/CircleCI-Public/circleci-cli/api/pipeline"
+	projectapi "github.com/CircleCI-Public/circleci-cli/api/project"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -17,6 +18,7 @@ type UserInputReader interface {
 
 type pipelineOpts struct {
 	pipelineClient pipelineapi.PipelineClient
+	projectClient  projectapi.ProjectClient
 	reader         UserInputReader
 }
 
@@ -52,6 +54,12 @@ func NewPipelineCommand(config *settings.Config, preRunE validator.Validator, op
 				return err
 			}
 			pos.pipelineClient = client
+
+			projectClient, err := projectapi.NewProjectRestClient(*config)
+			if err != nil {
+				return err
+			}
+			pos.projectClient = projectClient
 			return nil
 		},
 	}
@@ -59,6 +67,9 @@ func NewPipelineCommand(config *settings.Config, preRunE validator.Validator, op
 	command.AddCommand(newCreateCommand(&pos, preRunE))
 	command.AddCommand(newListCommand(&pos, preRunE))
 	command.AddCommand(newRunCommand(&pos, preRunE))
+	command.AddCommand(newDefinitionsCommand(&pos, preRunE))
+	command.AddCommand(newWorkflowsCommand(&pos, preRunE))
+	command.AddCommand(newRunsCommand(&pos, preRunE))
 
 	return command
 }
