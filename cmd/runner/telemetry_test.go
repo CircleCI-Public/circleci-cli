@@ -5,8 +5,9 @@ import (
 	"context"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 type testTelemetryClient struct {
@@ -17,6 +18,8 @@ func (c *testTelemetryClient) Track(event telemetry.Event) error {
 	c.events = append(c.events, event)
 	return nil
 }
+
+func (c *testTelemetryClient) Enabled() bool { return true }
 
 func (c *testTelemetryClient) Close() error { return nil }
 

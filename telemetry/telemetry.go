@@ -29,6 +29,7 @@ type Client interface {
 	io.Closer
 	// Send a telemetry event. This method is not to be called directly. Use config.Track instead
 	Track(event Event) error
+	Enabled() bool
 }
 
 // A segment event to be sent to the telemetry
@@ -78,6 +79,8 @@ type nullClient struct{}
 func (cli nullClient) Close() error { return nil }
 
 func (cli nullClient) Track(_ Event) error { return nil }
+
+func (cli nullClient) Enabled() bool { return false }
 
 // Segment client
 // Used when telemetry is enabled
@@ -157,6 +160,8 @@ func (segment *segmentClient) Track(event Event) error {
 	})
 }
 
+func (segment *segmentClient) Enabled() bool { return true }
+
 func (segment *segmentClient) Close() error {
 	return segment.analyticsClient.Close()
 }
@@ -195,3 +200,5 @@ func (cli *fileTelemetry) Close() error {
 
 	return file.Close()
 }
+
+func (cli *fileTelemetry) Enabled() bool { return true }
