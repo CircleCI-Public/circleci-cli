@@ -5,10 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/spf13/afero"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func TestLoadTelemetrySettings(t *testing.T) {
@@ -269,6 +270,8 @@ type testTelemetry struct {
 	events []telemetry.Event
 	User   telemetry.User
 }
+
+func (cli *testTelemetry) Enabled() bool { return true }
 
 func (cli *testTelemetry) Close() error { return nil }
 

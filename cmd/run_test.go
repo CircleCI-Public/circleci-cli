@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,6 +13,7 @@ import (
 	. "github.com/onsi/gomega"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 var _ = Describe("run", func() {
@@ -40,6 +42,7 @@ echo "Args: %@%"
 echo "Project ID: %CIRCLE_PROJECT_ID%"
 echo "Circle URL: %CIRCLE_URL%"
 echo "Circle Token: %CIRCLE_TOKEN%"
+echo "Telemetry Enabled: %CIRCLE_TELEMETRY_ENABLED%"
 exit 0
 `
 		} else {
@@ -49,6 +52,7 @@ echo "Args: $@"
 echo "Project ID: $CIRCLE_PROJECT_ID"
 echo "Circle URL: $CIRCLE_URL"
 echo "Circle Token: $CIRCLE_TOKEN"
+echo "Telemetry Enabled: $CIRCLE_TELEMETRY_ENABLED"
 exit 0
 `
 		}
@@ -85,11 +89,14 @@ exit 0
 			defer os.Setenv("PATH", oldPath)
 
 			cmd := newRunCommand(config)
+			telemetryClient := telemetry.CreateFileTelemetry(filepath.Join(tempDir, "telemetry"))
+			cmd.SetContext(telemetry.NewContext(context.Background(), telemetryClient))
 			cmd.SetArgs([]string{"test-plugin", "arg1", "arg2"})
 			err := cmd.Execute()
 			Expect(stdout.String()).To(ContainSubstring("Project ID: test-project-id"))
 			Expect(stdout.String()).To(ContainSubstring("Circle Token: test-token"))
 			Expect(stdout.String()).To(ContainSubstring("Circle URL: %s", fakeSrv.URL))
+			Expect(stdout.String()).To(ContainSubstring("Telemetry Enabled: true"))
 			Expect(err).ToNot(HaveOccurred())
 		})
 

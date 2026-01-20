@@ -8,11 +8,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
 )
 
 func TestGetOrgSuccess(t *testing.T) {
@@ -116,6 +117,8 @@ func (cli *testTelemetryClient) Track(event telemetry.Event) error {
 	cli.events = append(cli.events, event)
 	return nil
 }
+
+func (cli *testTelemetryClient) Enabled() bool { return true }
 
 func (cli *testTelemetryClient) Close() error { return nil }
 
