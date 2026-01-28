@@ -48,7 +48,7 @@ func (c Client) CreatePolicyBundle(ownerID string, context string, request Creat
 		return nil, fmt.Errorf("failed to encode policy payload: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v1/owner/%s/context/%s/policy-bundle", c.serverUrl, ownerID, context), bytes.NewReader(data))
+	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v2/owner/%s/context/%s/policy-bundle", c.serverUrl, ownerID, context), bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
@@ -87,7 +87,7 @@ func (c Client) CreatePolicyBundle(ownerID string, context string, request Creat
 // If policyName is empty, the full policy bundle would be fetched for given ownerID+context
 // If a policyName is provided, only that matching policy would be fetched for given ownerID+context+policyName
 func (c Client) FetchPolicyBundle(ownerID, context, policyName string) (interface{}, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/context/%s/policy-bundle/%s", c.serverUrl, ownerID, context, policyName), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v2/owner/%s/context/%s/policy-bundle/%s", c.serverUrl, ownerID, context, policyName), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
@@ -126,7 +126,7 @@ type DecisionQueryRequest struct {
 // GetDecisionLogs calls the GET decision query API of policy-service. The endpoint accepts multiple filter values as
 // path query parameters (start-time, end-time, branch-name, project-id and offset).
 func (c Client) GetDecisionLogs(ownerID string, context string, request DecisionQueryRequest) ([]interface{}, error) {
-	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision", c.serverUrl, ownerID, context), nil)
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision", c.serverUrl, ownerID, context), nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
 	}
@@ -178,7 +178,7 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 // GetDecisionLog calls the GET decision query API of policy-service for a DecisionID.
 // It also accepts a policyBundle bool param; If set to true will return only the policy bundle corresponding to that decision log.
 func (c Client) GetDecisionLog(ownerID string, context string, decisionID string, policyBundle bool) (interface{}, error) {
-	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/%s", c.serverUrl, ownerID, context, decisionID)
+	path := fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision/%s", c.serverUrl, ownerID, context, decisionID)
 	if policyBundle {
 		path += "/policy-bundle"
 	}
@@ -218,7 +218,7 @@ type DecisionRequest struct {
 
 // GetSettings calls the GET decision-settings API of policy-service.
 func (c Client) GetSettings(ownerID string, context string) (interface{}, error) {
-	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
+	path := fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
@@ -257,7 +257,7 @@ func (c Client) SetSettings(ownerID string, context string, request DecisionSett
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
-	path := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
+	path := fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
 	req, err := http.NewRequest("PATCH", path, bytes.NewReader(payload))
 	if err != nil {
 		return nil, fmt.Errorf("failed to construct request: %v", err)
@@ -292,7 +292,7 @@ func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("%s/api/v1/owner/%s/context/%s/decision", c.serverUrl, ownerID, context)
+	endpoint := fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision", c.serverUrl, ownerID, context)
 
 	request, err := http.NewRequest("POST", endpoint, bytes.NewReader(payload))
 	if err != nil {

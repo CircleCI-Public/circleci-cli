@@ -15,4 +15,4 @@ Flags:
       --strict                       return non-zero status code for decision resulting in HARD_FAIL
 
 Global Flags:
-      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+      --policy-base-url string   base url for policy api (default "https://circleci.com")

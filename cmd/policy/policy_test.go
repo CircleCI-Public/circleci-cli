@@ -36,8 +36,8 @@ func TestPushPolicyWithPrompt(t *testing.T) {
 	var requestCount int
 
 	expectedURLs := []string{
-		"/api/v1/owner/test-org/context/config/policy-bundle?dry=true",
-		"/api/v1/owner/test-org/context/config/policy-bundle",
+		"/api/v2/owner/test-org/context/config/policy-bundle?dry=true",
+		"/api/v2/owner/test-org/context/config/policy-bundle",
 	}
 
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -130,7 +130,7 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-org/context/custom/policy-bundle", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/test-org/context/custom/policy-bundle", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{
 					"policies": map[string]interface{}{},
@@ -147,7 +147,7 @@ func TestPushPolicyBundleNoPrompt(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-org/context/custom/policy-bundle", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/test-org/context/custom/policy-bundle", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{
 					"policies": map[string]interface{}{
@@ -225,7 +225,7 @@ func TestDiffPolicyBundle(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-org/context/custom/policy-bundle?dry=true", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/test-org/context/custom/policy-bundle?dry=true", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{
 					"policies": map[string]interface{}{},
@@ -241,7 +241,7 @@ func TestDiffPolicyBundle(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-org/context/custom/policy-bundle?dry=true", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/test-org/context/custom/policy-bundle?dry=true", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{
 					"policies": map[string]interface{}{
@@ -302,7 +302,7 @@ func TestFetchPolicyBundle(t *testing.T) {
 			ExpectedErr: "failed to fetch policy bundle: unexpected status-code: 403 - Forbidden",
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/ownerID/context/someContext/policy-bundle/policyName", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/ownerID/context/someContext/policy-bundle/policyName", r.URL.String())
 				w.WriteHeader(http.StatusForbidden)
 				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
 				assert.NoError(t, err)
@@ -313,7 +313,7 @@ func TestFetchPolicyBundle(t *testing.T) {
 			Args: []string{"fetch", "my_policy", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/policy-bundle/my_policy", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/policy-bundle/my_policy", r.URL.String())
 				_, err := w.Write([]byte(`{
 						"content": "package org\n\npolicy_name[\"my_policy\"] { true }",
 						"created_at": "2022-08-10T10:47:01.859756-04:00",
@@ -336,7 +336,7 @@ func TestFetchPolicyBundle(t *testing.T) {
 			Args: []string{"fetch", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/policy-bundle/", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/policy-bundle/", r.URL.String())
 				_, err := w.Write([]byte(`{
 	 "a": {
 	   "content": "package org\n\npolicy_name[\"a\"] { true }",
@@ -437,7 +437,7 @@ func TestGetDecisionLogs(t *testing.T) {
 			Args: []string{"logs", "--owner-id", "ownerID"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision", r.URL.String())
 				_, err := w.Write([]byte("[]"))
 				assert.NoError(t, err)
 			},
@@ -451,7 +451,7 @@ func TestGetDecisionLogs(t *testing.T) {
 			},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision?after=2022-03-14T00%3A00%3A00Z&before=2022-03-15T00%3A00%3A00Z&branch=branchValue&project_id=projectIDValue&status=PASS", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision?after=2022-03-14T00%3A00%3A00Z&before=2022-03-15T00%3A00%3A00Z&branch=branchValue&project_id=projectIDValue&status=PASS", r.URL.String())
 				_, err := w.Write([]byte("[]"))
 				assert.NoError(t, err)
 			},
@@ -463,7 +463,7 @@ func TestGetDecisionLogs(t *testing.T) {
 			ExpectedErr: "failed to get policy decision logs: unexpected status-code: 403 - Forbidden",
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision", r.URL.String())
 				w.WriteHeader(http.StatusForbidden)
 				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
 				assert.NoError(t, err)
@@ -480,7 +480,7 @@ func TestGetDecisionLogs(t *testing.T) {
 					assert.Equal(t, "GET", r.Method)
 
 					if count == 0 {
-						assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision", r.URL.String())
+						assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision", r.URL.String())
 						_, err := w.Write([]byte(`
 								[
 								  {
@@ -502,7 +502,7 @@ func TestGetDecisionLogs(t *testing.T) {
 						)
 						assert.NoError(t, err)
 					} else if count == 1 {
-						assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision?offset=1", r.URL.String())
+						assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision?offset=1", r.URL.String())
 						_, err := w.Write([]byte("[]"))
 						assert.NoError(t, err)
 					} else {
@@ -536,7 +536,7 @@ func TestGetDecisionLogs(t *testing.T) {
 			ServerHandler: func() http.HandlerFunc {
 				return func(w http.ResponseWriter, r *http.Request) {
 					assert.Equal(t, "GET", r.Method)
-					assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision/decisionID", r.URL.String())
+					assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision/decisionID", r.URL.String())
 					_, err := w.Write([]byte("{}"))
 					assert.NoError(t, err)
 				}
@@ -549,7 +549,7 @@ func TestGetDecisionLogs(t *testing.T) {
 			ServerHandler: func() http.HandlerFunc {
 				return func(w http.ResponseWriter, r *http.Request) {
 					assert.Equal(t, "GET", r.Method)
-					assert.Equal(t, "/api/v1/owner/ownerID/context/config/decision/decisionID/policy-bundle", r.URL.String())
+					assert.Equal(t, "/api/v2/owner/ownerID/context/config/decision/decisionID/policy-bundle", r.URL.String())
 					_, err := w.Write([]byte("{}"))
 					assert.NoError(t, err)
 				}
@@ -602,7 +602,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -618,7 +618,7 @@ func TestMakeDecisionCommand(t *testing.T) {
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test4/config.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				var payload map[string]interface{}
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
@@ -664,7 +664,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				var payload map[string]interface{}
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
@@ -702,7 +702,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -717,7 +717,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--strict", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -732,7 +732,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -747,7 +747,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--strict", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -762,7 +762,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/custom/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/custom/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -777,7 +777,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--meta", `{"project_id": "test-project-id","vcs": {"branch": "main"}}`, "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/custom/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/custom/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -792,7 +792,7 @@ test: config
 			Args: []string{"decide", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--context", "custom", "--metafile", "./testdata/test1/meta.yml", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/custom/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/custom/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -1058,7 +1058,7 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 			Args: []string{"eval", "./testdata/test0/policy.rego", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml", "--no-compile"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				payload, err := io.ReadAll(r.Body)
 				require.NoError(t, err)
@@ -1074,7 +1074,7 @@ func TestRawOPAEvaluationCommand(t *testing.T) {
 			Args: []string{"eval", "./testdata/test0/policy.rego", "--owner-id", "test-owner", "--input", "./testdata/test1/test.yml"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "POST", r.Method)
-				assert.Equal(t, "/api/v1/owner/test-owner/context/config/decision", r.URL.Path)
+				assert.Equal(t, "/api/v2/owner/test-owner/context/config/decision", r.URL.Path)
 
 				var payload map[string]interface{}
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&payload))
@@ -1167,7 +1167,7 @@ func TestGetSetSettings(t *testing.T) {
 			ExpectedErr: "failed to run settings : unexpected status-code: 403 - Forbidden",
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/ownerID/context/someContext/decision/settings", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/ownerID/context/someContext/decision/settings", r.URL.String())
 				w.WriteHeader(http.StatusForbidden)
 				_, err := w.Write([]byte(`{"error": "Forbidden"}`))
 				assert.NoError(t, err)
@@ -1178,7 +1178,7 @@ func TestGetSetSettings(t *testing.T) {
 			Args: []string{"settings", "--owner-id", "462d67f8-b232-4da4-a7de-0c86dd667d3f"},
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				assert.Equal(t, "GET", r.Method)
-				assert.Equal(t, "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
 				w.WriteHeader(http.StatusOK)
 				_, err := w.Write([]byte(`{"enabled": true}`))
 				assert.NoError(t, err)
@@ -1191,7 +1191,7 @@ func TestGetSetSettings(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "PATCH", r.Method)
-				assert.Equal(t, "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{"enabled": true}, body)
 				w.WriteHeader(http.StatusOK)
@@ -1206,7 +1206,7 @@ func TestGetSetSettings(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "PATCH", r.Method)
-				assert.Equal(t, "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{"enabled": true}, body)
 				w.WriteHeader(http.StatusOK)
@@ -1221,7 +1221,7 @@ func TestGetSetSettings(t *testing.T) {
 			ServerHandler: func(w http.ResponseWriter, r *http.Request) {
 				var body map[string]interface{}
 				assert.Equal(t, "PATCH", r.Method)
-				assert.Equal(t, "/api/v1/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
+				assert.Equal(t, "/api/v2/owner/462d67f8-b232-4da4-a7de-0c86dd667d3f/context/config/decision/settings", r.URL.String())
 				assert.NoError(t, json.NewDecoder(r.Body).Decode(&body))
 				assert.Equal(t, map[string]interface{}{"enabled": false}, body)
 				w.WriteHeader(http.StatusOK)
