@@ -26,7 +26,7 @@ func TestClientFetchPolicyBundle(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle/my_policy")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/policy-bundle/my_policy")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("{}"))
@@ -147,7 +147,7 @@ func TestClientCreatePolicy(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "POST")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/policy-bundle")
 
 			var actual CreatePolicyBundleRequest
 			assert.NilError(t, json.NewDecoder(r.Body).Decode(&actual))
@@ -179,7 +179,7 @@ func TestClientCreatePolicy(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "POST")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/policy-bundle")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/policy-bundle")
 			assert.Equal(t, r.URL.RawQuery, "dry=true")
 
 			var actual CreatePolicyBundleRequest
@@ -225,8 +225,8 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/context/config/decision")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/decision")
+			assert.Equal(t, r.URL.String(), "/api/v2/owner/ownerId/context/config/decision")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -250,7 +250,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/decision")
 			assert.Equal(t, r.URL.RawQuery, "project_id=projectIDValue")
 
 			w.WriteHeader(http.StatusOK)
@@ -277,7 +277,7 @@ func TestClientGetDecisionLogs(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/decision")
 			assert.Equal(
 				t,
 				r.URL.RawQuery,
@@ -423,8 +423,8 @@ func TestClientGetDecisionLog(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision/decisionID")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/context/config/decision/decisionID")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/decision/decisionID")
+			assert.Equal(t, r.URL.String(), "/api/v2/owner/ownerId/context/config/decision/decisionID")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -448,8 +448,8 @@ func TestClientGetDecisionLog(t *testing.T) {
 			assert.Equal(t, r.Header.Get("circle-token"), "testtoken")
 
 			assert.Equal(t, r.Method, "GET")
-			assert.Equal(t, r.URL.Path, "/api/v1/owner/ownerId/context/config/decision/decisionID/policy-bundle")
-			assert.Equal(t, r.URL.String(), "/api/v1/owner/ownerId/context/config/decision/decisionID/policy-bundle")
+			assert.Equal(t, r.URL.Path, "/api/v2/owner/ownerId/context/config/decision/decisionID/policy-bundle")
+			assert.Equal(t, r.URL.String(), "/api/v2/owner/ownerId/context/config/decision/decisionID/policy-bundle")
 
 			w.WriteHeader(http.StatusOK)
 			_, err := w.Write([]byte("[]"))
@@ -567,7 +567,7 @@ func TestMakeDecision(t *testing.T) {
 				Input: "test-input",
 			},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision")
+				assert.Equal(t, r.URL.Path, "/api/v2/owner/test-owner/context/config/decision")
 				assert.Equal(t, r.Method, "POST")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 
@@ -645,7 +645,7 @@ func TestGetSettings(t *testing.T) {
 			Name:    "gets expected response",
 			OwnerID: "test-owner",
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.URL.Path, "/api/v2/owner/test-owner/context/config/decision/settings")
 				assert.Equal(t, r.Method, "GET")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				_ = json.NewEncoder(w).Encode(interface{}(`{"enabled": true}`))
@@ -718,7 +718,7 @@ func TestSetSettings(t *testing.T) {
 			OwnerID:  "test-owner",
 			Settings: DecisionSettings{Enabled: &trueVar},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.URL.Path, "/api/v2/owner/test-owner/context/config/decision/settings")
 				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				var payload map[string]interface{}
@@ -736,7 +736,7 @@ func TestSetSettings(t *testing.T) {
 			OwnerID:  "test-owner",
 			Settings: DecisionSettings{Enabled: &falseVar},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.URL.Path, "/api/v2/owner/test-owner/context/config/decision/settings")
 				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				var payload map[string]interface{}
@@ -754,7 +754,7 @@ func TestSetSettings(t *testing.T) {
 			OwnerID:  "test-owner",
 			Settings: DecisionSettings{Enabled: nil},
 			Handler: func(w http.ResponseWriter, r *http.Request) {
-				assert.Equal(t, r.URL.Path, "/api/v1/owner/test-owner/context/config/decision/settings")
+				assert.Equal(t, r.URL.Path, "/api/v2/owner/test-owner/context/config/decision/settings")
 				assert.Equal(t, r.Method, "PATCH")
 				assert.Equal(t, r.Header.Get("Circle-Token"), "test-token")
 				var payload map[string]interface{}

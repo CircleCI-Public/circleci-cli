@@ -15,4 +15,4 @@ Flags:
       --query string                 policy decision query (default "data")
 
 Global Flags:
-      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+      --policy-base-url string   base url for policy api (default "https://circleci.com")

@@ -12,6 +12,6 @@ Available Commands:
   test        runs policy tests
 
 Flags:
-      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+      --policy-base-url string   base url for policy api (default "https://circleci.com")
 
 Use "policy [command] --help" for more information about a command.

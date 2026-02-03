@@ -12,4 +12,4 @@ Flags:
   -v, --verbose           print all tests instead of only failed tests
 
 Global Flags:
-      --policy-base-url string   base url for policy api (default "https://internal.circleci.com")
+      --policy-base-url string   base url for policy api (default "https://circleci.com")
