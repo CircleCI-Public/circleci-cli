@@ -38,9 +38,8 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 	}
 
 	baseURL, err := url.Parse(host)
-	if err != nil || baseURL == nil || baseURL.Host == "" {
-		fmt.Fprintf(os.Stderr, "Error: invalid CircleCI URL\n")
-		os.Exit(1)
+	if err != nil || baseURL == nil {
+		panic("Error: invalid CircleCI URL")
 	}
 
 	timeout := header.GetDefaultTimeout()
