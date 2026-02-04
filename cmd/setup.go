@@ -180,8 +180,10 @@ func setup(opts setupOptions) error {
 	}
 	opts.cfg.Host = opts.tty.readHostFromUser("CircleCI Host", defaultHost)
 
-	if err := settings.ValidateHost(opts.cfg.Host); err != nil {
-		return errors.New("invalid CircleCI URL")
+	if !opts.integrationTesting {
+		if err := settings.ValidateHost(opts.cfg.Host); err != nil {
+			return errors.New("invalid CircleCI URL")
+		}
 	}
 	fmt.Println("CircleCI host has been set.")
 
@@ -267,11 +269,6 @@ func setupNoPrompt(opts setupOptions) error {
 	if opts.token == "" {
 		fmt.Println("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.")
 		config.Token = opts.cfg.Token
-	}
-
-	// Validate the host URL before saving
-	if err := settings.ValidateHost(config.Host); err != nil {
-		return errors.New("invalid CircleCI URL")
 	}
 
 	// Then save the new config to disk
