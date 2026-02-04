@@ -271,6 +271,11 @@ func setupNoPrompt(opts setupOptions) error {
 		config.Token = opts.cfg.Token
 	}
 
+	// Validate the host URL before saving
+	if err := settings.ValidateHost(config.Host); err != nil {
+		return errors.New("invalid CircleCI URL")
+	}
+
 	// Then save the new config to disk
 	if err := config.WriteToDisk(); err != nil {
 		return errors.Wrap(err, "Failed to save config file")
