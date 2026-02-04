@@ -185,7 +185,7 @@ token: fooBarBaz
 			It("should change if provided one of flags", func() {
 				command = commandWithHome(pathCLI, tempSettings.Home,
 					"setup",
-					"--host", "asdf",
+					"--host", "https://asdf.example.com",
 					"--no-prompt",
 					"--skip-update-check",
 				)
@@ -201,7 +201,7 @@ Your configuration has been saved to %s.
 				Eventually(session).Should(gexec.Exit(0))
 
 				Context("re-open the config to check the contents", func() {
-					tempSettings.AssertConfigRereadMatches(`host: asdf
+					tempSettings.AssertConfigRereadMatches(`host: https://asdf.example.com
 endpoint: graphql-unstable
 token: fooBarBaz
 `)
@@ -232,6 +232,22 @@ endpoint: graphql-unstable
 token: asdf
 `)
 				})
+			})
+
+			It("should reject an invalid host URL", func() {
+				command = commandWithHome(pathCLI, tempSettings.Home,
+					"setup",
+					"--host", "not-a-valid-url",
+					"--no-prompt",
+					"--skip-update-check",
+				)
+
+				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+				Expect(err).ShouldNot(HaveOccurred())
+				Eventually(session).Should(clitest.ShouldFail())
+
+				stderr := session.Wait().Err.Contents()
+				Expect(string(stderr)).To(Equal("Error: invalid CircleCI URL\n"))
 			})
 		})
 
