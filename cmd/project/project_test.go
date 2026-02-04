@@ -425,7 +425,7 @@ func TestDLCPurge(t *testing.T) {
 		// (this test doesn't use httptest because it's testing a
 		// misconfiguration and doesn't get as far as making a http request)
 		cmd := project.NewProjectCommand(&settings.Config{
-			Host:       "some custom value but dlhost is not set",
+			Host:       "https://example.com",
 			HTTPClient: http.DefaultClient,
 		}, noValidator)
 		outbuf := new(bytes.Buffer)
