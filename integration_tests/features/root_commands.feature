@@ -13,7 +13,7 @@ Feature: Root Commands
 
   @mocked_home_directory
   Scenario: Help test with a custom host
-    Given a file named ".circleci/cli.yml" with "host: foo.bar"
+    Given a file named ".circleci/cli.yml" with "host: https://foo.bar"
     When I run `circleci help`
     Then the output should not contain:
     """
