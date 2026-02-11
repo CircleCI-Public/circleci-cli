@@ -179,6 +179,12 @@ func setup(opts setupOptions) error {
 		fmt.Println("API token has been set.")
 	}
 	opts.cfg.Host = opts.tty.readHostFromUser("CircleCI Host", defaultHost)
+
+	if !opts.integrationTesting {
+		if err := settings.ValidateHost(opts.cfg.Host); err != nil {
+			return errors.New("invalid CircleCI URL")
+		}
+	}
 	fmt.Println("CircleCI host has been set.")
 
 	// Reset endpoint to default when running setup
@@ -263,6 +269,11 @@ func setupNoPrompt(opts setupOptions) error {
 	if opts.token == "" {
 		fmt.Println("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.")
 		config.Token = opts.cfg.Token
+	}
+
+	// Validate the host URL before saving
+	if err := settings.ValidateHost(config.Host); err != nil {
+		return errors.New("invalid CircleCI URL")
 	}
 
 	// Then save the new config to disk

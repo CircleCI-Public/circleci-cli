@@ -27,14 +27,19 @@ func TestNewFromConfigTimeout(t *testing.T) {
 		HTTPClient:   http.DefaultClient,
 	}
 	t.Run("create new client without custom timeout", func(t *testing.T) {
-		api := NewFromConfig("host", cfg)
+		api := NewFromConfig("https://circleci.example.com", cfg)
 		assert.Equal(t, api.client.Timeout, header.GetDefaultTimeout())
 	})
 	t.Run("create new client with custom timeout", func(t *testing.T) {
 		customTimeout := 20 * time.Second
 		os.Setenv("CIRCLECI_CLI_TIMEOUT", customTimeout.String())
-		api := NewFromConfig("host", cfg)
+		api := NewFromConfig("https://circleci.example.com", cfg)
 		assert.Equal(t, api.client.Timeout, customTimeout)
+	})
+	t.Run("panic on invalid host URL", func(t *testing.T) {
+		assert.Panics(t, func() {
+			NewFromConfig("not-a-valid-url", cfg)
+		})
 	})
 }
 func TestClient_DoRequest(t *testing.T) {

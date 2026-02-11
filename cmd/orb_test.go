@@ -99,7 +99,7 @@ var _ = Describe("Orb integration tests", func() {
 					"orb", "--help",
 				)
 
-				tempSettings.Config.Write([]byte(`host: foo.bar`))
+				tempSettings.Config.Write([]byte(`host: https://foo.bar`))
 			})
 
 			AfterEach(func() {
@@ -2867,7 +2867,7 @@ https://circleci.com/account/api`))
 					"orb", "create", "bar-ns/foo-orb",
 					"--skip-update-check",
 					"--token", "",
-					"--host", "foo.bar",
+					"--host", "https://foo.bar",
 				)
 
 				By("running the command")
@@ -2876,7 +2876,7 @@ https://circleci.com/account/api`))
 				Expect(err).ShouldNot(HaveOccurred())
 				Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
 You can create a new personal API token here:
-foo.bar/account/api`))
+https://foo.bar/account/api`))
 				Eventually(session).Should(clitest.ShouldFail())
 			})
 		})

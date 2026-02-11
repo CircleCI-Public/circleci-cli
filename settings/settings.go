@@ -341,6 +341,14 @@ func isWorldWritable(info os.FileInfo) bool {
 	return strings.Contains(sysPerms, "w")
 }
 
+func ValidateHost(host string) error {
+	parsedURL, err := url.Parse(host)
+	if err != nil || parsedURL.Host == "" {
+		return errors.New("invalid URL")
+	}
+	return nil
+}
+
 // ServerURL retrieves and formats a ServerURL from our restEndpoint and host.
 func (cfg *Config) ServerURL() (*url.URL, error) {
 	var URL string
