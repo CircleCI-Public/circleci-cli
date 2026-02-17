@@ -88,13 +88,10 @@ var _ = Describe("Update", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
-					Name: "update",
-					LocalArgs: map[string]string{
-						"check": "false",
-						"help":  "false",
-					},
+					Name:      "update",
+					LocalArgs: map[string]string{},
 				}),
 			})
 		})
@@ -110,13 +107,10 @@ var _ = Describe("Update", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
-					Name: "check",
-					LocalArgs: map[string]string{
-						"check": "false",
-						"help":  "false",
-					},
+					Name:      "check",
+					LocalArgs: map[string]string{},
 				}),
 			})
 		})

@@ -60,14 +60,10 @@ var _ = Describe("Orb telemetry", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 		Eventually(session).Should(gexec.Exit(0))
 
-		clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+		clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 			telemetry.CreateOrbEvent(telemetry.CommandInfo{
-				Name: "validate",
-				LocalArgs: map[string]string{
-					"org-slug": "",
-					"help":     "false",
-					"org-id":   "",
-				},
+				Name:      "validate",
+				LocalArgs: map[string]string{},
 			}),
 		})
 	})

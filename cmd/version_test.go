@@ -32,7 +32,7 @@ var _ = Describe("Version telemetry", func() {
 		Expect(err).ShouldNot(HaveOccurred())
 
 		Eventually(session).Should(gexec.Exit(0))
-		clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+		clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 			telemetry.CreateVersionEvent("0.0.0-dev+dirty-local-tree (source)"),
 		})
 	})

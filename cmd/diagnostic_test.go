@@ -59,7 +59,7 @@ var _ = Describe("Diagnostic", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 
 			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateDiagnosticEvent(nil),
 			})
 		})

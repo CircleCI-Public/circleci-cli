@@ -9,6 +9,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/cmd/info"
+	"github.com/google/uuid"
 	"github.com/CircleCI-Public/circleci-cli/cmd/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/cmd/project"
@@ -56,6 +57,12 @@ func Execute() error {
 	if cmdContext == nil {
 		cmdContext = context.Background()
 	}
+
+	// Create the invocation ID once here so every code path — successful runs,
+	// flag errors, and args errors — shares the same ID and can be correlated.
+	invocationID := uuid.NewString()
+	cmdContext = telemetry.WithInvocationID(cmdContext, invocationID)
+
 	command.SetContext(telemetry.NewContext(cmdContext, telemetryClient))
 
 	return command.Execute()
@@ -222,6 +229,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.SilenceUsage = true
 
 	setFlagErrorFuncAndValidateArgs(rootCmd)
+	instrumentCommands(rootCmd)
 
 	return rootCmd
 }
@@ -274,6 +282,11 @@ func setFlagErrorFunc(cmd *cobra.Command, err error) error {
 		return e
 	}
 	fmt.Println("")
+	// Emit a finished event so the flag_error outcome is recorded even though
+	// RunE never executes.
+	if invID, ok := telemetry.InvocationIDFromContext(cmd.Context()); ok {
+		trackCommandFinished(cmd, invID, 0, "flag_error", err)
+	}
 	return err
 }
 
@@ -293,6 +306,11 @@ func setFlagErrorFuncAndValidateArgs(command *cobra.Command) {
 				}
 
 				fmt.Println("")
+				// Emit a finished event so the args_error outcome is recorded even
+				// though RunE never executes.
+				if invID, ok := telemetry.InvocationIDFromContext(cccmd.Context()); ok {
+					trackCommandFinished(cccmd, invID, 0, "args_error", err)
+				}
 				return err
 			}
 
