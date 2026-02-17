@@ -5,6 +5,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 var projectName string
@@ -29,14 +30,29 @@ Example orgSlug:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			vcsType := args[0]
 			orgName := args[1]
+
+			client, _ := telemetry.FromContext(cmd.Context())
+			invID, _ := telemetry.InvocationIDFromContext(cmd.Context())
+
 			if projectName == "" {
+				trackProjectCreateStep(client, "name_prompt_shown", invID, nil)
 				projectName = prompt.ReadStringFromUser("Enter a name for the project", "")
+				trackProjectCreateStep(client, "name_prompt_answered", invID, map[string]interface{}{
+					"used_name_flag": false,
+				})
 			}
+
+			trackProjectCreateStep(client, "api_called", invID, map[string]interface{}{
+				"vcs_type": vcsType,
+			})
+
 			res, err := ops.projectClient.CreateProject(vcsType, orgName, projectName)
 			if err != nil {
+				trackProjectCreateStep(client, "failed", invID, nil)
 				return err
 			}
 
+			trackProjectCreateStep(client, "succeeded", invID, nil)
 			cmd.Printf("Project '%s' successfully created in organization '%s'\n", projectName, res.OrgName)
 			cmd.Println("You may view your new project at: https://app.circleci.com/projects/" + res.Slug)
 			return nil
@@ -47,4 +63,8 @@ Example orgSlug:
 	cmd.Flags().StringVar(&projectName, "name", "", "Name of the project to create")
 
 	return cmd
+}
+
+func trackProjectCreateStep(client telemetry.Client, step, invocationID string, extra map[string]interface{}) {
+	telemetry.TrackWorkflowStep(client, "project_create", step, invocationID, extra)
 }
