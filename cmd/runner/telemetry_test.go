@@ -55,10 +55,10 @@ func Test_RunnerTelemetry(t *testing.T) {
 		assert.DeepEqual(t, telemetryClient.events, []telemetry.Event{
 			telemetry.CreateRunnerResourceClassEvent(telemetry.CommandInfo{
 				Name: "create",
+				// Only flags explicitly set by the user are included.
+				// Values are only sent for safe allow-listed flags (booleans, enums).
 				LocalArgs: map[string]string{
 					"generate-token": "true",
-					"help":           "false",
-					"json":           "false",
 				},
 			}),
 		})

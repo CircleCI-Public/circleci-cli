@@ -151,11 +151,13 @@ func TestTelemetry(t *testing.T) {
 
 	assert.NilError(t, err)
 
-	// Read the telemetry events and compare them
+	// Read the telemetry events and compare them.
+	// No flags were explicitly set, so LocalArgs is empty — the old VisitAll
+	// behavior that sent default/unset flag values has been replaced with Visit.
 	assert.DeepEqual(t, telemetryClient.events, []telemetry.Event{
 		telemetry.CreateInfoEvent(telemetry.CommandInfo{
 			Name:      "org",
-			LocalArgs: map[string]string{"help": "false", "json": "false"},
+			LocalArgs: map[string]string{},
 		}, nil),
 	})
 }
