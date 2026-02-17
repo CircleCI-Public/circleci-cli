@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func newCreateCommand(ops *pipelineOpts, preRunE validator.Validator) *cobra.Command {
@@ -41,36 +42,56 @@ Note: To get the repository id you can use https://docs.github.com/en/rest/repos
 		RunE: func(cmd *cobra.Command, args []string) error {
 			projectID := args[0]
 
+			client, _ := telemetry.FromContext(cmd.Context())
+			invID, _ := telemetry.InvocationIDFromContext(cmd.Context())
+
 			if name == "" {
+				trackPipelineCreateStep(client, "name_prompt_shown", invID, nil)
 				namePrompt := "Enter a name for the pipeline"
 				name = ops.reader.ReadStringFromUser(namePrompt)
+				trackPipelineCreateStep(client, "name_prompt_answered", invID, nil)
 			}
 
 			if repoID == "" {
+				trackPipelineCreateStep(client, "repo_prompt_shown", invID, nil)
 				repoPrompt := "Enter the ID of your github repository"
 				repoID = ops.reader.ReadStringFromUser(repoPrompt)
+				trackPipelineCreateStep(client, "repo_prompt_answered", invID, nil)
 			}
 
 			if configRepoID == "" {
+				trackPipelineCreateStep(client, "config_repo_prompt_shown", invID, nil)
 				yOrN := promptTillYOrN(ops.reader)
 				if yOrN == "y" {
 					configRepoIDPrompt := "Enter the ID of the GitHub repository where the CircleCI config file is located"
 					configRepoID = ops.reader.ReadStringFromUser(configRepoIDPrompt)
+					trackPipelineCreateStep(client, "config_repo_prompt_answered", invID, map[string]interface{}{
+						"separate_config_repo": true,
+					})
 				} else {
 					configRepoID = repoID
+					trackPipelineCreateStep(client, "config_repo_prompt_answered", invID, map[string]interface{}{
+						"separate_config_repo": false,
+					})
 				}
 			}
 
 			if filePath == "" {
+				trackPipelineCreateStep(client, "file_path_prompt_shown", invID, nil)
 				filePathPrompt := "Enter the path to your circleci config file"
 				filePath = ops.reader.ReadStringFromUser(filePathPrompt)
+				trackPipelineCreateStep(client, "file_path_prompt_answered", invID, nil)
 			}
+
+			trackPipelineCreateStep(client, "api_called", invID, nil)
 			res, err := ops.pipelineClient.CreatePipeline(projectID, name, description, repoID, configRepoID, filePath)
 			if err != nil {
+				trackPipelineCreateStep(client, "failed", invID, nil)
 				cmd.Println("\nThere was an error creating your pipeline. Do you have Github App installed in your repository?")
 				return err
 			}
 
+			trackPipelineCreateStep(client, "succeeded", invID, nil)
 			cmd.Printf("Pipeline '%s' successfully created for repository '%s'\n", res.Name, res.CheckoutSourceRepoFullName)
 			if res.CheckoutSourceRepoFullName != res.ConfigSourceRepoFullName {
 				cmd.Printf("Config is successfully referenced from '%s' repository at path '%s'\n", res.ConfigSourceRepoFullName, filePath)
@@ -87,6 +108,10 @@ Note: To get the repository id you can use https://docs.github.com/en/rest/repos
 	cmd.Flags().StringVar(&filePath, "file-path", "", "Path to the circleci config file to create")
 	cmd.Flags().StringVar(&configRepoID, "config-repo-id", "", "Repository ID of the CircleCI config file")
 	return cmd
+}
+
+func trackPipelineCreateStep(client telemetry.Client, step, invocationID string, extra map[string]interface{}) {
+	telemetry.TrackWorkflowStep(client, "pipeline_create", step, invocationID, extra)
 }
 
 func promptTillYOrN(reader UserInputReader) string {
