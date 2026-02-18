@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 )
 
 type Runner struct {
@@ -56,7 +57,7 @@ func (r *Runner) GetResourceClassByName(resourceClass string) (rc *ResourceClass
 		}
 	}
 
-	return nil, fmt.Errorf("resource class %q not found", resourceClass)
+	return nil, errs.NotFoundf("resource class %q not found", resourceClass)
 }
 
 func (r *Runner) GetNamespaceByResourceClass(resourceClass string) (ns string, err error) {

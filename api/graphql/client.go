@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/pkg/errors"
 )
@@ -275,6 +276,9 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	}
 
 	if len(wrappedResponse.Errors) > 0 {
+		if strings.Contains(strings.ToLower(wrappedResponse.Errors.Error()), "must log in") {
+			return errs.AuthRequired(wrappedResponse.Errors)
+		}
 		return wrappedResponse.Errors
 	}
 

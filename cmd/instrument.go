@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -174,6 +175,14 @@ func classifyError(err error) string {
 	var restErr *rest.HTTPError
 	if errors.As(err, &restErr) {
 		return fmt.Sprintf("http_%d", restErr.Code)
+	}
+
+	if errors.Is(err, errs.ErrAuthRequired) {
+		return "auth_required"
+	}
+
+	if errors.Is(err, errs.ErrNotFound) {
+		return "not_found"
 	}
 
 	msg := err.Error()
