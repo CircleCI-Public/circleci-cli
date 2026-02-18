@@ -145,7 +145,7 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 				return setupNoPrompt(opts)
 			}
 
-			return setup(opts)
+			return setup(cmd, opts)
 		},
 	}
 
@@ -169,19 +169,27 @@ func newSetupCommand(config *settings.Config) *cobra.Command {
 	return setupCommand
 }
 
-func setup(opts setupOptions) error {
+func setup(cmd *cobra.Command, opts setupOptions) error {
 	if shouldAskForToken(opts.cfg.Token, opts.tty) {
+		trackSetupStep(cmd, "token_prompt_shown", nil)
 		token, err := opts.tty.readTokenFromUser("CircleCI API Token")
 		if err != nil {
 			return errors.Wrap(err, "Error reading token")
 		}
 		opts.cfg.Token = token
+		trackSetupStep(cmd, "token_prompt_answered", nil)
 		fmt.Println("API token has been set.")
 	}
+
+	trackSetupStep(cmd, "host_prompt_shown", nil)
 	opts.cfg.Host = opts.tty.readHostFromUser("CircleCI Host", defaultHost)
+	trackSetupStep(cmd, "host_prompt_answered", map[string]interface{}{
+		"is_self_hosted": opts.cfg.Host != defaultHost,
+	})
 
 	if !opts.integrationTesting {
 		if err := settings.ValidateHost(opts.cfg.Host); err != nil {
+			trackSetupStep(cmd, "failed", nil)
 			return errors.New("invalid CircleCI URL")
 		}
 	}
@@ -194,9 +202,11 @@ func setup(opts setupOptions) error {
 	}
 
 	if err := opts.cfg.WriteToDisk(); err != nil {
+		trackSetupStep(cmd, "failed", nil)
 		return errors.Wrap(err, "Failed to save config file")
 	}
 
+	trackSetupStep(cmd, "succeeded", nil)
 	fmt.Printf("Setup complete.\nYour configuration has been saved to %s.\n", opts.cfg.FileUsed)
 
 	if !opts.integrationTesting {
@@ -204,6 +214,15 @@ func setup(opts setupOptions) error {
 	}
 
 	return nil
+}
+
+func trackSetupStep(cmd *cobra.Command, step string, extra map[string]interface{}) {
+	client, ok := telemetry.FromContext(cmd.Context())
+	if !ok {
+		return
+	}
+	invID, _ := telemetry.InvocationIDFromContext(cmd.Context())
+	telemetry.TrackWorkflowStep(client, "setup", step, invID, extra)
 }
 
 func setupDiagnosticCheck(opts setupOptions) {

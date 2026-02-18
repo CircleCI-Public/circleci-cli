@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,10 +10,17 @@ import (
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	. "github.com/onsi/gomega/ghttp"
+	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
+
+func dummyCmd() *cobra.Command {
+	cmd := &cobra.Command{Use: "test"}
+	cmd.SetContext(context.Background())
+	return cmd
+}
 
 var _ = Describe("Setup with prompts", func() {
 	var (
@@ -61,7 +69,7 @@ var _ = Describe("Setup with prompts", func() {
 		Describe("new config file", func() {
 			It("should set file permissions to 0600", func() {
 
-				err := setup(opts)
+				err := setup(dummyCmd(), opts)
 				Expect(err).ShouldNot(HaveOccurred())
 
 				fileInfo, err := os.Stat(tempSettings.Config.Path)
@@ -87,7 +95,7 @@ var _ = Describe("Setup with prompts", func() {
 				}
 
 				output := clitest.WithCapturedOutput(func() {
-					err := setup(opts)
+					err := setup(dummyCmd(), opts)
 					Expect(err).ShouldNot(HaveOccurred())
 				})
 
@@ -118,7 +126,7 @@ token: %s
 				}
 
 				output := clitest.WithCapturedOutput(func() {
-					err := setup(opts)
+					err := setup(dummyCmd(), opts)
 					Expect(err).ShouldNot(HaveOccurred())
 				})
 
@@ -159,7 +167,7 @@ token: %s
 			}
 
 			output := clitest.WithCapturedOutput(func() {
-				err := setup(opts)
+				err := setup(dummyCmd(), opts)
 				Expect(err).ShouldNot(HaveOccurred())
 			})
 
