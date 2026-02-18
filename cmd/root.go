@@ -9,7 +9,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/cmd/info"
-	"github.com/google/uuid"
 	"github.com/CircleCI-Public/circleci-cli/cmd/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/cmd/project"
@@ -21,6 +20,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )

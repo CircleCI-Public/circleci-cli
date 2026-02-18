@@ -12,8 +12,8 @@ var (
 
 type NotFoundError struct{ err error }
 
-func (e *NotFoundError) Error() string { return e.err.Error() }
-func (e *NotFoundError) Unwrap() error { return e.err }
+func (e *NotFoundError) Error() string        { return e.err.Error() }
+func (e *NotFoundError) Unwrap() error        { return e.err }
 func (e *NotFoundError) Is(target error) bool { return target == ErrNotFound }
 
 func NotFound(err error) error {
@@ -29,8 +29,8 @@ func NotFoundf(format string, args ...any) error {
 
 type AuthRequiredError struct{ err error }
 
-func (e *AuthRequiredError) Error() string { return e.err.Error() }
-func (e *AuthRequiredError) Unwrap() error { return e.err }
+func (e *AuthRequiredError) Error() string        { return e.err.Error() }
+func (e *AuthRequiredError) Unwrap() error        { return e.err }
 func (e *AuthRequiredError) Is(target error) bool { return target == ErrAuthRequired }
 
 func AuthRequired(err error) error {

@@ -5,8 +5,8 @@ import "context"
 type contextKey string
 
 const (
-	telemetryClientContextKey    contextKey = "telemetryClientContextKey"
-	telemetryInvocationIDKey     contextKey = "telemetryInvocationIDKey"
+	telemetryClientContextKey contextKey = "telemetryClientContextKey"
+	telemetryInvocationIDKey  contextKey = "telemetryInvocationIDKey"
 )
 
 func NewContext(ctx context.Context, client Client) context.Context {

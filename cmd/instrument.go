@@ -28,14 +28,14 @@ func instrumentCommands(root *cobra.Command) {
 		}
 		// Guard against double-wrapping (e.g. if tests rebuild the tree or
 		// a future refactor moves the call site).
-		if cmd.Annotations[instrumentedAnnotation] == "true" {
+		if cmd.Annotations[instrumentedAnnotation] == trueString {
 			return
 		}
 		wrapCommand(cmd)
 		if cmd.Annotations == nil {
 			cmd.Annotations = map[string]string{}
 		}
-		cmd.Annotations[instrumentedAnnotation] = "true"
+		cmd.Annotations[instrumentedAnnotation] = trueString
 	})
 }
 
