@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
@@ -167,17 +167,38 @@ func classifyError(err error) string {
 		return "timeout"
 	}
 
-	var httpErr interface{ StatusCode() int }
-	if errors.As(err, &httpErr) {
-		return fmt.Sprintf("http_%d", httpErr.StatusCode())
+	if errors.Is(err, context.Canceled) {
+		return "canceled"
 	}
 
-	// Inspect HTTP status codes embedded in error messages for REST errors.
+	var restErr *rest.HTTPError
+	if errors.As(err, &restErr) {
+		return fmt.Sprintf("http_%d", restErr.Code)
+	}
+
 	msg := err.Error()
-	for _, code := range []int{http.StatusUnauthorized, http.StatusForbidden, http.StatusNotFound, http.StatusInternalServerError} {
-		if strings.Contains(msg, fmt.Sprintf("%d", code)) {
-			return fmt.Sprintf("http_%d", code)
-		}
+
+	if strings.Contains(msg, "please set a token") {
+		return "auth_required"
+	}
+
+	if strings.Contains(msg, "config compilation contains errors") ||
+		strings.Contains(msg, "must be defined") ||
+		strings.Contains(msg, "need either") {
+		return "validation"
+	}
+
+	if strings.Contains(msg, "failure calling GraphQL API") {
+		return "graphql_error"
+	}
+
+	if strings.Contains(msg, "no such host") ||
+		strings.Contains(msg, "connection refused") {
+		return "network_error"
+	}
+
+	if strings.Contains(msg, "unexpected status-code") {
+		return "api_error"
 	}
 
 	return "unknown"
