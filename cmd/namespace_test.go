@@ -53,10 +53,9 @@ var _ = Describe("Namespace integration tests", func() {
 			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateNamespaceEvent(telemetry.CommandInfo{
 					Name: "create",
-					// Only explicitly-set local flags appear; values are redacted for non-safe flags.
 					LocalArgs: map[string]string{
-						"integration-testing": "",
-						"org-id":              "",
+						"integration-testing": "true",
+						"org-id":              `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
 					},
 				}),
 			})
