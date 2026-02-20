@@ -55,7 +55,7 @@ var _ = Describe("Command instrumentation middleware", func() {
 		Expect(finished["duration_ms"]).NotTo(BeNil())
 	})
 
-	It("emits flags_used with names only, no values", func() {
+	It("emits flags_used as a map with flag values, redacting sensitive flags", func() {
 		command := commandWithHome(pathCLI, tempSettings.Home, "version", "--skip-update-check")
 		command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 
@@ -67,11 +67,10 @@ var _ = Describe("Command instrumentation middleware", func() {
 
 		for _, e := range events {
 			if e.Object == "cli_command_started" || e.Object == "cli_command_finished" {
-				flags, ok := e.Properties["flags_used"].([]interface{})
+				flags, ok := e.Properties["flags_used"].(map[string]interface{})
 				if ok {
-					for _, f := range flags {
-						Expect(f).To(BeAssignableToTypeOf(""), "flags_used should contain only strings")
-					}
+					Expect(flags).To(HaveKey("skip-update-check"))
+					Expect(flags["skip-update-check"]).To(Equal("true"))
 				}
 			}
 		}

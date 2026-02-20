@@ -9,8 +9,7 @@ import (
 
 // GetCommandInformation takes a cobra Command and creates a telemetry.CommandInfo.
 // Only flags explicitly set by the user are included (via pflag.Visit, not VisitAll).
-// Values are only sent for flags in safeValueFlags; all others receive an empty string
-// to avoid leaking sensitive data (tokens, org slugs, branch names, etc.).
+// Values are sent for all flags except those in sensitiveFlags, which are redacted.
 // The getParent parameter is retained for API compatibility but has no effect.
 func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {
 	localArgs := map[string]string{}
@@ -30,10 +29,10 @@ func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {
 		if _, isInherited := inherited[flag.Name]; isInherited {
 			return
 		}
-		if safeValueFlags[flag.Name] {
-			localArgs[flag.Name] = flag.Value.String()
+		if sensitiveFlags[flag.Name] {
+			localArgs[flag.Name] = redactedValue
 		} else {
-			localArgs[flag.Name] = ""
+			localArgs[flag.Name] = flag.Value.String()
 		}
 	})
 
@@ -43,23 +42,29 @@ func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {
 	}
 }
 
-// UsedFlagNames returns the names of flags explicitly set by the user.
-// Values are never included to avoid leaking sensitive data (tokens, org slugs, etc).
-func UsedFlagNames(cmd *cobra.Command) []string {
-	var names []string
+// UsedFlagValues returns a map of flag names to values for flags explicitly set
+// by the user. Sensitive flags (tokens, secrets) have their values redacted.
+func UsedFlagValues(cmd *cobra.Command) map[string]string {
+	flags := map[string]string{}
 	cmd.Flags().Visit(func(f *pflag.Flag) {
-		names = append(names, f.Name)
+		if sensitiveFlags[f.Name] {
+			flags[f.Name] = redactedValue
+		} else {
+			flags[f.Name] = f.Value.String()
+		}
 	})
-	return names
+	return flags
 }
 
-// safeValueFlags is the allowlist of flag names whose values are safe and
-// analytically useful to send (booleans, known enums — never free-form strings).
-var safeValueFlags = map[string]bool{
-	"json":           true,
-	"force":          true,
-	"vcs-type":       true,
-	"generate-token": true,
+const redactedValue = "[REDACTED]"
+
+// sensitiveFlags is the denylist of flag names whose values must never be sent
+// to analytics. These contain credentials, secrets, or internal paths.
+// All other flags are considered safe to send.
+var sensitiveFlags = map[string]bool{
+	"token":          true,
+	"env-value":      true,
+	"mock-telemetry": true,
 }
 
 // TrackWorkflowStep emits a cli_workflow_step event for a named step within a

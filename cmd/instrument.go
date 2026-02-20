@@ -112,7 +112,7 @@ func trackCommandStarted(cmd *cobra.Command, invocationID string) {
 			"invocation_id":  invocationID,
 			"is_interactive": isStdinATTY && isStdoutATTY,
 			"ci_environment": os.Getenv("CI") == trueString,
-			"flags_used":     telemetry.UsedFlagNames(cmd),
+			"flags_used":     telemetry.UsedFlagValues(cmd),
 		},
 	})
 }
@@ -134,7 +134,7 @@ func trackCommandFinished(cmd *cobra.Command, invocationID string, duration time
 		"duration_ms":    duration.Milliseconds(),
 		"is_interactive": isStdinATTY && isStdoutATTY,
 		"ci_environment": os.Getenv("CI") == trueString,
-		"flags_used":     telemetry.UsedFlagNames(cmd),
+		"flags_used":     telemetry.UsedFlagValues(cmd),
 	}
 
 	if err != nil {
