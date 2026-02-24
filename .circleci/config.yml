@@ -264,9 +264,10 @@ jobs:
       - run:
           name: Publish to store
           command: |
-            # See https://circleci.atlassian.net/wiki/spaces/DE/pages/6780420117/Change+the+snapcraft+credentials
-            # for details on how to update the credentials for the snapcraft store.
-            snapcraft push *.snap --release stable
+            # Snapcraft 7+ reads credentials from SNAPCRAFT_STORE_CREDENTIALS env var automatically.
+            # To refresh: run `snapcraft export-login --snaps=circleci --channels=stable -`
+            # and store the output as SNAPCRAFT_STORE_CREDENTIALS in CircleCI project settings.
+            snapcraft upload *.snap --release stable
 
   chocolatey-deploy:
     executor: windows/default
