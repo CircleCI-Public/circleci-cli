@@ -14,8 +14,8 @@ executors:
       CGO_ENABLED: 0
   mac:
     macos:
-      xcode: 15.1.0
-    resource_class: macos.m1.medium.gen1
+      xcode: 26.3.0
+    resource_class: m4pro.medium
     environment:
       CGO_ENABLED: 0
       TERM: xterm-256color
