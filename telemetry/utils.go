@@ -10,8 +10,9 @@ import (
 // GetCommandInformation takes a cobra Command and creates a telemetry.CommandInfo.
 // Only flags explicitly set by the user are included (via pflag.Visit, not VisitAll).
 // Values are sent for all flags except those in sensitiveFlags, which are redacted.
-// The getParent parameter is retained for API compatibility but has no effect.
-func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {
+// If getParent is true, explicitly-set flags from the parent command are also included
+// (child flags take precedence over parent flags with the same name).
+func GetCommandInformation(cmd *cobra.Command, getParent bool) CommandInfo {
 	localArgs := map[string]string{}
 
 	// Build a set of inherited flag names so we can exclude them.
@@ -21,6 +22,20 @@ func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {
 	cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
 		inherited[f.Name] = struct{}{}
 	})
+
+	// If getParent is true, collect explicitly-set flags from the parent command first.
+	// These can be overwritten by flags from the child command below.
+	if getParent {
+		if parent := cmd.Parent(); parent != nil {
+			parent.Flags().Visit(func(flag *pflag.Flag) {
+				if sensitiveFlags[flag.Name] {
+					localArgs[flag.Name] = redactedValue
+				} else {
+					localArgs[flag.Name] = flag.Value.String()
+				}
+			})
+		}
+	}
 
 	// cmd.Flags() is the parsed FlagSet — it reliably reflects Changed state for
 	// both regular and PersistentFlags defined on this command, unlike LocalFlags()
