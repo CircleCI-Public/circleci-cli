@@ -264,12 +264,11 @@ jobs:
       - run:
           name: Publish to store
           command: |
-            # The cibuilds/snapcraft:stable image is archived and has a pre-7 version of snapcraft.
-            # Upgrade to snapcraft 7+ which reads SNAPCRAFT_STORE_CREDENTIALS env var automatically.
-            # To refresh credentials: run `snapcraft export-login --snaps=circleci --channels=stable -`
-            # and store the output as SNAPCRAFT_STORE_CREDENTIALS in CircleCI project settings.
-            pip3 install --upgrade snapcraft
-            snapcraft upload *.snap --release stable
+            # Credentials are read from the SNAPCRAFT_LOGIN_FILE env var (base64-encoded).
+            # To refresh: run `snapcraft login` and `snapcraft export-login creds`
+            # inside cibuilds/snapcraft:stable, then `cat creds | base64 | tr -d '\n'`
+            # and store the output as SNAPCRAFT_LOGIN_FILE in CircleCI project settings.
+            snapcraft push *.snap --release stable
 
   chocolatey-deploy:
     executor: windows/default
