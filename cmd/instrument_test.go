@@ -56,7 +56,7 @@ var _ = Describe("Command instrumentation middleware", func() {
 	})
 
 	It("emits flags_used as a map with flag values, redacting sensitive flags", func() {
-		command := commandWithHome(pathCLI, tempSettings.Home, "version", "--skip-update-check")
+		command := commandWithHome(pathCLI, tempSettings.Home, "version", "--skip-update-check", "--token=fake-secret-token")
 		command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
 
 		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
@@ -71,6 +71,9 @@ var _ = Describe("Command instrumentation middleware", func() {
 				if ok {
 					Expect(flags).To(HaveKey("skip-update-check"))
 					Expect(flags["skip-update-check"]).To(Equal("true"))
+
+					Expect(flags).To(HaveKey("token"))
+					Expect(flags["token"]).To(Equal("[REDACTED]"))
 				}
 			}
 		}
