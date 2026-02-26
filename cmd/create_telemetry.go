@@ -180,9 +180,8 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry
 }
 
 // GetCommandInformation takes a cobra Command and creates a telemetry.CommandInfo.
-// If getParent is true, it also includes flags from the parent command.
-// Only flags explicitly set by the user are included, and only safe enum/boolean
-// values are sent — free-form strings (org slugs, tokens, branch names) are omitted.
+// If getParent is true, it also includes explicitly-set flags from the parent command.
+// Only flags explicitly set by the user are included; sensitive flags are redacted.
 func GetCommandInformation(cmd *cobra.Command, getParent bool) telemetry.CommandInfo {
 	return telemetry.GetCommandInformation(cmd, getParent)
 }
