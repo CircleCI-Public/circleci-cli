@@ -1,2 +1,5 @@
 * @circleci/webex
 *orb*.go @circleci/webex
+
+/api/runner @CircleCI-Public/on-prem
+/cmd/runner @CircleCI-Public/on-prem
