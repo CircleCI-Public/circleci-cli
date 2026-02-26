@@ -17,6 +17,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/references"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
@@ -52,6 +53,10 @@ func (errs GQLErrorsCollection) Error() string {
 	}
 
 	return strings.Join(messages, "\n")
+}
+
+func wrapGQLErrors(gqlErrors GQLErrorsCollection) error {
+	return errs.CheckAuthRequired(gqlErrors)
 }
 
 // GQLResponseError is a mapping of the data returned by the GraphQL server of key-value pairs.
@@ -543,7 +548,7 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 	}
 
 	if len(response.ImportOrbVersion.Errors) > 0 {
-		return nil, response.ImportOrbVersion.Errors
+		return nil, wrapGQLErrors(response.ImportOrbVersion.Errors)
 	}
 
 	return &response.ImportOrbVersion.Orb, nil
@@ -590,7 +595,7 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 	}
 
 	if len(response.PublishOrb.Errors) > 0 {
-		return nil, response.PublishOrb.Errors
+		return nil, wrapGQLErrors(response.PublishOrb.Errors)
 	}
 
 	return &response.PublishOrb.Orb, nil
@@ -663,7 +668,7 @@ func OrbID(cl *graphql.Client, namespace string, orb string) (*OrbIDResponse, er
 		return nil, namespaceNotFound(namespace)
 	}
 
-	return nil, fmt.Errorf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
+	return nil, errs.NotFoundf("the '%s' orb does not exist in the '%s' namespace. Did you misspell the namespace or the orb name?", orb, namespace)
 }
 
 // CreateImportedNamespace creates an imported namespace with the provided name. An imported namespace
@@ -697,7 +702,7 @@ func CreateImportedNamespace(cl *graphql.Client, name string) (*ImportNamespaceR
 	}
 
 	if len(response.ImportNamespace.Errors) > 0 {
-		return nil, response.ImportNamespace.Errors
+		return nil, wrapGQLErrors(response.ImportNamespace.Errors)
 	}
 
 	return &response, nil
@@ -731,7 +736,7 @@ func CreateNamespaceWithOwnerID(cl *graphql.Client, name string, ownerID string)
 	err := cl.Run(request, &response)
 
 	if len(response.CreateNamespace.Errors) > 0 {
-		return nil, response.CreateNamespace.Errors
+		return nil, wrapGQLErrors(response.CreateNamespace.Errors)
 	}
 
 	if err != nil {
@@ -828,7 +833,7 @@ mutation($name: String!) {
 	}
 
 	if len(response.DeleteNamespaceAlias.Errors) > 0 {
-		return response.DeleteNamespaceAlias.Errors
+		return wrapGQLErrors(response.DeleteNamespaceAlias.Errors)
 	}
 
 	if !response.DeleteNamespaceAlias.Deleted {
@@ -866,7 +871,7 @@ mutation($id: UUID!) {
 	}
 
 	if len(response.DeleteNamespace.Errors) > 0 {
-		return response.DeleteNamespace.Errors
+		return wrapGQLErrors(response.DeleteNamespace.Errors)
 	}
 
 	if !response.DeleteNamespace.Deleted {
@@ -977,7 +982,7 @@ func renameNamespaceWithNsID(cl *graphql.Client, id, newName string) (*RenameNam
 	err := cl.Run(request, &response)
 
 	if len(response.RenameNamespace.Errors) > 0 {
-		return nil, response.RenameNamespace.Errors
+		return nil, wrapGQLErrors(response.RenameNamespace.Errors)
 	}
 
 	if err != nil {
@@ -1024,7 +1029,7 @@ func createOrbWithNsID(cl *graphql.Client, name string, namespaceID string, isPr
 	err := cl.Run(request, &response)
 
 	if len(response.CreateOrb.Errors) > 0 {
-		return nil, response.CreateOrb.Errors
+		return nil, wrapGQLErrors(response.CreateOrb.Errors)
 	}
 
 	if err != nil {
@@ -1080,7 +1085,7 @@ func CreateImportedOrb(cl *graphql.Client, namespace string, name string) (*Impo
 	}
 
 	if len(response.ImportOrb.Errors) > 0 {
-		return nil, response.ImportOrb.Errors
+		return nil, wrapGQLErrors(response.ImportOrb.Errors)
 	}
 
 	return &response, nil
@@ -1201,7 +1206,7 @@ func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment
 	err = cl.Run(request, &response)
 
 	if len(response.PromoteOrb.Errors) > 0 {
-		return nil, response.PromoteOrb.Errors
+		return nil, wrapGQLErrors(response.PromoteOrb.Errors)
 	}
 
 	if err != nil {
@@ -1244,7 +1249,7 @@ mutation($orbId: UUID!, $list: Boolean!) {
 	err = cl.Run(request, &response)
 
 	if len(response.SetOrbListStatus.Errors) > 0 {
-		return nil, response.SetOrbListStatus.Errors
+		return nil, wrapGQLErrors(response.SetOrbListStatus.Errors)
 	}
 
 	if err != nil {
@@ -1298,7 +1303,7 @@ func OrbSource(cl *graphql.Client, orbRef string) (string, error) {
 	}
 
 	if response.OrbVersion.ID == "" {
-		return "", fmt.Errorf("no Orb '%s' was found; please check that the Orb reference is correct", orbRef)
+		return "", &ErrOrbVersionNotExists{OrbRef: orbRef}
 	}
 
 	return response.OrbVersion.Source, nil
@@ -1314,6 +1319,8 @@ type ErrOrbVersionNotExists struct {
 func (e *ErrOrbVersionNotExists) Error() string {
 	return fmt.Sprintf("no Orb '%s' was found; please check that the Orb reference is correct", e.OrbRef)
 }
+
+func (e *ErrOrbVersionNotExists) Is(target error) bool { return target == errs.ErrNotFound }
 
 // OrbInfo gets the meta-data of an orb
 func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
@@ -1714,7 +1721,7 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 	responseData := response[mutationName]
 
 	if len(responseData.Errors) > 0 {
-		return &responseData.Errors
+		return wrapGQLErrors(responseData.Errors)
 	}
 
 	if err != nil {

@@ -35,7 +35,7 @@ var _ = Describe("Telemetry events on telemetry commands", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session).Should(gexec.Exit(0))
 
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateChangeTelemetryStatusEvent("enabled", "telemetry-command", nil),
 			})
 		})
@@ -50,7 +50,7 @@ var _ = Describe("Telemetry events on telemetry commands", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session).Should(gexec.Exit(0))
 
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateChangeTelemetryStatusEvent("disabled", "telemetry-command", nil),
 			})
 		})

@@ -10,6 +10,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func newRunCommand(ops *pipelineOpts, preRunE validator.Validator) *cobra.Command {
@@ -64,21 +65,33 @@ Examples:
 			orgSlug = args[0]
 			projectID = args[1]
 
+			client, _ := telemetry.FromContext(cmd.Context())
+			invID, _ := telemetry.InvocationIDFromContext(cmd.Context())
+
 			if pipelineDefinitionID == "" {
+				trackPipelineRunStep(client, "definition_id_prompt_shown", invID, nil)
 				pipelineDefinitionIDPrompt := "Enter the pipeline definition ID for your pipeline"
 				pipelineDefinitionID = ops.reader.ReadStringFromUser(pipelineDefinitionIDPrompt)
+				trackPipelineRunStep(client, "definition_id_prompt_answered", invID, nil)
 			}
 
 			// Prompt logic for local config file
 			useLocalConfig := false
 			if (localConfigFilePath == "" && !repoConfig) || (localConfigFilePath != "" && repoConfig) {
+				trackPipelineRunStep(client, "local_config_prompt_shown", invID, nil)
 				useLocalConfigPrompt := "Do you want to test run with a local config file?"
 				if ops.reader.AskConfirm(useLocalConfigPrompt) {
 					configFilePathPrompt := "Enter the path to your local config file"
 					localConfigFilePath = ops.reader.ReadStringFromUser(configFilePathPrompt)
 					useLocalConfig = true
+					trackPipelineRunStep(client, "local_config_prompt_answered", invID, map[string]interface{}{
+						"use_local_config": true,
+					})
 				} else {
 					localConfigFilePath = ""
+					trackPipelineRunStep(client, "local_config_prompt_answered", invID, map[string]interface{}{
+						"use_local_config": false,
+					})
 				}
 			} else if localConfigFilePath != "" {
 				useLocalConfig = true
@@ -103,6 +116,9 @@ Examples:
 						configTag = ops.reader.ReadStringFromUser("Enter a config tag:")
 					}
 				}
+				trackPipelineRunStep(client, "config_ref_provided", invID, map[string]interface{}{
+					"used_branch": configBranch != "",
+				})
 			}
 
 			// Always prompt for checkout branch/tag if neither is provided
@@ -112,6 +128,9 @@ Examples:
 					checkoutTag = ops.reader.ReadStringFromUser("Enter a checkout tag:")
 				}
 			}
+			trackPipelineRunStep(client, "checkout_ref_provided", invID, map[string]interface{}{
+				"used_branch": checkoutBranch != "",
+			})
 
 			// Convert string parameters to interface map
 			paramMap := make(map[string]interface{})
@@ -131,8 +150,10 @@ Examples:
 				ConfigFilePath:       localConfigFilePath,
 			}
 
+			trackPipelineRunStep(client, "api_called", invID, nil)
 			resp, err := ops.pipelineClient.PipelineRun(options)
 			if err != nil {
+				trackPipelineRunStep(client, "failed", invID, nil)
 				cmd.Println("\nThere was an error running the config test")
 				if strings.Contains(err.Error(), "Permission denied") {
 					cmd.Printf("Please ensure you have \"Allow triggering pipelines with unversioned config\" enabled in Organization Settings > Advanced\n")
@@ -140,6 +161,7 @@ Examples:
 				return err
 			}
 
+			trackPipelineRunStep(client, "succeeded", invID, nil)
 			if resp.Created != nil {
 				cmd.Printf("Pipeline created successfully\n")
 				cmd.Printf("Pipeline ID: %s\n", resp.Created.ID)
@@ -170,4 +192,8 @@ Examples:
 	cmd.MarkFlagsMutuallyExclusive("checkout-branch", "checkout-tag")
 
 	return cmd
+}
+
+func trackPipelineRunStep(client telemetry.Client, step, invocationID string, extra map[string]interface{}) {
+	telemetry.TrackWorkflowStep(client, "pipeline_run", step, invocationID, extra)
 }

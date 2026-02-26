@@ -50,14 +50,12 @@ var _ = Describe("Namespace integration tests", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 			Eventually(session).Should(gexec.Exit(0))
 
-			clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 				telemetry.CreateNamespaceEvent(telemetry.CommandInfo{
 					Name: "create",
 					LocalArgs: map[string]string{
-						"help":                "false",
 						"integration-testing": "true",
-						"no-prompt":           "false",
-						"org-id":              "\"bb604b45-b6b0-4b81-ad80-796f15eddf87\"",
+						"org-id":              `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
 					},
 				}),
 			})

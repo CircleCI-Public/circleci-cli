@@ -1,5 +1,5 @@
-* @CircleCI-Public/lifecycle
-*orb*.go @CircleCI-Public/orb-publishers @CircleCI-Public/lifecycle
+* @circleci/webex
+*orb*.go @circleci/webex
 
 /api/runner @CircleCI-Public/on-prem
 /cmd/runner @CircleCI-Public/on-prem

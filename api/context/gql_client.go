@@ -5,6 +5,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 )
 
 type gqlClient struct {
@@ -53,7 +54,7 @@ func (c *gqlClient) ContextByName(name string) (Context, error) {
 			return context, nil
 		}
 	}
-	return Context{}, errors.New("No context found with that name")
+	return Context{}, errs.NotFoundf("No context found with that name")
 }
 
 func (c *gqlClient) CreateContext(name string) error {

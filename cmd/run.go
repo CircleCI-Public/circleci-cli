@@ -9,6 +9,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/api/project"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
@@ -52,7 +53,7 @@ you can run it with: circleci run foo [args...]`,
 			// Look for the binary in PATH
 			binaryPath, err := exec.LookPath(binaryName)
 			if err != nil {
-				return fmt.Errorf("plugin '%s' not found: could not find '%s' in PATH: %w", pluginName, binaryName, err)
+				return errs.NotFoundf("plugin '%s' not found: could not find '%s' in PATH: %w", pluginName, binaryName, err)
 			}
 
 			var telemetryEnabled bool

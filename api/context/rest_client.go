@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 )
 
 type restClient struct {
@@ -64,7 +65,7 @@ func (c restClient) ContextByName(name string) (Context, error) {
 
 		params.PageToken = resp.NextPageToken
 	}
-	return Context{}, fmt.Errorf("context with name %s not found", name)
+	return Context{}, errs.NotFoundf("context with name %s not found", name)
 }
 
 func (c restClient) CreateContext(name string) error {

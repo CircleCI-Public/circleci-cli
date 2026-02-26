@@ -50,10 +50,10 @@ var _ = Describe("Config", func() {
 				Expect(err).ShouldNot(HaveOccurred())
 
 				Eventually(session).Should(gexec.Exit(0))
-				clitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{
+				clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
 					telemetry.CreateConfigEvent(telemetry.CommandInfo{
 						Name:      "pack",
-						LocalArgs: map[string]string{"help": "false"},
+						LocalArgs: map[string]string{},
 					}, nil),
 				})
 			})
