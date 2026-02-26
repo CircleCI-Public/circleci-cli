@@ -14,6 +14,7 @@ import (
 	triggerapi "github.com/CircleCI-Public/circleci-cli/api/trigger"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 )
@@ -405,7 +406,7 @@ func validateProjectName(name string) error {
 	return nil
 }
 
-func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
+func initCmd(opts initOptions, reader UserInputReader, cmd *cobra.Command) error {
 	fmt.Println("🚀 Initializing CircleCI project...")
 	fmt.Println()
 
@@ -522,12 +523,15 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	}
 
 	fmt.Printf("📁 Creating project '%s' in organization '%s'...\n", opts.projectName, opts.orgName)
+	trackInitStep(cmd, "project_creating", nil)
 
 	projectRes, err := opts.projectClient.CreateProject(opts.vcsType, opts.orgName, opts.projectName)
 	if err != nil {
+		trackInitStep(cmd, "project_failed", nil)
 		return fmt.Errorf("failed to create project: %w", err)
 	}
 
+	trackInitStep(cmd, "project_created", nil)
 	fmt.Printf("✅ Project '%s' successfully created in organization '%s'\n", projectRes.Name, projectRes.OrgName)
 	fmt.Printf("   Project ID: %s\n", projectRes.Id)
 	fmt.Printf("   View project: https://app.circleci.com/projects/%s\n", projectRes.Slug)
@@ -573,6 +577,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	}
 
 	fmt.Printf("📋 Creating pipeline '%s' for project '%s'...\n", opts.pipelineName, projectRes.Name)
+	trackInitStep(cmd, "pipeline_creating", nil)
 
 	pipelineRes, err := opts.pipelineClient.CreatePipeline(
 		projectRes.Id,
@@ -583,12 +588,14 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 		opts.filePath,
 	)
 	if err != nil {
+		trackInitStep(cmd, "pipeline_failed", nil)
 		fmt.Printf("❌ Failed to create pipeline: %v\n", err)
 		fmt.Println("💡 Make sure you have the GitHub App installed in your repository")
 		fmt.Println("   Visit: https://github.com/apps/circleci")
 		return fmt.Errorf("failed to create pipeline: %w", err)
 	}
 
+	trackInitStep(cmd, "pipeline_created", nil)
 	fmt.Printf("✅ Pipeline '%s' successfully created for repository '%s'\n", pipelineRes.Name, pipelineRes.CheckoutSourceRepoFullName)
 	if pipelineRes.CheckoutSourceRepoFullName != pipelineRes.ConfigSourceRepoFullName {
 		fmt.Printf("   Config referenced from '%s' repository at path '%s'\n", pipelineRes.ConfigSourceRepoFullName, opts.filePath)
@@ -628,6 +635,7 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	}
 
 	fmt.Printf("⚡ Creating trigger for pipeline '%s'...\n", pipelineRes.Name)
+	trackInitStep(cmd, "trigger_creating", nil)
 
 	triggerOptions := triggerapi.CreateTriggerOptions{
 		ProjectID:            projectRes.Id,
@@ -640,12 +648,14 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 
 	triggerRes, err := opts.triggerClient.CreateTrigger(triggerOptions)
 	if err != nil {
+		trackInitStep(cmd, "trigger_failed", nil)
 		fmt.Printf("❌ Failed to create trigger: %v\n", err)
 		fmt.Println("💡 Make sure you have the GitHub App installed in your repository")
 		fmt.Println("   Visit: https://github.com/apps/circleci")
 		return fmt.Errorf("failed to create trigger: %w", err)
 	}
 
+	trackInitStep(cmd, "trigger_created", nil)
 	fmt.Printf("✅ Trigger successfully created!\n")
 	fmt.Println()
 
@@ -667,5 +677,15 @@ func initCmd(opts initOptions, reader UserInputReader, _ *cobra.Command) error {
 	fmt.Println("🎊 Your CircleCI project is now fully configured and ready to use!")
 	fmt.Println("   To create additional pipelines or triggers, run the `circleci pipeline create` or `circleci trigger create` commands.")
 
+	trackInitStep(cmd, "succeeded", nil)
 	return nil
+}
+
+func trackInitStep(cmd *cobra.Command, step string, extra map[string]interface{}) {
+	client, ok := telemetry.FromContext(cmd.Context())
+	if !ok {
+		return
+	}
+	invID, _ := telemetry.InvocationIDFromContext(cmd.Context())
+	telemetry.TrackWorkflowStep(client, "init", step, invID, extra)
 }
