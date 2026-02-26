@@ -3,6 +3,7 @@ package errs
 import (
 	"errors"
 	"fmt"
+	"strings"
 )
 
 var (
@@ -38,4 +39,14 @@ func AuthRequired(err error) error {
 		return nil
 	}
 	return &AuthRequiredError{err: err}
+}
+
+// CheckAuthRequired wraps err as AuthRequired if the error message contains
+// "must log in". This consolidates the GQL auth-check pattern used across
+// both api/api.go and api/graphql/client.go.
+func CheckAuthRequired(err error) error {
+	if err != nil && strings.Contains(strings.ToLower(err.Error()), "must log in") {
+		return AuthRequired(err)
+	}
+	return err
 }

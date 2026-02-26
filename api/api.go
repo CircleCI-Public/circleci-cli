@@ -56,10 +56,7 @@ func (errs GQLErrorsCollection) Error() string {
 }
 
 func wrapGQLErrors(gqlErrors GQLErrorsCollection) error {
-	if strings.Contains(strings.ToLower(gqlErrors.Error()), "must log in") {
-		return errs.AuthRequired(gqlErrors)
-	}
-	return gqlErrors
+	return errs.CheckAuthRequired(gqlErrors)
 }
 
 // GQLResponseError is a mapping of the data returned by the GraphQL server of key-value pairs.

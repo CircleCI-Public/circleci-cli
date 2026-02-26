@@ -276,10 +276,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	}
 
 	if len(wrappedResponse.Errors) > 0 {
-		if strings.Contains(strings.ToLower(wrappedResponse.Errors.Error()), "must log in") {
-			return errs.AuthRequired(wrappedResponse.Errors)
-		}
-		return wrappedResponse.Errors
+		return errs.CheckAuthRequired(wrappedResponse.Errors)
 	}
 
 	return nil
