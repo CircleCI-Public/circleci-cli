@@ -60,7 +60,7 @@ Checkout Source:
 			name:           "Handle API error",
 			response:       nil,
 			expectedError:  "error",
-			expectedOutput: "Error: error\nUsage:\n  list <project-id> [flags]\n\nFlags:\n  -h, --help   help for list\n",
+			expectedOutput: "Error: error\nUsage:\n  list <project-id|project-slug> [flags]\n\nFlags:\n  -h, --help   help for list\n",
 		},
 	}
 
