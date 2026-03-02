@@ -2,38 +2,28 @@ package cmd_test
 
 import (
 	"fmt"
-	"os/exec"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gexec"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
-var _ = Describe("Version telemetry", func() {
-	var (
-		command      *exec.Cmd
-		tempSettings *clitest.TempSettings
+func TestVersionTelemetry(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"version"},
+		fmt.Sprintf("HOME=%s", ts.Home),
+		fmt.Sprintf("USERPROFILE=%s", ts.Home),
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
 	)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
-		command = commandWithHome(pathCLI, tempSettings.Home, "version")
-		command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-	})
+	assert.Equal(t, result.ExitCode, 0, "expected exit code 0, got %d\nstdout: %s\nstderr: %s", result.ExitCode, result.Stdout, result.Stderr)
 
-	AfterEach(func() {
-		tempSettings.Close()
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateVersionEvent("0.0.0-dev+dirty-local-tree (source)"),
 	})
-
-	It("should send a telemetry event", func() {
-		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		Eventually(session).Should(gexec.Exit(0))
-		clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-			telemetry.CreateVersionEvent("0.0.0-dev+dirty-local-tree (source)"),
-		})
-	})
-})
+}

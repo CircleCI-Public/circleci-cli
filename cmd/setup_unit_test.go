@@ -1,187 +1,242 @@
 package cmd
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
+	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	. "github.com/onsi/gomega/ghttp"
-	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"github.com/spf13/cobra"
+	"gotest.tools/v3/assert"
 )
 
-func dummyCmd() *cobra.Command {
+func testDummyCmd() *cobra.Command {
 	cmd := &cobra.Command{Use: "test"}
 	cmd.SetContext(context.Background())
 	return cmd
 }
 
-var _ = Describe("Setup with prompts", func() {
-	var (
-		opts         setupOptions
-		tempSettings *clitest.TempSettings
-		token        = "boondoggle"
-	)
+func captureStdout(t *testing.T, f func()) string {
+	t.Helper()
+	r, w, err := os.Pipe()
+	assert.NilError(t, err)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
-		opts = setupOptions{
-			cfg: &settings.Config{
-				FileUsed:   tempSettings.Config.Path,
-				Host:       tempSettings.TestServer.URL(),
-				HTTPClient: http.DefaultClient,
-			},
-			noPrompt: false,
-			tty: setupTestUI{
-				host:            tempSettings.TestServer.URL(),
-				token:           token,
-				confirmEndpoint: true,
-				confirmToken:    true,
-			},
-			token: token,
-		}
-		opts.cl = tempSettings.NewFakeClient(opts.cfg.Endpoint, token)
-	})
+	stdout := os.Stdout
+	os.Stdout = w
+	defer func() { os.Stdout = stdout }()
 
-	AfterEach(func() {
-		tempSettings.Close()
-	})
+	f()
+	assert.NilError(t, w.Close())
 
-	Context("with happy diagnostic responses", func() {
-		BeforeEach(func() {
-			tempSettings.TestServer.AppendHandlers(CombineHandlers(
-				VerifyRequest("GET", "/api/v2/me"),
-				RespondWithJSONEncoded(http.StatusOK, map[string]any{
-					"name":       "zomg",
-					"login":      "zomg",
-					"id":         "97491110-fea3-49b1-83da-ffd38ac8840c",
-					"avatar_url": "https://avatars.githubusercontent.com/u/980172390812730912?v=4",
-				}),
-			))
-		})
+	var buf bytes.Buffer
+	_, err = io.Copy(&buf, r)
+	assert.NilError(t, err)
+	return buf.String()
+}
 
-		Describe("new config file", func() {
-			It("should set file permissions to 0600", func() {
+func TestSetupUnitNewConfigPermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file permissions test not applicable on Windows")
+	}
 
-				err := setup(dummyCmd(), opts)
-				Expect(err).ShouldNot(HaveOccurred())
+	ts := testhelpers.WithTempSettings(t)
+	token := "boondoggle"
 
-				fileInfo, err := os.Stat(tempSettings.Config.Path)
-				Expect(err).ToNot(HaveOccurred())
-				if runtime.GOOS != "windows" {
-					Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
-				}
-			})
-		})
-
-		Describe("existing config file", func() {
-			BeforeEach(func() {
-				opts.cfg.Host = "https://example.com/graphql"
-				opts.cfg.Token = token
-			})
-
-			It("should print setup complete", func() {
-				opts.tty = setupTestUI{
-					host:            tempSettings.TestServer.URL(),
-					token:           token,
-					confirmEndpoint: true,
-					confirmToken:    true,
-				}
-
-				output := clitest.WithCapturedOutput(func() {
-					err := setup(dummyCmd(), opts)
-					Expect(err).ShouldNot(HaveOccurred())
-				})
-
-				Expect(output).To(ContainSubstring(fmt.Sprintf(`A CircleCI token is already set. Do you want to change it
-CircleCI API Token
-API token has been set.
-CircleCI Host
-CircleCI host has been set.
-Do you want to reset the endpoint? (default: graphql-unstable)
-Setup complete.
-Your configuration has been saved to %s.
-
-Trying to query our API for your profile name... Hello, %s.
-`, tempSettings.Config.Path, `zomg`)))
-
-				tempSettings.AssertConfigRereadMatches(fmt.Sprintf(`host: %s
-endpoint: graphql-unstable
-token: %s
-`, tempSettings.TestServer.URL(), token))
-			})
-
-			It("should not ask to set token if prompt for existing token is cancelled", func() {
-				opts.tty = setupTestUI{
-					host:            tempSettings.TestServer.URL(),
-					token:           token,
-					confirmEndpoint: true,
-					confirmToken:    false,
-				}
-
-				output := clitest.WithCapturedOutput(func() {
-					err := setup(dummyCmd(), opts)
-					Expect(err).ShouldNot(HaveOccurred())
-				})
-
-				Expect(output).To(ContainSubstring(fmt.Sprintf(`A CircleCI token is already set. Do you want to change it
-CircleCI Host
-CircleCI host has been set.
-Do you want to reset the endpoint? (default: graphql-unstable)
-Setup complete.
-Your configuration has been saved to %s.
-
-Trying to query our API for your profile name... Hello, %s.
-`, tempSettings.Config.Path, `zomg`)))
-
-				tempSettings.AssertConfigRereadMatches(fmt.Sprintf(`host: %s
-endpoint: graphql-unstable
-token: %s
-`, tempSettings.TestServer.URL(), token))
-			})
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, "GET")
+		assert.Equal(t, r.URL.Path, "/api/v2/me")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name":       "zomg",
+			"login":      "zomg",
+			"id":         "97491110-fea3-49b1-83da-ffd38ac8840c",
+			"avatar_url": "https://avatars.githubusercontent.com/u/980172390812730912?v=4",
 		})
 	})
 
-	Context("when whoami query returns an auth error", func() {
-		BeforeEach(func() {
-			tempSettings.TestServer.AppendHandlers(CombineHandlers(
-				VerifyRequest("GET", "/api/v2/me"),
-				RespondWithJSONEncoded(http.StatusUnauthorized, map[string]any{
-					"message": "You must log in first",
-				}),
-			))
-		})
+	opts := setupOptions{
+		cfg: &settings.Config{
+			FileUsed:   ts.Config,
+			Host:       ts.Server.URL,
+			HTTPClient: http.DefaultClient,
+		},
+		noPrompt: false,
+		tty: setupTestUI{
+			host:            ts.Server.URL,
+			token:           token,
+			confirmEndpoint: true,
+			confirmToken:    true,
+		},
+		token: token,
+	}
+	opts.cl = graphql.NewClient(http.DefaultClient, ts.Server.URL, opts.cfg.Endpoint, token, false)
 
-		It("should show an error", func() {
-			opts.tty = setupTestUI{
-				host:            tempSettings.TestServer.URL(),
-				token:           token,
-				confirmEndpoint: true,
-				confirmToken:    true,
-			}
+	err := setup(testDummyCmd(), opts)
+	assert.NilError(t, err)
 
-			output := clitest.WithCapturedOutput(func() {
-				err := setup(dummyCmd(), opts)
-				Expect(err).ShouldNot(HaveOccurred())
-			})
+	fileInfo, err := os.Stat(ts.Config)
+	assert.NilError(t, err)
+	assert.Equal(t, fileInfo.Mode().Perm().String(), "-rw-------")
+}
 
-			Expect(output).To(ContainSubstring(fmt.Sprintf(`CircleCI API Token
-API token has been set.
-CircleCI Host
-CircleCI host has been set.
-Do you want to reset the endpoint? (default: graphql-unstable)
-Setup complete.
-Your configuration has been saved to %s.
+func TestSetupUnitExistingConfigPrintSuccess(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	token := "boondoggle"
 
-Trying to query our API for your profile name... 
-Unable to query our API for your profile name, please check your settings.
-`, tempSettings.Config.Path)))
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, "GET")
+		assert.Equal(t, r.URL.Path, "/api/v2/me")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name":       "zomg",
+			"login":      "zomg",
+			"id":         "97491110-fea3-49b1-83da-ffd38ac8840c",
+			"avatar_url": "https://avatars.githubusercontent.com/u/980172390812730912?v=4",
 		})
 	})
-})
+
+	opts := setupOptions{
+		cfg: &settings.Config{
+			FileUsed:   ts.Config,
+			Host:       "https://example.com/graphql",
+			Token:      token,
+			HTTPClient: http.DefaultClient,
+		},
+		noPrompt: false,
+		tty: setupTestUI{
+			host:            ts.Server.URL,
+			token:           token,
+			confirmEndpoint: true,
+			confirmToken:    true,
+		},
+		token: token,
+	}
+	opts.cl = graphql.NewClient(http.DefaultClient, ts.Server.URL, opts.cfg.Endpoint, token, false)
+
+	output := captureStdout(t, func() {
+		err := setup(testDummyCmd(), opts)
+		assert.NilError(t, err)
+	})
+
+	assert.Assert(t, strings.Contains(output, "A CircleCI token is already set. Do you want to change it"))
+	assert.Assert(t, strings.Contains(output, "CircleCI API Token"))
+	assert.Assert(t, strings.Contains(output, "API token has been set."))
+	assert.Assert(t, strings.Contains(output, "CircleCI Host"))
+	assert.Assert(t, strings.Contains(output, "CircleCI host has been set."))
+	assert.Assert(t, strings.Contains(output, "Do you want to reset the endpoint? (default: graphql-unstable)"))
+	assert.Assert(t, strings.Contains(output, fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.", ts.Config)))
+	assert.Assert(t, strings.Contains(output, "Hello, zomg."))
+
+	reread, err := os.ReadFile(ts.Config)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(reread), fmt.Sprintf("host: %s", ts.Server.URL)))
+	assert.Assert(t, strings.Contains(string(reread), fmt.Sprintf("token: %s", token)))
+}
+
+func TestSetupUnitExistingConfigSkipToken(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	token := "boondoggle"
+
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, "GET")
+		assert.Equal(t, r.URL.Path, "/api/v2/me")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"name":       "zomg",
+			"login":      "zomg",
+			"id":         "97491110-fea3-49b1-83da-ffd38ac8840c",
+			"avatar_url": "https://avatars.githubusercontent.com/u/980172390812730912?v=4",
+		})
+	})
+
+	opts := setupOptions{
+		cfg: &settings.Config{
+			FileUsed:   ts.Config,
+			Host:       "https://example.com/graphql",
+			Token:      token,
+			HTTPClient: http.DefaultClient,
+		},
+		noPrompt: false,
+		tty: setupTestUI{
+			host:            ts.Server.URL,
+			token:           token,
+			confirmEndpoint: true,
+			confirmToken:    false,
+		},
+		token: token,
+	}
+	opts.cl = graphql.NewClient(http.DefaultClient, ts.Server.URL, opts.cfg.Endpoint, token, false)
+
+	output := captureStdout(t, func() {
+		err := setup(testDummyCmd(), opts)
+		assert.NilError(t, err)
+	})
+
+	assert.Assert(t, strings.Contains(output, "A CircleCI token is already set. Do you want to change it"))
+	assert.Assert(t, strings.Contains(output, "CircleCI Host"))
+	assert.Assert(t, strings.Contains(output, "CircleCI host has been set."))
+	assert.Assert(t, strings.Contains(output, "Do you want to reset the endpoint? (default: graphql-unstable)"))
+	assert.Assert(t, strings.Contains(output, fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.", ts.Config)))
+	assert.Assert(t, strings.Contains(output, "Hello, zomg."))
+
+	reread, err := os.ReadFile(ts.Config)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(reread), fmt.Sprintf("host: %s", ts.Server.URL)))
+	assert.Assert(t, strings.Contains(string(reread), fmt.Sprintf("token: %s", token)))
+}
+
+func TestSetupUnitWhoamiAuthError(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	token := "boondoggle"
+
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, "GET")
+		assert.Equal(t, r.URL.Path, "/api/v2/me")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"message": "You must log in first",
+		})
+	})
+
+	opts := setupOptions{
+		cfg: &settings.Config{
+			FileUsed:   ts.Config,
+			Host:       ts.Server.URL,
+			HTTPClient: http.DefaultClient,
+		},
+		noPrompt: false,
+		tty: setupTestUI{
+			host:            ts.Server.URL,
+			token:           token,
+			confirmEndpoint: true,
+			confirmToken:    true,
+		},
+		token: token,
+	}
+	opts.cl = graphql.NewClient(http.DefaultClient, ts.Server.URL, opts.cfg.Endpoint, token, false)
+
+	output := captureStdout(t, func() {
+		err := setup(testDummyCmd(), opts)
+		assert.NilError(t, err)
+	})
+
+	assert.Assert(t, strings.Contains(output, "CircleCI API Token"))
+	assert.Assert(t, strings.Contains(output, "API token has been set."))
+	assert.Assert(t, strings.Contains(output, "CircleCI Host"))
+	assert.Assert(t, strings.Contains(output, "CircleCI host has been set."))
+	assert.Assert(t, strings.Contains(output, fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.", ts.Config)))
+	assert.Assert(t, strings.Contains(output, "Unable to query our API for your profile name, please check your settings."))
+}

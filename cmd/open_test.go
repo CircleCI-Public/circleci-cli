@@ -1,25 +1,28 @@
 package cmd
 
 import (
+	"testing"
+
 	"github.com/CircleCI-Public/circleci-cli/git"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("open", func() {
-	It("can build urls", func() {
-		Expect(projectUrl(&git.Remote{
+func TestProjectUrl(t *testing.T) {
+	t.Run("can build urls", func(t *testing.T) {
+		got := projectUrl(&git.Remote{
 			Project:      "foo",
 			Organization: "bar",
 			VcsType:      git.GitHub,
-		})).To(Equal("https://app.circleci.com/pipelines/github/bar/foo"))
+		})
+		assert.Equal(t, got, "https://app.circleci.com/pipelines/github/bar/foo")
 	})
 
-	It("escapes garbage", func() {
-		Expect(projectUrl(&git.Remote{
+	t.Run("escapes garbage", func(t *testing.T) {
+		got := projectUrl(&git.Remote{
 			Project:      "/one/two",
 			Organization: "%^&*()[]",
 			VcsType:      git.Bitbucket,
-		})).To(Equal("https://app.circleci.com/pipelines/bitbucket/%25%5E&%2A%28%29%5B%5D/%2Fone%2Ftwo"))
+		})
+		assert.Equal(t, got, "https://app.circleci.com/pipelines/bitbucket/%25%5E&%2A%28%29%5B%5D/%2Fone%2Ftwo")
 	})
-})
+}

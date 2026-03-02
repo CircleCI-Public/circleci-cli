@@ -1,56 +1,25 @@
 package cmd_test
 
 import (
-	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"os/exec"
+	"strings"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Query", func() {
-	var (
-		token        string
-		tempSettings *clitest.TempSettings
-		stdin        bytes.Buffer
-		command      *exec.Cmd
-	)
+func TestQueryFromStdin(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
-
-		token = "mytoken"
-		command = commandWithHome(pathCLI, tempSettings.Home,
-			"query", "-",
-			"--skip-update-check",
-			"--token", token,
-			"--host", tempSettings.TestServer.URL(),
-		)
-		command.Stdin = &stdin
-	})
-
-	AfterEach(func() {
-		tempSettings.Close()
-	})
-
-	Describe("query provided to STDIN", func() {
-		var responseData string
-
-		BeforeEach(func() {
-			query := `query {
-	hero {
-		name
-		friends {
-			name
-		}
-	}
-}
-`
-			responseData = `{
+	token := "mytoken"
+	responseData := `{
 	"hero": {
 		"name": "R2-D2",
 		"friends": [
@@ -65,30 +34,50 @@ var _ = Describe("Query", func() {
 			}
 		]
 	}
+}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, "POST")
+		assert.Equal(t, r.URL.Path, "/graphql-unstable")
+		assert.Equal(t, r.Header.Get("Authorization"), token)
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data": ` + responseData + `}`))
+	}))
+	t.Cleanup(func() { server.Close() })
+
+	query := `query {
+	hero {
+		name
+		friends {
+			name
+		}
+	}
 }
 `
 
-			tempSettings.TestServer.AppendHandlers(
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/graphql-unstable"),
-					ghttp.VerifyHeader(http.Header{
-						"Authorization": []string{token},
-					}),
-					ghttp.RespondWith(http.StatusOK, `{"data": `+responseData+`}`),
-				),
-			)
+	cmd := exec.Command(binary,
+		"query", "-",
+		"--skip-update-check",
+		"--token", token,
+		"--host", server.URL,
+	)
+	cmd.Stdin = strings.NewReader(query)
+	cmd.Env = append(os.Environ(),
+		fmt.Sprintf("HOME=%s", ts.Home),
+		fmt.Sprintf("USERPROFILE=%s", ts.Home),
+	)
 
-			_, err := stdin.WriteString(query)
-			Expect(err).ToNot(HaveOccurred())
-		})
+	var stdout, stderr strings.Builder
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
 
-		It("should make request and return result as JSON", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			session.Wait()
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session.Out.Contents()).Should(MatchJSON(responseData))
-			Eventually(session).Should(gexec.Exit(0))
-		})
-	})
-})
+	err := cmd.Run()
+	assert.NilError(t, err)
+	assert.Equal(t, stderr.String(), "")
+
+	// Compare as JSON to ignore whitespace differences.
+	var expected, actual interface{}
+	assert.NilError(t, json.Unmarshal([]byte(responseData), &expected))
+	assert.NilError(t, json.Unmarshal([]byte(stdout.String()), &actual))
+	assert.DeepEqual(t, actual, expected)
+}

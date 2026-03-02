@@ -1,67 +1,30 @@
 package cmd_test
 
 import (
+	"fmt"
 	"net/http"
-	"os/exec"
+	"net/http/httptest"
 	"runtime"
+	"strings"
+	"testing"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Check", func() {
-	var (
-		command      *exec.Cmd
-		err          error
-		checkCLI     string
-		tempSettings *clitest.TempSettings
-		updateCheck  *settings.UpdateCheck
-	)
+func TestCheckUpdateAutoCheckWithNewRelease(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
 
-	BeforeEach(func() {
-		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
-		Expect(err).ShouldNot(HaveOccurred())
+	updateCheck := &settings.UpdateCheck{
+		LastUpdateCheck: time.Time{},
+	}
+	updateCheck.FileUsed = ts.UpdateFile
+	err := updateCheck.WriteToDisk()
+	assert.NilError(t, err)
 
-		tempSettings = clitest.WithTempSettings()
-
-		updateCheck = &settings.UpdateCheck{
-			LastUpdateCheck: time.Time{},
-		}
-
-		updateCheck.FileUsed = tempSettings.Update.File.Name()
-		err = updateCheck.WriteToDisk()
-		Expect(err).ShouldNot(HaveOccurred())
-
-		command = commandWithHome(checkCLI, tempSettings.Home,
-			"help", "--github-api", tempSettings.TestServer.URL(),
-		)
-	})
-
-	AfterEach(func() {
-		tempSettings.Close()
-	})
-
-	Describe("update auto checks with a new release", func() {
-		var response string
-
-		BeforeEach(func() {
-			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
-				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release",
-			)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			command = commandWithHome(checkCLI, tempSettings.Home,
-				"help", "--skip-update-check=false", "--github-api", tempSettings.TestServer.URL(),
-			)
-
-			response = `
+	response := fmt.Sprintf(`
 [
   {
     "id": 1,
@@ -71,7 +34,7 @@ var _ = Describe("Check", func() {
     "assets": [
       {
         "id": 1,
-        "name": "` + runtime.GOOS + "_" + runtime.GOARCH + `.zip",
+        "name": "%s_%s.zip",
         "label": "short description",
         "content_type": "application/zip",
         "size": 1024
@@ -79,27 +42,33 @@ var _ = Describe("Check", func() {
     ]
   }
 ]
-`
+`, runtime.GOOS, runtime.GOARCH)
 
-			tempSettings.TestServer.AppendHandlers(
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
-					ghttp.RespondWith(http.StatusOK, response),
-				),
-			)
-		})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v3/repos/CircleCI-Public/circleci-cli/releases" {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(response))
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(func() { server.Close() })
 
-		Context("using a binary release", func() {
-			It("with flag should tell the user how to update and install", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
+	checkCLI := buildCLIWithLdflags(t,
+		"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release",
+	)
 
-				Eventually(session.Err).Should(gbytes.Say("You are running 0.0.0-dev"))
-				Eventually(session.Err).Should(gbytes.Say("A new release is available (.*)"))
-				Eventually(session.Err).Should(gbytes.Say("You can update with `circleci update install`"))
+	result := testhelpers.RunCLI(t, checkCLI,
+		[]string{"help", "--skip-update-check=false", "--github-api", server.URL},
+		fmt.Sprintf("HOME=%s", ts.Home),
+		fmt.Sprintf("USERPROFILE=%s", ts.Home),
+	)
 
-				Eventually(session).Should(gexec.Exit(0))
-			})
-		})
-	})
-})
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, "You are running 0.0.0-dev"),
+		"expected stderr to contain version info, got: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, "A new release is available"),
+		"expected stderr to contain new release info, got: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, "You can update with `circleci update install`"),
+		"expected stderr to contain update instructions, got: %s", result.Stderr)
+}

@@ -1,334 +1,320 @@
 package cmd_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
-	"os/exec"
+	"strings"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Namespace integration tests", func() {
-	var (
-		tempSettings *clitest.TempSettings
-		token        string = "testtoken"
-		command      *exec.Cmd
+// appendGQLPostHandler adds a handler to the test server that verifies a POST
+// to /graphql-unstable with the given auth token and expected request JSON,
+// then responds with the given response JSON wrapped in a data envelope.
+func appendGQLPostHandler(t *testing.T, ts *testhelpers.TestServer, authToken string, expectedRequest, response string, errorResponse string) {
+	t.Helper()
+	responseBody := `{ "data": ` + response + `}`
+	if errorResponse != "" {
+		responseBody = fmt.Sprintf(`{ "data": %s, "errors": %s}`, response, errorResponse)
+	}
+
+	ts.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, r.Method, "POST")
+		assert.Equal(t, r.URL.Path, "/graphql-unstable")
+
+		if authToken != "" {
+			assert.Equal(t, r.Header.Get("Authorization"), authToken)
+		}
+
+		body, err := io.ReadAll(r.Body)
+		assert.NilError(t, err)
+		defer r.Body.Close()
+
+		// Compare as JSON to ignore whitespace differences
+		var expectedJSON, actualJSON interface{}
+		assert.NilError(t, json.Unmarshal([]byte(expectedRequest), &expectedJSON))
+		assert.NilError(t, json.Unmarshal(body, &actualJSON))
+
+		expectedBytes, _ := json.Marshal(expectedJSON)
+		actualBytes, _ := json.Marshal(actualJSON)
+		assert.Equal(t, string(expectedBytes), string(actualBytes), "JSON request body mismatch")
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(responseBody))
+	})
+}
+
+func TestNamespaceTelemetry(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	token := "testtoken"
+
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"data":{"organization":{"name":"test-org","id":"bb604b45-b6b0-4b81-ad80-796f15eddf87"}}}`))
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"namespace", "create",
+			"--skip-update-check",
+			"--token", token,
+			"--host", ts.Server.URL,
+			"--integration-testing",
+			"foo-ns",
+			"--org-id", `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
 	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateNamespaceEvent(telemetry.CommandInfo{
+			Name: "create",
+			LocalArgs: map[string]string{
+				"integration-testing": "true",
+				"org-id":              `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
+			},
+		}),
 	})
+}
 
-	AfterEach(func() {
-		tempSettings.Close()
-	})
+func TestNamespaceCreateWithOrgID(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	token := "testtoken"
 
-	Describe("telemetry", func() {
-		It("sends expected event", func() {
-			command = exec.Command(pathCLI,
-				"namespace", "create",
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-				"--integration-testing",
-				"foo-ns",
-				"--org-id", `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
-			)
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
+	gqlOrganizationResponse := `{
+		"organization": {
+			"name": "test-org",
+			"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-			tempSettings.TestServer.AppendHandlers(func(res http.ResponseWriter, req *http.Request) {
-				res.WriteHeader(http.StatusOK)
-				_, _ = res.Write([]byte(`{"data":{"organization":{"name":"test-org","id":"bb604b45-b6b0-4b81-ad80-796f15eddf87"}}}`))
-			})
+	expectedOrganizationRequest := `{
+		"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+		"variables": {
+			"name": "foo-ns",
+			"organizationId": "\"bb604b45-b6b0-4b81-ad80-796f15eddf87\""
+		}
+	}`
 
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
+	appendGQLPostHandler(t, ts.Server, token, expectedOrganizationRequest, gqlOrganizationResponse, "")
 
-			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-				telemetry.CreateNamespaceEvent(telemetry.CommandInfo{
-					Name: "create",
-					LocalArgs: map[string]string{
-						"integration-testing": "true",
-						"org-id":              `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
-					},
-				}),
-			})
-		})
-	})
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"namespace", "create",
+			"--skip-update-check",
+			"--token", token,
+			"--host", ts.Server.URL,
+			"--integration-testing",
+			"foo-ns",
+			"--org-id", `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-	Context("create, with interactive prompts", func() {
-		Describe("registering a namespace with orgID", func() {
-			BeforeEach(func() {
-				command = exec.Command(pathCLI,
-					"namespace", "create",
-					"--skip-update-check",
-					"--token", token,
-					"--host", tempSettings.TestServer.URL(),
-					"--integration-testing",
-					"foo-ns",
-					"--org-id", `"bb604b45-b6b0-4b81-ad80-796f15eddf87"`,
-				)
-			})
+	assert.Assert(t, strings.Contains(result.Stdout, `You are creating a namespace called "foo-ns".`))
+	assert.Assert(t, strings.Contains(result.Stdout, `This is the only namespace permitted for your organization with id "bb604b45-b6b0-4b81-ad80-796f15eddf87".`))
+	assert.Assert(t, strings.Contains(result.Stdout, "Are you sure you wish to create the namespace: `foo-ns`"))
+	assert.Assert(t, strings.Contains(result.Stdout, "Namespace `foo-ns` created."))
+	assert.Assert(t, strings.Contains(result.Stdout, "Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
+}
 
-			It("works with organizationID", func() {
-				By("setting up a mock server")
+func TestNamespaceCreateWithOrgNameAndVcs(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	token := "testtoken"
 
-				gqlOrganizationResponse := `{
-    											"organization": {
-      												"name": "test-org",
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
+	gqlOrganizationResponse := `{
+		"organization": {
+			"name": "test-org",
+			"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-				expectedOrganizationRequest := `{
-            "query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
-            "variables": {
-              "name": "foo-ns",
-              "organizationId": "\"bb604b45-b6b0-4b81-ad80-796f15eddf87\""
-            }
-          }`
+	expectedOrganizationRequest := `{
+		"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
+		"variables": {
+			"orgName": "test-org",
+			"vcsType": "BITBUCKET"
+		}
+	}`
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedOrganizationRequest,
-					Response: gqlOrganizationResponse})
+	gqlNsResponse := `{
+		"createNamespace": {
+			"errors": [],
+			"namespace": {
+				"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+			}
+		}
+	}`
 
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(gexec.Exit(0))
+	expectedNsRequest := `{
+		"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+		"variables": {
+			"name": "foo-ns",
+			"organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-				stdout := session.Wait().Out.Contents()
+	appendGQLPostHandler(t, ts.Server, token, expectedOrganizationRequest, gqlOrganizationResponse, "")
+	appendGQLPostHandler(t, ts.Server, token, expectedNsRequest, gqlNsResponse, "")
 
-				Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`You are creating a namespace called "%s".
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"namespace", "create",
+			"--skip-update-check",
+			"--token", token,
+			"--host", ts.Server.URL,
+			"--integration-testing",
+			"foo-ns",
+			"BITBUCKET",
+			"test-org",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-This is the only namespace permitted for your organization with id "%s".
+	assert.Assert(t, strings.Contains(result.Stdout, `You are creating a namespace called "foo-ns".`))
+	assert.Assert(t, strings.Contains(result.Stdout, "This is the only namespace permitted for your bitbucket organization, test-org."))
+	assert.Assert(t, strings.Contains(result.Stdout, "Are you sure you wish to create the namespace: `foo-ns`"))
+	assert.Assert(t, strings.Contains(result.Stdout, "Namespace `foo-ns` created."))
+	assert.Assert(t, strings.Contains(result.Stdout, "Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
+}
 
-To change the namespace, you will have to contact CircleCI customer support.
+func TestNamespaceCreateDuplicate(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	token := "testtoken"
 
-Are you sure you wish to create the namespace: %s
-Namespace %s created.
-Please note that any orbs you publish in this namespace are open orbs and are world-readable.`, "foo-ns", "bb604b45-b6b0-4b81-ad80-796f15eddf87", "`foo-ns`", "`foo-ns`")))
-			})
-		})
+	gqlOrganizationResponse := `{
+		"organization": {
+			"name": "test-org",
+			"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-		Describe("registering a namespace with OrgName and OrgVcs", func() {
-			BeforeEach(func() {
-				command = exec.Command(pathCLI,
-					"namespace", "create",
-					"--skip-update-check",
-					"--token", token,
-					"--host", tempSettings.TestServer.URL(),
-					"--integration-testing",
-					"foo-ns",
-					"BITBUCKET",
-					"test-org",
-				)
-			})
+	expectedOrganizationRequest := `{
+		"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
+		"variables": {
+			"orgName": "test-org",
+			"vcsType": "BITBUCKET"
+		}
+	}`
 
-			It("works with organizationName and organizationVcs", func() {
-				By("setting up a mock server")
+	gqlNsResponse := `{
+		"createNamespace": {
+			"errors": [],
+			"namespace": {
+				"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+			}
+		}
+	}`
 
-				gqlOrganizationResponse := `{
-    											"organization": {
-      												"name": "test-org",
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
+	expectedNsRequest := `{
+		"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+		"variables": {
+			"name": "foo-ns",
+			"organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-				expectedOrganizationRequest := `{
-	"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
-	"variables": {
-		"orgName": "test-org",
-		"vcsType": "BITBUCKET"
-	}
-}`
+	appendGQLPostHandler(t, ts.Server, token, expectedOrganizationRequest, gqlOrganizationResponse, "")
+	appendGQLPostHandler(t, ts.Server, token, expectedNsRequest, gqlNsResponse, "")
 
-				gqlNsResponse := `{
-									"createNamespace": {
-										"errors": [],
-										"namespace": {
-														"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-										}
-									}
-				}`
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"namespace", "create",
+			"--skip-update-check",
+			"--token", token,
+			"--host", ts.Server.URL,
+			"--integration-testing",
+			"foo-ns",
+			"BITBUCKET",
+			"test-org",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-				expectedNsRequest := `{
-            "query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
-            "variables": {
-              "name": "foo-ns",
-              "organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-            }
-          }`
+	assert.Assert(t, strings.Contains(result.Stdout, `You are creating a namespace called "foo-ns".`))
+	assert.Assert(t, strings.Contains(result.Stdout, "This is the only namespace permitted for your bitbucket organization, test-org."))
+	assert.Assert(t, strings.Contains(result.Stdout, "Are you sure you wish to create the namespace: `foo-ns`"))
+	assert.Assert(t, strings.Contains(result.Stdout, "Namespace `foo-ns` created."))
+	assert.Assert(t, strings.Contains(result.Stdout, "Please note that any orbs you publish in this namespace are open orbs and are world-readable."))
+}
 
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedOrganizationRequest,
-					Response: gqlOrganizationResponse})
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedNsRequest,
-					Response: gqlNsResponse})
+func TestNamespaceCreateGraphQLErrors(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	token := "testtoken"
 
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(gexec.Exit(0))
+	gqlOrganizationResponse := `{
+		"organization": {
+			"name": "test-org",
+			"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-				stdout := session.Wait().Out.Contents()
+	expectedOrganizationRequest := `{
+		"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
+		"variables": {
+			"orgName": "test-org",
+			"vcsType": "BITBUCKET"
+		}
+	}`
 
-				Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`You are creating a namespace called "%s".
+	gqlResponse := `{
+		"createNamespace": {
+			"errors": [
+				{"message": "error1"},
+				{"message": "error2"}
+			],
+			"namespace": null
+		}
+	}`
 
-This is the only namespace permitted for your bitbucket organization, test-org.
+	gqlNativeErrors := `[ { "message": "ignored error" } ]`
 
-To change the namespace, you will have to contact CircleCI customer support.
+	expectedRequestJSON := `{
+		"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
+		"variables": {
+			"name": "foo-ns",
+			"organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+		}
+	}`
 
-Are you sure you wish to create the namespace: %s
-Namespace %s created.
-Please note that any orbs you publish in this namespace are open orbs and are world-readable.`, "foo-ns", "`foo-ns`", "`foo-ns`")))
-			})
-		})
+	appendGQLPostHandler(t, ts.Server, token, expectedOrganizationRequest, gqlOrganizationResponse, "")
+	appendGQLPostHandler(t, ts.Server, token, expectedRequestJSON, gqlResponse, gqlNativeErrors)
 
-		Describe("when creating / reserving a namespace", func() {
-			BeforeEach(func() {
-				command = exec.Command(pathCLI,
-					"namespace", "create",
-					"--skip-update-check",
-					"--token", token,
-					"--host", tempSettings.TestServer.URL(),
-					"--integration-testing",
-					"foo-ns",
-					"BITBUCKET",
-					"test-org",
-				)
-			})
-
-			It("works with organizationName and organizationVcs", func() {
-				By("setting up a mock server")
-
-				gqlOrganizationResponse := `{
-    											"organization": {
-      												"name": "test-org",
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-				expectedOrganizationRequest := `{
-	"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
-	"variables": {
-		"orgName": "test-org",
-		"vcsType": "BITBUCKET"
-	}
-}`
-
-				gqlNsResponse := `{
-									"createNamespace": {
-										"errors": [],
-										"namespace": {
-														"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-										}
-									}
-				}`
-
-				expectedNsRequest := `{
-            "query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
-            "variables": {
-              "name": "foo-ns",
-              "organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-            }
-          }`
-
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedOrganizationRequest,
-					Response: gqlOrganizationResponse})
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedNsRequest,
-					Response: gqlNsResponse})
-
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(gexec.Exit(0))
-
-				stdout := session.Wait().Out.Contents()
-
-				Expect(string(stdout)).To(ContainSubstring(fmt.Sprintf(`You are creating a namespace called "%s".
-
-This is the only namespace permitted for your bitbucket organization, test-org.
-
-To change the namespace, you will have to contact CircleCI customer support.
-
-Are you sure you wish to create the namespace: %s
-Namespace %s created.
-Please note that any orbs you publish in this namespace are open orbs and are world-readable.`, "foo-ns", "`foo-ns`", "`foo-ns`")))
-			})
-
-			It("prints all in-band errors returned by the GraphQL API", func() {
-				By("setting up a mock server")
-
-				gqlOrganizationResponse := `{
-    											"organization": {
-      												"name": "test-org",
-      												"id": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-    											}
-  				}`
-
-				expectedOrganizationRequest := `{
-	"query": "query($orgName: String!, $vcsType: VCSType!) {\n\torganization(name: $orgName, vcsType: $vcsType) {\n\t\tid\n\t\tname\n\t\tvcsType\n\t}\n}",
-	"variables": {
-		"orgName": "test-org",
-		"vcsType": "BITBUCKET"
-	}
-}`
-
-				gqlResponse := `{
-									"createNamespace": {
-										"errors": [
-													{"message": "error1"},
-													{"message": "error2"}
-								  					],
-										"namespace": null
-									}
-								}`
-
-				gqlNativeErrors := `[ { "message": "ignored error" } ]`
-
-				expectedRequestJSON := `{
-            			"query": "\n\t\t\tmutation($name: String!, $organizationId: UUID!) {\n\t\t\t\tcreateNamespace(\n\t\t\t\t\tname: $name,\n\t\t\t\t\torganizationId: $organizationId\n\t\t\t\t) {\n\t\t\t\t\tnamespace {\n\t\t\t\t\t\tid\n\t\t\t\t\t}\n\t\t\t\t\terrors {\n\t\t\t\t\t\tmessage\n\t\t\t\t\t\ttype\n\t\t\t\t\t}\n\t\t\t\t}\n\t\t\t}",
-            			"variables": {
-              			"name": "foo-ns",
-						"organizationId": "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-            			}
-          		}`
-
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:   http.StatusOK,
-					Request:  expectedOrganizationRequest,
-					Response: gqlOrganizationResponse,
-				})
-				tempSettings.AppendPostHandler(token, clitest.MockRequestResponse{
-					Status:        http.StatusOK,
-					Request:       expectedRequestJSON,
-					Response:      gqlResponse,
-					ErrorResponse: gqlNativeErrors,
-				})
-
-				By("running the command")
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err).Should(gbytes.Say(`Error: error1
-error2`))
-				Eventually(session).ShouldNot(gexec.Exit(0))
-			})
-		})
-	})
-})
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"namespace", "create",
+			"--skip-update-check",
+			"--token", token,
+			"--host", ts.Server.URL,
+			"--integration-testing",
+			"foo-ns",
+			"BITBUCKET",
+			"test-org",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Assert(t, result.ExitCode != 0)
+	assert.Assert(t, strings.Contains(result.Stderr, "Error: error1"))
+	assert.Assert(t, strings.Contains(result.Stderr, "error2"))
+}

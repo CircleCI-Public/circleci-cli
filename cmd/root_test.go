@@ -2,93 +2,82 @@ package cmd_test
 
 import (
 	"os/exec"
+	"strings"
+	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
+	"gotest.tools/v3/assert"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/cmd"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
-var _ = Describe("Root", func() {
-	Describe("subcommands", func() {
-		It("can create commands", func() {
-			commands := cmd.MakeCommands()
-			Expect(len(commands.Commands())).To(Equal(29))
-		})
-	})
+func TestMakeCommands(t *testing.T) {
+	commands := cmd.MakeCommands()
+	assert.Equal(t, len(commands.Commands()), 29)
+}
 
-	Describe("build without auto update", func() {
-		var (
-			command      *exec.Cmd
-			err          error
-			noUpdateCLI  string
-			tempSettings *clitest.TempSettings
+func TestBuildWithoutAutoUpdate(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+
+	noUpdateCLI := buildCLIWithLdflags(t,
+		"-X github.com/CircleCI-Public/circleci-cli/version.packageManager=homebrew",
+	)
+
+	t.Run("reports update command as unavailable", func(t *testing.T) {
+		result := testhelpers.RunCLI(t, noUpdateCLI,
+			[]string{"help", "--skip-update-check"},
+			"HOME="+ts.Home,
+			"USERPROFILE="+ts.Home,
 		)
-
-		BeforeEach(func() {
-			tempSettings = clitest.WithTempSettings()
-
-			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
-				"-ldflags",
-				"-X github.com/CircleCI-Public/circleci-cli/version.packageManager=homebrew",
-			)
-			Expect(err).ShouldNot(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			tempSettings.Close()
-		})
-
-		It("reports update command as unavailable", func() {
-			command = commandWithHome(noUpdateCLI, tempSettings.Home,
-				"help", "--skip-update-check",
-			)
-
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Err).Should(gbytes.Say("update\\s+This command is unavailable on your platform"))
-			Eventually(session).Should(gexec.Exit(0))
-		})
-
-		It("tells the user to update using their package manager", func() {
-			command = exec.Command(noUpdateCLI, "update")
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-
-			Eventually(session.Out).Should(gbytes.Say("update is not available because this tool was installed using homebrew."))
-			Eventually(session.Out).Should(gbytes.Say("Please consult the package manager's documentation on how to update the CLI."))
-			Eventually(session).Should(gexec.Exit(0))
-		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Assert(t, matchesPattern(result.Stderr, "update", "This command is unavailable on your platform"),
+			"expected stderr to contain 'update ... This command is unavailable on your platform', got: %s", result.Stderr)
 	})
 
-	Describe("build with auto update", func() {
-		var (
-			command   *exec.Cmd
-			err       error
-			updateCLI string
+	t.Run("tells the user to update using their package manager", func(t *testing.T) {
+		result := testhelpers.RunCLI(t, noUpdateCLI,
+			[]string{"update"},
 		)
-
-		BeforeEach(func() {
-			updateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
-			Expect(err).ShouldNot(HaveOccurred())
-
-			command = exec.Command(updateCLI, "help",
-				"--skip-update-check",
-			)
-		})
-
-		It("does include the update command in help text", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Err).Should(gbytes.Say("update\\s+Update the tool to the latest version"))
-			Eventually(session).Should(gexec.Exit(0))
-		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Assert(t, strings.Contains(result.Stdout, "update is not available because this tool was installed using homebrew."),
+			"stdout: %s", result.Stdout)
+		assert.Assert(t, strings.Contains(result.Stdout, "Please consult the package manager's documentation on how to update the CLI."),
+			"stdout: %s", result.Stdout)
 	})
-})
+}
+
+func TestBuildWithAutoUpdate(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"help", "--skip-update-check"},
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Assert(t, matchesPattern(result.Stderr, "update", "Update the tool to the latest version"),
+		"expected stderr to contain 'update ... Update the tool to the latest version', got: %s", result.Stderr)
+}
+
+func buildCLIWithLdflags(t testing.TB, ldflags string) string {
+	t.Helper()
+
+	outPath := t.TempDir() + "/circleci"
+	buildCmd := exec.Command("go", "build", "-o", outPath, "-ldflags", ldflags, ".")
+	buildCmd.Dir = testhelpers.RepoRoot()
+	out, err := buildCmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("buildCLIWithLdflags: go build failed: %v\n%s", err, out)
+	}
+	return outPath
+}
+
+func matchesPattern(s string, substrs ...string) bool {
+	pos := 0
+	for _, sub := range substrs {
+		idx := strings.Index(s[pos:], sub)
+		if idx < 0 {
+			return false
+		}
+		pos += idx + len(sub)
+	}
+	return true
+}

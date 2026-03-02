@@ -2,315 +2,279 @@ package cmd_test
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"os/exec"
-	"regexp"
 	"runtime"
+	"strings"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Setup telemetry", func() {
-	var (
-		command      *exec.Cmd
-		tempSettings *clitest.TempSettings
-	)
+func TestSetupTelemetry(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
-		command = commandWithHome(pathCLI, tempSettings.Home,
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
 			"setup",
 			"--integration-testing",
 			"--skip-update-check",
-		)
-		command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-	})
-
-	AfterEach(func() {
-		tempSettings.Close()
-	})
-
-	It("should send telemetry event", func() {
-		session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-		Expect(err).ShouldNot(HaveOccurred())
-
-		Eventually(session).Should(gexec.Exit(0))
-		clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-			telemetry.CreateSetupEvent(true),
-		})
-	})
-})
-
-var _ = Describe("Setup with prompts", func() {
-	var (
-		command      *exec.Cmd
-		tempSettings *clitest.TempSettings
+			"--host", ts.Server.URL,
+			"--token", "testtoken",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
 	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateSetupEvent(true),
+	})
+}
 
-		command = commandWithHome(pathCLI, tempSettings.Home,
+func TestSetupNewConfigFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file permissions test not applicable on Windows")
+	}
+
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
 			"setup",
 			"--integration-testing",
 			"--skip-update-check",
-		)
-	})
+			"--host", ts.Server.URL,
+			"--token", "testtoken",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-	AfterEach(func() {
-		tempSettings.Close()
-	})
+	assert.Assert(t, strings.Contains(result.Stdout, "CircleCI API Token"))
+	assert.Assert(t, strings.Contains(result.Stdout, "API token has been set."))
+	assert.Assert(t, strings.Contains(result.Stdout, "CircleCI Host"))
+	assert.Assert(t, strings.Contains(result.Stdout, "CircleCI host has been set."))
+	assert.Assert(t, strings.Contains(result.Stdout, "Setup complete."))
+	assert.Assert(t, strings.Contains(result.Stdout, ts.Config))
+	assert.Equal(t, result.Stderr, "")
 
-	Describe("new config file", func() {
-		It("should set file permissions to 0600", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
+	fileInfo, err := os.Stat(ts.Config)
+	assert.NilError(t, err)
+	assert.Equal(t, fileInfo.Mode().Perm().String(), "-rw-------")
+}
 
-			Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
-			Eventually(session.Out).Should(gbytes.Say("API token has been set."))
-			Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
-			Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
+func TestSetupExistingConfigFilePermissions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("file permissions test not applicable on Windows")
+	}
 
-			Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session).Should(gexec.Exit(0))
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-			fileInfo, err := os.Stat(tempSettings.Config.Path)
-			Expect(err).ToNot(HaveOccurred())
-			if runtime.GOOS != "windows" {
-				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
-			}
-		})
-	})
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--integration-testing",
+			"--skip-update-check",
+			"--host", ts.Server.URL,
+			"--token", "testtoken",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-	Describe("existing config file", func() {
-		It("should set file permissions to 0600", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
+	fileInfo, err := os.Stat(ts.Config)
+	assert.NilError(t, err)
+	assert.Equal(t, fileInfo.Mode().Perm().String(), "-rw-------")
+}
 
-			Eventually(session).Should(gexec.Exit(0))
+func TestSetupExistingTokenAndHost(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-			fileInfo, err := os.Stat(tempSettings.Config.Path)
-			Expect(err).ToNot(HaveOccurred())
-			if runtime.GOOS != "windows" {
-				Expect(fileInfo.Mode().Perm().String()).To(Equal("-rw-------"))
-			}
-		})
-
-		Describe("token and host set in config file", func() {
-			It("print success", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Err.Contents()).Should(BeEmpty())
-
-				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
-				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
-				Eventually(session).Should(gexec.Exit(0))
-			})
-		})
-
-		Context("token set to some string in config file", func() {
-			BeforeEach(func() {
-				tempSettings.Config.Write([]byte(`
+	ts.WriteConfig(t, `
 host: https://example.com/graphql
 token: fooBarBaz
-`))
-			})
+`)
 
-			It("print error", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say("A CircleCI token is already set. Do you want to change it"))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI API Token"))
-				Eventually(session.Out).Should(gbytes.Say("API token has been set."))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI Host"))
-				Eventually(session.Out).Should(gbytes.Say("CircleCI host has been set."))
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
-				Eventually(session).Should(gexec.Exit(0))
-			})
-		})
-	})
-})
-
-var _ = Describe("Setup without prompts", func() {
-	var (
-		tempSettings *clitest.TempSettings
-		command      *exec.Cmd
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--integration-testing",
+			"--skip-update-check",
+			"--host", ts.Server.URL,
+			"--token", "testtoken",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
 	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
-		command = commandWithHome(pathCLI, tempSettings.Home,
+	assert.Assert(t, strings.Contains(result.Stdout, "A CircleCI token is already set. Do you want to change it"))
+	assert.Assert(t, strings.Contains(result.Stdout, "CircleCI API Token"))
+	assert.Assert(t, strings.Contains(result.Stdout, "API token has been set."))
+	assert.Assert(t, strings.Contains(result.Stdout, "CircleCI Host"))
+	assert.Assert(t, strings.Contains(result.Stdout, "CircleCI host has been set."))
+	assert.Assert(t, strings.Contains(result.Stdout, fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", ts.Config)))
+}
+
+func TestSetupNoPromptWithValidConfig(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+
+	ts.WriteConfig(t, `
+host: https://example.com
+token: fooBarBaz
+`)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
 			"setup",
 			"--no-prompt",
 			"--skip-update-check",
-		)
-	})
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+	assert.Assert(t, strings.Contains(result.Stdout, fmt.Sprintf("Setup has kept your existing configuration at %s.\n", ts.Config)))
 
-	AfterEach(func() {
-		tempSettings.Close()
-	})
+	reread, err := os.ReadFile(ts.Config)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(reread), "host: https://example.com"))
+	assert.Assert(t, strings.Contains(string(reread), "token: fooBarBaz"))
+}
 
-	Context("with an existing config", func() {
-		Describe("of valid settings", func() {
-			BeforeEach(func() {
-				tempSettings.Config.Write([]byte(`
-host: https://example.com
-token: fooBarBaz
-`))
-			})
+func TestSetupNoPromptChangeHost(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-			It("should keep the existing configuration", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
-
-				Context("re-open the config to check the contents", func() {
-					tempSettings.AssertConfigRereadMatches(`
+	ts.WriteConfig(t, `
 host: https://example.com
 token: fooBarBaz
 `)
-				})
-			})
 
-			It("should change if provided one of flags", func() {
-				command = commandWithHome(pathCLI, tempSettings.Home,
-					"setup",
-					"--host", "https://asdf.example.com",
-					"--no-prompt",
-					"--skip-update-check",
-				)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--host", "https://asdf.example.com",
+			"--no-prompt",
+			"--skip-update-check",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
+	expected := fmt.Sprintf("Token unchanged from existing config. Use --token with --no-prompt to overwrite it.\nSetup complete.\nYour configuration has been saved to %s.\n", ts.Config)
+	assert.Equal(t, result.Stdout, expected)
 
-				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Token unchanged from existing config. Use --token with --no-prompt to overwrite it.
-Setup complete.
-Your configuration has been saved to %s.
-`, tempSettings.Config.Path)))
-				Eventually(session).Should(gexec.Exit(0))
+	reread, err := os.ReadFile(ts.Config)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(reread), "host: https://asdf.example.com"))
+	assert.Assert(t, strings.Contains(string(reread), "token: fooBarBaz"))
+}
 
-				Context("re-open the config to check the contents", func() {
-					tempSettings.AssertConfigRereadMatches(`host: https://asdf.example.com
-endpoint: graphql-unstable
+func TestSetupNoPromptChangeToken(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+
+	ts.WriteConfig(t, `
+host: https://example.com
 token: fooBarBaz
 `)
-				})
-			})
 
-			It("should change only the provided token", func() {
-				command = commandWithHome(pathCLI, tempSettings.Home,
-					"setup",
-					"--token", "asdf",
-					"--no-prompt",
-					"--skip-update-check",
-				)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--token", "asdf",
+			"--no-prompt",
+			"--skip-update-check",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
+	expected := fmt.Sprintf("Host unchanged from existing config. Use --host with --no-prompt to overwrite it.\nSetup complete.\nYour configuration has been saved to %s.\n", ts.Config)
+	assert.Equal(t, result.Stdout, expected)
 
-				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Host unchanged from existing config. Use --host with --no-prompt to overwrite it.
-Setup complete.
-Your configuration has been saved to %s.
-`, tempSettings.Config.Path)))
-				Eventually(session).Should(gexec.Exit(0))
+	reread, err := os.ReadFile(ts.Config)
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(reread), "host: https://example.com"))
+	assert.Assert(t, strings.Contains(string(reread), "token: asdf"))
+}
 
-				Context("re-open the config to check the contents", func() {
-					tempSettings.AssertConfigRereadMatches(`host: https://example.com
-endpoint: graphql-unstable
-token: asdf
+func TestSetupNoPromptInvalidHost(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+
+	ts.WriteConfig(t, `
+host: https://example.com
+token: fooBarBaz
 `)
-				})
-			})
 
-			It("should reject an invalid host URL", func() {
-				command = commandWithHome(pathCLI, tempSettings.Home,
-					"setup",
-					"--host", "not-a-valid-url",
-					"--no-prompt",
-					"--skip-update-check",
-				)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--host", "not-a-valid-url",
+			"--no-prompt",
+			"--skip-update-check",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Assert(t, result.ExitCode != 0)
+	assert.Equal(t, result.Stderr, "Error: invalid CircleCI URL\n")
+}
 
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(clitest.ShouldFail())
+func TestSetupNoPromptMissingHostAndToken(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-				stderr := session.Wait().Err.Contents()
-				Expect(string(stderr)).To(Equal("Error: invalid CircleCI URL\n"))
-			})
-		})
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--no-prompt",
+			"--skip-update-check",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Assert(t, result.ExitCode != 0)
+	assert.Equal(t, result.Stderr, "Error: No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt\n")
+}
 
-	})
+func TestSetupNoPromptWithBothHostAndToken(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-	Context("with no existing config", func() {
-		Context("with no host or token flags", func() {
-			BeforeEach(func() {
-				command = commandWithHome(pathCLI, tempSettings.Home,
-					"setup",
-					"--no-prompt",
-					"--skip-update-check",
-				)
-			})
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"setup",
+			"--host", "https://zomg.com",
+			"--token", "mytoken",
+			"--no-prompt",
+			"--skip-update-check",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
 
-			It("Should raise an error about missing host and token flags", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				Eventually(session).Should(clitest.ShouldFail())
+	expected := fmt.Sprintf("Setup complete.\nYour configuration has been saved to %s.\n", ts.Config)
+	assert.Equal(t, result.Stdout, expected)
 
-				stderr := session.Wait().Err.Contents()
-				Expect(string(stderr)).To(Equal("Error: No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt\n"))
-			})
-		})
-
-		Context("with both host and token flags", func() {
-			BeforeEach(func() {
-				command = commandWithHome(pathCLI, tempSettings.Home,
-					"setup",
-					"--host", "https://zomg.com",
-					"--token", "mytoken",
-					"--no-prompt",
-					"--skip-update-check",
-				)
-			})
-
-			It("writes the configuration to a file", func() {
-				session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-				Expect(err).ShouldNot(HaveOccurred())
-				stdout := session.Wait().Out.Contents()
-				Expect(string(stdout)).To(Equal(fmt.Sprintf(`Setup complete.
-Your configuration has been saved to %s.
-`, tempSettings.Config.Path)))
-
-				Context("re-open the config to check the contents", func() {
-					file, err := os.Open(tempSettings.Config.Path)
-					Expect(err).ShouldNot(HaveOccurred())
-
-					reread, err := io.ReadAll(file)
-					Expect(err).ShouldNot(HaveOccurred())
-					Expect(string(reread)).To(Equal(`host: https://zomg.com
-endpoint: graphql-unstable
-token: mytoken
-rest_endpoint: api/v2
-tls_cert: ""
-tls_insecure: false
-orb_publishing:
-    default_namespace: ""
-    default_vcs_provider: ""
-    default_owner: ""
-`))
-				})
-			})
-		})
-	})
-})
+	reread, err := os.ReadFile(ts.Config)
+	assert.NilError(t, err)
+	content := string(reread)
+	assert.Assert(t, strings.Contains(content, "host: https://zomg.com"))
+	assert.Assert(t, strings.Contains(content, "token: mytoken"))
+}

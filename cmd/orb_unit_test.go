@@ -1,66 +1,69 @@
 package cmd
 
 import (
+	"testing"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/ginkgo/extensions/table"
-	. "github.com/onsi/gomega"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Orb unit tests", func() {
-	Describe("Orb formatters", func() {
-		DescribeTable(
-			"parameterDefaultToString",
-			func(input api.OrbElementParameter, expected string) {
-				Expect(parameterDefaultToString(input)).To(Equal(expected))
+func TestParameterDefaultToString(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    api.OrbElementParameter
+		expected string
+	}{
+		{
+			name: "normal behaviour for string",
+			input: api.OrbElementParameter{
+				Type:        "string",
+				Description: "",
+				Default:     "Normal behavior",
 			},
-			Entry(
-				"Normal behaviour for string",
-				api.OrbElementParameter{
-					Type:        "string",
-					Description: "",
-					Default:     "Normal behavior",
-				},
-				" (default: 'Normal behavior')",
-			),
-			Entry(
-				"Normal behaviour for enum",
-				api.OrbElementParameter{
-					Type:        "enum",
-					Description: "",
-					Default:     "Normal behavior",
-				},
-				" (default: 'Normal behavior')",
-			),
-			Entry(
-				"Normal behaviour for boolean",
-				api.OrbElementParameter{
-					Type:        "boolean",
-					Description: "",
-					Default:     true,
-				},
-				" (default: 'true')",
-			),
-			Entry(
-				"String value for boolean",
-				api.OrbElementParameter{
-					Type:        "boolean",
-					Description: "",
-					Default:     "yes",
-				},
-				" (default: 'yes')",
-			),
-			Entry(
-				"Time value for string",
-				api.OrbElementParameter{
-					Type:        "string",
-					Description: "",
-					Default:     time.Date(2023, 02, 20, 11, 9, 0, 0, time.Now().UTC().Location()),
-				},
-				" (default: '2023-02-20 11:09:00 +0000 UTC')",
-			),
-		)
-	})
-})
+			expected: " (default: 'Normal behavior')",
+		},
+		{
+			name: "normal behaviour for enum",
+			input: api.OrbElementParameter{
+				Type:        "enum",
+				Description: "",
+				Default:     "Normal behavior",
+			},
+			expected: " (default: 'Normal behavior')",
+		},
+		{
+			name: "normal behaviour for boolean",
+			input: api.OrbElementParameter{
+				Type:        "boolean",
+				Description: "",
+				Default:     true,
+			},
+			expected: " (default: 'true')",
+		},
+		{
+			name: "string value for boolean",
+			input: api.OrbElementParameter{
+				Type:        "boolean",
+				Description: "",
+				Default:     "yes",
+			},
+			expected: " (default: 'yes')",
+		},
+		{
+			name: "time value for string",
+			input: api.OrbElementParameter{
+				Type:        "string",
+				Description: "",
+				Default:     time.Date(2023, 02, 20, 11, 9, 0, 0, time.Now().UTC().Location()),
+			},
+			expected: " (default: '2023-02-20 11:09:00 +0000 UTC')",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, parameterDefaultToString(tc.input), tc.expected)
+		})
+	}
+}

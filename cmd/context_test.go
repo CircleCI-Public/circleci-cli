@@ -4,46 +4,50 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os/exec"
+	"net/http/httptest"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/context"
-	"github.com/CircleCI-Public/circleci-cli/clitest"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 	"github.com/google/uuid"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
+	"gotest.tools/v3/assert"
 )
 
-var (
-	contentTypeHeader http.Header = map[string][]string{"Content-Type": {"application/json"}}
-	openAPIHandler                = ghttp.CombineHandlers(
-		ghttp.VerifyRequest("GET", "/api/v2/openapi.json"),
-		ghttp.RespondWith(
-			http.StatusOK,
-			`{"paths":{"/context":{}}}`,
-			contentTypeHeader,
-		),
-	)
+func newContextServer(t testing.TB, handler http.HandlerFunc) *httptest.Server {
+	t.Helper()
+	srv := httptest.NewServer(handler)
+	t.Cleanup(srv.Close)
+	return srv
+}
+
+const (
+	ctxToken   = "testtoken"
+	ctxName    = "foo-context"
+	ctxOrgID   = "bb604b45-b6b0-4b81-ad80-796f15eddf87"
+	ctxVCSType = "bitbucket"
+	ctxOrgName = "test-org"
 )
 
-var _ = Describe("Context integration tests", func() {
-	var (
-		tempSettings *clitest.TempSettings
-		token        string = "testtoken"
-		command      *exec.Cmd
-		contextName  string = "foo-context"
-		orgID        string = "bb604b45-b6b0-4b81-ad80-796f15eddf87"
-		vcsType      string = "bitbucket"
-		orgName      string = "test-org"
-		orgSlug      string = fmt.Sprintf("%s/%s", vcsType, orgName)
+var ctxOrgSlug = fmt.Sprintf("%s/%s", ctxVCSType, ctxOrgName)
 
-		gqlGetOrgHandler = ghttp.CombineHandlers(
-			ghttp.VerifyRequest("POST", "/graphql-unstable"),
-			ghttp.RespondWith(http.StatusOK, fmt.Sprintf(`{
+func openAPIHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/api/v2/openapi.json" || r.Method != http.MethodGet {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(`{"paths":{"/context":{}}}`))
+}
+
+func gqlGetOrgHandlerFunc(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/graphql-unstable" || r.Method != http.MethodPost {
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(fmt.Sprintf(`{
 	"data": {
 		"organization": {
 			"id": "%s",
@@ -51,598 +55,686 @@ var _ = Describe("Context integration tests", func() {
 			"vcsType": "%s"
 		}
 	}
-}`, orgID, orgName, vcsType)),
-		)
+}`, ctxOrgID, ctxOrgName, ctxVCSType)))
+}
+
+func TestContextInvalidToken(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "list", "github", "foo",
+			"--skip-update-check",
+			"--token", "",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
 	)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
+	assert.Equal(t, result.ExitCode, testhelpers.ShouldFail(),
+		"stdout: %s\nstderr: %s", result.Stdout, result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, "Error: please set a token with 'circleci setup'"),
+		"stderr: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, "https://circleci.com/account/api"),
+		"stderr: %s", result.Stderr)
+}
+
+func TestContextCreatePermissionError(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusUnauthorized)
+			_, _ = w.Write([]byte(`{"message":"permission issue"}`))
+		}
 	})
 
-	AfterEach(func() {
-		tempSettings.Close()
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "create", "--org-id", ctxOrgID, "context-name",
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Assert(t, result.ExitCode != 0, "expected non-zero exit, got %d", result.ExitCode)
+	assert.Equal(t, strings.TrimSpace(result.Stderr), "Error: permission issue")
+}
+
+func TestContextListEmpty(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			gqlGetOrgHandlerFunc(w, r)
+		case 3:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"items":[]}`))
+		}
 	})
 
-	Describe("any command", func() {
-		It("should inform about invalid token", func() {
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "list", "github", "foo",
-				"--skip-update-check",
-				"--token", "",
-			)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "list", ctxVCSType, ctxOrgName,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
 
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Err).Should(gbytes.Say(`Error: please set a token with 'circleci setup'
-You can create a new personal API token here:
-https://circleci.com/account/api`))
-			Eventually(session).Should(clitest.ShouldFail())
-		})
-
-		It("should handle errors", func() {
-			contextName := "context-name"
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/api/v2/context"),
-					ghttp.RespondWith(
-						http.StatusUnauthorized,
-						`{"message":"permission issue"}`,
-						contentTypeHeader,
-					),
-				),
-			)
-
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "create", "--org-id", orgID, contextName,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit())
-			// Exit codes are different between Unix and Windows so we're only checking that it does not equal 0
-			Expect(session.ExitCode()).ToNot(Equal(0))
-			Expect(string(session.Err.Contents())).To(Equal("Error: permission issue\n"))
-		})
-	})
-
-	Describe("list", func() {
-		It("should list contexts with the right columns", func() {
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				gqlGetOrgHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						`{"items":[]}`,
-						contentTypeHeader,
-					),
-				),
-			)
-
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "list", vcsType, orgName,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			Expect(string(session.Out.Contents())).To(Equal(`+--------------+--------+------+------------+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	expected := `+--------------+--------+------+------------+
 | ORGANIZATION | ORG ID | NAME | CREATED AT |
 +--------------+--------+------+------------+
 +--------------+--------+------+------------+
-`))
-		})
+`
+	assert.Equal(t, result.Stdout, expected)
+}
 
-		It("should list context with VCS / org name", func() {
-			contexts := []context.Context{
-				{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
-				{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
-			}
-			body, err := json.Marshal(struct{ Items []context.Context }{contexts})
-			Expect(err).ShouldNot(HaveOccurred())
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				gqlGetOrgHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						body,
-						contentTypeHeader,
-					),
-				),
-			)
+func TestContextListWithVCSAndOrgName(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "list", vcsType, orgName,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+	}
+	body, err := json.Marshal(struct{ Items []context.Context }{contexts})
+	assert.NilError(t, err)
 
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			lines := strings.Split(string(session.Out.Contents()), "\n")
-			Expect(lines[1]).To(MatchRegexp("|\\w+ORGANIZATION\\w+|\\w+ORG ID\\w+|\\w+NAME\\w+|\\w+CREATED AT\\w+|"))
-			Expect(lines).To(HaveLen(7))
-		})
-
-		It("should list context with org id", func() {
-			contexts := []context.Context{
-				{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
-				{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
-			}
-			body, err := json.Marshal(struct{ Items []context.Context }{contexts})
-			Expect(err).ShouldNot(HaveOccurred())
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				gqlGetOrgHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						body,
-						contentTypeHeader,
-					),
-				),
-			)
-
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "list", "--org-id", orgID,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			lines := strings.Split(string(session.Out.Contents()), "\n")
-			Expect(lines[1]).To(MatchRegexp("|\\w+ID\\w+|\\w+NAME\\w+|\\w+CREATED AT\\w+|"))
-			Expect(lines).To(HaveLen(7))
-		})
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			gqlGetOrgHandlerFunc(w, r)
+		case 3:
+			assert.Equal(t, r.URL.Query().Get("owner-slug"), ctxOrgSlug)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(body)
+		}
 	})
 
-	Describe("show", func() {
-		var (
-			contexts = []context.Context{
-				{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
-				{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
-			}
-			ctxBody, _ = json.Marshal(struct{ Items []context.Context }{contexts})
-			envVars    = []context.EnvironmentVariable{
-				{Variable: "var-name", ContextID: contexts[1].ID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
-				{Variable: "any-name", ContextID: contexts[1].ID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
-			}
-			envBody, _ = json.Marshal(struct{ Items []context.EnvironmentVariable }{envVars})
-		)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "list", ctxVCSType, ctxOrgName,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
 
-		It("should show context with vcs type / org name", func() {
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", fmt.Sprintf("/api/v2/context/%s/environment-variable", contexts[1].ID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						envBody,
-						contentTypeHeader,
-					),
-				),
-			)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	lines := strings.Split(result.Stdout, "\n")
+	assert.Assert(t, strings.Contains(lines[1], "ORGANIZATION"), "header line: %s", lines[1])
+	assert.Assert(t, strings.Contains(lines[1], "NAME"), "header line: %s", lines[1])
+	assert.Equal(t, len(lines), 7)
+}
 
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "show", vcsType, orgName, "context-name",
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			lines := strings.Split(string(session.Out.Contents()), "\n")
-			Expect(lines[0]).To(Equal("Context: context-name"))
-			Expect(lines[2]).To(MatchRegexp("|\\w+ENVIRONMENT VARIABLE\\w+|\\w+VALUE\\w+|"))
-			Expect(lines).To(HaveLen(8))
-		})
+func TestContextListWithOrgID(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-		It("should show context with org id", func() {
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", fmt.Sprintf("/api/v2/context/%s/environment-variable", contexts[1].ID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						envBody,
-						contentTypeHeader,
-					),
-				),
-			)
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+	}
+	body, err := json.Marshal(struct{ Items []context.Context }{contexts})
+	assert.NilError(t, err)
 
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "show", "context-name", "--org-id", orgID,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			lines := strings.Split(string(session.Out.Contents()), "\n")
-			Expect(lines[0]).To(Equal("Context: context-name"))
-			Expect(lines[2]).To(MatchRegexp("|\\w+ENVIRONMENT VARIABLE\\w+|\\w+VALUE\\w+|"))
-			Expect(lines).To(HaveLen(8))
-		})
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			gqlGetOrgHandlerFunc(w, r)
+		case 3:
+			assert.Equal(t, r.URL.Query().Get("owner-id"), ctxOrgID)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(body)
+		}
 	})
 
-	Describe("store", func() {
-		var (
-			contexts = []context.Context{
-				{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
-				{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
-			}
-			ctxBody, _ = json.Marshal(struct{ Items []context.Context }{contexts})
-			envVar     = context.EnvironmentVariable{
-				Variable:  "env var name",
-				ContextID: uuid.NewString(),
-				CreatedAt: time.Now(),
-				UpdatedAt: time.Now(),
-			}
-			varBody, _ = json.Marshal(envVar)
-		)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "list", "--org-id", ctxOrgID,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
 
-		It("should store value when giving vcs type / org name", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("PUT", fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, envVar.Variable)),
-					ghttp.VerifyJSON(`{"value":"value"}`),
-					ghttp.RespondWith(
-						http.StatusOK,
-						varBody,
-						contentTypeHeader,
-					),
-				),
-			)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	lines := strings.Split(result.Stdout, "\n")
+	assert.Assert(t, strings.Contains(lines[1], "ID"), "header line: %s", lines[1])
+	assert.Assert(t, strings.Contains(lines[1], "NAME"), "header line: %s", lines[1])
+	assert.Equal(t, len(lines), 7)
+}
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "store-secret", vcsType, orgName, contexts[1].Name, envVar.Variable,
-				"--skip-update-check",
-				"--integration-testing",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-		})
+func TestContextShowWithVCSAndOrgName(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-		It("should store value when giving vcs type / org name", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("PUT", fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, envVar.Variable)),
-					ghttp.VerifyJSON(`{"value":"value"}`),
-					ghttp.RespondWith(
-						http.StatusOK,
-						varBody,
-						contentTypeHeader,
-					),
-				),
-			)
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+	envVars := []context.EnvironmentVariable{
+		{Variable: "var-name", ContextID: contexts[1].ID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{Variable: "any-name", ContextID: contexts[1].ID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}
+	envBody, _ := json.Marshal(struct{ Items []context.EnvironmentVariable }{envVars})
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "store-secret", "--org-id", orgID, contexts[1].Name, envVar.Variable,
-				"--skip-update-check",
-				"--integration-testing",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-		})
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.URL.Query().Get("owner-slug"), ctxOrgSlug)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 3:
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s/environment-variable", contexts[1].ID))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(envBody)
+		}
 	})
 
-	Describe("remove", func() {
-		var (
-			contexts = []context.Context{
-				{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
-				{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
-			}
-			ctxBody, _ = json.Marshal(struct{ Items []context.Context }{contexts})
-			varName    = "env var name"
-		)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "show", ctxVCSType, ctxOrgName, "context-name",
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
 
-		It("should remove environment variable with vcs type / org name", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("DELETE", fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, varName)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						`{"message":"Deleted env var"}`,
-						contentTypeHeader,
-					),
-				),
-			)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	lines := strings.Split(result.Stdout, "\n")
+	assert.Equal(t, lines[0], "Context: context-name")
+	assert.Assert(t, strings.Contains(lines[2], "ENVIRONMENT VARIABLE"), "header: %s", lines[2])
+	assert.Equal(t, len(lines), 8)
+}
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "remove-secret", vcsType, orgName, contexts[1].Name, varName,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			Expect(string(session.Out.Contents())).To(Equal("Removed secret env var name from context context-name.\n"))
-		})
+func TestContextShowWithOrgID(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-		It("should remove environment variable with org id", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("DELETE", fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, varName)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						`{"message":"Deleted env var"}`,
-						contentTypeHeader,
-					),
-				),
-			)
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+	envVars := []context.EnvironmentVariable{
+		{Variable: "var-name", ContextID: contexts[1].ID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+		{Variable: "any-name", ContextID: contexts[1].ID, CreatedAt: time.Now(), UpdatedAt: time.Now()},
+	}
+	envBody, _ := json.Marshal(struct{ Items []context.EnvironmentVariable }{envVars})
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "remove-secret", "--org-id", orgID, contexts[1].Name, varName,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			Expect(string(session.Out.Contents())).To(Equal("Removed secret env var name from context context-name.\n"))
-		})
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.URL.Query().Get("owner-id"), ctxOrgID)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 3:
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s/environment-variable", contexts[1].ID))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(envBody)
+		}
 	})
 
-	Describe("delete", func() {
-		var (
-			contexts = []context.Context{
-				{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
-				{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
-			}
-			ctxBody, _ = json.Marshal(struct{ Items []context.Context }{contexts})
-		)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "show", "context-name", "--org-id", ctxOrgID,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
 
-		It("should delete context with vcs type / org name", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				gqlGetOrgHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-slug=%s", orgSlug)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("DELETE", fmt.Sprintf("/api/v2/context/%s", contexts[1].ID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						`{"message":"Deleted context"}`,
-						contentTypeHeader,
-					),
-				),
-			)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	lines := strings.Split(result.Stdout, "\n")
+	assert.Equal(t, lines[0], "Context: context-name")
+	assert.Assert(t, strings.Contains(lines[2], "ENVIRONMENT VARIABLE"), "header: %s", lines[2])
+	assert.Equal(t, len(lines), 8)
+}
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "delete", "-f", vcsType, orgName, contexts[1].Name,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			Expect(string(session.Out.Contents())).To(Equal("Deleted context context-name.\n"))
-		})
+func TestContextStoreSecretWithVCSAndOrgName(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-		It("should delete context with org id", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				gqlGetOrgHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("GET", "/api/v2/context", fmt.Sprintf("owner-id=%s", orgID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						ctxBody,
-						contentTypeHeader,
-					),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("DELETE", fmt.Sprintf("/api/v2/context/%s", contexts[1].ID)),
-					ghttp.RespondWith(
-						http.StatusOK,
-						`{"message":"Deleted context"}`,
-						contentTypeHeader,
-					),
-				),
-			)
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+	envVar := context.EnvironmentVariable{
+		Variable:  "env var name",
+		ContextID: uuid.NewString(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	varBody, _ := json.Marshal(envVar)
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "delete", "-f", "--org-id", orgID, contexts[1].Name,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-			Expect(string(session.Out.Contents())).To(Equal("Deleted context context-name.\n"))
-		})
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.URL.Query().Get("owner-slug"), ctxOrgSlug)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 3:
+			assert.Equal(t, r.Method, http.MethodPut)
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, envVar.Variable))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(varBody)
+		}
 	})
 
-	Describe("create", func() {
-		var (
-			context = context.Context{
-				ID:        uuid.NewString(),
-				CreatedAt: time.Now(),
-				Name:      contextName,
-			}
-			ctxResp, _ = json.Marshal(&context)
-		)
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "store-secret", ctxVCSType, ctxOrgName, contexts[1].Name, envVar.Variable,
+			"--skip-update-check",
+			"--integration-testing",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
 
-		It("should create new context using an org id", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/api/v2/context"),
-					ghttp.VerifyContentType("application/json"),
-					ghttp.VerifyJSON(fmt.Sprintf(`{"name":"%s","owner":{"type":"organization","id":"%s"}}`, contextName, orgID)),
-					ghttp.RespondWith(http.StatusOK, ctxResp, contentTypeHeader),
-				),
-			)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+}
 
-			By("running the command")
-			command = commandWithHome(pathCLI, tempSettings.Home,
-				"context", "create", "--org-id", orgID, contextName,
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-				"--integration-testing",
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-		})
+func TestContextStoreSecretWithOrgID(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
 
-		It("should create new context using vcs type / org name", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/api/v2/context"),
-					ghttp.VerifyContentType("application/json"),
-					ghttp.VerifyJSON(fmt.Sprintf(`{"name":"%s","owner":{"type":"organization","slug":"%s/%s"}}`, contextName, vcsType, orgName)),
-					ghttp.RespondWith(http.StatusOK, ctxResp, contentTypeHeader),
-				),
-			)
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+	envVar := context.EnvironmentVariable{
+		Variable:  "env var name",
+		ContextID: uuid.NewString(),
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+	varBody, _ := json.Marshal(envVar)
 
-			By("running the command")
-			command := exec.Command(pathCLI,
-				"context", "create",
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-				"--integration-testing",
-				vcsType,
-				orgName,
-				contextName,
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-		})
-
-		It("handles errors", func() {
-			By("setting up a mock server")
-			tempSettings.TestServer.AppendHandlers(
-				openAPIHandler,
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest("POST", "/api/v2/context"),
-					ghttp.VerifyContentType("application/json"),
-					ghttp.VerifyJSON(fmt.Sprintf(`{"name":"%s","owner":{"type":"organization","slug":"%s/%s"}}`, contextName, vcsType, orgName)),
-					ghttp.RespondWith(http.StatusInternalServerError, []byte(`{"message":"ignored error"}`), contentTypeHeader),
-				),
-			)
-			By("running the command")
-			command := exec.Command(pathCLI,
-				"context", "create",
-				"--skip-update-check",
-				"--token", token,
-				"--host", tempSettings.TestServer.URL(),
-				"--integration-testing",
-				vcsType,
-				orgName,
-				contextName,
-			)
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session.Err).Should(gbytes.Say(`Error: ignored error`))
-			Eventually(session).ShouldNot(gexec.Exit(0))
-		})
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.URL.Query().Get("owner-id"), ctxOrgID)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 3:
+			assert.Equal(t, r.Method, http.MethodPut)
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, envVar.Variable))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(varBody)
+		}
 	})
-})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "store-secret", "--org-id", ctxOrgID, contexts[1].Name, envVar.Variable,
+			"--skip-update-check",
+			"--integration-testing",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+}
+
+func TestContextRemoveSecretWithVCSAndOrgName(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+	varName := "env var name"
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.URL.Query().Get("owner-slug"), ctxOrgSlug)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 3:
+			assert.Equal(t, r.Method, http.MethodDelete)
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, varName))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message":"Deleted env var"}`))
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "remove-secret", ctxVCSType, ctxOrgName, contexts[1].Name, varName,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stdout, "Removed secret env var name from context context-name.\n")
+}
+
+func TestContextRemoveSecretWithOrgID(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+	varName := "env var name"
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.URL.Query().Get("owner-id"), ctxOrgID)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 3:
+			assert.Equal(t, r.Method, http.MethodDelete)
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s/environment-variable/%s", contexts[1].ID, varName))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message":"Deleted env var"}`))
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "remove-secret", "--org-id", ctxOrgID, contexts[1].Name, varName,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stdout, "Removed secret env var name from context context-name.\n")
+}
+
+func TestContextDeleteWithVCSAndOrgName(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			gqlGetOrgHandlerFunc(w, r)
+		case 3:
+			assert.Equal(t, r.URL.Query().Get("owner-slug"), ctxOrgSlug)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 4:
+			assert.Equal(t, r.Method, http.MethodDelete)
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s", contexts[1].ID))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message":"Deleted context"}`))
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "delete", "-f", ctxVCSType, ctxOrgName, contexts[1].Name,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stdout, "Deleted context context-name.\n")
+}
+
+func TestContextDeleteWithOrgID(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	contexts := []context.Context{
+		{ID: uuid.NewString(), Name: "another-name", CreatedAt: time.Now()},
+		{ID: uuid.NewString(), Name: "context-name", CreatedAt: time.Now()},
+	}
+	ctxBody, _ := json.Marshal(struct{ Items []context.Context }{contexts})
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			gqlGetOrgHandlerFunc(w, r)
+		case 3:
+			assert.Equal(t, r.URL.Query().Get("owner-id"), ctxOrgID)
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxBody)
+		case 4:
+			assert.Equal(t, r.Method, http.MethodDelete)
+			assert.Equal(t, r.URL.Path, fmt.Sprintf("/api/v2/context/%s", contexts[1].ID))
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{"message":"Deleted context"}`))
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "delete", "-f", "--org-id", ctxOrgID, contexts[1].Name,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stdout, "Deleted context context-name.\n")
+}
+
+func TestContextCreateWithOrgID(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	ctxResp, _ := json.Marshal(&context.Context{
+		ID:        uuid.NewString(),
+		CreatedAt: time.Now(),
+		Name:      ctxName,
+	})
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.Method, http.MethodPost)
+			assert.Equal(t, r.URL.Path, "/api/v2/context")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxResp)
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "create", "--org-id", ctxOrgID, ctxName,
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+			"--integration-testing",
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+}
+
+func TestContextCreateWithVCSAndOrgName(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	ctxResp, _ := json.Marshal(&context.Context{
+		ID:        uuid.NewString(),
+		CreatedAt: time.Now(),
+		Name:      ctxName,
+	})
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			assert.Equal(t, r.Method, http.MethodPost)
+			assert.Equal(t, r.URL.Path, "/api/v2/context")
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(ctxResp)
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "create",
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+			"--integration-testing",
+			ctxVCSType,
+			ctxOrgName,
+			ctxName,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+}
+
+func TestContextCreateHandlesErrors(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	reqIdx := 0
+	server := newContextServer(t, func(w http.ResponseWriter, r *http.Request) {
+		reqIdx++
+		switch reqIdx {
+		case 1:
+			openAPIHandlerFunc(w, r)
+		case 2:
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"message":"ignored error"}`))
+		}
+	})
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"context", "create",
+			"--skip-update-check",
+			"--token", ctxToken,
+			"--host", server.URL,
+			"--integration-testing",
+			ctxVCSType,
+			ctxOrgName,
+			ctxName,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+
+	assert.Assert(t, result.ExitCode != 0, "expected non-zero exit, got %d", result.ExitCode)
+	assert.Assert(t, strings.Contains(result.Stderr, "Error: ignored error"),
+		"stderr: %s", result.Stderr)
+}

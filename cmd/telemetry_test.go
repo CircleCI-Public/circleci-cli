@@ -2,57 +2,39 @@ package cmd_test
 
 import (
 	"fmt"
-	"os/exec"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/onsi/gomega/gexec"
-
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Telemetry events on telemetry commands", func() {
-	var (
-		tempSettings *clitest.TempSettings
-		command      *exec.Cmd
+func TestTelemetryEnableEvent(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"telemetry", "enable"},
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
 	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateChangeTelemetryStatusEvent("enabled", "telemetry-command", nil),
 	})
+}
 
-	AfterEach(func() {
-		tempSettings.Close()
+func TestTelemetryDisableEvent(t *testing.T) {
+	ts := testhelpers.WithTempSettings(t)
+	binary := testhelpers.BuildCLI(t)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{"telemetry", "disable"},
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateChangeTelemetryStatusEvent("disabled", "telemetry-command", nil),
 	})
-
-	Describe("telemetry enable", func() {
-		It("should send an event", func() {
-			command = exec.Command(pathCLI, "telemetry", "enable")
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-
-			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-				telemetry.CreateChangeTelemetryStatusEvent("enabled", "telemetry-command", nil),
-			})
-		})
-	})
-
-	Describe("telemetry disable", func() {
-		It("should send an event", func() {
-			command = exec.Command(pathCLI, "telemetry", "disable")
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(gexec.Exit(0))
-
-			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-				telemetry.CreateChangeTelemetryStatusEvent("disabled", "telemetry-command", nil),
-			})
-		})
-	})
-})
+}

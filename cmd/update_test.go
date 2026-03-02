@@ -3,31 +3,20 @@ package cmd_test
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strings"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/clitest"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
-	"github.com/onsi/gomega/gbytes"
-	"github.com/onsi/gomega/gexec"
-	"github.com/onsi/gomega/ghttp"
-	"gotest.tools/v3/golden"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Update", func() {
-	var (
-		command      *exec.Cmd
-		response     string
-		tempSettings *clitest.TempSettings
-	)
-
-	BeforeEach(func() {
-		tempSettings = clitest.WithTempSettings()
-
-		response = `
+func githubReleasesResponse() string {
+	return `
 [
   {
     "id": 1,
@@ -46,204 +35,216 @@ var _ = Describe("Update", func() {
   }
 ]
 `
+}
 
-		tempSettings.TestServer.AppendHandlers(
-			ghttp.CombineHandlers(
-				ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
-				ghttp.RespondWith(http.StatusOK, response),
-			),
-		)
+func appendReleasesHandler(ts *testhelpers.TestServer, response string) {
+	ts.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/api/v3/repos/CircleCI-Public/circleci-cli/releases" {
+			http.Error(w, fmt.Sprintf("unexpected request: %s %s", r.Method, r.URL.Path), http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(response))
+	})
+}
+
+// buildFreshCLI builds a fresh copy of the CLI binary that can be safely
+// modified by the update command without corrupting the shared cached binary.
+func buildFreshCLI(t *testing.T) string {
+	t.Helper()
+	tmpDir := t.TempDir()
+	binaryName := "circleci"
+	if runtime.GOOS == "windows" {
+		binaryName = "circleci.exe"
+	}
+	binaryPath := filepath.Join(tmpDir, binaryName)
+	cmd := exec.Command("go", "build",
+		"-o", binaryPath,
+		"-ldflags=-X github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=https://api.segment.io",
+		".",
+	)
+	cmd.Dir = filepath.Join("..")
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, "go build failed: %s", string(out))
+	return binaryPath
+}
+
+func TestUpdateTelemetryParentCommand(t *testing.T) {
+	// This test runs "update" (not just "check"), which replaces the binary.
+	// Use a fresh copy to avoid corrupting the shared cached binary.
+	binary := buildFreshCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	response := githubReleasesResponse()
+
+	appendReleasesHandler(ts.Server, response)
+
+	assetBytes, err := os.ReadFile(filepath.Join("testdata", "update", "foo.zip"))
+	assert.NilError(t, err)
+
+	appendReleasesHandler(ts.Server, response)
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/repos/CircleCI-Public/circleci-cli/releases/assets/1" {
+			http.Error(w, "unexpected request", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(assetBytes)
 	})
 
-	AfterEach(func() {
-		tempSettings.Close()
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"update",
+			"--github-api", ts.Server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateUpdateEvent(telemetry.CommandInfo{
+			Name:      "update",
+			LocalArgs: map[string]string{},
+		}),
+	})
+}
+
+func TestUpdateTelemetryChildCommand(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	response := githubReleasesResponse()
+
+	appendReleasesHandler(ts.Server, response)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"update", "check",
+			"--github-api", ts.Server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+		fmt.Sprintf("MOCK_TELEMETRY=%s", ts.TelemetryDestPath),
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+
+	testhelpers.AssertTelemetrySubset(t, ts, []telemetry.Event{
+		telemetry.CreateUpdateEvent(telemetry.CommandInfo{
+			Name:      "check",
+			LocalArgs: map[string]string{},
+		}),
+	})
+}
+
+func TestUpdateCheckFlag(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	response := githubReleasesResponse()
+
+	appendReleasesHandler(ts.Server, response)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"update", "--check",
+			"--github-api", ts.Server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+	assert.Equal(t, result.Stderr, "")
+
+	assert.Assert(t, strings.Contains(result.Stdout, "You are running 0.0.0-dev"))
+	assert.Assert(t, strings.Contains(result.Stdout, "A new release is available"))
+	assert.Assert(t, strings.Contains(result.Stdout, "You can visit the Github releases page for the CLI to manually download and install:"))
+	assert.Assert(t, strings.Contains(result.Stdout, "https://github.com/CircleCI-Public/circleci-cli/releases"))
+}
+
+func TestUpdateCheckSubcommand(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	response := githubReleasesResponse()
+
+	appendReleasesHandler(ts.Server, response)
+
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"update", "check",
+			"--github-api", ts.Server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+	assert.Equal(t, result.Stderr, "")
+
+	assert.Assert(t, strings.Contains(result.Stdout, "You are running 0.0.0-dev"))
+	assert.Assert(t, strings.Contains(result.Stdout, "A new release is available"))
+	assert.Assert(t, strings.Contains(result.Stdout, "You can visit the Github releases page for the CLI to manually download and install:"))
+	assert.Assert(t, strings.Contains(result.Stdout, "https://github.com/CircleCI-Public/circleci-cli/releases"))
+}
+
+func TestUpdateInstall(t *testing.T) {
+	// This test runs "update" (not just "check"), which replaces the binary.
+	// Use a fresh copy to avoid corrupting the shared cached binary.
+	binary := buildFreshCLI(t)
+	ts := testhelpers.WithTempSettings(t)
+	response := githubReleasesResponse()
+
+	appendReleasesHandler(ts.Server, response)
+
+	assetBytes, err := os.ReadFile(filepath.Join("testdata", "update", "foo.zip"))
+	assert.NilError(t, err)
+
+	appendReleasesHandler(ts.Server, response)
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v3/repos/CircleCI-Public/circleci-cli/releases/assets/1" {
+			http.Error(w, "unexpected request", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(assetBytes)
 	})
 
-	Describe("telemetry", func() {
-		It("should send telemetry event when calling parent command", func() {
-			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
-			Expect(err).ShouldNot(HaveOccurred())
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"update",
+			"--github-api", ts.Server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s\nstdout: %s", result.Stderr, result.Stdout)
+	assert.Equal(t, result.Stderr, "")
 
-			command = exec.Command(updateCLI,
-				"update",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
+	assert.Assert(t, strings.Contains(result.Stdout, "You are running 0.0.0-dev"))
+	assert.Assert(t, strings.Contains(result.Stdout, "A new release is available"))
+	assert.Assert(t, strings.Contains(result.Stdout, "Updated to 1.0.0"))
+}
 
-			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
-			assetResponse := string(assetBytes)
+func TestUpdateGithub403(t *testing.T) {
+	binary := testhelpers.BuildCLI(t)
+	ts := testhelpers.WithTempSettings(t)
 
-			tempSettings.TestServer.AppendHandlers(
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
-					ghttp.RespondWith(http.StatusOK, response),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
-					ghttp.RespondWith(http.StatusOK, assetResponse),
-				),
-			)
-
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
-					Name:      "update",
-					LocalArgs: map[string]string{},
-				}),
-			})
-		})
-
-		It("should send telemetry event when calling child command", func() {
-			command = exec.Command(pathCLI,
-				"update",
-				"check",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-			command.Env = append(command.Env, fmt.Sprintf("MOCK_TELEMETRY=%s", tempSettings.TelemetryDestPath))
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session).Should(gexec.Exit(0))
-			clitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{
-				telemetry.CreateUpdateEvent(telemetry.CommandInfo{
-					Name:      "check",
-					LocalArgs: map[string]string{},
-				}),
-			})
-		})
+	ts.Server.AppendHandler(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte("Forbidden"))
 	})
 
-	Describe("update --check", func() {
-		BeforeEach(func() {
-			command = exec.Command(pathCLI,
-				"update", "--check",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-		})
+	result := testhelpers.RunCLI(t, binary,
+		[]string{
+			"update", "check",
+			"--github-api", ts.Server.URL,
+		},
+		"HOME="+ts.Home,
+		"USERPROFILE="+ts.Home,
+	)
+	assert.Assert(t, result.ExitCode != 0, "expected non-zero exit, stderr: %q, stdout: %q", result.Stderr, result.Stdout)
 
-		It("with flag should tell the user how to update and install", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-
-			Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
-			Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-			Eventually(session.Out).Should(gbytes.Say("You can visit the Github releases page for the CLI to manually download and install:"))
-			Eventually(session.Out).Should(gbytes.Say("https://github.com/CircleCI-Public/circleci-cli/releases"))
-
-			Eventually(session).Should(gexec.Exit(0))
-		})
-	})
-
-	Describe("update check", func() {
-		BeforeEach(func() {
-			command = exec.Command(pathCLI,
-				"update", "check",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-		})
-
-		It("without flag should tell the user how to update and install", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
-			Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-
-			Eventually(session.Out).Should(gbytes.Say("You can visit the Github releases page for the CLI to manually download and install:"))
-			Eventually(session.Out).Should(gbytes.Say("https://github.com/CircleCI-Public/circleci-cli/releases"))
-
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session).Should(gexec.Exit(0))
-		})
-	})
-
-	Describe("update", func() {
-		BeforeEach(func() {
-			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
-			Expect(err).ShouldNot(HaveOccurred())
-
-			command = exec.Command(updateCLI,
-				"update",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-
-			assetBytes := golden.Get(GinkgoT(), filepath.FromSlash("update/foo.zip"))
-			assetResponse := string(assetBytes)
-
-			tempSettings.TestServer.AppendHandlers(
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
-					ghttp.RespondWith(http.StatusOK, response),
-				),
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases/assets/1"),
-					ghttp.RespondWith(http.StatusOK, assetResponse),
-				),
-			)
-		})
-
-		It("should update the program", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-
-			Eventually(session.Out).Should(gbytes.Say("You are running 0.0.0-dev"))
-			Eventually(session.Out).Should(gbytes.Say("A new release is available (.*)"))
-
-			Eventually(session.Out).Should(gbytes.Say("Updated to 1.0.0"))
-
-			Eventually(session.Err.Contents()).Should(BeEmpty())
-			Eventually(session).Should(gexec.Exit(0))
-		})
-	})
-
-	Describe("When Github returns a 403 error", func() {
-		BeforeEach(func() {
-			command = exec.Command(pathCLI,
-				"update", "check",
-				"--github-api", tempSettings.TestServer.URL(),
-			)
-
-			tempSettings.TestServer.Reset()
-			tempSettings.TestServer.AppendHandlers(
-				ghttp.CombineHandlers(
-					ghttp.VerifyRequest(http.MethodGet, "/api/v3/repos/CircleCI-Public/circleci-cli/releases"),
-					ghttp.RespondWith(http.StatusForbidden, []byte("Forbidden")),
-				),
-			)
-		})
-
-		It("should print a helpful error message & exit 255", func() {
-			session, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)
-			Expect(err).ShouldNot(HaveOccurred())
-			Eventually(session).Should(clitest.ShouldFail())
-
-			// TODO: This should exit with error status 1, since 255 is a
-			// special error status for: "exit status outside of range".
-			//
-			// However this may be difficult to change, since all commands that return
-			// an error after executing cause the program to exit with a non-zero code:
-			// https://github.com/CircleCI-Public/circleci-cli/blob/5896baa95dad1b66f9c4a5b0a14571717c92aa55/cmd/root.go#L38
-			stderr := session.Wait().Err.Contents()
-			Expect(string(stderr)).To(ContainSubstring(`Error: Failed to query the GitHub API for updates.
-
-This is most likely due to GitHub rate-limiting on unauthenticated requests.
-
-To have the circleci-cli make authenticated requests please:
-
-  1. Generate a token at https://github.com/settings/tokens
-  2. Set the token by either adding it to your ~/.gitconfig or
-     setting the GITHUB_TOKEN environment variable.
-
-Instructions for generating a token can be found at:
-https://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/
-
-We call the GitHub releases API to look for new releases.
-More information about that API can be found here: https://developer.github.com/v3/repos/releases/`))
-		})
-	})
-})
+	assert.Assert(t, strings.Contains(result.Stderr, `Error: Failed to query the GitHub API for updates.`),
+		"expected stderr to contain error message, got: %q", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, `This is most likely due to GitHub rate-limiting on unauthenticated requests.`),
+		"expected stderr to contain rate-limiting message, got: %q", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stderr, `https://developer.github.com/v3/repos/releases/`),
+		"expected stderr to contain releases API URL, got: %q", result.Stderr)
+}
