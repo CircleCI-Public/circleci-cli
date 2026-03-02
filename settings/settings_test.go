@@ -25,9 +25,9 @@ func TestWithHTTPClient(t *testing.T) {
 		},
 		{
 			label:   "should return an error when files/directories are world-writable",
-			tlsCert: "../clitest/mockcert.pem",
+			tlsCert: "testdata/mockcert.pem",
 			fn: func() {
-				err := os.Chmod("../clitest/mockcert.pem", 0602)
+				err := os.Chmod("testdata/mockcert.pem", 0602)
 				if err != nil {
 					panic(fmt.Sprintf("unable to modify permissions in test: %s", err.Error()))
 				}
@@ -41,14 +41,14 @@ func TestWithHTTPClient(t *testing.T) {
 		},
 		{
 			label:   "should return an error when certificate contents are invalid",
-			tlsCert: "../clitest/clitest.go",
+			tlsCert: "settings_test.go",
 			expErr:  "unable to parse certificates",
 		},
 		{
 			label:   "should configure httpclient successfully",
-			tlsCert: "../clitest/mockcert.pem",
+			tlsCert: "testdata/mockcert.pem",
 			fn: func() {
-				err := os.Chmod("../clitest/mockcert.pem", 0600)
+				err := os.Chmod("testdata/mockcert.pem", 0600)
 				if err != nil {
 					panic(fmt.Sprintf("unable to modify permissions in test: %s", err.Error()))
 				}
