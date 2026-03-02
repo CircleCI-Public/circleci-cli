@@ -26,3 +26,4 @@ bin/golangci-lint
 integration_tests/tmp
 *.exe
 cmd/.circleci
+.claude/improvement-plan.md
