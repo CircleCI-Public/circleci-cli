@@ -21,7 +21,9 @@ func TestGetOrgID(t *testing.T) {
 	}))
 	defer svr.Close()
 	cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
-	apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+	rc, err := rest.NewFromConfig(cfg.Host, cfg)
+	assert.NoError(t, err)
+	apiClient := &v2APIClient{rc}
 	collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
 	assert.NoError(t, err)
 	compiler := New(apiClient, collaboratorsClient)
@@ -73,7 +75,9 @@ func TestValidateConfig(t *testing.T) {
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
-			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			rc, err := rest.NewFromConfig(cfg.Host, cfg)
+			assert.NoError(t, err)
+			apiClient := &v2APIClient{rc}
 			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
@@ -98,7 +102,9 @@ func TestValidateConfig(t *testing.T) {
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
-			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			rc, err := rest.NewFromConfig(cfg.Host, cfg)
+			assert.NoError(t, err)
+			apiClient := &v2APIClient{rc}
 			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
@@ -134,7 +140,9 @@ func TestValidateConfig(t *testing.T) {
 			defer svr.Close()
 
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
-			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			rc, err := rest.NewFromConfig(cfg.Host, cfg)
+			assert.NoError(t, err)
+			apiClient := &v2APIClient{rc}
 			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
@@ -170,7 +178,9 @@ func TestValidateConfig(t *testing.T) {
 			defer svr.Close()
 
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
-			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			rc, err := rest.NewFromConfig(cfg.Host, cfg)
+			assert.NoError(t, err)
+			apiClient := &v2APIClient{rc}
 			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)

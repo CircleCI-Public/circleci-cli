@@ -10,7 +10,11 @@ import (
 )
 
 func newTelemetryCommand(config *settings.Config) *cobra.Command {
-	apiClient := CreateAPIClient(config)
+	var apiClient TelemetryAPIClient
+	apiClient, err := CreateAPIClient(config)
+	if err != nil {
+		apiClient = nullTelemetryAPIClient{}
+	}
 
 	telemetryEnable := &cobra.Command{
 		Use:   "enable",

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
@@ -30,7 +31,7 @@ func New(baseURL *url.URL, token string, httpClient *http.Client) *Client {
 	}
 }
 
-func NewFromConfig(host string, config *settings.Config) *Client {
+func NewFromConfig(host string, config *settings.Config) (*Client, error) {
 	// Ensure endpoint ends with a slash
 	endpoint := config.RestEndpoint
 	if !strings.HasSuffix(endpoint, "/") {
@@ -39,7 +40,7 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 
 	baseURL, err := url.Parse(host)
 	if err != nil || baseURL.Host == "" {
-		panic("Error: invalid CircleCI URL")
+		return nil, errs.ErrInvalidHost
 	}
 
 	timeout := header.GetDefaultTimeout()
@@ -47,7 +48,7 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 		if parsedTimeout, err := time.ParseDuration(timeoutEnv); err == nil {
 			timeout = parsedTimeout
 		} else {
-			fmt.Printf("failed to parse CIRCLECI_CLI_TIMEOUT: %s\n", err.Error())
+			fmt.Fprintf(os.Stderr, "failed to parse CIRCLECI_CLI_TIMEOUT: %s\n", err.Error())
 		}
 	}
 
@@ -58,7 +59,7 @@ func NewFromConfig(host string, config *settings.Config) *Client {
 		baseURL.ResolveReference(&url.URL{Path: endpoint}),
 		config.Token,
 		client,
-	)
+	), nil
 }
 
 func (c *Client) NewRequest(method string, u *url.URL, payload interface{}) (req *http.Request, err error) {
@@ -99,7 +100,7 @@ func (c *Client) enrichRequestHeaders(req *http.Request, payload interface{}) {
 func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 	httpResp, err := c.client.Do(req)
 	if err != nil {
-		fmt.Printf("failed to make http request: %s\n", err.Error())
+		fmt.Fprintf(os.Stderr, "failed to make http request: %s\n", err.Error())
 		return 0, err
 	}
 	defer httpResp.Body.Close()

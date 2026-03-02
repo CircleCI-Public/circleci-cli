@@ -63,8 +63,12 @@ type projectInfo struct {
 // NewProjectRestClient returns a new ProjectRestClient satisfying the api.ProjectInterface
 // interface via the REST API.
 func NewProjectRestClient(config settings.Config) (*ProjectRestClient, error) {
+	restClient, err := rest.NewFromConfig(config.Host, &config)
+	if err != nil {
+		return nil, err
+	}
 	client := &ProjectRestClient{
-		client: rest.NewFromConfig(config.Host, &config),
+		client: restClient,
 	}
 	return client, nil
 }

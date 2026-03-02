@@ -498,5 +498,9 @@ func (f *fixture) Run(statusCode int, respBody string) (r *Runner, cleanup func(
 		HTTPClient:   http.DefaultClient,
 	}
 
-	return New(rest.NewFromConfig(server.URL, cfg)), server.Close
+	rc, err := rest.NewFromConfig(server.URL, cfg)
+	if err != nil {
+		panic(err)
+	}
+	return New(rc), server.Close
 }

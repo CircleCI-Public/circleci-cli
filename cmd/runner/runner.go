@@ -20,7 +20,7 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 	cmd := &cobra.Command{
 		Use:   "runner",
 		Short: "Operate on runners",
-		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			// The runner API versioning is decoupled from the other Circle APIs. Here we update the rest endpoint accordingly
 			config.RestEndpoint = "/api/v3"
 
@@ -30,7 +30,12 @@ func NewCommand(config *settings.Config, preRunE validator.Validator) *cobra.Com
 			} else {
 				host = config.Host
 			}
-			opts.r = runner.New(rest.NewFromConfig(host, config))
+			rc, err := rest.NewFromConfig(host, config)
+			if err != nil {
+				return err
+			}
+			opts.r = runner.New(rc)
+			return nil
 		},
 	}
 

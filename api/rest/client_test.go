@@ -2,6 +2,7 @@ package rest
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -14,6 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
 )
@@ -27,19 +29,20 @@ func TestNewFromConfigTimeout(t *testing.T) {
 		HTTPClient:   http.DefaultClient,
 	}
 	t.Run("create new client without custom timeout", func(t *testing.T) {
-		api := NewFromConfig("https://circleci.example.com", cfg)
+		api, err := NewFromConfig("https://circleci.example.com", cfg)
+		assert.NoError(t, err)
 		assert.Equal(t, api.client.Timeout, header.GetDefaultTimeout())
 	})
 	t.Run("create new client with custom timeout", func(t *testing.T) {
 		customTimeout := 20 * time.Second
 		os.Setenv("CIRCLECI_CLI_TIMEOUT", customTimeout.String())
-		api := NewFromConfig("https://circleci.example.com", cfg)
+		api, err := NewFromConfig("https://circleci.example.com", cfg)
+		assert.NoError(t, err)
 		assert.Equal(t, api.client.Timeout, customTimeout)
 	})
-	t.Run("panic on invalid host URL", func(t *testing.T) {
-		assert.Panics(t, func() {
-			NewFromConfig("not-a-valid-url", cfg)
-		})
+	t.Run("returns error on invalid host URL", func(t *testing.T) {
+		_, err := NewFromConfig("not-a-valid-url", cfg)
+		assert.True(t, errors.Is(err, errs.ErrInvalidHost))
 	})
 }
 func TestClient_DoRequest(t *testing.T) {
@@ -264,5 +267,9 @@ func (f *fixture) Run(statusCode int, respBody string) (c *Client, cleanup func(
 		HTTPClient:   http.DefaultClient,
 	}
 
-	return NewFromConfig(server.URL, cfg), server.Close
+	c, err := NewFromConfig(server.URL, cfg)
+	if err != nil {
+		panic(err)
+	}
+	return c, server.Close
 }

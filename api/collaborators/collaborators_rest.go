@@ -19,8 +19,12 @@ type collaboratorsRestClient struct {
 // NewCollaboratorsRestClient returns a new collaboratorsRestClient satisfying the api.CollaboratorsClient
 // interface via the REST API.
 func NewCollaboratorsRestClient(config settings.Config) (*collaboratorsRestClient, error) {
+	restClient, err := rest.NewFromConfig(config.Host, &config)
+	if err != nil {
+		return nil, err
+	}
 	client := &collaboratorsRestClient{
-		client: rest.NewFromConfig(config.Host, &config),
+		client: restClient,
 	}
 	return client, nil
 }

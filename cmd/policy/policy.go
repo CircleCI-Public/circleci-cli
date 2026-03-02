@@ -512,7 +512,10 @@ This group of commands allows the management of polices to be verified against b
 						delete(pipelineValues, "parameters")
 
 						host := config.GetCompileHost(globalConfig.Host)
-						client := rest.NewFromConfig(host, globalConfig)
+						client, err := rest.NewFromConfig(host, globalConfig)
+						if err != nil {
+							return nil, err
+						}
 
 						req, err := client.NewRequest(
 							"POST",

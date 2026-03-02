@@ -20,7 +20,10 @@ type APIClient interface {
 
 func newAPIClient(config *settings.Config) (APIClient, error) {
 	hostValue := GetCompileHost(config.Host)
-	restClient := rest.NewFromConfig(hostValue, config)
+	restClient, err := rest.NewFromConfig(hostValue, config)
+	if err != nil {
+		return nil, err
+	}
 
 	version, err := detectAPIClientVersion(restClient)
 	if err != nil {

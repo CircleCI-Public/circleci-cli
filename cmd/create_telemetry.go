@@ -39,10 +39,14 @@ type TelemetryAPIClient interface {
 	GetMyUserId() (string, error)
 }
 
-func CreateAPIClient(config *settings.Config) TelemetryAPIClient {
-	return telemetryCircleCIAPI{
-		cli: rest.NewFromConfig(config.Host, config),
+func CreateAPIClient(config *settings.Config) (TelemetryAPIClient, error) {
+	cli, err := rest.NewFromConfig(config.Host, config)
+	if err != nil {
+		return nil, err
 	}
+	return telemetryCircleCIAPI{
+		cli: cli,
+	}, nil
 }
 
 type telemetryCircleCIAPI struct {
@@ -79,8 +83,11 @@ func CreateTelemetry(config *settings.Config) telemetry.Client {
 
 	var apiClient TelemetryAPIClient = nullTelemetryAPIClient{}
 	if config.HTTPClient != nil {
-		apiClient = telemetryCircleCIAPI{
-			cli: rest.NewFromConfig(config.Host, config),
+		cli, err := rest.NewFromConfig(config.Host, config)
+		if err == nil {
+			apiClient = telemetryCircleCIAPI{
+				cli: cli,
+			}
 		}
 	}
 	ui := telemetryInteractiveUI{}

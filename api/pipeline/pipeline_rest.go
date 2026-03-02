@@ -94,8 +94,12 @@ type pipelineRunRequest struct {
 // NewPipelineRestClient returns a new pipelineRestClient satisfying the api.PipelineInterface
 // interface via the REST API.
 func NewPipelineRestClient(config settings.Config) (*pipelineRestClient, error) {
+	restClient, err := rest.NewFromConfig(config.Host, &config)
+	if err != nil {
+		return nil, err
+	}
 	client := &pipelineRestClient{
-		client: rest.NewFromConfig(config.Host, &config),
+		client: restClient,
 	}
 	return client, nil
 }

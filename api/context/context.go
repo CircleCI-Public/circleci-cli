@@ -38,27 +38,31 @@ type ContextInterface interface {
 	DeleteEnvironmentVariable(contextID, variable string) error
 }
 
-func NewContextClient(config *settings.Config, orgID, vcsType, orgName string) ContextInterface {
-	restClient := restClient{
-		client:  rest.NewFromConfig(config.Host, config),
+func NewContextClient(config *settings.Config, orgID, vcsType, orgName string) (ContextInterface, error) {
+	rc, err := rest.NewFromConfig(config.Host, config)
+	if err != nil {
+		return nil, err
+	}
+	restCli := restClient{
+		client:  rc,
 		orgID:   orgID,
 		vcsType: vcsType,
 		orgName: orgName,
 	}
 
 	if config.Host == "https://circleci.com" {
-		return restClient
+		return restCli, nil
 	}
-	if err := IsRestAPIAvailable(restClient); err != nil {
+	if err := IsRestAPIAvailable(restCli); err != nil {
 		fmt.Printf("err = %+v\n", err)
 		return &gqlClient{
 			client:  graphql.NewClient(config.HTTPClient, config.Host, config.Endpoint, config.Token, config.Debug),
 			orgID:   orgID,
 			vcsType: vcsType,
 			orgName: orgName,
-		}
+		}, nil
 	}
-	return restClient
+	return restCli, nil
 }
 
 func IsRestAPIAvailable(c restClient) error {

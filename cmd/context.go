@@ -56,13 +56,19 @@ func newContextCommand(config *settings.Config) *cobra.Command {
 			return errors.New("need to define either --org-id or <vcsType> and <orgName> arguments")
 		}
 		if orgID != "" {
-			contextClient = context.NewContextClient(config, orgID, "", "")
+			contextClient, e = context.NewContextClient(config, orgID, "", "")
+			if e != nil {
+				return e
+			}
 		}
 		if orgID == "" && len(args) >= 2 {
 			vcsType = args[0]
 			orgName = args[1]
 			initiatedArgs = args[2:]
-			contextClient = context.NewContextClient(config, "", vcsType, orgName)
+			contextClient, e = context.NewContextClient(config, "", vcsType, orgName)
+			if e != nil {
+				return e
+			}
 		}
 
 		return validateToken(config)

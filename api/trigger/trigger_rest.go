@@ -55,8 +55,12 @@ type CreateTriggerOptions struct {
 // NewTriggerRestClient returns a new triggerRestClient satisfying the api.TriggerInterface
 // interface via the REST API.
 func NewTriggerRestClient(config settings.Config) (*triggerRestClient, error) {
+	restClient, err := rest.NewFromConfig(config.Host, &config)
+	if err != nil {
+		return nil, err
+	}
 	client := &triggerRestClient{
-		client: rest.NewFromConfig(config.Host, &config),
+		client: restClient,
 	}
 	return client, nil
 }
