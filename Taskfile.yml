@@ -4,7 +4,7 @@ tasks:
   lint:
     desc: Lint code
     cmds:
-      - golangci-lint run -c .golangci.yml
+      - go tool golangci-lint run -c .golangci.yml
     summary: Lint the project with golangci-lint
 
   clean:
@@ -14,9 +14,10 @@ tasks:
       - rm -rf build out docs dist
 
   fmt:
-    desc: Run `go fmt` to format the code
+    desc: Run `go fmt` and `gosimports` to format the code
     cmds:
       - go fmt ./...
+      - go tool gosimports -local "$(go list -m)" -w .
 
   test:
     desc: Run the tests
@@ -72,10 +73,10 @@ tasks:
     desc: Run golangci-lint with JUnit output for CI
     cmds:
       - mkdir -p out
-      - golangci-lint run -c .golangci.yml --out-format junit-xml > out/lint-results.xml
+      - go tool golangci-lint run -c .golangci.yml --out-format junit-xml > out/lint-results.xml
 
   ci:test:
     desc: Run tests with race detector and JUnit output for CI
     cmds:
       - mkdir -p out
-      - gotestsum --junitfile out/test-results.xml -- -race -count=1 ./...
+      - go tool gotestsum --junitfile out/test-results.xml -- -race -count=1 ./...
