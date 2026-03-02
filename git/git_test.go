@@ -3,136 +3,165 @@ package git
 import (
 	"os"
 	"os/exec"
+	"strings"
+	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Dealing with git", func() {
+func TestCommandOutputOrDefaultHappyPath(t *testing.T) {
+	result := commandOutputOrDefault(
+		exec.Command("echo", "hello"), "goodbye",
+	)
+	assert.Equal(t, result, "hello")
+}
 
-	Context("running commands", func() {
+func TestCommandOutputOrDefaultFailure(t *testing.T) {
+	result := commandOutputOrDefault(
+		exec.Command("git", "this", "it", "not", "a", "command"), "goodbye",
+	)
+	assert.Equal(t, result, "goodbye")
+}
 
-		It("returns output in the happy path", func() {
-			Expect(commandOutputOrDefault(
-				exec.Command("echo", "hello"), "goodbye",
-			)).To(Equal("hello"))
+func TestCommandOutputOrDefaultInvalidProgram(t *testing.T) {
+	result := commandOutputOrDefault(
+		exec.Command("this/is/not/a/command"), "morning",
+	)
+	assert.Equal(t, result, "morning")
+}
+
+func TestBranchTagRevisionOnCI(t *testing.T) {
+	if os.Getenv("CIRCLECI") != "true" {
+		t.Skip("only runs on CircleCI")
+	}
+	assert.Equal(t, Branch(), os.Getenv("CIRCLE_BRANCH"))
+	assert.Equal(t, Revision(), os.Getenv("CIRCLE_SHA1"))
+	assert.Equal(t, Tag(), os.Getenv("CIRCLE_TAG"))
+}
+
+func TestGetRemoteUrlFailsGracefully(t *testing.T) {
+	_, err := getRemoteUrl("peristeronic")
+	assert.Assert(t, err != nil)
+	assert.Assert(t, strings.Contains(err.Error(), "Error finding the peristeronic git remote"))
+}
+
+func TestGetRemoteUrlOrigin(t *testing.T) {
+	url, err := getRemoteUrl("origin")
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(url, "github"))
+}
+
+func TestFindRemoteValidURLs(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected *Remote
+	}{
+		{
+			name: "github ssh",
+			url:  "git@github.com:foobar/foo-service.git",
+			expected: &Remote{
+				VcsType:      GitHub,
+				Organization: "foobar",
+				Project:      "foo-service",
+			},
+		},
+		{
+			name: "bitbucket ssh",
+			url:  "git@bitbucket.org:example/makefile_sh.git",
+			expected: &Remote{
+				VcsType:      Bitbucket,
+				Organization: "example",
+				Project:      "makefile_sh",
+			},
+		},
+		{
+			name: "github https",
+			url:  "https://github.com/apple/pear.git",
+			expected: &Remote{
+				VcsType:      GitHub,
+				Organization: "apple",
+				Project:      "pear",
+			},
+		},
+		{
+			name: "bitbucket ssh no .git",
+			url:  "git@bitbucket.org:example/makefile_sh",
+			expected: &Remote{
+				VcsType:      Bitbucket,
+				Organization: "example",
+				Project:      "makefile_sh",
+			},
+		},
+		{
+			name: "bitbucket https with user",
+			url:  "https://example@bitbucket.org/kiwi/fruit.git",
+			expected: &Remote{
+				VcsType:      Bitbucket,
+				Organization: "kiwi",
+				Project:      "fruit",
+			},
+		},
+		{
+			name: "bitbucket https with user no .git",
+			url:  "https://example@bitbucket.org/kiwi/fruit",
+			expected: &Remote{
+				VcsType:      Bitbucket,
+				Organization: "kiwi",
+				Project:      "fruit",
+			},
+		},
+		{
+			name: "github ssh protocol",
+			url:  "ssh://git@github.com/cloud/rain",
+			expected: &Remote{
+				VcsType:      GitHub,
+				Organization: "cloud",
+				Project:      "rain",
+			},
+		},
+		{
+			name: "bitbucket ssh protocol",
+			url:  "ssh://git@bitbucket.org/snow/ice",
+			expected: &Remote{
+				VcsType:      Bitbucket,
+				Organization: "snow",
+				Project:      "ice",
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := findRemote(tc.url)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, result, tc.expected)
 		})
+	}
+}
 
-		It("handles programs that exit with a failure", func() {
+func TestFindRemoteInvalidURLs(t *testing.T) {
+	tests := []struct {
+		name    string
+		url     string
+		wantErr string
+	}{
+		{
+			name:    "unknown remote",
+			url:     "asd/asd/asd",
+			wantErr: "Unknown git remote: asd/asd/asd",
+		},
+		{
+			name:    "too many path segments",
+			url:     "git@github.com:foo/bar/baz",
+			wantErr: "Splitting 'foo/bar/baz' into organization and project failed",
+		},
+	}
 
-			Expect(commandOutputOrDefault(
-				exec.Command("git", "this", "it", "not", "a", "command"), "goodbye",
-			)).To(Equal("goodbye"))
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := findRemote(tc.url)
+			assert.Error(t, err, tc.wantErr)
 		})
-
-		It("handles invalid programs", func() {
-
-			Expect(commandOutputOrDefault(
-				exec.Command("this/is/not/a/command"), "morning",
-			)).To(Equal("morning"))
-		})
-
-	})
-
-	Context("can read the data to drive pipeline variables", func() {
-
-		if os.Getenv("CIRCLECI") != "true" {
-			return
-		}
-
-		It("computes the branch, tag and revision", func() {
-			Expect(Branch()).To(Equal(os.Getenv("CIRCLE_BRANCH")))
-			Expect(Revision()).To(Equal(os.Getenv("CIRCLE_SHA1")))
-			Expect(Tag()).To(Equal(os.Getenv("CIRCLE_TAG")))
-		})
-
-	})
-
-	Context("remotes", func() {
-
-		Describe("integration tests", func() {
-
-			It("fails gracefully when the remote can't be found", func() {
-				// This test will fail if the current working directory has git remote
-				// named 'peristeronic'.
-				_, err := getRemoteUrl("peristeronic")
-				Expect(err.Error()).To(MatchRegexp(`Error finding the peristeronic git remote`))
-			})
-
-			It("can read git output", func() {
-				Expect(getRemoteUrl("origin")).To(MatchRegexp(`github`))
-			})
-
-		})
-
-		It("should parse these", func() {
-
-			cases := map[string]*Remote{
-				"git@github.com:foobar/foo-service.git": {
-					VcsType:      GitHub,
-					Organization: "foobar",
-					Project:      "foo-service",
-				},
-
-				"git@bitbucket.org:example/makefile_sh.git": {
-					VcsType:      Bitbucket,
-					Organization: "example",
-					Project:      "makefile_sh",
-				},
-
-				"https://github.com/apple/pear.git": {
-					VcsType:      GitHub,
-					Organization: "apple",
-					Project:      "pear",
-				},
-
-				"git@bitbucket.org:example/makefile_sh": {
-					VcsType:      Bitbucket,
-					Organization: "example",
-					Project:      "makefile_sh",
-				},
-
-				"https://example@bitbucket.org/kiwi/fruit.git": {
-					VcsType:      Bitbucket,
-					Organization: "kiwi",
-					Project:      "fruit",
-				},
-
-				"https://example@bitbucket.org/kiwi/fruit": {
-					VcsType:      Bitbucket,
-					Organization: "kiwi",
-					Project:      "fruit",
-				},
-
-				"ssh://git@github.com/cloud/rain": {
-					VcsType:      GitHub,
-					Organization: "cloud",
-					Project:      "rain",
-				},
-
-				"ssh://git@bitbucket.org/snow/ice": {
-					VcsType:      Bitbucket,
-					Organization: "snow",
-					Project:      "ice",
-				},
-			}
-
-			for url, remote := range cases {
-				Expect(findRemote(url)).To(Equal(remote))
-			}
-
-		})
-
-		It("should not parse these", func() {
-
-			cases := map[string]string{
-				"asd/asd/asd":                "Unknown git remote: asd/asd/asd",
-				"git@github.com:foo/bar/baz": "Splitting 'foo/bar/baz' into organization and project failed",
-			}
-			for url, message := range cases {
-				_, err := findRemote(url)
-				Expect(err).To(MatchError(message))
-			}
-		})
-	})
-})
+	}
+}

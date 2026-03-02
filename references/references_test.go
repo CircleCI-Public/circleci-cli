@@ -1,47 +1,47 @@
 package references_test
 
 import (
+	"testing"
+
 	"github.com/CircleCI-Public/circleci-cli/references"
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"gotest.tools/v3/assert"
 )
 
-var _ = Describe("Parsing Orbs", func() {
+func TestIsDevVersion(t *testing.T) {
+	assert.Assert(t, references.IsDevVersion("dev:master"))
+	assert.Assert(t, !references.IsDevVersion("1.2.1"))
+	assert.Assert(t, !references.IsDevVersion(""))
+}
 
-	It("Should parse dev versions", func() {
-		Expect(references.IsDevVersion("dev:master")).To(BeTrue())
-		Expect(references.IsDevVersion("1.2.1")).To(BeFalse())
-		Expect(references.IsDevVersion("")).To(BeFalse())
-	})
+func TestSplitIntoOrbNamespaceAndVersion(t *testing.T) {
+	namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion("foo/bar@dev:baz")
+	assert.NilError(t, err)
+	assert.Equal(t, namespace, "foo")
+	assert.Equal(t, orb, "bar")
+	assert.Equal(t, version, "dev:baz")
+}
 
-	It("Should parse full references", func() {
-		namespace, orb, version, err := references.SplitIntoOrbNamespaceAndVersion("foo/bar@dev:baz")
-		Expect(namespace).To(Equal("foo"))
-		Expect(orb).To(Equal("bar"))
-		Expect(version).To(Equal("dev:baz"))
-		Expect(err).To(BeNil())
+func TestSplitIntoOrbNamespaceAndVersionInvalid(t *testing.T) {
+	_, _, _, err := references.SplitIntoOrbNamespaceAndVersion("asdasd")
+	assert.Error(t, err, "Invalid orb reference 'asdasd': Expected a namespace, orb and version in the format 'namespace/orb@version'")
+}
 
-		_, _, _, err = references.SplitIntoOrbNamespaceAndVersion("asdasd")
+func TestSplitIntoOrbAndNamespace(t *testing.T) {
+	ns, orb, err := references.SplitIntoOrbAndNamespace("cat/dog")
+	assert.NilError(t, err)
+	assert.Equal(t, ns, "cat")
+	assert.Equal(t, orb, "dog")
+}
 
-		Expect(err).Should(MatchError("Invalid orb reference 'asdasd': Expected a namespace, orb and version in the format 'namespace/orb@version'"))
-	})
+func TestSplitIntoOrbAndNamespaceInvalid(t *testing.T) {
+	_, _, err := references.SplitIntoOrbAndNamespace("catdog")
+	assert.Error(t, err, "Invalid orb catdog. Expected a namespace and orb in the form 'namespace/orb'")
+}
 
-	It("Should split namespace and orbs", func() {
-		ns, orb, err := references.SplitIntoOrbAndNamespace("cat/dog")
-		Expect(ns).To(Equal("cat"))
-		Expect(orb).To(Equal("dog"))
-		Expect(err).ShouldNot(HaveOccurred())
-
-		_, _, err = references.SplitIntoOrbAndNamespace("catdog")
-		Expect(err).Should(MatchError("Invalid orb catdog. Expected a namespace and orb in the form 'namespace/orb'"))
-
-	})
-
-	It("Should split correctly when dev label contains a fwslash", func() {
-		ns, orb, version, err := references.SplitIntoOrbNamespaceAndVersion("foo/bar@dev:bah/bah")
-		Expect(ns).To(Equal("foo"))
-		Expect(orb).To(Equal("bar"))
-		Expect(version).To(Equal("dev:bah/bah"))
-		Expect(err).ShouldNot(HaveOccurred())
-	})
-})
+func TestSplitDevLabelWithSlash(t *testing.T) {
+	ns, orb, version, err := references.SplitIntoOrbNamespaceAndVersion("foo/bar@dev:bah/bah")
+	assert.NilError(t, err)
+	assert.Equal(t, ns, "foo")
+	assert.Equal(t, orb, "bar")
+	assert.Equal(t, version, "dev:bah/bah")
+}

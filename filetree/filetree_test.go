@@ -6,139 +6,130 @@ import (
 	"sort"
 	"testing"
 
-	. "github.com/onsi/ginkgo"
-	. "github.com/onsi/gomega"
+	"gotest.tools/v3/assert"
 	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 )
 
-var _ = Describe("filetree", func() {
-	var (
-		tempRoot string
-		subDir   string
-	)
+func setupTempRoot(t *testing.T) string {
+	t.Helper()
+	tempRoot, err := os.MkdirTemp("", "circleci-cli-test-")
+	assert.NilError(t, err)
+	t.Cleanup(func() { os.RemoveAll(tempRoot) })
+	return tempRoot
+}
 
-	BeforeEach(func() {
-		var err error
-		tempRoot, err = os.MkdirTemp("", "circleci-cli-test-")
-		Expect(err).ToNot(HaveOccurred())
+func setupTreeDirs(t *testing.T, tempRoot string) (subDir, subDirFile, emptyDir string) {
+	t.Helper()
+	subDir = filepath.Join(tempRoot, "sub_dir")
+	subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file.yml")
+	emptyDir = filepath.Join(tempRoot, "empty_dir")
+
+	assert.NilError(t, os.Mkdir(subDir, 0700))
+	assert.NilError(t, os.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600))
+	assert.NilError(t, os.Mkdir(emptyDir, 0700))
+	return
+}
+
+func assertYAMLEqual(t *testing.T, got []byte, wantYAML string) {
+	t.Helper()
+	var gotMap, wantMap interface{}
+	assert.NilError(t, yaml.Unmarshal(got, &gotMap))
+	assert.NilError(t, yaml.Unmarshal([]byte(wantYAML), &wantMap))
+	assert.DeepEqual(t, gotMap, wantMap)
+}
+
+func TestNewTreeUnmarshallableContent(t *testing.T) {
+	tempRoot := setupTempRoot(t)
+	setupTreeDirs(t, tempRoot)
+
+	anotherDir := filepath.Join(tempRoot, "another_dir")
+	anotherDirFile := filepath.Join(tempRoot, "another_dir", "another_dir_file.yml")
+	assert.NilError(t, os.Mkdir(anotherDir, 0700))
+	assert.NilError(t, os.WriteFile(anotherDirFile, []byte("1some: in: valid: yaml"), 0600))
+
+	tree, err := filetree.NewTree(tempRoot)
+	assert.NilError(t, err)
+
+	_, err = yaml.Marshal(tree)
+	assert.Error(t, err, "yaml: mapping values are not allowed in this context")
+}
+
+func TestNewTreeBuildsNestedStructure(t *testing.T) {
+	tempRoot := setupTempRoot(t)
+	subDir, subDirFile, emptyDir := setupTreeDirs(t, tempRoot)
+
+	tree, err := filetree.NewTree(tempRoot)
+	assert.NilError(t, err)
+	assert.Equal(t, tree.FullPath, tempRoot)
+	assert.Equal(t, tree.Info.Name(), filepath.Base(tempRoot))
+
+	assert.Equal(t, len(tree.Children), 2)
+	sort.Slice(tree.Children, func(i, j int) bool {
+		return tree.Children[i].FullPath < tree.Children[j].FullPath
 	})
 
-	AfterEach(func() {
-		Expect(os.RemoveAll(tempRoot)).To(Succeed())
-	})
+	assert.Equal(t, tree.Children[0].Info.Name(), "empty_dir")
+	assert.Equal(t, tree.Children[0].FullPath, emptyDir)
 
-	Describe("NewTree", func() {
-		var subDirFile, emptyDir string
+	assert.Equal(t, tree.Children[1].Info.Name(), "sub_dir")
+	assert.Equal(t, tree.Children[1].FullPath, subDir)
 
-		BeforeEach(func() {
-			subDir = filepath.Join(tempRoot, "sub_dir")
-			subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file.yml")
-			emptyDir = filepath.Join(tempRoot, "empty_dir")
+	assert.Equal(t, len(tree.Children[1].Children), 1)
+	assert.Equal(t, tree.Children[1].Children[0].Info.Name(), "sub_dir_file.yml")
+	assert.Equal(t, tree.Children[1].Children[0].FullPath, subDirFile)
+}
 
-			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
-			Expect(os.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
-			Expect(os.Mkdir(emptyDir, 0700)).To(Succeed())
+func TestNewTreeRendersToYAML(t *testing.T) {
+	tempRoot := setupTempRoot(t)
+	setupTreeDirs(t, tempRoot)
 
-		})
+	tree, err := filetree.NewTree(tempRoot)
+	assert.NilError(t, err)
 
-		It("Throws an error if content is unmarshallable", func() {
-			anotherDir := filepath.Join(tempRoot, "another_dir")
-			anotherDirFile := filepath.Join(tempRoot, "another_dir", "another_dir_file.yml")
-			Expect(os.Mkdir(anotherDir, 0700)).To(Succeed())
-			Expect(os.WriteFile(anotherDirFile, []byte("1some: in: valid: yaml"), 0600)).To(Succeed())
-			tree, err := filetree.NewTree(tempRoot)
-			Expect(err).ToNot(HaveOccurred())
-
-			_, err = yaml.Marshal(tree)
-			Expect(err).To(MatchError("yaml: mapping values are not allowed in this context"))
-		})
-
-		It("Builds a tree of the nested file-structure", func() {
-			tree, err := filetree.NewTree(tempRoot)
-
-			Expect(err).ToNot(HaveOccurred())
-			Expect(tree.FullPath).To(Equal(tempRoot))
-			Expect(tree.Info.Name()).To(Equal(filepath.Base(tempRoot)))
-
-			Expect(tree.Children).To(HaveLen(2))
-			sort.Slice(tree.Children, func(i, j int) bool {
-				return tree.Children[i].FullPath < tree.Children[j].FullPath
-			})
-
-			Expect(tree.Children[0].Info.Name()).To(Equal("empty_dir"))
-			Expect(tree.Children[0].FullPath).To(Equal(emptyDir))
-
-			Expect(tree.Children[1].Info.Name()).To(Equal("sub_dir"))
-			Expect(tree.Children[1].FullPath).To(Equal(subDir))
-
-			Expect(tree.Children[1].Children).To(HaveLen(1))
-			Expect(tree.Children[1].Children[0].Info.Name()).To(Equal("sub_dir_file.yml"))
-			Expect(tree.Children[1].Children[0].FullPath).To(Equal(subDirFile))
-		})
-
-		It("renders to YAML", func() {
-			tree, err := filetree.NewTree(tempRoot)
-			Expect(err).ToNot(HaveOccurred())
-
-			out, err := yaml.Marshal(tree)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchYAML(`empty_dir: {}
+	out, err := yaml.Marshal(tree)
+	assert.NilError(t, err)
+	assertYAMLEqual(t, out, `empty_dir: {}
 sub_dir:
   sub_dir_file:
     foo:
       bar:
         baz
-`))
-		})
+`)
+}
 
-		It("Only checks specified directories", func() {
-			tree, err := filetree.NewTree(tempRoot, "sub_dir")
-			Expect(err).ToNot(HaveOccurred())
+func TestNewTreeOnlyChecksSpecifiedDirs(t *testing.T) {
+	tempRoot := setupTempRoot(t)
+	setupTreeDirs(t, tempRoot)
 
-			out, err := yaml.Marshal(tree)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchYAML(`sub_dir:
+	tree, err := filetree.NewTree(tempRoot, "sub_dir")
+	assert.NilError(t, err)
+
+	out, err := yaml.Marshal(tree)
+	assert.NilError(t, err)
+	assertYAMLEqual(t, out, `sub_dir:
   sub_dir_file:
     foo:
       bar:
         baz
-`))
-		})
-	})
+`)
+}
 
-	Describe("MarshalYAML", func() {
-		var subDir, subDirFile, emptyDir string
+func TestMarshalYAML(t *testing.T) {
+	tempRoot := setupTempRoot(t)
+	setupTreeDirs(t, tempRoot)
 
-		BeforeEach(func() {
-			subDir = filepath.Join(tempRoot, "sub_dir")
-			subDirFile = filepath.Join(tempRoot, "sub_dir", "sub_dir_file.yml")
-			emptyDir = filepath.Join(tempRoot, "empty_dir")
+	tree, err := filetree.NewTree(tempRoot)
+	assert.NilError(t, err)
 
-			Expect(os.Mkdir(subDir, 0700)).To(Succeed())
-			Expect(os.WriteFile(subDirFile, []byte("foo:\n  bar:\n    baz"), 0600)).To(Succeed())
-			Expect(os.Mkdir(emptyDir, 0700)).To(Succeed())
-
-		})
-		It("renders to YAML", func() {
-			tree, err := filetree.NewTree(tempRoot)
-			Expect(err).ToNot(HaveOccurred())
-
-			out, err := yaml.Marshal(tree)
-			Expect(err).ToNot(HaveOccurred())
-			Expect(out).To(MatchYAML(`empty_dir: {}
+	out, err := yaml.Marshal(tree)
+	assert.NilError(t, err)
+	assertYAMLEqual(t, out, `empty_dir: {}
 sub_dir:
   sub_dir_file:
     foo:
       bar:
         baz
-`))
-		})
-	})
-})
-
-func TestCmd(t *testing.T) {
-	RegisterFailHandler(Fail)
-	RunSpecs(t, "Filetree Suite")
+`)
 }
