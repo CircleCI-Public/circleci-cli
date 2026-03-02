@@ -78,9 +78,10 @@ func VerifyGQLRequest(t testing.TB, token string, expectedBody string) http.Hand
 			t.Errorf("VerifyGQLRequest: expected path /graphql-unstable, got %s", r.URL.Path)
 		}
 		if token != "" {
-			got := r.Header.Get("Authorization")
-			if got != token {
-				t.Errorf("VerifyGQLRequest: expected Authorization %q, got %q", token, got)
+			got := r.Header["Authorization"]
+			want := []string{token}
+			if len(got) != len(want) || got[0] != want[0] {
+				t.Errorf("VerifyGQLRequest: expected Authorization header %v, got %v", want, got)
 			}
 		}
 

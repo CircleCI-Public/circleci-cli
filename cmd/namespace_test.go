@@ -28,7 +28,7 @@ func appendGQLPostHandler(t *testing.T, ts *testhelpers.TestServer, authToken st
 		assert.Equal(t, r.URL.Path, "/graphql-unstable")
 
 		if authToken != "" {
-			assert.Equal(t, r.Header.Get("Authorization"), authToken)
+			assert.DeepEqual(t, r.Header["Authorization"], []string{authToken})
 		}
 
 		body, err := io.ReadAll(r.Body)

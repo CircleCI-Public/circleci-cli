@@ -33,7 +33,7 @@ func orbAppendPostHandler(t *testing.T, ts *testhelpers.TestServer, authToken st
 		assert.Equal(t, r.URL.Path, "/graphql-unstable")
 
 		if authToken != "" {
-			assert.Equal(t, r.Header.Get("Authorization"), authToken)
+			assert.DeepEqual(t, r.Header["Authorization"], []string{authToken})
 		}
 
 		body, err := io.ReadAll(r.Body)
@@ -2632,7 +2632,7 @@ func TestOrbCreateWithoutToken(t *testing.T) {
 		"HOME="+ts.Home,
 		"USERPROFILE="+ts.Home,
 	)
-	assert.Assert(t, result.ExitCode != 0)
+	assert.Equal(t, result.ExitCode, testhelpers.ShouldFail(), "stderr: %s", result.Stderr)
 	assert.Assert(t, strings.Contains(result.Stderr, "Error: please set a token with 'circleci setup'"))
 	assert.Assert(t, strings.Contains(result.Stderr, "https://circleci.com/account/api"))
 }
@@ -2651,7 +2651,7 @@ func TestOrbCreateWithoutTokenCustomHost(t *testing.T) {
 		"HOME="+ts.Home,
 		"USERPROFILE="+ts.Home,
 	)
-	assert.Assert(t, result.ExitCode != 0)
+	assert.Equal(t, result.ExitCode, testhelpers.ShouldFail(), "stderr: %s", result.Stderr)
 	assert.Assert(t, strings.Contains(result.Stderr, "Error: please set a token with 'circleci setup'"))
 	assert.Assert(t, strings.Contains(result.Stderr, "https://foo.bar/account/api"))
 }

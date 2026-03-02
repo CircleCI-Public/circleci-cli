@@ -127,6 +127,15 @@ func RunCLI(t testing.TB, binary string, args []string, env ...string) *CLIResul
 	}
 }
 
+// CleanupBuildArtifacts removes the temporary directory containing the compiled
+// CLI binary. Call this from TestMain after m.Run() returns so the binary is
+// cleaned up on normal and panic exit, not just OS reboot.
+func CleanupBuildArtifacts() {
+	if buildTempDir != "" {
+		_ = os.RemoveAll(buildTempDir)
+	}
+}
+
 // RepoRoot returns the repository root directory (parent of testhelpers/).
 func RepoRoot() string {
 	_, filename, _, _ := runtime.Caller(0)
