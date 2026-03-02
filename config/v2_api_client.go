@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"net/url"
 
+	"errors"
+
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
-	"github.com/pkg/errors"
 )
 
 const v2_string apiClientVersion = "v2"

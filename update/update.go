@@ -9,7 +9,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/blang/semver"
-	"github.com/pkg/errors"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
 )
 
@@ -31,7 +30,7 @@ func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options,
 
 	currentVersion, err := semver.Parse(current)
 	if err != nil {
-		return nil, errors.Wrap(err, "Failed to parse current version")
+		return nil, fmt.Errorf("Failed to parse current version: %w", err)
 	}
 
 	check = &Options{
@@ -90,20 +89,20 @@ func ParseHomebrewVersion(homebrewVesion string) (semver.Version, error) {
 func checkFromHomebrew(check *Options) error {
 	brew, err := exec.LookPath("brew")
 	if err != nil {
-		return errors.Wrap(err, "Expected to find `brew` in your $PATH but wasn't able to find it")
+		return fmt.Errorf("Expected to find `brew` in your $PATH but wasn't able to find it: %w", err)
 	}
 
 	command := exec.Command(brew, "outdated", "--json=v2") // #nosec
 	out, err := command.Output()
 	if err != nil {
-		return errors.Wrap(err, "failed to check for updates. `brew outdated --json=v2` returned an error")
+		return fmt.Errorf("failed to check for updates. `brew outdated --json=v2` returned an error: %w", err)
 	}
 
 	var outdated HomebrewOutdated
 
 	err = json.Unmarshal(out, &outdated)
 	if err != nil {
-		return errors.Wrap(err, "failed to parse output of `brew outdated --json=v2`")
+		return fmt.Errorf("failed to parse output of `brew outdated --json=v2`: %w", err)
 	}
 
 	for _, o := range outdated.Formulae {
@@ -180,7 +179,7 @@ func latestRelease(opts *Options) error {
 	opts.Found = found
 
 	if err != nil {
-		return errors.Wrap(err, `Failed to query the GitHub API for updates.
+		return fmt.Errorf(`Failed to query the GitHub API for updates.
 
 This is most likely due to GitHub rate-limiting on unauthenticated requests.
 
@@ -196,7 +195,7 @@ https://help.github.com/articles/creating-a-personal-access-token-for-the-comman
 We call the GitHub releases API to look for new releases.
 More information about that API can be found here: https://developer.github.com/v3/repos/releases/
 
-`)
+: %w`, err)
 	}
 
 	return nil
@@ -215,7 +214,7 @@ func IsLatestVersion(opts *Options) bool {
 func InstallLatest(opts *Options) (string, error) {
 	release, err := opts.updater.UpdateSelf(opts.Current, opts.slug)
 	if err != nil {
-		return "", errors.Wrap(err, "failed to install update")
+		return "", fmt.Errorf("failed to install update: %w", err)
 	}
 
 	return fmt.Sprintf("Updated to %s", release.Version), nil

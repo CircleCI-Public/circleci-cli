@@ -13,7 +13,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -177,12 +176,12 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 func packConfig(args []string) error {
 	tree, err := filetree.NewTree(args[0])
 	if err != nil {
-		return errors.Wrap(err, "An error occurred trying to build the tree")
+		return fmt.Errorf("An error occurred trying to build the tree: %w", err)
 	}
 
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return errors.Wrap(err, "Failed trying to marshal the tree to YAML ")
+		return fmt.Errorf("Failed trying to marshal the tree to YAML : %w", err)
 	}
 	fmt.Printf("%s\n", string(y))
 	return nil

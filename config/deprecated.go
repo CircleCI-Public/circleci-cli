@@ -1,7 +1,8 @@
 package config
 
 import (
-	"github.com/pkg/errors"
+	"errors"
+
 	"gopkg.in/yaml.v3"
 )
 

@@ -1,13 +1,13 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -20,7 +20,7 @@ func followProject(opts options) error {
 
 	remote, err := git.InferProjectFromGitRemotes()
 	if err != nil {
-		return errors.Wrap(err, errorMessage)
+		return fmt.Errorf("%s: %w", errorMessage, err)
 	}
 
 	//check that project url contains github or bitbucket; our legacy vcs

@@ -1,9 +1,10 @@
 package orb
 
 import (
+	"fmt"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/pkg/errors"
 )
 
 type v2Client struct {
@@ -37,7 +38,7 @@ func (client *v2Client) OrbQuery(configPath string, ownerId string) (*api.Config
 
 	err = client.gql.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "Validating config")
+		return nil, fmt.Errorf("Validating config: %w", err)
 	}
 
 	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {

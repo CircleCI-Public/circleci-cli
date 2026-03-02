@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/pkg/errors"
 )
 
 type ListContextsWithGQLParams struct {
@@ -82,7 +81,7 @@ func ListContextsWithGQL(c *graphql.Client, params ListContextsWithGQLParams) ([
 	var response contextsQueryResponse
 	err := c.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to load context list")
+		return nil, fmt.Errorf("failed to load context list: %w", err)
 	}
 	contexts := make([]Context, len(response.Organization.Contexts.Edges))
 	for i, edge := range response.Organization.Contexts.Edges {
@@ -156,9 +155,10 @@ func DeleteContextWithGQL(c *graphql.Client, contextID string) error {
 	var response struct {
 	}
 
-	err := c.Run(request, &response)
-
-	return errors.Wrap(err, "failed to delete context")
+	if err := c.Run(request, &response); err != nil {
+		return fmt.Errorf("failed to delete context: %w", err)
+	}
+	return nil
 }
 
 func ListEnvVarsWithGQL(c *graphql.Client, contextID string) ([]EnvironmentVariable, error) {
@@ -217,7 +217,7 @@ func CreateEnvVarWithGQL(c *graphql.Client, params CreateEnvVarWithRestParams) e
 	}
 
 	if err := c.Run(request, &response); err != nil {
-		return errors.Wrap(err, "failed to store environment variable in context")
+		return fmt.Errorf("failed to store environment variable in context: %w", err)
 	}
 
 	if response.StoreEnvironmentVariable.Error.Type != "" {
@@ -248,6 +248,8 @@ func DeleteEnvVarWithGQL(c *graphql.Client, params DeleteEnvVarWithRestParams) e
 		RemoveEnvironmentVariable struct{ Context struct{ Id string } }
 	}
 
-	err := c.Run(request, &response)
-	return errors.Wrap(err, "failed to delete environment variable")
+	if err := c.Run(request, &response); err != nil {
+		return fmt.Errorf("failed to delete environment variable: %w", err)
+	}
+	return nil
 }

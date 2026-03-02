@@ -15,7 +15,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/pkg/errors"
 )
 
 // A Client is an HTTP client for our GraphQL endpoint.
@@ -158,13 +157,13 @@ func getServerAddress(host, endpoint string) (string, error) {
 	// 1. Parse the endpoint
 	e, err := url.Parse(endpoint)
 	if err != nil {
-		return "", errors.Wrapf(err, "Parsing endpoint '%s'", endpoint)
+		return "", fmt.Errorf("Parsing endpoint '%s': %w", endpoint, err)
 	}
 
 	// 2. Parse the host
 	h, err := url.Parse(host)
 	if err != nil {
-		return "", errors.Wrapf(err, "Parsing host '%s'", host)
+		return "", fmt.Errorf("Parsing host '%s': %w", host, err)
 	}
 	if !h.IsAbs() {
 		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
@@ -257,7 +256,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 		if res.Body != nil {
 			bodyBytes, err = io.ReadAll(res.Body)
 			if err != nil {
-				return errors.Wrap(err, "reading response")
+				return fmt.Errorf("reading response: %w", err)
 			}
 
 			l.Printf("<< %s", string(bodyBytes))
@@ -272,7 +271,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	}
 
 	if err := json.NewDecoder(res.Body).Decode(&wrappedResponse); err != nil {
-		return errors.Wrap(err, "decoding response")
+		return fmt.Errorf("decoding response: %w", err)
 	}
 
 	if len(wrappedResponse.Errors) > 0 {

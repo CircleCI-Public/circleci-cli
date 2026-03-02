@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
-	"github.com/pkg/errors"
 )
 
 const v1_string apiClientVersion = "v1"
@@ -125,7 +124,7 @@ func (client *v1APIClient) CompileConfig(configContent string, orgID string, par
 
 	err := client.gql.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to validate config")
+		return nil, fmt.Errorf("Unable to validate config: %w", err)
 	}
 	if len(response.BuildConfig.LegacyConfigResponse.Errors) > 0 {
 		return nil, &response.BuildConfig.LegacyConfigResponse.Errors

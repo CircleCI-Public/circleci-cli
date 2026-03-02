@@ -2,6 +2,7 @@ package local
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/pkg/errors"
 	"github.com/spf13/pflag"
 
 	"github.com/CircleCI-Public/circleci-cli/config"
@@ -91,7 +91,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	picardVersion, _ := flags.GetString("build-agent-version")
 	image, err := picardImage(os.Stdout, picardVersion)
 	if err != nil {
-		return errors.Wrap(err, "Could not find picard image")
+		return fmt.Errorf("Could not find picard image: %w", err)
 	}
 
 	job := args[0]
@@ -106,11 +106,14 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "Could not find a `docker` executable on $PATH; please ensure that docker installed")
+		return fmt.Errorf("Could not find a `docker` executable on $PATH; please ensure that docker installed: %w", err)
 	}
 
 	err = syscall.Exec(dockerPath, arguments, os.Environ()) // #nosec
-	return errors.Wrap(err, "failed to execute docker")
+	if err != nil {
+		return fmt.Errorf("failed to execute docker: %w", err)
+	}
+	return nil
 }
 
 // The `local execute` command proxies execution to the picard docker container,
@@ -225,11 +228,11 @@ func writeStringToTempFile(tempDir, data string) (string, error) {
 	f, err := os.CreateTemp(tempDir, "*_circleci_config.yml")
 
 	if err != nil {
-		return "", errors.Wrap(err, "Error creating temporary config file")
+		return "", fmt.Errorf("Error creating temporary config file: %w", err)
 	}
 
 	if _, err = f.WriteString(data); err != nil {
-		return "", errors.Wrap(err, "Error writing processed config to temporary file")
+		return "", fmt.Errorf("Error writing processed config to temporary file: %w", err)
 	}
 
 	return f.Name(), nil
@@ -278,7 +281,7 @@ func loadBuildAgentShaFromConfig() (string, error) {
 
 	file, err := os.Open(buildAgentSettingsPath())
 	if err != nil {
-		return "", errors.Wrap(err, "Could not open build settings config")
+		return "", fmt.Errorf("Could not open build settings config: %w", err)
 	}
 	defer file.Close()
 
@@ -286,11 +289,11 @@ func loadBuildAgentShaFromConfig() (string, error) {
 
 	buf, err := io.ReadAll(file)
 	if err != nil {
-		return "", errors.Wrap(err, "Couldn't read from build settings file")
+		return "", fmt.Errorf("Couldn't read from build settings file: %w", err)
 	}
 
 	if err = json.Unmarshal(buf, &settings); err != nil {
-		return "", errors.Wrap(err, "Could not parse build settings config")
+		return "", fmt.Errorf("Could not parse build settings config: %w", err)
 	}
 
 	return settings.LatestSha256, nil

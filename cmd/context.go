@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -14,7 +15,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/olekukonko/tablewriter"
-	"github.com/pkg/errors"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
@@ -330,7 +330,7 @@ func storeEnvVar(client context.ContextInterface, prompt storeEnvVarPrompt, cont
 
 	secretValue, err := prompt.askForValue()
 	if err != nil {
-		return errors.Wrap(err, "Failed to read secret value from stdin")
+		return fmt.Errorf("Failed to read secret value from stdin: %w", err)
 	}
 
 	err = client.CreateEnvironmentVariable(context.ID, varName, secretValue)

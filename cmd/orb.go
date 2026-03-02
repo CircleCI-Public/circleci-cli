@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -18,7 +19,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 	"gopkg.in/yaml.v3"
@@ -594,7 +594,7 @@ func formatListOrbsResult(list api.OrbsForListing, opts orbOptions) (string, err
 	if opts.listJSON {
 		orbJSON, err := json.MarshalIndent(list, "", "  ")
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to convert to JSON")
+			return "", fmt.Errorf("Failed to convert to JSON: %w", err)
 		}
 
 		return string(orbJSON), nil
@@ -646,7 +646,7 @@ func orbCategoryCollectionToString(orbCategoryCollection *api.OrbCategoriesForLi
 	if opts.listJSON {
 		orbCategoriesJSON, err := json.MarshalIndent(orbCategoryCollection, "", "  ")
 		if err != nil {
-			return "", errors.Wrapf(err, "Failed to convert to JSON")
+			return "", fmt.Errorf("Failed to convert to JSON: %w", err)
 		}
 		result = string(orbCategoriesJSON)
 	} else {
@@ -709,7 +709,7 @@ func listOrbs(opts orbOptions) error {
 
 	orbs, err := api.ListOrbs(opts.cl, opts.listUncertified)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orbs")
+		return fmt.Errorf("Failed to list orbs: %w", err)
 	}
 
 	if opts.sortBy != "" {
@@ -724,7 +724,7 @@ func listNamespaceOrbs(opts orbOptions) error {
 
 	orbs, err := api.ListNamespaceOrbs(opts.cl, namespace, opts.private, opts.listDetails)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orbs in namespace `%s`", namespace)
+		return fmt.Errorf("Failed to list orbs in namespace `%s`: %w", namespace, err)
 	}
 
 	if opts.sortBy != "" {
@@ -743,7 +743,7 @@ func validateOrb(opts orbOptions, org orbOrgOptions) error {
 
 	client, err := orb.NewClient(opts.cfg)
 	if err != nil {
-		return errors.Wrap(err, "Getting orb client")
+		return fmt.Errorf("Getting orb client: %w", err)
 	}
 	_, err = client.OrbQuery(opts.args[0], orgId)
 
@@ -769,7 +769,7 @@ func processOrb(opts orbOptions, org orbOrgOptions) error {
 
 	client, err := orb.NewClient(opts.cfg)
 	if err != nil {
-		return errors.Wrap(err, "Getting orb client")
+		return fmt.Errorf("Getting orb client: %w", err)
 	}
 	response, err := client.OrbQuery(opts.args[0], orgId)
 
@@ -969,7 +969,7 @@ func showSource(opts orbOptions) error {
 
 	source, err := api.OrbSource(opts.cl, ref)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s'", ref)
+		return fmt.Errorf("Failed to get source for '%s': %w", ref, err)
 	}
 	fmt.Println(source)
 	return nil
@@ -980,7 +980,7 @@ func orbInfo(opts orbOptions) error {
 
 	info, err := api.OrbInfo(opts.cl, ref)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get info for '%s'", ref)
+		return fmt.Errorf("Failed to get info for '%s': %w", ref, err)
 	}
 
 	fmt.Println("")
@@ -1028,7 +1028,7 @@ https://circleci.com/developer/orbs/orb/%s
 func listOrbCategories(opts orbOptions) error {
 	orbCategories, err := api.ListOrbCategories(opts.cl)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orb categories")
+		return fmt.Errorf("Failed to list orb categories: %w", err)
 	}
 
 	return logOrbCategories(orbCategories, opts)
@@ -1050,7 +1050,7 @@ func addOrRemoveOrbCategorization(opts orbOptions, updateType api.UpdateOrbCateg
 		if updateType == api.Remove {
 			errorString = "Failed to remove orb %s from category %s"
 		}
-		return errors.Wrapf(err, errorString, opts.args[0], opts.args[1])
+		return fmt.Errorf(errorString+": %w", opts.args[0], opts.args[1], err)
 	}
 
 	var output = `%s is successfully added to the "%s" category.` + "\n"
@@ -1109,25 +1109,25 @@ func packOrb(path string) (string, error) {
 
 	tree, err := filetree.NewTree(path, "executors", "jobs", "commands", "examples")
 	if err != nil {
-		return "", errors.Wrap(err, "An unexpected error occurred")
+		return "", fmt.Errorf("An unexpected error occurred: %w", err)
 	}
 
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return "", errors.Wrap(err, "An unexpected error occurred")
+		return "", fmt.Errorf("An unexpected error occurred: %w", err)
 	}
 
 	var orbSchema OrbSchema
 	err = yaml.Unmarshal(y, &orbSchema)
 	if err != nil {
-		return "", errors.Wrap(err, "An unexpected error occurred")
+		return "", fmt.Errorf("An unexpected error occurred: %w", err)
 	}
 
 	err = func(nodes ...*yaml.Node) error {
 		for _, node := range nodes {
 			err = inlineIncludes(node, path)
 			if err != nil {
-				return errors.Wrap(err, "An unexpected error occurred")
+				return fmt.Errorf("An unexpected error occurred: %w", err)
 			}
 		}
 		return nil
@@ -1138,7 +1138,7 @@ func packOrb(path string) (string, error) {
 
 	final, err := yaml.Marshal(&orbSchema)
 	if err != nil {
-		return "", errors.Wrap(err, "Failed trying to marshal Orb YAML")
+		return "", fmt.Errorf("Failed trying to marshal Orb YAML: %w", err)
 	}
 
 	return string(final), nil
@@ -1180,7 +1180,7 @@ func initOrb(opts orbOptions) error {
 		var selectedOption string
 		err := survey.AskOne(prompt, &selectedOption)
 		if err != nil {
-			return errors.Wrap(err, "Unexpected error")
+			return fmt.Errorf("Unexpected error: %w", err)
 		}
 
 		if selectedOption == "Private" {
@@ -1197,24 +1197,24 @@ func initOrb(opts orbOptions) error {
 	}
 	err = survey.AskOne(prompt, &fullyAutomated)
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return fmt.Errorf("Unexpected error: %w", err)
 	}
 
 	fmt.Printf("Downloading Orb Project Template into %s\n", orbPath)
 	httpClient := http.Client{}
 	req, err := httpClient.Get("https://api.github.com/repos/CircleCI-Public/Orb-Template/tags")
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return fmt.Errorf("Unexpected error: %w", err)
 	}
 
 	body, err := io.ReadAll(req.Body)
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return fmt.Errorf("Unexpected error: %w", err)
 	}
 	var tags []orbProtectTemplateRelease
 	err = json.Unmarshal(body, &tags)
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return fmt.Errorf("Unexpected error: %w", err)
 	}
 
 	// filter out any non-release tags
@@ -1281,7 +1281,7 @@ func initOrb(opts orbOptions) error {
 			vcsProvider = opts.cfg.OrbPublishing.DefaultVcsProvider
 		}
 		if err != nil {
-			return errors.Wrap(err, "Unexpected error")
+			return fmt.Errorf("Unexpected error: %w", err)
 		}
 	}
 
@@ -1324,7 +1324,7 @@ func initOrb(opts orbOptions) error {
 	}
 	err = survey.AskOne(iprompt, &namespace)
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return fmt.Errorf("Unexpected error: %w", err)
 	}
 
 	fmt.Printf("Saving namespace %s as default\n", namespace)
@@ -1349,7 +1349,7 @@ func initOrb(opts orbOptions) error {
 
 	err = survey.AskOne(iprompt, &orbName)
 	if err != nil {
-		return errors.Wrap(err, "Unexpected error")
+		return fmt.Errorf("Unexpected error: %w", err)
 	}
 
 	_, err = api.OrbInfo(opts.cl, namespace+"/"+orbName)
@@ -1364,13 +1364,13 @@ func initOrb(opts orbOptions) error {
 		confirmation := false
 		err = survey.AskOne(mprompt, &confirmation)
 		if err != nil {
-			return errors.Wrap(err, "Orb already exists")
+			return fmt.Errorf("Orb already exists: %w", err)
 		}
 	}
 
 	registryCategories, err := api.ListOrbCategories(opts.cl)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to list orb categories")
+		return fmt.Errorf("Failed to list orb categories: %w", err)
 	}
 	c := func() []string {
 		var x []string
@@ -1446,7 +1446,7 @@ func initOrb(opts orbOptions) error {
 		if !orbExists {
 			_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
 			if err != nil {
-				return errors.Wrap(err, "Unable to create orb")
+				return fmt.Errorf("Unable to create orb: %w", err)
 			}
 		}
 		for _, v := range categories {
@@ -1552,7 +1552,7 @@ func initOrb(opts orbOptions) error {
 		Remote: "origin",
 	})
 	if err != nil {
-		return errors.Wrap(err, "Git error")
+		return fmt.Errorf("Git error: %w", err)
 	}
 
 	w, err := r.Worktree()
@@ -1588,7 +1588,7 @@ func initOrb(opts orbOptions) error {
 	if !orbExists {
 		_, err = api.CreateOrb(opts.cl, namespace, orbName, opts.private)
 		if err != nil {
-			return errors.Wrap(err, "Unable to create orb")
+			return fmt.Errorf("Unable to create orb: %w", err)
 		}
 	}
 	for _, v := range categories {
@@ -1606,13 +1606,13 @@ func initOrb(opts orbOptions) error {
 	tempOrbDir := filepath.Join(os.TempDir(), "_packed_orb_"+orbName)
 	err = os.Mkdir(tempOrbDir, 0755)
 	if err != nil {
-		return errors.Wrap(err, "Unable to write packed orb")
+		return fmt.Errorf("Unable to write packed orb: %w", err)
 	}
 
 	tempOrbFile := filepath.Join(tempOrbDir, "orb.yml")
 	err = os.WriteFile(tempOrbFile, []byte(packedOrb), 0644)
 	if err != nil {
-		return errors.Wrap(err, "Unable to write packed orb")
+		return fmt.Errorf("Unable to write packed orb: %w", err)
 	}
 
 	_, err = api.OrbPublishByName(opts.cl, tempOrbFile, orbName, namespace, "dev:alpha")
@@ -1648,7 +1648,7 @@ func initOrb(opts orbOptions) error {
 		Create: true,
 	})
 	if err != nil {
-		return errors.Wrap(err, "Unable to create alpha branch")
+		return fmt.Errorf("Unable to create alpha branch: %w", err)
 	}
 	err = finalizeOrbInit(ownerName, vcsProvider, vcsShort, namespace, orbName, projectName, &opts)
 	if err != nil {
@@ -1779,11 +1779,11 @@ func orbDiff(opts orbOptions) error {
 
 	orb1Source, err := api.OrbSource(opts.cl, orb1)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s'", orb1)
+		return fmt.Errorf("Failed to get source for '%s': %w", orb1, err)
 	}
 	orb2Source, err := api.OrbSource(opts.cl, orb2)
 	if err != nil {
-		return errors.Wrapf(err, "Failed to get source for '%s'", orb2)
+		return fmt.Errorf("Failed to get source for '%s': %w", orb2, err)
 	}
 
 	edits := myers.ComputeEdits(span.URIFromPath(orb1), orb1Source, orb2Source)

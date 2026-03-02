@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
 	"strings"
@@ -9,7 +10,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/pkg/browser"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -30,7 +30,7 @@ func projectUrl(remote *git.Remote) string {
 func openProjectInBrowser() error {
 	remote, err := git.InferProjectFromGitRemotes()
 	if err != nil {
-		return errors.Wrap(err, errorMessage)
+		return fmt.Errorf("%s: %w", errorMessage, err)
 	}
 	//check that project url contains github or bitbucket; our legacy vcs
 	if remote.VcsType == git.GitHub || remote.VcsType == git.Bitbucket {

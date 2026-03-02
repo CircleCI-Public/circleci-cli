@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path"
 	"path/filepath"
@@ -8,7 +9,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -45,7 +45,7 @@ func usage(opts usageOptions) error {
 	}
 
 	if err := os.MkdirAll(docsPath, 0700); err != nil {
-		return errors.Wrap(err, "Could not create usage docs directory")
+		return fmt.Errorf("Could not create usage docs directory: %w", err)
 	}
 
 	out, err := filepath.Abs(docsPath)

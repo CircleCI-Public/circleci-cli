@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -12,7 +13,6 @@ import (
 	"strings"
 
 	"github.com/Masterminds/semver"
-	"github.com/pkg/errors"
 	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
@@ -483,7 +483,7 @@ func loadYaml(path string) (string, error) {
 	}
 
 	if err != nil {
-		return "", errors.Wrapf(err, "Could not load config file at %s", path)
+		return "", fmt.Errorf("Could not load config file at %s: %w", path, err)
 	}
 
 	return string(config), nil
@@ -493,7 +493,7 @@ func loadYaml(path string) (string, error) {
 func WhoamiQuery(config *settings.Config) (*WhoamiResponse, error) {
 	r, err := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/v2/me", config.Host), nil)
 	if err != nil {
-		return nil, errors.Wrap(err, errorMessage)
+		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
@@ -510,7 +510,7 @@ func WhoamiQuery(config *settings.Config) (*WhoamiResponse, error) {
 	var res WhoamiResponse
 	err = json.NewDecoder(response.Body).Decode(&res)
 	if err != nil {
-		return nil, errors.Wrap(err, errorMessage)
+		return nil, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 
 	return &res, nil
@@ -544,7 +544,7 @@ func OrbImportVersion(cl *graphql.Client, orbSrc string, orbID string, orbVersio
 
 	err := cl.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "unable to import orb version")
+		return nil, fmt.Errorf("unable to import orb version: %w", err)
 	}
 
 	if len(response.ImportOrbVersion.Errors) > 0 {
@@ -591,7 +591,7 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 	err = cl.Run(request, &response)
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to publish orb")
+		return nil, fmt.Errorf("Unable to publish orb: %w", err)
 	}
 
 	if len(response.PublishOrb.Errors) > 0 {
@@ -792,7 +792,7 @@ func GetOrganization(cl *graphql.Client, params GetOrganizationParams) (*GetOrga
 	request.SetToken(cl.Token)
 	err := cl.Run(request, &response)
 	if err != nil {
-		return nil, errors.Wrap(err, "fetching organization")
+		return nil, fmt.Errorf("fetching organization: %w", err)
 	}
 	return &response, nil
 }
@@ -886,7 +886,7 @@ func CreateNamespace(cl *graphql.Client, name string, organizationName string, o
 	getOrgResponse, getOrgError := GetOrganization(cl, GetOrganizationParams{OrgName: organizationName, VCSType: organizationVcs})
 
 	if getOrgError != nil {
-		return nil, errors.Wrap(organizationNotFound(organizationName, organizationVcs), getOrgError.Error())
+		return nil, fmt.Errorf("%s: %w", getOrgError.Error(), organizationNotFound(organizationName, organizationVcs))
 	}
 
 	createNSResponse, createNSError := CreateNamespaceWithOwnerID(cl, name, getOrgResponse.Organization.ID)
@@ -916,7 +916,7 @@ func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error
 	request.Var("name", name)
 
 	if err := cl.Run(request, &response); err != nil {
-		return nil, errors.Wrapf(err, "failed to load namespace '%s'", err)
+		return nil, fmt.Errorf("failed to load namespace '%s': %w", err, err)
 	}
 
 	if response.RegistryNamespace.ID == "" {
@@ -944,7 +944,7 @@ func NamespaceExists(cl *graphql.Client, namespace string) (bool, error) {
 	request.Var("name", namespace)
 
 	if err := cl.Run(request, &response); err != nil {
-		return false, errors.Wrapf(err, "failed to load namespace '%s'", err)
+		return false, fmt.Errorf("failed to load namespace '%s': %w", err, err)
 	}
 
 	if response.RegistryNamespace.ID != "" {
@@ -1210,7 +1210,7 @@ func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to promote orb")
+		return nil, fmt.Errorf("Unable to promote orb: %w", err)
 	}
 
 	return &response.PromoteOrb.Orb, nil
@@ -1253,7 +1253,7 @@ mutation($orbId: UUID!, $list: Boolean!) {
 	}
 
 	if err != nil {
-		return nil, errors.Wrap(err, "Unable to set orb list status")
+		return nil, fmt.Errorf("Unable to set orb list status: %w", err)
 	}
 
 	return &response.SetOrbListStatus.Listed, nil
@@ -1390,7 +1390,7 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 	// Parse the orb source to get its commands, executors and jobs
 	err = yaml.Unmarshal([]byte(response.OrbVersion.Source), &response.OrbVersion.Orb)
 	if err != nil {
-		return nil, errors.Wrapf(err, "Corrupt Orb %s %s", response.OrbVersion.Orb.Name, response.OrbVersion.Version)
+		return nil, fmt.Errorf("Corrupt Orb %s %s: %w", response.OrbVersion.Orb.Name, response.OrbVersion.Version, err)
 	}
 
 	return &response.OrbVersion, nil
@@ -1440,7 +1440,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, errors.Wrap(err, "GraphQL query failed")
+			return nil, fmt.Errorf("GraphQL query failed: %w", err)
 		}
 
 	Orbs:
@@ -1457,7 +1457,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
-					l.Printf("%s", errors.Wrap(err, fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version)).Error())
+					l.Printf("%s", fmt.Errorf("Corrupt Orb %s %s: %w", edge.Node.Name, v.Version, err).Error())
 					continue Orbs
 				}
 
@@ -1514,7 +1514,7 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, errors.Wrap(err, "GraphQL query failed")
+			return nil, fmt.Errorf("GraphQL query failed: %w", err)
 		}
 
 		if result.RegistryNamespace.ID == "" {
@@ -1607,7 +1607,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, errors.Wrap(err, "GraphQL query failed")
+			return nil, fmt.Errorf("GraphQL query failed: %w", err)
 		}
 
 		if result.RegistryNamespace.ID == "" {
@@ -1626,7 +1626,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
-					l.Printf("%s", errors.Wrap(err, fmt.Sprintf("Corrupt Orb %s %s", edge.Node.Name, v.Version)).Error())
+					l.Printf("%s", fmt.Errorf("Corrupt Orb %s %s: %w", edge.Node.Name, v.Version, err).Error())
 					continue NamespaceOrbs
 				}
 			} else {
@@ -1725,7 +1725,7 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 	}
 
 	if err != nil {
-		return errors.Wrap(err, "Unable to add/remove orb categorization")
+		return fmt.Errorf("Unable to add/remove orb categorization: %w", err)
 	}
 
 	return nil
@@ -1765,7 +1765,7 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, errors.Wrap(err, "GraphQL query failed")
+			return nil, fmt.Errorf("GraphQL query failed: %w", err)
 		}
 
 		for i := range result.OrbCategories.Edges {
@@ -1792,7 +1792,7 @@ func FollowProject(config settings.Config, vcs string, owner string, projectName
 	requestPath := fmt.Sprintf("%s/api/v1.1/project/%s/%s/%s/follow", config.Host, vcs, owner, projectName)
 	r, err := http.NewRequest(http.MethodPost, requestPath, nil)
 	if err != nil {
-		return FollowedProject{}, errors.Wrap(err, errorMessage)
+		return FollowedProject{}, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 	r.Header.Set("Content-Type", "application/json; charset=utf-8")
 	r.Header.Set("Accept", "application/json; charset=utf-8")
@@ -1811,7 +1811,7 @@ func FollowProject(config settings.Config, vcs string, owner string, projectName
 	var fr FollowedProject
 	err = json.NewDecoder(response.Body).Decode(&fr)
 	if err != nil {
-		return FollowedProject{}, errors.Wrap(err, errorMessage)
+		return FollowedProject{}, fmt.Errorf("%s: %w", errorMessage, err)
 	}
 
 	return fr, nil
@@ -1826,7 +1826,7 @@ type Me struct {
 func GetMe(client *rest.Client) (Me, error) {
 	req, err := client.NewRequest("GET", &url.URL{Path: "me"}, nil)
 	if err != nil {
-		return Me{}, errors.Wrap(err, "Unable to get user info")
+		return Me{}, fmt.Errorf("Unable to get user info: %w", err)
 	}
 
 	var me Me

@@ -6,9 +6,10 @@ import (
 	"strings"
 	"testing"
 
+	"errors"
+
 	"github.com/CircleCI-Public/circleci-cli/mock"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/pkg/errors"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 )

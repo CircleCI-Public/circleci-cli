@@ -5,8 +5,6 @@ import (
 	"io"
 	"os"
 
-	"github.com/pkg/errors"
-
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
@@ -106,7 +104,7 @@ func loadYaml(path string) (string, error) {
 	}
 
 	if err != nil {
-		return "", errors.Wrapf(err, "Could not load config file at %s", path)
+		return "", fmt.Errorf("Could not load config file at %s: %w", path, err)
 	}
 
 	return string(config), nil

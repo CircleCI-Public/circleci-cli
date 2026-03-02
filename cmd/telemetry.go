@@ -1,11 +1,11 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -59,7 +59,7 @@ Note: If you have not configured your telemetry preferences and call the CLI wit
 func setIsTelemetryActive(apiClient TelemetryAPIClient, isActive bool) error {
 	settings := settings.TelemetrySettings{}
 	if err := settings.Load(); err != nil && !os.IsNotExist(err) {
-		return errors.Wrap(err, "Loading telemetry configuration")
+		return fmt.Errorf("Loading telemetry configuration: %w", err)
 	}
 
 	settings.HasAnsweredPrompt = true
@@ -76,7 +76,7 @@ func setIsTelemetryActive(apiClient TelemetryAPIClient, isActive bool) error {
 	}
 
 	if err := settings.Write(); err != nil {
-		return errors.Wrap(err, "Writing telemetry configuration")
+		return fmt.Errorf("Writing telemetry configuration: %w", err)
 	}
 
 	return nil
