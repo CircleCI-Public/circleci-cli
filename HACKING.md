@@ -12,7 +12,7 @@ Second, it's written in Go. If you are new to Go, we recommend the following res
 ## Requirements
 
 * Go 1.12+
-* Make
+* [Task](https://taskfile.dev/) (task runner)
 * ...
 
 ## Getting setup
@@ -33,23 +33,23 @@ If you cloned the repo inside of your `$GOPATH`, you can use `GO111MODULE=on` in
 ### 2. Build the binary
 
 ```
-$ make
+$ task build
 ```
 
 ### 3. Run tests
 
 ```
-$ make test
+$ task test
 ```
 
 ### 4. Cleaning up installed binary
 
-If you ran `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `make clean`.
+If you ran `go install` at some point, you will have a development version of `circleci-cli` lingering around.  You should clean this up with `task clean`.
 
 ```bash
 $ which circleci-cli
 /Users/erichu/go/bin/circleci-cli
-$ make clean
+$ task clean
 $ which circleci-cli
 $
 ```
@@ -63,21 +63,21 @@ https://github.com/golang/go/wiki/Modules
 
 ## Linting your code
 
-We use [`gometalinter`](github.com/alecthomas/gometalinter) for linting.
+We use [`golangci-lint`](https://golangci-lint.run/) for linting.
 
-However, since we updated to Go 1.11 modules this doesn't work.
+You can run the linter locally with:
 
-You will have to run our `lint` job inside a local build in order to lint your code changes.
+```
+$ task lint
+```
 
-This requires docker and may fail if the docker is not available on your machine.
-
-Once you have installed Docker, you can execute the `lint` job locally with `$ make lint`.
+For CI-style output (JUnit XML), use `task ci:lint`.
 
 ## Code coverage
 
 There is also a `coverage` job as part of the build which will lint any code you commit.
 
-This can be run manually with `$ make cover`.
+This can be run manually with `$ task cover`.
 
 ## Editor support
 
@@ -106,7 +106,7 @@ For example, I've the following in my `.emacs.d/init.el`:
 
 You can view the documentation for this project in your browser using `godoc`.
 
-After installing it via `make dev`.
+After installing it via `go install golang.org/x/tools/cmd/godoc@latest`.
 
-1. Run `make doc`.
+1. Run `task doc`.
 2. Access http://localhost:6060/pkg/github.com/CircleCI-Public/circleci-cli/
