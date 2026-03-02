@@ -1,3 +1,7 @@
+# Lint rollout policy (Phase 2):
+# - New linters are added in warning mode first (severity: warning)
+# - errorlint is the only hard-enforced new linter (validates pkg/errors migration)
+# - Linters are promoted to error severity after fixing all existing violations
 ---
 service:
   golangci-lint-version: 1.63.x

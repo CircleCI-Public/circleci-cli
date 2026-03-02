@@ -60,3 +60,22 @@ tasks:
     desc: tests and generates a cover profile
     cmds:
       - go test -race -coverprofile=coverage.txt ./...
+
+  ci:diff:
+    desc: Ensure no uncommitted changes after code generation, formatting, and tidying
+    cmds:
+      - task: fmt
+      - go mod tidy
+      - git diff --exit-code
+
+  ci:lint:
+    desc: Run golangci-lint with JUnit output for CI
+    cmds:
+      - mkdir -p out
+      - golangci-lint run -c .golangci.yml --out-format junit-xml > out/lint-results.xml
+
+  ci:test:
+    desc: Run tests with race detector and JUnit output for CI
+    cmds:
+      - mkdir -p out
+      - gotestsum --junitfile out/test-results.xml -- -race -count=1 ./...
