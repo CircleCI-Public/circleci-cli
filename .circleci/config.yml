@@ -8,7 +8,7 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.24
+      - image: cimg/go:1.25
     resource_class: large
     environment:
       CGO_ENABLED: 0
@@ -104,8 +104,8 @@ jobs:
     steps:
       - checkout
       - run: |
-          curl -OL https://go.dev/dl/go1.24.7.darwin-arm64.pkg
-          sudo installer -pkg ./go1.24.7.darwin-arm64.pkg -target /
+          curl -OL https://go.dev/dl/go1.25.2.darwin-arm64.pkg
+          sudo installer -pkg ./go1.25.2.darwin-arm64.pkg -target /
           echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run:
@@ -116,7 +116,7 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: make
+      - run: task build
       - persist_to_workspace:
           root: .
           paths:
@@ -162,7 +162,7 @@ jobs:
       - checkout
       - force-http-1
       - gomod
-      - run: make cover
+      - run: task cover
       - run:
           name: Enforce coverage threshold (35%)
           command: |
@@ -198,12 +198,11 @@ jobs:
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
-    docker:
-      - image: golangci/golangci-lint:v1.64.8-alpine
-    resource_class: large
+    executor: go
     steps:
       - checkout
-      - run: golangci-lint run
+      - gomod
+      - run: go tool golangci-lint run
 
   deploy-test:
     executor: go
