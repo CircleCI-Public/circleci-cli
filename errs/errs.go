@@ -9,6 +9,8 @@ import (
 var (
 	ErrNotFound     = errors.New("not found")
 	ErrAuthRequired = errors.New("auth required")
+	ErrInvalidHost  = errors.New("invalid CircleCI host URL")
+	ErrUnauthorized = errors.New("unauthorized: check your token")
 )
 
 type NotFoundError struct{ err error }
