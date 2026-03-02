@@ -1,35 +1,59 @@
 # Lint rollout policy (Phase 2):
-# - New linters are added in warning mode first (severity: warning)
-# - errorlint is the only hard-enforced new linter (validates pkg/errors migration)
+# - New linters (errorlint, depguard) are added in warning mode first
 # - Linters are promoted to error severity after fixing all existing violations
----
-service:
-  golangci-lint-version: 1.63.x
+# - depguard blocks re-introduction of banned imports
+version: "2"
 
 linters:
+  default: none
   enable:
     - errcheck
     - goconst
-    - gofmt
-    - goimports
-    # - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
-    # - revive
     - staticcheck
-    - typecheck
     - unconvert
-    # - unparam
     - unused
-    - govet
+    - errorlint
+    - depguard
+  settings:
+    depguard:
+      rules:
+        no-pkg-errors:
+          deny:
+            - pkg: "github.com/pkg/errors"
+              desc: "use fmt.Errorf with %w instead (Phase 2 migration)"
+        no-math-rand:
+          deny:
+            - pkg: "math/rand"
+              desc: "use math/rand/v2 or crypto/rand"
+        no-log:
+          deny:
+            - pkg: "log$"
+              desc: "use a structured logging approach instead"
+        # no-ginkgo: placeholder for new-files-only enforcement
+  exclusions:
+    generated: lax
+    rules:
+      - path: (.+)_test\.go
+        linters:
+          - goconst
 
-# Instead of disabling tests entirely, just ignore goconst, which is the only
-# one with issues there currently.
-issues:
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - goconst
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  exclusions:
+    generated: lax
+
+severity:
+  default: error
+  rules:
+    - linters:
+        - errorlint
+      severity: warning
+    - linters:
+        - depguard
+      severity: warning
