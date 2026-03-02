@@ -16,7 +16,7 @@ func respondGQLData(status int, jsonBody string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
-		fmt.Fprintf(w, `{ "data": %s}`, jsonBody)
+		_, _ = fmt.Fprintf(w, `{ "data": %s}`, jsonBody)
 	}
 }
 
@@ -478,4 +478,3 @@ func TestAdminRenameNamespace_Error(t *testing.T) {
 	assert.Assert(t, strings.Contains(result.Stderr, "Error: error1"),
 		"expected stderr to contain error1, got: %s", result.Stderr)
 }
-

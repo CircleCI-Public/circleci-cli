@@ -33,7 +33,7 @@ func appendGQLPostHandler(t *testing.T, ts *testhelpers.TestServer, authToken st
 
 		body, err := io.ReadAll(r.Body)
 		assert.NilError(t, err)
-		defer r.Body.Close()
+		defer r.Body.Close() //nolint:errcheck
 
 		// Compare as JSON to ignore whitespace differences
 		var expectedJSON, actualJSON interface{}

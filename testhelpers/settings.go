@@ -80,7 +80,7 @@ func WithTempSettings(t testing.TB) *TempSettings {
 	}
 
 	t.Cleanup(func() {
-		os.RemoveAll(home)
+		_ = os.RemoveAll(home)
 	})
 
 	return ts

@@ -45,7 +45,7 @@ func TestGenerateDockerCommand(t *testing.T) {
 func TestWriteStringToTempFile(t *testing.T) {
 	path, err := writeStringToTempFile("/tmp", "cynosure")
 	assert.NilError(t, err)
-	defer os.Remove(path)
+	defer func() { _ = os.Remove(path) }()
 
 	data, err := os.ReadFile(path)
 	assert.NilError(t, err)

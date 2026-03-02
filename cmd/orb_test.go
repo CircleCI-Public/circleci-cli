@@ -38,7 +38,7 @@ func orbAppendPostHandler(t *testing.T, ts *testhelpers.TestServer, authToken st
 
 		body, err := io.ReadAll(r.Body)
 		assert.NilError(t, err)
-		defer r.Body.Close()
+		defer r.Body.Close() //nolint:errcheck
 
 		var expectedJSON, actualJSON interface{}
 		assert.NilError(t, json.Unmarshal([]byte(expectedRequest), &expectedJSON))
@@ -230,7 +230,7 @@ func TestOrbValidateSTDIN(t *testing.T) {
 	stdin, err := cmd.StdinPipe()
 	assert.NilError(t, err)
 	go func() {
-		defer stdin.Close()
+		defer stdin.Close() //nolint:errcheck
 		_, _ = io.WriteString(stdin, "{}")
 	}()
 
@@ -336,7 +336,7 @@ func TestOrbValidateWithOrgID(t *testing.T) {
 	stdin, err := cmd.StdinPipe()
 	assert.NilError(t, err)
 	go func() {
-		defer stdin.Close()
+		defer stdin.Close() //nolint:errcheck
 		_, _ = io.WriteString(stdin, "{}")
 	}()
 
@@ -3305,9 +3305,9 @@ func TestOrbDiff(t *testing.T) {
 			expected: "No diff found",
 		},
 		{
-			name:    "detect difference",
-			source1: "line1\\nline3\\n",
-			source2: "line1\\nline2\\n",
+			name:     "detect difference",
+			source1:  "line1\\nline3\\n",
+			source2:  "line1\\nline2\\n",
 			expected: "--- somenamespace/someorb@1.0.0",
 		},
 	}

@@ -87,7 +87,7 @@ func TestDiagnosticHostOverride(t *testing.T) {
 	server := httptest.NewServer(meHandler(t, "zomg"))
 	t.Cleanup(func() { server.Close() })
 
-	ts.WriteConfig(t, fmt.Sprintf("host: https://circleci.com/\ntoken: mytoken\n"))
+	ts.WriteConfig(t, "host: https://circleci.com/\ntoken: mytoken\n")
 
 	result := testhelpers.RunCLI(t, binary,
 		[]string{"diagnostic", "--skip-update-check", "--host", server.URL},

@@ -6,8 +6,8 @@ import (
 	"sort"
 	"testing"
 
-	"gotest.tools/v3/assert"
 	"gopkg.in/yaml.v3"
+	"gotest.tools/v3/assert"
 
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 )
@@ -16,7 +16,7 @@ func setupTempRoot(t *testing.T) string {
 	t.Helper()
 	tempRoot, err := os.MkdirTemp("", "circleci-cli-test-")
 	assert.NilError(t, err)
-	t.Cleanup(func() { os.RemoveAll(tempRoot) })
+	t.Cleanup(func() { _ = os.RemoveAll(tempRoot) })
 	return tempRoot
 }
 
