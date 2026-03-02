@@ -79,6 +79,7 @@ commands:
 
 jobs:
   test_windows:
+    # -race omitted: Windows executor lacks CGO/gcc required by race detector
     executor:
       name: windows/default
       shell: bash --login -eo pipefail
@@ -107,7 +108,9 @@ jobs:
           sudo installer -pkg ./go1.24.7.darwin-arm64.pkg -target /
           echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
       - gomod
-      - run: make test
+      - run:
+          name: Run tests with race detector
+          command: CGO_ENABLED=1 go test -race -v ./...
   build:
     executor: go
     steps:
@@ -143,7 +146,9 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: gotestsum --junitfile test_results/linux.xml
+      - run:
+          name: Run tests with race detector
+          command: CGO_ENABLED=1 gotestsum --junitfile test_results/linux.xml -- -race ./...
       - store_test_results:
           path: test_results
       - store_artifacts:
@@ -158,9 +163,22 @@ jobs:
       - force-http-1
       - gomod
       - run: make cover
+      - run:
+          name: Enforce coverage threshold (35%)
+          command: |
+            go tool cover -func=coverage.txt | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1+0 < 35) exit 1}'
       - store_artifacts:
           path: ./coverage.txt
           destination: coverage.txt
+
+  check-go-mod:
+    executor: go
+    steps:
+      - checkout
+      - gomod
+      - run:
+          name: Check go.mod is tidy
+          command: go mod tidy -v && git diff --exit-code -- go.mod go.sum
 
   docs:
     executor: go
@@ -343,6 +361,7 @@ workflows:
       - test_mac
       - test_windows
       - coverage
+      - check-go-mod
       - lint
       - vulnerability-scan:
           context: org-global-employees
@@ -362,6 +381,7 @@ workflows:
             - test
             - test_mac
             - coverage
+            - check-go-mod
             - lint
             - deploy-test
             - shellcheck/check
