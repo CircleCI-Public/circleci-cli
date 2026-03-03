@@ -35,7 +35,7 @@ Feature: Orb pack
     When I run `circleci orb pack src`
     Then the output should contain:
     """
-    Error: An unexpected error occurred: multiple include statements: '<<include(script.sh)>> <<include(script.sh)>>'
+    Error: an unexpected error occurred: multiple include statements: '<<include(script.sh)>> <<include(script.sh)>>'
     """
     And the exit status should be 255
 
@@ -53,7 +53,7 @@ Feature: Orb pack
     When I run `circleci orb pack src`
     Then the output should contain:
     """
-    Error: An unexpected error occurred: entire string must be include statement: 'include <<include(script.sh)>>'
+    Error: an unexpected error occurred: entire string must be include statement: 'include <<include(script.sh)>>'
     """
     And the exit status should be 255
 
@@ -79,6 +79,6 @@ Feature: Orb pack
     When I run `circleci orb pack src`
     Then the output should contain:
     """
-    Error: An unexpected error occurred: could not open src/script.sh for inclusion
+    Error: an unexpected error occurred: could not open src/script.sh for inclusion
     """
     And the exit status should be 255
