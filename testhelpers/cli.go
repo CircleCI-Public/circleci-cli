@@ -35,11 +35,13 @@ type CLIResult struct {
 	Err      error
 }
 
-// ShouldFail returns the expected exit code for a failed CLI invocation:
-// 255 on Unix, -1 on Windows.
+// ShouldFail returns the expected exit code for a failed CLI invocation.
+// main.go calls os.Exit(-1) on error. On Unix, exit codes are truncated to
+// uint8 so -1 wraps to 255. On Windows, ExitProcess receives uint32(-1) =
+// 0xFFFFFFFF, which Go's ProcessState.ExitCode reads back as 4294967295.
 func ShouldFail() int {
 	if runtime.GOOS == "windows" {
-		return -1
+		return int(^uint32(0)) // 0xFFFFFFFF = 4294967295
 	}
 	return 255
 }
