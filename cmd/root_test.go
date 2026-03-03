@@ -2,6 +2,8 @@ package cmd_test
 
 import (
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -60,7 +62,10 @@ func TestBuildWithAutoUpdate(t *testing.T) {
 func buildCLIWithLdflags(t testing.TB, ldflags string) string {
 	t.Helper()
 
-	outPath := t.TempDir() + "/circleci"
+	outPath := filepath.Join(t.TempDir(), "circleci")
+	if runtime.GOOS == "windows" {
+		outPath += ".exe"
+	}
 	buildCmd := exec.Command("go", "build", "-o", outPath, "-ldflags", ldflags, ".")
 	buildCmd.Dir = testhelpers.RepoRoot()
 	out, err := buildCmd.CombinedOutput()

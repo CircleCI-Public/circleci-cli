@@ -27,3 +27,7 @@ integration_tests/tmp
 *.exe
 cmd/.circleci
 .claude/improvement-plan.md
+
+# Generated test/lint reports (produced by gotestsum and golangci-lint)
+test-reports/
+coverage.out
