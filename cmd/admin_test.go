@@ -6,8 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
 // respondGQLData returns an http.HandlerFunc that writes a JSON response
@@ -53,7 +54,7 @@ func TestAdminDeleteNamespaceAlias_UnexpectedFailure(t *testing.T) {
 	}, fmt.Sprintf("HOME=%s", ts.Home), fmt.Sprintf("USERPROFILE=%s", ts.Home))
 
 	assert.Assert(t, result.ExitCode != 0, "expected non-zero exit code, got %d", result.ExitCode)
-	assert.Assert(t, strings.Contains(result.Stderr, "Namespace alias deletion failed for unknown reasons."),
+	assert.Assert(t, strings.Contains(result.Stderr, "namespace alias deletion failed for unknown reasons"),
 		"expected stderr to contain failure message, got: %s", result.Stderr)
 }
 
@@ -216,7 +217,7 @@ func TestAdminDeleteNamespace_ListOrbsError(t *testing.T) {
 	}, fmt.Sprintf("HOME=%s", ts.Home), fmt.Sprintf("USERPROFILE=%s", ts.Home))
 
 	assert.Assert(t, result.ExitCode != 0, "expected non-zero exit code, got %d", result.ExitCode)
-	assert.Assert(t, strings.Contains(result.Stderr, "unable to list orbs: No namespace found"),
+	assert.Assert(t, strings.Contains(result.Stderr, "unable to list orbs: no namespace found"),
 		"expected stderr to contain orb list error, got: %s", result.Stderr)
 }
 

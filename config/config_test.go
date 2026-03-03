@@ -8,10 +8,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestConfig(t *testing.T) {
@@ -35,7 +36,7 @@ func TestConfig(t *testing.T) {
 		t.Run("returns the correct configCompilation response", func(t *testing.T) {
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
@@ -56,7 +57,7 @@ func TestConfig(t *testing.T) {
 		t.Run("returns error when config file could not be found", func(t *testing.T) {
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
@@ -69,7 +70,7 @@ func TestConfig(t *testing.T) {
 
 			_, err = compiler.ConfigQuery("testdata/nonexistent.yml", "1234", Parameters{}, Values{})
 			assert.Error(t, err)
-			assert.Contains(t, err.Error(), "Could not load config file at testdata/nonexistent.yml")
+			assert.Contains(t, err.Error(), "could not load config file at testdata/nonexistent.yml")
 		})
 
 		// commenting this out - we have a legacy_test.go unit test that covers this behaviour
@@ -114,7 +115,7 @@ func TestConfig(t *testing.T) {
 				assert.NoError(t, err)
 				assert.Equal(t, "1234", req.Options.OwnerID)
 				assert.Equal(t, "test: test\n", req.ConfigYaml)
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}

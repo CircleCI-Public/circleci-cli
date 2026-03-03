@@ -84,7 +84,7 @@ func IsRestAPIAvailable(c restClient) error {
 		return err
 	}
 	if resp.Paths.ContextEndpoint == nil {
-		return errors.New("No context endpoint exists")
+		return errors.New("no context endpoint exists")
 	}
 
 	return nil

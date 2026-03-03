@@ -50,7 +50,7 @@ func (c Client) CreatePolicyBundle(ownerID string, context string, request Creat
 
 	req, err := http.NewRequest(http.MethodPost, fmt.Sprintf("%s/api/v2/owner/%s/context/%s/policy-bundle", c.serverUrl, ownerID, context), bytes.NewReader(data))
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %w", err)
 	}
 
 	req.Header.Set("Content-Length", strconv.Itoa(len(data)))
@@ -65,7 +65,7 @@ func (c Client) CreatePolicyBundle(ownerID string, context string, request Creat
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response from policy-service: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusCreated && resp.StatusCode != http.StatusOK {
 		var response httpError
@@ -77,7 +77,7 @@ func (c Client) CreatePolicyBundle(ownerID string, context string, request Creat
 
 	var body interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return body, nil
@@ -89,14 +89,14 @@ func (c Client) CreatePolicyBundle(ownerID string, context string, request Creat
 func (c Client) FetchPolicyBundle(ownerID, context, policyName string) (interface{}, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v2/owner/%s/context/%s/policy-bundle/%s", c.serverUrl, ownerID, context, policyName), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
@@ -108,7 +108,7 @@ func (c Client) FetchPolicyBundle(ownerID, context, policyName string) (interfac
 
 	var body interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return body, nil
@@ -128,7 +128,7 @@ type DecisionQueryRequest struct {
 func (c Client) GetDecisionLogs(ownerID string, context string, request DecisionQueryRequest) ([]interface{}, error) {
 	req, err := http.NewRequest("GET", fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision", c.serverUrl, ownerID, context), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %w", err)
 	}
 
 	query := make(url.Values)
@@ -157,7 +157,7 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
@@ -169,7 +169,7 @@ func (c Client) GetDecisionLogs(ownerID string, context string, request Decision
 
 	var body []interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return body, nil
@@ -184,14 +184,14 @@ func (c Client) GetDecisionLog(ownerID string, context string, decisionID string
 	}
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
@@ -203,7 +203,7 @@ func (c Client) GetDecisionLog(ownerID string, context string, decisionID string
 
 	var body interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return body, nil
@@ -221,14 +221,14 @@ func (c Client) GetSettings(ownerID string, context string) (interface{}, error)
 	path := fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
 	req, err := http.NewRequest("GET", path, nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
@@ -240,7 +240,7 @@ func (c Client) GetSettings(ownerID string, context string) (interface{}, error)
 
 	var body interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return body, nil
@@ -260,14 +260,14 @@ func (c Client) SetSettings(ownerID string, context string, request DecisionSett
 	path := fmt.Sprintf("%s/api/v2/owner/%s/context/%s/decision/settings", c.serverUrl, ownerID, context)
 	req, err := http.NewRequest("PATCH", path, bytes.NewReader(payload))
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct request: %v", err)
+		return nil, fmt.Errorf("failed to construct request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
 		var payload httpError
@@ -279,7 +279,7 @@ func (c Client) SetSettings(ownerID string, context string, request DecisionSett
 
 	var body interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
-		return nil, fmt.Errorf("failed to decode response body: %v", err)
+		return nil, fmt.Errorf("failed to decode response body: %w", err)
 	}
 
 	return body, nil
@@ -305,7 +305,7 @@ func (c Client) MakeDecision(ownerID string, context string, req DecisionRequest
 	if err != nil {
 		return nil, fmt.Errorf("failed to get response: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != 200 {
 		var payload httpError

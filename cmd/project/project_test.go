@@ -116,7 +116,7 @@ func TestListSecretsErrorWithAPIResponse(t *testing.T) {
 	const errorMsg = "api error"
 	var handler http.HandlerFunc = func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		_, err := w.Write([]byte(fmt.Sprintf(`{"message": "%s"}`, errorMsg)))
+		_, err := fmt.Fprintf(w, `{"message": "%s"}`, errorMsg)
 		assert.NilError(t, err)
 	}
 	server := httptest.NewServer(handler)

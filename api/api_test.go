@@ -1,17 +1,17 @@
 package api
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
 	"testing"
 
-	"errors"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/mock"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
 )
 
 func TestOrbVersionRef(t *testing.T) {

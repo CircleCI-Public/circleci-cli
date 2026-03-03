@@ -103,7 +103,7 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 		fmt.Fprintf(os.Stderr, "failed to make http request: %s\n", err.Error())
 		return 0, err
 	}
-	defer httpResp.Body.Close()
+	defer httpResp.Body.Close() //nolint:errcheck
 
 	if httpResp.StatusCode >= 400 {
 		var msgErr struct {

@@ -7,8 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 func TestWithHTTPClient(t *testing.T) {

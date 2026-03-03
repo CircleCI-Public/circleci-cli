@@ -174,7 +174,7 @@ func setup(cmd *cobra.Command, opts setupOptions) error {
 		trackSetupStep(cmd, "token_prompt_shown", nil)
 		token, err := opts.tty.readTokenFromUser("CircleCI API Token")
 		if err != nil {
-			return fmt.Errorf("Error reading token: %w", err)
+			return fmt.Errorf("error reading token: %w", err)
 		}
 		opts.cfg.Token = token
 		trackSetupStep(cmd, "token_prompt_answered", nil)
@@ -203,7 +203,7 @@ func setup(cmd *cobra.Command, opts setupOptions) error {
 
 	if err := opts.cfg.WriteToDisk(); err != nil {
 		trackSetupStep(cmd, "failed", nil)
-		return fmt.Errorf("Failed to save config file: %w", err)
+		return fmt.Errorf("failed to save config file: %w", err)
 	}
 
 	trackSetupStep(cmd, "succeeded", nil)
@@ -262,14 +262,14 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Throw an error if host and token flags are blank
 	if opts.host == "" && opts.token == "" {
-		return errors.New("No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
+		return errors.New("no existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt")
 	}
 
 	config := settings.Config{}
 
 	// First calling load will ensure the new config can be saved to disk
 	if err := config.LoadFromDisk(); err != nil {
-		return fmt.Errorf("Failed to create config file on disk: %w", err)
+		return fmt.Errorf("failed to create config file on disk: %w", err)
 	}
 
 	// Use the default endpoint since we don't expose that to users
@@ -297,7 +297,7 @@ func setupNoPrompt(opts setupOptions) error {
 
 	// Then save the new config to disk
 	if err := config.WriteToDisk(); err != nil {
-		return fmt.Errorf("Failed to save config file: %w", err)
+		return fmt.Errorf("failed to save config file: %w", err)
 	}
 
 	fmt.Printf("Setup complete.\nYour configuration has been saved to %s.\n", config.FileUsed)

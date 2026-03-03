@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 func TestCheckUpdateAutoCheckWithNewRelease(t *testing.T) {

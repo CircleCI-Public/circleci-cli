@@ -8,16 +8,17 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestGetOrgID(t *testing.T) {
 	svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
+		_, _ = fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 	}))
 	defer svr.Close()
 	cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
@@ -71,7 +72,7 @@ func TestValidateConfig(t *testing.T) {
 				var req CompileConfigRequest
 				err = json.Unmarshal(reqBody, &req)
 				assert.NoError(t, err)
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
@@ -98,7 +99,7 @@ func TestValidateConfig(t *testing.T) {
 				err = json.Unmarshal(reqBody, &req)
 				assert.NoError(t, err)
 				assert.Equal(t, "1234", req.Options.OwnerID)
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
 			}))
 			defer svr.Close()
 			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
@@ -128,12 +129,12 @@ func TestValidateConfig(t *testing.T) {
 				err = json.Unmarshal(reqBody, &req)
 				assert.NoError(t, err)
 				assert.Equal(t, "2345", req.Options.OwnerID)
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
 			})
 
 			mux.HandleFunc("/me/collaborations", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
+				_, _ = fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 			})
 
 			svr := httptest.NewServer(mux)
@@ -166,12 +167,12 @@ func TestValidateConfig(t *testing.T) {
 				err = json.Unmarshal(reqBody, &req)
 				assert.NoError(t, err)
 				assert.Equal(t, "", req.Options.OwnerID)
-				fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
+				_, _ = fmt.Fprintf(w, `{"valid":true,"source-yaml":"%s","output-yaml":"%s","errors":[]}`, testYaml, testYaml)
 			})
 
 			mux.HandleFunc("/me/collaborations", func(w http.ResponseWriter, r *http.Request) {
 				w.Header().Set("Content-Type", "application/json")
-				fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
+				_, _ = fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 			})
 
 			svr := httptest.NewServer(mux)

@@ -4,7 +4,7 @@ package repository
 
 import (
 	"fmt"
-	"log"
+	"os"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
@@ -20,7 +20,8 @@ func Example() {
 	// Create the repository client
 	client, err := NewRepositoryRestClient(config)
 	if err != nil {
-		log.Fatalf("Failed to create repository client: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to create repository client: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Fetch GitHub repositories for an organization
@@ -28,7 +29,8 @@ func Example() {
 	orgID := "your-org-id" // Replace with your actual organization ID
 	repositories, err := client.GetGitHubRepositories(orgID)
 	if err != nil {
-		log.Fatalf("Failed to fetch repositories: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to fetch repositories: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Display the results
@@ -63,13 +65,15 @@ func ExampleWithCustomClient() {
 
 	client, err := NewRepositoryRestClient(config)
 	if err != nil {
-		log.Fatalf("Failed to create repository client: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to create repository client: %v\n", err)
+		os.Exit(1)
 	}
 
 	// Use the client as shown in the Example() function above
 	repositories, err := client.GetGitHubRepositories("your-org-id")
 	if err != nil {
-		log.Fatalf("Failed to fetch repositories: %v", err)
+		fmt.Fprintf(os.Stderr, "Failed to fetch repositories: %v\n", err)
+		os.Exit(1)
 	}
 
 	fmt.Printf("Successfully fetched %d repositories\n", repositories.TotalCount)

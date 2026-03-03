@@ -11,7 +11,7 @@ import (
 func Exec(command []string, args []string) error {
 	agent, err := exec.LookPath("circleci-agent")
 	if err != nil {
-		return fmt.Errorf("Please ensure that circleci-agent is installed, expected this to be called inside a job: %w", err)
+		return fmt.Errorf("please ensure that circleci-agent is installed, expected this to be called inside a job: %w", err)
 	}
 
 	arguments := append([]string{agent}, command...)

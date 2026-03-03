@@ -62,7 +62,7 @@ func CreateClient(user User, enabled bool) Client {
 // Sends the user's approval event
 func SendTelemetryApproval(user User, approval Approval) error {
 	client := CreateActiveTelemetry(user)
-	defer client.Close()
+	defer client.Close() //nolint:errcheck
 
 	return client.Track(CreateChangeTelemetryStatusEvent(string(approval), "first-time-prompt", nil))
 }

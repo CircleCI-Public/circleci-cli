@@ -38,11 +38,11 @@ func (client *v2Client) OrbQuery(configPath string, ownerId string) (*api.Config
 
 	err = client.gql.Run(request, &response)
 	if err != nil {
-		return nil, fmt.Errorf("Validating config: %w", err)
+		return nil, fmt.Errorf("validating config: %w", err)
 	}
 
-	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {
-		return nil, response.OrbConfig.ConfigResponse.Errors
+	if len(response.OrbConfig.Errors) > 0 {
+		return nil, response.OrbConfig.Errors
 	}
 
 	return &response.OrbConfig.ConfigResponse, nil

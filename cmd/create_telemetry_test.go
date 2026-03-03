@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"os"
 	"path/filepath"
 	"testing"
 
@@ -14,9 +13,7 @@ import (
 
 func TestLoadTelemetrySettings(t *testing.T) {
 	// Delete env.CI variable
-	oldEnvCIValue := os.Getenv("CI")
-	os.Setenv("CI", "")
-	defer os.Setenv("CI", oldEnvCIValue)
+	t.Setenv("CI", "")
 
 	// Mock HTTP
 	userId := "id"
@@ -232,9 +229,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 			// Mock env
 			if tt.args.env != nil {
 				for k, v := range tt.args.env {
-					oldEnvValue := os.Getenv(k)
-					os.Setenv(k, v)
-					defer os.Setenv(k, oldEnvValue)
+					t.Setenv(k, v)
 				}
 			}
 

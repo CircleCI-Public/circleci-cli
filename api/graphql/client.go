@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -157,16 +156,16 @@ func getServerAddress(host, endpoint string) (string, error) {
 	// 1. Parse the endpoint
 	e, err := url.Parse(endpoint)
 	if err != nil {
-		return "", fmt.Errorf("Parsing endpoint '%s': %w", endpoint, err)
+		return "", fmt.Errorf("parsing endpoint '%s': %w", endpoint, err)
 	}
 
 	// 2. Parse the host
 	h, err := url.Parse(host)
 	if err != nil {
-		return "", fmt.Errorf("Parsing host '%s': %w", host, err)
+		return "", fmt.Errorf("parsing host '%s': %w", host, err)
 	}
 	if !h.IsAbs() {
-		return h.String(), fmt.Errorf("Host (%s) must be absolute URL, including scheme", host)
+		return h.String(), fmt.Errorf("host (%s) must be absolute URL, including scheme", host)
 	}
 
 	// 3. Resolve the two URLs using host as the base
@@ -205,7 +204,6 @@ func prepareRequest(ctx context.Context, address string, request *Request) (*htt
 // TODO(zzak): This function is fairly complex, we should refactor it
 // nolint: gocyclo
 func (cl *Client) Run(request *Request, resp interface{}) error {
-	l := log.New(os.Stderr, "", 0)
 	ctx := context.Background()
 
 	select {
@@ -225,8 +223,8 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	}
 
 	if cl.Debug {
-		l.Printf(">> variables: %v", request.Variables)
-		l.Printf(">> query: %s", request.Query)
+		fmt.Fprintf(os.Stderr, ">> variables: %v\n", request.Variables)
+		fmt.Fprintf(os.Stderr, ">> query: %s\n", request.Query)
 	}
 
 	res, err := cl.httpClient.Do(req)
@@ -237,13 +235,13 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 	defer func() {
 		responseBodyCloseErr := res.Body.Close()
 		if responseBodyCloseErr != nil {
-			l.Printf("%s", responseBodyCloseErr.Error())
+			fmt.Fprintf(os.Stderr, "%s\n", responseBodyCloseErr.Error())
 		}
 	}()
 
 	if cl.Debug {
-		l.Printf("<< request id: %s", res.Header.Get("X-Request-Id"))
-		l.Printf("<< result status: %s", res.Status)
+		fmt.Fprintf(os.Stderr, "<< request id: %s\n", res.Header.Get("X-Request-Id"))
+		fmt.Fprintf(os.Stderr, "<< result status: %s\n", res.Status)
 	}
 
 	if res.StatusCode != http.StatusOK {
@@ -259,7 +257,7 @@ func (cl *Client) Run(request *Request, resp interface{}) error {
 				return fmt.Errorf("reading response: %w", err)
 			}
 
-			l.Printf("<< %s", string(bodyBytes))
+			fmt.Fprintf(os.Stderr, "<< %s\n", string(bodyBytes))
 
 			// Restore the io.ReadCloser to its original state
 			res.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))

@@ -1,0 +1,462 @@
+<testsuites>
+  <testsuite name="api/api.go" tests="4" errors="0" failures="4">
+    <testcase name="depguard" classname="api/api.go:8:2">
+      <failure message="api/api.go:8:2: import &#39;log&#39; is not allowed from list &#39;no-log&#39;: use a structured logging approach instead" type="warning"><![CDATA[warning: import 'log' is not allowed from list 'no-log': use a structured logging approach instead
+Category: depguard
+File: api/api.go
+Line: 8
+Details: 	"log"]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="api/api.go:840:10">
+      <failure message="api/api.go:840:10: ST1005: error strings should not end with punctuation or newlines" type="error"><![CDATA[error: ST1005: error strings should not end with punctuation or newlines
+Category: staticcheck
+File: api/api.go
+Line: 840
+Details: 		return errors.New("Namespace alias deletion failed for unknown reasons.")]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="api/api.go:878:10">
+      <failure message="api/api.go:878:10: ST1005: error strings should not end with punctuation or newlines" type="error"><![CDATA[error: ST1005: error strings should not end with punctuation or newlines
+Category: staticcheck
+File: api/api.go
+Line: 878
+Details: 		return errors.New("Namespace deletion failed for unknown reasons.")]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="api/api.go:1687:2">
+      <failure message="api/api.go:1687:2: QF1003: could use tagged switch on updateType" type="error"><![CDATA[error: QF1003: could use tagged switch on updateType
+Category: staticcheck
+File: api/api.go
+Line: 1687
+Details: 	if updateType == Add {]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/dl/err.go" tests="2" errors="0" failures="2">
+    <testcase name="errorlint" classname="api/dl/err.go:12:11">
+      <failure message="api/dl/err.go:12:11: type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors" type="warning"><![CDATA[warning: type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors
+Category: errorlint
+File: api/dl/err.go
+Line: 12
+Details: 	_, ok := err.(*CloudOnlyErr)]]></failure>
+    </testcase>
+    <testcase name="errorlint" classname="api/dl/err.go:25:11">
+      <failure message="api/dl/err.go:25:11: type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors" type="warning"><![CDATA[warning: type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors
+Category: errorlint
+File: api/dl/err.go
+Line: 25
+Details: 	_, ok := err.(*GoneErr)]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/graphql/client.go" tests="1" errors="0" failures="1">
+    <testcase name="depguard" classname="api/graphql/client.go:9:2">
+      <failure message="api/graphql/client.go:9:2: import &#39;log&#39; is not allowed from list &#39;no-log&#39;: use a structured logging approach instead" type="warning"><![CDATA[warning: import 'log' is not allowed from list 'no-log': use a structured logging approach instead
+Category: depguard
+File: api/graphql/client.go
+Line: 9
+Details: 	"log"]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/info/info_test.go" tests="2" errors="0" failures="2">
+    <testcase name="staticcheck" classname="api/info/info_test.go:27:13">
+      <failure message="api/info/info_test.go:27:13: QF1012: Use fmt.Fprintf(...) instead of Write([]byte(fmt.Sprintf(...)))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintf(...) instead of Write([]byte(fmt.Sprintf(...)))
+Category: staticcheck
+File: api/info/info_test.go
+Line: 27
+Details: 		_, err := w.Write([]byte(fmt.Sprintf(`[{"id": "%s", "name": "%s"}]`, id, name)))]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="api/info/info_test.go:63:13">
+      <failure message="api/info/info_test.go:63:13: QF1012: Use fmt.Fprintf(...) instead of Write([]byte(fmt.Sprintf(...)))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintf(...) instead of Write([]byte(fmt.Sprintf(...)))
+Category: staticcheck
+File: api/info/info_test.go
+Line: 63
+Details: 		_, err := w.Write([]byte(fmt.Sprintf(`{"message": "%s"}`, message)))]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/orb/client.go" tests="1" errors="0" failures="1">
+    <testcase name="staticcheck" classname="api/orb/client.go:44:14">
+      <failure message="api/orb/client.go:44:14: ST1005: error strings should not be capitalized" type="error"><![CDATA[error: ST1005: error strings should not be capitalized
+Category: staticcheck
+File: api/orb/client.go
+Line: 44
+Details: 		return "", fmt.Errorf("Could not load config file at %s: %w", path, err)]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/orb/v2_client.go" tests="3" errors="0" failures="3">
+    <testcase name="staticcheck" classname="api/orb/v2_client.go:41:15">
+      <failure message="api/orb/v2_client.go:41:15: ST1005: error strings should not be capitalized" type="error"><![CDATA[error: ST1005: error strings should not be capitalized
+Category: staticcheck
+File: api/orb/v2_client.go
+Line: 41
+Details: 		return nil, fmt.Errorf("Validating config: %w", err)]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="api/orb/v2_client.go:44:28">
+      <failure message="api/orb/v2_client.go:44:28: QF1008: could remove embedded field &#34;ConfigResponse&#34; from selector" type="error"><![CDATA[error: QF1008: could remove embedded field "ConfigResponse" from selector
+Category: staticcheck
+File: api/orb/v2_client.go
+Line: 44
+Details: 	if len(response.OrbConfig.ConfigResponse.Errors) > 0 {]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="api/orb/v2_client.go:45:34">
+      <failure message="api/orb/v2_client.go:45:34: QF1008: could remove embedded field &#34;ConfigResponse&#34; from selector" type="error"><![CDATA[error: QF1008: could remove embedded field "ConfigResponse" from selector
+Category: staticcheck
+File: api/orb/v2_client.go
+Line: 45
+Details: 		return nil, response.OrbConfig.ConfigResponse.Errors]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/pipeline/pipeline_rest_test.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="api/pipeline/pipeline_rest_test.go:438:18">
+      <failure message="api/pipeline/pipeline_rest_test.go:438:18: Error return value of `tmpFile.Close` is not checked" type="error"><![CDATA[error: Error return value of `tmpFile.Close` is not checked
+Category: errcheck
+File: api/pipeline/pipeline_rest_test.go
+Line: 438
+Details: 				tmpFile.Close()]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/policy/policy.go" tests="6" errors="0" failures="6">
+    <testcase name="errcheck" classname="api/policy/policy.go:68:23">
+      <failure message="api/policy/policy.go:68:23: Error return value of `resp.Body.Close` is not checked" type="error"><![CDATA[error: Error return value of `resp.Body.Close` is not checked
+Category: errcheck
+File: api/policy/policy.go
+Line: 68
+Details: 	defer resp.Body.Close()]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="api/policy/policy.go:99:23">
+      <failure message="api/policy/policy.go:99:23: Error return value of `resp.Body.Close` is not checked" type="error"><![CDATA[error: Error return value of `resp.Body.Close` is not checked
+Category: errcheck
+File: api/policy/policy.go
+Line: 99
+Details: 	defer resp.Body.Close()]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="api/policy/policy.go:160:23">
+      <failure message="api/policy/policy.go:160:23: Error return value of `resp.Body.Close` is not checked" type="error"><![CDATA[error: Error return value of `resp.Body.Close` is not checked
+Category: errcheck
+File: api/policy/policy.go
+Line: 160
+Details: 	defer resp.Body.Close()]]></failure>
+    </testcase>
+    <testcase name="errorlint" classname="api/policy/policy.go:53:61">
+      <failure message="api/policy/policy.go:53:61: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors" type="warning"><![CDATA[warning: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+Category: errorlint
+File: api/policy/policy.go
+Line: 53
+Details: 		return nil, fmt.Errorf("failed to construct request: %v", err)]]></failure>
+    </testcase>
+    <testcase name="errorlint" classname="api/policy/policy.go:80:64">
+      <failure message="api/policy/policy.go:80:64: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors" type="warning"><![CDATA[warning: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+Category: errorlint
+File: api/policy/policy.go
+Line: 80
+Details: 		return nil, fmt.Errorf("failed to decode response body: %v", err)]]></failure>
+    </testcase>
+    <testcase name="errorlint" classname="api/policy/policy.go:92:61">
+      <failure message="api/policy/policy.go:92:61: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors" type="warning"><![CDATA[warning: non-wrapping format verb for fmt.Errorf. Use `%w` to format errors
+Category: errorlint
+File: api/policy/policy.go
+Line: 92
+Details: 		return nil, fmt.Errorf("failed to construct request: %v", err)]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/repository/example_usage.go" tests="1" errors="0" failures="1">
+    <testcase name="depguard" classname="api/repository/example_usage.go:7:2">
+      <failure message="api/repository/example_usage.go:7:2: import &#39;log&#39; is not allowed from list &#39;no-log&#39;: use a structured logging approach instead" type="warning"><![CDATA[warning: import 'log' is not allowed from list 'no-log': use a structured logging approach instead
+Category: depguard
+File: api/repository/example_usage.go
+Line: 7
+Details: 	"log"]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/rest/client.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="api/rest/client.go:106:27">
+      <failure message="api/rest/client.go:106:27: Error return value of `httpResp.Body.Close` is not checked" type="error"><![CDATA[error: Error return value of `httpResp.Body.Close` is not checked
+Category: errcheck
+File: api/rest/client.go
+Line: 106
+Details: 	defer httpResp.Body.Close()]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/rest/client_test.go" tests="2" errors="0" failures="2">
+    <testcase name="errcheck" classname="api/rest/client_test.go:38:12">
+      <failure message="api/rest/client_test.go:38:12: Error return value of `os.Setenv` is not checked" type="error"><![CDATA[error: Error return value of `os.Setenv` is not checked
+Category: errcheck
+File: api/rest/client_test.go
+Line: 38
+Details: 		os.Setenv("CIRCLECI_CLI_TIMEOUT", customTimeout.String())]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="api/rest/client_test.go:250:21">
+      <failure message="api/rest/client_test.go:250:21: Error return value of `r.Body.Close` is not checked" type="error"><![CDATA[error: Error return value of `r.Body.Close` is not checked
+Category: errcheck
+File: api/rest/client_test.go
+Line: 250
+Details: 		defer r.Body.Close()]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="api/runner/runner_test.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="api/runner/runner_test.go:481:21">
+      <failure message="api/runner/runner_test.go:481:21: Error return value of `r.Body.Close` is not checked" type="error"><![CDATA[error: Error return value of `r.Body.Close` is not checked
+Category: errcheck
+File: api/runner/runner_test.go
+Line: 481
+Details: 		defer r.Body.Close()]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/create_telemetry_test.go" tests="2" errors="0" failures="2">
+    <testcase name="errcheck" classname="cmd/create_telemetry_test.go:18:11">
+      <failure message="cmd/create_telemetry_test.go:18:11: Error return value of `os.Setenv` is not checked" type="error"><![CDATA[error: Error return value of `os.Setenv` is not checked
+Category: errcheck
+File: cmd/create_telemetry_test.go
+Line: 18
+Details: 	os.Setenv("CI", "")]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="cmd/create_telemetry_test.go:19:17">
+      <failure message="cmd/create_telemetry_test.go:19:17: Error return value of `os.Setenv` is not checked" type="error"><![CDATA[error: Error return value of `os.Setenv` is not checked
+Category: errcheck
+File: cmd/create_telemetry_test.go
+Line: 19
+Details: 	defer os.Setenv("CI", oldEnvCIValue)]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/orb.go" tests="3" errors="0" failures="3">
+    <testcase name="errcheck" classname="cmd/orb.go:1241:17">
+      <failure message="cmd/orb.go:1241:17: Error return value of `out.Close` is not checked" type="error"><![CDATA[error: Error return value of `out.Close` is not checked
+Category: errcheck
+File: cmd/orb.go
+Line: 1241
+Details: 	defer out.Close()]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="cmd/orb.go:569:12">
+      <failure message="cmd/orb.go:569:12: QF1012: Use fmt.Fprintln(...) instead of WriteString(fmt.Sprintln(...))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintln(...) instead of WriteString(fmt.Sprintln(...))
+Category: staticcheck
+File: cmd/orb.go
+Line: 569
+Details: 	_, err := buffer.WriteString(fmt.Sprintln(orb.Name, "("+orb.HighestVersion+")"))]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="cmd/orb.go:651:18">
+      <failure message="cmd/orb.go:651:18: ST1023: should omit type []string from declaration; it will be inferred from the right-hand side" type="error"><![CDATA[error: ST1023: should omit type []string from declaration; it will be inferred from the right-hand side
+Category: staticcheck
+File: cmd/orb.go
+Line: 651
+Details: 		var categories []string = make([]string, 0, len(orbCategoryCollection.OrbCategories))]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/orb_import.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="cmd/orb_import.go:199:12">
+      <failure message="cmd/orb_import.go:199:12: Error return value of `fmt.Fprint` is not checked" type="error"><![CDATA[error: Error return value of `fmt.Fprint` is not checked
+Category: errcheck
+File: cmd/orb_import.go
+Line: 199
+Details: 	fmt.Fprint(w, b.String())]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/pipeline/run_test.go" tests="2" errors="0" failures="2">
+    <testcase name="errcheck" classname="cmd/pipeline/run_test.go:273:18">
+      <failure message="cmd/pipeline/run_test.go:273:18: Error return value of `tmpfile.Close` is not checked" type="error"><![CDATA[error: Error return value of `tmpfile.Close` is not checked
+Category: errcheck
+File: cmd/pipeline/run_test.go
+Line: 273
+Details: 				tmpfile.Close()]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="cmd/pipeline/run_test.go:275:33">
+      <failure message="cmd/pipeline/run_test.go:275:33: Error return value of `os.Remove` is not checked" type="error"><![CDATA[error: Error return value of `os.Remove` is not checked
+Category: errcheck
+File: cmd/pipeline/run_test.go
+Line: 275
+Details: 				cleanup = func() { os.Remove(tempConfigFile) }]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/policy/policy.go" tests="2" errors="0" failures="2">
+    <testcase name="errcheck" classname="cmd/policy/policy.go:761:12">
+      <failure message="cmd/policy/policy.go:761:12: Error return value of `fmt.Fprint` is not checked" type="error"><![CDATA[error: Error return value of `fmt.Fprint` is not checked
+Category: errcheck
+File: cmd/policy/policy.go
+Line: 761
+Details: 	fmt.Fprint(w, question+" ")]]></failure>
+    </testcase>
+    <testcase name="errorlint" classname="cmd/policy/policy.go:617:5">
+      <failure message="cmd/policy/policy.go:617:5: comparing with != will fail on wrapped errors. Use errors.Is to check for a specific error" type="warning"><![CDATA[warning: comparing with != will fail on wrapped errors. Use errors.Is to check for a specific error
+Category: errorlint
+File: cmd/policy/policy.go
+Line: 617
+Details: 	if err != yaml.Unmarshal([]byte(response.OutputYaml), &compiledConfigMap) {]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/policy/policy_test.go" tests="1" errors="0" failures="1">
+    <testcase name="staticcheck" classname="cmd/policy/policy_test.go:482:6">
+      <failure message="cmd/policy/policy_test.go:482:6: QF1003: could use tagged switch on count" type="error"><![CDATA[error: QF1003: could use tagged switch on count
+Category: staticcheck
+File: cmd/policy/policy_test.go
+Line: 482
+Details: 					if count == 0 {]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/project/environment_variable.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="cmd/project/environment_variable.go:111:16">
+      <failure message="cmd/project/environment_variable.go:111:16: Error return value of `fmt.Fprintln` is not checked" type="error"><![CDATA[error: Error return value of `fmt.Fprintln` is not checked
+Category: errcheck
+File: cmd/project/environment_variable.go
+Line: 111
+Details: 			fmt.Fprintln(cmd.OutOrStdout(), "Canceled")]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/project/project_test.go" tests="1" errors="0" failures="1">
+    <testcase name="staticcheck" classname="cmd/project/project_test.go:119:13">
+      <failure message="cmd/project/project_test.go:119:13: QF1012: Use fmt.Fprintf(...) instead of Write([]byte(fmt.Sprintf(...)))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintf(...) instead of Write([]byte(fmt.Sprintf(...)))
+Category: staticcheck
+File: cmd/project/project_test.go
+Line: 119
+Details: 		_, err := w.Write([]byte(fmt.Sprintf(`{"message": "%s"}`, errorMsg)))]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="cmd/root.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="cmd/root.go:55:29">
+      <failure message="cmd/root.go:55:29: Error return value of `telemetryClient.Close` is not checked" type="error"><![CDATA[error: Error return value of `telemetryClient.Close` is not checked
+Category: errcheck
+File: cmd/root.go
+Line: 55
+Details: 	defer telemetryClient.Close()]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="config/api_client.go" tests="1" errors="0" failures="1">
+    <testcase name="errorlint" classname="config/api_client.go:57:17">
+      <failure message="config/api_client.go:57:17: type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors" type="warning"><![CDATA[warning: type assertion on error will fail on wrapped errors. Use errors.As to check for specific errors
+Category: errorlint
+File: config/api_client.go
+Line: 57
+Details: 	httpErr, ok := err.(*rest.HTTPError)]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="config/v1_api_client.go" tests="3" errors="0" failures="3">
+    <testcase name="staticcheck" classname="config/v1_api_client.go:129:30">
+      <failure message="config/v1_api_client.go:129:30: QF1008: could remove embedded field &#34;LegacyConfigResponse&#34; from selector" type="error"><![CDATA[error: QF1008: could remove embedded field "LegacyConfigResponse" from selector
+Category: staticcheck
+File: config/v1_api_client.go
+Line: 129
+Details: 	if len(response.BuildConfig.LegacyConfigResponse.Errors) > 0 {]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="config/v1_api_client.go:130:37">
+      <failure message="config/v1_api_client.go:130:37: QF1008: could remove embedded field &#34;LegacyConfigResponse&#34; from selector" type="error"><![CDATA[error: QF1008: could remove embedded field "LegacyConfigResponse" from selector
+Category: staticcheck
+File: config/v1_api_client.go
+Line: 130
+Details: 		return nil, &response.BuildConfig.LegacyConfigResponse.Errors]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="config/v1_api_client.go:134:36">
+      <failure message="config/v1_api_client.go:134:36: QF1008: could remove embedded field &#34;LegacyConfigResponse&#34; from selector" type="error"><![CDATA[error: QF1008: could remove embedded field "LegacyConfigResponse" from selector
+Category: staticcheck
+File: config/v1_api_client.go
+Line: 134
+Details: 		Valid:      response.BuildConfig.LegacyConfigResponse.Valid,]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="git/git.go" tests="2" errors="0" failures="2">
+    <testcase name="staticcheck" classname="git/git.go:48:15">
+      <failure message="git/git.go:48:15: ST1005: error strings should not be capitalized" type="error"><![CDATA[error: ST1005: error strings should not be capitalized
+Category: staticcheck
+File: git/git.go
+Line: 48
+Details: 		return nil, fmt.Errorf("Splitting '%s' into organization and project failed", slug)]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="git/git.go:86:14">
+      <failure message="git/git.go:86:14: ST1005: error strings should not end with punctuation or newlines" type="error"><![CDATA[error: ST1005: error strings should not end with punctuation or newlines
+Category: staticcheck
+File: git/git.go
+Line: 86
+Details: 		return "", errors.New("Could not find 'git' on the path; this command requires git to be installed.")]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="local/local.go" tests="5" errors="0" failures="5">
+    <testcase name="errcheck" classname="local/local.go:172:13">
+      <failure message="local/local.go:172:13: Error return value of `fmt.Fprintf` is not checked" type="error"><![CDATA[error: Error return value of `fmt.Fprintf` is not checked
+Category: errcheck
+File: local/local.go
+Line: 172
+Details: 	fmt.Fprintf(output, "Fetching latest build environment...\n")]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="local/local.go:197:14">
+      <failure message="local/local.go:197:14: Error return value of `fmt.Fprintf` is not checked" type="error"><![CDATA[error: Error return value of `fmt.Fprintf` is not checked
+Category: errcheck
+File: local/local.go
+Line: 197
+Details: 		fmt.Fprintf(output, "Unable to parse JSON file %s because: %s\n", buildAgentSettingsPath(), err)]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="local/local.go:198:14">
+      <failure message="local/local.go:198:14: Error return value of `fmt.Fprintf` is not checked" type="error"><![CDATA[error: Error return value of `fmt.Fprintf` is not checked
+Category: errcheck
+File: local/local.go
+Line: 198
+Details: 		fmt.Fprintf(output, "Falling back to latest build-agent version\n")]]></failure>
+    </testcase>
+    <testcase name="errcheck" classname="local/local.go:286:18">
+      <failure message="local/local.go:286:18: Error return value of `file.Close` is not checked" type="error"><![CDATA[error: Error return value of `file.Close` is not checked
+Category: errcheck
+File: local/local.go
+Line: 286
+Details: 	defer file.Close()]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="local/local.go:150:13">
+      <failure message="local/local.go:150:13: QF1011: could omit type []string from declaration; it will be inferred from the right-hand side" type="error"><![CDATA[error: QF1011: could omit type []string from declaration; it will be inferred from the right-hand side
+Category: staticcheck
+File: local/local.go
+Line: 150
+Details: 	var result []string = []string{}]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="md_docs/md_docs.go" tests="7" errors="0" failures="7">
+    <testcase name="errcheck" classname="md_docs/md_docs.go:201:15">
+      <failure message="md_docs/md_docs.go:201:15: Error return value of `f.Close` is not checked" type="error"><![CDATA[error: Error return value of `f.Close` is not checked
+Category: errcheck
+File: md_docs/md_docs.go
+Line: 201
+Details: 	defer f.Close()]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="md_docs/md_docs.go:111:3">
+      <failure message="md_docs/md_docs.go:111:3: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))
+Category: staticcheck
+File: md_docs/md_docs.go
+Line: 111
+Details: 		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.UseLine()))]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="md_docs/md_docs.go:116:3">
+      <failure message="md_docs/md_docs.go:116:3: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))
+Category: staticcheck
+File: md_docs/md_docs.go
+Line: 116
+Details: 		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.Example))]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="md_docs/md_docs.go:132:11">
+      <failure message="md_docs/md_docs.go:132:11: QF1004: could use strings.ReplaceAll instead" type="error"><![CDATA[error: QF1004: could use strings.ReplaceAll instead
+Category: staticcheck
+File: md_docs/md_docs.go
+Line: 132
+Details: 			link = strings.Replace(link, " ", "_", -1)]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="md_docs/md_docs.go:133:4">
+      <failure message="md_docs/md_docs.go:133:4: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))" type="error"><![CDATA[error: QF1012: Use fmt.Fprintf(...) instead of WriteString(fmt.Sprintf(...))
+Category: staticcheck
+File: md_docs/md_docs.go
+Line: 133
+Details: 			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", pname, linkHandler(link), parent.Short))]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="md_docs/md_docs.go:150:11">
+      <failure message="md_docs/md_docs.go:150:11: QF1004: could use strings.ReplaceAll instead" type="error"><![CDATA[error: QF1004: could use strings.ReplaceAll instead
+Category: staticcheck
+File: md_docs/md_docs.go
+Line: 150
+Details: 			link = strings.Replace(link, " ", "_", -1)]]></failure>
+    </testcase>
+    <testcase name="staticcheck" classname="md_docs/md_docs.go:195:14">
+      <failure message="md_docs/md_docs.go:195:14: QF1004: could use strings.ReplaceAll instead" type="error"><![CDATA[error: QF1004: could use strings.ReplaceAll instead
+Category: staticcheck
+File: md_docs/md_docs.go
+Line: 195
+Details: 	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + mdExt]]></failure>
+    </testcase>
+  </testsuite>
+  <testsuite name="telemetry/telemetry.go" tests="1" errors="0" failures="1">
+    <testcase name="errcheck" classname="telemetry/telemetry.go:65:20">
+      <failure message="telemetry/telemetry.go:65:20: Error return value of `client.Close` is not checked" type="error"><![CDATA[error: Error return value of `client.Close` is not checked
+Category: errcheck
+File: telemetry/telemetry.go
+Line: 65
+Details: 	defer client.Close()]]></failure>
+    </testcase>
+  </testsuite>
+</testsuites>

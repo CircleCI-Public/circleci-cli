@@ -1,17 +1,22 @@
 version: "3"
 
+vars:
+  RESULTS_DIR: test-reports
+  TEST_REPORT: test-reports/tests.xml
+  LINT_REPORT: test-reports/lint.xml
+
 tasks:
   lint:
     desc: Lint code
     cmds:
-      - go tool golangci-lint run -c .golangci.yml
+      - go tool golangci-lint run -c .golangci.yml {{.CLI_ARGS}}
     summary: Lint the project with golangci-lint
 
   clean:
     desc: Cleans out the build, out, docs, and dist directories
     cmds:
       - GO111MODULE=off go clean -i
-      - rm -rf build out docs dist
+      - rm -rf build out docs dist test-reports
 
   fmt:
     desc: Run `go fmt` and `gosimports` to format the code
@@ -20,9 +25,11 @@ tasks:
       - go tool gosimports -local "$(go list -m)" -w .
 
   test:
-    desc: Run the tests
+    desc: Run the tests with race detector
+    env:
+      CGO_ENABLED: 1
     cmds:
-      - go test -v ./...
+      - go tool gotestsum -- -race -count=1 ./...
 
   tidy:
     desc: Run 'go mod tidy' to clean up module files.
@@ -33,6 +40,11 @@ tasks:
     desc: run's the godocs
     cmds:
       - godoc -http=:6060
+
+  gen-docs:
+    desc: Generate CLI usage documentation
+    cmds:
+      - go run main.go usage
 
   check-go-mod:
     desc: Check go.mod is tidy
@@ -45,6 +57,11 @@ tasks:
     cmds:
       - go mod vendor
 
+  mod-download:
+    desc: Download go module dependencies
+    cmds:
+      - go mod download
+
   build:
     desc: Build main
     cmds:
@@ -53,12 +70,14 @@ tasks:
       - go build -v -o build/$(go env GOOS)/$(go env GOARCH)/circleci -ldflags='-X github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=https://api.segment.io' .
 
   build-linux:
-    desc: Build main
+    desc: Build main for Linux
     cmds:
       - go build -v -o build/linux/amd64/circleci .
 
   cover:
-    desc: tests and generates a cover profile
+    desc: Run tests and generate a coverage profile
+    env:
+      CGO_ENABLED: 1
     cmds:
       - go test -race -coverprofile=coverage.txt ./...
 
@@ -66,17 +85,31 @@ tasks:
     desc: Ensure no uncommitted changes after code generation, formatting, and tidying
     cmds:
       - task: fmt
-      - go mod tidy
+      - task: tidy
       - git diff --exit-code
 
   ci:lint:
     desc: Run golangci-lint with JUnit output for CI
     cmds:
-      - mkdir -p out
-      - go tool golangci-lint run -c .golangci.yml --out-format junit-xml > out/lint-results.xml
+      - mkdir -p "{{.RESULTS_DIR}}"
+      - go tool golangci-lint run -c .golangci.yml --output.junit-xml.path "{{.LINT_REPORT}}"
 
   ci:test:
     desc: Run tests with race detector and JUnit output for CI
+    env:
+      CGO_ENABLED: 1
     cmds:
-      - mkdir -p out
-      - go tool gotestsum --junitfile out/test-results.xml -- -race -count=1 ./...
+      - mkdir -p "{{.RESULTS_DIR}}"
+      - go tool gotestsum --junitfile "{{.TEST_REPORT}}" -- -race -count=1 ./...
+
+  ci:test:windows:
+    desc: Run tests without race detector (Windows) with JUnit output for CI
+    cmds:
+      - mkdir -p "{{.RESULTS_DIR}}"
+      - go tool gotestsum --junitfile "{{.TEST_REPORT}}" -- -count=1 ./...
+
+  ci:coverage:
+    desc: Run coverage and enforce 35% threshold
+    cmds:
+      - task: cover
+      - go tool cover -func=coverage.txt | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1+0 < 35) exit 1}'

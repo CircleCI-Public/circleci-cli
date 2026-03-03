@@ -5,15 +5,16 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/google/uuid"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var (

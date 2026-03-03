@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 func TestSetupTelemetry(t *testing.T) {
@@ -249,7 +250,7 @@ func TestSetupNoPromptMissingHostAndToken(t *testing.T) {
 		"USERPROFILE="+ts.Home,
 	)
 	assert.Assert(t, result.ExitCode != 0)
-	assert.Equal(t, result.Stderr, "Error: No existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt\n")
+	assert.Equal(t, result.Stderr, "Error: no existing host or token saved.\nThe proper format is `circleci setup --host HOST --token TOKEN --no-prompt\n")
 }
 
 func TestSetupNoPromptWithBothHostAndToken(t *testing.T) {

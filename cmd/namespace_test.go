@@ -8,9 +8,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 // appendGQLPostHandler adds a handler to the test server that verifies a POST

@@ -3,9 +3,10 @@ package cmd
 import (
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/spf13/cobra"
 )
 
 func newCompletionCommand(_ *settings.Config) *cobra.Command {

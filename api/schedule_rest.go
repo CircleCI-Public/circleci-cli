@@ -3,12 +3,11 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
-
-	"errors"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/settings"
@@ -50,7 +49,7 @@ func (c *ScheduleRestClient) CreateSchedule(vcs, org, project, name, description
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +86,7 @@ func (c *ScheduleRestClient) UpdateSchedule(scheduleID, name, description string
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +121,7 @@ func (c *ScheduleRestClient) DeleteSchedule(scheduleID string) error {
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return err
 	}
@@ -158,7 +157,7 @@ func (c *ScheduleRestClient) ScheduleByID(scheduleID string) (*Schedule, error) 
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return nil, err
 	}
@@ -232,7 +231,7 @@ func (c *ScheduleRestClient) listSchedules(vcs, org, project string, params *lis
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return nil, err
 	}
@@ -436,11 +435,11 @@ func (c *ScheduleRestClient) EnsureExists() error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return errors.New("API v2 test request failed.")
+		return errors.New("api v2 test request failed")
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return err
 	}
@@ -454,7 +453,7 @@ func (c *ScheduleRestClient) EnsureExists() error {
 	}
 
 	if respBody.Paths.ScheduleEndpoint == nil {
-		return errors.New("No schedule endpoint exists")
+		return errors.New("no schedule endpoint exists")
 	}
 
 	return nil

@@ -6,11 +6,12 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/pkg/browser"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/git"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
 )
 
 // errorMessage string containing the error message displayed in both the open command and the follow command

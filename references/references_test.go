@@ -3,8 +3,9 @@ package references_test
 import (
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/references"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/references"
 )
 
 func TestIsDevVersion(t *testing.T) {
@@ -23,7 +24,7 @@ func TestSplitIntoOrbNamespaceAndVersion(t *testing.T) {
 
 func TestSplitIntoOrbNamespaceAndVersionInvalid(t *testing.T) {
 	_, _, _, err := references.SplitIntoOrbNamespaceAndVersion("asdasd")
-	assert.Error(t, err, "Invalid orb reference 'asdasd': Expected a namespace, orb and version in the format 'namespace/orb@version'")
+	assert.Error(t, err, "invalid orb reference 'asdasd': expected a namespace, orb and version in the format 'namespace/orb@version'")
 }
 
 func TestSplitIntoOrbAndNamespace(t *testing.T) {
@@ -35,7 +36,7 @@ func TestSplitIntoOrbAndNamespace(t *testing.T) {
 
 func TestSplitIntoOrbAndNamespaceInvalid(t *testing.T) {
 	_, _, err := references.SplitIntoOrbAndNamespace("catdog")
-	assert.Error(t, err, "Invalid orb catdog. Expected a namespace and orb in the form 'namespace/orb'")
+	assert.Error(t, err, "invalid orb catdog, expected a namespace and orb in the form 'namespace/orb'")
 }
 
 func TestSplitDevLabelWithSlash(t *testing.T) {

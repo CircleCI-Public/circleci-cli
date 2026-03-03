@@ -6,9 +6,10 @@ import (
 	"io"
 	"os"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
 )
 
 type queryOptions struct {
@@ -56,7 +57,7 @@ func query(opts queryOptions) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Unable to read query from stdin: %w", err)
+		return fmt.Errorf("unable to read query from stdin: %w", err)
 	}
 
 	req := graphql.NewRequest(string(q))
@@ -64,7 +65,7 @@ func query(opts queryOptions) error {
 
 	err = opts.cl.Run(req, &resp)
 	if err != nil {
-		return fmt.Errorf("Error occurred when running query: %w", err)
+		return fmt.Errorf("error occurred when running query: %w", err)
 	}
 
 	bytes, err := json.MarshalIndent(resp, "", "  ")

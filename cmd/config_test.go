@@ -8,11 +8,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
 // matchYAML compares two YAML documents by unmarshalling both and comparing
@@ -124,7 +125,7 @@ func TestConfigPackListConfigError(t *testing.T) {
 	configPath := filepath.Join(orbDir, "config.yaml")
 	assert.NilError(t, os.WriteFile(configPath, []byte(`[]`), 0600))
 
-	expected := fmt.Sprintf("Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", configPath)
+	expected := fmt.Sprintf("Error: failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for \"%s\"\n", configPath)
 
 	result := testhelpers.RunCLI(t, binary,
 		[]string{"config", "pack",

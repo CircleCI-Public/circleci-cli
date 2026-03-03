@@ -7,9 +7,10 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/md_docs"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
 )
 
 type usageOptions struct {
@@ -45,7 +46,7 @@ func usage(opts usageOptions) error {
 	}
 
 	if err := os.MkdirAll(docsPath, 0700); err != nil {
-		return fmt.Errorf("Could not create usage docs directory: %w", err)
+		return fmt.Errorf("could not create usage docs directory: %w", err)
 	}
 
 	out, err := filepath.Abs(docsPath)

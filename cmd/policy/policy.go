@@ -16,7 +16,6 @@ import (
 
 	"github.com/CircleCI-Public/circle-policy-agent/cpa"
 	"github.com/CircleCI-Public/circle-policy-agent/cpa/tester"
-
 	"github.com/araddon/dateparse"
 	"github.com/briandowns/spinner"
 	"github.com/spf13/cobra"
@@ -26,9 +25,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/config"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
-
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 // NewCommand creates the root policy command with all policy subcommands attached.
@@ -75,7 +73,7 @@ This group of commands allows the management of polices to be verified against b
 					request.DryRun = true
 					diff, err := client.CreatePolicyBundle(ownerID, context, request)
 					if err != nil {
-						return fmt.Errorf("failed to get bundle diff: %v", err)
+						return fmt.Errorf("failed to get bundle diff: %w", err)
 					}
 
 					_, _ = io.WriteString(cmd.ErrOrStderr(), "The following changes are going to be made: ")
@@ -163,11 +161,11 @@ This group of commands allows the management of polices to be verified against b
 				}
 				policies, err := policy.NewClient(*policyBaseURL, globalConfig).FetchPolicyBundle(ownerID, context, policyName)
 				if err != nil {
-					return fmt.Errorf("failed to fetch policy bundle: %v", err)
+					return fmt.Errorf("failed to fetch policy bundle: %w", err)
 				}
 
 				if err := prettyJSONEncoder(cmd.OutOrStdout()).Encode(policies); err != nil {
-					return fmt.Errorf("failed to output policy bundle in json format: %v", err)
+					return fmt.Errorf("failed to output policy bundle in json format: %w", err)
 				}
 
 				return nil
@@ -207,7 +205,7 @@ This group of commands allows the management of polices to be verified against b
 					request.After = new(time.Time)
 					*request.After, err = dateparse.ParseStrict(after)
 					if err != nil {
-						return fmt.Errorf("error in parsing --after value: %v", err)
+						return fmt.Errorf("error in parsing --after value: %w", err)
 					}
 				}
 
@@ -215,7 +213,7 @@ This group of commands allows the management of polices to be verified against b
 					request.Before = new(time.Time)
 					*request.Before, err = dateparse.ParseStrict(before)
 					if err != nil {
-						return fmt.Errorf("error in parsing --before value: %v", err)
+						return fmt.Errorf("error in parsing --before value: %w", err)
 					}
 				}
 
@@ -223,7 +221,7 @@ This group of commands allows the management of polices to be verified against b
 				if outputFile != "" {
 					file, err := os.Create(outputFile)
 					if err != nil {
-						return fmt.Errorf("failed to create output file: %v", err)
+						return fmt.Errorf("failed to create output file: %w", err)
 					}
 					dst = file
 					defer func() {
@@ -242,11 +240,11 @@ This group of commands allows the management of polices to be verified against b
 					return getAllDecisionLogs(client, ownerID, context, request, cmd.ErrOrStderr())
 				}()
 				if err != nil {
-					return fmt.Errorf("failed to get policy decision logs: %v", err)
+					return fmt.Errorf("failed to get policy decision logs: %w", err)
 				}
 
 				if err := prettyJSONEncoder(dst).Encode(output); err != nil {
-					return fmt.Errorf("failed to output policy decision logs in json format: %v", err)
+					return fmt.Errorf("failed to output policy decision logs in json format: %w", err)
 				}
 
 				return nil
@@ -616,7 +614,7 @@ func mergeCompiledConfig(compiler *config.ConfigCompiler, processConfigOpts conf
 	if err != nil {
 		return nil, fmt.Errorf("failed to compile config: %w", err)
 	}
-	if err != yaml.Unmarshal([]byte(response.OutputYaml), &compiledConfigMap) {
+	if err = yaml.Unmarshal([]byte(response.OutputYaml), &compiledConfigMap); err != nil {
 		return nil, fmt.Errorf("compiled config is not a valid yaml: %w", err)
 	}
 	err = yaml.Unmarshal([]byte(response.SourceYaml), &sourceConfigMap)
@@ -760,7 +758,7 @@ func getAllDecisionLogs(client *policy.Client, ownerID string, context string, r
 }
 
 func Confirm(w io.Writer, r io.Reader, question string) (bool, error) {
-	fmt.Fprint(w, question+" ")
+	_, _ = fmt.Fprint(w, question+" ")
 	var answer string
 
 	n, err := fmt.Fscanln(r, &answer)

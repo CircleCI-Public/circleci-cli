@@ -91,7 +91,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	picardVersion, _ := flags.GetString("build-agent-version")
 	image, err := picardImage(os.Stdout, picardVersion)
 	if err != nil {
-		return fmt.Errorf("Could not find picard image: %w", err)
+		return fmt.Errorf("could not find picard image: %w", err)
 	}
 
 	job := args[0]
@@ -106,7 +106,7 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("Could not find a `docker` executable on $PATH; please ensure that docker installed: %w", err)
+		return fmt.Errorf("could not find a `docker` executable on $PATH; please ensure that docker installed: %w", err)
 	}
 
 	err = syscall.Exec(dockerPath, arguments, os.Environ()) // #nosec
@@ -147,7 +147,7 @@ func AddFlagsForDocumentation(flags *pflag.FlagSet) {
 // the `config` flag.
 func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 
-	var result []string = []string{}
+	result := []string{}
 
 	// build a list of all supplied flags, that we will pass on to build-agent
 	flags.Visit(func(flag *pflag.Flag) {
@@ -169,7 +169,7 @@ func buildAgentArguments(flags *pflag.FlagSet) ([]string, string) {
 }
 
 func picardImage(output io.Writer, picardVersion string) (string, error) {
-	fmt.Fprintf(output, "Fetching latest build environment...\n")
+	_, _ = fmt.Fprintf(output, "Fetching latest build environment...\n")
 
 	sha, err := getPicardSha(output, picardVersion)
 	if err != nil {
@@ -194,8 +194,8 @@ func getPicardSha(output io.Writer, picardVersion string) (string, error) {
 		return sha, nil
 	}
 	if err != nil && !os.IsNotExist(err) {
-		fmt.Fprintf(output, "Unable to parse JSON file %s because: %s\n", buildAgentSettingsPath(), err)
-		fmt.Fprintf(output, "Falling back to latest build-agent version\n")
+		_, _ = fmt.Fprintf(output, "Unable to parse JSON file %s because: %s\n", buildAgentSettingsPath(), err)
+		_, _ = fmt.Fprintf(output, "Falling back to latest build-agent version\n")
 	}
 
 	// We are freezing build-agent cli as we would like to deprecate this path
@@ -228,11 +228,11 @@ func writeStringToTempFile(tempDir, data string) (string, error) {
 	f, err := os.CreateTemp(tempDir, "*_circleci_config.yml")
 
 	if err != nil {
-		return "", fmt.Errorf("Error creating temporary config file: %w", err)
+		return "", fmt.Errorf("error creating temporary config file: %w", err)
 	}
 
 	if _, err = f.WriteString(data); err != nil {
-		return "", fmt.Errorf("Error writing processed config to temporary file: %w", err)
+		return "", fmt.Errorf("error writing processed config to temporary file: %w", err)
 	}
 
 	return f.Name(), nil
@@ -281,19 +281,19 @@ func loadBuildAgentShaFromConfig() (string, error) {
 
 	file, err := os.Open(buildAgentSettingsPath())
 	if err != nil {
-		return "", fmt.Errorf("Could not open build settings config: %w", err)
+		return "", fmt.Errorf("could not open build settings config: %w", err)
 	}
-	defer file.Close()
+	defer file.Close() //nolint:errcheck
 
 	var settings buildAgentSettings
 
 	buf, err := io.ReadAll(file)
 	if err != nil {
-		return "", fmt.Errorf("Couldn't read from build settings file: %w", err)
+		return "", fmt.Errorf("couldn't read from build settings file: %w", err)
 	}
 
 	if err = json.Unmarshal(buf, &settings); err != nil {
-		return "", fmt.Errorf("Could not parse build settings config: %w", err)
+		return "", fmt.Errorf("could not parse build settings config: %w", err)
 	}
 
 	return settings.LatestSha256, nil

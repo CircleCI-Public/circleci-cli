@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/CircleCI-Public/circleci-cli/errs"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
 )
 
 const instrumentedAnnotation = "telemetry_instrumented"

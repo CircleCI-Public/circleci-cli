@@ -10,14 +10,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/context"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/prompt"
-	"github.com/olekukonko/tablewriter"
-
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
 )
 
 var (
@@ -330,7 +330,7 @@ func storeEnvVar(client context.ContextInterface, prompt storeEnvVarPrompt, cont
 
 	secretValue, err := prompt.askForValue()
 	if err != nil {
-		return fmt.Errorf("Failed to read secret value from stdin: %w", err)
+		return fmt.Errorf("failed to read secret value from stdin: %w", err)
 	}
 
 	err = client.CreateEnvironmentVariable(context.ID, varName, secretValue)

@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 func meHandler(t *testing.T, name string) http.HandlerFunc {

@@ -3,13 +3,13 @@ package info
 import (
 	"encoding/json"
 
+	"github.com/olekukonko/tablewriter"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api/info"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/olekukonko/tablewriter"
-
-	"github.com/spf13/cobra"
 )
 
 // infoOptions info command options

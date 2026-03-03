@@ -3,10 +3,11 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/CircleCI-Public/circleci-cli/version"
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/CircleCI-Public/circleci-cli/version"
 )
 
 type disableOptions struct {

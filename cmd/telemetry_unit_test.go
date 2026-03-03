@@ -4,9 +4,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/afero"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 func TestSetIsTelemetryActive(t *testing.T) {

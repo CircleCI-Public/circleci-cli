@@ -7,10 +7,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 func TestListPipelineDefinitions(t *testing.T) {

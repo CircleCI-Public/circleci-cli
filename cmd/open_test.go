@@ -3,8 +3,9 @@ package cmd
 import (
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/git"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/git"
 )
 
 func TestProjectUrl(t *testing.T) {

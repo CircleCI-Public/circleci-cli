@@ -6,10 +6,11 @@ import (
 	"reflect"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"gotest.tools/v3/assert"
 )
 
 func getCollaboratorsRestClient(server *httptest.Server) (collaborators.CollaboratorsClient, error) {

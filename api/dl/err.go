@@ -1,5 +1,7 @@
 package dl
 
+import "errors"
+
 type CloudOnlyErr struct{}
 
 func (e *CloudOnlyErr) Error() string {
@@ -9,8 +11,7 @@ func (e *CloudOnlyErr) Error() string {
 }
 
 func IsCloudOnlyErr(err error) bool {
-	_, ok := err.(*CloudOnlyErr)
-	return ok
+	return errors.As(err, new(*CloudOnlyErr))
 }
 
 type GoneErr struct{}
@@ -22,6 +23,5 @@ func (e *GoneErr) Error() string {
 }
 
 func IsGoneErr(err error) bool {
-	_, ok := err.(*GoneErr)
-	return ok
+	return errors.As(err, new(*GoneErr))
 }

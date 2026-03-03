@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/blang/semver"
 	"github.com/rhysd/go-github-selfupdate/selfupdate"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 // hoursBeforeCheck is used to configure the delay between auto-update checks
@@ -30,7 +31,7 @@ func CheckForUpdates(githubAPI, slug, current, packageManager string) (*Options,
 
 	currentVersion, err := semver.Parse(current)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to parse current version: %w", err)
+		return nil, fmt.Errorf("failed to parse current version: %w", err)
 	}
 
 	check = &Options{
@@ -80,7 +81,7 @@ func ParseHomebrewVersion(homebrewVesion string) (semver.Version, error) {
 	version, err := semver.Parse(withRevisionAsTag)
 
 	if err != nil {
-		return semver.Version{}, fmt.Errorf("failed to parse current version from %s: %s", homebrewVesion, err)
+		return semver.Version{}, fmt.Errorf("failed to parse current version from %s: %w", homebrewVesion, err)
 	}
 
 	return version, nil
@@ -89,7 +90,7 @@ func ParseHomebrewVersion(homebrewVesion string) (semver.Version, error) {
 func checkFromHomebrew(check *Options) error {
 	brew, err := exec.LookPath("brew")
 	if err != nil {
-		return fmt.Errorf("Expected to find `brew` in your $PATH but wasn't able to find it: %w", err)
+		return fmt.Errorf("expected to find `brew` in your $PATH but wasn't able to find it: %w", err)
 	}
 
 	command := exec.Command(brew, "outdated", "--json=v2") // #nosec
@@ -179,7 +180,7 @@ func latestRelease(opts *Options) error {
 	opts.Found = found
 
 	if err != nil {
-		return fmt.Errorf(`Failed to query the GitHub API for updates.
+		return fmt.Errorf(`failed to query the GitHub API for updates.
 
 This is most likely due to GitHub rate-limiting on unauthenticated requests.
 

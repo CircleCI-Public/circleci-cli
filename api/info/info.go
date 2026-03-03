@@ -49,7 +49,7 @@ func (c *InfoRESTClient) GetInfo() (*[]Organization, error) {
 	}
 	req, err := c.newHTTPRequest("GET", queryURL.String(), nil)
 	if err != nil {
-		return nil, fmt.Errorf("failed to construct new request: %v", err)
+		return nil, fmt.Errorf("failed to construct new request: %w", err)
 	}
 
 	resp, err := c.client.Do(req)
@@ -58,7 +58,7 @@ func (c *InfoRESTClient) GetInfo() (*[]Organization, error) {
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 	if err != nil {
 		return nil, err
 	}

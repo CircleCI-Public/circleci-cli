@@ -3,10 +3,9 @@ package pipeline
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
-
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"

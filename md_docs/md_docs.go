@@ -108,12 +108,12 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 	buf.WriteString(long + "\n\n")
 
 	if cmd.Runnable() {
-		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.UseLine()))
+		fmt.Fprintf(buf, "```\n%s\n```\n\n", cmd.UseLine())
 	}
 
 	if len(cmd.Example) > 0 {
 		buf.WriteString("### Examples\n\n")
-		buf.WriteString(fmt.Sprintf("```\n%s\n```\n\n", cmd.Example))
+		fmt.Fprintf(buf, "```\n%s\n```\n\n", cmd.Example)
 	}
 
 	if err := printArguments(buf, cmd, name); err != nil {
@@ -129,8 +129,8 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 			parent := cmd.Parent()
 			pname := parent.CommandPath()
 			link := pname + mdExt
-			link = strings.Replace(link, " ", "_", -1)
-			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", pname, linkHandler(link), parent.Short))
+			link = strings.ReplaceAll(link, " ", "_")
+			fmt.Fprintf(buf, "* [%s](%s)\t - %s\n", pname, linkHandler(link), parent.Short)
 			cmd.VisitParents(func(c *cobra.Command) {
 				if c.DisableAutoGenTag {
 					cmd.DisableAutoGenTag = c.DisableAutoGenTag
@@ -147,8 +147,8 @@ func GenMarkdownCustom(cmd *cobra.Command, w io.Writer, linkHandler func(string)
 			}
 			cname := name + " " + child.Name()
 			link := cname + mdExt
-			link = strings.Replace(link, " ", "_", -1)
-			buf.WriteString(fmt.Sprintf("* [%s](%s)\t - %s\n", cname, linkHandler(link), child.Short))
+			link = strings.ReplaceAll(link, " ", "_")
+			fmt.Fprintf(buf, "* [%s](%s)\t - %s\n", cname, linkHandler(link), child.Short)
 		}
 		buf.WriteString("\n")
 	}
@@ -192,13 +192,13 @@ func GenMarkdownTreeCustom(cmd *cobra.Command, dir string, filePrepender, linkHa
 		}
 	}
 
-	basename := strings.Replace(cmd.CommandPath(), " ", "_", -1) + mdExt
+	basename := strings.ReplaceAll(cmd.CommandPath(), " ", "_") + mdExt
 	filename := filepath.Join(dir, basename)
 	f, err := os.Create(filename)
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer f.Close() //nolint:errcheck
 
 	if _, err := io.WriteString(f, filePrepender(filename)); err != nil {
 		return err

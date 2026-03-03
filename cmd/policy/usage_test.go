@@ -4,9 +4,8 @@ import (
 	"fmt"
 	"testing"
 
-	"gotest.tools/v3/golden"
-
 	"github.com/spf13/cobra"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )

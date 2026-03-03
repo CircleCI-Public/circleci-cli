@@ -7,8 +7,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/api/rest"
 )
 
 func TestAPIClient(t *testing.T) {
@@ -16,7 +17,7 @@ func TestAPIClient(t *testing.T) {
 		t.Run("when the route returns a 404 tells that the version is v1", func(t *testing.T) {
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(404)
-				fmt.Fprintf(w, "Invalid input")
+				_, _ = fmt.Fprintf(w, "Invalid input")
 			}))
 			url, err := url.Parse(svr.URL)
 			assert.NilError(t, err)
@@ -30,7 +31,7 @@ func TestAPIClient(t *testing.T) {
 		t.Run("on other cases return v2", func(t *testing.T) {
 			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(500)
-				fmt.Fprintf(w, "Invalid input")
+				_, _ = fmt.Fprintf(w, "Invalid input")
 			}))
 			url, err := url.Parse(svr.URL)
 			assert.NilError(t, err)

@@ -7,9 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestAPIV1Flow(t *testing.T) {
@@ -22,12 +23,12 @@ func TestAPIV1Flow(t *testing.T) {
 
 		mux.HandleFunc("/me/collaborations", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
+			_, _ = fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 		})
 
 		mux.HandleFunc("/graphql-unstable", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"data":{"buildConfig": {"valid":true,"sourceYaml":"%s","outputYaml":"%s","errors":[]}}}`, testYaml, testYaml)
+			_, _ = fmt.Fprintf(w, `{"data":{"buildConfig": {"valid":true,"sourceYaml":"%s","outputYaml":"%s","errors":[]}}}`, testYaml, testYaml)
 		})
 
 		svr := httptest.NewServer(mux)
@@ -59,12 +60,12 @@ func TestAPIV1Flow(t *testing.T) {
 
 		mux.HandleFunc("/me/collaborations", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
+			_, _ = fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 		})
 
 		mux.HandleFunc("/graphql-unstable", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"data":{"buildConfig":{"errors":[{"message": "failed to validate"}]}}}`)
+			_, _ = fmt.Fprintf(w, `{"data":{"buildConfig":{"errors":[{"message": "failed to validate"}]}}}`)
 		})
 
 		svr := httptest.NewServer(mux)
@@ -103,12 +104,12 @@ func TestAPIV1Flow(t *testing.T) {
 
 		mux.HandleFunc("/me/collaborations", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
+			_, _ = fmt.Fprintf(w, `[{"vcs_type":"circleci","slug":"gh/test","id":"2345"}]`)
 		})
 
 		mux.HandleFunc("/graphql-unstable", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			fmt.Fprintf(w, `{"data":{"buildConfig":{"errors":[{"message": "failed to validate"}]}}}`)
+			_, _ = fmt.Fprintf(w, `{"data":{"buildConfig":{"errors":[{"message": "failed to validate"}]}}}`)
 			gqlHitCounter++
 		})
 

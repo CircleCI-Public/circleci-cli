@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
 func TestInstrumentEmitsStartedAndFinished(t *testing.T) {

@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 func TestTelemetryEnableEvent(t *testing.T) {

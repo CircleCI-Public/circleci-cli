@@ -7,11 +7,12 @@ import (
 	"os"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
 )
 
 func Test_newRunCommand(t *testing.T) {
@@ -269,9 +270,9 @@ func Test_newRunCommand(t *testing.T) {
 				if _, err := tmpfile.WriteString("version: 2.1\njobs: {}\n"); err != nil {
 					assert.NilError(t, err)
 				}
-				tmpfile.Close()
+				_ = tmpfile.Close()
 				tempConfigFile = tmpfile.Name()
-				cleanup = func() { os.Remove(tempConfigFile) }
+				cleanup = func() { _ = os.Remove(tempConfigFile) }
 				defer cleanup()
 				// Patch the expected config to use the temp file path
 				tt.expectedConfig.ConfigFilePath = tempConfigFile

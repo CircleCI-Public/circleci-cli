@@ -7,6 +7,9 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/pkg/browser"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/api/collaborators"
 	pipelineapi "github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	projectapi "github.com/CircleCI-Public/circleci-cli/api/project"
@@ -15,8 +18,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/pkg/browser"
-	"github.com/spf13/cobra"
 )
 
 type initOptions struct {
@@ -459,7 +460,7 @@ func initCmd(opts initOptions, reader UserInputReader, cmd *cobra.Command) error
 				fmt.Println("⚠️  You'll need to install the CircleCI GitHub App before proceeding.")
 				fmt.Println("   Please install it and run this command again.")
 				fmt.Printf("   Install at: %s\n", vcsConnectionsURL)
-				return fmt.Errorf("CircleCI GitHub App is required for GitHub organizations")
+				return fmt.Errorf("circleCI GitHub App is required for GitHub organizations")
 			}
 			fmt.Println("✅ GitHub App installation confirmed!")
 		} else if installation.ID == 0 {
@@ -488,7 +489,7 @@ func initCmd(opts initOptions, reader UserInputReader, cmd *cobra.Command) error
 				fmt.Println("⚠️  You'll need to install the CircleCI GitHub App before proceeding.")
 				fmt.Println("   Please install it and run this command again.")
 				fmt.Printf("   Install at: %s\n", vcsConnectionsURL)
-				return fmt.Errorf("CircleCI GitHub App is required for GitHub organizations")
+				return fmt.Errorf("circleCI GitHub App is required for GitHub organizations")
 			}
 			fmt.Println("✅ GitHub App installation confirmed!")
 		} else {

@@ -9,11 +9,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/cmd/trigger"
 	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/CircleCI-Public/circleci-cli/settings"
-	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
 )
 
 type testCreateTriggerArgs struct {

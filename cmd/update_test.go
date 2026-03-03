@@ -10,9 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 func githubReleasesResponse() string {
@@ -241,7 +242,7 @@ func TestUpdateGithub403(t *testing.T) {
 	)
 	assert.Assert(t, result.ExitCode != 0, "expected non-zero exit, stderr: %q, stdout: %q", result.Stderr, result.Stdout)
 
-	assert.Assert(t, strings.Contains(result.Stderr, `Error: Failed to query the GitHub API for updates.`),
+	assert.Assert(t, strings.Contains(result.Stderr, `Error: failed to query the GitHub API for updates.`),
 		"expected stderr to contain error message, got: %q", result.Stderr)
 	assert.Assert(t, strings.Contains(result.Stderr, `This is most likely due to GitHub rate-limiting on unauthenticated requests.`),
 		"expected stderr to contain rate-limiting message, got: %q", result.Stderr)

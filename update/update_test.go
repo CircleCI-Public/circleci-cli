@@ -3,9 +3,10 @@ package update_test
 import (
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/blang/semver"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/update"
 )
 
 func TestParseSimpleVersion(t *testing.T) {

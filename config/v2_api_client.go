@@ -1,10 +1,9 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/url"
-
-	"errors"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 )
@@ -54,7 +53,7 @@ func (client *v2APIClient) CompileConfig(configContent string, orgID string, par
 	}
 
 	if len(configCompilationResp.Errors) > 0 {
-		return nil, fmt.Errorf("config compilation contains errors: %s", configErrorsAsError(configCompilationResp.Errors))
+		return nil, fmt.Errorf("config compilation contains errors: %w", configErrorsAsError(configCompilationResp.Errors))
 	}
 
 	return configCompilationResp, nil

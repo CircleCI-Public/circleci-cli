@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
-	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
+	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
 
 func newTokenCommand(o *runnerOpts, preRunE validator.Validator) *cobra.Command {

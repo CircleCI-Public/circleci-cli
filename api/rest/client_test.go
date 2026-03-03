@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -35,7 +34,7 @@ func TestNewFromConfigTimeout(t *testing.T) {
 	})
 	t.Run("create new client with custom timeout", func(t *testing.T) {
 		customTimeout := 20 * time.Second
-		os.Setenv("CIRCLECI_CLI_TIMEOUT", customTimeout.String())
+		t.Setenv("CIRCLECI_CLI_TIMEOUT", customTimeout.String())
 		api, err := NewFromConfig("https://circleci.example.com", cfg)
 		assert.NoError(t, err)
 		assert.Equal(t, api.client.Timeout, customTimeout)
@@ -247,7 +246,7 @@ func (f *fixture) Run(statusCode int, respBody string) (c *Client, cleanup func(
 		f.mu.Lock()
 		defer f.mu.Unlock()
 
-		defer r.Body.Close()
+		defer r.Body.Close() //nolint:errcheck
 		_, _ = io.Copy(&f.body, r.Body)
 		f.url = *r.URL
 		f.header = r.Header

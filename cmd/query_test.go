@@ -10,8 +10,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
 func TestQueryFromStdin(t *testing.T) {

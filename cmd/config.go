@@ -7,14 +7,14 @@ import (
 	"github.com/CircleCI-Public/circleci-config/generation"
 	"github.com/CircleCI-Public/circleci-config/labeling"
 	"github.com/CircleCI-Public/circleci-config/labeling/codebase"
+	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/config"
 	"github.com/CircleCI-Public/circleci-cli/filetree"
 	"github.com/CircleCI-Public/circleci-cli/proxy"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
-	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 )
 
 // Path to the config.yml file to operate on.
@@ -176,12 +176,12 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 func packConfig(args []string) error {
 	tree, err := filetree.NewTree(args[0])
 	if err != nil {
-		return fmt.Errorf("An error occurred trying to build the tree: %w", err)
+		return fmt.Errorf("an error occurred trying to build the tree: %w", err)
 	}
 
 	y, err := yaml.Marshal(&tree)
 	if err != nil {
-		return fmt.Errorf("Failed trying to marshal the tree to YAML : %w", err)
+		return fmt.Errorf("failed trying to marshal the tree to YAML : %w", err)
 	}
 	fmt.Printf("%s\n", string(y))
 	return nil
@@ -210,7 +210,7 @@ func generateConfig(args []string) error {
 		return fmt.Errorf("%s is not a directory", path)
 	}
 	if err != nil {
-		return fmt.Errorf("error reading from %s: %v", path, err)
+		return fmt.Errorf("error reading from %s: %w", path, err)
 	}
 
 	cb := codebase.LocalCodebase{BasePath: path}

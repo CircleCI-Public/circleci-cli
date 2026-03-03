@@ -9,10 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api/context"
-	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/api/context"
+	"github.com/CircleCI-Public/circleci-cli/testhelpers"
 )
 
 func newContextServer(t testing.TB, handler http.HandlerFunc) *httptest.Server {

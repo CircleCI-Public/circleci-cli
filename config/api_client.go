@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -36,7 +37,7 @@ func newAPIClient(config *settings.Config) (APIClient, error) {
 	case v2_string:
 		return &v2APIClient{restClient}, nil
 	default:
-		return nil, fmt.Errorf("Unable to recognise your Server's config file API")
+		return nil, fmt.Errorf("unable to recognise your Server's config file API")
 	}
 }
 
@@ -54,8 +55,8 @@ func detectAPIClientVersion(restClient *rest.Client) (apiClientVersion, error) {
 	}
 
 	_, err = restClient.DoRequest(req, nil)
-	httpErr, ok := err.(*rest.HTTPError)
-	if !ok {
+	var httpErr *rest.HTTPError
+	if !errors.As(err, &httpErr) {
 		return "", err
 	}
 	if httpErr.Code == http.StatusNotFound {

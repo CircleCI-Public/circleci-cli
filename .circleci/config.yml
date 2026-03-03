@@ -70,7 +70,7 @@ commands:
           keys: ["v3-gomod-{{ arch }}-"]
       - run:
           name: Download go module dependencies
-          command: go mod download
+          command: task mod-download
       - save_cache:
           key: v2-gomod-{{ arch }}-{{ checksum "go.sum" }}
           paths:
@@ -86,31 +86,43 @@ jobs:
     steps:
       - run: git config --global core.autocrlf false
       - checkout
-      - run: mkdir test_results
-
+      - run:
+          name: Install Task
+          command: |
+            export GOBIN=/c/go/bin
+            export PATH=$GOBIN:$PATH
+            go install github.com/go-task/task/v3/cmd/task@latest
       - run:
           name: Run tests
           command: |
             export GOBIN=/c/go/bin
             export PATH=$GOBIN:$PATH
-            go install gotest.tools/gotestsum@latest
-            gotestsum --junitfile test_results/windows.xml
+            task ci:test:windows
       - store_test_results:
-          path: test_results
+          path: test-reports
       - store_artifacts:
-          path: test_results
+          path: test-reports
   test_mac:
     executor: mac
+    environment:
+      CGO_ENABLED: 1
     steps:
       - checkout
-      - run: |
-          curl -OL https://go.dev/dl/go1.25.2.darwin-arm64.pkg
-          sudo installer -pkg ./go1.25.2.darwin-arm64.pkg -target /
-          echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
+      - run:
+          name: Install Go and Task
+          command: |
+            curl -OL https://go.dev/dl/go1.25.2.darwin-arm64.pkg
+            sudo installer -pkg ./go1.25.2.darwin-arm64.pkg -target /
+            /usr/local/go/bin/go install github.com/go-task/task/v3/cmd/task@latest
+            echo 'export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"' >> "$BASH_ENV"
       - gomod
       - run:
           name: Run tests with race detector
-          command: CGO_ENABLED=1 go test -race -v ./...
+          command: task ci:test
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
   build:
     executor: go
     steps:
@@ -143,16 +155,18 @@ jobs:
 
   test:
     executor: go
+    environment:
+      CGO_ENABLED: 1
     steps:
       - checkout
       - gomod
       - run:
           name: Run tests with race detector
-          command: CGO_ENABLED=1 gotestsum --junitfile test_results/linux.xml -- -race ./...
+          command: task ci:test
       - store_test_results:
-          path: test_results
+          path: test-reports
       - store_artifacts:
-          path: test_results
+          path: test-reports
 
   coverage:
     executor: go
@@ -162,11 +176,7 @@ jobs:
       - checkout
       - force-http-1
       - gomod
-      - run: task cover
-      - run:
-          name: Enforce coverage threshold (35%)
-          command: |
-            go tool cover -func=coverage.txt | grep total | awk '{print $3}' | sed 's/%//' | awk '{if ($1+0 < 35) exit 1}'
+      - run: task ci:coverage
       - store_artifacts:
           path: ./coverage.txt
           destination: coverage.txt
@@ -178,7 +188,7 @@ jobs:
       - gomod
       - run:
           name: Check go.mod is tidy
-          command: go mod tidy -v && git diff --exit-code -- go.mod go.sum
+          command: task ci:diff
 
   docs:
     executor: go
@@ -190,7 +200,7 @@ jobs:
             sudo apt-get update
             sudo apt-get install pandoc
       - gomod
-      - run: go run main.go usage
+      - run: task gen-docs
       - store_artifacts:
           path: ./docs
           destination: docs
@@ -202,7 +212,11 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: go tool golangci-lint run
+      - run: task ci:lint
+      - store_test_results:
+          path: test-reports
+      - store_artifacts:
+          path: test-reports
 
   deploy-test:
     executor: go

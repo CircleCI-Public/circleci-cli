@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli/api"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/api"
 )
 
 func TestParameterDefaultToString(t *testing.T) {

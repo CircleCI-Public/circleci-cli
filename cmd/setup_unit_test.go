@@ -12,11 +12,12 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
 )
 
 func testDummyCmd() *cobra.Command {

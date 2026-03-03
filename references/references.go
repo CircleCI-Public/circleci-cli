@@ -10,7 +10,7 @@ import (
 func SplitIntoOrbAndNamespace(ref string) (namespace, orb string, err error) {
 	parts := strings.Split(ref, "/")
 	if len(parts) != 2 {
-		return "", "", fmt.Errorf("Invalid orb %s. Expected a namespace and orb in the form 'namespace/orb'", ref)
+		return "", "", fmt.Errorf("invalid orb %s, expected a namespace and orb in the form 'namespace/orb'", ref)
 	}
 
 	return parts[0], parts[1], nil
@@ -19,7 +19,7 @@ func SplitIntoOrbAndNamespace(ref string) (namespace, orb string, err error) {
 // SplitIntoOrbNamespaceAndVersion splits ref into namespace, orb and version.
 func SplitIntoOrbNamespaceAndVersion(ref string) (namespace, orb, version string, err error) {
 
-	errorMessage := fmt.Errorf("Invalid orb reference '%s': Expected a namespace, orb and version in the format 'namespace/orb@version'", ref)
+	errorMessage := fmt.Errorf("invalid orb reference '%s': expected a namespace, orb and version in the format 'namespace/orb@version'", ref)
 
 	re := regexp.MustCompile("^(.+)/(.+)@(.+)$")
 
@@ -52,6 +52,6 @@ func IsOrbRefWithOptionalVersion(ref string) error {
 		return nil
 	}
 
-	return fmt.Errorf("Invalid orb reference '%s': expected a string of the form namespace/orb or namespace/orb@version", ref)
+	return fmt.Errorf("invalid orb reference '%s': expected a string of the form namespace/orb or namespace/orb@version", ref)
 
 }

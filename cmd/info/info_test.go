@@ -25,7 +25,7 @@ func TestGetOrgSuccess(t *testing.T) {
 		assert.Equal(t, r.Method, "GET")
 		assert.Equal(t, r.URL.String(), "/me/collaborations")
 		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte(fmt.Sprintf(`[{"id": "%s", "name": "%s"}]`, id, name)))
+		_, err := fmt.Fprintf(w, `[{"id": "%s", "name": "%s"}]`, id, name)
 		assert.NilError(t, err)
 	}
 	server := httptest.NewServer(serverHandler)
@@ -59,7 +59,7 @@ func TestGetOrgError(t *testing.T) {
 		assert.Equal(t, r.Method, "GET")
 		assert.Equal(t, r.URL.String(), "/me/collaborations")
 		w.WriteHeader(http.StatusInternalServerError)
-		_, err := w.Write([]byte(fmt.Sprintf(`{"message": "%s"}`, errorMessage)))
+		_, err := fmt.Fprintf(w, `{"message": "%s"}`, errorMessage)
 		assert.NilError(t, err)
 	}
 	server := httptest.NewServer(serverHandler)
@@ -87,7 +87,7 @@ func TestFailedValidator(t *testing.T) {
 		assert.Equal(t, r.Method, "GET")
 		assert.Equal(t, r.URL.String(), "/me/collaborations")
 		w.WriteHeader(http.StatusInternalServerError)
-		_, err := w.Write([]byte(fmt.Sprintf(`{"message": "%s"}`, errorMessage)))
+		_, err := fmt.Fprintf(w, `{"message": "%s"}`, errorMessage)
 		assert.NilError(t, err)
 	}
 	server := httptest.NewServer(serverHandler)

@@ -1,0 +1,918 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="660" failures="24" errors="0" time="36.260965">
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli" timestamp="2026-03-03T10:03:36-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="17" failures="0" time="1.958000" name="github.com/CircleCI-Public/circleci-cli/api" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestOrbVersionRef" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestFollowProject/fails_when_http_client_returns_an_error" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestFollowProject/fails_when_json_decoding_fails" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestFollowProject/returns_a_followed_project_successfully" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestFollowProject" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestSchedules/Get_all_schedules_for_a_project" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestSchedules" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestScheduleByID/Get_a_schedule_by_ID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestScheduleByID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestScheduleByName/Get_a_schedule_by_name" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestScheduleByName" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestDeleteSchedule/Delete_a_schedule" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestDeleteSchedule" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestCreateSchedule/Create_a_schedule" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestCreateSchedule" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestUpdateSchedule/Update_a_schedule" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api" name="TestUpdateSchedule" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="10" failures="0" time="1.437000" name="github.com/CircleCI-Public/circleci-cli/api/collaborators" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetOrgCollaborations/Should_handle_a_successful_request" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetOrgCollaborations/Should_handle_an_error_request" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetOrgCollaborations" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug/Should_work_with_short-vcs_notation_(github)" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug/Should_work_with_vcs-name_notation_(github)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug/Should_work_with_vcs-short_notation_(bitbucket)" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug/Should_work_with_vcs-name_notation_(bitbucket)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug/Should_return_nil_if_not_found" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug/Should_error_if_request_errors" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/collaborators" name="Test_collaboratorsRestClient_GetCollaborationBySlug" time="0.030000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/api/context" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="3" failures="0" time="1.706000" name="github.com/CircleCI-Public/circleci-cli/api/dl" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/dl" name="Test_DLCPurge/Should_handle_a_successful_request" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/dl" name="Test_DLCPurge/Should_handle_an_error_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/dl" name="Test_DLCPurge" time="0.020000"></testcase>
+	</testsuite>
+	<testsuite tests="8" failures="1" time="1.660000" name="github.com/CircleCI-Public/circleci-cli/api/graphql" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestServerAddress" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestServerAddress&#xA;    client_test.go:40: Expected error without absolute URL&#xA;    client_test.go:46: Expected parsing endpoint error&#xA;--- FAIL: TestServerAddress (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestDoJSON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestQueryJSON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestDoJSONErr" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestHeader" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestStatusCode200" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestStatusCode500" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/graphql" name="TestStatusCode413" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/api/header" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="2" failures="0" time="2.239000" name="github.com/CircleCI-Public/circleci-cli/api/info" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/info" name="TestOkResponse" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/info" name="TestServerErrorResponse" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/api/orb" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="16" failures="0" time="2.544000" name="github.com/CircleCI-Public/circleci-cli/api/pipeline" timestamp="2026-03-03T10:03:38-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_CreatePipeline/Should_handle_a_successful_request_with_CreatePipeline" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_CreatePipeline/Should_handle_an_error_request_with_CreatePipeline" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_CreatePipeline/Should_handle_a_successful_request_with_CreatePipeline_with_configRepoID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_CreatePipeline" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_GetPipelineDefinition/Should_handle_a_successful_request_with_GetPipelineDefinition" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_GetPipelineDefinition/Should_handle_an_error_request_with_GetPipelineDefinition" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_GetPipelineDefinition" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_ListPipelineDefinitions/Should_handle_a_successful_request" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_ListPipelineDefinitions/Should_handle_empty_list_response" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_ListPipelineDefinitions/Should_handle_an_error_request" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_ListPipelineDefinitions" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_PipelineRun/no_config_file,_pipeline_created" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_PipelineRun/no_config_file,_no_pipeline_created" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_PipelineRun/valid_config_file,_pipeline_created" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_PipelineRun/invalid_config_file_path" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/pipeline" name="Test_pipelineRestClient_PipelineRun" time="0.030000"></testcase>
+	</testsuite>
+	<testsuite tests="40" failures="0" time="1.671000" name="github.com/CircleCI-Public/circleci-cli/api/policy" timestamp="2026-03-03T10:03:40-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientFetchPolicyBundle/expected_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientFetchPolicyBundle/Fetch_Policy_Bundle_-_Forbidden" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientFetchPolicyBundle/Fetch_Policy_Bundle_-_Bad_error_json" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientFetchPolicyBundle/Fetch_Policy_Bundle_-_no_policies" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientFetchPolicyBundle/Fetch_Policy_Bundle_-_some_policies" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientFetchPolicyBundle" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientCreatePolicy/expected_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientCreatePolicy/expected_dry_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientCreatePolicy/unexpected_status_code" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientCreatePolicy" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/expected_request_without_any_filters" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/expected_request_without_only_one_filter" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/expected_request_with_all_filters" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/Get_Decision_Logs_-_Bad_Request" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/Get_Decision_Logs_-_Forbidden" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/Get_Decision_Logs_-_no_decision_logs" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs/Get_Decision_Logs_-_some_logs" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLogs" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog/expected_request_with_policyBundle=false" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog/expected_request_without_policyBundle=true" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog/Get_Decision_Log_-_Bad_Request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog/Get_Decision_Log_-_Forbidden" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog/Get_Decision_Log_-_decision_log_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog/Get_Decision_Log_-_successfully_finds_decision_log" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestClientGetDecisionLog" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestMakeDecision/sends_expected_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestMakeDecision/unexpected_status_code" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestMakeDecision/unexpected_status_code_no_body" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestMakeDecision/bad_decoding" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestMakeDecision" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestGetSettings/gets_expected_response" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestGetSettings/unexpected_status_code" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestGetSettings/unexpected_status_code_no_body" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestGetSettings/bad_decoding" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestGetSettings" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestSetSettings/sends_expected_request_(enabled=true)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestSetSettings/sends_expected_request_(enabled=false)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestSetSettings/sends_expected_request_(enabled=nil)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestSetSettings/unexpected_status_code" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/policy" name="TestSetSettings" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="17" failures="0" time="2.945000" name="github.com/CircleCI-Public/circleci-cli/api/project" timestamp="2026-03-03T10:03:40-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ListAllEnvironmentVariables/Should_handle_a_successful_request_with_ListAllEnvironmentVariables" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ListAllEnvironmentVariables/Should_handle_a_request_containing_next_page_token_with_ListAllEnvironmentVariables" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ListAllEnvironmentVariables/Should_handle_an_error_request_with_ListAllEnvironmentVariables" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ListAllEnvironmentVariables" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_GetEnvironmentVariable/Should_handle_a_successful_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_GetEnvironmentVariable/Should_handle_an_error_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_GetEnvironmentVariable/Should_handle_an_404_error_as_a_valid_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_GetEnvironmentVariable" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_CreateProject/Should_handle_a_successful_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_CreateProject/Should_handle_an_error_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_CreateProject" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_CreateEnvironmentVariable/Should_handle_a_successful_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_CreateEnvironmentVariable/Should_handle_an_error_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_CreateEnvironmentVariable" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ProjectInfo/Should_handle_a_successful_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ProjectInfo/Should_handle_an_error_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/project" name="Test_projectRestClient_ProjectInfo" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="9" failures="0" time="11.730000" name="github.com/CircleCI-Public/circleci-cli/api/repository" timestamp="2026-03-03T10:03:40-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestGetGitHubRepositories" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestGetGitHubRepositories_ErrorResponse" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestGetGitHubRepositories_NetworkError" time="5.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestNewRepositoryRestClient" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestCheckGitHubAppInstallation_Success" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestCheckGitHubAppInstallation_NotInstalled_404" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestCheckGitHubAppInstallation_NotInstalled_403" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestCheckGitHubAppInstallation_ServerError" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/repository" name="TestCheckGitHubAppInstallation_NetworkError" time="5.000000"></testcase>
+	</testsuite>
+	<testsuite tests="19" failures="0" time="2.036000" name="github.com/CircleCI-Public/circleci-cli/api/rest" timestamp="2026-03-03T10:03:40-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestNewFromConfigTimeout/create_new_client_without_custom_timeout" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestNewFromConfigTimeout/create_new_client_with_custom_timeout" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestNewFromConfigTimeout/returns_error_on_invalid_host_URL" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestNewFromConfigTimeout" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/PUT_with_req_and_resp/Check_result" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/PUT_with_req_and_resp/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/PUT_with_req_and_resp" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/GET_with_error_status/Check_result" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/GET_with_error_status/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/GET_with_error_status" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/GET_with_resp_only/Check_result" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/GET_with_resp_only/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest/GET_with_resp_only" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestClient_DoRequest" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestAPIRequest/test_new_api_request_sets_the_default_headers" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestAPIRequest/test_new_api_request_sets_the_default_headers#01" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestAPIRequest/test_new_api_request_doesn&#39;t_set_content-type_with_empty_payload" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestAPIRequest/config_compile_and_validate_payloads_have_expected_shape" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/rest" name="TestAPIRequest" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="35" failures="0" time="2.637000" name="github.com/CircleCI-Public/circleci-cli/api/runner" timestamp="2026-03-03T10:03:40-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_CreateResourceClass/Check_resource-class_is_created" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_CreateResourceClass/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_CreateResourceClass" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassByName/Check_resource-class_list_results" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassByName/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassByName" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassByName_BadResourceClass" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassesByNamespace/Check_resource-class_list_results" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassesByNamespace/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetResourceClassesByNamespace" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass/Check_resource-class_is_deleted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass_Force" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass_PathEscaping/Check_resource-class_is_deleted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass_PathEscaping/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteResourceClass_PathEscaping" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_CreateToken/Check_token_is_created" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_CreateToken/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_CreateToken" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerTokensByResourceClass/Check_token_list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerTokensByResourceClass/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerTokensByResourceClass" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteToken/Check_token_is_deleted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteToken/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteToken" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteToken_PathEscaping/Check_token_is_deleted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteToken_PathEscaping/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_DeleteToken_PathEscaping" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerInstances_ByNamespace/Check_instance_list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerInstances_ByNamespace/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerInstances_ByNamespace" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerInstances_ByResourceClass/Check_instance_list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerInstances_ByResourceClass/Check_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/runner" name="TestRunner_GetRunnerInstances_ByResourceClass" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="4" failures="0" time="2.374000" name="github.com/CircleCI-Public/circleci-cli/api/trigger" timestamp="2026-03-03T10:03:40-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/trigger" name="Test_triggerRestClient_CreateTrigger/Should_handle_a_successful_request_with_CreateTrigger" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/trigger" name="Test_triggerRestClient_CreateTrigger/Should_handle_a_successful_request_with_CreateTrigger_with_checkoutRef_and_configRef" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/trigger" name="Test_triggerRestClient_CreateTrigger/Should_handle_an_error_request_with_CreateTrigger" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/api/trigger" name="Test_triggerRestClient_CreateTrigger" time="0.010000"></testcase>
+	</testsuite>
+	<testsuite tests="219" failures="14" time="31.580000" name="github.com/CircleCI-Public/circleci-cli/cmd" timestamp="2026-03-03T10:03:41-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestVersionsToImport_NoNamespaceFound" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestVersionsToImport_NoNamespaceFound&#xA;    orb_import_test.go:157: assertion failed: expected error to contain &#34;No namespace found&#34;, got &#34;list namespace orb versions: no namespace found&#34;&#xA;--- FAIL: TestVersionsToImport_NoNamespaceFound (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespaceAlias_UnexpectedFailure" time="5.600000">
+			<failure message="Failed" type="">=== RUN   TestAdminDeleteNamespaceAlias_UnexpectedFailure&#xA;    admin_test.go:57: assertion failed: expression is false: strings.Contains(result.Stderr, &#34;Namespace alias deletion failed for unknown reasons.&#34;): expected stderr to contain failure message, got: Error: namespace alias deletion failed for unknown reasons&#xA;        &#xA;--- FAIL: TestAdminDeleteNamespaceAlias_UnexpectedFailure (5.60s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespace_ListOrbsError" time="0.020000">
+			<failure message="Failed" type="">=== RUN   TestAdminDeleteNamespace_ListOrbsError&#xA;    admin_test.go:220: assertion failed: expression is false: strings.Contains(result.Stderr, &#34;unable to list orbs: No namespace found&#34;): expected stderr to contain orb list error, got: Error: unable to list orbs: no namespace found&#xA;        &#xA;--- FAIL: TestAdminDeleteNamespace_ListOrbsError (0.02s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigPackListConfigError" time="0.020000">
+			<failure message="Failed" type="">=== RUN   TestConfigPackListConfigError&#xA;    config_test.go:139: assertion failed: &#xA;        --- result.Stderr&#xA;        +++ expected&#xA;        @@ -1,2 +1,2 @@&#xA;        -Error: failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for &#34;/var/folders/1q/gw82bzm106z8f1zcfj1m9hq80000gn/T/circleci-cli-test-3811954590/myorb/config.yaml&#34;&#xA;        +Error: Failed trying to marshal the tree to YAML : expected a map, got a `[]interface {}` which is not supported at this time for &#34;/var/folders/1q/gw82bzm106z8f1zcfj1m9hq80000gn/T/circleci-cli-test-3811954590/myorb/config.yaml&#34;&#xA;         &#xA;        &#xA;--- FAIL: TestConfigPackListConfigError (0.02s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistInvalidArgs/invalid_orb_name" time="0.040000">
+			<failure message="Failed" type="">=== RUN   TestOrbUnlistInvalidArgs/invalid_orb_name&#xA;    orb_test.go:1828: assertion failed: expression is false: strings.Contains(result.Stderr, tc.expectedError)&#xA;--- FAIL: TestOrbUnlistInvalidArgs/invalid_orb_name (0.04s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistInvalidArgs" time="0.060000">
+			<failure message="Failed" type="">=== RUN   TestOrbUnlistInvalidArgs&#xA;--- FAIL: TestOrbUnlistInvalidArgs (0.06s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListNonExistent" time="0.050000">
+			<failure message="Failed" type="">=== RUN   TestOrbListNonExistent&#xA;    orb_test.go:2538: assertion failed: expression is false: strings.Contains(result.Stderr, &#34;No namespace found&#34;)&#xA;--- FAIL: TestOrbListNonExistent (0.05s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListPrivate/error_without_namespace" time="0.040000">
+			<failure message="Failed" type="">=== RUN   TestOrbListPrivate/error_without_namespace&#xA;    orb_test.go:2596: assertion failed: expression is false: strings.Contains(result.Stderr, &#34;Namespace must be provided when listing private orbs&#34;)&#xA;--- FAIL: TestOrbListPrivate/error_without_namespace (0.04s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListPrivate" time="0.070000">
+			<failure message="Failed" type="">=== RUN   TestOrbListPrivate&#xA;--- FAIL: TestOrbListPrivate (0.07s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCategorizationCategoryNotExist/add" time="0.050000">
+			<failure message="Failed" type="">=== RUN   TestOrbCategorizationCategoryNotExist/add&#xA;    orb_test.go:3241: assertion failed: expression is false: strings.Contains(result.Stderr, fmt.Sprintf(&#34;Error: Failed to add orb bar-ns/foo-orb to category Cloud Platform: %s&#34;, errorCause))&#xA;--- FAIL: TestOrbCategorizationCategoryNotExist/add (0.05s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCategorizationCategoryNotExist/remove" time="0.050000">
+			<failure message="Failed" type="">=== RUN   TestOrbCategorizationCategoryNotExist/remove&#xA;    orb_test.go:3243: assertion failed: expression is false: strings.Contains(result.Stderr, fmt.Sprintf(&#34;Error: Failed to remove orb bar-ns/foo-orb from category Cloud Platform: %s&#34;, errorCause))&#xA;--- FAIL: TestOrbCategorizationCategoryNotExist/remove (0.05s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCategorizationCategoryNotExist" time="0.100000">
+			<failure message="Failed" type="">=== RUN   TestOrbCategorizationCategoryNotExist&#xA;--- FAIL: TestOrbCategorizationCategoryNotExist (0.10s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNoPromptMissingHostAndToken" time="0.020000">
+			<failure message="Failed" type="">=== RUN   TestSetupNoPromptMissingHostAndToken&#xA;    setup_test.go:253: assertion failed: &#xA;        --- result.Stderr&#xA;        +++ →&#xA;        @@ -1,3 +1,3 @@&#xA;        -Error: no existing host or token saved.&#xA;        +Error: No existing host or token saved.&#xA;         The proper format is `circleci setup --host HOST --token TOKEN --no-prompt&#xA;         &#xA;        &#xA;--- FAIL: TestSetupNoPromptMissingHostAndToken (0.02s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestUpdateGithub403" time="0.030000">
+			<failure message="Failed" type="">=== RUN   TestUpdateGithub403&#xA;    update_test.go:245: assertion failed: expression is false: strings.Contains(result.Stderr, `Error: Failed to query the GitHub API for updates.`): expected stderr to contain error message, got: &#34;Error: failed to query the GitHub API for updates.\n\nThis is most likely due to GitHub rate-limiting on unauthenticated requests.\n\nTo have the circleci-cli make authenticated requests please:\n\n  1. Generate a token at https://github.com/settings/tokens\n  2. Set the token by either adding it to your ~/.gitconfig or\n     setting the GITHUB_TOKEN environment variable.\n\nInstructions for generating a token can be found at:\nhttps://help.github.com/articles/creating-a-personal-access-token-for-the-command-line/\n\nWe call the GitHub releases API to look for new releases.\nMore information about that API can be found here: https://developer.github.com/v3/repos/releases/\n\n: GET http://127.0.0.1:58779/api/v3/repos/CircleCI-Public/circleci-cli/releases: 403  []\n&#34;&#xA;--- FAIL: TestUpdateGithub403 (0.03s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Prompt_approval_should_be_saved_in_settings" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Prompt_disapproval_should_be_saved_in_settings" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Does_not_recreate_a_unique_ID_if_there_is_one" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Does_not_change_telemetry_settings_if_user_already_answered_prompt" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Does_not_change_telemetry_settings_if_stdin_is_not_a_TTY" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Does_not_change_telemetry_settings_if_stdout_is_not_a_TTY" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Does_not_change_telemetry_settings_if_env.CI_==_true" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Should_try_loading_user_id_if_user_already_answered_prompt_but_has_no_user_id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings/Should_consider_has_answered_prompt_before_disabled-default_scenarios" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestLoadTelemetrySettings" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/arg:_substitute_variables" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/arg:_no_variables_to_substitute" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/arg:_empty_input" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/arg:_no_variables_JSON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/arg:_substitute_variables_JSON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/arg:_no_variables_key=value" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/stdin:_substitute_variables" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/stdin:_no_variables_to_substitute" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/stdin:_empty_input" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/stdin:_no_variables_JSON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/stdin:_substitute_variables_JSON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE/stdin:_no_variables_key=value" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSubstRunE" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestProjectUrl/can_build_urls" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestProjectUrl/escapes_garbage" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestProjectUrl" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestVersionsToImport_FailFetchingOrbInfo" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestVersionsToImport_SuccessfullyFetchOrbVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestVersionsToImport_FetchAllOrbVersionsInNamespace" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestVersionsToImport_FetchFromMultipleArguments" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestGenerateImportPlan_AllResources" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestGenerateImportPlan_OverlappingOrbsAndNamespaces" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestGenerateImportPlan_SomeResourcesExist" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestDisplayPlan" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_ErrorCreatingNamespace" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_SuccessCreatingNamespace" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_ErrorCreatingOrb_NamespaceFetchFails" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_ErrorCreatingOrb" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_SuccessCreatingOrb" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_FailPublishOrbVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestApplyPlan_SuccessPublishOrbVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestParameterDefaultToString/normal_behaviour_for_string" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestParameterDefaultToString/normal_behaviour_for_enum" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestParameterDefaultToString/normal_behaviour_for_boolean" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestParameterDefaultToString/string_value_for_boolean" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestParameterDefaultToString/time_value_for_string" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestParameterDefaultToString" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestPluginExecution/should_find_and_execute_a_plugin_in_PATH" time="2.940000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestPluginExecution/should_return_an_error_when_plugin_is_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestPluginExecution/should_require_at_least_one_argument" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestPluginExecution" time="2.950000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupUnitNewConfigPermissions" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupUnitExistingConfigPrintSuccess" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupUnitExistingConfigSkipToken" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupUnitWhoamiAuthError" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetIsTelemetryActive/Enabling_telemetry_with_settings_should_just_update_the_is_active_field" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetIsTelemetryActive/Enabling_telemetry_without_settings_should_fill_the_settings_fields" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetIsTelemetryActive/Disabling_telemetry_with_settings_should_just_update_the_is_active_field" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetIsTelemetryActive/Enabling_telemetry_without_settings_should_fill_the_settings_fields#01" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetIsTelemetryActive" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespaceAlias_GraphQLErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespaceAlias_Success" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespace_NotFound" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespace_DeleteError" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminDeleteNamespace_Success" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminRenameNamespace_Success" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestAdminRenameNamespace_Error" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestCheckUpdateAutoCheckWithNewRelease" time="4.230000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigPackTelemetry" time="0.070000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigPackHugoOrb" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigPackNestedOrbsAndLocalCommands" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigPackMyOrb" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigPackLargeNestedRailsOrb" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigGenerateWithoutPath" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestConfigGenerateWithPath" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextInvalidToken" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextCreatePermissionError" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextListEmpty" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextListWithVCSAndOrgName" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextListWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextShowWithVCSAndOrgName" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextShowWithOrgID" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextStoreSecretWithVCSAndOrgName" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextStoreSecretWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextRemoveSecretWithVCSAndOrgName" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextRemoveSecretWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextDeleteWithVCSAndOrgName" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextDeleteWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextCreateWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextCreateWithVCSAndOrgName" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestContextCreateHandlesErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestDiagnosticTelemetry" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestDiagnosticTokenSet" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestDiagnosticHostOverride" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestDiagnosticEmptyToken" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestDiagnosticWhoamiReturnsUser" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestInstrumentEmitsStartedAndFinished" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestInstrumentFlagsUsed" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestInstrumentArgsError" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestNamespaceTelemetry" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestNamespaceCreateWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestNamespaceCreateWithOrgNameAndVcs" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestNamespaceCreateDuplicate" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestNamespaceCreateGraphQLErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbTelemetry" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbHelpText" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbHelpTextCustomHost" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbValidateSTDIN" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbValidateDefaultPath" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbValidateWithOrgID" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbValidateWorks" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbValidateInvalid" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbProcessWorks" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbProcessInvalid" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishSemanticVersion" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishSemanticVersionErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishSemanticNoOrbFromPrivateCheck" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishDevVersion" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishDevVersionErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishDevNoOrbFromPrivateCheck" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishIncrement" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishIncrementErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishIncrementNoOrbFromPrivateCheck" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishPromote" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishPromoteErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPublishPromoteNoOrbFromPrivateCheck" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreateNoPrompt" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreatePrivateNoPrompt" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreateNoPromptErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreateInteractive" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreateInteractiveErrors" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlist/listing_an_orb" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlist/unlisting_an_orb" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlist" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistUnauthorized/listing" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistUnauthorized/unlisting" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistUnauthorized" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistNamespaceNotFound" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistOrbNotFound" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistIncorrectArgs/0_args" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistIncorrectArgs/1_arg" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistIncorrectArgs/3_args" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistIncorrectArgs" time="0.060000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbUnlistInvalidArgs/non-boolean_value" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListSorting/sort_by_builds" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListSorting/sort_by_projects" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListSorting/sort_by_orgs" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListSorting" time="0.060000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListSortInvalid" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListJSON" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListDefaultHost" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListUncertified" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListUncertifiedJSON" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListDetails" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListDetailsJSON" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListNamespace" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListNamespaceJSON" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListPrivate/success_with_namespace" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreateWithoutToken" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCreateWithoutTokenCustomHost" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbSource" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbSourceNotPublished" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbInfo/works_with_categories" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbInfo/reports_usage_statistics" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbInfo/no_semantic_versions" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbInfo/orb_not_found" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbInfo" time="0.090000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListCategories/with_--json" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListCategories/without_--json" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbListCategories" time="0.050000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbAddRemoveCategorization/add_categorization_success" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbAddRemoveCategorization/remove_categorization_success" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbAddRemoveCategorization/server_error_on_adding_categorization" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbAddRemoveCategorization/server_error_on_removing_categorization" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbAddRemoveCategorization" time="0.090000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCategorizationOrbNotExist/add" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCategorizationOrbNotExist/remove" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbCategorizationOrbNotExist" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbPack" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbDiff/detect_identical_sources" time="0.700000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbDiff/detect_difference" time="0.500000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestOrbDiff" time="1.200000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestQueryFromStdin" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestMakeCommands" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestBuildWithoutAutoUpdate/reports_update_command_as_unavailable" time="0.540000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestBuildWithoutAutoUpdate/tells_the_user_to_update_using_their_package_manager" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestBuildWithoutAutoUpdate" time="4.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestBuildWithAutoUpdate" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupTelemetry" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNewConfigFilePermissions" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupExistingConfigFilePermissions" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupExistingTokenAndHost" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNoPromptWithValidConfig" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNoPromptChangeHost" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNoPromptChangeToken" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNoPromptInvalidHost" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestSetupNoPromptWithBothHostAndToken" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestTelemetryEnableEvent" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestTelemetryDisableEvent" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestUpdateTelemetryParentCommand" time="4.150000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestUpdateTelemetryChildCommand" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestUpdateCheckFlag" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestUpdateCheckSubcommand" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestUpdateInstall" time="4.400000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd" name="TestVersionTelemetry" time="0.020000"></testcase>
+	</testsuite>
+	<testsuite tests="4" failures="0" time="4.168000" name="github.com/CircleCI-Public/circleci-cli/cmd/info" timestamp="2026-03-03T10:03:41-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/info" name="TestGetOrgSuccess" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/info" name="TestGetOrgError" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/info" name="TestFailedValidator" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/info" name="TestTelemetry" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="23" failures="0" time="3.077000" name="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" timestamp="2026-03-03T10:03:41-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestListPipelineDefinitions/List_pipeline_definitions_successfully" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestListPipelineDefinitions/Handle_empty_pipeline_definitions_list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestListPipelineDefinitions/Handle_API_error" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestListPipelineDefinitions" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/missing_required_arguments" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/missing_project_argument" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/missing_pipeline_definition_id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/valid_required_arguments" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_config_branch_and_checkout_branch" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_config_tag_and_checkout_tag" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_parameters" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/mutually_exclusive_config_branch_and_tag" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/mutually_exclusive_checkout_branch_and_tag" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_local_config_file_prompt_-_yes" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_both_pipeline_definition_id_prompt_and_local_config_file_prompt" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_both_local_config_file_and_repo_config_flags_-_confirm_local_config" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand/with_both_local_config_file_and_repo_config_flags_-_decline_local_config" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="Test_newRunCommand" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestCreatePipeline/Create_pipeline_successfully" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestCreatePipeline/Handle_API_error_when_creating_pipeline" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestCreatePipeline/Create_pipeline_with_config_in_different_repo_(prompt)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestCreatePipeline/Create_pipeline_with_config_in_different_repo_(flag)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/pipeline" name="TestCreatePipeline" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="96" failures="0" time="5.764000" name="github.com/CircleCI-Public/circleci-cli/cmd/policy" timestamp="2026-03-03T10:03:41-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyWithPrompt" time="0.100000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt/requires_policy_bundle_directory_path_" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt/requires_owner-id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt/fails_for_policy_bundle_directory_path_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt/fails_if_policy_path_points_to_a_file_instead_of_directory" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt/no_policy_files_in_given_policy_directory_path" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt/sends_appropriate_desired_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestPushPolicyBundleNoPrompt" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle/requires_policy_bundle_directory_path_" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle/requires_owner-id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle/fails_for_policy_bundle_directory_path_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle/fails_if_policy_path_points_to_a_file_instead_of_directory" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle/no_policy_files_in_given_policy_directory_path" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle/sends_appropriate_desired_request" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestDiffPolicyBundle" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestFetchPolicyBundle/requires_owner-id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestFetchPolicyBundle/gets_error_response" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestFetchPolicyBundle/successfully_fetches_single_policy" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestFetchPolicyBundle/successfully_fetches_policy_bundle" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestFetchPolicyBundle" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/requires_owner-id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/invalid_--after_filter_value" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/invalid_--before_filter_value" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/gives_error_when_a_filter_is_provided_when_decisionID_is_also_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/gives_error_when_--policy-bundle_flag_is_used_but_decisionID_is_not_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/no_filter_is_set" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/all_filters_are_set" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/gets_error_response" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/successfully_gets_decision_logs" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/successfully_gets_a_decision_log_for_given_decision_ID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs/successfully_gets_policy-bundle_for_given_decision_ID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetDecisionLogs" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/requires_flags" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/sends_expected_request,_config_compilation_is_disabled" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/sends_expected_request,_config_compilation_is_enabled_(source_config_has__compiled__top_level_key)" time="0.120000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/sends_expected_request,_config_compilation_is_enabled" time="0.080000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/passes_when_decision_status_=_HARD_FAIL_AND_--strict_is_OFF" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_when_decision_status_=_HARD_FAIL_AND_--strict_is_ON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/passes_when_decision_status_=_ERROR_AND_--strict_is_OFF" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_when_decision_status_=_ERROR_AND_--strict_is_ON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/sends_expected_request_with_context" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/sends_expected_request_with_meta" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/sends_expected_request_with_metafile" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_on_unexpected_status_code" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_if_neither_local-policy_nor_owner-id_is_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_for_input_file_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_for_policy_FILE/DIRECTORY_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/fails_if_both_meta_and_metafile_are_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_for_policy_FILE_provided_locally" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_for_policy_FILE_provided_locally,_when_config_compilation_is_enabled" time="0.120000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_for_policy_FILE_provided_locally,_passes_when_decision_=_HARD_FAIL_and_strict_=_OFF" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_for_policy_FILE_provided_locally,_fails_when_decision_=_HARD_FAIL_and_strict_=_ON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_for_policy_FILE_provided_locally,_passes_when_decision_=_ERROR_and_strict_=_OFF" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_for_policy_FILE_provided_locally,_fails_when_decision_=_ERROR_and_strict_=_ON" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_with_meta_for_policy_FILE_provided_locally" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand/successfully_performs_decision_with_metafile_for_policy_FILE_provided_locally" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestMakeDecisionCommand" time="0.360000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/fails_if_local-policy_is_not_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/fails_if_input_is_not_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/fails_for_input_file_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/fails_for_policy_FILE/DIRECTORY_not_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/fails_if_both_meta_and_metafile_are_provided" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/successfully_performs_raw_opa_evaluation_for_policy_FILE_provided_locally,_input_and_meta" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/successfully_performs_raw_opa_evaluation_for_policy_FILE_provided_locally,_input_and_metafile" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/successfully_performs_raw_opa_evaluation_for_policy_FILE_provided_locally,_input,_meta_and_query" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/successfully_performs_raw_opa_evaluation_for_policy_FILE_provided_locally,_input,_metafile_and_query" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/sends_expected_request,_config_compilation_is_disabled" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand/sends_expected_request,_config_compilation_is_enabled" time="0.100000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestRawOPAEvaluationCommand" time="0.110000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings/requires_owner-id" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings/gets_error_response" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings/successfully_fetches_settings" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings/successfully_sets_settings_(--enabled)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings/successfully_sets_settings_(--enabled=true)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings/successfully_sets_settings_(--enabled=false)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestGetSetSettings" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/default_options" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/verbose" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/verbose_with_run" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/debug" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/json" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/format:json" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/format:junit" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/format:junit_and_json_flag" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner/compile" time="0.360000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestTestRunner" time="0.420000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/decide" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/diff" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/eval" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/fetch" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/logs" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/push" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/settings" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy/test" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage/policy" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/policy" name="TestUsage" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="15" failures="0" time="3.895000" name="github.com/CircleCI-Public/circleci-cli/cmd/project" timestamp="2026-03-03T10:03:41-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestListSecrets" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestListSecretsErrorWithValidator" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestListSecretsErrorWithAPIResponse" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/Create_successfully_without_an_existing_key" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/Overwrite_successfully_with_an_existing_key" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/Cancel_overwriting_an_existing_key" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/Pass_a_variable_through_a_commandline_argument" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/Handle_an_error_request_from_GetEnvironmentVariable" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/Handle_an_error_request_from_CreateEnvironmentVariable" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret/The_process_should_be_rejected_if_the_passed_value_is_empty" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestCreateSecret" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestDLCPurge/Happy_path" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestDLCPurge/Gone" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestDLCPurge/Not_cloud" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/project" name="TestDLCPurge" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="23" failures="0" time="3.540000" name="github.com/CircleCI-Public/circleci-cli/cmd/runner" timestamp="2026-03-03T10:03:41-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_generateConfig" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_ResourceClass/create/without_default_token" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_ResourceClass/create/without_default_token_and_json" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_ResourceClass/create/with_default_token" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_ResourceClass/create/with_default_token_and_json" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_ResourceClass/create" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_ResourceClass" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_NewCommand/Runner_uses_/api/v3" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_NewCommand" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_RunnerTelemetry/resource-class" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="Test_RunnerTelemetry" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/instance/list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/instance" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/resource-class/create" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/resource-class/delete" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/resource-class/list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/resource-class" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/token/create" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/token/delete" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/token/list" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner/token" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage/runner" time="0.040000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/runner" name="TestUsage" time="0.040000"></testcase>
+	</testsuite>
+	<testsuite tests="3" failures="0" time="3.981000" name="github.com/CircleCI-Public/circleci-cli/cmd/trigger" timestamp="2026-03-03T10:03:42-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/trigger" name="TestCreateTrigger/Create_trigger_successfully" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/trigger" name="TestCreateTrigger/Handle_API_error_when_creating_trigger" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/cmd/trigger" name="TestCreateTrigger" time="0.010000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/cmd/validator" timestamp="2026-03-03T10:03:42-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="38" failures="3" time="3.393000" name="github.com/CircleCI-Public/circleci-cli/config" timestamp="2026-03-03T10:03:42-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_ConfigQuery/returns_error_when_config_file_could_not_be_found" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestConfig/test_ConfigQuery/returns_error_when_config_file_could_not_be_found&#xA;    config_test.go:73: &#xA;        &#x9;Error Trace:&#x9;/Users/Riasat/Desktop/git/circleci-cli/config/config_test.go:73&#xA;        &#x9;Error:      &#x9;&#34;failed to load yaml config from config path provider: could not load config file at testdata/nonexistent.yml: open testdata/nonexistent.yml: no such file or directory&#34; does not contain &#34;Could not load config file at testdata/nonexistent.yml&#34;&#xA;        &#x9;Test:       &#x9;TestConfig/test_ConfigQuery/returns_error_when_config_file_could_not_be_found&#xA;--- FAIL: TestConfig/test_ConfigQuery/returns_error_when_config_file_could_not_be_found (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_ConfigQuery" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestConfig/test_ConfigQuery&#xA;--- FAIL: TestConfig/test_ConfigQuery (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig" time="0.010000">
+			<failure message="Failed" type="">=== RUN   TestConfig&#xA;--- FAIL: TestConfig (0.01s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIClient/detectCompilerVersion/when_the_route_returns_a_404_tells_that_the_version_is_v1" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIClient/detectCompilerVersion/on_other_cases_return_v2" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIClient/detectCompilerVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIClient" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestGetOrgID/returns_the_original_org-id_passed_if_it_is_set" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestGetOrgID/returns_the_correct_org_id_from_org-slug" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestGetOrgID/returns_the_correct_org_id_with_org-id_and_org-slug_both_set" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestGetOrgID/does_not_return_an_error_if_org-id_cannot_be_found" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestGetOrgID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestValidateConfig/validate_config_works_as_expected/validate_config_is_able_to_send_a_request_with_no_owner-id" time="0.090000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestValidateConfig/validate_config_works_as_expected/validate_config_is_able_to_send_a_request_with_owner-id" time="0.090000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestValidateConfig/validate_config_works_as_expected/validate_config_is_able_to_send_a_request_with_owner-id_from_slug" time="0.090000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestValidateConfig/validate_config_works_as_expected/validate_config_is_able_to_send_a_request_with_no_owner-id_after_failed_collaborations_lookup" time="0.080000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestValidateConfig/validate_config_works_as_expected" time="0.350000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestValidateConfig" time="0.350000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_getCompileHost/for_Server_instances" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_getCompileHost/for_CircleCI_servers" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_getCompileHost" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_ConfigQuery/returns_the_correct_configCompilation_response" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_ConfigQuery/handles_non-200_status_correctly" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfig/test_ConfigQuery/server_gets_correct_information_owner_ID" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestLoadYaml/tests_load_yaml" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestLoadYaml/returns_error_for_non-existent_yml_file" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestLoadYaml" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestDeprecatedImageCheck/happy_path_-_tests_deprecated_image_check_works" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestDeprecatedImageCheck/happy_path_-_no_error_if_image_used" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestDeprecatedImageCheck" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestLocalPipelineValues/standard_values_given_nil_parameters" time="0.100000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestLocalPipelineValues/standard_and_prefixed_parameters_given_map_of_parameters" time="0.080000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestLocalPipelineValues" time="0.180000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIV1Flow/tests_that_the_compiler_defaults_to_the_graphQL_resolver_should_the_original_API_request_fail_with_404" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIV1Flow/tests_that_the_compiler_handles_errors_properly_when_returned_from_the_graphQL_endpoint" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIV1Flow/tests_that_the_compiler_fails_out_completely_when_a_non-404_is_returned_from_the_http_endpoint" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestAPIV1Flow" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/config" name="TestConfigErrorsAsError" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/data" timestamp="2026-03-03T10:03:43-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/errs" timestamp="2026-03-03T10:03:43-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="5" failures="0" time="3.767000" name="github.com/CircleCI-Public/circleci-cli/filetree" timestamp="2026-03-03T10:03:43-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/filetree" name="TestNewTreeUnmarshallableContent" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/filetree" name="TestNewTreeBuildsNestedStructure" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/filetree" name="TestNewTreeRendersToYAML" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/filetree" name="TestNewTreeOnlyChecksSpecifiedDirs" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/filetree" name="TestMarshalYAML" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="18" failures="4" skipped="1" time="2.809000" name="github.com/CircleCI-Public/circleci-cli/git" timestamp="2026-03-03T10:03:43-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestGetRemoteUrlFailsGracefully" time="0.030000">
+			<failure message="Failed" type="">=== RUN   TestGetRemoteUrlFailsGracefully&#xA;    git_test.go:45: assertion failed: expression is false: strings.Contains(err.Error(), &#34;Error finding the peristeronic git remote&#34;)&#xA;--- FAIL: TestGetRemoteUrlFailsGracefully (0.03s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteInvalidURLs/unknown_remote" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestFindRemoteInvalidURLs/unknown_remote&#xA;    git_test.go:164: assertion failed: expected error &#34;Unknown git remote: asd/asd/asd&#34;, got &#34;unknown git remote: asd/asd/asd&#34;&#xA;--- FAIL: TestFindRemoteInvalidURLs/unknown_remote (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteInvalidURLs/too_many_path_segments" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestFindRemoteInvalidURLs/too_many_path_segments&#xA;    git_test.go:164: assertion failed: expected error &#34;Splitting &#39;foo/bar/baz&#39; into organization and project failed&#34;, got &#34;splitting &#39;foo/bar/baz&#39; into organization and project failed&#34;&#xA;--- FAIL: TestFindRemoteInvalidURLs/too_many_path_segments (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteInvalidURLs" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestFindRemoteInvalidURLs&#xA;--- FAIL: TestFindRemoteInvalidURLs (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestBranchTagRevisionOnCI" time="0.000000">
+			<skipped message="=== RUN   TestBranchTagRevisionOnCI&#xA;    git_test.go:35: only runs on CircleCI&#xA;--- SKIP: TestBranchTagRevisionOnCI (0.00s)&#xA;"></skipped>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestCommandOutputOrDefaultHappyPath" time="0.010000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestCommandOutputOrDefaultFailure" time="0.020000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestCommandOutputOrDefaultInvalidProgram" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestGetRemoteUrlOrigin" time="0.030000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/github_ssh" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/bitbucket_ssh" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/github_https" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/bitbucket_ssh_no_.git" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/bitbucket_https_with_user" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/bitbucket_https_with_user_no_.git" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/github_ssh_protocol" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs/bitbucket_ssh_protocol" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/git" name="TestFindRemoteValidURLs" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="11" failures="0" time="3.824000" name="github.com/CircleCI-Public/circleci-cli/local" timestamp="2026-03-03T10:03:43-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestGenerateDockerCommand" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestWriteStringToTempFile" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/no_args" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/single_letter" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/asking_for_help" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/many_args" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/many_args,_multiple_envs" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/many_args,_multiple_volumes_(issue_#469)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/comma_in_env_value_(issue_#440)" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments/args_that_are_not_flags" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/local" name="TestBuildAgentArguments" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/md_docs" timestamp="2026-03-03T10:03:44-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/mock" timestamp="2026-03-03T10:03:44-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/process" timestamp="2026-03-03T10:03:44-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/prompt" timestamp="2026-03-03T10:03:44-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/proxy" timestamp="2026-03-03T10:03:44-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="6" failures="2" time="2.169000" name="github.com/CircleCI-Public/circleci-cli/references" timestamp="2026-03-03T10:03:44-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/references" name="TestSplitIntoOrbNamespaceAndVersionInvalid" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestSplitIntoOrbNamespaceAndVersionInvalid&#xA;    references_test.go:27: assertion failed: expected error &#34;Invalid orb reference &#39;asdasd&#39;: Expected a namespace, orb and version in the format &#39;namespace/orb@version&#39;&#34;, got &#34;invalid orb reference &#39;asdasd&#39;: expected a namespace, orb and version in the format &#39;namespace/orb@version&#39;&#34;&#xA;--- FAIL: TestSplitIntoOrbNamespaceAndVersionInvalid (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/references" name="TestSplitIntoOrbAndNamespaceInvalid" time="0.000000">
+			<failure message="Failed" type="">=== RUN   TestSplitIntoOrbAndNamespaceInvalid&#xA;    references_test.go:39: assertion failed: expected error &#34;Invalid orb catdog. Expected a namespace and orb in the form &#39;namespace/orb&#39;&#34;, got &#34;invalid orb catdog, expected a namespace and orb in the form &#39;namespace/orb&#39;&#34;&#xA;--- FAIL: TestSplitIntoOrbAndNamespaceInvalid (0.00s)&#xA;</failure>
+		</testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/references" name="TestIsDevVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/references" name="TestSplitIntoOrbNamespaceAndVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/references" name="TestSplitIntoOrbAndNamespace" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/references" name="TestSplitDevLabelWithSlash" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="6" failures="0" time="2.945000" name="github.com/CircleCI-Public/circleci-cli/settings" timestamp="2026-03-03T10:03:45-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/settings" name="TestWithHTTPClient/should_return_an_error_when_path_does_not_point_to_a_file" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/settings" name="TestWithHTTPClient/should_return_an_error_when_files/directories_are_world-writable" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/settings" name="TestWithHTTPClient/should_return_an_error_when_certificate_contents_are_invalid" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/settings" name="TestWithHTTPClient/should_configure_httpclient_successfully" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/settings" name="TestWithHTTPClient" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/settings" name="TestServerURL" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="10" failures="0" time="2.823000" name="github.com/CircleCI-Public/circleci-cli/telemetry" timestamp="2026-03-03T10:03:45-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestGetCommandInformation/sensitive_flags_are_redacted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestGetCommandInformation/unset_flags_are_not_included" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestGetCommandInformation/all_sensitive_flags_are_redacted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestGetCommandInformation/getParent_true_collects_parent_flags" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestGetCommandInformation/getParent_false_does_not_collect_parent_flags" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestGetCommandInformation" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestUsedFlagValues/sensitive_flags_are_redacted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestUsedFlagValues/unset_flags_are_not_included" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestUsedFlagValues/all_sensitive_flags_are_redacted" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/telemetry" name="TestUsedFlagValues" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/testhelpers" timestamp="2026-03-03T10:03:45-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+	<testsuite tests="3" failures="0" time="2.796000" name="github.com/CircleCI-Public/circleci-cli/update" timestamp="2026-03-03T10:03:45-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/update" name="TestParseSimpleVersion" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/update" name="TestParseVersionWithRevision" time="0.000000"></testcase>
+		<testcase classname="github.com/CircleCI-Public/circleci-cli/update" name="TestParseGarbageVersion" time="0.000000"></testcase>
+	</testsuite>
+	<testsuite tests="0" failures="0" time="0.000000" name="github.com/CircleCI-Public/circleci-cli/version" timestamp="2026-03-03T10:03:46-05:00">
+		<properties>
+			<property name="go.version" value="go1.26.0 darwin/arm64"></property>
+		</properties>
+	</testsuite>
+</testsuites>

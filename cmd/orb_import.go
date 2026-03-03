@@ -119,7 +119,8 @@ func generateImportPlan(opts orbOptions, orbVersions []api.OrbVersion) (orbImpor
 
 	for _, o := range orbVersions {
 		_, err := api.OrbInfo(opts.cl, fmt.Sprintf("%s@%s", o.Orb.Name, o.Version))
-		if _, ok := err.(*api.ErrOrbVersionNotExists); ok {
+		var orbVersionErr *api.ErrOrbVersionNotExists
+		if errors.As(err, &orbVersionErr) {
 			plan.NewVersions = append(plan.NewVersions, o)
 			continue
 		}
@@ -172,22 +173,22 @@ func displayPlan(w io.Writer, plan orbImportPlan) {
 	b.WriteString("The following actions will be performed:\n")
 
 	for _, ns := range plan.NewNamespaces {
-		b.WriteString(fmt.Sprintf("  Create namespace '%s'\n", ns))
+		fmt.Fprintf(&b, "  Create namespace '%s'\n", ns)
 	}
 
 	for _, o := range plan.NewOrbs {
-		b.WriteString(fmt.Sprintf("  Create orb '%s'\n", o.Name))
+		fmt.Fprintf(&b, "  Create orb '%s'\n", o.Name)
 	}
 
 	for _, v := range plan.NewVersions {
-		b.WriteString(fmt.Sprintf("  Import version '%s@%s'\n", v.Orb.Name, v.Version))
+		fmt.Fprintf(&b, "  Import version '%s@%s'\n", v.Orb.Name, v.Version)
 	}
 
 	for i, e := range plan.AlreadyExistingVersions {
 		if i == 0 {
 			b.WriteString("\nThe following orb versions already exist:\n")
 		}
-		b.WriteString(fmt.Sprintf("  ('%s@%s')\n", e.Orb.Name, e.Version))
+		fmt.Fprintf(&b, "  ('%s@%s')\n", e.Orb.Name, e.Version)
 	}
 
 	b.WriteString("\n")
@@ -196,7 +197,7 @@ func displayPlan(w io.Writer, plan orbImportPlan) {
 		b.WriteString("Nothing to do!\n")
 	}
 
-	fmt.Fprint(w, b.String())
+	_, _ = fmt.Fprint(w, b.String())
 }
 
 func isNamespace(ref string) bool {
@@ -224,9 +225,9 @@ func deleteNamespace(nsOpts namespaceOptions) error {
 	var b strings.Builder
 	b.WriteString("The following delete actions will be performed:\n")
 
-	b.WriteString(fmt.Sprintf("  Delete namespace: '%s'\n", namespaceArg))
+	fmt.Fprintf(&b, "  Delete namespace: '%s'\n", namespaceArg)
 	for _, o := range orbs.Orbs {
-		b.WriteString(fmt.Sprintf("  Delete orb: '%s'\n", o.Name))
+		fmt.Fprintf(&b, "  Delete orb: '%s'\n", o.Name)
 	}
 
 	fmt.Println(b.String())

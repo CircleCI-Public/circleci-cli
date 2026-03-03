@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -483,7 +482,7 @@ func loadYaml(path string) (string, error) {
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("Could not load config file at %s: %w", path, err)
+		return "", fmt.Errorf("could not load config file at %s: %w", path, err)
 	}
 
 	return string(config), nil
@@ -501,10 +500,10 @@ func WhoamiQuery(config *settings.Config) (*WhoamiResponse, error) {
 
 	response, err := config.HTTPClient.Do(r)
 	if err != nil {
-		return nil, fmt.Errorf("could not make a request to %s: %s", config.Host, err)
+		return nil, fmt.Errorf("could not make a request to %s: %w", config.Host, err)
 	}
 	if response.StatusCode >= 400 {
-		return nil, errors.New("Could not get user info")
+		return nil, errors.New("could not get user info")
 	}
 
 	var res WhoamiResponse
@@ -591,7 +590,7 @@ func OrbPublishByName(cl *graphql.Client, configPath, orbName, namespaceName, or
 	err = cl.Run(request, &response)
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to publish orb: %w", err)
+		return nil, fmt.Errorf("unable to publish orb: %w", err)
 	}
 
 	if len(response.PublishOrb.Errors) > 0 {
@@ -837,7 +836,7 @@ mutation($name: String!) {
 	}
 
 	if !response.DeleteNamespaceAlias.Deleted {
-		return errors.New("Namespace alias deletion failed for unknown reasons.")
+		return errors.New("namespace alias deletion failed for unknown reasons")
 	}
 
 	return nil
@@ -875,7 +874,7 @@ mutation($id: UUID!) {
 	}
 
 	if !response.DeleteNamespace.Deleted {
-		return errors.New("Namespace deletion failed for unknown reasons.")
+		return errors.New("namespace deletion failed for unknown reasons")
 	}
 
 	return nil
@@ -916,7 +915,7 @@ func GetNamespace(cl *graphql.Client, name string) (*GetNamespaceResponse, error
 	request.Var("name", name)
 
 	if err := cl.Run(request, &response); err != nil {
-		return nil, fmt.Errorf("failed to load namespace '%s': %w", err, err)
+		return nil, fmt.Errorf("failed to load namespace: %w", err)
 	}
 
 	if response.RegistryNamespace.ID == "" {
@@ -944,7 +943,7 @@ func NamespaceExists(cl *graphql.Client, namespace string) (bool, error) {
 	request.Var("name", namespace)
 
 	if err := cl.Run(request, &response); err != nil {
-		return false, fmt.Errorf("failed to load namespace '%s': %w", err, err)
+		return false, fmt.Errorf("failed to load namespace: %w", err)
 	}
 
 	if response.RegistryNamespace.ID != "" {
@@ -1210,7 +1209,7 @@ func OrbPromoteByName(cl *graphql.Client, namespaceName, orbName, label, segment
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to promote orb: %w", err)
+		return nil, fmt.Errorf("unable to promote orb: %w", err)
 	}
 
 	return &response.PromoteOrb.Orb, nil
@@ -1253,7 +1252,7 @@ mutation($orbId: UUID!, $list: Boolean!) {
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("Unable to set orb list status: %w", err)
+		return nil, fmt.Errorf("unable to set orb list status: %w", err)
 	}
 
 	return &response.SetOrbListStatus.Listed, nil
@@ -1390,7 +1389,7 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 	// Parse the orb source to get its commands, executors and jobs
 	err = yaml.Unmarshal([]byte(response.OrbVersion.Source), &response.OrbVersion.Orb)
 	if err != nil {
-		return nil, fmt.Errorf("Corrupt Orb %s %s: %w", response.OrbVersion.Orb.Name, response.OrbVersion.Version, err)
+		return nil, fmt.Errorf("corrupt orb %s %s: %w", response.OrbVersion.Orb.Name, response.OrbVersion.Version, err)
 	}
 
 	return &response.OrbVersion, nil
@@ -1399,8 +1398,6 @@ func OrbInfo(cl *graphql.Client, orbRef string) (*OrbVersion, error) {
 // ListOrbs queries the API to find all orbs.
 // Returns a collection of Orb objects containing their relevant data.
 func ListOrbs(cl *graphql.Client, uncertified bool) (*OrbsForListing, error) {
-	l := log.New(os.Stderr, "", 0)
-
 	query := `
 query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
   orbs(first: 20, after: $after, certifiedOnly: $certifiedOnly) {
@@ -1440,7 +1437,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, fmt.Errorf("GraphQL query failed: %w", err)
+			return nil, fmt.Errorf("graphQL query failed: %w", err)
 		}
 
 	Orbs:
@@ -1457,7 +1454,7 @@ query ListOrbs ($after: String!, $certifiedOnly: Boolean!) {
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 
 				if err != nil {
-					l.Printf("%s", fmt.Errorf("Corrupt Orb %s %s: %w", edge.Node.Name, v.Version, err).Error())
+					fmt.Fprintf(os.Stderr, "Corrupt Orb %s %s: %s\n", edge.Node.Name, v.Version, err)
 					continue Orbs
 				}
 
@@ -1514,11 +1511,11 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, fmt.Errorf("GraphQL query failed: %w", err)
+			return nil, fmt.Errorf("graphQL query failed: %w", err)
 		}
 
 		if result.RegistryNamespace.ID == "" {
-			return nil, errors.New("No namespace found")
+			return nil, errors.New("no namespace found")
 		}
 
 		for _, edge := range result.RegistryNamespace.Orbs.Edges {
@@ -1549,8 +1546,6 @@ query namespaceOrbs ($namespace: String, $after: String!) {
 // namespace.
 // Returns a collection of Orb objects containing their relevant data.
 func ListNamespaceOrbs(cl *graphql.Client, namespace string, isPrivate, showDetails bool) (*OrbsForListing, error) {
-	l := log.New(os.Stderr, "", 0)
-
 	query := `
 query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType) {
 	registryNamespace(name: $namespace) {
@@ -1607,11 +1602,11 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, fmt.Errorf("GraphQL query failed: %w", err)
+			return nil, fmt.Errorf("graphQL query failed: %w", err)
 		}
 
 		if result.RegistryNamespace.ID == "" {
-			return nil, errors.New("No namespace found")
+			return nil, errors.New("no namespace found")
 		}
 
 	NamespaceOrbs:
@@ -1626,7 +1621,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 
 				err := yaml.Unmarshal([]byte(edge.Node.Versions[0].Source), &edge.Node)
 				if err != nil {
-					l.Printf("%s", fmt.Errorf("Corrupt Orb %s %s: %w", edge.Node.Name, v.Version, err).Error())
+					fmt.Fprintf(os.Stderr, "Corrupt Orb %s %s: %s\n", edge.Node.Name, v.Version, err)
 					continue NamespaceOrbs
 				}
 			} else {
@@ -1666,7 +1661,7 @@ func OrbCategoryID(cl *graphql.Client, name string) (*OrbCategoryIDResponse, err
 		return &response, err
 	}
 
-	return nil, fmt.Errorf("the '%s' category does not exist. Did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'.", name)
+	return nil, fmt.Errorf("the '%s' category does not exist; did you misspell the category name? To see the list of category names, please run 'circleci orb list-categories'", name)
 }
 
 // AddOrRemoveOrbCategorization adds or removes an orb categorization
@@ -1684,14 +1679,15 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 	var response AddOrRemoveOrbCategorizationResponse
 
 	var mutationName string
-	if updateType == Add {
+	switch updateType {
+	case Add:
 		mutationName = "addCategorizationToOrb"
-	} else if updateType == Remove {
+	case Remove:
 		mutationName = "removeCategorizationFromOrb"
 	}
 
 	if mutationName == "" {
-		return fmt.Errorf("Internal error - invalid update type %d", updateType)
+		return fmt.Errorf("internal error - invalid update type %d", updateType)
 	}
 
 	query := fmt.Sprintf(`
@@ -1725,7 +1721,7 @@ func AddOrRemoveOrbCategorization(cl *graphql.Client, namespace string, orb stri
 	}
 
 	if err != nil {
-		return fmt.Errorf("Unable to add/remove orb categorization: %w", err)
+		return fmt.Errorf("unable to add/remove orb categorization: %w", err)
 	}
 
 	return nil
@@ -1765,7 +1761,7 @@ func ListOrbCategories(cl *graphql.Client) (*OrbCategoriesForListing, error) {
 
 		err := cl.Run(request, &result)
 		if err != nil {
-			return nil, fmt.Errorf("GraphQL query failed: %w", err)
+			return nil, fmt.Errorf("graphQL query failed: %w", err)
 		}
 
 		for i := range result.OrbCategories.Edges {
@@ -1805,7 +1801,7 @@ func FollowProject(config settings.Config, vcs string, owner string, projectName
 		return FollowedProject{}, err
 	}
 	if response.StatusCode >= 400 {
-		return FollowedProject{}, errors.New("Could not follow project")
+		return FollowedProject{}, errors.New("could not follow project")
 	}
 
 	var fr FollowedProject
@@ -1826,7 +1822,7 @@ type Me struct {
 func GetMe(client *rest.Client) (Me, error) {
 	req, err := client.NewRequest("GET", &url.URL{Path: "me"}, nil)
 	if err != nil {
-		return Me{}, fmt.Errorf("Unable to get user info: %w", err)
+		return Me{}, fmt.Errorf("unable to get user info: %w", err)
 	}
 
 	var me Me

@@ -6,8 +6,9 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/settings"
 	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
 func TestOkResponse(t *testing.T) {
@@ -23,7 +24,7 @@ func TestOkResponse(t *testing.T) {
 		assert.Equal(t, r.Header.Get("Accept"), "application/json")
 
 		w.WriteHeader(http.StatusOK)
-		_, err := w.Write([]byte(fmt.Sprintf(`[{"id": "%s", "name": "%s"}]`, id, name)))
+		_, err := fmt.Fprintf(w, `[{"id": "%s", "name": "%s"}]`, id, name)
 		assert.NilError(t, err)
 	}))
 
@@ -59,7 +60,7 @@ func TestServerErrorResponse(t *testing.T) {
 		assert.Equal(t, r.Header.Get("Accept"), "application/json")
 
 		w.WriteHeader(http.StatusInternalServerError)
-		_, err := w.Write([]byte(fmt.Sprintf(`{"message": "%s"}`, message)))
+		_, err := fmt.Fprintf(w, `{"message": "%s"}`, message)
 		assert.NilError(t, err)
 	}))
 

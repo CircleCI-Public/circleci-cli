@@ -12,11 +12,12 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 // orbAppendPostHandler adds a handler that verifies a GraphQL POST and responds
@@ -1796,7 +1797,7 @@ func TestOrbUnlistInvalidArgs(t *testing.T) {
 		{
 			name:          "invalid orb name",
 			args:          []string{"foo-orb", "true"},
-			expectedError: "Error: Invalid orb foo-orb. Expected a namespace and orb in the form 'namespace/orb'",
+			expectedError: "Error: invalid orb foo-orb, expected a namespace and orb in the form 'namespace/orb'",
 		},
 		{
 			name:          "non-boolean value",
@@ -2534,7 +2535,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 		"USERPROFILE="+ts.Home,
 	)
 	assert.Assert(t, result.ExitCode != 0)
-	assert.Assert(t, strings.Contains(result.Stderr, "No namespace found"))
+	assert.Assert(t, strings.Contains(result.Stderr, "no namespace found"))
 }
 
 func TestOrbListPrivate(t *testing.T) {
@@ -2592,7 +2593,7 @@ query namespaceOrbs ($namespace: String, $after: String!, $view: OrbListViewType
 			"USERPROFILE="+ts.Home,
 		)
 		assert.Assert(t, result.ExitCode != 0)
-		assert.Assert(t, strings.Contains(result.Stderr, "Namespace must be provided when listing private orbs"))
+		assert.Assert(t, strings.Contains(result.Stderr, "namespace must be provided when listing private orbs"))
 	})
 
 	t.Run("success with namespace", func(t *testing.T) {
@@ -3235,7 +3236,7 @@ func TestOrbCategorizationCategoryNotExist(t *testing.T) {
 				"USERPROFILE="+ts.Home,
 			)
 			assert.Assert(t, result.ExitCode != 0)
-			errorCause := "the 'Cloud Platform' category does not exist."
+			errorCause := "the 'Cloud Platform' category does not exist"
 			if updateType == api.Add {
 				assert.Assert(t, strings.Contains(result.Stderr, fmt.Sprintf("Error: Failed to add orb bar-ns/foo-orb to category Cloud Platform: %s", errorCause)))
 			} else {

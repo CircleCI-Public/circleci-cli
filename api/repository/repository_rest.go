@@ -39,7 +39,7 @@ func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetReposito
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -52,7 +52,7 @@ func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetReposito
 			Error   string `json:"error"`
 		}
 		if err := json.Unmarshal(bodyBytes, &errorResp); err != nil {
-			return nil, fmt.Errorf("API request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
+			return nil, fmt.Errorf("api request failed with status %d: %s", resp.StatusCode, string(bodyBytes))
 		}
 		message := errorResp.Message
 		if message == "" {
@@ -61,7 +61,7 @@ func (c *repositoryRestClient) GetGitHubRepositories(orgID string) (*GetReposito
 		if message == "" {
 			message = fmt.Sprintf("HTTP %d", resp.StatusCode)
 		}
-		return nil, fmt.Errorf("API request failed: %s", message)
+		return nil, fmt.Errorf("api request failed: %s", message)
 	}
 
 	// The API returns an array of repositories directly
@@ -91,7 +91,7 @@ func (c *repositoryRestClient) CheckGitHubAppInstallation(orgID string) (*GitHub
 	if err != nil {
 		return nil, fmt.Errorf("failed to execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -130,7 +130,7 @@ func (c *repositoryRestClient) CheckGitHubAppInstallation(orgID string) (*GitHub
 			}, nil
 		}
 
-		return nil, fmt.Errorf("API request failed: %s", message)
+		return nil, fmt.Errorf("api request failed: %s", message)
 	}
 
 	var installation GitHubAppInstallationResponse

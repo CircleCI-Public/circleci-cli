@@ -42,7 +42,7 @@ func TestBranchTagRevisionOnCI(t *testing.T) {
 func TestGetRemoteUrlFailsGracefully(t *testing.T) {
 	_, err := getRemoteUrl("peristeronic")
 	assert.Assert(t, err != nil)
-	assert.Assert(t, strings.Contains(err.Error(), "Error finding the peristeronic git remote"))
+	assert.Assert(t, strings.Contains(err.Error(), "error finding the peristeronic git remote"))
 }
 
 func TestGetRemoteUrlOrigin(t *testing.T) {
@@ -149,12 +149,12 @@ func TestFindRemoteInvalidURLs(t *testing.T) {
 		{
 			name:    "unknown remote",
 			url:     "asd/asd/asd",
-			wantErr: "Unknown git remote: asd/asd/asd",
+			wantErr: "unknown git remote: asd/asd/asd",
 		},
 		{
 			name:    "too many path segments",
 			url:     "git@github.com:foo/bar/baz",
-			wantErr: "Splitting 'foo/bar/baz' into organization and project failed",
+			wantErr: "splitting 'foo/bar/baz' into organization and project failed",
 		},
 	}
 

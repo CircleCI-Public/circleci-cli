@@ -3,9 +3,13 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"log"
 	"os"
 	"strings"
+
+	"github.com/charmbracelet/lipgloss"
+	"github.com/google/uuid"
+	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
 	"github.com/CircleCI-Public/circleci-cli/cmd/info"
@@ -19,10 +23,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"github.com/charmbracelet/lipgloss"
-	"github.com/google/uuid"
-	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var (
@@ -51,7 +51,7 @@ func Execute() error {
 	command := MakeCommands()
 
 	telemetryClient := CreateTelemetry(rootOptions)
-	defer telemetryClient.Close()
+	defer telemetryClient.Close() //nolint:errcheck
 
 	cmdContext := command.Context()
 	if cmdContext == nil {
@@ -454,7 +454,7 @@ func (helpCmd *helpCmd) helpTemplate(cmd *cobra.Command, s []string) {
 		BorderForeground(lipgloss.AdaptiveColor{Light: `#3B6385`, Dark: `#47A359`}).
 		Border(lipgloss.ThickBorder())
 
-	log.Println("\n" + borderStyle.Render(usageText.String()+"\n"))
+	fmt.Fprintln(os.Stderr, "\n"+borderStyle.Render(usageText.String()+"\n"))
 }
 
 func getHelpWidth() int {

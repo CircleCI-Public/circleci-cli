@@ -1,12 +1,11 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"sort"
 	"strings"
-
-	"errors"
 
 	"gopkg.in/yaml.v3"
 )

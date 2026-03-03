@@ -104,7 +104,7 @@ func loadYaml(path string) (string, error) {
 	}
 
 	if err != nil {
-		return "", fmt.Errorf("Could not load config file at %s: %w", path, err)
+		return "", fmt.Errorf("could not load config file at %s: %w", path, err)
 	}
 
 	return string(config), nil

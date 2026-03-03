@@ -45,7 +45,7 @@ func findRemote(url string) (*Remote, error) {
 	matches := strings.Split(slug, "/")
 
 	if len(matches) != 2 {
-		return nil, fmt.Errorf("Splitting '%s' into organization and project failed", slug)
+		return nil, fmt.Errorf("splitting '%s' into organization and project failed", slug)
 	}
 
 	return &Remote{
@@ -76,20 +76,20 @@ func findProviderAndSlug(url string) (VcsType, string, error) {
 		}
 	}
 
-	return "", "", fmt.Errorf("Unknown git remote: %s", url)
+	return "", "", fmt.Errorf("unknown git remote: %s", url)
 }
 
 func getRemoteUrl(remoteName string) (string, error) {
 
 	// Ensure that git is on the path
 	if _, err := exec.LookPath("git"); err != nil {
-		return "", errors.New("Could not find 'git' on the path; this command requires git to be installed.")
+		return "", errors.New("could not find 'git' on the path; this command requires git to be installed")
 	}
 
 	// Ensure that we are in a git repository
 	if output, err := exec.Command("git", "status").CombinedOutput(); err != nil {
 		if strings.Contains(string(output), "not a git repository") {
-			return "", errors.New("This command must be run from inside a git repository")
+			return "", errors.New("this command must be run from inside a git repository")
 		}
 		// If `git status` fails for any other reason, let's optimisticly continue
 		// execution and allow the call to `git remote` to fail.
@@ -97,7 +97,7 @@ func getRemoteUrl(remoteName string) (string, error) {
 
 	out, err := exec.Command("git", "remote", "get-url", remoteName).CombinedOutput()
 	if err != nil {
-		return "", fmt.Errorf("Error finding the %s git remote: %s",
+		return "", fmt.Errorf("error finding the %s git remote: %s",
 			remoteName,
 			strings.TrimSpace(string(out)))
 	}

@@ -7,11 +7,12 @@ import (
 	"net/http"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api"
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/testhelpers"
-	"gotest.tools/v3/assert"
 )
 
 // respondGQLDataInternal returns an http.HandlerFunc that writes a JSON response
@@ -153,7 +154,7 @@ func TestVersionsToImport_NoNamespaceFound(t *testing.T) {
 	))
 
 	_, err := versionsToImport(opts)
-	assert.ErrorContains(t, err, "No namespace found")
+	assert.ErrorContains(t, err, "no namespace found")
 }
 
 func TestVersionsToImport_FetchAllOrbVersionsInNamespace(t *testing.T) {

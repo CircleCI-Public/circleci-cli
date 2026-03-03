@@ -9,10 +9,11 @@ import (
 	"reflect"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/api/trigger"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"gotest.tools/v3/assert"
 )
 
 func getTriggerRestClient(server *httptest.Server) (trigger.TriggerClient, error) {

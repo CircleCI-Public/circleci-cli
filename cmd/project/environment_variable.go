@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"strings"
 
-	projectapi "github.com/CircleCI-Public/circleci-cli/api/project"
-	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
+
+	projectapi "github.com/CircleCI-Public/circleci-cli/api/project"
+	"github.com/CircleCI-Public/circleci-cli/cmd/validator"
 )
 
 func newProjectEnvironmentVariableCommand(ops *projectOpts, preRunE validator.Validator) *cobra.Command {
@@ -107,7 +108,7 @@ func createProjectEnvironmentVariable(cmd *cobra.Command, client projectapi.Proj
 	if existV != nil {
 		msg := fmt.Sprintf("The environment variable name=%s value=%s already exists. Do you overwrite it?", existV.Name, existV.Value)
 		if !r.AskConfirm(msg) {
-			fmt.Fprintln(cmd.OutOrStdout(), "Canceled")
+			_, _ = fmt.Fprintln(cmd.OutOrStdout(), "Canceled")
 			return nil
 		}
 	}

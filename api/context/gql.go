@@ -135,7 +135,7 @@ func CreateContextWithGQL(c *graphql.Client, params CreateContextWithGQLParams) 
 		return Context{}, err
 	}
 	if response.CreateContext.Error.Type != "" {
-		return Context{}, fmt.Errorf("Error creating context: %s", response.CreateContext.Error.Type)
+		return Context{}, fmt.Errorf("error creating context: %s", response.CreateContext.Error.Type)
 	}
 
 	return response.CreateContext.Context, nil
@@ -221,7 +221,7 @@ func CreateEnvVarWithGQL(c *graphql.Client, params CreateEnvVarWithRestParams) e
 	}
 
 	if response.StoreEnvironmentVariable.Error.Type != "" {
-		return fmt.Errorf("Error storing environment variable: %s", response.StoreEnvironmentVariable.Error.Type)
+		return fmt.Errorf("error storing environment variable: %s", response.StoreEnvironmentVariable.Error.Type)
 	}
 
 	return nil

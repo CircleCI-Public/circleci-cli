@@ -478,7 +478,7 @@ func (f *fixture) Run(statusCode int, respBody string) (r *Runner, cleanup func(
 		f.mu.Lock()
 		defer f.mu.Unlock()
 
-		defer r.Body.Close()
+		defer r.Body.Close() //nolint:errcheck
 		_, _ = io.Copy(&f.body, r.Body)
 		f.url = *r.URL
 		f.header = r.Header

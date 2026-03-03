@@ -4,14 +4,13 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/briandowns/spinner"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/update"
 	"github.com/CircleCI-Public/circleci-cli/version"
-
-	"github.com/spf13/cobra"
-
-	"github.com/briandowns/spinner"
 )
 
 type updateCommandOptions struct {

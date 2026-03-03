@@ -1,20 +1,20 @@
 package pipeline_test
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"testing"
 
-	"encoding/json"
-	"io"
-	"os"
+	"gotest.tools/v3/assert"
 
 	"github.com/CircleCI-Public/circleci-cli/api/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/version"
-	"gotest.tools/v3/assert"
 )
 
 func getPipelineRestClient(server *httptest.Server) (pipeline.PipelineClient, error) {
@@ -435,7 +435,7 @@ func Test_pipelineRestClient_PipelineRun(t *testing.T) {
 				assert.NilError(t, err)
 				_, err = tmpFile.WriteString(expectedContent)
 				assert.NilError(t, err)
-				tmpFile.Close()
+				_ = tmpFile.Close()
 			} else {
 				configPath = tt.filePath
 			}

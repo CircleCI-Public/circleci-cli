@@ -124,15 +124,15 @@ func (client *v1APIClient) CompileConfig(configContent string, orgID string, par
 
 	err := client.gql.Run(request, &response)
 	if err != nil {
-		return nil, fmt.Errorf("Unable to validate config: %w", err)
+		return nil, fmt.Errorf("unable to validate config: %w", err)
 	}
-	if len(response.BuildConfig.LegacyConfigResponse.Errors) > 0 {
-		return nil, &response.BuildConfig.LegacyConfigResponse.Errors
+	if len(response.BuildConfig.Errors) > 0 {
+		return nil, &response.BuildConfig.Errors
 	}
 
 	return &ConfigResponse{
-		Valid:      response.BuildConfig.LegacyConfigResponse.Valid,
-		SourceYaml: response.BuildConfig.LegacyConfigResponse.SourceYaml,
-		OutputYaml: response.BuildConfig.LegacyConfigResponse.OutputYaml,
+		Valid:      response.BuildConfig.Valid,
+		SourceYaml: response.BuildConfig.SourceYaml,
+		OutputYaml: response.BuildConfig.OutputYaml,
 	}, nil
 }

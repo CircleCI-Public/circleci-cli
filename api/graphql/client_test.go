@@ -35,13 +35,13 @@ func TestServerAddress(t *testing.T) {
 	}
 
 	_, err = getServerAddress("", "")
-	expected = "Host () must be absolute URL, including scheme"
+	expected = "host () must be absolute URL, including scheme"
 	if err.Error() != expected {
 		t.Errorf("Expected error without absolute URL")
 	}
 
 	_, err = getServerAddress("", ":foo")
-	matched, _ := regexp.MatchString("Parsing endpoint", err.Error())
+	matched, _ := regexp.MatchString("parsing endpoint", err.Error())
 	if !matched {
 		t.Errorf("Expected parsing endpoint error")
 	}
