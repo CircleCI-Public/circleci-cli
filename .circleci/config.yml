@@ -346,6 +346,9 @@ workflows:
       - lint
       - vulnerability-scan:
           context: org-global-employees
+          filters:
+            branches:
+              ignore: /^pull\/.*/
       - deploy-test
       - docs:
           requires:
