@@ -7,9 +7,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/zalando/go-keyring"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"gotest.tools/v3/assert"
 )
+
+func init() {
+	keyring.MockInit()
+}
 
 func TestWithHTTPClient(t *testing.T) {
 	table := []struct {
