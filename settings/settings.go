@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zalando/go-keyring"
 	"gopkg.in/yaml.v3"
 
 	"github.com/spf13/afero"
@@ -166,6 +167,25 @@ func (cfg *Config) LoadFromDisk() error {
 		return nil
 	}
 
+	if cfg.Host != "" {
+		keychainToken, keychainErr := GetTokenFromKeychain(cfg.Host)
+		if keychainErr == nil && keychainToken != "" {
+			cfg.Token = keychainToken
+		} else if errors.Is(keychainErr, keyring.ErrNotFound) && cfg.Token != "" {
+			// Migrate: YAML has token but keychain doesn't — move it silently
+			if setErr := SetTokenInKeychain(cfg.Host, cfg.Token); setErr == nil {
+				savedToken := cfg.Token
+				cfg.Token = ""
+				enc, merr := yaml.Marshal(cfg)
+				cfg.Token = savedToken
+				if merr == nil {
+					_ = os.WriteFile(cfg.FileUsed, enc, 0600)
+				}
+			}
+		}
+		// If keychain is unavailable (other error), YAML token is used as-is (silent fallback)
+	}
+
 	cfg.Stdout = os.Stdout
 	cfg.Stderr = os.Stderr
 
@@ -174,13 +194,21 @@ func (cfg *Config) LoadFromDisk() error {
 
 // WriteToDisk will write the runtime config instance to disk by serializing the YAML
 func (cfg *Config) WriteToDisk() error {
+	tokenForFile := cfg.Token
+	if cfg.Host != "" && cfg.Token != "" {
+		if err := SetTokenInKeychain(cfg.Host, cfg.Token); err == nil {
+			tokenForFile = "" // stored in keychain; don't write plaintext
+		}
+	}
+
+	savedToken := cfg.Token
+	cfg.Token = tokenForFile
 	enc, err := yaml.Marshal(&cfg)
+	cfg.Token = savedToken
 	if err != nil {
 		return err
 	}
-
-	err = os.WriteFile(cfg.FileUsed, enc, 0600)
-	return err
+	return os.WriteFile(cfg.FileUsed, enc, 0600)
 }
 
 // LoadFromEnv will read from environment variables of the given prefix for host, endpoint, and token specifically.
