@@ -25,7 +25,7 @@ var _ = Describe("Check", func() {
 	)
 
 	BeforeEach(func() {
-		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
+		checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli", "-tags=keychain_mock")
 		Expect(err).ShouldNot(HaveOccurred())
 
 		tempSettings = clitest.WithTempSettings()
@@ -52,6 +52,7 @@ var _ = Describe("Check", func() {
 
 		BeforeEach(func() {
 			checkCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
+				"-tags=keychain_mock",
 				"-ldflags",
 				"-X github.com/CircleCI-Public/circleci-cli/cmd.AutoUpdate=false -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release",
 			)

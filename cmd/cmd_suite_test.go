@@ -18,7 +18,7 @@ var _ = BeforeSuite(func() {
 	SetDefaultEventuallyTimeout(time.Second * 30)
 
 	var err error
-	pathCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
+	pathCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli", "-tags=keychain_mock")
 	Ω(err).ShouldNot(HaveOccurred())
 })
 

@@ -32,6 +32,7 @@ var _ = Describe("Root", func() {
 			tempSettings = clitest.WithTempSettings()
 
 			noUpdateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli",
+				"-tags=keychain_mock",
 				"-ldflags",
 				"-X github.com/CircleCI-Public/circleci-cli/version.packageManager=homebrew",
 			)
@@ -75,7 +76,7 @@ var _ = Describe("Root", func() {
 		)
 
 		BeforeEach(func() {
-			updateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli")
+			updateCLI, err = gexec.Build("github.com/CircleCI-Public/circleci-cli", "-tags=keychain_mock")
 			Expect(err).ShouldNot(HaveOccurred())
 
 			command = exec.Command(updateCLI, "help",
