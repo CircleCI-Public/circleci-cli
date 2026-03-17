@@ -1405,7 +1405,7 @@ func initOrb(opts orbOptions) error {
 		contextAPI := context.NewContextClient(opts.cfg, "", vcsProvider, ownerName)
 		err = contextAPI.CreateContext("orb-publishing")
 		if err != nil {
-			if strings.Contains(err.Error(), "A context named orb-publishing already exists") {
+			if strings.Contains(strings.ToLower(err.Error()), "already exists") {
 				fmt.Println("`orb-publishing` context already exists, continuing on")
 			} else {
 				return err
