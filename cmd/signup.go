@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/pkg/browser"
@@ -85,7 +86,7 @@ func generateState() (string, error) {
 }
 
 func signupNoBrowser(opts signupOptions, state string) error {
-	signupURL := fmt.Sprintf("https://circleci.com/signup?source=cli&state=%s", state)
+	signupURL := "https://app.circleci.com/authentication/login?f=gho&return-to=/settings/user/tokens"
 	fmt.Printf("Open this URL in your browser to sign up:\n\n  %s\n\n", signupURL)
 
 	token, err := prompt.ReadSecretStringFromUser("Paste your CircleCI API token here")
@@ -112,8 +113,7 @@ func signupWithBrowser(cmd *cobra.Command, opts signupOptions, state string) err
 	errCh := make(chan error, 1)
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/callback", handleCallback)
-	mux.HandleFunc("/complete", handleComplete(state, tokenCh, errCh))
+	mux.HandleFunc("/token", corsMiddleware(handleToken(state, tokenCh, errCh)))
 
 	server := &http.Server{
 		Handler:      mux,
@@ -127,10 +127,14 @@ func signupWithBrowser(cmd *cobra.Command, opts signupOptions, state string) err
 		}
 	}()
 
-	signupURL := fmt.Sprintf(
-		"https://circleci.com/signup?source=cli&state=%s&return-to=http://127.0.0.1:%d/callback",
-		state, port,
-	)
+	// Build the signup URL. The return-to is a relative path so it passes
+	// the existing domain whitelist. The CLI port and state are embedded as
+	// query params that the successful-signup page will read.
+	returnTo := fmt.Sprintf("/successful-signup?source=cli&cli_port=%d&cli_state=%s", port, state)
+	params := url.Values{}
+	params.Set("f", "gho")
+	params.Set("return-to", returnTo)
+	signupURL := "https://app.circleci.com/authentication/login?" + params.Encode()
 
 	trackSignupStep(cmd, "browser_opening", nil)
 	fmt.Println("Opening your browser to sign up for CircleCI...")
@@ -159,68 +163,28 @@ func signupWithBrowser(cmd *cobra.Command, opts signupOptions, state string) err
 	}
 }
 
-func handleCallback(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// The fragment (#token=...&state=...) is never sent to the server by the
-	// browser. So we serve a small page whose script reads the fragment and
-	// sends the values back to /complete.
-	//
-	// The frontend may also redirect with #error=token_creation_failed&state=...
-	// when PAT creation fails. The script detects this and forwards the error
-	// to /complete so the CLI can exit immediately instead of timing out.
-	fmt.Fprint(w, `<!DOCTYPE html>
-<html>
-<head><title>CircleCI CLI</title></head>
-<body>
-<p>Authenticating...</p>
-<script>
-(function() {
-	var params = new URLSearchParams(window.location.hash.substring(1));
-	var token = params.get("token");
-	var state = params.get("state");
-	var error = params.get("error");
+// corsMiddleware adds CORS headers allowing the CircleCI frontend to make
+// cross-origin requests to the CLI's local server.
+func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "https://app.circleci.com")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
 
-	if (error) {
-		var qs = "error=" + encodeURIComponent(error);
-		if (state) { qs += "&state=" + encodeURIComponent(state); }
-		fetch("/complete?" + qs)
-			.then(function() {
-				document.body.innerText = "Something went wrong. Please try again or use 'circleci setup' to configure your CLI manually.";
-			})
-			.catch(function() {
-				document.body.innerText = "Something went wrong. Please try again or use 'circleci setup' to configure your CLI manually.";
-			});
-		return;
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+
+		next(w, r)
 	}
-
-	if (!token || !state) {
-		var fallbackQs = "error=no_token";
-		if (state) { fallbackQs += "&state=" + encodeURIComponent(state); }
-		fetch("/complete?" + fallbackQs)
-			.then(function() {
-				document.body.innerText = "Something went wrong. Please try again or use 'circleci setup' to configure your CLI manually.";
-			})
-			.catch(function() {
-				document.body.innerText = "Something went wrong. Please try again or use 'circleci setup' to configure your CLI manually.";
-			});
-		return;
-	}
-
-	fetch("/complete?token=" + encodeURIComponent(token) + "&state=" + encodeURIComponent(state))
-		.then(function(resp) { return resp.text(); })
-		.then(function(msg) { document.body.innerText = msg; })
-		.catch(function(err) { document.body.innerText = "Error: " + err; });
-})();
-</script>
-</body>
-</html>`)
 }
 
-func handleComplete(expectedState string, tokenCh chan<- string, errCh chan<- error) http.HandlerFunc {
+func handleToken(expectedState string, tokenCh chan<- string, errCh chan<- error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		token := query.Get("token")
-		state := query.Get("state")
+		state := query.Get("cli_state")
 		callbackErr := query.Get("error")
 
 		// When an error is present, state validation is best-effort: if state

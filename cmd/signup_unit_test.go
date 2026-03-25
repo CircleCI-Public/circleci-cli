@@ -30,33 +30,59 @@ var _ = Describe("Signup", func() {
 		})
 	})
 
-	Describe("handleCallback", func() {
-		It("should return HTML with the authenticating message", func() {
-			req := httptest.NewRequest("GET", "/callback", nil)
-			rec := httptest.NewRecorder()
+	Describe("corsMiddleware", func() {
+		var dummyHandler http.HandlerFunc
+		var handlerCalled bool
 
-			handleCallback(rec, req)
-
-			body := rec.Body.String()
-			Expect(rec.Code).To(Equal(http.StatusOK))
-			Expect(rec.Header().Get("Content-Type")).To(Equal("text/html; charset=utf-8"))
-			Expect(body).To(ContainSubstring("Authenticating..."))
-			Expect(body).To(ContainSubstring(`fetch("/complete?`))
+		BeforeEach(func() {
+			handlerCalled = false
+			dummyHandler = func(w http.ResponseWriter, r *http.Request) {
+				handlerCalled = true
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprint(w, "ok")
+			}
 		})
 
-		It("should include error-handling JavaScript", func() {
-			req := httptest.NewRequest("GET", "/callback", nil)
+		It("should set CORS headers on a GET request", func() {
+			wrapped := corsMiddleware(dummyHandler)
+			req := httptest.NewRequest("GET", "/token", nil)
 			rec := httptest.NewRecorder()
 
-			handleCallback(rec, req)
+			wrapped.ServeHTTP(rec, req)
 
-			body := rec.Body.String()
-			Expect(body).To(ContainSubstring(`params.get("error")`))
-			Expect(body).To(ContainSubstring(`"error=no_token"`))
+			Expect(rec.Header().Get("Access-Control-Allow-Origin")).To(Equal("https://app.circleci.com"))
+			Expect(rec.Header().Get("Access-Control-Allow-Methods")).To(Equal("GET, OPTIONS"))
+			Expect(rec.Header().Get("Access-Control-Allow-Headers")).To(Equal("Content-Type"))
+			Expect(handlerCalled).To(BeTrue())
+			Expect(rec.Code).To(Equal(http.StatusOK))
+		})
+
+		It("should return 204 on OPTIONS preflight without calling the handler", func() {
+			wrapped := corsMiddleware(dummyHandler)
+			req := httptest.NewRequest("OPTIONS", "/token", nil)
+			rec := httptest.NewRecorder()
+
+			wrapped.ServeHTTP(rec, req)
+
+			Expect(rec.Code).To(Equal(http.StatusNoContent))
+			Expect(rec.Header().Get("Access-Control-Allow-Origin")).To(Equal("https://app.circleci.com"))
+			Expect(handlerCalled).To(BeFalse())
+		})
+
+		It("should pin origin to app.circleci.com not wildcard", func() {
+			wrapped := corsMiddleware(dummyHandler)
+			req := httptest.NewRequest("GET", "/token", nil)
+			rec := httptest.NewRecorder()
+
+			wrapped.ServeHTTP(rec, req)
+
+			origin := rec.Header().Get("Access-Control-Allow-Origin")
+			Expect(origin).To(Equal("https://app.circleci.com"))
+			Expect(origin).ToNot(Equal("*"))
 		})
 	})
 
-	Describe("handleComplete", func() {
+	Describe("handleToken", func() {
 		var (
 			tokenCh chan string
 			errCh   chan error
@@ -69,9 +95,9 @@ var _ = Describe("Signup", func() {
 			state = "abc123"
 		})
 
-		It("should accept a valid token and state", func() {
-			handler := handleComplete(state, tokenCh, errCh)
-			req := httptest.NewRequest("GET", "/complete?token=mytoken&state=abc123", nil)
+		It("should accept a valid token and cli_state", func() {
+			handler := handleToken(state, tokenCh, errCh)
+			req := httptest.NewRequest("GET", "/token?token=mytoken&cli_state=abc123", nil)
 			rec := httptest.NewRecorder()
 
 			handler.ServeHTTP(rec, req)
@@ -81,9 +107,9 @@ var _ = Describe("Signup", func() {
 			Eventually(tokenCh).Should(Receive(Equal("mytoken")))
 		})
 
-		It("should reject a state mismatch", func() {
-			handler := handleComplete(state, tokenCh, errCh)
-			req := httptest.NewRequest("GET", "/complete?token=mytoken&state=wrong", nil)
+		It("should reject a cli_state mismatch", func() {
+			handler := handleToken(state, tokenCh, errCh)
+			req := httptest.NewRequest("GET", "/token?token=mytoken&cli_state=wrong", nil)
 			rec := httptest.NewRecorder()
 
 			handler.ServeHTTP(rec, req)
@@ -94,8 +120,8 @@ var _ = Describe("Signup", func() {
 		})
 
 		It("should reject a missing token when no error param is present", func() {
-			handler := handleComplete(state, tokenCh, errCh)
-			req := httptest.NewRequest("GET", "/complete?state=abc123", nil)
+			handler := handleToken(state, tokenCh, errCh)
+			req := httptest.NewRequest("GET", "/token?cli_state=abc123", nil)
 			rec := httptest.NewRecorder()
 
 			handler.ServeHTTP(rec, req)
@@ -108,9 +134,9 @@ var _ = Describe("Signup", func() {
 		})
 
 		Context("with error param from frontend", func() {
-			It("should forward the error when state matches", func() {
-				handler := handleComplete(state, tokenCh, errCh)
-				req := httptest.NewRequest("GET", "/complete?error=token_creation_failed&state=abc123", nil)
+			It("should forward the error when cli_state matches", func() {
+				handler := handleToken(state, tokenCh, errCh)
+				req := httptest.NewRequest("GET", "/token?error=token_creation_failed&cli_state=abc123", nil)
 				rec := httptest.NewRecorder()
 
 				handler.ServeHTTP(rec, req)
@@ -124,9 +150,9 @@ var _ = Describe("Signup", func() {
 				Expect(received.Error()).To(ContainSubstring("circleci setup"))
 			})
 
-			It("should tolerate a missing state when error is present", func() {
-				handler := handleComplete(state, tokenCh, errCh)
-				req := httptest.NewRequest("GET", "/complete?error=no_token", nil)
+			It("should tolerate a missing cli_state when error is present", func() {
+				handler := handleToken(state, tokenCh, errCh)
+				req := httptest.NewRequest("GET", "/token?error=no_token", nil)
 				rec := httptest.NewRecorder()
 
 				handler.ServeHTTP(rec, req)
@@ -137,9 +163,9 @@ var _ = Describe("Signup", func() {
 				Expect(received.Error()).To(ContainSubstring("no_token"))
 			})
 
-			It("should reject error with a mismatched state", func() {
-				handler := handleComplete(state, tokenCh, errCh)
-				req := httptest.NewRequest("GET", "/complete?error=token_creation_failed&state=wrong", nil)
+			It("should reject error with a mismatched cli_state", func() {
+				handler := handleToken(state, tokenCh, errCh)
+				req := httptest.NewRequest("GET", "/token?error=token_creation_failed&cli_state=wrong", nil)
 				rec := httptest.NewRecorder()
 
 				handler.ServeHTTP(rec, req)
