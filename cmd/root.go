@@ -178,6 +178,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newVersionCommand(rootOptions))
 	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
+	rootCmd.AddCommand(newSignupCommand(rootOptions))
 	rootCmd.AddCommand(newInitCommand(rootOptions))
 
 	rootCmd.AddCommand(followProjectCommand(rootOptions))
