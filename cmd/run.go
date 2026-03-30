@@ -70,7 +70,8 @@ you can run it with: circleci run foo [args...]`,
 			pluginCmd.Stderr = config.Stderr
 			pluginCmd.Env = os.Environ()
 
-			info := autoDetectProject(projectClient)
+			vcs, org, prj := inferProjectFromGit()
+			info := autoDetectProject(projectClient, vcs, org, prj)
 			configEnv := map[string]string{
 				"CIRCLE_URL":               config.Host,
 				"CIRCLE_TOKEN":             config.Token,
@@ -78,6 +79,15 @@ you can run it with: circleci run foo [args...]`,
 			}
 			if info != nil {
 				configEnv["CIRCLE_PROJECT_ID"] = info.Id
+			}
+			if vcs != "" {
+				configEnv["CIRCLE_VCS_TYPE"] = vcs
+			}
+			if org != "" {
+				configEnv["CIRCLE_PROJECT_USERNAME"] = org
+			}
+			if prj != "" {
+				configEnv["CIRCLE_PROJECT_REPONAME"] = prj
 			}
 			for k, v := range configEnv {
 				pluginCmd.Env = append(pluginCmd.Env, fmt.Sprintf("%s=%s", k, v))
@@ -95,14 +105,22 @@ you can run it with: circleci run foo [args...]`,
 	return runCmd
 }
 
-func autoDetectProject(projectClient project.ProjectClient) *project.ProjectInfo {
+func inferProjectFromGit() (string, string, string) {
 	remote, err := git.InferProjectFromGitRemotes()
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, "unable to autodetect project from git remotes")
+		return "", "", ""
+	}
+
+	return strings.ToLower(string(remote.VcsType)), remote.Organization, remote.Project
+}
+
+func autoDetectProject(projectClient project.ProjectClient, vcs, org, prj string) *project.ProjectInfo {
+	if vcs == "" || org == "" || prj == "" {
 		return nil
 	}
 
-	info, err := projectClient.ProjectInfo(strings.ToLower(string(remote.VcsType)), remote.Organization, remote.Project)
+	info, err := projectClient.ProjectInfo(vcs, org, prj)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "failed to get project info: %s\n", err)
 		return nil
