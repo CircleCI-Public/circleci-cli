@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.3.7
-	github.com/CircleCI-Public/chunk-cli v0.0.0
+	github.com/CircleCI-Public/chunk-cli v0.7.6-0.20260401220544-e7c971f266a7
 	github.com/CircleCI-Public/circle-policy-agent v0.0.779
 	github.com/Masterminds/semver v1.5.0
 	github.com/araddon/dateparse v0.0.0-20210429162001-6b43995a97de
