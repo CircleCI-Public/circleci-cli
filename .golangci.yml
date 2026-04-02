@@ -1,45 +1,30 @@
+---
 version: "2"
-
-linters:
-  default: none
-  enable:
-    - errcheck
-    - goconst
-    - govet
-    - ineffassign
-    - misspell
-    - nakedret
-    - staticcheck
-    - unconvert
-    - unused
-
-  settings:
-    errcheck:
-      exclude-functions:
-        - io.Close
-        - (io.Closer).Close
-        - (*os.File).Close
-        - (net/http.ResponseWriter).Write
-        - fmt.Fprint
-        - fmt.Fprintf
-        - fmt.Fprintln
-
-  exclusions:
-    rules:
-      - path: _test\.go
-        linters:
-          - errcheck
-          - goconst
-
-      # Style suggestions, not errors
-      - linters: [staticcheck]
-        text: "ST1023"
-      - linters: [staticcheck]
-        text: "ST1005"
-      - linters: [staticcheck]
-        text: "QF"
 
 formatters:
   enable:
     - gofmt
     - goimports
+
+linters:
+  enable:
+    - errcheck
+    - goconst
+    # - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - nakedret
+    # - revive
+    - staticcheck
+    - unconvert
+    # - unparam
+    - unused
+
+# Instead of disabling tests entirely, just ignore goconst, which is the only
+# one with issues there currently.
+issues:
+  exclude-rules:
+    - path: (.+)_test.go
+      linters:
+        - goconst
