@@ -18,15 +18,15 @@ clean:
 
 .PHONY: test
 test:
-	go test -v ./...
+	go tool gotestsum -- -v ./...
 
 .PHONY: cover
 cover:
-	go test -race -coverprofile=coverage.txt ./...
+	go tool gotestsum -- -race -coverprofile=coverage.txt ./...
 
 .PHONY: lint
 lint:
-	golangci-lint run
+	go tool golangci-lint run
 
 .PHONY: doc
 doc:

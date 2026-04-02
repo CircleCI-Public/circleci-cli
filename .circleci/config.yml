@@ -89,11 +89,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: |
-            export GOBIN=/c/go/bin
-            export PATH=$GOBIN:$PATH
-            go install gotest.tools/gotestsum@latest
-            gotestsum --junitfile test_results/windows.xml
+          command: go tool gotestsum --junitfile test_results/windows.xml
       - store_test_results:
           path: test_results
       - store_artifacts:
@@ -143,7 +139,7 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: gotestsum --junitfile test_results/linux.xml
+      - run: go tool gotestsum --junitfile test_results/linux.xml
       - store_test_results:
           path: test_results
       - store_artifacts:
@@ -180,12 +176,11 @@ jobs:
       - run: ./.circleci/deploy-gh-pages.sh
 
   lint:
-    docker:
-      - image: golangci/golangci-lint:v1.64.8-alpine
-    resource_class: large
+    executor: go
     steps:
       - checkout
-      - run: golangci-lint run
+      - gomod
+      - run: go tool golangci-lint run
 
   deploy-test:
     executor: go

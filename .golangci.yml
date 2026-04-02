@@ -1,31 +1,45 @@
----
-service:
-  golangci-lint-version: 1.63.x
+version: "2"
 
 linters:
+  default: none
   enable:
     - errcheck
     - goconst
-    - gofmt
-    - goimports
-    # - gosec
-    - gosimple
     - govet
     - ineffassign
     - misspell
     - nakedret
-    # - revive
     - staticcheck
-    - typecheck
     - unconvert
-    # - unparam
     - unused
-    - govet
 
-# Instead of disabling tests entirely, just ignore goconst, which is the only
-# one with issues there currently.
-issues:
-  exclude-rules:
-    - path: (.+)_test.go
-      linters:
-        - goconst
+  settings:
+    errcheck:
+      exclude-functions:
+        - io.Close
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net/http.ResponseWriter).Write
+        - fmt.Fprint
+        - fmt.Fprintf
+        - fmt.Fprintln
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - goconst
+
+      # Style suggestions, not errors
+      - linters: [staticcheck]
+        text: "ST1023"
+      - linters: [staticcheck]
+        text: "ST1005"
+      - linters: [staticcheck]
+        text: "QF"
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

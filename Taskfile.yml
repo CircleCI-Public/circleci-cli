@@ -4,7 +4,7 @@ tasks:
   lint:
     desc: Lint code
     cmds:
-      - golangci-lint run -c .golangci.yml
+      - go tool golangci-lint run -c .golangci.yml
     summary: Lint the project with golangci-lint
 
   clean:
@@ -21,7 +21,7 @@ tasks:
   test:
     desc: Run the tests
     cmds:
-      - go test -v ./...
+      - go tool gotestsum -- -v ./...
 
   tidy:
     desc: Run 'go mod tidy' to clean up module files.
@@ -59,4 +59,4 @@ tasks:
   cover:
     desc: tests and generates a cover profile
     cmds:
-      - go test -race -coverprofile=coverage.txt ./...
+      - go tool gotestsum -- -race -coverprofile=coverage.txt ./...
