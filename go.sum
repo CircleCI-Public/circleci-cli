@@ -30,6 +30,8 @@ github.com/Antonboom/testifylint v1.6.4 h1:gs9fUEy+egzxkEbq9P4cpcMB6/G0DYdMeiFS8
 github.com/Antonboom/testifylint v1.6.4/go.mod h1:YO33FROXX2OoUfwjz8g+gUxQXio5i9qpVy7nXGbxDD4=
 github.com/BurntSushi/toml v1.6.0 h1:dRaEfpa2VI55EwlIW72hMRHdWouJeRF7TPYhI+AUQjk=
 github.com/BurntSushi/toml v1.6.0/go.mod h1:ukJfTF/6rtPPRCnwkur4qwRxa8vTRFBF0uk2lLoLwho=
+github.com/CircleCI-Public/chunk-cli v0.7.6-0.20260401220544-e7c971f266a7 h1:4q65z8wpZ5+REWeY4IZvh9RCS1aBZts215+1Kfqe5j8=
+github.com/CircleCI-Public/chunk-cli v0.7.6-0.20260401220544-e7c971f266a7/go.mod h1:uBZ2OzMqVy24KQunK7jsE+rN6hslPyAG7BAARkcShAM=
 github.com/CircleCI-Public/circle-policy-agent v0.0.779 h1:yjKIhwYyd6DQL4UH37Ln5Myx/zMX7H8ussp28unZjnE=
 github.com/CircleCI-Public/circle-policy-agent v0.0.779/go.mod h1:bYS06KcciyAEH13ggXZhOdl8hYS4d/iSCGgX5b03B1U=
 github.com/CircleCI-Public/circleci-config v0.0.0-20231003143420-842d4b0025ef h1:Bhr3xH8/XV0CF8wHFxWgBkmDRTQIW5O1MiuL3n1AEug=

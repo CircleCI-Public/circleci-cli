@@ -307,5 +307,3 @@ tool (
 	github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 	gotest.tools/gotestsum
 )
-
-replace github.com/CircleCI-Public/chunk-cli => ../chunk-cli
