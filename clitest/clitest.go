@@ -43,8 +43,8 @@ type TempSettings struct {
 // Close should be called in an AfterEach and cleans up the temp directory and server process
 func (settings *TempSettings) Close() error {
 	settings.TestServer.Close()
-	settings.Config.Close()
-	settings.Update.Close()
+	_ = settings.Config.Close()
+	_ = settings.Update.Close()
 	return os.RemoveAll(settings.Home)
 }
 
