@@ -125,7 +125,7 @@ func TestSetIsTelemetryActive(t *testing.T) {
 			err := setIsTelemetryActive(tt.args.apiClient, tt.args.isActive)
 			assert.NilError(t, err)
 
-			exist, err := settings.FS.Exists(filepath.Join(settings.SettingsPath(), "telemetry.yml"))
+			exist, err := settings.FS.Exists(filepath.Join(settings.StatePath(), "telemetry.yml"))
 			assert.NilError(t, err)
 			if tt.want.settings == nil {
 				assert.Equal(t, exist, false)

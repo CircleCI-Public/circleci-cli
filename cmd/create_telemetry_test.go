@@ -250,7 +250,7 @@ func TestLoadTelemetrySettings(t *testing.T) {
 			assert.DeepEqual(t, telemetryClient.events, expectedEvents)
 
 			// Verify if settings file exist
-			exist, err := settings.FS.Exists(filepath.Join(settings.SettingsPath(), "telemetry.yml"))
+			exist, err := settings.FS.Exists(filepath.Join(settings.StatePath(), "telemetry.yml"))
 			assert.NilError(t, err)
 			assert.Equal(t, exist, !tt.want.fileNotCreated)
 			if tt.want.fileNotCreated {

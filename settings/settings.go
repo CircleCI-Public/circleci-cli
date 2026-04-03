@@ -78,7 +78,7 @@ type TelemetrySettings struct {
 
 // Load will read the update check settings from the user's disk and then deserialize it into the current instance.
 func (upd *UpdateCheck) Load() error {
-	path := filepath.Join(SettingsPath(), updateCheckFilename())
+	path := filepath.Join(CachePath(), updateCheckFilename())
 
 	if err := ensureSettingsFileExists(path); err != nil {
 		return err
@@ -102,13 +102,18 @@ func (upd *UpdateCheck) WriteToDisk() error {
 		return err
 	}
 
+	// If FileUsed is not set, use the XDG cache path
+	if upd.FileUsed == "" {
+		upd.FileUsed = filepath.Join(CachePath(), updateCheckFilename())
+	}
+
 	err = os.WriteFile(upd.FileUsed, enc, 0600)
 	return err
 }
 
 // Load will read the telemetry settings from the user's disk and then deserialize it into the current instance.
 func (tel *TelemetrySettings) Load() error {
-	path := filepath.Join(SettingsPath(), telemetryFilename())
+	path := filepath.Join(StatePath(), telemetryFilename())
 
 	if err := ensureSettingsFileExists(path); err != nil {
 		return err
@@ -130,7 +135,7 @@ func (tel *TelemetrySettings) Write() error {
 		return err
 	}
 
-	path := filepath.Join(SettingsPath(), telemetryFilename())
+	path := filepath.Join(StatePath(), telemetryFilename())
 	err = FS.WriteFile(path, enc, 0600)
 	return err
 }
@@ -148,7 +153,7 @@ func (cfg *Config) Load() error {
 
 // LoadFromDisk is used to read config from the user's disk and deserialize the YAML into our runtime config.
 func (cfg *Config) LoadFromDisk() error {
-	path := filepath.Join(SettingsPath(), configFilename())
+	path := filepath.Join(ConfigPath(), configFilename())
 
 	if err := ensureSettingsFileExists(path); err != nil {
 		return err
@@ -177,6 +182,11 @@ func (cfg *Config) WriteToDisk() error {
 	enc, err := yaml.Marshal(&cfg)
 	if err != nil {
 		return err
+	}
+
+	// If FileUsed is not set, use the XDG config path
+	if cfg.FileUsed == "" {
+		cfg.FileUsed = filepath.Join(ConfigPath(), configFilename())
 	}
 
 	err = os.WriteFile(cfg.FileUsed, enc, 0600)
@@ -224,7 +234,68 @@ func telemetryFilename() string {
 	return "telemetry.yml"
 }
 
+// ConfigPath returns the directory for configuration files following XDG Base Directory spec.
+// Uses $XDG_CONFIG_HOME/circleci-cli if XDG_CONFIG_HOME is set, otherwise defaults to ~/.config/circleci-cli
+// For backwards compatibility: if ~/.circleci/cli.yml exists, uses ~/.circleci instead.
+func ConfigPath() string {
+	home, _ := os.UserHomeDir()
+	legacyPath := path.Join(home, ".circleci")
+	legacyConfigFile := filepath.Join(legacyPath, "cli.yml")
+
+	// Check for existing config in legacy location for backwards compatibility
+	if _, err := os.Stat(legacyConfigFile); err == nil {
+		return legacyPath
+	}
+
+	// Use XDG path
+	if xdgConfig := os.Getenv("XDG_CONFIG_HOME"); xdgConfig != "" {
+		return filepath.Join(xdgConfig, "circleci-cli")
+	}
+	return filepath.Join(home, ".config", "circleci-cli")
+}
+
+// CachePath returns the directory for cache files following XDG Base Directory spec.
+// Uses $XDG_CACHE_HOME/circleci-cli if XDG_CACHE_HOME is set, otherwise defaults to ~/.cache/circleci-cli
+// For backwards compatibility: if ~/.circleci/update_check.yml exists, uses ~/.circleci instead.
+func CachePath() string {
+	home, _ := os.UserHomeDir()
+	legacyPath := path.Join(home, ".circleci")
+	legacyCacheFile := filepath.Join(legacyPath, "update_check.yml")
+
+	// Check for existing cache in legacy location for backwards compatibility
+	if _, err := os.Stat(legacyCacheFile); err == nil {
+		return legacyPath
+	}
+
+	// Use XDG path
+	if xdgCache := os.Getenv("XDG_CACHE_HOME"); xdgCache != "" {
+		return filepath.Join(xdgCache, "circleci-cli")
+	}
+	return filepath.Join(home, ".cache", "circleci-cli")
+}
+
+// StatePath returns the directory for state files following XDG Base Directory spec.
+// Uses $XDG_STATE_HOME/circleci-cli if XDG_STATE_HOME is set, otherwise defaults to ~/.local/state/circleci-cli
+// For backwards compatibility: if ~/.circleci/telemetry.yml exists, uses ~/.circleci instead.
+func StatePath() string {
+	home, _ := os.UserHomeDir()
+	legacyPath := path.Join(home, ".circleci")
+	legacyStateFile := filepath.Join(legacyPath, "telemetry.yml")
+
+	// Check for existing state in legacy location for backwards compatibility
+	if _, err := os.Stat(legacyStateFile); err == nil {
+		return legacyPath
+	}
+
+	// Use XDG path
+	if xdgState := os.Getenv("XDG_STATE_HOME"); xdgState != "" {
+		return filepath.Join(xdgState, "circleci-cli")
+	}
+	return filepath.Join(home, ".local", "state", "circleci-cli")
+}
+
 // settingsPath returns the path of the CLI settings directory
+// Deprecated: Use ConfigPath, CachePath, or StatePath for XDG compliance
 func SettingsPath() string {
 	// TODO: Make this configurable
 	home, _ := os.UserHomeDir()
