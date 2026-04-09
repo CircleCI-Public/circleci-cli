@@ -40,6 +40,12 @@ type initOptions struct {
 	eventPreset string
 	configRef   string
 	checkoutRef string
+	// Local onboarding options
+	localOnly  bool
+	dir        string
+	skipDocker bool
+	skipConfig bool
+	verbose    bool
 }
 
 type UserInputReader interface {
@@ -69,66 +75,81 @@ func newInitCommand(config *settings.Config) *cobra.Command {
 	var initCmd = &cobra.Command{
 		Use:   "init [org-slug] [flags]",
 		Short: "Initialize a new CircleCI project",
-		Long: `Creates a new project, pipeline, and trigger in one easy step.
+		Long: `Detect your project's tech stack, run tests locally, and generate a CircleCI config.
 
-This command will guide you through setting up a complete CircleCI project by:
-1. Creating a new project in your CircleCI organization
-2. Setting up a pipeline definition with your repository
-3. Creating a trigger to automatically run the pipeline
+When run without authentication, this command will:
+1. Scan your repository to detect the language, dependencies, and test commands
+2. Select the best matching CircleCI convenience image
+3. Run tests locally in a Docker container
+4. Generate a .circleci/config.yml
+5. Suggest CI optimizations (caching, linting, parallelism)
+
+When authenticated, it can additionally create the project on CircleCI.
 
 Examples:
-  # Interactive mode - prompts for all required values
+  # Local onboarding (no account needed)
   circleci init
 
-  # With org slug argument
-  circleci init github/myorg
-  circleci init circleci/myorg
+  # Skip Docker test execution
+  circleci init --skip-docker
 
-  # With flags to skip some prompts
-  circleci init github/myorg --project-name myproject --repo-id 123456
+  # Scan a different directory
+  circleci init --dir ./my-project
 
-  # Full specification with all flags
-  circleci init github/myorg --project-name myproject \
-    --pipeline-name my-pipeline --repo-id 123456 --trigger-name my-trigger`,
-		PreRunE: func(cmd *cobra.Command, args []string) error {
-			// Initialize project client
-			projectClient, err := projectapi.NewProjectRestClient(*config)
-			if err != nil {
-				return err
-			}
-			opts.projectClient = projectClient
+  # Force local-only mode even when authenticated
+  circleci init --local
 
-			// Initialize pipeline client
-			pipelineClient, err := pipelineapi.NewPipelineRestClient(*config)
-			if err != nil {
-				return err
-			}
-			opts.pipelineClient = pipelineClient
-
-			// Initialize trigger client
-			triggerClient, err := triggerapi.NewTriggerRestClient(*config)
-			if err != nil {
-				return err
-			}
-			opts.triggerClient = triggerClient
-
-			// Initialize collaborators client
-			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*config)
-			if err != nil {
-				return err
-			}
-			opts.collaboratorsClient = collaboratorsClient
-
-			// Initialize repository client
-			repositoryClient, err := repository.NewRepositoryRestClient(*config)
-			if err != nil {
-				return err
-			}
-			opts.repositoryClient = repositoryClient
-
-			return nil
-		},
+  # With org slug for remote project creation
+  circleci init github/myorg`,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			// Determine if we should run the local onboarding flow.
+			// Run local flow if: --local flag is set, OR no auth token is configured.
+			runLocal := opts.localOnly || config.Token == ""
+
+			if runLocal {
+				err := runOnboard(cmd.Context(), onboardOptions{
+					dir:        opts.dir,
+					skipDocker: opts.skipDocker,
+					skipConfig: opts.skipConfig,
+					verbose:    opts.verbose,
+				}, cmd.OutOrStdout())
+				if err != nil {
+					return err
+				}
+
+				if config.Token == "" {
+					return nil
+				}
+
+				// User is authenticated but used --local; don't chain into API flow
+				if opts.localOnly {
+					return nil
+				}
+			}
+
+			// If we reach here, the user is authenticated. Offer to create the project on CircleCI.
+			if !runLocal {
+				// Run local flow first, then offer remote setup
+				err := runOnboard(cmd.Context(), onboardOptions{
+					dir:        opts.dir,
+					skipDocker: opts.skipDocker,
+					skipConfig: opts.skipConfig,
+					verbose:    opts.verbose,
+				}, cmd.OutOrStdout())
+				if err != nil {
+					return err
+				}
+
+				if !reader.AskConfirm("Would you like to also create the project on CircleCI?") {
+					return nil
+				}
+			}
+
+			// Initialize API clients for remote project creation
+			if err := initAPIClients(config, &opts); err != nil {
+				return err
+			}
+
 			// Parse org slug argument if provided
 			if len(args) > 0 {
 				orgSlug := args[0]
@@ -158,9 +179,16 @@ Examples:
 				return err
 			}
 
-			return initCmd(opts, reader, cmd)
+			return runInitRemote(opts, reader, cmd)
 		},
 	}
+
+	// Local onboarding flags
+	initCmd.Flags().BoolVar(&opts.localOnly, "local", false, "Run only the local onboarding flow (detect, test, generate config)")
+	initCmd.Flags().StringVar(&opts.dir, "dir", ".", "Directory to scan for tech stack detection")
+	initCmd.Flags().BoolVar(&opts.skipDocker, "skip-docker", false, "Skip running tests in Docker")
+	initCmd.Flags().BoolVar(&opts.skipConfig, "skip-config", false, "Skip generating .circleci/config.yml")
+	initCmd.Flags().BoolVar(&opts.verbose, "verbose", false, "Show full Docker build and test output")
 
 	// Project creation flags
 	initCmd.Flags().StringVar(&opts.vcsType, "vcs-type", "", "Version control system type (e.g., 'github', 'circleci')")
@@ -180,6 +208,40 @@ Examples:
 	initCmd.Flags().StringVar(&opts.checkoutRef, "checkout-ref", "", "Git ref to use when checking out code (only needed if different from trigger repo)")
 
 	return initCmd
+}
+
+func initAPIClients(config *settings.Config, opts *initOptions) error {
+	projectClient, err := projectapi.NewProjectRestClient(*config)
+	if err != nil {
+		return err
+	}
+	opts.projectClient = projectClient
+
+	pipelineClient, err := pipelineapi.NewPipelineRestClient(*config)
+	if err != nil {
+		return err
+	}
+	opts.pipelineClient = pipelineClient
+
+	triggerClient, err := triggerapi.NewTriggerRestClient(*config)
+	if err != nil {
+		return err
+	}
+	opts.triggerClient = triggerClient
+
+	collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*config)
+	if err != nil {
+		return err
+	}
+	opts.collaboratorsClient = collaboratorsClient
+
+	repositoryClient, err := repository.NewRepositoryRestClient(*config)
+	if err != nil {
+		return err
+	}
+	opts.repositoryClient = repositoryClient
+
+	return nil
 }
 
 func promptTillYOrN(reader UserInputReader) string {
@@ -406,7 +468,7 @@ func validateProjectName(name string) error {
 	return nil
 }
 
-func initCmd(opts initOptions, reader UserInputReader, cmd *cobra.Command) error {
+func runInitRemote(opts initOptions, reader UserInputReader, cmd *cobra.Command) error {
 	fmt.Println("🚀 Initializing CircleCI project...")
 	fmt.Println()
 
