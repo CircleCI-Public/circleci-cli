@@ -2,26 +2,37 @@ package cmd
 
 import (
 	"context"
-	"crypto/rand"
-	"crypto/subtle"
-	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"net"
 	"net/http"
-	"net/url"
 	"os"
-	"strings"
+	"os/signal"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/pkg/browser"
-	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/prompt"
 	"github.com/CircleCI-Public/circleci-cli/settings"
 	"github.com/CircleCI-Public/circleci-cli/telemetry"
 )
+
+const (
+	// App base URL override for enterprise / testing. Falls back to
+	// defaultAppBaseURL when unset.
+	appBaseURLEnv     = "CIRCLECI_APP_URL"
+	defaultAppBaseURL = "https://app.circleci.com"
+
+	handshakeTimeout = 10 * time.Minute
+	handshakeHTTPTO  = 10 * time.Second
+	// Consecutive network errors tolerated before giving up.
+	handshakeMaxNetErrs = 3
+)
+
+// handshakePollWait is the delay between polls. It's a var so tests can
+// shorten it; production code should treat it as constant.
+var handshakePollWait = 3 * time.Second
 
 type signupOptions struct {
 	cfg       *settings.Config
@@ -49,7 +60,7 @@ func newSignupCommand(config *settings.Config) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&opts.noBrowser, "no-browser", false, "Don't open a browser; print the signup URL and prompt for a token instead")
+	cmd.Flags().BoolVar(&opts.noBrowser, "no-browser", false, "Don't open a browser — print the signup URL so you can visit it from any device")
 	cmd.Flags().BoolVar(&opts.force, "force", false, "Run signup even if already authenticated")
 
 	return cmd
@@ -70,6 +81,13 @@ func createSignupEvent(noBrowser bool, err error) telemetry.Event {
 	}
 }
 
+func appBaseURL() string {
+	if v := os.Getenv(appBaseURLEnv); v != "" {
+		return v
+	}
+	return defaultAppBaseURL
+}
+
 func runSignup(cmd *cobra.Command, opts signupOptions) error {
 	if !opts.force && opts.cfg.Token != "" {
 		fmt.Println("You're already authenticated. Your CLI is configured with a personal API token.")
@@ -77,211 +95,142 @@ func runSignup(cmd *cobra.Command, opts signupOptions) error {
 		return nil
 	}
 
-	state, err := generateState()
-	if err != nil {
-		return errors.Wrap(err, "failed to generate cryptographic state")
-	}
+	ctx, cancel := context.WithCancel(cmd.Context())
+	defer cancel()
 
-	if opts.noBrowser {
-		return signupNoBrowser(opts, state)
-	}
-
-	return signupWithBrowser(cmd, opts, state)
-}
-
-func generateState() (string, error) {
-	b := make([]byte, 16)
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-	return hex.EncodeToString(b), nil
-}
-
-func signupNoBrowser(opts signupOptions, state string) error {
-	signupURL := "https://app.circleci.com/authentication/login?f=gho&return-to=/settings/user/tokens"
-	fmt.Printf("Open this URL in your browser to sign up:\n\n  %s\n\n", signupURL)
-
-	token, err := prompt.ReadSecretStringFromUser("Paste your CircleCI API token here")
-	if err != nil {
-		return errors.Wrap(err, "failed to read token")
-	}
-
-	if token == "" {
-		return errors.New("no token provided")
-	}
-
-	return saveToken(opts.cfg, token)
-}
-
-func signupWithBrowser(cmd *cobra.Command, opts signupOptions, state string) error {
-	// Start an ephemeral HTTP server on a random available port.
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		return errors.Wrap(err, "failed to start local server")
-	}
-	port := listener.Addr().(*net.TCPAddr).Port
-
-	tokenCh := make(chan string, 1)
-	errCh := make(chan error, 1)
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/token", corsMiddleware(handleToken(state, tokenCh, errCh)))
-
-	server := &http.Server{
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
-
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt)
+	defer signal.Stop(sigCh)
 	go func() {
-		if serveErr := server.Serve(listener); serveErr != nil && serveErr != http.ErrServerClosed {
-			errCh <- serveErr
+		select {
+		case <-sigCh:
+			cancel()
+		case <-ctx.Done():
 		}
 	}()
 
-	// Generate a unique PAT label to avoid 422 duplicate errors when the
-	// user runs signup multiple times or from different machines.
-	hostname, err := os.Hostname()
+	handshakeID := uuid.NewString()
+	baseURL := appBaseURL()
+	signupURL := fmt.Sprintf("%s/cli-auth?handshake_id=%s", baseURL, handshakeID)
+
+	if opts.noBrowser {
+		fmt.Printf("To complete signup, open this URL on any device:\n\n  %s\n\n", signupURL)
+	} else {
+		trackSignupStep(cmd, "browser_opening", nil)
+		fmt.Println("Opening your browser to sign up for CircleCI...")
+		fmt.Printf("  %s\n", signupURL)
+		if err := browser.OpenURL(signupURL); err != nil {
+			fmt.Printf("Could not open browser automatically: %v\n", err)
+			fmt.Println("Please visit the URL above from any device.")
+		}
+	}
+
+	fmt.Println("Waiting for browser authentication...")
+
+	token, err := pollHandshake(ctx, baseURL, handshakeID, handshakeTimeout)
 	if err != nil {
-		hostname = "unknown"
-	}
-	label := fmt.Sprintf("circleci-cli-%s-%d", sanitizeHostname(hostname), time.Now().Unix())
-
-	// Build the signup URL. Go directly to /cli-auth (Magic Path).
-	// The frontend checks for an existing session: if authenticated, it creates
-	// the PAT immediately; if not, it redirects to signup first.
-	params := url.Values{}
-	params.Set("cli_port", fmt.Sprintf("%d", port))
-	params.Set("cli_state", state)
-	params.Set("cli_label", label)
-	signupURL := "https://app.circleci.com/cli-auth?" + params.Encode()
-
-	trackSignupStep(cmd, "browser_opening", nil)
-	fmt.Println("Opening your browser to sign up for CircleCI...")
-	decodedURL, _ := url.QueryUnescape(signupURL)
-	fmt.Printf("  %s\n", decodedURL)
-
-	if err := browser.OpenURL(signupURL); err != nil {
-		fmt.Printf("⚠️  Could not open browser automatically: %v\n", err)
-		fmt.Printf("   Please manually visit: %s\n", decodedURL)
-	}
-
-	fmt.Println("Waiting for authentication...")
-
-	// Wait for the token or an error, with a timeout.
-	select {
-	case token := <-tokenCh:
-		_ = server.Shutdown(context.Background())
-		trackSignupStep(cmd, "token_received", nil)
-		return saveToken(opts.cfg, token)
-	case err := <-errCh:
-		_ = server.Shutdown(context.Background())
+		if ctx.Err() != nil {
+			trackSignupStep(cmd, "canceled", nil)
+			fmt.Println("\nAuthentication canceled.")
+			return nil
+		}
 		trackSignupStep(cmd, "failed", nil)
-		return errors.Wrap(err, "signup failed")
-	case <-time.After(5 * time.Minute):
-		_ = server.Shutdown(context.Background())
-		trackSignupStep(cmd, "timeout", nil)
-		return errors.New("timed out waiting for signup to complete. Run `circleci setup` to manually configure your CLI with a personal API token")
+		return fmt.Errorf("signup failed: %w", err)
 	}
+
+	trackSignupStep(cmd, "token_received", nil)
+	return saveToken(opts.cfg, token)
 }
 
-const allowedOrigin = "https://app.circleci.com"
+// pollHandshake polls the server-side handshake endpoint until a token appears
+// (200), the handshake expires (404), the context is cancelled, or the overall
+// timeout elapses. 202 responses mean "still pending"; transient network errors
+// are retried up to handshakeMaxNetErrs consecutive times.
+func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout time.Duration) (string, error) {
+	client := &http.Client{Timeout: handshakeHTTPTO}
+	endpoint := fmt.Sprintf("%s/api/v1/cli-handshake/%s", baseURL, handshakeID)
 
-// corsMiddleware validates the Origin header and adds CORS headers allowing
-// the CircleCI frontend to make cross-origin requests to the CLI's local server.
-// Requests with missing or non-matching Origin are rejected with 403.
-func corsMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		origin := r.Header.Get("Origin")
-		if origin != allowedOrigin {
-			http.Error(w, "Forbidden", http.StatusForbidden)
-			return
-		}
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
 
-		w.Header().Set("Access-Control-Allow-Origin", allowedOrigin)
-		w.Header().Set("Access-Control-Allow-Methods", "GET")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-		w.Header().Set("Access-Control-Allow-Private-Network", "true")
-		w.Header().Set("Access-Control-Max-Age", "300")
-
-		if r.Method == http.MethodOptions {
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
-
-		next(w, r)
-	}
-}
-
-func stateMatches(a, b string) bool {
-	return subtle.ConstantTimeCompare([]byte(a), []byte(b)) == 1
-}
-
-func handleToken(expectedState string, tokenCh chan<- string, errCh chan<- error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
-
-		query := r.URL.Query()
-		token := query.Get("token")
-		state := query.Get("cli_state")
-		callbackErr := query.Get("error")
-
-		// When an error is present, state validation is best-effort: if state
-		// is provided it must match, but a missing state is tolerated because
-		// the frontend may not have had access to it when the failure occurred.
-		if callbackErr != "" {
-			if state != "" && !stateMatches(state, expectedState) {
-				http.Error(w, "Invalid state", http.StatusForbidden)
-				errCh <- errors.New("state mismatch — possible CSRF attempt")
-				return
+	var netErrs int
+	for {
+		token, status, err := handshakePoll(ctx, client, endpoint)
+		switch {
+		case err == nil && status == http.StatusOK:
+			return token, nil
+		case err == nil && status == http.StatusAccepted:
+			netErrs = 0
+		case err == nil && status == http.StatusNotFound:
+			return "", errors.New("authentication expired or invalid handshake — run `circleci signup` to try again")
+		case err == nil:
+			return "", fmt.Errorf("unexpected response from handshake endpoint: %d", status)
+		case ctx.Err() != nil:
+			// Parent context was canceled or hit its deadline — surface it so
+			// the caller can distinguish from transport-level timeouts.
+			return "", ctx.Err()
+		default:
+			netErrs++
+			if netErrs > handshakeMaxNetErrs {
+				return "", fmt.Errorf("repeated network errors while polling for authentication: %w", err)
 			}
-			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(map[string]string{"status": "error"})
-			errCh <- fmt.Errorf("authentication failed (%s). Run `circleci setup` to manually configure your CLI with a personal API token", callbackErr)
-			return
 		}
 
-		if !stateMatches(state, expectedState) {
-			http.Error(w, "Invalid state", http.StatusForbidden)
-			errCh <- errors.New("state mismatch — possible CSRF attempt")
-			return
-		}
+		fmt.Print(".")
 
-		if token == "" {
-			http.Error(w, "Missing token", http.StatusBadRequest)
-			errCh <- errors.New("callback returned an empty token. Run `circleci setup` to manually configure your CLI with a personal API token")
-			return
+		select {
+		case <-ctx.Done():
+			return "", ctx.Err()
+		case <-deadline.C:
+			return "", fmt.Errorf("timed out waiting for browser authentication (%s) — run `circleci signup` to try again", timeout)
+		case <-time.After(handshakePollWait):
 		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-		tokenCh <- token
 	}
 }
 
-func sanitizeHostname(h string) string {
-	var b strings.Builder
-	for _, r := range h {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '-' {
-			b.WriteRune(r)
-		}
+// handshakePoll performs a single GET against the handshake endpoint.
+// On 200 it decodes and returns the token; on any other status it returns the
+// status code for the caller to dispatch on. Network / transport errors surface
+// via the error return so the caller can decide whether to retry.
+func handshakePoll(ctx context.Context, client *http.Client, endpoint string) (string, int, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+	if err != nil {
+		return "", 0, err
 	}
-	s := b.String()
-	if s == "" {
-		return "unknown"
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", 0, err
 	}
-	return s
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return "", resp.StatusCode, nil
+	}
+
+	var body struct {
+		Token     string `json:"token"`
+		CreatedAt string `json:"created_at"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		return "", resp.StatusCode, fmt.Errorf("failed to parse handshake response: %w", err)
+	}
+	if body.Token == "" {
+		return "", resp.StatusCode, errors.New("handshake response contained no token")
+	}
+	return body.Token, resp.StatusCode, nil
 }
 
 func saveToken(cfg *settings.Config, token string) error {
 	cfg.Token = token
 	if err := cfg.WriteToDisk(); err != nil {
-		return errors.Wrap(err, "failed to save token to config")
+		return fmt.Errorf("failed to save token to config: %w", err)
 	}
 	fmt.Println("\n✅ Welcome to CircleCI! Your CLI is now authenticated.")
+	fmt.Println("\nNext steps:")
+	fmt.Println("  circleci init    — set up a project in the current directory")
+	fmt.Println("  circleci help    — see all available commands")
 	return nil
 }
 
