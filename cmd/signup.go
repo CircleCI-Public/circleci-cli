@@ -143,9 +143,10 @@ func runSignup(cmd *cobra.Command, opts signupOptions) error {
 }
 
 // pollHandshake polls the server-side handshake endpoint until a token appears
-// (200), the handshake expires (404), the context is cancelled, or the overall
-// timeout elapses. 202 responses mean "still pending"; transient network errors
-// are retried up to handshakeMaxNetErrs consecutive times.
+// (200), the context is cancelled, or the overall timeout elapses. The server
+// returns 202 for both pending and post-TTL cache-miss cases, so the 10-minute
+// deadline is the sole expiry path. Transient network errors are retried up to
+// handshakeMaxNetErrs consecutive times.
 func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout time.Duration) (string, error) {
 	client := &http.Client{Timeout: handshakeHTTPTO}
 	endpoint := fmt.Sprintf("%s/api/v1/cli-handshake/%s", baseURL, handshakeID)
