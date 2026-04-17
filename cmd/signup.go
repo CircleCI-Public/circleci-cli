@@ -27,11 +27,17 @@ const (
 	appBaseURLEnv     = "CIRCLECI_APP_URL"
 	defaultAppBaseURL = "https://app.circleci.com"
 
-	handshakeTimeout  = 10 * time.Minute
-	handshakePollWait = 3 * time.Second
-	handshakeHTTPTO   = 10 * time.Second
-	// Consecutive network errors tolerated before giving up.
-	handshakeMaxNetErrs = 3
+	// handshakeTimeout is the overall CLI poll deadline. It must stay ≤ the
+	// auth-svc handshake cache TTL (CLI_HANDSHAKE_TTL, default 10m in
+	// authentication-service/clihandshake/cache.go) — otherwise the CLI will
+	// keep polling IDs the server has already evicted, and users whose CLI
+	// was suspended (laptop sleep, Docker pause, etc.) see a confusing
+	// "timed out" even though auth completed server-side. If you change
+	// this value, check the auth-svc default and the WEBXP-745 runbook.
+	handshakeTimeout    = 10 * time.Minute
+	handshakePollWait   = 3 * time.Second
+	handshakeHTTPTO     = 10 * time.Second
+	handshakeMaxNetErrs = 3 // consecutive network errors tolerated
 )
 
 type signupOptions struct {
