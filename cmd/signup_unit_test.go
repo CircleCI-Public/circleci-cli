@@ -17,6 +17,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/settings"
 )
 
+// testPollWait keeps specs snappy without reaching into package-level state.
+const testPollWait = 5 * time.Millisecond
+
+// testRequestTO is generous enough that httptest servers always reply inside
+// it, but short enough that the "unreachable server" spec fails fast.
+const testRequestTO = 500 * time.Millisecond
+
 var _ = Describe("Signup", func() {
 	Describe("already authenticated guard", func() {
 		It("should print already authenticated when token exists", func() {
@@ -85,7 +92,7 @@ var _ = Describe("Signup", func() {
 			}))
 			defer server.Close()
 
-			token, err := pollHandshakeFast(context.Background(), server.URL, "abc-123", time.Minute)
+			token, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "abc-123", time.Minute, testPollWait, testRequestTO)
 			Expect(err).ShouldNot(HaveOccurred())
 			Expect(token).To(Equal("pat-xyz"))
 			Expect(atomic.LoadInt32(&calls)).To(BeNumerically(">=", 2))
@@ -97,7 +104,7 @@ var _ = Describe("Signup", func() {
 			}))
 			defer server.Close()
 
-			_, err := pollHandshakeFast(context.Background(), server.URL, "boom", time.Minute)
+			_, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "boom", time.Minute, testPollWait, testRequestTO)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("unexpected response"))
 		})
@@ -111,7 +118,7 @@ var _ = Describe("Signup", func() {
 			ctx, cancel := context.WithCancel(context.Background())
 			cancel()
 
-			_, err := pollHandshakeFast(ctx, server.URL, "id", time.Minute)
+			_, err := pollHandshake(ctx, http.DefaultClient, server.URL, "id", time.Minute, testPollWait, testRequestTO)
 			Expect(err).To(MatchError(context.Canceled))
 		})
 
@@ -121,23 +128,34 @@ var _ = Describe("Signup", func() {
 			}))
 			defer server.Close()
 
-			_, err := pollHandshakeFast(context.Background(), server.URL, "id", 20*time.Millisecond)
+			_, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "id", 20*time.Millisecond, testPollWait, testRequestTO)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("timed out"))
 		})
 
 		It("returns an error after repeated network failures", func() {
-			// Stand up a test server then immediately close it. Subsequent
-			// requests to the bound port fail fast with "connection refused",
-			// simulating sustained network errors without the HTTP client's
-			// 10s timeout kicking in.
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
 			addr := server.URL
 			server.Close()
 
-			_, err := pollHandshakeFast(context.Background(), addr, "id", time.Minute)
+			_, err := pollHandshake(context.Background(), http.DefaultClient, addr, "id", time.Minute, testPollWait, testRequestTO)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("network"))
+		})
+
+		It("surfaces a readable error when a 200 response carries a non-JSON body", func() {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "text/html")
+				w.WriteHeader(http.StatusOK)
+				fmt.Fprint(w, "<html><body>502 Bad Gateway</body></html>")
+			}))
+			defer server.Close()
+
+			_, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "id", time.Minute, testPollWait, testRequestTO)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("non-JSON"))
+			Expect(err.Error()).To(ContainSubstring("text/html"))
+			Expect(err.Error()).To(ContainSubstring("502 Bad Gateway"))
 		})
 	})
 
@@ -195,13 +213,3 @@ var _ = Describe("Signup", func() {
 		})
 	})
 })
-
-// pollHandshakeFast shortens the internal poll interval so the suite doesn't
-// sit in 3-second sleeps between requests. The production delay is restored
-// after each call.
-func pollHandshakeFast(ctx context.Context, baseURL, handshakeID string, timeout time.Duration) (string, error) {
-	orig := handshakePollWait
-	handshakePollWait = 5 * time.Millisecond
-	defer func() { handshakePollWait = orig }()
-	return pollHandshake(ctx, baseURL, handshakeID, timeout)
-}

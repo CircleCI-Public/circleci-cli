@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"mime"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,15 +27,12 @@ const (
 	appBaseURLEnv     = "CIRCLECI_APP_URL"
 	defaultAppBaseURL = "https://app.circleci.com"
 
-	handshakeTimeout = 10 * time.Minute
-	handshakeHTTPTO  = 10 * time.Second
+	handshakeTimeout  = 10 * time.Minute
+	handshakePollWait = 3 * time.Second
+	handshakeHTTPTO   = 10 * time.Second
 	// Consecutive network errors tolerated before giving up.
 	handshakeMaxNetErrs = 3
 )
-
-// handshakePollWait is the delay between polls. It's a var so tests can
-// shorten it; production code should treat it as constant.
-var handshakePollWait = 3 * time.Second
 
 type signupOptions struct {
 	cfg       *settings.Config
@@ -127,7 +127,15 @@ func runSignup(cmd *cobra.Command, opts signupOptions) error {
 
 	fmt.Println("Waiting for browser authentication...")
 
-	token, err := pollHandshake(ctx, baseURL, handshakeID, handshakeTimeout)
+	// Reuse the configured HTTP client so enterprise installs keep their
+	// custom CA bundle (cfg.TLSCert) and TLS settings. Per-request deadlines
+	// are applied via context.WithTimeout so we don't mutate the shared client.
+	client := opts.cfg.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+
+	token, err := pollHandshake(ctx, client, baseURL, handshakeID, handshakeTimeout, handshakePollWait, handshakeHTTPTO)
 	if err != nil {
 		if ctx.Err() != nil {
 			trackSignupStep(cmd, "canceled", nil)
@@ -144,11 +152,12 @@ func runSignup(cmd *cobra.Command, opts signupOptions) error {
 
 // pollHandshake polls the server-side handshake endpoint until a token appears
 // (200), the context is cancelled, or the overall timeout elapses. The server
-// returns 202 for both pending and post-TTL cache-miss cases, so the 10-minute
-// deadline is the sole expiry path. Transient network errors are retried up to
-// handshakeMaxNetErrs consecutive times.
-func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout time.Duration) (string, error) {
-	client := &http.Client{Timeout: handshakeHTTPTO}
+// returns 202 for both pending and post-TTL cache-miss cases, so the timeout
+// is the sole expiry path. Transient network errors are retried up to
+// handshakeMaxNetErrs consecutive times. pollWait and requestTimeout are
+// passed in so tests can drive the loop deterministically without touching
+// package-level state.
+func pollHandshake(ctx context.Context, client *http.Client, baseURL, handshakeID string, timeout, pollWait, requestTimeout time.Duration) (string, error) {
 	endpoint := fmt.Sprintf("%s/api/v1/cli-handshake/%s", baseURL, handshakeID)
 
 	deadline := time.NewTimer(timeout)
@@ -156,7 +165,7 @@ func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout tim
 
 	var netErrs int
 	for {
-		token, status, err := handshakePoll(ctx, client, endpoint)
+		token, status, err := handshakePoll(ctx, client, endpoint, requestTimeout)
 		switch {
 		case err == nil && status == http.StatusOK:
 			return token, nil
@@ -182,7 +191,7 @@ func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout tim
 			return "", ctx.Err()
 		case <-deadline.C:
 			return "", fmt.Errorf("timed out waiting for browser authentication (%s) — run `circleci signup` to try again", timeout)
-		case <-time.After(handshakePollWait):
+		case <-time.After(pollWait):
 		}
 	}
 }
@@ -190,9 +199,14 @@ func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout tim
 // handshakePoll performs a single GET against the handshake endpoint.
 // On 200 it decodes and returns the token; on any other status it returns the
 // status code for the caller to dispatch on. Network / transport errors surface
-// via the error return so the caller can decide whether to retry.
-func handshakePoll(ctx context.Context, client *http.Client, endpoint string) (string, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
+// via the error return so the caller can decide whether to retry. The
+// per-request deadline comes from a derived context so the shared HTTP client
+// doesn't need its Timeout field mutated.
+func handshakePoll(ctx context.Context, client *http.Client, endpoint string, requestTimeout time.Duration) (string, int, error) {
+	reqCtx, cancel := context.WithTimeout(ctx, requestTimeout)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return "", 0, err
 	}
@@ -206,6 +220,15 @@ func handshakePoll(ctx context.Context, client *http.Client, endpoint string) (s
 
 	if resp.StatusCode != http.StatusOK {
 		return "", resp.StatusCode, nil
+	}
+
+	// Guard against proxies or misrouted requests returning a 200 with a
+	// non-JSON body (e.g. Cloudflare HTML error pages on the happy-path URL).
+	// Surface a readable error with a short body snippet so users aren't
+	// debugging from `invalid character '<'`.
+	if mt, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type")); mt != "" && mt != "application/json" {
+		snippet, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		return "", resp.StatusCode, fmt.Errorf("handshake returned non-JSON response (content-type %q): %s", mt, strings.TrimSpace(string(snippet)))
 	}
 
 	var body struct {
