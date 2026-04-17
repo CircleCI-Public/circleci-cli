@@ -91,18 +91,6 @@ var _ = Describe("Signup", func() {
 			Expect(atomic.LoadInt32(&calls)).To(BeNumerically(">=", 2))
 		})
 
-		It("returns an expired error on 404", func() {
-			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusNotFound)
-			}))
-			defer server.Close()
-
-			_, err := pollHandshakeFast(context.Background(), server.URL, "missing", time.Minute)
-			Expect(err).To(HaveOccurred())
-			Expect(err.Error()).To(ContainSubstring("expired"))
-			Expect(err.Error()).To(ContainSubstring("circleci signup"))
-		})
-
 		It("fails on unexpected status codes", func() {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(http.StatusInternalServerError)

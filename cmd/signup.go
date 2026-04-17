@@ -161,8 +161,6 @@ func pollHandshake(ctx context.Context, baseURL, handshakeID string, timeout tim
 			return token, nil
 		case err == nil && status == http.StatusAccepted:
 			netErrs = 0
-		case err == nil && status == http.StatusNotFound:
-			return "", errors.New("authentication expired or invalid handshake — run `circleci signup` to try again")
 		case err == nil:
 			return "", fmt.Errorf("unexpected response from handshake endpoint: %d", status)
 		case ctx.Err() != nil:
