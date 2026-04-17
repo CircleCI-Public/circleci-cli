@@ -27,17 +27,16 @@ const (
 	appBaseURLEnv     = "CIRCLECI_APP_URL"
 	defaultAppBaseURL = "https://app.circleci.com"
 
-	// handshakeTimeout is the overall CLI poll deadline. It must stay ≤ the
-	// auth-svc handshake cache TTL (CLI_HANDSHAKE_TTL, default 10m in
-	// authentication-service/clihandshake/cache.go) — otherwise the CLI will
-	// keep polling IDs the server has already evicted, and users whose CLI
-	// was suspended (laptop sleep, Docker pause, etc.) see a confusing
-	// "timed out" even though auth completed server-side. If you change
-	// this value, check the auth-svc default and the WEBXP-745 runbook.
+	// handshakeTimeout bounds how long the CLI waits for the browser-side
+	// authentication to complete before giving up. It's a pure UX knob —
+	// the auth-svc Redis TTL (sized to cover the POST→next-poll window,
+	// currently 60s) is an independent server-side concern. The only
+	// structural requirement is that the server TTL comfortably exceed
+	// handshakePollWait; the client timeout is decoupled from it.
 	handshakeTimeout    = 10 * time.Minute
 	handshakePollWait   = 3 * time.Second
 	handshakeHTTPTO     = 10 * time.Second
-	handshakeMaxNetErrs = 3 // consecutive network errors tolerated
+	handshakeMaxNetErrs = 3 // consecutive transient errors tolerated
 )
 
 type signupOptions struct {
@@ -177,6 +176,16 @@ func pollHandshake(ctx context.Context, client *http.Client, baseURL, handshakeI
 			return token, nil
 		case err == nil && status == http.StatusAccepted:
 			netErrs = 0
+		case err == nil && isTransientStatus(status):
+			// 429 (rate limit) and 5xx are transient server-side conditions —
+			// rate limiting is expected once WEBXP-751 lands Gubernator on the
+			// unauthenticated GET, and 5xx covers backend blips. Count them
+			// under the same budget as transport errors; a later 202 resets
+			// the counter.
+			netErrs++
+			if netErrs > handshakeMaxNetErrs {
+				return "", fmt.Errorf("handshake endpoint returned repeated transient errors (last status %d)", status)
+			}
 		case err == nil:
 			return "", fmt.Errorf("unexpected response from handshake endpoint: %d", status)
 		case ctx.Err() != nil:
@@ -200,6 +209,12 @@ func pollHandshake(ctx context.Context, client *http.Client, baseURL, handshakeI
 		case <-time.After(pollWait):
 		}
 	}
+}
+
+// isTransientStatus reports whether a non-200/non-202 response should be
+// retried under the network-error budget rather than failing immediately.
+func isTransientStatus(status int) bool {
+	return status == http.StatusTooManyRequests || (status >= 500 && status <= 599)
 }
 
 // handshakePoll performs a single GET against the handshake endpoint.

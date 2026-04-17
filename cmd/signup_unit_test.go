@@ -98,15 +98,50 @@ var _ = Describe("Signup", func() {
 			Expect(atomic.LoadInt32(&calls)).To(BeNumerically(">=", 2))
 		})
 
-		It("fails on unexpected status codes", func() {
+		It("fails on truly unexpected status codes", func() {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				w.WriteHeader(http.StatusInternalServerError)
+				w.WriteHeader(http.StatusTeapot)
 			}))
 			defer server.Close()
 
 			_, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "boom", time.Minute, testPollWait, testRequestTO)
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(ContainSubstring("unexpected response"))
+		})
+
+		It("retries transient 429 / 5xx responses under the network-error budget", func() {
+			var calls int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				n := atomic.AddInt32(&calls, 1)
+				switch n {
+				case 1:
+					w.WriteHeader(http.StatusTooManyRequests)
+				case 2:
+					w.WriteHeader(http.StatusServiceUnavailable)
+				default:
+					w.Header().Set("Content-Type", "application/json")
+					w.WriteHeader(http.StatusOK)
+					fmt.Fprint(w, `{"token":"pat-xyz"}`)
+				}
+			}))
+			defer server.Close()
+
+			token, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "id", time.Minute, testPollWait, testRequestTO)
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(token).To(Equal("pat-xyz"))
+			Expect(atomic.LoadInt32(&calls)).To(Equal(int32(3)))
+		})
+
+		It("gives up after sustained 429 responses exceed the budget", func() {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.WriteHeader(http.StatusTooManyRequests)
+			}))
+			defer server.Close()
+
+			_, err := pollHandshake(context.Background(), http.DefaultClient, server.URL, "id", time.Minute, testPollWait, testRequestTO)
+			Expect(err).To(HaveOccurred())
+			Expect(err.Error()).To(ContainSubstring("transient"))
+			Expect(err.Error()).To(ContainSubstring("429"))
 		})
 
 		It("surfaces ctx.Err when the context is canceled", func() {
