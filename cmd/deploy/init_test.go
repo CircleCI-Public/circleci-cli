@@ -88,6 +88,8 @@ func TestInit_HappyPath(t *testing.T) {
 	assert.Contains(t, output, "deploy-prod")
 	assert.Contains(t, output, "Updated")
 	assert.Contains(t, output, "https://app.circleci.com/deploys")
+	assert.Contains(t, output, "https://circleci.com/docs/guides/deploy/configure-deploy-markers/",
+		"output should link to the deploy markers docs for users who want more than log-only setup")
 	assert.NotContains(t, output, "git commit -m \"Wire up CircleCI deploy markers\" && git push",
 		"output should not chain commit and push on one line")
 
@@ -109,6 +111,8 @@ func TestInit_NoDeployJobsExitsCleanly(t *testing.T) {
 	require.NoError(t, err, output)
 
 	assert.Contains(t, output, "No deploy jobs detected")
+	assert.Contains(t, output, "https://circleci.com/docs/guides/deploy/configure-deploy-markers/",
+		"no-deploy-jobs path should still point users at the docs")
 	// The config file must be untouched when nothing matched.
 	after, err := os.ReadFile(configPath)
 	require.NoError(t, err)
@@ -127,6 +131,8 @@ func TestInit_IdempotentOnAlreadyInstrumentedConfig(t *testing.T) {
 	require.NoError(t, err, output)
 
 	assert.Contains(t, output, "already instrumented")
+	assert.Contains(t, output, "https://circleci.com/docs/guides/deploy/configure-deploy-markers/",
+		"already-instrumented path should still point users at the docs")
 	after, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.Equal(t, string(original), string(after), "config should not be rewritten when everything is already instrumented")

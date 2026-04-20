@@ -20,6 +20,12 @@ import (
 // dashboard landing page redirects users to their most recent org.
 const deploysDashboardURL = "https://app.circleci.com/deploys"
 
+// deployMarkersDocsURL points to the canonical guide for deploy markers.
+// We print it alongside the dashboard URL so users who outgrow the
+// `log`-only setup this command produces (for example, users who want
+// the full plan/update lifecycle with statuses) can find the next step.
+const deployMarkersDocsURL = "https://circleci.com/docs/guides/deploy/configure-deploy-markers/"
+
 type initOptions struct {
 	// configPath points to the .circleci/config.yml the command reads
 	// and writes back. Defaults to config.DefaultConfigPath; exposed as
@@ -83,6 +89,8 @@ func runInit(out io.Writer, deployOpts *deployOpts, iopts initOptions) error {
 		fmt.Fprintln(out, "          --component-name=<your-service> \\")
 		fmt.Fprintln(out, "          --environment-name=<your-environment> \\")
 		fmt.Fprintln(out, "          --target-version=$CIRCLE_SHA1")
+		fmt.Fprintln(out, "")
+		fmt.Fprintf(out, "More options (status tracking, rollbacks, etc.): %s\n", deployMarkersDocsURL)
 		return nil
 	}
 
@@ -101,6 +109,7 @@ func runInit(out io.Writer, deployOpts *deployOpts, iopts initOptions) error {
 	if allInstrumented(detected) {
 		fmt.Fprintln(out, "Every detected deploy job already logs a marker. Nothing to do.")
 		fmt.Fprintf(out, "\nDashboard: %s\n", deploysDashboardURL)
+		fmt.Fprintf(out, "Docs:      %s\n", deployMarkersDocsURL)
 		return nil
 	}
 
@@ -144,6 +153,7 @@ func runInit(out io.Writer, deployOpts *deployOpts, iopts initOptions) error {
 	if len(result.Modified) == 0 {
 		fmt.Fprintln(out, "\nNo changes were needed — all detected jobs were already instrumented.")
 		fmt.Fprintf(out, "\nDashboard: %s\n", deploysDashboardURL)
+		fmt.Fprintf(out, "Docs:      %s\n", deployMarkersDocsURL)
 		return nil
 	}
 
@@ -168,6 +178,9 @@ func runInit(out io.Writer, deployOpts *deployOpts, iopts initOptions) error {
 	fmt.Fprintln(out, "")
 	fmt.Fprintln(out, "After your next pipeline run you'll see deploy markers on the dashboard:")
 	fmt.Fprintf(out, "  %s\n", deploysDashboardURL)
+	fmt.Fprintln(out, "")
+	fmt.Fprintln(out, "Want status tracking, rollbacks, or more control? See the deploy markers guide:")
+	fmt.Fprintf(out, "  %s\n", deployMarkersDocsURL)
 
 	return nil
 }
