@@ -1,0 +1,112 @@
+package project
+
+import (
+	"context"
+	"encoding/json"
+	"strings"
+
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+)
+
+func newListCmd() *cobra.Command {
+	var jsonOut bool
+
+	cmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List followed projects",
+		Long: heredoc.Doc(`
+			List all CircleCI projects followed by the authenticated user.
+
+			Projects are identified by a slug in the form vcs/org/repo
+			(e.g. gh/myorg/myrepo). Use 'circleci project follow' to start
+			following a new project.
+
+			JSON fields: slug, name, vcs_type, username, reponame
+		`),
+		Example: heredoc.Doc(`
+			# List all followed projects
+			$ circleci project list
+
+			# Output as JSON for scripting
+			$ circleci project list --json
+
+			# Filter by org with jq
+			$ circleci project list --json | jq '.[] | select(.username == "myorg")'
+		`),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+			streams := iostream.FromCmd(cmd)
+			return runProjectList(ctx, streams, jsonOut)
+		},
+	}
+
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+
+	return cmd
+}
+
+type projectOutput struct {
+	Slug     string `json:"slug"`
+	Name     string `json:"name"`
+	VCSType  string `json:"vcs_type"`
+	Username string `json:"username"`
+	RepoName string `json:"reponame"`
+}
+
+func runProjectList(ctx context.Context, streams iostream.Streams, jsonOut bool) error {
+	client, cliErr := cmdutil.LoadClient()
+	if cliErr != nil {
+		return cliErr
+	}
+
+	projects, err := client.ListProjects(ctx)
+	if err != nil {
+		return cmdutil.APIErr(err, "projects", "project.list_failed", "Could not list projects: %s")
+	}
+
+	out := make([]projectOutput, len(projects))
+	for i, p := range projects {
+		slug := p.Slug
+		if slug == "" {
+			// Build slug from parts when the v1.1 API omits the top-level slug field.
+			var vcs string
+			switch p.VCSType {
+			case "github":
+				vcs = "gh"
+			case "bitbucket":
+				vcs = "bb"
+			default:
+				vcs = strings.ToLower(p.VCSType)
+			}
+			slug = vcs + "/" + p.Username + "/" + p.RepoName
+		}
+		out[i] = projectOutput{
+			Slug:     slug,
+			Name:     p.Name,
+			VCSType:  p.VCSType,
+			Username: p.Username,
+			RepoName: p.RepoName,
+		}
+	}
+
+	if jsonOut {
+		enc := json.NewEncoder(streams.Out)
+		enc.SetIndent("", "  ")
+		return enc.Encode(out)
+	}
+
+	if len(out) == 0 {
+		streams.ErrPrintln("No followed projects found.")
+		return nil
+	}
+
+	for _, p := range out {
+		streams.Println(p.Slug)
+	}
+	return nil
+}

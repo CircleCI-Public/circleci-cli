@@ -1,0 +1,130 @@
+version: '3'
+
+vars:
+  RESULTS_DIR: test-reports
+  TEST_REPORT: test-reports/tests.xml
+  LINT_REPORT: test-reports/lint.xml
+
+tasks:
+  build:
+    desc: Build the circleci binary
+    cmds:
+      - go build -o dist/circleci .
+
+  test:
+    desc: Run unit tests
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
+    cmds:
+      - go tool gotestsum -- -race {{.ARGS}}
+
+  lint:
+    desc: Run golangci-lint
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
+    cmds:
+      - go tool golangci-lint run {{.ARGS}}
+
+  fmt:
+    desc: Format the code
+    vars:
+      ARGS: '{{default "." .CLI_ARGS}}'
+    cmds:
+      - go tool gosimports -local "$(go list -m)" -w {{.ARGS}}
+
+  mod-tidy:
+    desc: Run 'go mod tidy'
+    cmds:
+      - go mod tidy -v
+
+  mod-download:
+    desc: Run 'go mod download'
+    cmds:
+      - go mod download -x
+
+  acceptance-test:
+    desc: Build binary and run acceptance tests
+    vars:
+      ARGS: '{{default "./acceptance/..." .CLI_ARGS}}'
+    cmds:
+      - go tool gotestsum -- -race {{.ARGS}}
+
+  dev-install:
+    desc: Build from source and install to ~/.local/bin
+    cmds:
+      - task: build
+      - mkdir -p ${HOME}/.local/bin
+      - cp dist/circleci ${HOME}/.local/bin
+
+  generate:
+    desc: Run go generate
+    cmds:
+      - go generate ./...
+
+  release:
+    desc: Tag, build, and publish a release
+    vars:
+      VERSION: '{{.VERSION | default ""}}'
+    cmds:
+      - task: tag
+        vars: { VERSION: '{{.VERSION}}' }
+      - goreleaser release --clean
+
+  tag:
+    desc: Create the next git tag (vX.Y.Z), optionally specifying a version as X.Y.Z
+    vars:
+      VERSION: '{{.VERSION | default ""}}'
+    cmds:
+      - |
+        git fetch --force --tags
+
+        if [ -n "{{.VERSION}}" ]; then
+          TAG="v{{.VERSION}}"
+          if git tag | grep -q "^${TAG}$"; then
+            echo "Error: tag ${TAG} already exists" >&2
+            exit 1
+          fi
+        else
+          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
+            | sort -t. -k1,1V -k2,2n -k3,3n \
+            | tail -1)
+          if [ -z "$LATEST" ]; then
+            echo "Error: no existing vX.Y.Z tags found" >&2
+            exit 1
+          fi
+          PATCH=$(echo "$LATEST" | awk -F. '{print $3}')
+          TAG="${LATEST%.*}.$((PATCH + 1))"
+        fi
+
+        echo "Tagging version: ${TAG}"
+        git tag "${TAG}"
+        git push origin ${TAG}
+
+  # CI tasks
+
+  ci:lint:
+    desc: Lint with JUnit output
+    cmds:
+      - mkdir -p "{{.RESULTS_DIR}}"
+      - task: lint
+        vars:
+          CLI_ARGS: |
+            ./... \
+            --output.junit-xml.path "{{.LINT_REPORT}}" --output.junit-xml.extended \
+            --output.text.path=stdout --output.text.colors=true
+
+  ci:test:
+    desc: Run tests with JUnit output
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
+    cmds:
+      - mkdir -p {{.RESULTS_DIR}}
+      - go tool gotestsum --junitfile="{{.TEST_REPORT}}" -- -race -count=1 {{.ARGS}}
+
+  ci:diff:
+    desc: Check no uncommitted diffs after generate/fmt/tidy
+    cmds:
+      - task: generate
+      - task: fmt
+      - task: mod-tidy
+      - git diff --exit-code

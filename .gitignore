@@ -1,0 +1,21 @@
+# Build output
+dist/
+
+# Go test cache / coverage
+*.test
+*.out
+coverage.html
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# chunk active sandbox tracking
+.chunk/sandbox.json
+.chunk/sandbox.*.json

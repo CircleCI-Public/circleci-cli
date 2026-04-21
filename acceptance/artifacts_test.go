@@ -1,0 +1,177 @@
+package acceptance_test
+
+import (
+	"encoding/json"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"gotest.tools/v3/assert"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
+	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/fakes"
+)
+
+const (
+	testPipelineID = "aaaaaaaa-0000-0000-0000-000000000001"
+	testWorkflowID = "bbbbbbbb-0000-0000-0000-000000000001"
+	testSlug       = "gh/testorg/testrepo"
+)
+
+func fakeWorkflow(id, name string) map[string]any {
+	return map[string]any{
+		"id":     id,
+		"name":   name,
+		"status": "success",
+	}
+}
+
+func fakeJob(id, name string, jobNumber int64, slug string) map[string]any {
+	return map[string]any{
+		"id":           id,
+		"name":         name,
+		"job_number":   jobNumber,
+		"status":       "success",
+		"type":         "build",
+		"project_slug": slug,
+		"started_at":   time.Now().UTC().Format(time.RFC3339),
+		"stopped_at":   time.Now().UTC().Format(time.RFC3339),
+	}
+}
+
+func fakeArtifact(path, url string) map[string]any {
+	return map[string]any{
+		"path":       path,
+		"url":        url,
+		"node_index": 0,
+	}
+}
+
+// setupArtifactFake builds a fake server with one pipeline → one workflow →
+// one job → two artifacts.
+func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+
+	fake.AddPipeline(testPipelineID,
+		fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddProjectPipelines(testSlug,
+		fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddPipelineWorkflows(testPipelineID,
+		fakeWorkflow(testWorkflowID, "build"))
+	fake.AddWorkflowJobs(testWorkflowID,
+		fakeJob("job-uuid-1", "build", 42, testSlug))
+	fake.AddJobArtifacts(testSlug, 42,
+		fakeArtifact("coverage/index.html", fake.URL()+"/artifacts/coverage/index.html"),
+		fakeArtifact("test-results.xml", fake.URL()+"/artifacts/test-results.xml"),
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	return fake, env
+}
+
+func TestArtifacts_ByPipelineID(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t,
+		[]string{"artifacts", testPipelineID},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"), "stdout: %s", result.Stdout)
+	assert.Assert(t, strings.Contains(result.Stdout, "test-results.xml"))
+}
+
+func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t,
+		[]string{"artifacts", "--json", testPipelineID},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Equal(t, len(out), 2)
+	assert.Equal(t, out[0]["job_name"], "build")
+	assert.Equal(t, out[0]["path"], "coverage/index.html")
+	assert.Equal(t, out[1]["path"], "test-results.xml")
+}
+
+func TestArtifacts_ByJobNumber(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t,
+		[]string{"artifacts", "--job", "42", "--project", testSlug},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"))
+	assert.Assert(t, strings.Contains(result.Stdout, "test-results.xml"))
+}
+
+func TestJobArtifacts_ByJobNumber(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t,
+		[]string{"job", "artifacts", "42", "--project", testSlug},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"))
+	assert.Assert(t, strings.Contains(result.Stdout, "test-results.xml"))
+}
+
+func TestArtifacts_Download(t *testing.T) {
+	fake, env := setupArtifactFake(t)
+
+	// Serve fake artifact content from the fake server.
+	// We add a simple static handler via the underlying httptest server.
+	// Since our fake uses gin, we register the route on the fake directly.
+	fake.AddStaticFile("/artifacts/coverage/index.html", "<html>coverage</html>")
+	fake.AddStaticFile("/artifacts/test-results.xml", "<xml/>")
+
+	downloadDir := t.TempDir()
+	result := binary.RunCLI(t,
+		[]string{"artifacts", testPipelineID, "--download", downloadDir},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	data, err := os.ReadFile(filepath.Join(downloadDir, "coverage", "index.html"))
+	assert.NilError(t, err)
+	assert.Assert(t, strings.Contains(string(data), "coverage"))
+
+	_, err = os.ReadFile(filepath.Join(downloadDir, "test-results.xml"))
+	assert.NilError(t, err)
+}
+
+func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t,
+		[]string{"artifacts", "--quiet", testPipelineID},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stderr, "", "expected empty stderr with --quiet")
+	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"))
+}
+
+func TestArtifacts_NoToken(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t,
+		[]string{"artifacts", testPipelineID},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
+	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"))
+}
