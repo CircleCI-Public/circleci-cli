@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
+	"github.com/CircleCI-Public/circleci-cli/cmd/deploy"
 	"github.com/CircleCI-Public/circleci-cli/cmd/info"
 	"github.com/CircleCI-Public/circleci-cli/cmd/pipeline"
 	"github.com/CircleCI-Public/circleci-cli/cmd/policy"
@@ -179,6 +180,7 @@ func MakeCommands() *cobra.Command {
 	rootCmd.AddCommand(newDiagnosticCommand(rootOptions))
 	rootCmd.AddCommand(newSetupCommand(rootOptions))
 	rootCmd.AddCommand(newInitCommand(rootOptions))
+	rootCmd.AddCommand(deploy.NewDeployCommand(rootOptions))
 
 	rootCmd.AddCommand(followProjectCommand(rootOptions))
 	rootCmd.AddCommand(policy.NewCommand(rootOptions, validator))
