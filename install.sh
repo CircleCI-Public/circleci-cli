@@ -70,7 +70,7 @@ function install_cli {
 	curl --ssl-reqd -sL --retry 3 "${RELEASE_URL}" | tar zx --strip 1
 
 	echo "Installing to $DESTDIR"
-	install circleci "$DESTDIR"
+	install circleci -t "$DESTDIR"
 
 	command -v circleci
 
