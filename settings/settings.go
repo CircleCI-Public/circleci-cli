@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/zalando/go-keyring"
 	yaml "gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/api/header"
@@ -160,6 +161,25 @@ func (cfg *Config) LoadFromDisk() error {
 	err = yaml.Unmarshal(content, &cfg)
 	if err != nil {
 		return nil
+	}
+
+	if cfg.Host != "" {
+		keychainToken, keychainErr := GetTokenFromKeychain(cfg.Host)
+		if keychainErr == nil && keychainToken != "" {
+			cfg.Token = keychainToken
+		} else if errors.Is(keychainErr, keyring.ErrNotFound) && cfg.Token != "" {
+			// Migrate: YAML has token but keychain doesn't — move it silently
+			if setErr := SetTokenInKeychain(cfg.Host, cfg.Token); setErr == nil {
+				savedToken := cfg.Token
+				cfg.Token = ""
+				enc, merr := yaml.Marshal(cfg)
+				cfg.Token = savedToken
+				if merr == nil {
+					_ = os.WriteFile(cfg.FileUsed, enc, 0600)
+				}
+			}
+		}
+		// If keychain is unavailable (other error), YAML token is used as-is (silent fallback)
 	}
 
 	return cfg.WithHTTPClient()

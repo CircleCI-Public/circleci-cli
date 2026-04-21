@@ -175,10 +175,9 @@ token: fooBarBaz
 				Eventually(session.Out).Should(gbytes.Say(fmt.Sprintf("Setup has kept your existing configuration at %s.\n", regexp.QuoteMeta(tempSettings.Config.Path))))
 
 				Context("re-open the config to check the contents", func() {
-					tempSettings.AssertConfigRereadMatches(`
-host: https://example.com
-token: fooBarBaz
-`)
+					// Token is migrated to the OS keychain on load; YAML should have empty token
+					tempSettings.AssertConfigRereadMatches(`host: https://example.com`)
+					tempSettings.AssertConfigRereadMatches(`token: ""`)
 				})
 			})
 

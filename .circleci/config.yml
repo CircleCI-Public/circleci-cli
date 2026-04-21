@@ -17,7 +17,6 @@ executors:
       xcode: 15.1.0
     resource_class: macos.m1.medium.gen1
     environment:
-      CGO_ENABLED: 0
       TERM: xterm-256color
 
 commands:
@@ -64,6 +63,27 @@ commands:
             echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
             sudo apt -q update -y
             sudo apt -q install -y --no-install-recommends goreleaser=<< parameters.version >>
+  install-goreleaser-mac:
+    parameters:
+      version:
+        type: string
+        default: "1.19.1"
+    steps:
+      - run:
+          name: Install GoReleaser
+          command: |
+            ARCH=$(uname -m)
+            curl -sL "https://github.com/goreleaser/goreleaser/releases/download/v<< parameters.version >>/goreleaser_Darwin_${ARCH}.tar.gz" \
+              | tar -xz -C /tmp goreleaser
+            sudo mv /tmp/goreleaser /usr/local/bin/goreleaser
+  install-go-mac:
+    steps:
+      - run:
+          name: Install Go
+          command: |
+            curl -OL https://go.dev/dl/go1.23.4.darwin-arm64.pkg
+            sudo installer -pkg ./go1.23.4.darwin-arm64.pkg -target /
+            echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
   gomod:
     steps:
       - restore_cache:
@@ -102,10 +122,7 @@ jobs:
     executor: mac
     steps:
       - checkout
-      - run: |
-          curl -OL https://go.dev/dl/go1.23.4.darwin-arm64.pkg
-          sudo installer -pkg ./go1.23.4.darwin-arm64.pkg -target /
-          echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
+      - install-go-mac
       - gomod
       - run: make test
   build:
@@ -184,7 +201,7 @@ jobs:
       - run: golangci-lint run
 
   deploy-test:
-    executor: go
+    executor: mac
     steps:
       - run:
           name: Skip this job if this is a forked pull request
@@ -194,7 +211,8 @@ jobs:
               circleci step halt
             fi
       - checkout
-      - install-goreleaser
+      - install-go-mac
+      - install-goreleaser-mac
       - gomod
       - run:
           name: Release
@@ -203,17 +221,14 @@ jobs:
             git config --global user.name $GH_NAME
             git tag -a "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
             goreleaser --skip-publish
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - build-docker-image
-      - build-alpine-image
       - deploy-save-workspace-and-artifacts
 
   deploy:
-    executor: go
+    executor: mac
     steps:
       - checkout
-      - install-goreleaser
+      - install-go-mac
+      - install-goreleaser-mac
       - run:
           name: Tag Repo
           command: |
@@ -225,6 +240,12 @@ jobs:
       - run:
           name: Release
           command: goreleaser
+      - deploy-save-workspace-and-artifacts
+
+  deploy-docker:
+    executor: go
+    steps:
+      - checkout
       - setup_remote_docker:
           docker_layer_caching: true
       - run:
@@ -244,7 +265,6 @@ jobs:
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
             docker push     circleci/circleci-cli:alpine
-      - deploy-save-workspace-and-artifacts
 
   snap:
     docker:
@@ -359,6 +379,14 @@ workflows:
             - deploy-test
             - shellcheck/check
             - vulnerability-scan
+          filters:
+            branches:
+              only: main
+          context:
+            - devex-release
+      - deploy-docker:
+          requires:
+            - deploy
           filters:
             branches:
               only: main

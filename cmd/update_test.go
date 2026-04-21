@@ -61,7 +61,7 @@ var _ = Describe("Update", func() {
 
 	Describe("telemetry", func() {
 		It("should send telemetry event when calling parent command", func() {
-			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
+			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli", "-tags=keychain_mock")
 			Expect(err).ShouldNot(HaveOccurred())
 
 			command = exec.Command(updateCLI,
@@ -170,7 +170,7 @@ var _ = Describe("Update", func() {
 
 	Describe("update", func() {
 		BeforeEach(func() {
-			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli")
+			updateCLI, err := gexec.Build("github.com/CircleCI-Public/circleci-cli", "-tags=keychain_mock")
 			Expect(err).ShouldNot(HaveOccurred())
 
 			command = exec.Command(updateCLI,

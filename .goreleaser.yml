@@ -11,14 +11,13 @@ archives:
       - md_docs/LICENSE
 
 builds:
+  # macOS: CGO_ENABLED=1 required for go-keyring (Apple Security framework)
   - binary: circleci
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
       - GO111MODULE=on
     goos:
-      - windows
       - darwin
-      - linux
     goarch:
       - amd64
       - arm64
@@ -27,4 +26,18 @@ builds:
       # -w Omit the DWARF symbol table.
       # These are the defaults specified by goreleaser:
       # https://github.com/goreleaser/goreleaser/blob/682c811106f56ffe06c4212de546aec62161fb9d/internal/builders/golang/build.go#L46
+      - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.ShortCommit}} -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release
+
+  # Windows and Linux: fully static, no CGO needed
+  - binary: circleci
+    env:
+      - CGO_ENABLED=0
+      - GO111MODULE=on
+    goos:
+      - windows
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
       - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.ShortCommit}} -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release
