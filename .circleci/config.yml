@@ -1,0 +1,43 @@
+version: 2.1
+
+orbs:
+  go: circleci/go@3.0.4
+
+jobs:
+  lint:
+    docker:
+      - image: cimg/go:1.26
+    resource_class: large
+    environment:
+      CGO_ENABLED: 0
+    steps:
+      - checkout
+      - run: task mod-download
+      - go/with-cache:
+          steps:
+            - run: task ci:lint
+            - store_test_results:
+                path: ./test-reports
+
+  test:
+    docker:
+      - image: cimg/go:1.26
+    resource_class: large
+    environment:
+      CGO_ENABLED: 1
+    steps:
+      - checkout
+      - run: task mod-download
+      - go/with-cache:
+          steps:
+            - run:
+                name: Test
+                command: task ci:test
+            - store_test_results:
+                path: ./test-reports
+
+workflows:
+  ci:
+    jobs:
+      - lint
+      - test
