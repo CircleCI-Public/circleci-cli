@@ -32,7 +32,7 @@ func (s Streams) Spinner(active bool, msg string) *Spinner {
 
 	if !s.IsInteractive() || spinnerDisabled() {
 		// Non-TTY or explicitly disabled: static one-liner, no animation.
-		fmt.Fprintf(s.Err, "%s...\n", msg)
+		_, _ = fmt.Fprintf(s.Err, "%s...\n", msg)
 		return &Spinner{}
 	}
 
@@ -56,10 +56,10 @@ func (s Streams) Spinner(active bool, msg string) *Spinner {
 		for {
 			select {
 			case <-sp.done:
-				fmt.Fprintf(s.Err, "\r\033[K") // erase spinner line
+				_, _ = fmt.Fprintf(s.Err, "\r\033[K") // erase spinner line
 				return
 			case <-tick.C:
-				fmt.Fprintf(s.Err, "\r%s %s", frames[i%len(frames)], msg)
+				_, _ = fmt.Fprintf(s.Err, "\r%s %s", frames[i%len(frames)], msg)
 				i++
 			}
 		}
