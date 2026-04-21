@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zalando/go-keyring"
 	"github.com/CircleCI-Public/circleci-cli/settings"
+	"github.com/zalando/go-keyring"
 	"gotest.tools/v3/assert"
 )
 
