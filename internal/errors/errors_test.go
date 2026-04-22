@@ -33,12 +33,12 @@ import (
 
 func TestNew(t *testing.T) {
 	e := New("auth.missing", "Auth required", "No token found")
-	assert.Equal(t, e.Code, "auth.missing")
-	assert.Equal(t, e.Title, "Auth required")
-	assert.Equal(t, e.Message, "No token found")
-	assert.Equal(t, e.ExitCode, ExitGeneralError)
+	assert.Check(t, is.Equal(e.Code, "auth.missing"))
+	assert.Check(t, is.Equal(e.Title, "Auth required"))
+	assert.Check(t, is.Equal(e.Message, "No token found"))
+	assert.Check(t, is.Equal(e.ExitCode, ExitGeneralError))
 	assert.Check(t, is.Nil(e.Suggestions))
-	assert.Equal(t, e.Ref, "")
+	assert.Check(t, is.Equal(e.Ref, ""))
 }
 
 func TestBuilderImmutability(t *testing.T) {
@@ -50,19 +50,19 @@ func TestBuilderImmutability(t *testing.T) {
 
 	// base is unchanged
 	assert.Check(t, is.Nil(base.Suggestions))
-	assert.Equal(t, base.Ref, "")
-	assert.Equal(t, base.ExitCode, ExitGeneralError)
+	assert.Check(t, is.Equal(base.Ref, ""))
+	assert.Check(t, is.Equal(base.ExitCode, ExitGeneralError))
 
 	// each derived copy has only its own change
-	assert.Equal(t, len(withSuggestions.Suggestions), 1)
-	assert.Equal(t, withSuggestions.Ref, "")
-	assert.Equal(t, withSuggestions.ExitCode, ExitGeneralError)
+	assert.Check(t, is.Len(withSuggestions.Suggestions, 1))
+	assert.Check(t, is.Equal(withSuggestions.Ref, ""))
+	assert.Check(t, is.Equal(withSuggestions.ExitCode, ExitGeneralError))
 
-	assert.Equal(t, withRef.Ref, "https://example.com")
+	assert.Check(t, is.Equal(withRef.Ref, "https://example.com"))
 	assert.Check(t, is.Nil(withRef.Suggestions))
 
-	assert.Equal(t, withCode.ExitCode, ExitAuthError)
-	assert.Equal(t, withCode.Ref, "")
+	assert.Check(t, is.Equal(withCode.ExitCode, ExitAuthError))
+	assert.Check(t, is.Equal(withCode.Ref, ""))
 }
 
 func TestWithSuggestionsDoesNotShareSlice(t *testing.T) {
@@ -70,8 +70,8 @@ func TestWithSuggestionsDoesNotShareSlice(t *testing.T) {
 	second := base.WithSuggestions("second")
 
 	// base still has only one suggestion
-	assert.Equal(t, len(base.Suggestions), 1)
-	assert.Equal(t, len(second.Suggestions), 2)
+	assert.Check(t, is.Len(base.Suggestions, 1))
+	assert.Check(t, is.Len(second.Suggestions, 2))
 }
 
 func TestFormat(t *testing.T) {
@@ -108,22 +108,25 @@ func TestFormatJSON(t *testing.T) {
 	t.Run("always sets error true", func(t *testing.T) {
 		e := New("c", "T", "msg")
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
-		assert.Equal(t, v["error"], true)
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(v["error"], true))
 	})
 
 	t.Run("includes code and message", func(t *testing.T) {
 		e := New("auth.missing", "T", "no token")
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
-		assert.Equal(t, v["code"], "auth.missing")
-		assert.Equal(t, v["message"], "no token")
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(v["code"], "auth.missing"))
+		assert.Check(t, is.Equal(v["message"], "no token"))
 	})
 
 	t.Run("omits suggestions when empty", func(t *testing.T) {
 		e := New("c", "T", "msg")
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
 		_, hasSuggestions := v["suggestions"]
 		assert.Check(t, !hasSuggestions)
 	})
@@ -131,16 +134,18 @@ func TestFormatJSON(t *testing.T) {
 	t.Run("includes suggestions when present", func(t *testing.T) {
 		e := New("c", "T", "msg").WithSuggestions("do this")
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
 		suggestions, _ := v["suggestions"].([]any)
-		assert.Equal(t, len(suggestions), 1)
-		assert.Equal(t, suggestions[0], "do this")
+		assert.Check(t, is.Len(suggestions, 1))
+		assert.Check(t, is.Equal(suggestions[0], "do this"))
 	})
 
 	t.Run("omits ref when empty", func(t *testing.T) {
 		e := New("c", "T", "msg")
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
 		_, hasRef := v["ref"]
 		assert.Check(t, !hasRef)
 	})
@@ -148,24 +153,28 @@ func TestFormatJSON(t *testing.T) {
 	t.Run("includes ref when set", func(t *testing.T) {
 		e := New("c", "T", "msg").WithRef("https://docs.example.com")
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
-		assert.Equal(t, v["ref"], "https://docs.example.com")
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(v["ref"], "https://docs.example.com"))
 	})
 
 	t.Run("includes exit code", func(t *testing.T) {
 		e := New("c", "T", "msg").WithExitCode(ExitAuthError)
 		var v map[string]any
-		assert.NilError(t, json.Unmarshal([]byte(e.FormatJSON()), &v))
-		assert.Equal(t, v["exit_code"], float64(ExitAuthError))
+		err := json.Unmarshal([]byte(e.FormatJSON()), &v)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(v["exit_code"], float64(ExitAuthError)))
 	})
 
 	t.Run("output ends with newline", func(t *testing.T) {
 		e := New("c", "T", "msg")
-		assert.Check(t, strings.HasSuffix(e.FormatJSON(), "\n"))
+		formatted := e.FormatJSON()
+		assert.Check(t, strings.HasSuffix(formatted, "\n"))
 	})
 }
 
 func TestError(t *testing.T) {
 	e := New("c", "Auth required", "token missing")
-	assert.Equal(t, e.Error(), "Auth required: token missing")
+	errMsg := e.Error()
+	assert.Check(t, is.Equal(errMsg, "Auth required: token missing"))
 }

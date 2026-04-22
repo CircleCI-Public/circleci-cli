@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestSlugFromRemote(t *testing.T) {
@@ -125,11 +126,11 @@ func TestSlugFromRemote(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			slug, err := SlugFromRemote(tc.url)
 			if tc.wantError != "" {
-				assert.ErrorContains(t, err, tc.wantError)
+				assert.Check(t, cmp.ErrorContains(err, tc.wantError))
 				return
 			}
 			assert.NilError(t, err)
-			assert.Equal(t, slug, tc.wantSlug)
+			assert.Check(t, cmp.Equal(slug, tc.wantSlug))
 		})
 	}
 }

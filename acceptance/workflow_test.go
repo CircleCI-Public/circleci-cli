@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -85,12 +86,12 @@ func TestWorkflowGet(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "failed"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "run-tests"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "#201"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "#202"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "failed"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "run-tests"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "#201"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "#202"), "stdout: %s", result.Stdout)
 }
 
 func TestWorkflowGet_JSON(t *testing.T) {
@@ -103,15 +104,16 @@ func TestWorkflowGet_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, out["id"], testWorkflowDetailID)
-	assert.Equal(t, out["name"], "build")
-	assert.Equal(t, out["status"], "failed")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["id"], testWorkflowDetailID))
+	assert.Check(t, cmp.Equal(out["name"], "build"))
+	assert.Check(t, cmp.Equal(out["status"], "failed"))
 
 	jobs := out["jobs"].([]any)
-	assert.Equal(t, len(jobs), 2)
-	assert.Equal(t, jobs[0].(map[string]any)["name"], "run-tests")
-	assert.Equal(t, jobs[0].(map[string]any)["number"], float64(201))
+	assert.Check(t, cmp.Len(jobs, 2))
+	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["name"], "run-tests"))
+	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["number"], float64(201)))
 }
 
 func TestWorkflowGet_NotFound(t *testing.T) {
@@ -125,7 +127,7 @@ func TestWorkflowGet_NotFound(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Assert(t, strings.Contains(result.Stderr, "No workflow found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No workflow found"), "stderr: %s", result.Stderr)
 }
 
 func TestWorkflowGet_NoToken(t *testing.T) {
@@ -136,7 +138,7 @@ func TestWorkflowGet_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
 func TestWorkflowGet_NotFound_JSON(t *testing.T) {
@@ -152,13 +154,15 @@ func TestWorkflowGet_NotFound_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 
 	var errOut map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stderr), &errOut), "stderr should be JSON: %s", result.Stderr)
-	assert.Equal(t, errOut["error"], true)
-	assert.Equal(t, errOut["exit_code"], float64(5))
-	assert.Assert(t, errOut["code"] != nil, "code field missing")
-	assert.Assert(t, errOut["message"] != nil, "message field missing")
+	err := json.Unmarshal([]byte(result.Stderr), &errOut)
+	assert.NilError(t, err, "stderr should be JSON: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(errOut["error"], true))
+	assert.Check(t, cmp.Equal(errOut["exit_code"], float64(5)))
+	assert.Check(t, errOut["code"] != nil, "code field missing")
+	assert.Check(t, errOut["message"] != nil, "message field missing")
 	// stdout must be empty — no partial data output
-	assert.Equal(t, strings.TrimSpace(result.Stdout), "")
+	stdout := strings.TrimSpace(result.Stdout)
+	assert.Check(t, cmp.Equal(stdout, ""))
 }
 
 func TestWorkflowGet_NoToken_JSON(t *testing.T) {
@@ -171,10 +175,12 @@ func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 
 	var errOut map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stderr), &errOut), "stderr should be JSON: %s", result.Stderr)
-	assert.Equal(t, errOut["error"], true)
-	assert.Equal(t, errOut["exit_code"], float64(3))
-	assert.Equal(t, strings.TrimSpace(result.Stdout), "")
+	err := json.Unmarshal([]byte(result.Stderr), &errOut)
+	assert.NilError(t, err, "stderr should be JSON: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(errOut["error"], true))
+	assert.Check(t, cmp.Equal(errOut["exit_code"], float64(3)))
+	stdout := strings.TrimSpace(result.Stdout)
+	assert.Check(t, cmp.Equal(stdout, ""))
 }
 
 // --- workflow rerun ---
@@ -187,8 +193,8 @@ func TestWorkflowRerun(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "from scratch"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "from scratch"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
 }
 
 func TestWorkflowRerun_FromFailed(t *testing.T) {
@@ -199,7 +205,7 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "failed jobs"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "failed jobs"), "stdout: %s", result.Stdout)
 }
 
 func TestWorkflowRerun_NoToken(t *testing.T) {
@@ -210,7 +216,7 @@ func TestWorkflowRerun_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
 func TestWorkflowRerun_NotFound(t *testing.T) {
@@ -236,8 +242,8 @@ func TestWorkflowCancel(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "Cancelled"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Cancelled"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
 }
 
 func TestWorkflowCancel_RequiresForce(t *testing.T) {
@@ -249,7 +255,7 @@ func TestWorkflowCancel_RequiresForce(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Assert(t, strings.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
 }
 
 func TestWorkflowCancel_NoToken(t *testing.T) {
@@ -260,7 +266,7 @@ func TestWorkflowCancel_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
 func TestWorkflowCancel_NotFound(t *testing.T) {

@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -143,10 +144,10 @@ func TestJobLogs_ByNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "Spin up environment"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "Setting up..."), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "Run tests (failed)"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Spin up environment"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Setting up..."), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Run tests (failed)"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
 }
 
 func TestJobLogs_FilterStep(t *testing.T) {
@@ -157,8 +158,8 @@ func TestJobLogs_FilterStep(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
-	assert.Assert(t, !strings.Contains(result.Stdout, "Setting up..."), "stdout should not contain step 0: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
+	assert.Check(t, !strings.Contains(result.Stdout, "Setting up..."), "stdout should not contain step 0: %s", result.Stdout)
 }
 
 func TestJobLogs_JSON(t *testing.T) {
@@ -171,12 +172,13 @@ func TestJobLogs_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, len(out), 2)
-	assert.Equal(t, out[0]["step"], "Spin up environment")
-	assert.Equal(t, out[0]["status"], "success")
-	assert.Equal(t, out[1]["step"], "Run tests")
-	assert.Equal(t, out[1]["status"], "failed")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 2))
+	assert.Check(t, cmp.Equal(out[0]["step"], "Spin up environment"))
+	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+	assert.Check(t, cmp.Equal(out[1]["step"], "Run tests"))
+	assert.Check(t, cmp.Equal(out[1]["status"], "failed"))
 }
 
 func TestLogs_ByNumber(t *testing.T) {
@@ -187,8 +189,8 @@ func TestLogs_ByNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "Spin up environment"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Spin up environment"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
 }
 
 func TestLogs_LastFailed(t *testing.T) {
@@ -199,7 +201,7 @@ func TestLogs_LastFailed(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
 }
 
 func TestLogs_LastJob(t *testing.T) {
@@ -210,7 +212,7 @@ func TestLogs_LastJob(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
 }
 
 func TestLogs_LastFailed_AllPassed(t *testing.T) {
@@ -235,7 +237,7 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Assert(t, strings.Contains(result.Stderr, "all workflows in this pipeline passed"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "all workflows in this pipeline passed"), "stderr: %s", result.Stderr)
 }
 
 func TestLogs_NoArgs(t *testing.T) {
@@ -247,7 +249,7 @@ func TestLogs_NoArgs(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Assert(t, strings.Contains(result.Stderr, "--last-failed or --last-job"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "--last-failed or --last-job"), "stderr: %s", result.Stderr)
 }
 
 func TestLogs_ConflictingArgs(t *testing.T) {
@@ -259,7 +261,7 @@ func TestLogs_ConflictingArgs(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Assert(t, strings.Contains(result.Stderr, "Provide exactly one of"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Provide exactly one of"), "stderr: %s", result.Stderr)
 }
 
 // TestJobLogs_V1Fallback verifies that when the v2 job endpoint returns no steps,
@@ -315,7 +317,7 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "v1 output"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "v1 output"), "stdout: %s", result.Stdout)
 }
 
 func TestLogs_NoToken(t *testing.T) {
@@ -326,5 +328,5 @@ func TestLogs_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }

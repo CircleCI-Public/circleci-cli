@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/artifacts"
@@ -87,7 +88,7 @@ func TestDownload_PathTraversal(t *testing.T) {
 			entries := []artifacts.Entry{{Path: tc.path, URL: "http://example.com/artifact"}}
 			err := artifacts.Download(context.Background(), noopClient{}, entries, dir)
 			if tc.wantErr != "" {
-				assert.ErrorContains(t, err, tc.wantErr)
+				assert.Check(t, cmp.ErrorContains(err, tc.wantErr))
 			} else {
 				assert.NilError(t, err)
 			}

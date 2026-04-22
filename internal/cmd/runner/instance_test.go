@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestInstanceStatus(t *testing.T) {
@@ -35,56 +36,68 @@ func TestInstanceStatus(t *testing.T) {
 	}
 
 	t.Run("online when connected under 2 minutes ago", func(t *testing.T) {
-		assert.Equal(t, instanceStatus(format(-1*time.Minute)), "online")
+		status := instanceStatus(format(-1 * time.Minute))
+		assert.Check(t, cmp.Equal(status, "online"))
 	})
 
 	t.Run("online at zero age", func(t *testing.T) {
-		assert.Equal(t, instanceStatus(format(0)), "online")
+		status := instanceStatus(format(0))
+		assert.Check(t, cmp.Equal(status, "online"))
 	})
 
 	t.Run("idle when connected 2 to 30 minutes ago", func(t *testing.T) {
-		assert.Equal(t, instanceStatus(format(-10*time.Minute)), "idle")
+		status := instanceStatus(format(-10 * time.Minute))
+		assert.Check(t, cmp.Equal(status, "idle"))
 	})
 
 	t.Run("offline when connected over 30 minutes ago", func(t *testing.T) {
-		assert.Equal(t, instanceStatus(format(-45*time.Minute)), "offline")
+		status := instanceStatus(format(-45 * time.Minute))
+		assert.Check(t, cmp.Equal(status, "offline"))
 	})
 
 	t.Run("unknown on empty string", func(t *testing.T) {
-		assert.Equal(t, instanceStatus(""), "unknown")
+		status := instanceStatus("")
+		assert.Check(t, cmp.Equal(status, "unknown"))
 	})
 
 	t.Run("unknown on unparseable string", func(t *testing.T) {
-		assert.Equal(t, instanceStatus("not-a-timestamp"), "unknown")
+		status := instanceStatus("not-a-timestamp")
+		assert.Check(t, cmp.Equal(status, "unknown"))
 	})
 
 	t.Run("accepts RFC3339 without nanoseconds", func(t *testing.T) {
 		ts := time.Now().Add(-5 * time.Minute).UTC().Format(time.RFC3339)
-		assert.Equal(t, instanceStatus(ts), "idle")
+		status := instanceStatus(ts)
+		assert.Check(t, cmp.Equal(status, "idle"))
 	})
 
 	t.Run("accepts legacy Z-suffix format without nanoseconds", func(t *testing.T) {
 		ts := time.Now().Add(-5 * time.Minute).UTC().Format("2006-01-02T15:04:05Z")
-		assert.Equal(t, instanceStatus(ts), "idle")
+		status := instanceStatus(ts)
+		assert.Check(t, cmp.Equal(status, "idle"))
 	})
 
 	t.Run("accepts legacy Z-suffix format with nanoseconds", func(t *testing.T) {
 		ts := time.Now().Add(-5 * time.Minute).UTC().Format("2006-01-02T15:04:05.999999999Z")
-		assert.Equal(t, instanceStatus(ts), "idle")
+		status := instanceStatus(ts)
+		assert.Check(t, cmp.Equal(status, "idle"))
 	})
 
 	t.Run("boundary: exactly 2 minutes is idle not online", func(t *testing.T) {
 		ts := time.Now().Add(-2*time.Minute - time.Second).UTC().Format(time.RFC3339Nano)
-		assert.Equal(t, instanceStatus(ts), "idle")
+		status := instanceStatus(ts)
+		assert.Check(t, cmp.Equal(status, "idle"))
 	})
 
 	t.Run("boundary: exactly 30 minutes is offline not idle", func(t *testing.T) {
 		ts := time.Now().Add(-30*time.Minute - time.Second).UTC().Format(time.RFC3339Nano)
-		assert.Equal(t, instanceStatus(ts), "offline")
+		status := instanceStatus(ts)
+		assert.Check(t, cmp.Equal(status, "offline"))
 	})
 
 	t.Run("future timestamp is online", func(t *testing.T) {
 		ts := time.Now().Add(1 * time.Minute).UTC().Format(time.RFC3339Nano)
-		assert.Equal(t, instanceStatus(ts), "online") // age is negative, < 2min
+		status := instanceStatus(ts) // age is negative, < 2min
+		assert.Check(t, cmp.Equal(status, "online"))
 	})
 }

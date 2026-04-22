@@ -26,11 +26,11 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -106,8 +106,8 @@ func TestArtifacts_ByPipelineID(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "test-results.xml"))
+	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "test-results.xml"))
 }
 
 func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
@@ -120,11 +120,12 @@ func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, len(out), 2)
-	assert.Equal(t, out[0]["job_name"], "build")
-	assert.Equal(t, out[0]["path"], "coverage/index.html")
-	assert.Equal(t, out[1]["path"], "test-results.xml")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 2))
+	assert.Check(t, cmp.Equal(out[0]["job_name"], "build"))
+	assert.Check(t, cmp.Equal(out[0]["path"], "coverage/index.html"))
+	assert.Check(t, cmp.Equal(out[1]["path"], "test-results.xml"))
 }
 
 func TestArtifacts_ByJobNumber(t *testing.T) {
@@ -135,8 +136,8 @@ func TestArtifacts_ByJobNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"))
-	assert.Assert(t, strings.Contains(result.Stdout, "test-results.xml"))
+	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"))
+	assert.Check(t, cmp.Contains(result.Stdout, "test-results.xml"))
 }
 
 func TestJobArtifacts_ByJobNumber(t *testing.T) {
@@ -147,8 +148,8 @@ func TestJobArtifacts_ByJobNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"))
-	assert.Assert(t, strings.Contains(result.Stdout, "test-results.xml"))
+	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"))
+	assert.Check(t, cmp.Contains(result.Stdout, "test-results.xml"))
 }
 
 func TestArtifacts_Download(t *testing.T) {
@@ -169,7 +170,7 @@ func TestArtifacts_Download(t *testing.T) {
 
 	data, err := os.ReadFile(filepath.Join(downloadDir, "coverage", "index.html"))
 	assert.NilError(t, err)
-	assert.Assert(t, strings.Contains(string(data), "coverage"))
+	assert.Check(t, cmp.Contains(string(data), "coverage"))
 
 	_, err = os.ReadFile(filepath.Join(downloadDir, "test-results.xml"))
 	assert.NilError(t, err)
@@ -183,8 +184,8 @@ func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stderr, "", "expected empty stderr with --quiet")
-	assert.Assert(t, strings.Contains(result.Stdout, "coverage/index.html"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""), "expected empty stderr with --quiet")
+	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"))
 }
 
 func TestArtifacts_NoToken(t *testing.T) {
@@ -195,5 +196,5 @@ func TestArtifacts_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"))
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"))
 }
