@@ -10,7 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/render"
 )
 
 // CircleCI is a fake CircleCI API server.
@@ -77,36 +78,37 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	}
 
 	r := newRouter()
-	r.GET("/api/v2/pipeline/:id", f.handleGetPipeline)
-	r.POST("/api/v2/pipeline/:id/cancel", f.handleCancelPipeline)
-	r.GET("/api/v2/pipeline/:id/workflow", f.handleGetPipelineWorkflows)
-	r.GET("/api/v2/workflow/:id", f.handleGetWorkflowDetail)
-	r.POST("/api/v2/workflow/:id/rerun", f.handleRerunWorkflow)
-	r.POST("/api/v2/workflow/:id/cancel", f.handleCancelWorkflow)
-	r.GET("/api/v2/project/:vcs/:org/:repo/pipeline", f.handleListProjectPipelines)
-	r.GET("/api/v2/project/:vcs/:org/:repo/pipeline/:number", f.handleGetPipelineByNumber)
-	r.GET("/api/v2/workflow/:id/job", f.handleGetWorkflowJobs)
-	r.GET("/api/v2/project/:vcs/:org/:repo/:jobNumber/artifacts", f.handleGetJobArtifacts)
-	r.GET("/api/v2/project/:vcs/:org/:repo/job/:jobNumber", f.handleGetJob)
-	r.POST("/api/v2/project/:vcs/:org/:repo/pipeline", f.handleTriggerPipeline)
-	r.GET("/api/v1.1/project/:vcs/:org/:repo/:jobNumber", f.handleGetJobV1)
-	// Project / env-var routes.
-	r.GET("/api/v1.1/projects", f.handleListProjects)
-	r.POST("/api/v1.1/project/:vcs/:org/:repo/follow", f.handleFollowProject)
-	r.GET("/api/v2/project/:vcs/:org/:repo/envvar", f.handleListEnvVars)
-	r.POST("/api/v2/project/:vcs/:org/:repo/envvar", f.handleSetEnvVar)
-	r.DELETE("/api/v2/project/:vcs/:org/:repo/envvar/:name", f.handleDeleteEnvVar)
+	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
+	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
+	r.Get("/api/v2/pipeline/{id}/workflow", f.handleGetPipelineWorkflows)
+	r.Get("/api/v2/workflow/{id}", f.handleGetWorkflowDetail)
+	r.Post("/api/v2/workflow/{id}/rerun", f.handleRerunWorkflow)
+	r.Post("/api/v2/workflow/{id}/cancel", f.handleCancelWorkflow)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
+	r.Get("/api/v2/workflow/{id}/job", f.handleGetWorkflowJobs)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJob)
+	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
+	r.Get("/api/v1.1/project/{vcs}/{org}/{repo}/{jobNumber}", f.handleGetJobV1)
+	// Project / env-var routes. These API calls do not URL-encode slashes in the
+	// project slug, so we match three separate path segments rather than {slug}.
+	r.Get("/api/v1.1/projects", f.handleListProjects)
+	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
+	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
+	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	// Runner (v3) routes. GET /runner dispatches on query param:
 	// ?namespace=  → resource classes, ?resource-class= → instances.
-	r.GET("/api/v3/runner", f.handleRunnerList)
-	r.POST("/api/v3/runner/resource", f.handleCreateResourceClass)
-	r.DELETE("/api/v3/runner/resource/:namespace/:name", f.handleDeleteResourceClass)
-	r.GET("/api/v3/runner/token", f.handleListRunnerTokens)
-	r.POST("/api/v3/runner/token", f.handleCreateRunnerToken)
-	r.DELETE("/api/v3/runner/token/:id", f.handleDeleteRunnerToken)
+	r.Get("/api/v3/runner", f.handleRunnerList)
+	r.Post("/api/v3/runner/resource", f.handleCreateResourceClass)
+	r.Delete("/api/v3/runner/resource/{namespace}/{name}", f.handleDeleteResourceClass)
+	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
+	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
+	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
 	// Wildcard routes for downloads and step output — populated via helpers before requests.
-	r.GET("/artifacts/*path", f.handleStaticFile)
-	r.GET("/output/*path", f.handleStepOutput)
+	r.Get("/artifacts/*", f.handleStaticFile)
+	r.Get("/output/*", f.handleStepOutput)
 
 	f.server = httptest.NewServer(r)
 	t.Cleanup(f.server.Close)
@@ -232,48 +234,52 @@ func (f *CircleCI) AddStaticFile(path, content string) {
 	f.staticFiles[path] = content
 }
 
-func (f *CircleCI) handleStaticFile(c *gin.Context) {
-	path := "/artifacts" + c.Param("path")
+func (f *CircleCI) handleStaticFile(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
 	f.mu.RLock()
 	content, ok := f.staticFiles[path]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.String(http.StatusOK, content)
+	render.PlainText(w, r, content)
 }
 
-func (f *CircleCI) handleGetPipeline(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleGetPipeline(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	p, ok := f.pipelines[id]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, p)
+	render.JSON(w, r, p)
 }
 
-func (f *CircleCI) handleCancelPipeline(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleCancelPipeline(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	status, ok := f.pipelineCancelResponses[id]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(status, gin.H{"message": "Accepted."})
+	render.Status(r, status)
+	render.JSON(w, r, map[string]any{"message": "Accepted."})
 }
 
-func (f *CircleCI) handleGetPipelineByNumber(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
-	numberStr := c.Param("number")
+func (f *CircleCI) handleGetPipelineByNumber(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	numberStr := chi.URLParam(r, "number")
 	f.mu.RLock()
 	pipelines := f.projects[slug]
 	f.mu.RUnlock()
@@ -297,33 +303,34 @@ func (f *CircleCI) handleGetPipelineByNumber(c *gin.Context) {
 			numStr = v.String()
 		}
 		if numStr == numberStr {
-			c.JSON(http.StatusOK, p)
+			render.JSON(w, r, p)
 			return
 		}
 	}
-	c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, map[string]any{"message": "not found"})
 }
 
-func (f *CircleCI) handleGetPipelineWorkflows(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleGetPipelineWorkflows(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	wflows, pipelineExists := f.pipelines[id]
+	_, pipelineExists := f.pipelines[id]
 	workflows := f.workflows[id]
 	f.mu.RUnlock()
 
 	if !pipelineExists {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	_ = wflows
 	if workflows == nil {
 		workflows = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": workflows, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"items": workflows, "next_page_token": nil})
 }
 
-func (f *CircleCI) handleGetWorkflowJobs(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleGetWorkflowJobs(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	jobs := f.workflowJobs[id]
 	f.mu.RUnlock()
@@ -331,12 +338,12 @@ func (f *CircleCI) handleGetWorkflowJobs(c *gin.Context) {
 	if jobs == nil {
 		jobs = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": jobs, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"items": jobs, "next_page_token": nil})
 }
 
-func (f *CircleCI) handleGetJobArtifacts(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
-	key := slug + "/" + c.Param("jobNumber")
+func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	key := slug + "/" + chi.URLParam(r, "jobNumber")
 	f.mu.RLock()
 	items := f.jobArtifacts[key]
 	f.mu.RUnlock()
@@ -344,11 +351,11 @@ func (f *CircleCI) handleGetJobArtifacts(c *gin.Context) {
 	if items == nil {
 		items = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
 
-func (f *CircleCI) handleListProjectPipelines(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
+func (f *CircleCI) handleListProjectPipelines(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
 	pipelines := f.projects[slug]
 	f.mu.RUnlock()
@@ -356,100 +363,110 @@ func (f *CircleCI) handleListProjectPipelines(c *gin.Context) {
 	if pipelines == nil {
 		pipelines = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": pipelines, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"items": pipelines, "next_page_token": nil})
 }
 
-func (f *CircleCI) handleGetJobV1(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
-	key := slug + "/" + c.Param("jobNumber")
+func (f *CircleCI) handleGetJobV1(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	key := slug + "/" + chi.URLParam(r, "jobNumber")
 	f.mu.RLock()
 	job, ok := f.jobsV1[key]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	render.JSON(w, r, job)
 }
 
-func (f *CircleCI) handleTriggerPipeline(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
+func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
 	resp, ok := f.triggerResponses[slug]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "project not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "project not found"})
 		return
 	}
-	c.JSON(http.StatusCreated, resp)
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
 }
 
-func (f *CircleCI) handleGetJob(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
-	key := slug + "/" + c.Param("jobNumber")
+func (f *CircleCI) handleGetJob(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	key := slug + "/" + chi.URLParam(r, "jobNumber")
 	f.mu.RLock()
 	job, ok := f.jobs[key]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, job)
+	render.JSON(w, r, job)
 }
 
-func (f *CircleCI) handleGetWorkflowDetail(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleGetWorkflowDetail(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	detail, ok := f.workflowDetails[id]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, detail)
+	render.JSON(w, r, detail)
 }
 
-func (f *CircleCI) handleRerunWorkflow(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	status, ok := f.rerunResponses[id]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(status, gin.H{"message": "Accepted."})
+	render.Status(r, status)
+	render.JSON(w, r, map[string]any{"message": "Accepted."})
 }
 
-func (f *CircleCI) handleCancelWorkflow(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	status, ok := f.cancelResponses[id]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(status, gin.H{"message": "Accepted."})
+	render.Status(r, status)
+	render.JSON(w, r, map[string]any{"message": "Accepted."})
 }
 
-func (f *CircleCI) handleStepOutput(c *gin.Context) {
-	path := "/output" + c.Param("path")
+func (f *CircleCI) handleStepOutput(w http.ResponseWriter, r *http.Request) {
+	path := r.URL.Path
 	f.mu.RLock()
 	content, ok := f.stepOutputs[path]
 	f.mu.RUnlock()
 
 	if !ok {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.String(http.StatusOK, content)
+	render.PlainText(w, r, content)
 }
 
 // --- Runner helpers ---
@@ -478,21 +495,22 @@ func (f *CircleCI) AddRunnerInstance(instance any) {
 // --- Runner handlers ---
 
 // handleRunnerList dispatches GET /api/v3/runner based on query params:
-// ?namespace=  → list resource classes; ?resource-class= → list instances.
-func (f *CircleCI) handleRunnerList(c *gin.Context) {
-	if rc := c.Query("resource-class"); rc != "" {
-		f.handleListRunnerInstances(c)
+// ?namespace=  → list resource classes; ?resource-class= → instances.
+func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
+	if rc := r.URL.Query().Get("resource-class"); rc != "" {
+		f.handleListRunnerInstances(w, r)
 		return
 	}
-	if ns := c.Query("namespace"); ns != "" {
-		f.handleListResourceClasses(c)
+	if ns := r.URL.Query().Get("namespace"); ns != "" {
+		f.handleListResourceClasses(w, r)
 		return
 	}
-	c.JSON(http.StatusBadRequest, gin.H{"message": "must specify exactly one of resource-class or namespace"})
+	render.Status(r, http.StatusBadRequest)
+	render.JSON(w, r, map[string]any{"message": "must specify exactly one of resource-class or namespace"})
 }
 
-func (f *CircleCI) handleListResourceClasses(c *gin.Context) {
-	ns := c.Query("namespace")
+func (f *CircleCI) handleListResourceClasses(w http.ResponseWriter, r *http.Request) {
+	ns := r.URL.Query().Get("namespace")
 	f.mu.RLock()
 	all := f.resourceClasses
 	deleted := f.deletedRCs
@@ -519,13 +537,14 @@ func (f *CircleCI) handleListResourceClasses(c *gin.Context) {
 	if items == nil {
 		items = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	render.JSON(w, r, map[string]any{"items": items})
 }
 
-func (f *CircleCI) handleCreateResourceClass(c *gin.Context) {
+func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body"})
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
 	slug, _ := body["resource_class"].(string)
@@ -538,11 +557,12 @@ func (f *CircleCI) handleCreateResourceClass(c *gin.Context) {
 	f.mu.Lock()
 	f.resourceClasses = append(f.resourceClasses, rc)
 	f.mu.Unlock()
-	c.JSON(http.StatusCreated, rc)
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, rc)
 }
 
-func (f *CircleCI) handleDeleteResourceClass(c *gin.Context) {
-	slug := c.Param("namespace") + "/" + c.Param("name")
+func (f *CircleCI) handleDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "namespace") + "/" + chi.URLParam(r, "name")
 	f.mu.Lock()
 	found := false
 	for _, rc := range f.resourceClasses {
@@ -561,14 +581,15 @@ func (f *CircleCI) handleDeleteResourceClass(c *gin.Context) {
 	f.mu.Unlock()
 
 	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Deleted."})
+	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
-func (f *CircleCI) handleListRunnerTokens(c *gin.Context) {
-	rc := c.Query("resource-class")
+func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request) {
+	rc := r.URL.Query().Get("resource-class")
 	f.mu.RLock()
 	tokens := f.runnerTokens[rc]
 	deleted := f.deletedTokens
@@ -589,13 +610,14 @@ func (f *CircleCI) handleListRunnerTokens(c *gin.Context) {
 	if items == nil {
 		items = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	render.JSON(w, r, map[string]any{"items": items})
 }
 
-func (f *CircleCI) handleCreateRunnerToken(c *gin.Context) {
+func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body"})
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
 	rc, _ := body["resource_class"].(string)
@@ -610,11 +632,12 @@ func (f *CircleCI) handleCreateRunnerToken(c *gin.Context) {
 	f.mu.Lock()
 	f.runnerTokens[rc] = append(f.runnerTokens[rc], tok)
 	f.mu.Unlock()
-	c.JSON(http.StatusCreated, tok)
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, tok)
 }
 
-func (f *CircleCI) handleDeleteRunnerToken(c *gin.Context) {
-	id := c.Param("id")
+func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.Lock()
 	found := false
 	for _, tokens := range f.runnerTokens {
@@ -638,14 +661,15 @@ func (f *CircleCI) handleDeleteRunnerToken(c *gin.Context) {
 	f.mu.Unlock()
 
 	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Deleted."})
+	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
-func (f *CircleCI) handleListRunnerInstances(c *gin.Context) {
-	rc := c.Query("resource-class")
+func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Request) {
+	rc := r.URL.Query().Get("resource-class")
 	f.mu.RLock()
 	all := f.runnerInstances
 	f.mu.RUnlock()
@@ -668,7 +692,7 @@ func (f *CircleCI) handleListRunnerInstances(c *gin.Context) {
 	if items == nil {
 		items = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items})
+	render.JSON(w, r, map[string]any{"items": items})
 }
 
 // --- Project / env-var helpers ---
@@ -691,7 +715,7 @@ func (f *CircleCI) AddEnvVar(slug, name, value string) {
 
 // --- Project / env-var handlers ---
 
-func (f *CircleCI) handleListProjects(c *gin.Context) {
+func (f *CircleCI) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
 	projects := f.followedProjects
 	f.mu.RUnlock()
@@ -699,13 +723,13 @@ func (f *CircleCI) handleListProjects(c *gin.Context) {
 	if projects == nil {
 		projects = []any{}
 	}
-	c.JSON(http.StatusOK, projects)
+	render.JSON(w, r, projects)
 }
 
-func (f *CircleCI) handleFollowProject(c *gin.Context) {
-	vcs := c.Param("vcs")
-	org := c.Param("org")
-	repo := c.Param("repo")
+func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
+	vcs := chi.URLParam(r, "vcs")
+	org := chi.URLParam(r, "org")
+	repo := chi.URLParam(r, "repo")
 	slug := vcs + "/" + org + "/" + repo
 
 	f.mu.Lock()
@@ -720,11 +744,11 @@ func (f *CircleCI) handleFollowProject(c *gin.Context) {
 	}
 	f.mu.Unlock()
 
-	c.JSON(http.StatusOK, gin.H{"following": true})
+	render.JSON(w, r, map[string]any{"following": true})
 }
 
-func (f *CircleCI) handleListEnvVars(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
+func (f *CircleCI) handleListEnvVars(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
 	vars := f.envVars[slug]
 	deleted := f.deletedEnvVars
@@ -746,14 +770,15 @@ func (f *CircleCI) handleListEnvVars(c *gin.Context) {
 	if items == nil {
 		items = []any{}
 	}
-	c.JSON(http.StatusOK, gin.H{"items": items, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
 
-func (f *CircleCI) handleSetEnvVar(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
+func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	var body map[string]any
-	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"message": "invalid body"})
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
 	name, _ := body["name"].(string)
@@ -774,12 +799,13 @@ func (f *CircleCI) handleSetEnvVar(c *gin.Context) {
 	delete(f.deletedEnvVars, slug+"/"+name)
 	f.mu.Unlock()
 
-	c.JSON(http.StatusCreated, ev)
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, ev)
 }
 
-func (f *CircleCI) handleDeleteEnvVar(c *gin.Context) {
-	slug := c.Param("vcs") + "/" + c.Param("org") + "/" + c.Param("repo")
-	name := c.Param("name")
+func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	name := chi.URLParam(r, "name")
 	key := slug + "/" + name
 
 	f.mu.Lock()
@@ -797,8 +823,9 @@ func (f *CircleCI) handleDeleteEnvVar(c *gin.Context) {
 	f.mu.Unlock()
 
 	if !found {
-		c.JSON(http.StatusNotFound, gin.H{"message": "not found"})
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"message": "Deleted."})
+	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
