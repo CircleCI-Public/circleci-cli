@@ -1,6 +1,7 @@
 build/
 TODO
 circleci-cli
+circleci-dev
 coverage.txt
 dist/
 docs/
