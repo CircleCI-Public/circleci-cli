@@ -3,38 +3,43 @@ version: 2.1
 orbs:
   go: circleci/go@3.0.4
 
+commands:
+  setup:
+    steps:
+      - checkout
+      - run: task mod-download
+
+  store_results:
+    steps:
+      - store_test_results:
+          path: ./test-reports
+
+executors:
+  default:
+    docker:
+      - image: cimg/go:1.26
+    resource_class: large
+
 jobs:
   lint:
-    docker:
-      - image: cimg/go:1.26
-    resource_class: large
-    environment:
-      CGO_ENABLED: 0
+    executor: default
     steps:
-      - checkout
-      - run: task mod-download
+      - setup
       - go/with-cache:
+          golangci-lint: true
           steps:
             - run: task ci:lint
-            - store_test_results:
-                path: ./test-reports
+            - store_results
+            - run: task ci:diff
 
   test:
-    docker:
-      - image: cimg/go:1.26
-    resource_class: large
-    environment:
-      CGO_ENABLED: 1
+    executor: default
     steps:
-      - checkout
-      - run: task mod-download
+      - setup
       - go/with-cache:
           steps:
-            - run:
-                name: Test
-                command: task ci:test
-            - store_test_results:
-                path: ./test-reports
+            - run: task ci:test
+            - store_results
 
 workflows:
   ci:

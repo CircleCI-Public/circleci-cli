@@ -9,9 +9,9 @@ import (
 
 // ResourceClass is a CircleCI runner resource class.
 type ResourceClass struct {
-	ID          string `json:"id"`
+	ID            string `json:"id"`
 	ResourceClass string `json:"resource_class"`
-	Description string `json:"description"`
+	Description   string `json:"description"`
 }
 
 // RunnerToken is an authentication token for a resource class.

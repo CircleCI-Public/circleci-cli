@@ -114,7 +114,7 @@ func run(ctx context.Context, streams iostream.Streams, args []string, lastFaile
 	}
 
 	var (
-		jobNumber  int64
+		jobNumber   int64
 		fetchLogsSp *iostream.Spinner
 	)
 

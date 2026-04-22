@@ -28,9 +28,9 @@ tasks:
   fmt:
     desc: Format the code
     vars:
-      ARGS: '{{default "." .CLI_ARGS}}'
+      ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go tool gosimports -local "$(go list -m)" -w {{.ARGS}}
+      - go tool golangci-lint fmt {{.ARGS}}
 
   mod-tidy:
     desc: Run 'go mod tidy'

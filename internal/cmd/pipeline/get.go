@@ -324,4 +324,3 @@ func printPipeline(streams iostream.Streams, p pipelineGetOutput) {
 		}
 	}
 }
-

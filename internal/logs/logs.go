@@ -10,10 +10,10 @@ import (
 
 // StepLog holds the output of a single job step.
 type StepLog struct {
-	Name     string   `json:"step"`
-	Status   string   `json:"status"`
-	ExitCode *int     `json:"exit_code,omitempty"`
-	Output   string   `json:"output"`
+	Name     string `json:"step"`
+	Status   string `json:"status"`
+	ExitCode *int   `json:"exit_code,omitempty"`
+	Output   string `json:"output"`
 }
 
 // ForJob fetches the log output for every step in a job, returning one StepLog
