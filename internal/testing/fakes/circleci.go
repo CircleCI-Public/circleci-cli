@@ -17,63 +17,63 @@ import (
 type CircleCI struct {
 	server *httptest.Server
 
-	mu               sync.RWMutex
-	pipelines        map[string]any
-	projects         map[string][]any  // project slug → ordered list of pipelines
-	workflows        map[string][]any  // pipeline id → workflows
-	workflowDetails  map[string]any    // workflow id → workflow detail response
-	workflowJobs     map[string][]any  // workflow id → jobs
-	jobArtifacts     map[string][]any  // "slug/jobNumber" → artifacts
-	staticFiles      map[string]string // path → body content, for artifact downloads
-	jobs             map[string]any    // "slug/jobNumber" → job detail response (v2)
-	jobsV1           map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	stepOutputs      map[string]string // path → JSON log lines content
-	triggerResponses map[string]any    // project slug → trigger response body
-	rerunResponses           map[string]int  // workflow id → HTTP status to return
-	cancelResponses          map[string]int  // workflow id → HTTP status to return
-	pipelineCancelResponses  map[string]int  // pipeline id → HTTP status to return
+	mu                      sync.RWMutex
+	pipelines               map[string]any
+	projects                map[string][]any  // project slug → ordered list of pipelines
+	workflows               map[string][]any  // pipeline id → workflows
+	workflowDetails         map[string]any    // workflow id → workflow detail response
+	workflowJobs            map[string][]any  // workflow id → jobs
+	jobArtifacts            map[string][]any  // "slug/jobNumber" → artifacts
+	staticFiles             map[string]string // path → body content, for artifact downloads
+	jobs                    map[string]any    // "slug/jobNumber" → job detail response (v2)
+	jobsV1                  map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
+	stepOutputs             map[string]string // path → JSON log lines content
+	triggerResponses        map[string]any    // project slug → trigger response body
+	rerunResponses          map[string]int    // workflow id → HTTP status to return
+	cancelResponses         map[string]int    // workflow id → HTTP status to return
+	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
 
 	// Runner (v3) state.
-	resourceClasses []any             // all resource classes
-	runnerTokens    map[string][]any  // resource class → tokens
-	runnerInstances []any             // all instances
-	deletedTokens   map[string]bool   // token id → deleted
-	deletedRCs      map[string]bool   // resource class → deleted
+	resourceClasses []any            // all resource classes
+	runnerTokens    map[string][]any // resource class → tokens
+	runnerInstances []any            // all instances
+	deletedTokens   map[string]bool  // token id → deleted
+	deletedRCs      map[string]bool  // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects []any             // list of project objects for GET /api/v1.1/projects
-	followedSlugs    map[string]bool   // vcs+org+repo → true (for follow idempotency)
-	envVars          map[string][]any  // project slug → env vars
-	deletedEnvVars   map[string]bool   // "slug/name" → deleted
+	followedProjects []any            // list of project objects for GET /api/v1.1/projects
+	followedSlugs    map[string]bool  // vcs+org+repo → true (for follow idempotency)
+	envVars          map[string][]any // project slug → env vars
+	deletedEnvVars   map[string]bool  // "slug/name" → deleted
 }
 
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
 func NewCircleCI(t *testing.T) *CircleCI {
 	t.Helper()
 	f := &CircleCI{
-		pipelines:        map[string]any{},
-		projects:         map[string][]any{},
-		workflows:        map[string][]any{},
-		workflowDetails:  map[string]any{},
-		workflowJobs:     map[string][]any{},
-		jobArtifacts:     map[string][]any{},
-		staticFiles:      map[string]string{},
-		jobs:             map[string]any{},
-		jobsV1:           map[string]any{},
-		stepOutputs:      map[string]string{},
-		triggerResponses: map[string]any{},
+		pipelines:               map[string]any{},
+		projects:                map[string][]any{},
+		workflows:               map[string][]any{},
+		workflowDetails:         map[string]any{},
+		workflowJobs:            map[string][]any{},
+		jobArtifacts:            map[string][]any{},
+		staticFiles:             map[string]string{},
+		jobs:                    map[string]any{},
+		jobsV1:                  map[string]any{},
+		stepOutputs:             map[string]string{},
+		triggerResponses:        map[string]any{},
 		rerunResponses:          map[string]int{},
 		cancelResponses:         map[string]int{},
 		pipelineCancelResponses: map[string]int{},
-		resourceClasses:  []any{},
-		runnerTokens:     map[string][]any{},
-		runnerInstances:  []any{},
-		deletedTokens:    map[string]bool{},
-		deletedRCs:       map[string]bool{},
-		followedProjects: []any{},
-		followedSlugs:    map[string]bool{},
-		envVars:          map[string][]any{},
-		deletedEnvVars:   map[string]bool{},
+		resourceClasses:         []any{},
+		runnerTokens:            map[string][]any{},
+		runnerInstances:         []any{},
+		deletedTokens:           map[string]bool{},
+		deletedRCs:              map[string]bool{},
+		followedProjects:        []any{},
+		followedSlugs:           map[string]bool{},
+		envVars:                 map[string][]any{},
+		deletedEnvVars:          map[string]bool{},
 	}
 
 	r := newRouter()

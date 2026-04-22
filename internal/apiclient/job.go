@@ -25,7 +25,7 @@ type Job struct {
 
 // JobStep is a named step within a job.
 type JobStep struct {
-	Name    string      `json:"name"`
+	Name    string       `json:"name"`
 	Actions []StepAction `json:"actions"`
 }
 
@@ -42,7 +42,7 @@ type StepAction struct {
 
 // LogLine is a single line of output from a step action.
 type LogLine struct {
-	Type    string `json:"type"`    // "out" or "err"
+	Type    string `json:"type"` // "out" or "err"
 	Time    string `json:"time"`
 	Message string `json:"message"`
 }

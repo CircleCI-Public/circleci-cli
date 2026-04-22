@@ -32,13 +32,17 @@ func (c *Client) GetWorkflow(ctx context.Context, id string) (*WorkflowDetail, e
 // true only the failed jobs are rerun; otherwise all jobs restart from scratch.
 func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) error {
 	body := map[string]any{"from_failed": fromFailed}
-	var resp struct{ Message string `json:"message"` }
+	var resp struct {
+		Message string `json:"message"`
+	}
 	return c.post(ctx, fmt.Sprintf("/workflow/%s/rerun", id), body, &resp)
 }
 
 // CancelWorkflow requests cancellation of a running workflow.
 func (c *Client) CancelWorkflow(ctx context.Context, id string) error {
-	var resp struct{ Message string `json:"message"` }
+	var resp struct {
+		Message string `json:"message"`
+	}
 	return c.post(ctx, fmt.Sprintf("/workflow/%s/cancel", id), map[string]any{}, &resp)
 }
 

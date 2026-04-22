@@ -32,11 +32,11 @@ func fakeToken(id, rc, nickname string) map[string]any {
 
 func fakeInstance(rc, hostname, name, version string) map[string]any {
 	return map[string]any{
-		"resource_class":    rc,
-		"hostname":          hostname,
-		"name":              name,
-		"version":           version,
-		"ip":                "10.0.0.1",
+		"resource_class":     rc,
+		"hostname":           hostname,
+		"name":               name,
+		"version":            version,
+		"ip":                 "10.0.0.1",
 		"first_connected_at": "2026-01-01T00:00:00Z",
 		"last_connected_at":  "2026-04-18T12:00:00Z",
 		"last_used_at":       "2026-04-18T11:00:00Z",
