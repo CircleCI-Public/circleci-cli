@@ -99,7 +99,6 @@ Examples:
 
 			// If a config file path is supplied and confirmed, check if the file is empty
 			if useLocalConfig && localConfigFilePath != "" {
-				configBranch = "cli-run"
 				data, err := os.ReadFile(localConfigFilePath)
 				if err != nil {
 					return fmt.Errorf("failed to read config file: %w", err)
@@ -131,6 +130,11 @@ Examples:
 			trackPipelineRunStep(client, "checkout_ref_provided", invID, map[string]interface{}{
 				"used_branch": checkoutBranch != "",
 			})
+
+			if useLocalConfig {
+				configBranch = checkoutBranch
+				configTag = checkoutTag
+			}
 
 			// Convert string parameters to interface map
 			paramMap := make(map[string]interface{})
