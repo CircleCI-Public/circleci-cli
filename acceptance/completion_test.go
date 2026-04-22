@@ -25,6 +25,7 @@ package acceptance_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -103,7 +104,9 @@ func TestCompletionInstallBashCreatesRCFile(t *testing.T) {
 	info, err := os.Stat(bashProfile)
 	assert.NilError(t, err, ".bash_profile should have been created")
 	perm := info.Mode().Perm()
-	assert.Check(t, cmp.Equal(perm, os.FileMode(0o644)))
+	if runtime.GOOS != "windows" {
+		assert.Check(t, cmp.Equal(perm, os.FileMode(0o644)))
+	}
 	data, err := os.ReadFile(bashProfile)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Contains(string(data), "circleci completion bash"),

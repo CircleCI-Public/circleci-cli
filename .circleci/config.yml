@@ -1,5 +1,10 @@
 version: 2.1
 
+parameters:
+  go_version_with_patch:
+    type: string
+    default: 1.26.2
+
 orbs:
   go: circleci/go@3.0.4
 
@@ -7,7 +12,80 @@ commands:
   setup:
     steps:
       - checkout
+      - install-go
+      - install-task
       - run: task mod-download
+
+
+  install-go:
+    # TODO: Fix the Go orb install command, so it supports Windows.
+    steps:
+      - run:
+          name: Install Go
+          command: |
+            arch="$(uname -m)"
+            case $arch in
+              "x86_64")
+                ARCH=amd64
+                ;;
+              "aarch64")
+                ARCH=arm64
+                ;;
+              "arm64")
+                ARCH=arm64
+                ;;
+              *)
+                echo "Unknown architecture: $arch"
+                exit 1
+                ;;
+            esac
+            echo "Detected architecture: $ARCH"
+            
+            os="$(uname -o)"
+            case "$os" in
+              "Darwin")
+                OS=darwin
+                ;;
+              "Msys")
+                OS=windows
+                ;;
+              "GNU/Linux")
+                OS=linux
+                ;;
+              *)
+                echo "Unknown OS: $os"
+                exit 1
+                ;;
+            esac
+            echo "Detected OS: $OS"
+            
+            EXTENSION="tar.gz"
+            if [[ "$OS" == "windows" ]]; then
+              EXTENSION="zip"
+            fi
+            URL="https://golang.org/dl/go<< pipeline.parameters.go_version_with_patch >>.${OS}-${ARCH}.${EXTENSION}"
+            echo "Downloading Go from $URL"
+            
+            if [[ "$OS" == "windows" ]]; then
+              rm -rf /c/go
+              curl -o /tmp/go.zip -fsSL "$URL" 
+              unzip -q -d /c/ /tmp/go.zip
+            else
+              echo 'export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"' >> "$BASH_ENV"
+              . "$BASH_ENV"
+              rm -rf /usr/local/go
+              curl -fsSL "$URL" | sudo tar -C /usr/local -xz
+            fi
+            
+            go version
+
+  install-task:
+    steps:
+      - run:
+          name: Install go-task
+          command: |
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
 
   store_results:
     steps:
@@ -15,14 +93,22 @@ commands:
           path: ./test-reports
 
 executors:
-  default:
+  linux:
     docker:
-      - image: cimg/go:1.26
+      - image: cimg/base:stable
     resource_class: large
+
+  macos:
+    macos:
+      xcode: 26.5.0
+
+  windows:
+    machine: true
+    resource_class: windows.medium
 
 jobs:
   lint:
-    executor: default
+    executor: linux
     steps:
       - setup
       - go/with-cache:
@@ -33,7 +119,10 @@ jobs:
             - run: task ci:diff
 
   test:
-    executor: default
+    parameters:
+      executor:
+        type: executor
+    executor: << parameters.executor >>
     steps:
       - setup
       - go/with-cache:
@@ -45,4 +134,10 @@ workflows:
   ci:
     jobs:
       - lint
-      - test
+      - test:
+          matrix:
+            parameters:
+              executor:
+                - linux
+                - macos
+                - windows

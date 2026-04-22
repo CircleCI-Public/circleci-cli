@@ -5,6 +5,7 @@ dist/
 *.test
 *.out
 coverage.html
+/test-reports
 
 # OS
 .DS_Store

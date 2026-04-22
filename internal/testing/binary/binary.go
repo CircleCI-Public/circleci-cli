@@ -32,6 +32,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -54,6 +55,9 @@ func BuildBinary() (string, error) {
 			return
 		}
 		binaryPath = filepath.Join(dir, "circleci")
+		if runtime.GOOS == "windows" {
+			binaryPath += ".exe"
+		}
 
 		// acceptance/ is one level below the module root.
 		repoRoot, err := filepath.Abs(filepath.Join("..", ""))

@@ -62,7 +62,7 @@ tasks:
   mod-download:
     desc: Run 'go mod download'
     cmds:
-      - go mod download -x
+      - go mod download
 
   acceptance-test:
     desc: Build binary and run acceptance tests
@@ -139,9 +139,10 @@ tasks:
     desc: Run tests with JUnit output
     vars:
       ARGS: '{{default "./..." .CLI_ARGS}}'
+      RACE: '{{if not (eq OS "windows")}}-race{{end}}'
     cmds:
       - mkdir -p {{.RESULTS_DIR}}
-      - go tool gotestsum --junitfile="{{.TEST_REPORT}}" -- -race -count=1 {{.ARGS}}
+      - go tool gotestsum --junitfile="{{.TEST_REPORT}}" -- {{.RACE}} -count=1 {{.ARGS}}
 
   ci:diff:
     desc: Check no uncommitted diffs after generate/fmt/tidy
