@@ -101,10 +101,16 @@ executors:
   macos:
     macos:
       xcode: 26.5.0
+    environment:
+      # Work around Go orb not knowing where the cache is on MacOS (assuming ~/.cache/go-build).
+      GOCACHE: '/Users/distiller/.cache/go-build'
 
   windows:
     machine: true
     resource_class: windows.medium
+    environment:
+      # Work around Go orb not knowing where the cache is on Windows (assuming ~/.cache/go-build).
+      GOCACHE: 'C:\Users\circleci\.cache\go-build'
 
 jobs:
   lint:
@@ -125,7 +131,9 @@ jobs:
     executor: << parameters.executor >>
     steps:
       - setup
+      - run: go env GOCACHE
       - go/with-cache:
+          key: 'v1'
           steps:
             - run: task ci:test
             - store_results
