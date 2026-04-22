@@ -1,6 +1,6 @@
 module github.com/CircleCI-Public/circleci-cli-v2
 
-go 1.26.1
+go 1.26.2
 
 require (
 	github.com/MakeNowJust/heredoc v1.0.0
