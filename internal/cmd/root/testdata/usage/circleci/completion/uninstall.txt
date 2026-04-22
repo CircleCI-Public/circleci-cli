@@ -1,0 +1,16 @@
+Usage:
+  circleci completion uninstall [flags]
+
+Examples:
+# Remove completion
+$ circleci completion uninstall
+
+# Then reload your shell
+$ source ~/.zshrc
+
+# Check whether completion is currently installed
+$ grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null
+
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

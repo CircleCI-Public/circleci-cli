@@ -1,0 +1,16 @@
+Usage:
+  circleci settings list [flags]
+
+Examples:
+# Show current settings
+$ circleci settings list
+
+# Output as JSON
+$ circleci settings list --json
+
+
+Flags:
+      --json   Output as JSON
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

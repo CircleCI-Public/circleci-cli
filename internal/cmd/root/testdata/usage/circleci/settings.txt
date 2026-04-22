@@ -1,0 +1,11 @@
+Usage:
+  circleci settings [command]
+
+Available Commands:
+  list        List current CLI settings
+  set         Set a CLI setting
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected
+
+Use "circleci settings [command] --help" for more information about a command.

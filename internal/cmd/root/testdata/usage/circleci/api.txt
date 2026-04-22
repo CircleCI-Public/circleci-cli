@@ -1,0 +1,31 @@
+Usage:
+  circleci api <path> [flags]
+
+Examples:
+# Get your user profile
+$ circleci api /me
+
+# Get a project
+$ circleci api /project/gh/myorg/myrepo
+
+# List pipelines for a project (pretty-printed)
+$ circleci api /project/gh/myorg/myrepo/pipeline --json
+
+# Trigger a pipeline on a branch
+$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -f branch=main
+
+# Add a custom header
+$ circleci api -H "Accept: application/json" /me
+
+# Access the v1.1 API
+$ circleci api /api/v1.1/me
+
+
+Flags:
+  -f, --field stringArray    Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH)
+  -H, --header stringArray   Add a request header: "Key: Value"
+      --json                 Pretty-print the response as JSON
+  -X, --method string        HTTP method (default: GET, or POST when -f is used)
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

@@ -1,0 +1,25 @@
+Usage:
+  circleci pipeline trigger [flags]
+
+Examples:
+# Trigger a pipeline on the current branch
+$ circleci pipeline trigger
+
+# Trigger on a specific branch
+$ circleci pipeline trigger --branch main
+
+# Trigger with pipeline parameters
+$ circleci pipeline trigger --parameter deploy_env=staging --parameter run_e2e=true
+
+# Output the triggered pipeline as JSON
+$ circleci pipeline trigger --json
+
+
+Flags:
+  -b, --branch string           Branch to trigger (defaults to current branch)
+      --json                    Output the triggered pipeline as JSON
+      --parameter stringArray   Pipeline parameter as key=value (repeatable)
+      --project string          Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

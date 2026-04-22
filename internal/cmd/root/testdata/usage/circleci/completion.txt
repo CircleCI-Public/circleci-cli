@@ -1,0 +1,11 @@
+Usage:
+  circleci completion [command]
+
+Available Commands:
+  install     Install shell completion into your shell profile
+  uninstall   Remove shell completion from your shell profile
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected
+
+Use "circleci completion [command] --help" for more information about a command.

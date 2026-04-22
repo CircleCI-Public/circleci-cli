@@ -1,0 +1,22 @@
+Usage:
+  circleci runner task [flags]
+
+Examples:
+# Show task counts for a resource class
+$ circleci runner task --resource-class my-org/my-runner
+
+# Output as JSON
+$ circleci runner task --resource-class my-org/my-runner --json
+
+# Check for a backlog across multiple classes
+$ for rc in my-org/build my-org/deploy; do
+    circleci runner task --resource-class $rc
+  done
+
+
+Flags:
+      --json                    Output as JSON
+      --resource-class string   Resource class to query (namespace/name)
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

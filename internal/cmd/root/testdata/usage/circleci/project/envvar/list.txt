@@ -1,0 +1,20 @@
+Usage:
+  circleci project envvar list [flags]
+
+Examples:
+# List env vars for the current project
+$ circleci envvar list
+
+# List env vars for a specific project
+$ circleci envvar list --project gh/myorg/myrepo
+
+# Output as JSON
+$ circleci envvar list --json
+
+
+Flags:
+      --json             Output as JSON
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

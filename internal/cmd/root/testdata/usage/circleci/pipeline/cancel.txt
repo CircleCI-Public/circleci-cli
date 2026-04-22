@@ -1,0 +1,20 @@
+Usage:
+  circleci pipeline cancel <pipeline-number-or-id> [flags]
+
+Examples:
+# Cancel a pipeline by number (with confirmation)
+$ circleci pipeline cancel 75
+
+# Cancel a pipeline by UUID without confirmation
+$ circleci pipeline cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force
+
+# Cancel the latest pipeline on a branch
+$ circleci pipeline list --branch main --json | jq -r '.[0].id' | xargs circleci pipeline cancel --force
+
+
+Flags:
+  -f, --force            skip confirmation prompt
+      --project string   Project slug (e.g. gh/org/repo); used when cancelling by number
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

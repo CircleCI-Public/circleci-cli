@@ -1,0 +1,26 @@
+Usage:
+  circleci runner token list [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List tokens across all resource classes
+$ circleci runner token list
+
+# List tokens for a specific resource class
+$ circleci runner token list --resource-class my-org/my-runner
+
+# Output as JSON
+$ circleci runner token list --json
+
+# Pipe to jq to extract IDs
+$ circleci runner token list --resource-class my-org/my-runner --json | jq '.[].id'
+
+
+Flags:
+      --json                    Output as JSON
+      --resource-class string   Filter by resource class (namespace/name)
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

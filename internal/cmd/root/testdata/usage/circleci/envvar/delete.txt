@@ -1,0 +1,20 @@
+Usage:
+  circleci envvar delete <name> [flags]
+
+Examples:
+# Delete an env var from the current project (with confirmation)
+$ circleci envvar delete MY_SECRET
+
+# Delete without confirmation
+$ circleci envvar delete MY_SECRET --force
+
+# Delete an env var from a specific project
+$ circleci envvar delete MY_SECRET --project gh/myorg/myrepo --force
+
+
+Flags:
+  -f, --force            skip confirmation prompt
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

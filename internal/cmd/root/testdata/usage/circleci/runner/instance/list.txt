@@ -1,0 +1,24 @@
+Usage:
+  circleci runner instance list [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List all connected runner instances
+$ circleci runner instance list
+
+# List instances for a specific resource class
+$ circleci runner instance list --resource-class my-org/my-runner
+
+# Output as JSON
+$ circleci runner instance list --resource-class my-org/my-runner --json
+
+
+Flags:
+      --json                    Output as JSON
+      --namespace string        Filter by namespace (organization); defaults to git remote
+      --resource-class string   Filter by resource class (namespace/name)
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

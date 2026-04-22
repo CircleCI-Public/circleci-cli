@@ -1,0 +1,28 @@
+Usage:
+  circleci pipeline watch [<pipeline-number>] [flags]
+
+Examples:
+# Watch the latest pipeline on the current branch
+$ circleci pipeline watch
+
+# Push and watch in one step
+$ git push && circleci pipeline watch --sha $(git rev-parse HEAD)
+
+# Watch a specific pipeline number
+$ circleci pipeline watch 75
+
+# Watch a pipeline on a different branch
+$ circleci pipeline watch --branch main
+
+# Watch with a longer timeout
+$ circleci pipeline watch --timeout 60m
+
+
+Flags:
+  -b, --branch string      Branch to watch (defaults to current branch)
+      --project string     Project slug (e.g. gh/org/repo); defaults to git remote
+      --sha string         Watch pipeline for this commit SHA; polls up to 2m if not yet created
+      --timeout duration   Maximum time to wait for pipeline completion (default 30m0s)
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

@@ -1,0 +1,23 @@
+Usage:
+  circleci envvar [command]
+
+Examples:
+# List all environment variables for the current project
+$ circleci envvar list
+
+# Set an environment variable
+$ circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo
+
+# Delete an environment variable
+$ circleci envvar delete MY_SECRET
+
+
+Available Commands:
+  delete      Delete a project environment variable
+  list        List project environment variables
+  set         Set a project environment variable
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected
+
+Use "circleci envvar [command] --help" for more information about a command.

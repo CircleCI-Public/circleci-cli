@@ -1,0 +1,5 @@
+Usage:
+  circleci completion zsh [flags]
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

@@ -1,0 +1,31 @@
+Usage:
+  circleci pipeline list [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List recent pipelines for the current project
+$ circleci pipeline list
+
+# Filter to a specific branch
+$ circleci pipeline list --branch main
+
+# List pipelines for an explicit project
+$ circleci pipeline list --project gh/org/repo
+
+# Show more results
+$ circleci pipeline list --limit 25
+
+# Output as JSON for scripting
+$ circleci pipeline list --json
+
+
+Flags:
+  -b, --branch string    Filter by branch
+      --json             Output as JSON
+      --limit int        Maximum number of pipelines to show [default: 10] (default 10)
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

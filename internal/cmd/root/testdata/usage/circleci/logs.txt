@@ -1,0 +1,33 @@
+Usage:
+  circleci logs [<job-number>] [flags]
+
+Examples:
+# Fetch logs for a specific job number
+$ circleci logs 123
+
+# Fetch logs from the latest failed job on the current branch
+$ circleci logs --last-failed
+
+# Fetch logs from the latest failed job on main
+$ circleci logs --last-failed --branch main
+
+# Fetch logs from the last completed job on the current branch
+$ circleci logs --last-job
+
+# Show only the output of a specific step
+$ circleci logs 123 --step "Run tests"
+
+# Output as JSON
+$ circleci logs 123 --json
+
+
+Flags:
+  -b, --branch string    Branch for job inference (default: current branch)
+      --json             Output as JSON
+      --last-failed      Fetch logs from the latest failed job on the current branch
+      --last-job         Fetch logs from the last completed job on the current branch
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+      --step string      Filter output to a single step by name
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

@@ -1,0 +1,32 @@
+Usage:
+  circleci artifacts [<pipeline-id>] [flags]
+
+Examples:
+# List all artifacts for the latest pipeline on the current branch
+$ circleci artifacts
+
+# List artifacts for a specific pipeline
+$ circleci artifacts 5034460f-c7c4-4c43-9457-de07e2029e7b
+
+# List artifacts for a specific job number
+$ circleci artifacts --job 123
+
+# Download all artifacts from the latest pipeline into ./artifacts
+$ circleci artifacts --download ./artifacts
+
+# Download artifacts for a specific branch
+$ circleci artifacts --branch main --download ./artifacts
+
+# Output as JSON for scripting
+$ circleci artifacts --json
+
+
+Flags:
+  -b, --branch string     Branch for pipeline inference (default: current branch)
+  -d, --download string   Download artifacts into this directory
+  -j, --job int           Scope to a single job number
+      --json              Output as JSON
+      --project string    Project slug (e.g. gh/org/repo); used with --job, defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

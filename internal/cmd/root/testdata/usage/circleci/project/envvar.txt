@@ -1,0 +1,12 @@
+Usage:
+  circleci project envvar [command]
+
+Available Commands:
+  delete      Delete a project environment variable
+  list        List project environment variables
+  set         Set a project environment variable
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected
+
+Use "circleci project envvar [command] --help" for more information about a command.
