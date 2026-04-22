@@ -133,6 +133,33 @@ func (c *Client) DoRequest(req *http.Request, resp interface{}) (int, error) {
 	return httpResp.StatusCode, nil
 }
 
+// DoRawRequest executes an HTTP request and returns the raw response body.
+// Unlike DoRequest, it does not require application/json content type.
+func (c *Client) DoRawRequest(req *http.Request) ([]byte, int, error) {
+	httpResp, err := c.client.Do(req)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer httpResp.Body.Close()
+
+	if httpResp.StatusCode >= 400 {
+		body, err := io.ReadAll(httpResp.Body)
+		if err != nil {
+			return nil, httpResp.StatusCode, err
+		}
+		var msgErr struct {
+			Message string `json:"message"`
+		}
+		if jsonErr := json.Unmarshal(body, &msgErr); jsonErr == nil && msgErr.Message != "" {
+			return nil, httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: msgErr.Message}
+		}
+		return nil, httpResp.StatusCode, &HTTPError{Code: httpResp.StatusCode, Message: string(body)}
+	}
+
+	body, err := io.ReadAll(httpResp.Body)
+	return body, httpResp.StatusCode, err
+}
+
 type HTTPError struct {
 	Code    int
 	Message string
