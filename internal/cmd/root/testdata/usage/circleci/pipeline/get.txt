@@ -1,0 +1,24 @@
+Usage:
+  circleci pipeline get [<pipeline-id-or-number>] [flags]
+
+Examples:
+# Get the latest pipeline for the current branch
+$ circleci pipeline get
+
+# Get a pipeline by number
+$ circleci pipeline get 75
+
+# Get a pipeline by UUID
+$ circleci pipeline get 5034460f-c7c4-4c43-9457-de07e2029e7b
+
+# Output as JSON for scripting
+$ circleci pipeline get --json
+
+
+Flags:
+  -b, --branch string    Branch name (defaults to current branch)
+      --json             Output as JSON
+      --project string   Project slug (e.g. gh/org/repo); used when looking up by number
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

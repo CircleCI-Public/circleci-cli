@@ -1,0 +1,19 @@
+Usage:
+  circleci runner resource-class delete <namespace>/<name> [flags]
+
+Examples:
+# Delete a resource class (with confirmation prompt)
+$ circleci runner resource-class delete my-org/my-runner
+
+# Delete without confirmation
+$ circleci runner resource-class delete my-org/my-runner --force
+
+# Delete in a script
+$ circleci runner resource-class delete my-org/my-runner --force
+
+
+Flags:
+  -f, --force   skip confirmation prompt
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

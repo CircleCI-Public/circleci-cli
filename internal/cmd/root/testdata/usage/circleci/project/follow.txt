@@ -1,0 +1,19 @@
+Usage:
+  circleci project follow [flags]
+
+Examples:
+# Follow the project for the current git repository
+$ circleci project follow
+
+# Follow a specific project
+$ circleci project follow --project gh/myorg/myrepo
+
+# Follow a Bitbucket project
+$ circleci project follow --project bb/myorg/myrepo
+
+
+Flags:
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

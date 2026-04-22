@@ -1,0 +1,23 @@
+Usage:
+  circleci runner resource-class list [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List all resource classes you have access to
+$ circleci runner resource-class list
+
+# List resource classes for a specific namespace
+$ circleci runner resource-class list --namespace my-org
+
+# Output as JSON
+$ circleci runner resource-class list --namespace my-org --json
+
+
+Flags:
+      --json               Output as JSON
+      --namespace string   Filter by namespace (organization)
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

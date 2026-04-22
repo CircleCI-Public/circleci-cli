@@ -1,0 +1,20 @@
+Usage:
+  circleci runner resource-class create <namespace>/<name> [flags]
+
+Examples:
+# Create a resource class
+$ circleci runner resource-class create my-org/my-runner
+
+# Create with a description
+$ circleci runner resource-class create my-org/my-runner --description "Linux amd64 runner"
+
+# Output as JSON
+$ circleci runner resource-class create my-org/my-runner --json
+
+
+Flags:
+      --description string   Human-readable description of the resource class
+      --json                 Output as JSON
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

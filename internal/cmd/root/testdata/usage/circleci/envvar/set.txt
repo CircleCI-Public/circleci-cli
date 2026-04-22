@@ -1,0 +1,19 @@
+Usage:
+  circleci envvar set <name> <value> [flags]
+
+Examples:
+# Set an env var for the current project
+$ circleci envvar set MY_SECRET s3cr3t
+
+# Set an env var for a specific project
+$ circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo
+
+# Read a value from a file
+$ circleci envvar set MY_SECRET "$(cat secret.txt)"
+
+
+Flags:
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

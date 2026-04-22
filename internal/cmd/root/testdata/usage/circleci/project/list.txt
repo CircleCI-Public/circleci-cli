@@ -1,0 +1,22 @@
+Usage:
+  circleci project list [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List all followed projects
+$ circleci project list
+
+# Output as JSON for scripting
+$ circleci project list --json
+
+# Filter by org with jq
+$ circleci project list --json | jq '.[] | select(.username == "myorg")'
+
+
+Flags:
+      --json   Output as JSON
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

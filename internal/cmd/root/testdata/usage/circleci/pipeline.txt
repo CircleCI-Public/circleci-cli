@@ -1,0 +1,14 @@
+Usage:
+  circleci pipeline [command]
+
+Available Commands:
+  cancel      Cancel a pipeline
+  get         Get a pipeline's status
+  list        List recent pipelines for a project
+  trigger     Trigger a new pipeline
+  watch       Watch a pipeline until it completes
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected
+
+Use "circleci pipeline [command] --help" for more information about a command.

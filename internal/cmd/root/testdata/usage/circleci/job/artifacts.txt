@@ -1,0 +1,24 @@
+Usage:
+  circleci job artifacts <job-number> [flags]
+
+Examples:
+# List artifacts for job number 123
+$ circleci job artifacts 123
+
+# Download artifacts for job 123 into ./artifacts
+$ circleci job artifacts 123 --download ./artifacts
+
+# Specify the project explicitly
+$ circleci job artifacts 123 --project gh/myorg/myrepo
+
+# Output as JSON
+$ circleci job artifacts 123 --json
+
+
+Flags:
+  -d, --download string   Download artifacts into this directory
+      --json              Output as JSON
+      --project string    Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

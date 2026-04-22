@@ -1,0 +1,16 @@
+Usage:
+  circleci settings set <key> <value> [flags]
+
+Examples:
+# Store your personal API token
+$ circleci settings set token mytoken123
+
+# Point to a self-hosted CircleCI server
+$ circleci settings set host https://circleci.mycompany.com
+
+# You can also supply the token via environment variable
+$ CIRCLECI_TOKEN=mytoken123 circleci pipeline get
+
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

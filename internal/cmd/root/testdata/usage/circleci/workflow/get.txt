@@ -1,0 +1,19 @@
+Usage:
+  circleci workflow get <workflow-id> [flags]
+
+Examples:
+# Get workflow details
+$ circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b
+
+# Output as JSON
+$ circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b --json
+
+# Get workflow ID from a pipeline
+$ circleci pipeline get | grep -A1 "Workflows"
+
+
+Flags:
+      --json   Output as JSON
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

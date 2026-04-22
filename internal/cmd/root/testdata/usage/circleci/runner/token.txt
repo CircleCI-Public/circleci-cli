@@ -1,0 +1,12 @@
+Usage:
+  circleci runner token [command]
+
+Available Commands:
+  create      Create a token for a resource class
+  delete      Delete a runner token
+  list        List tokens for a resource class
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected
+
+Use "circleci runner token [command] --help" for more information about a command.
