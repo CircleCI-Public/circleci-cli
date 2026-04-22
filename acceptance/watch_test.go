@@ -23,10 +23,10 @@
 package acceptance_test
 
 import (
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -67,8 +67,8 @@ func TestPipelineWatch_ByNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "#75"), "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "#75"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
 // --- watch latest (no number arg) ---
@@ -93,7 +93,7 @@ func TestPipelineWatch_Latest(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
 // --- failed pipeline → exit 1 ---
@@ -106,7 +106,7 @@ func TestPipelineWatch_Failed(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
 }
 
 // --- cancelled pipeline → exit 6 ---
@@ -119,7 +119,7 @@ func TestPipelineWatch_Cancelled(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "cancelled"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "cancelled"), "stderr: %s", result.Stderr)
 }
 
 // --- --sha: pipeline already present ---
@@ -133,7 +133,7 @@ func TestPipelineWatch_SHA(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
 // --- --sha: not found within wait window → exit 5 ---
@@ -154,7 +154,7 @@ func TestPipelineWatch_SHA_NotFound(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Assert(t, strings.Contains(result.Stderr, "No pipeline found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No pipeline found"), "stderr: %s", result.Stderr)
 }
 
 // --- watch timeout while pipeline still running → exit 8 ---

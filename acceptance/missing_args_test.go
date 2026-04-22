@@ -23,10 +23,10 @@
 package acceptance_test
 
 import (
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -44,7 +44,7 @@ func missingArgEnv(t *testing.T) *testenv.TestEnv {
 func assertMissingArg(t *testing.T, result binary.CLIResult, argName string) {
 	t.Helper()
 	assert.Equal(t, result.ExitCode, 2, "expected exit code 2, stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, argName),
+	assert.Check(t, cmp.Contains(result.Stderr, argName),
 		"expected %q in stderr, got: %s", argName, result.Stderr)
 }
 

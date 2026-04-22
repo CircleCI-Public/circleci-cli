@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -94,8 +95,8 @@ func TestRunnerResourceClassList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/arm-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/arm-runner"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerResourceClassList_Namespace(t *testing.T) {
@@ -106,7 +107,7 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerResourceClassList_JSON(t *testing.T) {
@@ -119,10 +120,11 @@ func TestRunnerResourceClassList_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, len(out), 2)
-	assert.Equal(t, out[0]["resource_class"], "my-org/linux-runner")
-	assert.Equal(t, out[0]["description"], "Linux amd64 runner")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 2))
+	assert.Check(t, cmp.Equal(out[0]["resource_class"], "my-org/linux-runner"))
+	assert.Check(t, cmp.Equal(out[0]["description"], "Linux amd64 runner"))
 }
 
 func TestRunnerResourceClassList_NoToken(t *testing.T) {
@@ -133,7 +135,7 @@ func TestRunnerResourceClassList_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
 // --- resource-class create ---
@@ -146,7 +148,7 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/new-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/new-runner"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerResourceClassCreate_JSON(t *testing.T) {
@@ -159,9 +161,10 @@ func TestRunnerResourceClassCreate_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, out["resource_class"], "my-org/new-runner")
-	assert.Equal(t, out["description"], "New runner")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["resource_class"], "my-org/new-runner"))
+	assert.Check(t, cmp.Equal(out["description"], "New runner"))
 }
 
 // --- resource-class delete ---
@@ -174,7 +177,7 @@ func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Assert(t, strings.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
 }
 
 func TestRunnerResourceClassDelete_Force(t *testing.T) {
@@ -185,7 +188,7 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "Deleted"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Deleted"), "stderr: %s", result.Stderr)
 }
 
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
@@ -211,9 +214,9 @@ func TestRunnerTokenList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "tok-id-1"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "prod-server-1"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "prod-server-2"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "tok-id-1"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "prod-server-1"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "prod-server-2"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerTokenList_JSON(t *testing.T) {
@@ -226,10 +229,11 @@ func TestRunnerTokenList_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, len(out), 2)
-	assert.Equal(t, out[0]["id"], "tok-id-1")
-	assert.Equal(t, out[0]["nickname"], "prod-server-1")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 2))
+	assert.Check(t, cmp.Equal(out[0]["id"], "tok-id-1"))
+	assert.Check(t, cmp.Equal(out[0]["nickname"], "prod-server-1"))
 }
 
 func TestRunnerTokenList_Empty(t *testing.T) {
@@ -243,7 +247,7 @@ func TestRunnerTokenList_Empty(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "No tokens found"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "No tokens found"), "stdout: %s", result.Stdout)
 }
 
 // --- token create ---
@@ -256,8 +260,8 @@ func TestRunnerTokenCreate(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "fake-runner-token-value"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-server"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "fake-runner-token-value"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-server"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerTokenCreate_JSON(t *testing.T) {
@@ -270,9 +274,10 @@ func TestRunnerTokenCreate_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, out["resource_class"], "my-org/linux-runner")
-	assert.Equal(t, out["token"], "fake-runner-token-value")
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["resource_class"], "my-org/linux-runner"))
+	assert.Check(t, cmp.Equal(out["token"], "fake-runner-token-value"))
 }
 
 // --- token delete ---
@@ -285,7 +290,7 @@ func TestRunnerTokenDelete(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "Deleted"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Deleted"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
@@ -297,7 +302,7 @@ func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Assert(t, strings.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
 }
 
 func TestRunnerTokenDelete_NotFound(t *testing.T) {
@@ -323,8 +328,8 @@ func TestRunnerInstanceList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/arm-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/arm-runner"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerInstanceList_ResourceClass(t *testing.T) {
@@ -335,8 +340,8 @@ func TestRunnerInstanceList_ResourceClass(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
-	assert.Assert(t, !strings.Contains(result.Stdout, "my-org/arm-runner"), "arm-runner should be filtered out, stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, !strings.Contains(result.Stdout, "my-org/arm-runner"), "arm-runner should be filtered out, stdout: %s", result.Stdout)
 }
 
 func TestRunnerInstanceList_JSON(t *testing.T) {
@@ -349,8 +354,9 @@ func TestRunnerInstanceList_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Equal(t, len(out), 2)
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 2))
 }
 
 func TestRunnerInstanceList_Empty(t *testing.T) {
@@ -364,7 +370,7 @@ func TestRunnerInstanceList_Empty(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, "No runner instances found"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "No runner instances found"), "stdout: %s", result.Stdout)
 }
 
 func TestRunnerInstanceList_NoToken(t *testing.T) {
@@ -375,7 +381,7 @@ func TestRunnerInstanceList_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
 // verify the fake server returns a proper 202 for rerun (used by TestRunnerResourceClassDelete_Force indirectly)

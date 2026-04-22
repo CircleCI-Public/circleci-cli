@@ -24,10 +24,10 @@ package acceptance_test
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -47,7 +47,7 @@ func TestAPI_Get(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, testPipelineID), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, testPipelineID), "stdout: %s", result.Stdout)
 }
 
 func TestAPI_Get_JSON(t *testing.T) {
@@ -66,8 +66,9 @@ func TestAPI_Get_JSON(t *testing.T) {
 
 	// --json must produce valid, indented JSON.
 	var out map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out), "stdout: %s", result.Stdout)
-	assert.Equal(t, out["id"], testPipelineID)
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err, "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Equal(out["id"], testPipelineID))
 }
 
 func TestAPI_NotFound(t *testing.T) {
@@ -108,5 +109,5 @@ func TestAPI_PathDefaultsToV2(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Assert(t, strings.Contains(result.Stdout, testPipelineID))
+	assert.Check(t, cmp.Contains(result.Stdout, testPipelineID))
 }
