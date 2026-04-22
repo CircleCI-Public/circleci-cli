@@ -28,6 +28,7 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
+	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/root"
@@ -41,9 +42,9 @@ func TestUsage(t *testing.T) {
 func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command) {
 	t.Helper()
 	t.Run(parent.Name(), func(t *testing.T) {
-		golden.Assert(t, parent.UsageString(), path.Join("usage", fmt.Sprintf("%s.txt", prefix)))
+		assert.Check(t, golden.String(parent.UsageString(), path.Join("usage", fmt.Sprintf("%s.txt", prefix))))
 		for _, cmd := range parent.Commands() {
-			testSubCommandUsage(t, fmt.Sprintf("%s/%s", prefix, cmd.Name()), cmd)
+			testSubCommandUsage(t, path.Join(prefix, cmd.Name()), cmd)
 		}
 	})
 }
