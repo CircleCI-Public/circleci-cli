@@ -28,14 +28,16 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/logs"
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
 )
 
 func newLogsCmd() *cobra.Command {
@@ -85,7 +87,12 @@ func newLogsCmd() *cobra.Command {
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 			ctx := cmd.Context()
-			return runJobLogs(ctx, streams, jobNumber, projectSlug, step, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return runJobLogs(ctx, client, streams, jobNumber, projectSlug, step, jsonOut)
 		},
 	}
 
@@ -96,12 +103,7 @@ func newLogsCmd() *cobra.Command {
 	return cmd
 }
 
-func runJobLogs(ctx context.Context, streams iostream.Streams, jobNumber int64, projectSlug, step string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runJobLogs(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jobNumber int64, projectSlug, step string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {

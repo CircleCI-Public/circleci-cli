@@ -32,6 +32,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
@@ -90,7 +91,11 @@ func NewLogsCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return run(ctx, streams, args, lastFailed, lastJob, step, projectSlug, branch, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return run(ctx, client, streams, args, lastFailed, lastJob, step, projectSlug, branch, jsonOut)
 		},
 	}
 
@@ -104,7 +109,7 @@ func NewLogsCmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, streams iostream.Streams, args []string, lastFailed, lastJob bool, step, projectSlug, branch string, jsonOut bool) error {
+func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, lastFailed, lastJob bool, step, projectSlug, branch string, jsonOut bool) error {
 	// Validate: exactly one mode must be chosen.
 	modes := 0
 	if len(args) == 1 {
@@ -128,11 +133,6 @@ func run(ctx context.Context, streams iostream.Streams, args []string, lastFaile
 		return clierrors.New("args.conflict", "Conflicting arguments",
 			"Provide exactly one of: a job number, --last-failed, or --last-job.").
 			WithExitCode(clierrors.ExitBadArguments)
-	}
-
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
 	}
 
 	var (

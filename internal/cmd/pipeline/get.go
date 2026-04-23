@@ -80,7 +80,11 @@ func newGetCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runGet(ctx, streams, args, projectSlug, branch, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runGet(ctx, client, streams, args, projectSlug, branch, jsonOut)
 		},
 	}
 
@@ -130,12 +134,7 @@ type jobOutput struct {
 	Type   string `json:"type"`
 }
 
-func runGet(ctx context.Context, streams iostream.Streams, args []string, projectSlug, branch string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, projectSlug, branch string, jsonOut bool) error {
 	var (
 		err      error
 		pipeline *apiclient.Pipeline

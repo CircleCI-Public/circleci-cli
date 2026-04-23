@@ -30,6 +30,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
@@ -64,7 +65,13 @@ func newFollowCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runProjectFollow(ctx, streams, projectSlug)
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return runProjectFollow(ctx, client, streams, projectSlug)
 		},
 	}
 
@@ -73,12 +80,7 @@ func newFollowCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectFollow(ctx context.Context, streams iostream.Streams, projectSlug string) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runProjectFollow(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug string) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {

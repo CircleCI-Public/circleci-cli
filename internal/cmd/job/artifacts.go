@@ -29,14 +29,16 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/artifacts"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
 )
 
 func newArtifactsCmd() *cobra.Command {
@@ -74,9 +76,13 @@ func newArtifactsCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if cliErr := cmdutil.RequireArgs(args, "job-number"); cliErr != nil {
-				return cliErr
+			ctx := cmd.Context()
+
+			err := cmdutil.RequireArgs(args, "job-number")
+			if err != nil {
+				return err
 			}
+
 			streams := iostream.FromCmd(cmd)
 			jobNumber, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
@@ -84,8 +90,13 @@ func newArtifactsCmd() *cobra.Command {
 					fmt.Sprintf("%q is not a valid job number.", args[0])).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := cmd.Context()
-			return runJobArtifacts(ctx, streams, jobNumber, projectSlug, downloadDir, jsonOut)
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return runJobArtifacts(ctx, client, streams, jobNumber, projectSlug, downloadDir, jsonOut)
 		},
 	}
 
@@ -96,12 +107,7 @@ func newArtifactsCmd() *cobra.Command {
 	return cmd
 }
 
-func runJobArtifacts(ctx context.Context, streams iostream.Streams, jobNumber int64, projectSlug, downloadDir string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runJobArtifacts(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jobNumber int64, projectSlug, downloadDir string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {

@@ -30,6 +30,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
@@ -63,7 +64,13 @@ func newListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runProjectList(ctx, streams, jsonOut)
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return runProjectList(ctx, client, streams, jsonOut)
 		},
 	}
 
@@ -80,12 +87,7 @@ type projectOutput struct {
 	RepoName string `json:"reponame"`
 }
 
-func runProjectList(ctx context.Context, streams iostream.Streams, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runProjectList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jsonOut bool) error {
 	projects, err := client.ListProjects(ctx)
 	if err != nil {
 		return cmdutil.APIErr(err, "projects", "project.list_failed", "Could not list projects: %s")

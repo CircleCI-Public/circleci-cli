@@ -36,7 +36,7 @@ import (
 //
 // Use alongside cobra.MaximumNArgs(N) so that too many args are still rejected
 // by Cobra, while the missing-arg case produces a structured error from RunE.
-func RequireArgs(args []string, names ...string) *clierrors.CLIError {
+func RequireArgs(args []string, names ...string) error {
 	if len(args) >= len(names) {
 		return nil
 	}

@@ -28,13 +28,15 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
 )
 
 func newResourceClassCmd() *cobra.Command {
@@ -86,7 +88,11 @@ func newResourceClassListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runResourceClassList(ctx, streams, namespace, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runResourceClassList(ctx, client, streams, namespace, jsonOut)
 		},
 	}
 
@@ -101,12 +107,7 @@ type resourceClassOutput struct {
 	Description   string `json:"description"`
 }
 
-func runResourceClassList(ctx context.Context, streams iostream.Streams, namespace string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runResourceClassList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, namespace string, jsonOut bool) error {
 	if namespace == "" {
 		ns, err := gitremote.DetectNamespace()
 		if err != nil {
@@ -189,7 +190,11 @@ func newResourceClassCreateCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runResourceClassCreate(ctx, streams, args[0], description, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runResourceClassCreate(ctx, client, streams, args[0], description, jsonOut)
 		},
 	}
 
@@ -198,12 +203,7 @@ func newResourceClassCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func runResourceClassCreate(ctx context.Context, streams iostream.Streams, resourceClass, description string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runResourceClassCreate(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass, description string, jsonOut bool) error {
 	rc, err := client.CreateResourceClass(ctx, resourceClass, description)
 	if err != nil {
 		return apiErr(err, resourceClass)
@@ -263,7 +263,11 @@ func newResourceClassDeleteCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runResourceClassDelete(ctx, streams, args[0], force)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runResourceClassDelete(ctx, client, streams, args[0], force)
 		},
 	}
 
@@ -271,7 +275,7 @@ func newResourceClassDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func runResourceClassDelete(ctx context.Context, streams iostream.Streams, resourceClass string, force bool) error {
+func runResourceClassDelete(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass string, force bool) error {
 	if !force {
 		if streams.IsInteractive() {
 			prompt := fmt.Sprintf("Delete resource class %q? All tokens and runner connections will be removed.", resourceClass)
@@ -286,11 +290,6 @@ func runResourceClassDelete(ctx context.Context, streams iostream.Streams, resou
 				WithSuggestions("Pass --force (-f) to confirm deletion in non-interactive mode").
 				WithExitCode(clierrors.ExitCancelled)
 		}
-	}
-
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
 	}
 
 	if err := client.DeleteResourceClass(ctx, resourceClass); err != nil {

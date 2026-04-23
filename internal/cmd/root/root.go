@@ -61,6 +61,9 @@ func NewRootCmd(version string) *cobra.Command {
 
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "suppress informational output; data on stdout is unaffected")
 
+	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
+	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
+
 	cmd.AddCommand(cmdapi.NewAPICmd())
 	cmd.AddCommand(artifacts.NewArtifactsCmd())
 	cmd.AddCommand(completion.NewCompletionCmd())

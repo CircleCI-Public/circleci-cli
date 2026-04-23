@@ -28,6 +28,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
@@ -64,7 +65,11 @@ func newRerunCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runRerun(ctx, streams, args[0], fromFailed)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runRerun(ctx, client, streams, args[0], fromFailed)
 		},
 	}
 
@@ -72,12 +77,7 @@ func newRerunCmd() *cobra.Command {
 	return cmd
 }
 
-func runRerun(ctx context.Context, streams iostream.Streams, id string, fromFailed bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runRerun(ctx context.Context, client *apiclient.Client, streams iostream.Streams, id string, fromFailed bool) error {
 	if err := client.RerunWorkflow(ctx, id, fromFailed); err != nil {
 		return apiErr(err, id)
 	}

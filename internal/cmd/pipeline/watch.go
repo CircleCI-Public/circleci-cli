@@ -100,7 +100,11 @@ func newWatchCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runWatch(ctx, streams, args, projectSlug, branch, sha, timeout)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runWatch(ctx, client, streams, args, projectSlug, branch, sha, timeout)
 		},
 	}
 
@@ -112,12 +116,7 @@ func newWatchCmd() *cobra.Command {
 	return cmd
 }
 
-func runWatch(ctx context.Context, streams iostream.Streams, args []string, projectSlug, branch, sha string, timeout time.Duration) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runWatch(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, projectSlug, branch, sha string, timeout time.Duration) error {
 	// Resolve project and branch from git if not fully specified.
 	needsGit := projectSlug == "" || (branch == "" && sha == "" && len(args) == 0)
 	if needsGit {
