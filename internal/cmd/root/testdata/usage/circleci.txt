@@ -4,6 +4,7 @@ Usage:
 Available Commands:
   api         Make an authenticated request to the CircleCI API
   artifacts   List or download pipeline artifacts
+  auth        Manage CLI auth
   completion  Manage shell completions
   envvar      Manage project environment variables
   job         Manage jobs
