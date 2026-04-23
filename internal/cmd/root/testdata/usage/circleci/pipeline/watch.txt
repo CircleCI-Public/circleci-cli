@@ -1,5 +1,5 @@
 Usage:
-  circleci pipeline watch [<pipeline-number>] [flags]
+  circleci pipeline watch [<pipeline-number-or-id>] [flags]
 
 Examples:
 # Watch the latest pipeline on the current branch
@@ -10,6 +10,9 @@ $ git push && circleci pipeline watch --sha $(git rev-parse HEAD)
 
 # Watch a specific pipeline number
 $ circleci pipeline watch 75
+
+# Watch by UUID (e.g. from 'pipeline list --json')
+$ circleci pipeline watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd
 
 # Watch a pipeline on a different branch
 $ circleci pipeline watch --branch main
