@@ -28,13 +28,15 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
 )
 
 func newTokenCmd() *cobra.Command {
@@ -95,7 +97,11 @@ func newTokenListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runTokenList(ctx, streams, resourceClass, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runTokenList(ctx, client, streams, resourceClass, jsonOut)
 		},
 	}
 
@@ -111,12 +117,7 @@ type tokenOutput struct {
 	CreatedAt     string `json:"created_at"`
 }
 
-func runTokenList(ctx context.Context, streams iostream.Streams, resourceClass string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runTokenList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass string, jsonOut bool) error {
 	var resourceClasses []string
 	if resourceClass != "" {
 		resourceClasses = []string{resourceClass}
@@ -214,7 +215,11 @@ func newTokenCreateCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runTokenCreate(ctx, streams, args[0], nickname, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runTokenCreate(ctx, client, streams, args[0], nickname, jsonOut)
 		},
 	}
 
@@ -231,12 +236,7 @@ type tokenCreateOutput struct {
 	Token         string `json:"token"`
 }
 
-func runTokenCreate(ctx context.Context, streams iostream.Streams, resourceClass, nickname string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runTokenCreate(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass, nickname string, jsonOut bool) error {
 	tok, err := client.CreateRunnerToken(ctx, resourceClass, nickname)
 	if err != nil {
 		return apiErr(err, resourceClass)
@@ -303,7 +303,11 @@ func newTokenDeleteCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runTokenDelete(ctx, streams, args[0], force)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runTokenDelete(ctx, client, streams, args[0], force)
 		},
 	}
 
@@ -311,7 +315,7 @@ func newTokenDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func runTokenDelete(ctx context.Context, streams iostream.Streams, tokenID string, force bool) error {
+func runTokenDelete(ctx context.Context, client *apiclient.Client, streams iostream.Streams, tokenID string, force bool) error {
 	if !force {
 		if streams.IsInteractive() {
 			prompt := fmt.Sprintf("Delete token %q? Agents using this token will lose the ability to claim new jobs.", tokenID)
@@ -326,11 +330,6 @@ func runTokenDelete(ctx context.Context, streams iostream.Streams, tokenID strin
 				WithSuggestions("Pass --force (-f) to confirm deletion in non-interactive mode").
 				WithExitCode(clierrors.ExitCancelled)
 		}
-	}
-
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
 	}
 
 	if err := client.DeleteRunnerToken(ctx, tokenID); err != nil {

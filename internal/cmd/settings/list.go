@@ -23,12 +23,14 @@
 package settings
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
@@ -57,8 +59,12 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runList(streams, jsonOut)
+
+			secureStorage := cmdutil.IsSecureStorage(cmd)
+
+			return runList(ctx, secureStorage, streams, jsonOut)
 		},
 	}
 
@@ -66,8 +72,8 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(streams iostream.Streams, jsonOut bool) error {
-	cfg, err := config.Load()
+func runList(ctx context.Context, secureStorage bool, streams iostream.Streams, jsonOut bool) error {
+	cfg, err := config.Load(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)

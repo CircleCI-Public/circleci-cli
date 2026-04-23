@@ -78,7 +78,11 @@ func newListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runList(ctx, streams, projectSlug, branch, limit, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runList(ctx, client, streams, projectSlug, branch, limit, jsonOut)
 		},
 	}
 
@@ -104,12 +108,7 @@ type pipelineListEntry struct {
 	} `json:"trigger"`
 }
 
-func runList(ctx context.Context, streams iostream.Streams, projectSlug, branch string, limit int, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, branch string, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {

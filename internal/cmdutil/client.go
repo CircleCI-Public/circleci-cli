@@ -26,8 +26,11 @@
 package cmdutil
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
@@ -35,11 +38,17 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 )
 
+func IsSecureStorage(cmd *cobra.Command) bool {
+	insecureStorage, _ := cmd.Flags().GetBool("insecure-storage")
+	secureStorage := !insecureStorage
+	return secureStorage
+}
+
 // LoadClient reads the CLI config, validates that a token is present, and
 // returns an authenticated API client. On failure it returns a structured
 // CLIError ready to be returned directly from a RunE handler.
-func LoadClient() (*apiclient.Client, *clierrors.CLIError) {
-	cfg, err := config.Load()
+func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, error) {
+	cfg, err := config.Load(ctx, IsSecureStorage(cmd))
 	if err != nil {
 		return nil, clierrors.New("config.load_failed", "Failed to load config", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)

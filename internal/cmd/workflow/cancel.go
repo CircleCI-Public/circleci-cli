@@ -29,6 +29,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
@@ -68,7 +69,12 @@ func newCancelCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runCancel(ctx, streams, args[0], force)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return runCancel(ctx, client, streams, args[0], force)
 		},
 	}
 
@@ -76,7 +82,7 @@ func newCancelCmd() *cobra.Command {
 	return cmd
 }
 
-func runCancel(ctx context.Context, streams iostream.Streams, id string, force bool) error {
+func runCancel(ctx context.Context, client *apiclient.Client, streams iostream.Streams, id string, force bool) error {
 	if !force {
 		if streams.IsInteractive() {
 			prompt := fmt.Sprintf("Cancel workflow %s? In-progress jobs will be stopped.", id)
@@ -91,11 +97,6 @@ func runCancel(ctx context.Context, streams iostream.Streams, id string, force b
 				WithSuggestions("Pass --force (-f) to confirm cancellation in non-interactive mode").
 				WithExitCode(clierrors.ExitCancelled)
 		}
-	}
-
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
 	}
 
 	if err := client.CancelWorkflow(ctx, id); err != nil {

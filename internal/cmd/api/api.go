@@ -37,6 +37,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
@@ -91,7 +92,12 @@ func NewAPICmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return run(ctx, streams, args[0], method, fields, headers, jsonOut)
+
+			client, cliErr := cmdutil.LoadClient(ctx, cmd)
+			if cliErr != nil {
+				return cliErr
+			}
+			return run(ctx, client, streams, args[0], method, fields, headers, jsonOut)
 		},
 	}
 
@@ -103,12 +109,7 @@ func NewAPICmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, streams iostream.Streams, path, method string, fields, headers []string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams, path, method string, fields, headers []string, jsonOut bool) error {
 	// Parse key=value fields.
 	parsedFields := make(map[string]string, len(fields))
 	for _, f := range fields {

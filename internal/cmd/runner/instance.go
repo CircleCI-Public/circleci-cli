@@ -28,13 +28,15 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
 )
 
 func newInstanceCmd() *cobra.Command {
@@ -88,7 +90,11 @@ func newInstanceListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runInstanceList(ctx, streams, resourceClass, namespace, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runInstanceList(ctx, client, streams, resourceClass, namespace, jsonOut)
 		},
 	}
 
@@ -140,12 +146,7 @@ func instanceStatus(lastConnectedAt string) string {
 	}
 }
 
-func runInstanceList(ctx context.Context, streams iostream.Streams, resourceClass, namespace string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runInstanceList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass, namespace string, jsonOut bool) error {
 	if resourceClass == "" && namespace == "" {
 		ns, err := gitremote.DetectNamespace()
 		if err != nil {

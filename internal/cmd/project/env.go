@@ -31,6 +31,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
@@ -93,7 +94,13 @@ func NewEnvListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return RunEnvList(ctx, streams, projectSlug, jsonOut)
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return RunEnvList(ctx, client, streams, projectSlug, jsonOut)
 		},
 	}
 
@@ -105,12 +112,7 @@ func NewEnvListCmd() *cobra.Command {
 
 // RunEnvList is the business logic for listing env vars. Exported for reuse by
 // the top-level circleci env alias.
-func RunEnvList(ctx context.Context, streams iostream.Streams, projectSlug string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func RunEnvList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -178,7 +180,12 @@ func NewEnvSetCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return RunEnvSet(ctx, streams, projectSlug, args[0], args[1])
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return RunEnvSet(ctx, client, streams, projectSlug, args[0], args[1])
 		},
 	}
 
@@ -188,12 +195,7 @@ func NewEnvSetCmd() *cobra.Command {
 }
 
 // RunEnvSet is the business logic for setting an env var.
-func RunEnvSet(ctx context.Context, streams iostream.Streams, projectSlug, name, value string) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func RunEnvSet(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, name, value string) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -250,7 +252,13 @@ func NewEnvDeleteCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return RunEnvDelete(ctx, streams, projectSlug, args[0], force)
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			return RunEnvDelete(ctx, client, streams, projectSlug, args[0], force)
 		},
 	}
 
@@ -261,7 +269,7 @@ func NewEnvDeleteCmd() *cobra.Command {
 }
 
 // RunEnvDelete is the business logic for deleting an env var.
-func RunEnvDelete(ctx context.Context, streams iostream.Streams, projectSlug, name string, force bool) error {
+func RunEnvDelete(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, name string, force bool) error {
 	if !force {
 		if streams.IsInteractive() {
 			prompt := fmt.Sprintf("Delete environment variable %q? This cannot be undone.", name)
@@ -276,11 +284,6 @@ func RunEnvDelete(ctx context.Context, streams iostream.Streams, projectSlug, na
 				WithSuggestions("Pass --force (-f) to confirm deletion in non-interactive mode").
 				WithExitCode(clierrors.ExitCancelled)
 		}
-	}
-
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
 	}
 
 	if projectSlug == "" {

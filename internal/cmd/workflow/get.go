@@ -29,6 +29,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
@@ -64,7 +65,11 @@ func newGetCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runGet(ctx, streams, args[0], jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runGet(ctx, client, streams, args[0], jsonOut)
 		},
 	}
 
@@ -91,12 +96,7 @@ type jobOutput struct {
 	Type   string `json:"type"`
 }
 
-func runGet(ctx context.Context, streams iostream.Streams, id string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Streams, id string, jsonOut bool) error {
 	wf, err := client.GetWorkflow(ctx, id)
 	if err != nil {
 		return apiErr(err, id)

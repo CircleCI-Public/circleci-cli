@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
@@ -66,7 +67,11 @@ func newTasksCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runTasks(ctx, streams, resourceClass, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runTasks(ctx, client, streams, resourceClass, jsonOut)
 		},
 	}
 
@@ -83,12 +88,7 @@ type tasksOutput struct {
 	Running       int    `json:"running"`
 }
 
-func runTasks(ctx context.Context, streams iostream.Streams, resourceClass string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runTasks(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass string, jsonOut bool) error {
 	counts, err := client.GetRunnerTaskCounts(ctx, resourceClass)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {

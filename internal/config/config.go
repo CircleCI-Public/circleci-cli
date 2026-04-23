@@ -28,11 +28,16 @@
 package config
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/keyring"
 )
 
 // Config holds all persisted CLI settings.
@@ -45,7 +50,7 @@ type Config struct {
 const DefaultHost = "https://circleci.com"
 
 // Load reads the config file, returning an empty Config if the file does not exist.
-func Load() (*Config, error) {
+func Load(ctx context.Context, secureStorage bool) (*Config, error) {
 	path, err := configPath()
 	if err != nil {
 		return nil, err
@@ -53,7 +58,14 @@ func Load() (*Config, error) {
 
 	data, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return &Config{}, nil
+		cfg := &Config{}
+		if secureStorage {
+			err = cfg.loadToken(ctx)
+			if err != nil {
+				return nil, err
+			}
+		}
+		return cfg, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
@@ -63,11 +75,19 @@ func Load() (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config file %s: %w", path, err)
 	}
+
+	if secureStorage {
+		err = cfg.loadToken(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	return &cfg, nil
 }
 
 // Save writes cfg to the config file, creating parent directories as needed.
-func Save(cfg *Config) error {
+func Save(ctx context.Context, cfg *Config, secureStorage bool) error {
 	path, err := configPath()
 	if err != nil {
 		return err
@@ -77,7 +97,17 @@ func Save(cfg *Config) error {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
 
-	data, err := yaml.Marshal(cfg)
+	cp := *cfg
+	if secureStorage {
+		cp.Token = ""
+
+		err = cfg.storeToken(ctx)
+		if err != nil {
+			return err
+		}
+	}
+
+	data, err := yaml.Marshal(cp)
 	if err != nil {
 		return fmt.Errorf("serialising config: %w", err)
 	}
@@ -115,6 +145,34 @@ func (c *Config) EffectiveToken() string {
 		return t
 	}
 	return c.Token
+}
+
+func (c *Config) loadToken(ctx context.Context) error {
+	// At some point this should be the actual CircleCI username (when doing oauth login).
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	password, err := keyring.Get(ctx, c.EffectiveHost(), u.Username)
+	switch {
+	case errors.Is(err, keyring.ErrNotFound):
+		return nil
+	case err != nil:
+		return err
+	}
+
+	c.Token = password
+	return nil
+}
+
+func (c *Config) storeToken(ctx context.Context) error {
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	return keyring.Set(ctx, c.EffectiveHost(), u.Username, c.Token)
 }
 
 func configPath() (string, error) {

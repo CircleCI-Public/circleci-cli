@@ -32,6 +32,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
@@ -77,7 +78,11 @@ func newTriggerCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			streams := iostream.FromCmd(cmd)
-			return runTrigger(ctx, streams, projectSlug, branch, params, jsonOut)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runTrigger(ctx, client, streams, projectSlug, branch, params, jsonOut)
 		},
 	}
 
@@ -96,12 +101,7 @@ type triggerJSONOutput struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func runTrigger(ctx context.Context, streams iostream.Streams, projectSlug, branch string, params []string, jsonOut bool) error {
-	client, cliErr := cmdutil.LoadClient()
-	if cliErr != nil {
-		return cliErr
-	}
-
+func runTrigger(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, branch string, params []string, jsonOut bool) error {
 	effectiveBranch := branch
 	if projectSlug == "" || effectiveBranch == "" {
 		info, err := gitremote.Detect()

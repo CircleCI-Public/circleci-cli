@@ -92,7 +92,10 @@ func RunCLI(t *testing.T, args []string, env []string, workDir string) CLIResult
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, binaryPath, args...)
+	argsWithInsecure := append([]string{"--insecure-storage=true"}, args...)
+	t.Logf("Running CLI: %s %s\n", binaryPath, argsWithInsecure)
+
+	cmd := exec.CommandContext(ctx, binaryPath, argsWithInsecure...)
 	cmd.Dir = workDir
 	cmd.Env = env
 
