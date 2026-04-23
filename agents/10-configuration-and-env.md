@@ -151,6 +151,58 @@ myapp --config /etc/myapp/production.yml deploy
 
 ---
 
+## Implementation Patterns
+
+### Single source of truth for env var names
+
+Every environment variable name is a `const` in the `config` package,
+grouped by domain. Constants are used for user-facing messages and
+test `t.Setenv` calls:
+
+```go
+const (
+    EnvCircleCIToken = "CIRCLECI_TOKEN"
+    EnvCircleCIHost  = "CIRCLECI_HOST"
+    EnvNoColor       = "CIRCLECI_NO_COLOR"
+    EnvDebug         = "CIRCLECI_DEBUG"
+)
+```
+
+No bare `os.Getenv("CIRCLECI_TOKEN")` strings anywhere. Test code uses
+the same constants.
+
+### Struct-based env loading
+
+All environment variables are declared once in a struct with `env` struct
+tags. Defaults are expressed as tag values, not if-empty checks:
+
+```go
+type EnvVars struct {
+    Token   string `env:"CIRCLECI_TOKEN"`
+    Host    string `env:"CIRCLECI_HOST,default=https://circleci.com"`
+    Debug   bool   `env:"CIRCLECI_DEBUG"`
+}
+```
+
+When adding a new environment variable:
+1. Add a `const Env...` for user-facing messages and test code.
+2. Add a field to the env struct with an `env` tag (and `default=` if needed).
+3. Wire it into resolution or consume it from the struct directly.
+
+### Layered resolution with explicit precedence
+
+The `Resolve()` function returns a resolved config struct with the value
+and its source string (e.g. `"Environment variable (CIRCLECI_TOKEN)"`),
+so status/diagnostic output can show where a value came from.
+
+### Client constructors accept config, not env
+
+Client `New()` functions read from the resolved config rather than calling
+`os.Getenv` themselves. This makes them testable and keeps env-reading
+centralised in config resolution.
+
+---
+
 ## Summary Checklist
 
 - [ ] Configuration priority: flags > env vars > project config > user config > defaults
@@ -164,3 +216,7 @@ myapp --config /etc/myapp/production.yml deploy
 - [ ] All environment variables documented in help text
 - [ ] Credentials never stored in plain config files committed to VCS
 - [ ] Missing credentials produce clear error with instructions
+- [ ] Env var names are constants in a single package, never bare strings
+- [ ] Env vars declared once in a struct with tags; no scattered `os.Getenv`
+- [ ] Resolved config carries source provenance for diagnostics
+- [ ] Client constructors accept config structs, not env vars

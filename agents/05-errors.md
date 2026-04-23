@@ -170,6 +170,86 @@ Did you mean '--verbose'?
 
 ---
 
+## Implementation Patterns
+
+### Two-tier error model
+
+Every error returned from a command carries two perspectives:
+
+1. **Developer error** — the wrapped `error` chain for logs and debugging.
+2. **User-facing message** — a plain-English sentence shown on stderr.
+
+Implement with a struct that satisfies both `error` and a set of
+display interfaces:
+
+```go
+type userError struct {
+    msg        string // brief user-facing headline
+    detail     string // optional clarification
+    suggestion string // optional actionable hint
+    err        error  // underlying Go error (for errors.Is / As)
+}
+
+func (e *userError) Error() string       { return e.err.Error() }
+func (e *userError) UserMessage() string  { return e.msg }
+func (e *userError) Detail() string       { return e.detail }
+func (e *userError) Suggestion() string   { return e.suggestion }
+func (e *userError) Unwrap() error        { return e.err }
+```
+
+The display interfaces (`UserMessage`, `Detail`, `Suggestion`) are checked
+via type assertion at the top-level error handler — they are not imported
+as a named interface. This keeps the error type private to the `cmd` package.
+
+### Single error-rendering boundary
+
+All formatting happens in `main()`, never inside command handlers:
+
+```go
+func main() {
+    if err := rootCmd.Execute(); err != nil {
+        msg, detail, suggestion := errorDetails(err)
+        fmt.Fprint(os.Stderr, ui.FormatError(msg, detail, suggestion))
+        os.Exit(1)
+    }
+}
+```
+
+`errorDetails` probes the error for the three display interfaces via duck
+typing, then falls back to sensible defaults (the raw `.Error()` string
+as the detail, pattern-matched hints as the suggestion).
+
+**Rules:**
+- Command handlers must never call `ui.FormatError` or print styled error
+  text themselves. Return the error; let the boundary format it.
+- Never use a sentinel "silent" error to suppress output. Every non-nil
+  error produces output through the single boundary.
+- Helpers like `notAuthorized(action, err)` can inspect an error and
+  return a `*userError` (or nil to signal "not my error"). The caller
+  chains them:
+  ```go
+  if ue := notAuthorized("sync files", err); ue != nil { return ue }
+  ```
+
+### Typed package-level errors instead of string matching
+
+API client packages export sentinel errors and typed error structs so
+callers use `errors.Is` / `errors.As` instead of string matching:
+
+```go
+var ErrTokenNotFound = errors.New("api token not found")
+
+type StatusError struct {
+    Op         string
+    StatusCode int
+}
+```
+
+HTTP client packages must not leak a shared HTTP error type to callers.
+Instead they wrap it into their own `StatusError` via a `mapErr` helper.
+
+---
+
 ## Summary Checklist
 
 - [ ] All errors output to stderr
@@ -180,3 +260,6 @@ Did you mean '--verbose'?
 - [ ] Important failure modes mapped to specific exit codes and documented
 - [ ] Input validation happens early, before executing operations
 - [ ] Typos in flags/subcommands suggest corrections
+- [ ] Two-tier error model: developer chain + user-facing message
+- [ ] Error formatting happens at a single boundary (main), not in handlers
+- [ ] API packages export sentinel errors and typed error structs

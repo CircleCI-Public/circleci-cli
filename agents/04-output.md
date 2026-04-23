@@ -249,6 +249,52 @@ Users should never be surprised that their tool silently wrote to a file or call
 
 ---
 
+## Implementation Patterns
+
+### Business logic never imports `ui`
+
+The `ui` package owns all ANSI styling (`Bold`, `Dim`, `Red`, `Green`,
+`Warning`, `Success`, `FormatError`). Business logic in `internal/` must
+not import it.
+
+Instead, use **callback injection** for progress reporting:
+
+```go
+// iostream/status.go
+type Level int
+const (
+    LevelStep Level = iota
+    LevelInfo
+    LevelWarn
+    LevelDone
+)
+type StatusFunc func(level Level, msg string)
+```
+
+The `cmd` layer wires the callback to styled output:
+
+```go
+func newStatusFunc(streams iostream.Streams) iostream.StatusFunc {
+    return func(level iostream.Level, msg string) {
+        switch level {
+        case iostream.LevelStep:
+            streams.ErrPrintln(ui.Bold(msg))
+        case iostream.LevelInfo:
+            streams.ErrPrintf("  %s\n", ui.Dim(msg))
+        case iostream.LevelWarn:
+            streams.ErrPrintf("  %s\n", ui.Warning(msg))
+        case iostream.LevelDone:
+            streams.ErrPrintf("  %s\n", ui.Success(msg))
+        }
+    }
+}
+```
+
+Business logic accepts `StatusFunc` as a parameter and calls it for
+progress output. Tests can pass a no-op or capturing stub.
+
+---
+
 ## Summary Checklist
 
 - [ ] TTY detection used to adapt output format
@@ -260,3 +306,5 @@ Users should never be surprised that their tool silently wrote to a file or call
 - [ ] Color disabled when: not a TTY, `NO_COLOR` set, `TERM=dumb`, `--no-color` passed
 - [ ] No animations outside of a TTY
 - [ ] Cross-program actions (file writes, network calls) made explicit to user
+- [ ] Business logic never imports `ui`; uses callback injection for progress
+- [ ] `StatusFunc` callback passed to business logic; `cmd` layer wires it to styled output
