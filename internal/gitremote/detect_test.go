@@ -47,6 +47,17 @@ func TestSlugFromRemote(t *testing.T) {
 			url:      "git@github.com:myorg/myrepo",
 			wantSlug: "gh/myorg/myrepo",
 		},
+		// SSH protocol-style — GitHub
+		{
+			name:     "ssh protocol github with .git suffix",
+			url:      "ssh://git@github.com/myorg/myrepo.git",
+			wantSlug: "gh/myorg/myrepo",
+		},
+		{
+			name:     "ssh protocol github without .git suffix",
+			url:      "ssh://git@github.com/myorg/myrepo",
+			wantSlug: "gh/myorg/myrepo",
+		},
 		// SSH — Bitbucket
 		{
 			name:     "ssh bitbucket",
