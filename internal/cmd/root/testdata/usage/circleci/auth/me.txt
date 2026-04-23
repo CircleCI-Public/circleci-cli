@@ -1,0 +1,8 @@
+Usage:
+  circleci auth me [flags]
+
+Flags:
+      --json   Output as JSON
+
+Global Flags:
+  -q, --quiet   suppress informational output; data on stdout is unaffected

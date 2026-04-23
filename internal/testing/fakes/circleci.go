@@ -68,6 +68,9 @@ type CircleCI struct {
 	followedSlugs    map[string]bool  // vcs+org+repo → true (for follow idempotency)
 	envVars          map[string][]any // project slug → env vars
 	deletedEnvVars   map[string]bool  // "slug/name" → deleted
+
+	// Auth state.
+	me any // response for GET /api/v2/me
 }
 
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
@@ -117,6 +120,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// project slug, so we match three separate path segments rather than {slug}.
 	r.Get("/api/v1.1/projects", f.handleListProjects)
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
+	r.Get("/api/v2/me", f.handleGetMe)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
@@ -715,6 +719,28 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items})
+}
+
+// --- Auth helpers ---
+
+// SetMe sets the response body for GET /api/v2/me.
+func (f *CircleCI) SetMe(me any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.me = me
+}
+
+func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	me := f.me
+	f.mu.RUnlock()
+
+	if me == nil {
+		render.Status(r, http.StatusUnauthorized)
+		render.JSON(w, r, map[string]any{"message": "unauthorized"})
+		return
+	}
+	render.JSON(w, r, me)
 }
 
 // --- Project / env-var helpers ---
