@@ -25,13 +25,11 @@ package root_test
 import (
 	"fmt"
 	"path"
-	"runtime"
 	"testing"
 
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
-	"gotest.tools/v3/skip"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/root"
 )
@@ -42,8 +40,6 @@ func TestUsage(t *testing.T) {
 }
 
 func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command) {
-	skip.If(t, runtime.GOOS == "windows", "usage strings are not stable on Windows")
-
 	t.Helper()
 	t.Run(parent.Name(), func(t *testing.T) {
 		usageString := parent.UsageString()

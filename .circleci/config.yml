@@ -111,7 +111,6 @@ executors:
     environment:
       # Work around Go orb not knowing where the cache is on Windows (assuming ~/.cache/go-build).
       GOCACHE: 'C:\Users\circleci\.cache\go-build'
-      GOTESTTOOLS_GOLDEN_NormalizeCRLFToLF: 'false'
 
 jobs:
   lint:
