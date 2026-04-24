@@ -4,6 +4,7 @@ Usage:
 Available Commands:
   cancel      Cancel a running workflow
   get         Get workflow details
+  list        List workflows for a pipeline or recent pipelines
   rerun       Rerun a workflow
 
 Global Flags:

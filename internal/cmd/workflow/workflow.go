@@ -46,6 +46,7 @@ func NewWorkflowCmd() *cobra.Command {
 		`),
 	}
 
+	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newRerunCmd())
 	cmd.AddCommand(newCancelCmd())

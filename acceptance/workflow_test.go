@@ -183,6 +183,190 @@ func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(stdout, ""))
 }
 
+// --- workflow list ---
+
+// minimalPipeline returns a minimal pipeline payload sufficient for the fake
+// server's pipeline-existence check in handleGetPipelineWorkflows.
+func minimalPipeline(id string) map[string]any {
+	return map[string]any{"id": id, "number": 1, "state": "created",
+		"project_slug": testSlug, "created_at": "2026-01-01T00:00:00Z"}
+}
+
+func TestWorkflowList(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddPipelineWorkflows(testPipelineForWF,
+		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
+		map[string]any{"id": "wf-uuid-bbb", "name": "deploy", "status": "failed"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "wf-uuid-aaa"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "wf-uuid-bbb"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "deploy"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "failed"), "stdout: %s", result.Stdout)
+}
+
+func TestWorkflowList_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddPipelineWorkflows(testPipelineForWF,
+		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, []string{"workflow", "list", "--json", testPipelineForWF}, env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["id"], "wf-uuid-aaa"))
+	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
+	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+}
+
+func TestWorkflowList_Empty(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddPipelineWorkflows(testPipelineForWF) // no workflows
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "No workflows"), "stdout: %s", result.Stdout)
+}
+
+func TestWorkflowList_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"workflow", "list", "00000000-0000-0000-0000-000000000000"},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
+}
+
+func TestWorkflowList_NoToken(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
+	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+}
+
+// --- workflow list (no-arg / recent-pipelines mode) ---
+
+const testPipelineRecent1 = "bbbbbbbb-0000-0000-0000-000000000001"
+const testPipelineRecent2 = "bbbbbbbb-0000-0000-0000-000000000002"
+
+func recentPipeline(id string, number int64, branch string) map[string]any {
+	return map[string]any{
+		"id": id, "number": number, "state": "created",
+		"project_slug": testSlug, "created_at": "2026-01-01T00:00:00Z",
+		"vcs": map[string]any{"branch": branch, "revision": "abc1234567890"},
+	}
+}
+
+func TestWorkflowList_NoArg(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddPipeline(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
+	fake.AddProjectPipelines(testSlug,
+		recentPipeline(testPipelineRecent1, 10, "main"),
+		recentPipeline(testPipelineRecent2, 9, "main"),
+	)
+	fake.AddPipelineWorkflows(testPipelineRecent1,
+		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
+		map[string]any{"id": "wf-recent-bbb", "name": "deploy", "status": "failed"},
+	)
+	fake.AddPipelineWorkflows(testPipelineRecent2,
+		map[string]any{"id": "wf-recent-ccc", "name": "build", "status": "running"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"workflow", "list", "--project", testSlug},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline #10"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "wf-recent-aaa"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline #9"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "wf-recent-ccc"), "stdout: %s", result.Stdout)
+}
+
+func TestWorkflowList_NoArg_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddProjectPipelines(testSlug,
+		recentPipeline(testPipelineRecent1, 10, "main"),
+	)
+	fake.AddPipelineWorkflows(testPipelineRecent1,
+		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"workflow", "list", "--json", "--project", testSlug},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["pipeline_id"], testPipelineRecent1))
+	assert.Check(t, cmp.Equal(out[0]["pipeline_number"], float64(10)))
+	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
+	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
+	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+}
+
+func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	// no pipelines registered for project
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"workflow", "list", "--project", testSlug},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "No pipelines found"), "stdout: %s", result.Stdout)
+}
+
 // --- workflow rerun ---
 
 func TestWorkflowRerun(t *testing.T) {
