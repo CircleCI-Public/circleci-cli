@@ -30,4 +30,5 @@ Flags:
       --step string      Filter output to a single step by name
 
 Global Flags:
+      --debug   enable debug logging
   -q, --quiet   suppress informational output; data on stdout is unaffected

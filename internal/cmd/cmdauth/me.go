@@ -41,13 +41,12 @@ func newMeCmd() *cobra.Command {
 		Short: "Get info about the current user",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runMe(ctx, client, streams, jsonOut)
+			return runMe(ctx, client, jsonOut)
 		},
 	}
 
@@ -55,20 +54,20 @@ func newMeCmd() *cobra.Command {
 	return cmd
 }
 
-func runMe(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jsonOut bool) error {
+func runMe(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
 	me, err := client.GetMe(ctx)
 	if err != nil {
 		return err
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(me)
 	}
 
-	streams.Printf("User: %s\n\n", me.ID)
-	streams.Printf("%-10s  %s\n", "name", me.Name)
-	streams.Printf("%-10s  %s\n", "login", me.Login)
+	iostream.Printf(ctx, "User: %s\n\n", me.ID)
+	iostream.Printf(ctx, "%-10s  %s\n", "name", me.Name)
+	iostream.Printf(ctx, "%-10s  %s\n", "login", me.Login)
 	return nil
 }

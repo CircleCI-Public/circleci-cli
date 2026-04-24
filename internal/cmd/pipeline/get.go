@@ -78,13 +78,12 @@ func newGetCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, streams, args, projectSlug, branch, jsonOut)
+			return runGet(ctx, client, args, projectSlug, branch, jsonOut)
 		},
 	}
 
@@ -134,7 +133,7 @@ type jobOutput struct {
 	Type   string `json:"type"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, projectSlug, branch string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
 	var (
 		err      error
 		pipeline *apiclient.Pipeline
@@ -187,7 +186,7 @@ func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Stre
 			effectiveBranch = info.Branch
 		}
 
-		sp := streams.Spinner(!jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
+		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
 		pipeline, err = client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
 		sp.Stop()
 		if err != nil {
@@ -212,12 +211,12 @@ func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Stre
 	out := buildOutput(pipeline, workflows, wfJobs)
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	printPipeline(streams, out)
+	printPipeline(ctx, out)
 	return nil
 }
 
@@ -312,34 +311,34 @@ func looksLikeNumber(s string) bool {
 	return !strings.Contains(s, "-") && len(s) > 0
 }
 
-func printPipeline(streams iostream.Streams, p pipelineGetOutput) {
-	streams.Printf("Pipeline #%d  %s\n", p.Number, p.ID)
-	streams.Printf("Project:   %s\n", p.ProjectSlug)
+func printPipeline(ctx context.Context, p pipelineGetOutput) {
+	iostream.Printf(ctx, "Pipeline #%d  %s\n", p.Number, p.ID)
+	iostream.Printf(ctx, "Project:   %s\n", p.ProjectSlug)
 	if p.Branch != "" {
-		streams.Printf("Branch:    %s\n", p.Branch)
+		iostream.Printf(ctx, "Branch:    %s\n", p.Branch)
 	}
 	if p.Revision != "" {
-		streams.Printf("Commit:    %s\n", p.Revision)
+		iostream.Printf(ctx, "Commit:    %s\n", p.Revision)
 	}
-	streams.Printf("Status:    %s\n", p.Status)
-	streams.Printf("Triggered: %s by %s (%s)\n", p.CreatedAt, p.Trigger.Actor, p.Trigger.Type)
+	iostream.Printf(ctx, "Status:    %s\n", p.Status)
+	iostream.Printf(ctx, "Triggered: %s by %s (%s)\n", p.CreatedAt, p.Trigger.Actor, p.Trigger.Type)
 
 	if len(p.Errors) > 0 {
-		streams.Printf("\nErrors:\n")
+		iostream.Printf(ctx, "\nErrors:\n")
 		for _, e := range p.Errors {
-			streams.Printf("  [%s] %s\n", e.Type, e.Message)
+			iostream.Printf(ctx, "  [%s] %s\n", e.Type, e.Message)
 		}
 	}
 
 	if len(p.Workflows) > 0 {
-		streams.Printf("\nWorkflows:\n")
+		iostream.Printf(ctx, "\nWorkflows:\n")
 		for _, w := range p.Workflows {
-			streams.Printf("  %-30s  %s\n", w.Name, w.Status)
+			iostream.Printf(ctx, "  %-30s  %s\n", w.Name, w.Status)
 			for _, j := range w.Jobs {
 				if j.Type == "approval" {
-					streams.Printf("    %-36s  %s\n", j.Name, j.Status)
+					iostream.Printf(ctx, "    %-36s  %s\n", j.Name, j.Status)
 				} else {
-					streams.Printf("    %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
+					iostream.Printf(ctx, "    %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
 				}
 			}
 		}

@@ -88,16 +88,15 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 			if len(args) == 0 {
-				return runListRecent(ctx, client, streams, projectSlug, branch, limit, jsonOut)
+				return runListRecent(ctx, client, projectSlug, branch, limit, jsonOut)
 			}
-			return runList(ctx, client, streams, args[0], projectSlug, jsonOut)
+			return runList(ctx, client, args[0], projectSlug, jsonOut)
 		},
 	}
 
@@ -122,7 +121,7 @@ type workflowRecentOutput struct {
 	Status         string `json:"status"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, arg, projectSlug string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug string, jsonOut bool) error {
 	pipelineID, err := resolvePipelineID(ctx, client, arg, projectSlug)
 	if err != nil {
 		return err
@@ -146,22 +145,22 @@ func runList(ctx context.Context, client *apiclient.Client, streams iostream.Str
 		if out == nil {
 			out = []workflowListOutput{}
 		}
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
 	if len(out) == 0 {
-		streams.Printf("No workflows found for pipeline %s.\n", arg)
+		iostream.Printf(ctx, "No workflows found for pipeline %s.\n", arg)
 		return nil
 	}
 	for _, wf := range out {
-		streams.Printf("%-36s  %-28s  %s\n", wf.ID, wf.Name, wf.Status)
+		iostream.Printf(ctx, "%-36s  %-28s  %s\n", wf.ID, wf.Name, wf.Status)
 	}
 	return nil
 }
 
-func runListRecent(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, branch string, limit int, jsonOut bool) error {
+func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, gitErr := gitremote.Detect()
 		if gitErr != nil {
@@ -200,19 +199,19 @@ func runListRecent(ctx context.Context, client *apiclient.Client, streams iostre
 		if out == nil {
 			out = []workflowRecentOutput{}
 		}
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
 	if len(pipelines) == 0 {
-		streams.Printf("No pipelines found for project %s.\n", projectSlug)
+		iostream.Printf(ctx, "No pipelines found for project %s.\n", projectSlug)
 		return nil
 	}
 
 	for i, p := range pipelines {
 		if i > 0 {
-			streams.Printf("\n")
+			iostream.Printf(ctx, "\n")
 		}
 		branchName := ""
 		revision := ""
@@ -223,18 +222,18 @@ func runListRecent(ctx context.Context, client *apiclient.Client, streams iostre
 				revision = revision[:7]
 			}
 		}
-		streams.Printf("Pipeline #%d  %s  %s\n", p.Number, branchName, revision)
+		iostream.Printf(ctx, "Pipeline #%d  %s  %s\n", p.Number, branchName, revision)
 
 		workflows, wErr := client.GetPipelineWorkflows(ctx, p.ID)
 		if wErr != nil {
 			return apiErr(wErr, p.ID)
 		}
 		if len(workflows) == 0 {
-			streams.Printf("  (no workflows)\n")
+			iostream.Printf(ctx, "  (no workflows)\n")
 			continue
 		}
 		for _, wf := range workflows {
-			streams.Printf("  %-36s  %-28s  %s\n", wf.ID, wf.Name, wf.Status)
+			iostream.Printf(ctx, "  %-36s  %-28s  %s\n", wf.ID, wf.Name, wf.Status)
 		}
 	}
 	return nil

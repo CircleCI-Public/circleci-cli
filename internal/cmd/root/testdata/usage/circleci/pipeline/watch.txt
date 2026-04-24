@@ -28,4 +28,5 @@ Flags:
       --timeout duration   Maximum time to wait for pipeline completion (default 30m0s)
 
 Global Flags:
+      --debug   enable debug logging
   -q, --quiet   suppress informational output; data on stdout is unaffected

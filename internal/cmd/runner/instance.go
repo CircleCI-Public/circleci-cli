@@ -88,13 +88,12 @@ func newInstanceListCmd() *cobra.Command {
 			$ circleci runner instance list --resource-class my-org/my-runner --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runInstanceList(ctx, client, streams, resourceClass, namespace, jsonOut)
+			return runInstanceList(ctx, client, resourceClass, namespace, jsonOut)
 		},
 	}
 
@@ -146,7 +145,7 @@ func instanceStatus(lastConnectedAt string) string {
 	}
 }
 
-func runInstanceList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass, namespace string, jsonOut bool) error {
+func runInstanceList(ctx context.Context, client *apiclient.Client, resourceClass, namespace string, jsonOut bool) error {
 	if resourceClass == "" && namespace == "" {
 		ns, err := gitremote.DetectNamespace()
 		if err != nil {
@@ -187,22 +186,22 @@ func runInstanceList(ctx context.Context, client *apiclient.Client, streams iost
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
 	if len(out) == 0 {
 		if resourceClass != "" {
-			streams.Printf("No runner instances found for %s.\n", resourceClass)
+			iostream.Printf(ctx, "No runner instances found for %s.\n", resourceClass)
 		} else {
-			streams.Printf("No runner instances found.\n")
+			iostream.Printf(ctx, "No runner instances found.\n")
 		}
 		return nil
 	}
 
 	for _, inst := range out {
-		streams.Printf("%-40s  %-20s  %-7s  %s\n",
+		iostream.Printf(ctx, "%-40s  %-20s  %-7s  %s\n",
 			inst.ResourceClass, inst.Hostname, inst.Status, inst.LastConnected)
 	}
 	return nil

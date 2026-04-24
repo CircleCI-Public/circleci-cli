@@ -95,13 +95,12 @@ func newTokenListCmd() *cobra.Command {
 			$ circleci runner token list --resource-class my-org/my-runner --json | jq '.[].id'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runTokenList(ctx, client, streams, resourceClass, jsonOut)
+			return runTokenList(ctx, client, resourceClass, jsonOut)
 		},
 	}
 
@@ -117,7 +116,7 @@ type tokenOutput struct {
 	CreatedAt     string `json:"created_at"`
 }
 
-func runTokenList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass string, jsonOut bool) error {
+func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass string, jsonOut bool) error {
 	var resourceClasses []string
 	if resourceClass != "" {
 		resourceClasses = []string{resourceClass}
@@ -161,21 +160,21 @@ func runTokenList(ctx context.Context, client *apiclient.Client, streams iostrea
 		if out == nil {
 			out = []tokenOutput{}
 		}
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
 	if len(out) == 0 {
 		if resourceClass != "" {
-			streams.Printf("No tokens found for %s.\n", resourceClass)
+			iostream.Printf(ctx, "No tokens found for %s.\n", resourceClass)
 		} else {
-			streams.Printf("No tokens found.\n")
+			iostream.Printf(ctx, "No tokens found.\n")
 		}
 		return nil
 	}
 	for _, t := range out {
-		streams.Printf("%-36s  %-20s  %s\n", t.ID, t.Nickname, t.CreatedAt)
+		iostream.Printf(ctx, "%-36s  %-20s  %s\n", t.ID, t.Nickname, t.CreatedAt)
 	}
 	return nil
 }
@@ -213,13 +212,12 @@ func newTokenCreateCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "resource-class"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runTokenCreate(ctx, client, streams, args[0], nickname, jsonOut)
+			return runTokenCreate(ctx, client, args[0], nickname, jsonOut)
 		},
 	}
 
@@ -236,7 +234,7 @@ type tokenCreateOutput struct {
 	Token         string `json:"token"`
 }
 
-func runTokenCreate(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass, nickname string, jsonOut bool) error {
+func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass, nickname string, jsonOut bool) error {
 	tok, err := client.CreateRunnerToken(ctx, resourceClass, nickname)
 	if err != nil {
 		return apiErr(err, resourceClass)
@@ -251,18 +249,18 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, streams iostr
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	streams.Printf("Created token for resource class: %s\n", out.ResourceClass)
+	iostream.Printf(ctx, "Created token for resource class: %s\n", out.ResourceClass)
 	if out.Nickname != "" {
-		streams.Printf("Nickname:  %s\n", out.Nickname)
+		iostream.Printf(ctx, "Nickname:  %s\n", out.Nickname)
 	}
-	streams.Printf("ID:        %s\n", out.ID)
-	streams.Printf("Created:   %s\n", out.CreatedAt)
-	streams.Printf("\nToken (save this — it will not be shown again):\n%s\n", out.Token)
+	iostream.Printf(ctx, "ID:        %s\n", out.ID)
+	iostream.Printf(ctx, "Created:   %s\n", out.CreatedAt)
+	iostream.Printf(ctx, "\nToken (save this — it will not be shown again):\n%s\n", out.Token)
 	return nil
 }
 
@@ -301,13 +299,12 @@ func newTokenDeleteCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "token-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runTokenDelete(ctx, client, streams, args[0], force)
+			return runTokenDelete(ctx, client, args[0], force)
 		},
 	}
 
@@ -315,11 +312,11 @@ func newTokenDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func runTokenDelete(ctx context.Context, client *apiclient.Client, streams iostream.Streams, tokenID string, force bool) error {
+func runTokenDelete(ctx context.Context, client *apiclient.Client, tokenID string, force bool) error {
 	if !force {
-		if streams.IsInteractive() {
+		if iostream.IsInteractive(ctx) {
 			prompt := fmt.Sprintf("Delete token %q? Agents using this token will lose the ability to claim new jobs.", tokenID)
-			if !streams.Confirm(prompt) {
+			if !iostream.Confirm(ctx, prompt) {
 				return clierrors.New("runner.delete_aborted", "Deletion aborted",
 					"Token deletion was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled)
@@ -336,6 +333,6 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client, streams iostr
 		return apiErr(err, tokenID)
 	}
 
-	streams.Printf("Deleted token: %s\n", tokenID)
+	iostream.Printf(ctx, "Deleted token: %s\n", tokenID)
 	return nil
 }

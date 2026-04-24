@@ -41,10 +41,9 @@ func newLogoutCmd() *cobra.Command {
 		Short: "Remove stored credentials",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runLogout(ctx, secureStorage, streams)
+			return runLogout(ctx, secureStorage)
 		},
 	}
 
@@ -52,7 +51,7 @@ func newLogoutCmd() *cobra.Command {
 	return cmd
 }
 
-func runLogout(ctx context.Context, secureStorage bool, streams iostream.Streams) error {
+func runLogout(ctx context.Context, secureStorage bool) error {
 	cfg, err := config.Load(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
@@ -66,6 +65,6 @@ func runLogout(ctx context.Context, secureStorage bool, streams iostream.Streams
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	streams.ErrPrintf("%s Removed %s from keyring\n", streams.Symbol("✓", "OK:"), "token")
+	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.Symbol(ctx, "✓", "OK:"), "token")
 	return nil
 }

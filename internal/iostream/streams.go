@@ -24,11 +24,14 @@ package iostream
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 
+	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -49,6 +52,82 @@ func colorDisabled() bool {
 	return false
 }
 
+type contextKey struct{}
+
+func fromContext(ctx context.Context) Streams {
+	v := ctx.Value(contextKey{})
+	if v == nil {
+		return Streams{Out: io.Discard, Err: io.Discard, In: strings.NewReader(""), Quiet: true}
+	}
+	return v.(Streams)
+}
+
+func WithStreams(ctx context.Context, s Streams) context.Context {
+	return context.WithValue(ctx, contextKey{}, s)
+}
+
+// Package-level accessors for Steam functions
+
+func IsTerminal(ctx context.Context) bool {
+	return fromContext(ctx).IsTerminal()
+}
+
+func ColorEnabled(ctx context.Context) bool {
+	return fromContext(ctx).ColorEnabled()
+}
+
+func IsInteractive(ctx context.Context) bool {
+	return fromContext(ctx).IsInteractive()
+}
+
+func Symbol(ctx context.Context, unicode, ascii string) string {
+	return fromContext(ctx).Symbol(unicode, ascii)
+}
+
+func Print(ctx context.Context, v string) {
+	fromContext(ctx).Print(v)
+}
+
+func Printf(ctx context.Context, format string, a ...any) {
+	fromContext(ctx).Printf(format, a...)
+}
+
+func Println(ctx context.Context, a ...any) {
+	fromContext(ctx).Println(a...)
+}
+
+func ErrPrintf(ctx context.Context, format string, a ...any) {
+	fromContext(ctx).ErrPrintf(format, a...)
+}
+
+func ErrPrintln(ctx context.Context, a ...any) {
+	fromContext(ctx).ErrPrintln(a...)
+}
+
+func Confirm(ctx context.Context, prompt string) bool {
+	return fromContext(ctx).Confirm(prompt)
+}
+
+func DebugContext(ctx context.Context, msg string, args ...any) {
+	fromContext(ctx).DebugContext(ctx, msg, args...)
+}
+
+func Out(ctx context.Context) io.Writer {
+	return fromContext(ctx).Out
+}
+
+func Err(ctx context.Context) io.Writer {
+	return fromContext(ctx).Err
+}
+
+func In(ctx context.Context) io.Reader {
+	return fromContext(ctx).In
+}
+
+func Spin(ctx context.Context, active bool, msg string) *Spinner {
+	return fromContext(ctx).Spinner(active, msg)
+}
+
 // Streams bundles the I/O channels passed through every command.
 // All output must go through Streams — never write to os.Stdout directly.
 type Streams struct {
@@ -56,24 +135,39 @@ type Streams struct {
 	Err   io.Writer // status messages, errors, progress
 	In    io.Reader // user input for interactive prompts
 	Quiet bool      // when true, ErrPrintf/ErrPrintln produce no output
+	slog  *slog.Logger
 }
 
 // OS returns a Streams wired to the real os.Stdin / os.Stdout / os.Stderr.
-func OS() Streams {
-	return Streams{Out: os.Stdout, Err: os.Stderr, In: os.Stdin}
+func OS(ctx context.Context) context.Context {
+	return WithStreams(ctx, Streams{Out: os.Stdout, Err: os.Stderr, In: os.Stdin})
 }
 
 // FromCmd extracts Streams from a cobra.Command's Out/Err/In and reads the
 // --quiet persistent flag if registered on the root command.
-func FromCmd(cmd *cobra.Command) Streams {
+func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
+	lvl := log.InfoLevel
+	verbose, _ := cmd.Flags().GetBool("debug")
+	if verbose {
+		lvl = log.DebugLevel
+	}
+
 	quiet, _ := cmd.Flags().GetBool("quiet")
-	return Streams{Out: cmd.OutOrStdout(), Err: cmd.ErrOrStderr(), In: cmd.InOrStdin(), Quiet: quiet}
+	return WithStreams(ctx, Streams{
+		Out:   cmd.OutOrStdout(),
+		Err:   cmd.ErrOrStderr(),
+		In:    cmd.InOrStdin(),
+		Quiet: quiet,
+		slog: slog.New(log.NewWithOptions(cmd.ErrOrStderr(), log.Options{
+			Level: lvl,
+		})),
+	})
 }
 
 // Test returns a Streams backed by the provided writers with no-op stdin,
 // useful in tests that don't exercise interactive prompts.
-func Test(out, err io.Writer) Streams {
-	return Streams{Out: out, Err: err, In: strings.NewReader("")}
+func Test(ctx context.Context, out, err io.Writer) context.Context {
+	return WithStreams(ctx, Streams{Out: out, Err: err, In: strings.NewReader("")})
 }
 
 // IsTerminal reports whether Out is a terminal (i.e. a human is watching).
@@ -160,4 +254,8 @@ func (s Streams) Confirm(prompt string) bool {
 	}
 	response := strings.TrimSpace(strings.ToLower(scanner.Text()))
 	return response == "y" || response == "yes"
+}
+
+func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
+	s.slog.DebugContext(ctx, msg, args...)
 }

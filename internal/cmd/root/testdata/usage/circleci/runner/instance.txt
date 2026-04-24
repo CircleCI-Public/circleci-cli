@@ -5,6 +5,7 @@ Available Commands:
   list        List connected runner instances
 
 Global Flags:
+      --debug   enable debug logging
   -q, --quiet   suppress informational output; data on stdout is unaffected
 
 Use "circleci runner instance [command] --help" for more information about a command.

@@ -57,19 +57,18 @@ func newSetCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			if cliErr := cmdutil.RequireArgs(args, "key", "value"); cliErr != nil {
 				return cliErr
 			}
-			streams := iostream.FromCmd(cmd)
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runSet(ctx, secureStorage, streams, args[0], args[1])
+			return runSet(ctx, secureStorage, args[0], args[1])
 		},
 	}
 	return cmd
 }
 
-func runSet(ctx context.Context, secureStorage bool, streams iostream.Streams, key, value string) error {
+func runSet(ctx context.Context, secureStorage bool, key, value string) error {
 	cfg, err := config.Load(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
@@ -94,10 +93,9 @@ func runSet(ctx context.Context, secureStorage bool, streams iostream.Streams, k
 
 	path, _ := config.Path()
 	if key == "token" && secureStorage {
-		streams.ErrPrintf("%s Saved %s to keyring\n", streams.Symbol("✓", "OK:"), key)
+		iostream.ErrPrintf(ctx, "%s Saved %s to keyring\n", iostream.Symbol(ctx, "✓", "OK:"), key)
 	} else {
-		streams.ErrPrintf("%s Saved %s to %s\n", streams.Symbol("✓", "OK:"), key, path)
-
+		iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.Symbol(ctx, "✓", "OK:"), key, path)
 	}
 	return nil
 }

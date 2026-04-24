@@ -85,15 +85,14 @@ func NewArtifactsCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return run(ctx, client, streams, args, jobNumber, projectSlug, branch, downloadDir, jsonOut)
+			return run(ctx, client, args, jobNumber, projectSlug, branch, downloadDir, jsonOut)
 		},
 	}
 
@@ -106,7 +105,7 @@ func NewArtifactsCmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, jobNumber int64, projectSlug, branch, downloadDir string, jsonOut bool) error {
+func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber int64, projectSlug, branch, downloadDir string, jsonOut bool) error {
 	var (
 		err     error
 		entries []artifacts.Entry
@@ -130,7 +129,7 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 	case len(args) == 1:
 		// Explicit pipeline UUID
 		pipelineID := args[0]
-		sp := streams.Spinner(!jsonOut, fmt.Sprintf("Fetching artifacts for pipeline %s", pipelineID))
+		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Fetching artifacts for pipeline %s", pipelineID))
 		entries, err = artifacts.ForPipeline(ctx, client, pipelineID)
 		sp.Stop()
 		if err != nil {
@@ -147,7 +146,7 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 		if effectiveBranch == "" {
 			effectiveBranch = info.Branch
 		}
-		sp := streams.Spinner(!jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
+		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
 		pipeline, err := client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
 		sp.Stop()
 		if err != nil {
@@ -161,34 +160,34 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 
 	if len(entries) == 0 {
 		if !jsonOut {
-			streams.ErrPrintln("No artifacts found.")
+			iostream.ErrPrintln(ctx, "No artifacts found.")
 			return nil
 		}
 		entries = []artifacts.Entry{}
 	}
 
 	if downloadDir != "" {
-		sp := streams.Spinner(!jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
+		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
 		dlErr := artifacts.Download(ctx, client, entries, downloadDir)
 		sp.Stop()
 		if dlErr != nil {
 			return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
 				WithExitCode(clierrors.ExitGeneralError)
 		}
-		streams.ErrPrintf("%s Downloaded %d artifact(s)\n", streams.Symbol("✓", "OK:"), len(entries))
+		iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.Symbol(ctx, "✓", "OK:"), len(entries))
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(entries)
 	}
 
-	printArtifacts(streams, entries)
+	printArtifacts(ctx, entries)
 	return nil
 }
 
-func printArtifacts(streams iostream.Streams, entries []artifacts.Entry) {
+func printArtifacts(ctx context.Context, entries []artifacts.Entry) {
 	// Print a flat table. Show job columns only when there's more than one job.
 	multiJob := false
 	first := entries[0].JobNumber
@@ -200,14 +199,14 @@ func printArtifacts(streams iostream.Streams, entries []artifacts.Entry) {
 	}
 
 	if multiJob {
-		streams.Printf("%-30s  %-6s  %s\n", "JOB", "JOB #", "PATH")
-		streams.Printf("%-30s  %-6s  %s\n", "---", "-----", "----")
+		iostream.Printf(ctx, "%-30s  %-6s  %s\n", "JOB", "JOB #", "PATH")
+		iostream.Printf(ctx, "%-30s  %-6s  %s\n", "---", "-----", "----")
 		for _, e := range entries {
-			streams.Printf("%-30s  %-6d  %s\n", e.JobName, e.JobNumber, e.Path)
+			iostream.Printf(ctx, "%-30s  %-6d  %s\n", e.JobName, e.JobNumber, e.Path)
 		}
 	} else {
 		for _, e := range entries {
-			streams.Println(e.Path)
+			iostream.Println(ctx, e.Path)
 		}
 	}
 }

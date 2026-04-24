@@ -59,12 +59,11 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			secureStorage := cmdutil.IsSecureStorage(cmd)
 
-			return runList(ctx, secureStorage, streams, jsonOut)
+			return runList(ctx, secureStorage, jsonOut)
 		},
 	}
 
@@ -72,7 +71,7 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(ctx context.Context, secureStorage bool, streams iostream.Streams, jsonOut bool) error {
+func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 	cfg, err := config.Load(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
@@ -88,14 +87,14 @@ func runList(ctx context.Context, secureStorage bool, streams iostream.Streams, 
 			"token_set": tokenSet,
 			"host":      cfg.EffectiveHost(),
 		}
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	streams.Printf("Config file: %s\n\n", path)
-	streams.Printf("%-10s  %s\n", "token", maskToken(cfg.EffectiveToken()))
-	streams.Printf("%-10s  %s\n", "host", cfg.EffectiveHost())
+	iostream.Printf(ctx, "Config file: %s\n\n", path)
+	iostream.Printf(ctx, "%-10s  %s\n", "token", maskToken(cfg.EffectiveToken()))
+	iostream.Printf(ctx, "%-10s  %s\n", "host", cfg.EffectiveHost())
 	return nil
 }
 

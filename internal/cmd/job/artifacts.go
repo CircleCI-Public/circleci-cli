@@ -76,14 +76,13 @@ func newArtifactsCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			err := cmdutil.RequireArgs(args, "job-number")
 			if err != nil {
 				return err
 			}
 
-			streams := iostream.FromCmd(cmd)
 			jobNumber, err := strconv.ParseInt(args[0], 10, 64)
 			if err != nil {
 				return clierrors.New("args.invalid_job_number", "Invalid job number",
@@ -96,7 +95,7 @@ func newArtifactsCmd() *cobra.Command {
 				return err
 			}
 
-			return runJobArtifacts(ctx, client, streams, jobNumber, projectSlug, downloadDir, jsonOut)
+			return runJobArtifacts(ctx, client, jobNumber, projectSlug, downloadDir, jsonOut)
 		},
 	}
 
@@ -107,7 +106,7 @@ func newArtifactsCmd() *cobra.Command {
 	return cmd
 }
 
-func runJobArtifacts(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jobNumber int64, projectSlug, downloadDir string, jsonOut bool) error {
+func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber int64, projectSlug, downloadDir string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -132,29 +131,29 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, streams iost
 	}
 
 	if len(entries) == 0 {
-		streams.ErrPrintln("No artifacts found.")
+		iostream.ErrPrintln(ctx, "No artifacts found.")
 		return nil
 	}
 
 	if downloadDir != "" {
-		sp := streams.Spinner(true, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
+		sp := iostream.Spin(ctx, true, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
 		dlErr := artifacts.Download(ctx, client, entries, downloadDir)
 		sp.Stop()
 		if dlErr != nil {
 			return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
 				WithExitCode(clierrors.ExitGeneralError)
 		}
-		streams.ErrPrintf("%s Downloaded %d artifact(s)\n", streams.Symbol("✓", "OK:"), len(entries))
+		iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.Symbol(ctx, "✓", "OK:"), len(entries))
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(entries)
 	}
 
 	for _, e := range entries {
-		streams.Println(e.Path)
+		iostream.Println(ctx, e.Path)
 	}
 	return nil
 }

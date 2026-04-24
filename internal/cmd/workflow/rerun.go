@@ -63,13 +63,12 @@ func newRerunCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "workflow-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runRerun(ctx, client, streams, args[0], fromFailed)
+			return runRerun(ctx, client, args[0], fromFailed)
 		},
 	}
 
@@ -77,15 +76,15 @@ func newRerunCmd() *cobra.Command {
 	return cmd
 }
 
-func runRerun(ctx context.Context, client *apiclient.Client, streams iostream.Streams, id string, fromFailed bool) error {
+func runRerun(ctx context.Context, client *apiclient.Client, id string, fromFailed bool) error {
 	if err := client.RerunWorkflow(ctx, id, fromFailed); err != nil {
 		return apiErr(err, id)
 	}
 
 	if fromFailed {
-		streams.Printf("Rerunning failed jobs in workflow %s\n", id)
+		iostream.Printf(ctx, "Rerunning failed jobs in workflow %s\n", id)
 	} else {
-		streams.Printf("Rerunning workflow %s from scratch\n", id)
+		iostream.Printf(ctx, "Rerunning workflow %s from scratch\n", id)
 	}
 	return nil
 }

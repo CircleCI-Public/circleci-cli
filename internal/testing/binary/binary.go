@@ -33,6 +33,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -92,10 +93,16 @@ func RunCLI(t *testing.T, args []string, env []string, workDir string) CLIResult
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	argsWithInsecure := append([]string{"--insecure-storage=true"}, args...)
-	t.Logf("Running CLI: %s %s\n", binaryPath, argsWithInsecure)
+	fullArgs := []string{
+		"--insecure-storage",
+	}
+	if !slices.Contains(args, "--quiet") {
+		fullArgs = append(fullArgs, "--debug")
+	}
+	fullArgs = append(fullArgs, args...)
+	t.Logf("Running CLI: %s %s\n", binaryPath, fullArgs)
 
-	cmd := exec.CommandContext(ctx, binaryPath, argsWithInsecure...)
+	cmd := exec.CommandContext(ctx, binaryPath, fullArgs...)
 	cmd.Dir = workDir
 	cmd.Env = env
 

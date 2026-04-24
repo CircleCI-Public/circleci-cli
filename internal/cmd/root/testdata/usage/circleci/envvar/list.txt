@@ -17,4 +17,5 @@ Flags:
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
 
 Global Flags:
+      --debug   enable debug logging
   -q, --quiet   suppress informational output; data on stdout is unaffected

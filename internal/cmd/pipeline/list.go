@@ -76,13 +76,12 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, streams, projectSlug, branch, limit, jsonOut)
+			return runList(ctx, client, projectSlug, branch, limit, jsonOut)
 		},
 	}
 
@@ -108,7 +107,7 @@ type pipelineListEntry struct {
 	} `json:"trigger"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, branch string, limit int, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -134,17 +133,17 @@ func runList(ctx context.Context, client *apiclient.Client, streams iostream.Str
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(entries)
 	}
 
 	if len(pipelines) == 0 {
-		streams.ErrPrintln("No pipelines found.")
+		iostream.ErrPrintln(ctx, "No pipelines found.")
 		return nil
 	}
 
-	printList(streams, entries)
+	printList(ctx, entries)
 	return nil
 }
 
@@ -168,13 +167,13 @@ func pipelineToListEntry(p *apiclient.Pipeline) pipelineListEntry {
 	return e
 }
 
-func printList(streams iostream.Streams, entries []pipelineListEntry) {
+func printList(ctx context.Context, entries []pipelineListEntry) {
 	for _, e := range entries {
 		state := ""
 		if e.State == "errored" {
 			state = "  [errored]"
 		}
-		streams.Printf("#%-4d  %-20s  %s  %s  %s%s\n",
+		iostream.Printf(ctx, "#%-4d  %-20s  %s  %s  %s%s\n",
 			e.Number, e.Branch, e.Revision, e.ID, e.CreatedAt, state)
 	}
 }
