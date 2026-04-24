@@ -27,6 +27,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -141,9 +142,12 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 		return nil
 	}
 
+	var md strings.Builder
+	md.WriteString("# Environment variables\n")
 	for _, v := range vars {
-		iostream.Printf(ctx, "%-40s  %s\n", v.Name, v.Value)
+		_, _ = fmt.Fprintf(&md, "- %-40s  %s\n", v.Name, v.Value)
 	}
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }
 
