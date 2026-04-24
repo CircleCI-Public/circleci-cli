@@ -71,6 +71,21 @@ func TestPipelineWatch_ByNumber(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
+// --- watch by UUID (no --project or --branch needed) ---
+
+func TestPipelineWatch_ByUUID(t *testing.T) {
+	pipelineID := "0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd"
+	_, env := setupWatchFake(t, pipelineID, "watch-wf-uuid-001", "success")
+
+	result := binary.RunCLI(t,
+		[]string{"pipeline", "watch", pipelineID},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "#75"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
+}
+
 // --- watch latest (no number arg) ---
 
 func TestPipelineWatch_Latest(t *testing.T) {

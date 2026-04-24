@@ -62,7 +62,7 @@ func newWatchCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "watch [<pipeline-number>]",
+		Use:   "watch [<pipeline-number-or-id>]",
 		Short: "Watch a pipeline until it completes",
 		Long: heredoc.Doc(`
 			Monitor a CircleCI pipeline and block until it reaches a terminal state.
@@ -74,7 +74,7 @@ func newWatchCmd() *cobra.Command {
 			  8 = timed out before pipeline completed
 
 			Without arguments, watches the latest pipeline for the current branch.
-			Pass a pipeline number to watch a specific pipeline.
+			Pass a pipeline number or UUID to watch a specific pipeline.
 
 			With --sha, searches the pipeline list for a pipeline matching that
 			commit. If not yet found, polls for up to 2 minutes — useful when run
@@ -89,6 +89,9 @@ func newWatchCmd() *cobra.Command {
 
 			# Watch a specific pipeline number
 			$ circleci pipeline watch 75
+
+			# Watch by UUID (e.g. from 'pipeline list --json')
+			$ circleci pipeline watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd
 
 			# Watch a pipeline on a different branch
 			$ circleci pipeline watch --branch main
@@ -117,8 +120,12 @@ func newWatchCmd() *cobra.Command {
 }
 
 func runWatch(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, projectSlug, branch, sha string, timeout time.Duration) error {
+	// If the argument looks like a UUID, we can resolve the pipeline directly
+	// without needing a project slug or branch from git.
+	isUUID := len(args) == 1 && strings.Contains(args[0], "-")
+
 	// Resolve project and branch from git if not fully specified.
-	needsGit := projectSlug == "" || (branch == "" && sha == "" && len(args) == 0)
+	needsGit := !isUUID && (projectSlug == "" || (branch == "" && sha == "" && len(args) == 0))
 	if needsGit {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -142,6 +149,12 @@ func runWatch(ctx context.Context, client *apiclient.Client, streams iostream.St
 	var err error
 
 	switch {
+	case isUUID:
+		pipeline, err = client.GetPipeline(ctx, args[0])
+		if err != nil {
+			return apiErr(err, args[0])
+		}
+
 	case len(args) == 1:
 		number, _ := strconv.ParseInt(args[0], 10, 64)
 		pipeline, err = client.GetPipelineByNumber(ctx, projectSlug, number)
