@@ -23,7 +23,6 @@
 package iostream
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -31,9 +30,12 @@ import (
 	"os"
 	"strings"
 
+	tea "charm.land/bubbletea/v2"
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
 // colorDisabled returns true when any of the standard "no color" signals are present.
@@ -105,7 +107,7 @@ func ErrPrintln(ctx context.Context, a ...any) {
 }
 
 func Confirm(ctx context.Context, prompt string) bool {
-	return fromContext(ctx).Confirm(prompt)
+	return fromContext(ctx).Confirm(ctx, prompt)
 }
 
 func DebugContext(ctx context.Context, msg string, args ...any) {
@@ -242,18 +244,21 @@ func (s Streams) ErrPrintln(a ...any) {
 	_, _ = fmt.Fprintln(s.Err, a...)
 }
 
-// Confirm prints prompt followed by " [y/N] " to stderr and reads one line
-// from In. Returns true only if the user types "y" or "yes" (case-insensitive).
-// Returns false on empty input, "n"/"no", EOF, or any read error — the safe
-// answer is always No.
-func (s Streams) Confirm(prompt string) bool {
-	_, _ = fmt.Fprintf(s.Err, "%s [y/N] ", prompt)
-	scanner := bufio.NewScanner(s.In)
-	if !scanner.Scan() {
+// Confirm presents a y/N confirmation prompt via bubbletea.
+// Returns true only if the user presses y/Y. Returns false on n/N, esc,
+// ctrl+c, enter, or any program error — the safe answer is always No.
+func (s Streams) Confirm(ctx context.Context, prompt string) bool {
+	p := tea.NewProgram(
+		ui.NewConfirmModel(prompt),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
 		return false
 	}
-	response := strings.TrimSpace(strings.ToLower(scanner.Text()))
-	return response == "y" || response == "yes"
+	return anyModel.(ui.ConfirmModel).Confirmed()
 }
 
 func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
