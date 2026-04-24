@@ -193,6 +193,34 @@ Global flags typically go *before* the subcommand. Subcommand flags go *after*.
 
 ---
 
+## Group Command Implementation
+
+Group commands (commands that only contain subcommands and have no action of their own) must
+handle the case where the user passes an unknown subcommand. Without intervention, Cobra silently
+shows the parent's help and exits 0 — indistinguishable from success.
+
+Set `RunE` and `FParseErrWhitelist` on every group command:
+
+```go
+cmd := &cobra.Command{
+    Use:                "pipeline <command>",
+    RunE:               cmdutil.GroupRunE,
+    FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+}
+```
+
+`GroupRunE` shows help when called with no arguments, and returns a structured "unknown command"
+error when any arguments are present. `FParseErrWhitelist{UnknownFlags: true}` is required so
+that unknown flags following an unknown subcommand (e.g. `pipeline foobar --branch main`) are
+passed through to `GroupRunE` rather than being rejected by Cobra's flag parser first — which
+would produce a misleading "unknown flag" error.
+
+Without both, these two failure modes go undetected:
+- `circleci pipeline foobar` → exits 0 (looks like success)
+- `circleci pipeline foobar --branch main` → "unknown flag: --branch" (wrong diagnosis)
+
+---
+
 ## Summary Checklist
 
 - [ ] Subcommands used for logically distinct operations, not just namespacing
@@ -203,3 +231,4 @@ Global flags typically go *before* the subcommand. Subcommand flags go *after*.
 - [ ] Most-used subcommands listed first in help
 - [ ] Nesting kept shallow (one level preferred, two levels max)
 - [ ] Global vs. subcommand-specific flags clearly distinguished
+- [ ] Group commands use `RunE: cmdutil.GroupRunE` + `FParseErrWhitelist{UnknownFlags: true}`

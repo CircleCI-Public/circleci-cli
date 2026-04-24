@@ -162,8 +162,10 @@ NO_COLOR=1 ./dist/circleci --help      # verify color is disabled
 CI=true ./dist/circleci --help         # verify CI mode
 ```
 
-`task test` runs `./...` which includes `acceptance/`. There is no separate unit-only target;
-the acceptance tests are fast enough (fake HTTP servers, no real network) to always run.
+`task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
+Acceptance tests exec the compiled binary as a subprocess, so `go test` cannot invalidate their
+cache when source files change — a stale green result is possible if caching is allowed. The
+`-count=1` flag on the acceptance run prevents this.
 
 Tools (golangci-lint, gotestsum, gosimports) are pinned via the `tool` directive in
 `go.mod` and invoked as `go tool <name>` — no separate install step needed.
@@ -198,6 +200,10 @@ Tools (golangci-lint, gotestsum, gosimports) are pinned via the `tool` directive
 2. Add individual verb files alongside it.
 3. Register the group in `internal/cmd/root/root.go`.
 4. Add `internal/<domain>/` for any shared business logic.
+5. Set `RunE: cmdutil.GroupRunE` and `FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true}`
+   on the group command. Without this, unknown subcommands silently show help and exit 0 (looks like
+   success), and unknown flags after an unknown subcommand produce a misleading "unknown flag" error
+   instead of "unknown command".
 
 ---
 
