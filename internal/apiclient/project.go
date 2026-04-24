@@ -37,6 +37,15 @@ type Project struct {
 	RepoName string `json:"reponame"`
 }
 
+// ProjectV2 is the response from GET /api/v2/project/{slug}.
+type ProjectV2 struct {
+	ID               string `json:"id"`
+	Slug             string `json:"slug"`
+	Name             string `json:"name"`
+	OrganizationName string `json:"organization_name"`
+	OrganizationID   string `json:"organization_id"`
+}
+
 // EnvVar is a project environment variable.
 // The value is masked in list responses; it is only returned on set.
 type EnvVar struct {
@@ -89,4 +98,13 @@ func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string)
 // DeleteEnvVar deletes a project environment variable by name.
 func (c *Client) DeleteEnvVar(ctx context.Context, projectSlug, name string) error {
 	return c.deleteV2(ctx, fmt.Sprintf("/project/%s/envvar/%s", projectSlug, name))
+}
+
+// GetProject returns project details including the project UUID.
+func (c *Client) GetProject(ctx context.Context, projectSlug string) (*ProjectV2, error) {
+	var project ProjectV2
+	if err := c.get(ctx, fmt.Sprintf("/project/%s", projectSlug), &project); err != nil {
+		return nil, err
+	}
+	return &project, nil
 }

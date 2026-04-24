@@ -70,6 +70,11 @@ type CircleCI struct {
 	envVars          map[string][]any // project slug → env vars
 	deletedEnvVars   map[string]bool  // "slug/name" → deleted
 
+	// Pipeline definition state.
+	projectsV2        map[string]any   // project slug → project info response
+	pipelineDefinitions map[string][]any // project UUID → pipeline definitions
+	pipelineRunResponses  map[string]any   // project slug → trigger run response body
+
 	// Auth state.
 	me any // response for GET /api/v2/me
 }
@@ -101,6 +106,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		followedSlugs:           map[string]bool{},
 		envVars:                 map[string][]any{},
 		deletedEnvVars:          map[string]bool{},
+		projectsV2:            map[string]any{},
+		pipelineDefinitions:     map[string][]any{},
+		pipelineRunResponses:     map[string]any{},
 	}
 
 	r := newRouter()
@@ -116,6 +124,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJob)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
+	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline/run", f.handleRunPipeline)
+	r.Get("/api/v2/projects/{projectID}/pipeline-definitions", f.handleListPipelineDefinitions)
 	r.Get("/api/v1.1/project/{vcs}/{org}/{repo}/{jobNumber}", f.handleGetJobV1)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
 	// project slug, so we match three separate path segments rather than {slug}.
@@ -232,6 +243,29 @@ func (f *CircleCI) SetTriggerResponse(slug string, resp any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.triggerResponses[slug] = resp
+}
+
+// AddProjectV2 registers the response body returned when GET
+// /api/v2/project/<slug> is called. slug should be in "vcs/org/repo" form.
+func (f *CircleCI) AddProjectV2(slug string, project any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.projectsV2[slug] = project
+}
+
+// AddPipelineDefinition registers a pipeline definition for a project UUID.
+func (f *CircleCI) AddPipelineDefinition(projectID string, def any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pipelineDefinitions[projectID] = append(f.pipelineDefinitions[projectID], def)
+}
+
+// SetRunPipelineResponse registers the response body returned when POST
+// /api/v2/project/<slug>/pipeline/run is called. slug should be in "vcs/org/repo" form.
+func (f *CircleCI) SetRunPipelineResponse(slug string, resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pipelineRunResponses[slug] = resp
 }
 
 // AddJob registers a job detail response for GET /api/v2/project/<slug>/job/<number>.
@@ -412,6 +446,47 @@ func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request)
 	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
 	resp, ok := f.triggerResponses[slug]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "project not found"})
+		return
+	}
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
+}
+
+func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	f.mu.RLock()
+	info, ok := f.projectsV2[slug]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "project not found"})
+		return
+	}
+	render.JSON(w, r, info)
+}
+
+func (f *CircleCI) handleListPipelineDefinitions(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	f.mu.RLock()
+	defs := f.pipelineDefinitions[projectID]
+	f.mu.RUnlock()
+
+	if defs == nil {
+		defs = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": defs})
+}
+
+func (f *CircleCI) handleRunPipeline(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	f.mu.RLock()
+	resp, ok := f.pipelineRunResponses[slug]
 	f.mu.RUnlock()
 
 	if !ok {

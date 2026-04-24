@@ -24,6 +24,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -44,6 +45,7 @@ func newTriggerCmd() *cobra.Command {
 		branch      string
 		params      []string
 		jsonOut     bool
+		definition  string
 	)
 
 	cmd := &cobra.Command{
@@ -58,6 +60,12 @@ func newTriggerCmd() *cobra.Command {
 			Pass pipeline parameters with --parameter. Values are parsed as
 			booleans (true/false), integers, or strings.
 
+			Use --definition to trigger a specific pipeline definition by name
+			or UUID. Pipeline definitions can be found in your project's settings
+			under Pipelines. When --definition is provided, the newer pipeline
+			trigger API is used which supports GitHub App and Bitbucket Data Center
+			projects.
+
 			JSON fields: id, number, state, created_at
 		`),
 		Example: heredoc.Doc(`
@@ -66,6 +74,12 @@ func newTriggerCmd() *cobra.Command {
 
 			# Trigger on a specific branch
 			$ circleci pipeline trigger --branch main
+
+			# Trigger a specific pipeline definition by name
+			$ circleci pipeline trigger --definition "my deploy pipeline"
+
+			# Trigger a specific pipeline definition by UUID
+			$ circleci pipeline trigger --definition 2338d0ae-5541-4bbf-88a2-55e9f7281f80
 
 			# Trigger with pipeline parameters
 			$ circleci pipeline trigger --parameter deploy_env=staging --parameter run_e2e=true
@@ -80,7 +94,7 @@ func newTriggerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTrigger(ctx, client, projectSlug, branch, params, jsonOut)
+			return runTrigger(ctx, client, projectSlug, branch, params, jsonOut, definition)
 		},
 	}
 
@@ -88,6 +102,7 @@ func newTriggerCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch to trigger (defaults to current branch)")
 	cmd.Flags().StringArrayVar(&params, "parameter", nil, "Pipeline parameter as key=value (repeatable)")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output the triggered pipeline as JSON")
+	cmd.Flags().StringVar(&definition, "definition", "", "Pipeline definition name or UUID to trigger")
 
 	return cmd
 }
@@ -99,7 +114,7 @@ type triggerJSONOutput struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, branch string, params []string, jsonOut bool) error {
+func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, branch string, params []string, jsonOut bool, definition string) error {
 	effectiveBranch := branch
 	if projectSlug == "" || effectiveBranch == "" {
 		info, err := gitremote.Detect()
@@ -122,9 +137,22 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	resp, err := client.TriggerPipeline(ctx, projectSlug, effectiveBranch, parsedParams)
-	if err != nil {
-		return apiErr(err, projectSlug)
+	var resp *apiclient.TriggerResponse
+	if definition != "" {
+		resp, err = triggerWithDefinition(ctx, client, projectSlug, effectiveBranch, parsedParams, definition)
+		if err != nil {
+			// triggerWithDefinition returns CLIErrors directly; don't re-wrap them.
+			var cliErr *clierrors.CLIError
+			if errors.As(err, &cliErr) {
+				return err
+			}
+			return apiErr(err, projectSlug)
+		}
+	} else {
+		resp, err = client.TriggerPipeline(ctx, projectSlug, effectiveBranch, parsedParams)
+		if err != nil {
+			return apiErr(err, projectSlug)
+		}
 	}
 
 	if jsonOut {
@@ -139,6 +167,64 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 
 	iostream.Printf(ctx, "Triggered pipeline #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)
 	return nil
+}
+
+// looksLikeUUID returns true if s looks like a UUID (contains hyphens and is
+// the right length). This is a heuristic, not a strict validation — the API
+// will reject truly invalid IDs.
+func looksLikeUUID(s string) bool {
+	return len(s) == 36 && strings.Count(s, "-") == 4
+}
+
+// triggerWithDefinition resolves a pipeline definition by name or UUID, then
+// triggers it using the new pipeline run endpoint.
+func triggerWithDefinition(ctx context.Context, client *apiclient.Client, projectSlug, branch string, params map[string]any, definition string) (*apiclient.TriggerResponse, error) {
+	definitionID := definition
+	if !looksLikeUUID(definition) {
+		// Resolve name → UUID: first get project ID, then list definitions.
+		project, err := client.GetProject(ctx, projectSlug)
+		if err != nil {
+			return nil, clierrors.New("project.lookup_failed",
+				"Could not look up project",
+				fmt.Sprintf("Failed to fetch project %q: %s", projectSlug, err)).
+				WithSuggestions("Check the project slug and try again").
+				WithExitCode(clierrors.ExitAPIError)
+		}
+
+		defs, err := client.ListPipelineDefinitions(ctx, project.ID)
+		if err != nil {
+			return nil, clierrors.New("pipeline_definition.list_failed",
+				"Could not list pipeline definitions",
+				fmt.Sprintf("Failed to list pipeline definitions for project %q: %s", projectSlug, err)).
+				WithSuggestions("Check your API token and project permissions").
+				WithExitCode(clierrors.ExitAPIError)
+		}
+
+		var matched *apiclient.PipelineDefinition
+		for i := range defs {
+			if strings.EqualFold(defs[i].Name, definition) {
+				matched = &defs[i]
+				break
+			}
+		}
+		if matched == nil {
+			names := make([]string, len(defs))
+			for i, d := range defs {
+				names[i] = d.Name
+			}
+			return nil, clierrors.New("pipeline_definition.not_found",
+				"Pipeline definition not found",
+				fmt.Sprintf("No pipeline definition named %q. Available definitions: %s", definition, strings.Join(names, ", "))).
+				WithSuggestions(
+					"Check the definition name in Project Settings > Pipelines",
+					"Or pass a pipeline definition UUID instead",
+				).
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		definitionID = matched.ID
+	}
+
+	return client.RunPipeline(ctx, projectSlug, definitionID, branch, params)
 }
 
 // parseParams converts ["key=value", ...] into a map, coercing values to bool

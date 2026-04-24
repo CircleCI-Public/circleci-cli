@@ -324,6 +324,105 @@ func TestPipelineTrigger_NoToken(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
+// --- pipeline trigger --definition ---
+
+func TestPipelineTrigger_DefinitionByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	projectID := "proj-uuid-1234"
+
+	fake.AddProjectV2(slug, map[string]any{
+		"id":                projectID,
+		"slug":              slug,
+		"name":              "testrepo",
+		"organization_name": "testorg",
+		"organization_id":   "org-uuid-5678",
+	})
+	fake.AddPipelineDefinition(projectID, map[string]any{
+		"id":         "def-uuid-aaaa-bbbb-cccc-dddddddddddd",
+		"name":       "deploy",
+		"created_at": "2026-01-01T00:00:00Z",
+	})
+	fake.AddPipelineDefinition(projectID, map[string]any{
+		"id":         "def-uuid-1111-2222-3333-444444444444",
+		"name":       "test",
+		"created_at": "2026-01-01T00:00:00Z",
+	})
+	fake.SetRunPipelineResponse(slug, map[string]any{
+		"id":         "run-pipeline-uuid",
+		"state":      "created",
+		"number":     99,
+		"created_at": time.Now().UTC().Format(time.RFC3339),
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--definition", "deploy"},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "#99"), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "run-pipeline-uuid"), "stdout: %s", result.Stdout)
+}
+
+func TestPipelineTrigger_DefinitionByUUID(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	defID := "2338d0ae-5541-4bbf-88a2-55e9f7281f80"
+
+	fake.SetRunPipelineResponse(slug, map[string]any{
+		"id":         "run-pipeline-uuid",
+		"state":      "created",
+		"number":     100,
+		"created_at": time.Now().UTC().Format(time.RFC3339),
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--definition", defID},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "#100"), "stdout: %s", result.Stdout)
+}
+
+func TestPipelineTrigger_DefinitionNotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	projectID := "proj-uuid-1234"
+
+	fake.AddProjectV2(slug, map[string]any{
+		"id":                projectID,
+		"slug":              slug,
+		"name":              "testrepo",
+		"organization_name": "testorg",
+		"organization_id":   "org-uuid-5678",
+	})
+	fake.AddPipelineDefinition(projectID, map[string]any{
+		"id":         "def-uuid-aaaa-bbbb-cccc-dddddddddddd",
+		"name":       "deploy",
+		"created_at": "2026-01-01T00:00:00Z",
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t,
+		[]string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--definition", "nonexistent"},
+		env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
+	assert.Check(t, cmp.Contains(result.Stderr, "nonexistent"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "deploy"), "should list available definitions, stderr: %s", result.Stderr)
+}
+
 // --- pipeline cancel ---
 
 func TestPipelineCancel(t *testing.T) {

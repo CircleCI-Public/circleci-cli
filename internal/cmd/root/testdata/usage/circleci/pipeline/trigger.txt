@@ -8,6 +8,12 @@ $ circleci pipeline trigger
 # Trigger on a specific branch
 $ circleci pipeline trigger --branch main
 
+# Trigger a specific pipeline definition by name
+$ circleci pipeline trigger --definition "my deploy pipeline"
+
+# Trigger a specific pipeline definition by UUID
+$ circleci pipeline trigger --definition 2338d0ae-5541-4bbf-88a2-55e9f7281f80
+
 # Trigger with pipeline parameters
 $ circleci pipeline trigger --parameter deploy_env=staging --parameter run_e2e=true
 
@@ -17,6 +23,7 @@ $ circleci pipeline trigger --json
 
 Flags:
   -b, --branch string           Branch to trigger (defaults to current branch)
+      --definition string       Pipeline definition name or UUID to trigger
       --json                    Output the triggered pipeline as JSON
       --parameter stringArray   Pipeline parameter as key=value (repeatable)
       --project string          Project slug (e.g. gh/org/repo); defaults to git remote

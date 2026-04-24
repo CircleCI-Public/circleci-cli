@@ -190,6 +190,48 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 	return &resp, nil
 }
 
+// PipelineDefinition represents a pipeline definition for a project.
+type PipelineDefinition struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+// ListPipelineDefinitions returns all pipeline definitions for a project.
+func (c *Client) ListPipelineDefinitions(ctx context.Context, projectID string) ([]PipelineDefinition, error) {
+	var resp struct {
+		Items []PipelineDefinition `json:"items"`
+	}
+	path := fmt.Sprintf("/projects/%s/pipeline-definitions", projectID)
+	if err := c.get(ctx, path, &resp); err != nil {
+		return nil, err
+	}
+	return resp.Items, nil
+}
+
+// RunPipeline triggers a pipeline using the new recommended endpoint,
+// which supports targeting a specific pipeline definition.
+func (c *Client) RunPipeline(ctx context.Context, projectSlug, definitionID, branch string, params map[string]any) (*TriggerResponse, error) {
+	path := fmt.Sprintf("/project/%s/pipeline/run", projectSlug)
+
+	body := map[string]any{
+		"definition_id": definitionID,
+	}
+	if branch != "" {
+		body["config"] = map[string]any{"branch": branch}
+		body["checkout"] = map[string]any{"branch": branch}
+	}
+	if len(params) > 0 {
+		body["parameters"] = params
+	}
+
+	var resp TriggerResponse
+	if err := c.post(ctx, path, body, &resp); err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
+
 // PipelineWorkflowSummary holds brief workflow status for a pipeline.
 type PipelineWorkflowSummary struct {
 	ID     string `json:"id"`
