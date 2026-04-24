@@ -30,6 +30,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"github.com/spf13/cobra"
 
@@ -77,6 +78,22 @@ func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, err
 			WithExitCode(clierrors.ExitAuthError)
 	}
 	return apiclient.New(cfg.EffectiveHost(), token, nil), nil
+}
+
+func AppURL(ctx context.Context, cmd *cobra.Command) (string, error) {
+	configPath, _ := ctx.Value(configPathKey{}).(string)
+	cfg, err := config.LoadFrom(ctx, configPath, IsSecureStorage(cmd))
+	if err != nil {
+		return "", clierrors.New("config.load_failed", "Failed to load config", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+	u, err := url.Parse(cfg.EffectiveHost())
+	if err != nil {
+		return "", err
+	}
+
+	u.Host = "app." + u.Host
+	return u.String(), nil
 }
 
 // APIErr converts an apiclient error into a structured CLIError.
