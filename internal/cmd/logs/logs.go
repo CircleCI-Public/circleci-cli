@@ -89,13 +89,12 @@ func NewLogsCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return run(ctx, client, streams, args, lastFailed, lastJob, step, projectSlug, branch, jsonOut)
+			return run(ctx, client, args, lastFailed, lastJob, step, projectSlug, branch, jsonOut)
 		},
 	}
 
@@ -109,7 +108,7 @@ func NewLogsCmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, lastFailed, lastJob bool, step, projectSlug, branch string, jsonOut bool) error {
+func run(ctx context.Context, client *apiclient.Client, args []string, lastFailed, lastJob bool, step, projectSlug, branch string, jsonOut bool) error {
 	// Validate: exactly one mode must be chosen.
 	modes := 0
 	if len(args) == 1 {
@@ -170,7 +169,7 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 			}
 		}
 
-		sp1 := streams.Spinner(true, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", projectSlug, effectiveBranch))
+		sp1 := iostream.Spin(ctx, true, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", projectSlug, effectiveBranch))
 		pipeline, err := client.GetLatestPipeline(ctx, projectSlug, effectiveBranch)
 		sp1.Stop()
 		if err != nil {
@@ -195,7 +194,7 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 			return apiErr(err, pipeline.ID)
 		}
 
-		fetchLogsSp = streams.Spinner(true, fmt.Sprintf("Fetching logs for job #%d", jobNumber))
+		fetchLogsSp = iostream.Spin(ctx, true, fmt.Sprintf("Fetching logs for job #%d", jobNumber))
 	}
 
 	stepLogs, err := logs.ForJob(ctx, client, projectSlug, jobNumber, step)
@@ -215,12 +214,12 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(stepLogs)
 	}
 
-	printLogs(streams, stepLogs)
+	printLogs(ctx, stepLogs)
 	return nil
 }
 
@@ -237,16 +236,16 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject, "logs.not_found", "No resource found for %q.")
 }
 
-func printLogs(streams iostream.Streams, stepLogs []logs.StepLog) {
+func printLogs(ctx context.Context, stepLogs []logs.StepLog) {
 	for i, sl := range stepLogs {
 		if i > 0 {
-			streams.Println()
+			iostream.Println(ctx)
 		}
 		if sl.Status == "failed" {
-			streams.Printf("=== %s (failed) ===\n", sl.Name)
+			iostream.Printf(ctx, "=== %s (failed) ===\n", sl.Name)
 		} else {
-			streams.Printf("=== %s ===\n", sl.Name)
+			iostream.Printf(ctx, "=== %s ===\n", sl.Name)
 		}
-		streams.Print(sl.Output)
+		iostream.Print(ctx, sl.Output)
 	}
 }

@@ -79,20 +79,19 @@ func newLogsCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "job-number"); cliErr != nil {
 				return cliErr
 			}
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			var jobNumber int64
 			if _, err := fmt.Sscanf(args[0], "%d", &jobNumber); err != nil {
 				return clierrors.New("args.invalid_job_number", "Invalid job number",
 					fmt.Sprintf("%q is not a valid job number.", args[0])).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return runJobLogs(ctx, client, streams, jobNumber, projectSlug, step, jsonOut)
+			return runJobLogs(ctx, client, jobNumber, projectSlug, step, jsonOut)
 		},
 	}
 
@@ -103,7 +102,7 @@ func newLogsCmd() *cobra.Command {
 	return cmd
 }
 
-func runJobLogs(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jobNumber int64, projectSlug, step string, jsonOut bool) error {
+func runJobLogs(ctx context.Context, client *apiclient.Client, jobNumber int64, projectSlug, step string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -138,21 +137,21 @@ func runJobLogs(ctx context.Context, client *apiclient.Client, streams iostream.
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(stepLogs)
 	}
 
 	for i, sl := range stepLogs {
 		if i > 0 {
-			streams.Println()
+			iostream.Println(ctx)
 		}
 		if sl.Status == "failed" {
-			streams.Printf("=== %s (failed) ===\n", sl.Name)
+			iostream.Printf(ctx, "=== %s (failed) ===\n", sl.Name)
 		} else {
-			streams.Printf("=== %s ===\n", sl.Name)
+			iostream.Printf(ctx, "=== %s ===\n", sl.Name)
 		}
-		streams.Print(sl.Output)
+		iostream.Print(ctx, sl.Output)
 	}
 	return nil
 }

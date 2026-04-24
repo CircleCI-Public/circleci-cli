@@ -148,7 +148,7 @@ func TestWorkflowGet_NotFound_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t,
-		[]string{"workflow", "get", "--json", "00000000-0000-0000-0000-000000000000"},
+		[]string{"workflow", "get", "--quiet", "--json", "00000000-0000-0000-0000-000000000000"},
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)

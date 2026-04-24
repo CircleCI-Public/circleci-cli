@@ -67,14 +67,13 @@ func newCancelCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "workflow-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return runCancel(ctx, client, streams, args[0], force)
+			return runCancel(ctx, client, args[0], force)
 		},
 	}
 
@@ -82,11 +81,11 @@ func newCancelCmd() *cobra.Command {
 	return cmd
 }
 
-func runCancel(ctx context.Context, client *apiclient.Client, streams iostream.Streams, id string, force bool) error {
+func runCancel(ctx context.Context, client *apiclient.Client, id string, force bool) error {
 	if !force {
-		if streams.IsInteractive() {
+		if iostream.IsInteractive(ctx) {
 			prompt := fmt.Sprintf("Cancel workflow %s? In-progress jobs will be stopped.", id)
-			if !streams.Confirm(prompt) {
+			if !iostream.Confirm(ctx, prompt) {
 				return clierrors.New("workflow.cancel_aborted", "Cancellation aborted",
 					"Workflow cancellation was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled)
@@ -103,6 +102,6 @@ func runCancel(ctx context.Context, client *apiclient.Client, streams iostream.S
 		return apiErr(err, id)
 	}
 
-	streams.Printf("%s Cancelled workflow %s\n", streams.Symbol("✓", "OK:"), id)
+	iostream.Printf(ctx, "%s Cancelled workflow %s\n", iostream.Symbol(ctx, "✓", "OK:"), id)
 	return nil
 }

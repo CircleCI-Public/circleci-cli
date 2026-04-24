@@ -86,13 +86,12 @@ func newResourceClassListCmd() *cobra.Command {
 			$ circleci runner resource-class list --namespace my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runResourceClassList(ctx, client, streams, namespace, jsonOut)
+			return runResourceClassList(ctx, client, namespace, jsonOut)
 		},
 	}
 
@@ -107,7 +106,7 @@ type resourceClassOutput struct {
 	Description   string `json:"description"`
 }
 
-func runResourceClassList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, namespace string, jsonOut bool) error {
+func runResourceClassList(ctx context.Context, client *apiclient.Client, namespace string, jsonOut bool) error {
 	if namespace == "" {
 		ns, err := gitremote.DetectNamespace()
 		if err != nil {
@@ -137,20 +136,20 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, streams
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
 	if len(out) == 0 {
-		streams.Printf("No resource classes found.\n")
+		iostream.Printf(ctx, "No resource classes found.\n")
 		return nil
 	}
 	for _, rc := range out {
 		if rc.Description != "" {
-			streams.Printf("%-40s  %s\n", rc.ResourceClass, rc.Description)
+			iostream.Printf(ctx, "%-40s  %s\n", rc.ResourceClass, rc.Description)
 		} else {
-			streams.Printf("%s\n", rc.ResourceClass)
+			iostream.Printf(ctx, "%s\n", rc.ResourceClass)
 		}
 	}
 	return nil
@@ -188,13 +187,12 @@ func newResourceClassCreateCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runResourceClassCreate(ctx, client, streams, args[0], description, jsonOut)
+			return runResourceClassCreate(ctx, client, args[0], description, jsonOut)
 		},
 	}
 
@@ -203,7 +201,7 @@ func newResourceClassCreateCmd() *cobra.Command {
 	return cmd
 }
 
-func runResourceClassCreate(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass, description string, jsonOut bool) error {
+func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resourceClass, description string, jsonOut bool) error {
 	rc, err := client.CreateResourceClass(ctx, resourceClass, description)
 	if err != nil {
 		return apiErr(err, resourceClass)
@@ -216,16 +214,16 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client, strea
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	streams.Printf("Created resource class: %s\n", out.ResourceClass)
+	iostream.Printf(ctx, "Created resource class: %s\n", out.ResourceClass)
 	if out.Description != "" {
-		streams.Printf("Description: %s\n", out.Description)
+		iostream.Printf(ctx, "Description: %s\n", out.Description)
 	}
-	streams.Printf("ID: %s\n", out.ID)
+	iostream.Printf(ctx, "ID: %s\n", out.ID)
 	return nil
 }
 
@@ -261,13 +259,12 @@ func newResourceClassDeleteCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runResourceClassDelete(ctx, client, streams, args[0], force)
+			return runResourceClassDelete(ctx, client, args[0], force)
 		},
 	}
 
@@ -275,11 +272,11 @@ func newResourceClassDeleteCmd() *cobra.Command {
 	return cmd
 }
 
-func runResourceClassDelete(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass string, force bool) error {
+func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resourceClass string, force bool) error {
 	if !force {
-		if streams.IsInteractive() {
+		if iostream.IsInteractive(ctx) {
 			prompt := fmt.Sprintf("Delete resource class %q? All tokens and runner connections will be removed.", resourceClass)
-			if !streams.Confirm(prompt) {
+			if !iostream.Confirm(ctx, prompt) {
 				return clierrors.New("runner.delete_aborted", "Deletion aborted",
 					"Resource class deletion was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled)
@@ -296,6 +293,6 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client, strea
 		return apiErr(err, resourceClass)
 	}
 
-	streams.ErrPrintf("%s Deleted resource class %s\n", streams.Symbol("✓", "OK:"), resourceClass)
+	iostream.ErrPrintf(ctx, "%s Deleted resource class %s\n", iostream.Symbol(ctx, "✓", "OK:"), resourceClass)
 	return nil
 }

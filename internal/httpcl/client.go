@@ -36,6 +36,8 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
 const jsonContentType = "application/json; charset=utf-8"
@@ -103,7 +105,9 @@ func New(cfg Config) *Client {
 // Call executes the request and returns the HTTP status code.
 // Non-2xx responses return an *HTTPError. If a decoder is set and the
 // response is 2xx, the response body is decoded.
-func (c *Client) Call(ctx context.Context, r Request) (int, error) {
+func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
+	start := time.Now()
+
 	u, err := url.Parse(c.baseURL + r.route)
 	if err != nil {
 		return 0, fmt.Errorf("httpcl: bad url: %w", err)
@@ -111,6 +115,15 @@ func (c *Client) Call(ctx context.Context, r Request) (int, error) {
 	if len(r.query) > 0 {
 		u.RawQuery = r.query.Encode()
 	}
+	defer func() {
+		duration := time.Since(start)
+		iostream.DebugContext(ctx, r.method+" "+r.route,
+			"http.request.method", r.method,
+			"http.response.status_code", status,
+			"duration", duration,
+			"url.full", u.String(),
+		)
+	}()
 
 	var bodyReader io.Reader
 	if r.body != nil {
@@ -160,7 +173,7 @@ func (c *Client) Call(ctx context.Context, r Request) (int, error) {
 		_ = resp.Body.Close()
 	}()
 
-	status := resp.StatusCode
+	status = resp.StatusCode
 
 	if status >= 200 && status < 300 {
 		if r.decoder != nil {

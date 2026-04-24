@@ -73,13 +73,12 @@ func newCancelCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "pipeline-number-or-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runPipelineCancel(ctx, client, streams, args[0], projectSlug, force)
+			return runPipelineCancel(ctx, client, args[0], projectSlug, force)
 		},
 	}
 
@@ -89,7 +88,7 @@ func newCancelCmd() *cobra.Command {
 	return cmd
 }
 
-func runPipelineCancel(ctx context.Context, client *apiclient.Client, streams iostream.Streams, arg, projectSlug string, force bool) error {
+func runPipelineCancel(ctx context.Context, client *apiclient.Client, arg, projectSlug string, force bool) error {
 	pipelineID := arg
 	displayName := arg
 
@@ -116,9 +115,9 @@ func runPipelineCancel(ctx context.Context, client *apiclient.Client, streams io
 	}
 
 	if !force {
-		if streams.IsInteractive() {
+		if iostream.IsInteractive(ctx) {
 			prompt := fmt.Sprintf("Cancel pipeline %s? In-progress jobs will be stopped.", displayName)
-			if !streams.Confirm(prompt) {
+			if !iostream.Confirm(ctx, prompt) {
 				return clierrors.New("pipeline.cancel_aborted", "Cancellation aborted",
 					"Pipeline cancellation was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled)
@@ -142,6 +141,6 @@ func runPipelineCancel(ctx context.Context, client *apiclient.Client, streams io
 		return apiErr(err, displayName)
 	}
 
-	streams.Printf("%s Cancelled pipeline %s\n", streams.Symbol("✓", "OK:"), displayName)
+	iostream.Printf(ctx, "%s Cancelled pipeline %s\n", iostream.Symbol(ctx, "✓", "OK:"), displayName)
 	return nil
 }

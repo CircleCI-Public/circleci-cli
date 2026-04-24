@@ -61,6 +61,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.SetVersionTemplate("circleci version {{.Version}}\n")
 
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "suppress informational output; data on stdout is unaffected")
+	cmd.PersistentFlags().Bool("debug", false, "enable debug logging")
 
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")

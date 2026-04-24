@@ -63,13 +63,12 @@ func newGetCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "workflow-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, streams, args[0], jsonOut)
+			return runGet(ctx, client, args[0], jsonOut)
 		},
 	}
 
@@ -96,7 +95,7 @@ type jobOutput struct {
 	Type   string `json:"type"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Streams, id string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
 	wf, err := client.GetWorkflow(ctx, id)
 	if err != nil {
 		return apiErr(err, id)
@@ -129,33 +128,33 @@ func runGet(ctx context.Context, client *apiclient.Client, streams iostream.Stre
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	printGet(streams, out)
+	printGet(ctx, out)
 	return nil
 }
 
-func printGet(streams iostream.Streams, w workflowGetOutput) {
-	streams.Printf("Workflow  %s\n", w.ID)
-	streams.Printf("Name:     %s\n", w.Name)
-	streams.Printf("Pipeline: #%d (%s)\n", w.PipelineNumber, w.PipelineID)
-	streams.Printf("Project:  %s\n", w.ProjectSlug)
-	streams.Printf("Status:   %s\n", w.Status)
-	streams.Printf("Created:  %s\n", w.CreatedAt)
+func printGet(ctx context.Context, w workflowGetOutput) {
+	iostream.Printf(ctx, "Workflow  %s\n", w.ID)
+	iostream.Printf(ctx, "Name:     %s\n", w.Name)
+	iostream.Printf(ctx, "Pipeline: #%d (%s)\n", w.PipelineNumber, w.PipelineID)
+	iostream.Printf(ctx, "Project:  %s\n", w.ProjectSlug)
+	iostream.Printf(ctx, "Status:   %s\n", w.Status)
+	iostream.Printf(ctx, "Created:  %s\n", w.CreatedAt)
 	if w.StoppedAt != "" {
-		streams.Printf("Stopped:  %s\n", w.StoppedAt)
+		iostream.Printf(ctx, "Stopped:  %s\n", w.StoppedAt)
 	}
 
 	if len(w.Jobs) > 0 {
-		streams.Printf("\nJobs:\n")
+		iostream.Printf(ctx, "\nJobs:\n")
 		for _, j := range w.Jobs {
 			if j.Type == "approval" {
-				streams.Printf("  %-36s  %s\n", j.Name, j.Status)
+				iostream.Printf(ctx, "  %-36s  %s\n", j.Name, j.Status)
 			} else {
-				streams.Printf("  %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
+				iostream.Printf(ctx, "  %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
 			}
 		}
 	}

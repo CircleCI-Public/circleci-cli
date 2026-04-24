@@ -62,15 +62,14 @@ func newListCmd() *cobra.Command {
 			$ circleci project list --json | jq '.[] | select(.username == "myorg")'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return runProjectList(ctx, client, streams, jsonOut)
+			return runProjectList(ctx, client, jsonOut)
 		},
 	}
 
@@ -87,7 +86,7 @@ type projectOutput struct {
 	RepoName string `json:"reponame"`
 }
 
-func runProjectList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, jsonOut bool) error {
+func runProjectList(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
 	projects, err := client.ListProjects(ctx)
 	if err != nil {
 		return cmdutil.APIErr(err, "projects", "project.list_failed", "Could not list projects: %s")
@@ -119,18 +118,18 @@ func runProjectList(ctx context.Context, client *apiclient.Client, streams iostr
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
 	if len(out) == 0 {
-		streams.ErrPrintln("No followed projects found.")
+		iostream.ErrPrintln(ctx, "No followed projects found.")
 		return nil
 	}
 
 	for _, p := range out {
-		streams.Println(p.Slug)
+		iostream.Println(ctx, p.Slug)
 	}
 	return nil
 }

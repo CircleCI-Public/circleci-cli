@@ -27,13 +27,14 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
 )
 
 func newTasksCmd() *cobra.Command {
@@ -65,13 +66,12 @@ func newTasksCmd() *cobra.Command {
 			  done
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runTasks(ctx, client, streams, resourceClass, jsonOut)
+			return runTasks(ctx, client, resourceClass, jsonOut)
 		},
 	}
 
@@ -88,7 +88,7 @@ type tasksOutput struct {
 	Running       int    `json:"running"`
 }
 
-func runTasks(ctx context.Context, client *apiclient.Client, streams iostream.Streams, resourceClass string, jsonOut bool) error {
+func runTasks(ctx context.Context, client *apiclient.Client, resourceClass string, jsonOut bool) error {
 	counts, err := client.GetRunnerTaskCounts(ctx, resourceClass)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
@@ -107,13 +107,13 @@ func runTasks(ctx context.Context, client *apiclient.Client, streams iostream.St
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	streams.Printf("Resource class: %s\n", out.ResourceClass)
-	streams.Printf("  Unclaimed:    %d\n", out.Unclaimed)
-	streams.Printf("  Running:      %d\n", out.Running)
+	iostream.Printf(ctx, "Resource class: %s\n", out.ResourceClass)
+	iostream.Printf(ctx, "  Unclaimed:    %d\n", out.Unclaimed)
+	iostream.Printf(ctx, "  Running:      %d\n", out.Running)
 	return nil
 }

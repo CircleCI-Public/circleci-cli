@@ -76,13 +76,12 @@ func newTriggerCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runTrigger(ctx, client, streams, projectSlug, branch, params, jsonOut)
+			return runTrigger(ctx, client, projectSlug, branch, params, jsonOut)
 		},
 	}
 
@@ -101,7 +100,7 @@ type triggerJSONOutput struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func runTrigger(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, branch string, params []string, jsonOut bool) error {
+func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, branch string, params []string, jsonOut bool) error {
 	effectiveBranch := branch
 	if projectSlug == "" || effectiveBranch == "" {
 		info, err := gitremote.Detect()
@@ -142,12 +141,12 @@ func runTrigger(ctx context.Context, client *apiclient.Client, streams iostream.
 			State:     resp.State,
 			CreatedAt: resp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(out)
 	}
 
-	streams.Printf("Triggered pipeline #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)
+	iostream.Printf(ctx, "Triggered pipeline #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)
 	return nil
 }
 

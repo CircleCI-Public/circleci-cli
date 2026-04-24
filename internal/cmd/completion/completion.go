@@ -25,6 +25,7 @@ package completion
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -112,7 +113,7 @@ func CompletionInstalled() (bool, error) {
 	return strings.Contains(string(data), completionTag), nil
 }
 
-func installCompletion(streams iostream.Streams) error {
+func installCompletion(ctx context.Context) error {
 	home := os.Getenv("HOME")
 	if home == "" {
 		return fmt.Errorf("HOME not set")
@@ -124,7 +125,7 @@ func installCompletion(streams iostream.Streams) error {
 
 	data, readErr := os.ReadFile(sh.rcFile)
 	if readErr == nil && strings.Contains(string(data), completionTag) {
-		streams.ErrPrintf("Completion already installed in %s\n", sh.rcFile)
+		iostream.ErrPrintf(ctx, "Completion already installed in %s\n", sh.rcFile)
 		return nil
 	}
 
@@ -139,8 +140,8 @@ func installCompletion(streams iostream.Streams) error {
 		return fmt.Errorf("write %s: %w", sh.rcFile, err)
 	}
 
-	streams.ErrPrintf("%s Installed %s completion in %s\n",
-		streams.Symbol("✓", "OK:"), sh.name, sh.rcFile)
+	iostream.ErrPrintf(ctx, "%s Installed %s completion in %s\n",
+		iostream.Symbol(ctx, "✓", "OK:"), sh.name, sh.rcFile)
 	return nil
 }
 
@@ -165,7 +166,7 @@ func newInstallCmd() *cobra.Command {
 			$ source <(circleci completion bash)
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return installCompletion(iostream.FromCmd(cmd))
+			return installCompletion(iostream.FromCmd(cmd.Context(), cmd))
 		},
 	}
 }
@@ -189,7 +190,7 @@ func newUninstallCmd() *cobra.Command {
 			$ grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			home := os.Getenv("HOME")
 			if home == "" {
 				return fmt.Errorf("HOME not set")
@@ -202,7 +203,7 @@ func newUninstallCmd() *cobra.Command {
 			data, err := os.ReadFile(sh.rcFile)
 			if err != nil {
 				// Nothing to uninstall.
-				streams.ErrPrintf("%s Completion not installed\n", streams.Symbol("✓", "OK:"))
+				iostream.ErrPrintf(ctx, "%s Completion not installed\n", iostream.Symbol(ctx, "✓", "OK:"))
 				return nil
 			}
 
@@ -227,7 +228,7 @@ func newUninstallCmd() *cobra.Command {
 				return fmt.Errorf("write %s: %w", sh.rcFile, err)
 			}
 
-			streams.ErrPrintf("%s Removed completion from %s\n", streams.Symbol("✓", "OK:"), sh.rcFile)
+			iostream.ErrPrintf(ctx, "%s Removed completion from %s\n", iostream.Symbol(ctx, "✓", "OK:"), sh.rcFile)
 			return nil
 		},
 	}
@@ -239,7 +240,8 @@ func newBashCmd() *cobra.Command {
 		Short:  "Generate bash completion script",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Root().GenBashCompletion(iostream.FromCmd(cmd).Out)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			return cmd.Root().GenBashCompletion(iostream.Out(ctx))
 		},
 	}
 }
@@ -250,7 +252,8 @@ func newZshCmd() *cobra.Command {
 		Short:  "Generate zsh completion script",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return cmd.Root().GenZshCompletion(iostream.FromCmd(cmd).Out)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			return cmd.Root().GenZshCompletion(iostream.Out(ctx))
 		},
 	}
 }

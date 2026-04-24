@@ -63,15 +63,14 @@ func newFollowCmd() *cobra.Command {
 			$ circleci project follow --project bb/myorg/myrepo
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return runProjectFollow(ctx, client, streams, projectSlug)
+			return runProjectFollow(ctx, client, projectSlug)
 		},
 	}
 
@@ -80,7 +79,7 @@ func newFollowCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectFollow(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug string) error {
+func runProjectFollow(ctx context.Context, client *apiclient.Client, projectSlug string) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -106,7 +105,7 @@ func runProjectFollow(ctx context.Context, client *apiclient.Client, streams ios
 		return cmdutil.APIErr(apiErr, projectSlug, "project.follow_failed", "Could not follow project %q.")
 	}
 
-	streams.Printf("%s Now following %s\n", streams.Symbol("✓", "OK:"), projectSlug)
+	iostream.Printf(ctx, "%s Now following %s\n", iostream.Symbol(ctx, "✓", "OK:"), projectSlug)
 	return nil
 }
 

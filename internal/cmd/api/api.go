@@ -90,14 +90,13 @@ func NewAPICmd() *cobra.Command {
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, cliErr := cmdutil.LoadClient(ctx, cmd)
 			if cliErr != nil {
 				return cliErr
 			}
-			return run(ctx, client, streams, args[0], method, fields, headers, jsonOut)
+			return run(ctx, client, args[0], method, fields, headers, jsonOut)
 		},
 	}
 
@@ -109,7 +108,7 @@ func NewAPICmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams, path, method string, fields, headers []string, jsonOut bool) error {
+func run(ctx context.Context, client *apiclient.Client, path, method string, fields, headers []string, jsonOut bool) error {
 	// Parse key=value fields.
 	parsedFields := make(map[string]string, len(fields))
 	for _, f := range fields {
@@ -192,14 +191,14 @@ func run(ctx context.Context, client *apiclient.Client, streams iostream.Streams
 	if jsonOut {
 		var v any
 		if jsonErr := json.Unmarshal(respBody, &v); jsonErr == nil {
-			enc := json.NewEncoder(streams.Out)
+			enc := json.NewEncoder(iostream.Out(ctx))
 			enc.SetIndent("", "  ")
 			_ = enc.Encode(v)
 		} else {
-			streams.Println(output)
+			iostream.Println(ctx, output)
 		}
 	} else {
-		streams.Println(output)
+		iostream.Println(ctx, output)
 	}
 
 	if status >= 400 {

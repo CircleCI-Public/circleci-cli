@@ -25,15 +25,14 @@ package cmdauth
 import (
 	"context"
 
-	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
-	"charm.land/lipgloss/v2"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
 func newTokenCmd() *cobra.Command {
@@ -42,39 +41,38 @@ func newTokenCmd() *cobra.Command {
 		Short: "Set personal access token for authenticating to CircleCI",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
-			if !streams.IsInteractive() {
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			if !iostream.IsInteractive(ctx) {
 				return clierrors.New("auth.token.aborted", "Login aborted",
 					"Login requires an interactive session.").
 					WithExitCode(clierrors.ExitCancelled)
 			}
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runToken(ctx, secureStorage, streams)
+			return runToken(ctx, secureStorage)
 		},
 	}
 	return cmd
 }
 
-func runToken(ctx context.Context, secureStorage bool, streams iostream.Streams) error {
+func runToken(ctx context.Context, secureStorage bool) error {
 	cfg, err := config.Load(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	p := tea.NewProgram(initialTokenModel())
+	p := tea.NewProgram(ui.NewTokenModel())
 	anyModel, err := p.Run()
 	if err != nil {
 		return err
 	}
 
-	m := anyModel.(tokenModel)
-	if m.quitting {
+	m := anyModel.(ui.TokenModel)
+	if m.Quitting() {
 		return nil
 	}
 
-	cfg.Token = m.token
+	cfg.Token = m.Token()
 	if err := config.Save(ctx, cfg, secureStorage); err != nil {
 		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
@@ -84,71 +82,6 @@ func runToken(ctx context.Context, secureStorage bool, streams iostream.Streams)
 	if secureStorage {
 		path = "keyring"
 	}
-	streams.ErrPrintf("%s Saved %s to %s\n", streams.Symbol("✓", "OK:"), "token", path)
+	iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.Symbol(ctx, "✓", "OK:"), "token", path)
 	return nil
 }
-
-type tokenModel struct {
-	textInput textinput.Model
-	quitting  bool
-	token     string
-}
-
-func initialTokenModel() tokenModel {
-	ti := textinput.New()
-	ti.Placeholder = "CCIPAT_XXXXXXXXXXXXXXXXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-	ti.SetVirtualCursor(false)
-	ti.Focus()
-	ti.CharLimit = len(ti.Placeholder)
-	ti.SetWidth(len(ti.Placeholder))
-	ti.EchoMode = textinput.EchoPassword
-
-	return tokenModel{textInput: ti}
-}
-
-func (m tokenModel) Init() tea.Cmd {
-	return textinput.Blink
-}
-
-func (m tokenModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "esc":
-			m.quitting = true
-			return m, tea.Quit
-		case "enter":
-			m.token = m.textInput.Value()
-			return m, tea.Quit
-		}
-	}
-
-	m.textInput, cmd = m.textInput.Update(msg)
-	return m, cmd
-}
-
-func (m tokenModel) View() tea.View {
-	if m.token != "" {
-		return tea.NewView("")
-	}
-
-	var c *tea.Cursor
-	if !m.textInput.VirtualCursor() {
-		c = m.textInput.Cursor()
-		c.Y += lipgloss.Height(m.headerView())
-	}
-
-	str := lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
-	if m.quitting {
-		str += "\n"
-	}
-
-	v := tea.NewView(str)
-	v.Cursor = c
-	return v
-}
-
-func (m tokenModel) headerView() string { return "Enter CircleCI personal access token\n" }
-func (m tokenModel) footerView() string { return "\n(esc to quit)" }

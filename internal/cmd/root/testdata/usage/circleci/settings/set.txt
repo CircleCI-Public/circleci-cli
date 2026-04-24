@@ -13,4 +13,5 @@ $ CIRCLECI_TOKEN=mytoken123 circleci pipeline get
 
 
 Global Flags:
+      --debug   enable debug logging
   -q, --quiet   suppress informational output; data on stdout is unaffected

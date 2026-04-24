@@ -33,8 +33,8 @@ import (
 // All fake servers share this setup.
 func newRouter() *chi.Mux {
 	r := chi.NewRouter()
-	r.Use(middleware.Recoverer)
 	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
 	// Force chi to route on the decoded r.URL.Path rather than r.URL.RawPath,
 	// so routes with literal slashes in path segments (e.g. vcs/org/repo) match correctly.
 	r.Use(func(next http.Handler) http.Handler {

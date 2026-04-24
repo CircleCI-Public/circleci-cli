@@ -101,13 +101,12 @@ func newWatchCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runWatch(ctx, client, streams, args, projectSlug, branch, sha, timeout)
+			return runWatch(ctx, client, args, projectSlug, branch, sha, timeout)
 		},
 	}
 
@@ -119,7 +118,7 @@ func newWatchCmd() *cobra.Command {
 	return cmd
 }
 
-func runWatch(ctx context.Context, client *apiclient.Client, streams iostream.Streams, args []string, projectSlug, branch, sha string, timeout time.Duration) error {
+func runWatch(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch, sha string, timeout time.Duration) error {
 	// If the argument looks like a UUID, we can resolve the pipeline directly
 	// without needing a project slug or branch from git.
 	isUUID := len(args) == 1 && strings.Contains(args[0], "-")
@@ -163,7 +162,7 @@ func runWatch(ctx context.Context, client *apiclient.Client, streams iostream.St
 		}
 
 	case sha != "":
-		pipeline, err = waitForPipelineBySHA(ctx, streams, client, projectSlug, branch, sha)
+		pipeline, err = waitForPipelineBySHA(ctx, client, projectSlug, branch, sha)
 		if err != nil {
 			return err
 		}
@@ -180,14 +179,14 @@ func runWatch(ctx context.Context, client *apiclient.Client, streams iostream.St
 		branch = pipeline.VCS.Branch
 	}
 
-	streams.ErrPrintf("Watching pipeline #%d (%s @ %s)\n\n", pipeline.Number, pipeline.ProjectSlug, branch)
+	iostream.ErrPrintf(ctx, "Watching pipeline #%d (%s @ %s)\n\n", pipeline.Number, pipeline.ProjectSlug, branch)
 
-	return watchUntilDone(ctx, streams, client, pipeline.ID, pipeline.Number, timeout)
+	return watchUntilDone(ctx, client, pipeline.ID, pipeline.Number, timeout)
 }
 
 // waitForPipelineBySHA searches for a pipeline matching the given commit SHA,
 // polling every 5 seconds for up to shaWaitDuration() if not immediately found.
-func waitForPipelineBySHA(ctx context.Context, streams iostream.Streams, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.Pipeline, error) {
+func waitForPipelineBySHA(ctx context.Context, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.Pipeline, error) {
 	waitDur := shaWaitDuration()
 	deadline := time.Now().Add(waitDur)
 	interval := 5 * time.Second
@@ -216,7 +215,7 @@ func waitForPipelineBySHA(ctx context.Context, streams iostream.Streams, client 
 		}
 
 		if !printed {
-			streams.ErrPrintf("Waiting for pipeline for commit %s...\n", sha)
+			iostream.ErrPrintf(ctx, "Waiting for pipeline for commit %s...\n", sha)
 			printed = true
 		}
 		time.Sleep(interval)
@@ -225,10 +224,10 @@ func waitForPipelineBySHA(ctx context.Context, streams iostream.Streams, client 
 
 // watchUntilDone polls the given pipeline until all workflows reach a terminal
 // state or the timeout elapses.
-func watchUntilDone(ctx context.Context, streams iostream.Streams, client *apiclient.Client, pipelineID string, pipelineNumber int64, timeout time.Duration) error {
+func watchUntilDone(ctx context.Context, client *apiclient.Client, pipelineID string, pipelineNumber int64, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	start := time.Now()
-	tty := streams.IsTerminal()
+	tty := iostream.IsTerminal(ctx)
 
 	var prevLines int
 	var prevFingerprint string
@@ -248,26 +247,26 @@ func watchUntilDone(ctx context.Context, streams iostream.Streams, client *apicl
 		if tty {
 			// Erase previous table, redraw with updated elapsed.
 			if prevLines > 0 {
-				_, _ = fmt.Fprintf(streams.Err, "\033[%dA\033[J", prevLines)
+				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
 			}
-			prevLines = printWatchTable(streams, state, elapsed)
+			prevLines = printWatchTable(ctx, state, elapsed)
 		} else if changed {
-			printWatchLine(streams, state, elapsed)
+			printWatchLine(ctx, state, elapsed)
 		}
 		prevFingerprint = fingerprint
 
 		if allWorkflowsDone(state.Workflows) {
 			if tty && prevLines > 0 {
 				// Final redraw without the elapsed ticker line.
-				_, _ = fmt.Fprintf(streams.Err, "\033[%dA\033[J", prevLines)
-				printWatchTableFinal(streams, state)
-				streams.ErrPrintf("\n")
+				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
+				printWatchTableFinal(ctx, state)
+				iostream.ErrPrintf(ctx, "\n")
 			}
-			return watchFinalResult(streams, state, pipelineNumber, elapsed)
+			return watchFinalResult(ctx, state, pipelineNumber, elapsed)
 		}
 
 		if time.Now().After(deadline) {
-			streams.ErrPrintf("\n")
+			iostream.ErrPrintf(ctx, "\n")
 			return clierrors.New("pipeline.timeout", "Watch timed out",
 				fmt.Sprintf("Pipeline #%d did not complete within %s.", pipelineNumber, timeout)).
 				WithExitCode(clierrors.ExitTimeout)
@@ -342,63 +341,63 @@ func watchFingerprint(state pipelineGetOutput) string {
 
 // printWatchTable renders the workflow/job table to Err and returns the line count
 // written (used for TTY cursor rewind).
-func printWatchTable(streams iostream.Streams, state pipelineGetOutput, elapsed time.Duration) int {
+func printWatchTable(ctx context.Context, state pipelineGetOutput, elapsed time.Duration) int {
 	lines := 0
 	for _, wf := range state.Workflows {
-		streams.ErrPrintf("  %-28s  %s\n", wf.Name, wf.Status)
+		iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
 		lines++
 		for _, j := range wf.Jobs {
 			if j.Number > 0 {
-				streams.ErrPrintf("    %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
+				iostream.ErrPrintf(ctx, "    %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
 			} else {
-				streams.ErrPrintf("    %-30s  %s\n", j.Name, j.Status)
+				iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
 			}
 			lines++
 		}
 	}
-	streams.ErrPrintf("\n  Elapsed: %s\n", formatElapsed(elapsed))
+	iostream.ErrPrintf(ctx, "\n  Elapsed: %s\n", formatElapsed(elapsed))
 	lines += 2
 	return lines
 }
 
 // printWatchTableFinal renders the final workflow/job table without the elapsed line.
-func printWatchTableFinal(streams iostream.Streams, state pipelineGetOutput) {
+func printWatchTableFinal(ctx context.Context, state pipelineGetOutput) {
 	for _, wf := range state.Workflows {
-		streams.ErrPrintf("  %-28s  %s\n", wf.Name, wf.Status)
+		iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
 		for _, j := range wf.Jobs {
 			if j.Number > 0 {
-				streams.ErrPrintf("    %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
+				iostream.ErrPrintf(ctx, "    %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
 			} else {
-				streams.ErrPrintf("    %-30s  %s\n", j.Name, j.Status)
+				iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
 			}
 		}
 	}
 }
 
 // printWatchLine emits a single-line status update for non-TTY output.
-func printWatchLine(streams iostream.Streams, state pipelineGetOutput, elapsed time.Duration) {
+func printWatchLine(ctx context.Context, state pipelineGetOutput, elapsed time.Duration) {
 	var parts []string
 	for _, wf := range state.Workflows {
 		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, wf.Status))
 	}
-	streams.ErrPrintf("[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
+	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
 }
 
 // watchFinalResult prints the outcome and returns an appropriate error (or nil).
-func watchFinalResult(streams iostream.Streams, state pipelineGetOutput, number int64, elapsed time.Duration) error {
+func watchFinalResult(ctx context.Context, state pipelineGetOutput, number int64, elapsed time.Duration) error {
 	switch state.Status {
 	case "success":
-		streams.ErrPrintf("%s Pipeline #%d succeeded (%s)\n",
-			streams.Symbol("✓", "OK:"), number, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "%s Pipeline #%d succeeded (%s)\n",
+			iostream.Symbol(ctx, "✓", "OK:"), number, formatElapsed(elapsed))
 		return nil
 	case "canceled":
-		streams.ErrPrintf("Pipeline #%d was cancelled (%s)\n", number, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "Pipeline #%d was cancelled (%s)\n", number, formatElapsed(elapsed))
 		return clierrors.New("pipeline.cancelled", "Pipeline cancelled",
 			fmt.Sprintf("Pipeline #%d was cancelled.", number)).
 			WithExitCode(clierrors.ExitCancelled)
 	default:
-		streams.ErrPrintf("%s Pipeline #%d failed (%s)\n",
-			streams.Symbol("✗", "FAIL:"), number, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "%s Pipeline #%d failed (%s)\n",
+			iostream.Symbol(ctx, "✗", "FAIL:"), number, formatElapsed(elapsed))
 		return clierrors.New("pipeline.failed", "Pipeline failed",
 			fmt.Sprintf("Pipeline #%d failed.", number)).
 			WithExitCode(clierrors.ExitGeneralError)

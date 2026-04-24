@@ -92,15 +92,14 @@ func NewEnvListCmd() *cobra.Command {
 			$ circleci envvar list --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return RunEnvList(ctx, client, streams, projectSlug, jsonOut)
+			return RunEnvList(ctx, client, projectSlug, jsonOut)
 		},
 	}
 
@@ -112,7 +111,7 @@ func NewEnvListCmd() *cobra.Command {
 
 // RunEnvList is the business logic for listing env vars. Exported for reuse by
 // the top-level circleci env alias.
-func RunEnvList(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug string, jsonOut bool) error {
+func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -132,18 +131,18 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, streams iostream.
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(streams.Out)
+		enc := json.NewEncoder(iostream.Out(ctx))
 		enc.SetIndent("", "  ")
 		return enc.Encode(vars)
 	}
 
 	if len(vars) == 0 {
-		streams.ErrPrintln("No environment variables found.")
+		iostream.ErrPrintln(ctx, "No environment variables found.")
 		return nil
 	}
 
 	for _, v := range vars {
-		streams.Printf("%-40s  %s\n", v.Name, v.Value)
+		iostream.Printf(ctx, "%-40s  %s\n", v.Name, v.Value)
 	}
 	return nil
 }
@@ -178,14 +177,13 @@ func NewEnvSetCmd() *cobra.Command {
 		`),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return RunEnvSet(ctx, client, streams, projectSlug, args[0], args[1])
+			return RunEnvSet(ctx, client, projectSlug, args[0], args[1])
 		},
 	}
 
@@ -195,7 +193,7 @@ func NewEnvSetCmd() *cobra.Command {
 }
 
 // RunEnvSet is the business logic for setting an env var.
-func RunEnvSet(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, name, value string) error {
+func RunEnvSet(ctx context.Context, client *apiclient.Client, projectSlug, name, value string) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -213,7 +211,7 @@ func RunEnvSet(ctx context.Context, client *apiclient.Client, streams iostream.S
 		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
 	}
 
-	streams.Printf("%s Set %s\n", streams.Symbol("✓", "OK:"), name)
+	iostream.Printf(ctx, "%s Set %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
 	return nil
 }
 
@@ -250,15 +248,14 @@ func NewEnvDeleteCmd() *cobra.Command {
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			streams := iostream.FromCmd(cmd)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
 			}
 
-			return RunEnvDelete(ctx, client, streams, projectSlug, args[0], force)
+			return RunEnvDelete(ctx, client, projectSlug, args[0], force)
 		},
 	}
 
@@ -269,11 +266,11 @@ func NewEnvDeleteCmd() *cobra.Command {
 }
 
 // RunEnvDelete is the business logic for deleting an env var.
-func RunEnvDelete(ctx context.Context, client *apiclient.Client, streams iostream.Streams, projectSlug, name string, force bool) error {
+func RunEnvDelete(ctx context.Context, client *apiclient.Client, projectSlug, name string, force bool) error {
 	if !force {
-		if streams.IsInteractive() {
+		if iostream.IsInteractive(ctx) {
 			prompt := fmt.Sprintf("Delete environment variable %q? This cannot be undone.", name)
-			if !streams.Confirm(prompt) {
+			if !iostream.Confirm(ctx, prompt) {
 				return clierrors.New("envvar.delete_aborted", "Deletion aborted",
 					"Environment variable deletion was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled)
@@ -303,7 +300,7 @@ func RunEnvDelete(ctx context.Context, client *apiclient.Client, streams iostrea
 		return cmdutil.APIErr(err, name, "envvar.not_found", "No environment variable %q found.")
 	}
 
-	streams.Printf("%s Deleted %s\n", streams.Symbol("✓", "OK:"), name)
+	iostream.Printf(ctx, "%s Deleted %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
 	return nil
 }
 
