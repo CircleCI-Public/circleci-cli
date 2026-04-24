@@ -40,8 +40,11 @@ type ProjectInfo struct {
 }
 
 var (
-	// matches git@github.com:org/repo.git or https://github.com/org/repo.git
-	sshRemote   = regexp.MustCompile(`^git@([^:]+):([^/]+)/(.+?)(?:\.git)?$`)
+	// matches git@github.com:org/repo.git (SCP-style)
+	sshRemote = regexp.MustCompile(`^git@([^:]+):([^/]+)/(.+?)(?:\.git)?$`)
+	// matches ssh://git@github.com/org/repo.git (protocol-style)
+	sshProtoRemote = regexp.MustCompile(`^ssh://git@([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
+	// matches https://github.com/org/repo.git
 	httpsRemote = regexp.MustCompile(`^https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
 )
 
@@ -89,6 +92,11 @@ func slugFromRemote(remoteURL string) (string, error) {
 	remoteURL = strings.TrimSpace(remoteURL)
 
 	if m := sshRemote.FindStringSubmatch(remoteURL); m != nil {
+		host, org, repo := m[1], m[2], m[3]
+		return buildSlug(host, org, repo)
+	}
+
+	if m := sshProtoRemote.FindStringSubmatch(remoteURL); m != nil {
 		host, org, repo := m[1], m[2], m[3]
 		return buildSlug(host, org, repo)
 	}
