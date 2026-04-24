@@ -24,7 +24,6 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
@@ -107,9 +106,7 @@ func runTasks(ctx context.Context, client *apiclient.Client, resourceClass strin
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	iostream.Printf(ctx, "Resource class: %s\n", out.ResourceClass)

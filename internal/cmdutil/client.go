@@ -38,6 +38,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 )
 
+type configPathKey struct{}
+
+// WithConfigPath returns a copy of ctx carrying the given config file path.
+// The path is read by LoadClient to locate the config file.
+func WithConfigPath(ctx context.Context, path string) context.Context {
+	return context.WithValue(ctx, configPathKey{}, path)
+}
+
 func IsSecureStorage(cmd *cobra.Command) bool {
 	insecureStorage, _ := cmd.Flags().GetBool("insecure-storage")
 	secureStorage := !insecureStorage
@@ -47,8 +55,11 @@ func IsSecureStorage(cmd *cobra.Command) bool {
 // LoadClient reads the CLI config, validates that a token is present, and
 // returns an authenticated API client. On failure it returns a structured
 // CLIError ready to be returned directly from a RunE handler.
+//
+// Honors a --config path set by the root PersistentPreRunE via WithConfigPath.
 func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, error) {
-	cfg, err := config.Load(ctx, IsSecureStorage(cmd))
+	configPath, _ := ctx.Value(configPathKey{}).(string)
+	cfg, err := config.LoadFrom(configPath, ctx, IsSecureStorage(cmd))
 	if err != nil {
 		return nil, clierrors.New("config.load_failed", "Failed to load config", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)

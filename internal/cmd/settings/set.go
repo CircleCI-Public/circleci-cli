@@ -44,10 +44,16 @@ func newSetCmd() *cobra.Command {
 			Supported keys:
 			  token   Your CircleCI personal API token
 			  host    CircleCI server host (default: https://circleci.com)
+
+			Pass "-" as the value to read it from stdin, keeping secrets out of
+			shell history and process listings.
 		`),
 		Example: heredoc.Doc(`
 			# Store your personal API token
 			$ circleci settings set token mytoken123
+
+			# Read the token from stdin to avoid shell history exposure
+			$ echo "mytoken123" | circleci settings set token -
 
 			# Point to a self-hosted CircleCI server
 			$ circleci settings set host https://circleci.mycompany.com
@@ -61,8 +67,13 @@ func newSetCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "key", "value"); cliErr != nil {
 				return cliErr
 			}
+			value, err := iostream.ReadSecret(ctx, args[1])
+			if err != nil {
+				return clierrors.New("args.stdin_read_failed", "Failed to read value from stdin", err.Error()).
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runSet(ctx, secureStorage, args[0], args[1])
+			return runSet(ctx, secureStorage, args[0], value)
 		},
 	}
 	return cmd

@@ -24,7 +24,6 @@ package settings
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc"
@@ -87,9 +86,7 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 			"token_set": tokenSet,
 			"host":      cfg.EffectiveHost(),
 		}
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	iostream.Printf(ctx, "Config file: %s\n\n", path)

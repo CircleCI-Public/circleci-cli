@@ -97,12 +97,7 @@ func runPipelineCancel(ctx context.Context, client *apiclient.Client, arg, proje
 		if projectSlug == "" {
 			info, err := gitremote.Detect()
 			if err != nil {
-				return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-					WithSuggestions(
-						"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-						"Or specify the project: circleci pipeline cancel "+arg+" --project gh/org/repo",
-					).
-					WithExitCode(clierrors.ExitBadArguments)
+				return cmdutil.GitDetectErr(err, "Or specify the project: circleci pipeline cancel "+arg+" --project gh/org/repo")
 			}
 			projectSlug = info.Slug
 		}
@@ -114,20 +109,16 @@ func runPipelineCancel(ctx context.Context, client *apiclient.Client, arg, proje
 		displayName = fmt.Sprintf("#%d", p.Number)
 	}
 
-	if !force {
-		if iostream.IsInteractive(ctx) {
-			prompt := fmt.Sprintf("Cancel pipeline %s? In-progress jobs will be stopped.", displayName)
-			if !iostream.Confirm(ctx, prompt) {
-				return clierrors.New("pipeline.cancel_aborted", "Cancellation aborted",
-					"Pipeline cancellation was not confirmed.").
-					WithExitCode(clierrors.ExitCancelled)
-			}
-		} else {
-			return clierrors.New("pipeline.cancel_requires_force", "Cancellation requires --force",
-				fmt.Sprintf("Cancelling pipeline %s will stop all in-progress jobs.", displayName)).
-				WithSuggestions("Pass --force (-f) to confirm cancellation in non-interactive mode").
-				WithExitCode(clierrors.ExitCancelled)
-		}
+	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+		fmt.Sprintf("Cancel pipeline %s? In-progress jobs will be stopped.", displayName),
+		clierrors.New("pipeline.cancel_aborted", "Cancellation aborted",
+			"Pipeline cancellation was not confirmed.").
+			WithExitCode(clierrors.ExitCancelled),
+		clierrors.New("pipeline.cancel_requires_force", "Cancellation requires --force",
+			fmt.Sprintf("Cancelling pipeline %s will stop all in-progress jobs.", displayName)).
+			WithExitCode(clierrors.ExitCancelled),
+	); err != nil {
+		return err
 	}
 
 	if err := pipeline.Cancel(ctx, client, pipelineID); err != nil {

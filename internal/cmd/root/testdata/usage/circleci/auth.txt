@@ -7,7 +7,8 @@ Available Commands:
   token       Set personal access token for authenticating to CircleCI
 
 Global Flags:
-      --debug   enable debug logging
-  -q, --quiet   suppress informational output; data on stdout is unaffected
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
 
 Use "circleci auth [command] --help" for more information about a command.

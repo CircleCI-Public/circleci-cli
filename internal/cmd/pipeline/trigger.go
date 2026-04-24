@@ -24,7 +24,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -105,13 +104,7 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 	if projectSlug == "" || effectiveBranch == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git",
-				err.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify the project and branch explicitly",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(err, "Or specify the project and branch explicitly")
 		}
 		if projectSlug == "" {
 			projectSlug = info.Slug
@@ -141,9 +134,7 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 			State:     resp.State,
 			CreatedAt: resp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	iostream.Printf(ctx, "Triggered pipeline #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)

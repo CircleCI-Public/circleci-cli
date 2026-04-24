@@ -49,14 +49,21 @@ type Config struct {
 // DefaultHost is the CircleCI API host used when none is configured.
 const DefaultHost = "https://circleci.com"
 
-// Load reads the config file, returning an empty Config if the file does not exist.
+// Load reads the config file from the default path, returning an empty Config
+// if the file does not exist.
 func Load(ctx context.Context, secureStorage bool) (*Config, error) {
-	path, err := configPath()
+	return LoadFrom("", ctx, secureStorage)
+}
+
+// LoadFrom reads the config file from the given path. If path is empty the
+// default XDG path is used. Returns an empty Config if the file does not exist.
+func LoadFrom(path string, ctx context.Context, secureStorage bool) (*Config, error) {
+	resolved, err := resolvePath(path)
 	if err != nil {
 		return nil, err
 	}
 
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(resolved)
 	if os.IsNotExist(err) {
 		cfg := &Config{}
 		if secureStorage {
@@ -73,7 +80,7 @@ func Load(ctx context.Context, secureStorage bool) (*Config, error) {
 
 	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return nil, fmt.Errorf("parsing config file %s: %w", path, err)
+		return nil, fmt.Errorf("parsing config file %s: %w", resolved, err)
 	}
 
 	if secureStorage {
@@ -86,14 +93,21 @@ func Load(ctx context.Context, secureStorage bool) (*Config, error) {
 	return &cfg, nil
 }
 
-// Save writes cfg to the config file, creating parent directories as needed.
+// Save writes cfg to the default config file path, creating parent directories
+// as needed.
 func Save(ctx context.Context, cfg *Config, secureStorage bool) error {
-	path, err := configPath()
+	return SaveTo("", ctx, cfg, secureStorage)
+}
+
+// SaveTo writes cfg to the given path, creating parent directories as needed.
+// If path is empty the default XDG path is used.
+func SaveTo(path string, ctx context.Context, cfg *Config, secureStorage bool) error {
+	resolved, err := resolvePath(path)
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+	if err := os.MkdirAll(filepath.Dir(resolved), 0o700); err != nil {
 		return fmt.Errorf("creating config directory: %w", err)
 	}
 
@@ -112,15 +126,21 @@ func Save(ctx context.Context, cfg *Config, secureStorage bool) error {
 		return fmt.Errorf("serialising config: %w", err)
 	}
 
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := os.WriteFile(resolved, data, 0o600); err != nil {
 		return fmt.Errorf("writing config file: %w", err)
 	}
 	return nil
 }
 
-// Path returns the resolved path to the config file.
+// Path returns the resolved path to the default config file.
 func Path() (string, error) {
 	return configPath()
+}
+
+// PathFrom returns the resolved path for the given override. If override is
+// empty, returns the default XDG path.
+func PathFrom(override string) (string, error) {
+	return resolvePath(override)
 }
 
 // EffectiveHost returns the host, checked in priority order:
@@ -176,6 +196,14 @@ func (c *Config) storeToken(ctx context.Context) error {
 	}
 
 	return keyring.Set(ctx, c.EffectiveHost(), u.Username, c.Token)
+}
+
+// resolvePath returns override if non-empty, otherwise the default XDG path.
+func resolvePath(override string) (string, error) {
+	if override != "" {
+		return override, nil
+	}
+	return configPath()
 }
 
 func configPath() (string, error) {

@@ -28,5 +28,6 @@ Flags:
   -X, --method string        HTTP method (default: GET, or POST when -f is used)
 
 Global Flags:
-      --debug   enable debug logging
-  -q, --quiet   suppress informational output; data on stdout is unaffected
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

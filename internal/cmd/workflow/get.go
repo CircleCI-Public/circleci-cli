@@ -24,7 +24,6 @@ package workflow
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -128,9 +127,7 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	printGet(ctx, out)

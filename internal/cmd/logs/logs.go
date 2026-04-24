@@ -25,7 +25,6 @@ package logs
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 
@@ -149,7 +148,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 		if projectSlug == "" {
 			info, err := gitremote.Detect()
 			if err != nil {
-				return gitDetectErr(err)
+				return cmdutil.GitDetectErr(err, "Or specify the project with --project gh/org/repo")
 			}
 			projectSlug = info.Slug
 		}
@@ -159,7 +158,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 		if projectSlug == "" || effectiveBranch == "" {
 			info, gitErr := gitremote.Detect()
 			if gitErr != nil {
-				return gitDetectErr(gitErr)
+				return cmdutil.GitDetectErr(gitErr, "Or specify the project with --project gh/org/repo")
 			}
 			if projectSlug == "" {
 				projectSlug = info.Slug
@@ -214,22 +213,11 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(stepLogs)
+		return cmdutil.WriteJSON(iostream.Out(ctx), stepLogs)
 	}
 
 	printLogs(ctx, stepLogs)
 	return nil
-}
-
-func gitDetectErr(err error) *clierrors.CLIError {
-	return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-		WithSuggestions(
-			"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-			"Or specify the project with --project gh/org/repo",
-		).
-		WithExitCode(clierrors.ExitBadArguments)
 }
 
 func apiErr(err error, subject string) *clierrors.CLIError {

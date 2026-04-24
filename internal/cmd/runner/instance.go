@@ -24,7 +24,6 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"time"
 
@@ -186,9 +185,7 @@ func runInstanceList(ctx context.Context, client *apiclient.Client, resourceClas
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	if len(out) == 0 {

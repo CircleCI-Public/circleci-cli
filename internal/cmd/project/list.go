@@ -24,7 +24,6 @@ package project
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -119,9 +118,7 @@ func runProjectList(ctx context.Context, client *apiclient.Client, jsonOut bool)
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	if len(out) == 0 {

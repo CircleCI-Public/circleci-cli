@@ -24,7 +24,6 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -160,9 +159,7 @@ func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass s
 		if out == nil {
 			out = []tokenOutput{}
 		}
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	if len(out) == 0 {
@@ -249,9 +246,7 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	iostream.Printf(ctx, "Created token for resource class: %s\n", out.ResourceClass)
@@ -313,20 +308,16 @@ func newTokenDeleteCmd() *cobra.Command {
 }
 
 func runTokenDelete(ctx context.Context, client *apiclient.Client, tokenID string, force bool) error {
-	if !force {
-		if iostream.IsInteractive(ctx) {
-			prompt := fmt.Sprintf("Delete token %q? Agents using this token will lose the ability to claim new jobs.", tokenID)
-			if !iostream.Confirm(ctx, prompt) {
-				return clierrors.New("runner.delete_aborted", "Deletion aborted",
-					"Token deletion was not confirmed.").
-					WithExitCode(clierrors.ExitCancelled)
-			}
-		} else {
-			return clierrors.New("runner.delete_requires_force", "Deletion requires --force",
-				fmt.Sprintf("Deleting token %q is irreversible.", tokenID)).
-				WithSuggestions("Pass --force (-f) to confirm deletion in non-interactive mode").
-				WithExitCode(clierrors.ExitCancelled)
-		}
+	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+		fmt.Sprintf("Delete token %q? Agents using this token will lose the ability to claim new jobs.", tokenID),
+		clierrors.New("runner.delete_aborted", "Deletion aborted",
+			"Token deletion was not confirmed.").
+			WithExitCode(clierrors.ExitCancelled),
+		clierrors.New("runner.delete_requires_force", "Deletion requires --force",
+			fmt.Sprintf("Deleting token %q is irreversible.", tokenID)).
+			WithExitCode(clierrors.ExitCancelled),
+	); err != nil {
+		return err
 	}
 
 	if err := client.DeleteRunnerToken(ctx, tokenID); err != nil {
