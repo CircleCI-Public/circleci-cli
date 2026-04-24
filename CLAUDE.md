@@ -72,6 +72,7 @@ internal/
 │   ├── config/           circleci config validate/process/pack/generate
 │   ├── context/          circleci context + circleci context secret
 │   ├── job/              circleci job artifacts (deep path; wraps internal/artifacts)
+│   ├── open/             circleci open (opens current project in the CircleCI web UI)
 │   ├── pipeline/         circleci pipeline list/get/trigger
 │   ├── workflow/         circleci workflow list/get/cancel/rerun
 │   ├── orb/              circleci orb list/info/validate/publish/...
