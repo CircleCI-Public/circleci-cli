@@ -160,6 +160,34 @@ Did you mean '--verbose'?
 
 ---
 
+## Returning CLIError from Functions
+
+**Always return `error`, not `*clierrors.CLIError`, from functions that may return nil.**
+
+Go's interface rules mean that a typed nil (`(*clierrors.CLIError)(nil)`) assigned to an `error` interface produces a *non-nil* interface value. This breaks `if err != nil` checks and causes `assert.NilError` to fail even though the function "succeeded".
+
+```go
+// ❌ BAD — typed nil becomes non-nil error interface
+func parseParams(params []string) (map[string]any, *clierrors.CLIError) {
+    if ok {
+        return result, nil  // nil *CLIError → non-nil error interface at call site
+    }
+    ...
+}
+
+// ✅ GOOD — return error; nil remains nil
+func parseParams(params []string) (map[string]any, error) {
+    if !ok {
+        return nil, clierrors.New(...)  // CLIError implements error
+    }
+    return result, nil  // true nil interface
+}
+```
+
+The rule: use `*clierrors.CLIError` only in local variables and when chaining builder methods (`.WithSuggestions`, `.WithExitCode`). Any function signature that could return nil must use the `error` interface.
+
+---
+
 ## What Not to Do
 
 - **Don't silently fail.** If something goes wrong, say so. Silent failures leave users confused and scripts broken.

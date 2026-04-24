@@ -107,6 +107,34 @@ Skip the message when the comparison is already self-documenting — `cmp.Equal`
 `cmp.DeepEqual`, `cmp.Len`, and `cmp.ErrorIs` all produce structured failure
 messages that include the values involved, so they rarely need extra annotation.
 
+## Acceptance Test Caching
+
+Acceptance tests exec the compiled binary as a subprocess. `go test` cannot invalidate their
+cache when source files change — it only tracks direct Go imports, not what went into the
+binary. Always run acceptance tests with `-count=1` (cache-busting). `task test` does this
+automatically; `task acceptance-test` does too. Do not add `-count=1` to unit test runs, which
+can cache safely.
+
+---
+
+## Asserting on CLIError Output
+
+`CLIError.Format()` renders `Message` to stderr, not `Title`. Test assertions on stderr must
+match text from the `Message` field (the full explanation), never the `Title` (the short label).
+
+```go
+// CLIError{Title: "Unsupported shell", Message: `Shell "/bin/fish" is not supported.`}
+// stderr contains: "error: Shell \"/bin/fish\" is not supported."
+
+// ❌ BAD — Title never appears in formatted output
+assert.Check(t, cmp.Contains(result.Stderr, "unsupported shell"))
+
+// ✅ GOOD — Message text appears in formatted output
+assert.Check(t, cmp.Contains(result.Stderr, "not supported"))
+```
+
+---
+
 ## Examples
 
 ```go
