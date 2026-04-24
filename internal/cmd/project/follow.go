@@ -83,12 +83,7 @@ func runProjectFollow(ctx context.Context, client *apiclient.Client, projectSlug
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify the project: circleci project follow --project gh/org/repo",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci project follow --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}

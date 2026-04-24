@@ -23,6 +23,7 @@
 package iostream
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -67,6 +68,14 @@ func fromContext(ctx context.Context) Streams {
 
 func WithStreams(ctx context.Context, s Streams) context.Context {
 	return context.WithValue(ctx, contextKey{}, s)
+}
+
+// Get returns the Streams stored in ctx, or a discard-everything Streams if
+// none was set. Use this when you need to pass a Streams value to a helper
+// function (e.g. cmdutil.ConfirmOrForce) rather than calling the ctx-based
+// package-level wrappers.
+func Get(ctx context.Context) Streams {
+	return fromContext(ctx)
 }
 
 // Package-level accessors for Steam functions
@@ -247,6 +256,32 @@ func (s Streams) ErrPrintln(a ...any) {
 		return
 	}
 	_, _ = fmt.Fprintln(s.Err, a...)
+}
+
+// ReadSecret returns value as-is, unless value is "-", in which case it reads
+// one line from In. Use this for flags or arguments that accept sensitive
+// values (tokens, passwords, secrets) to allow callers to pipe the value in
+// without exposing it in shell history or process listings:
+//
+//	echo "mytoken" | circleci settings set token -
+func (s Streams) ReadSecret(value string) (string, error) {
+	if value != "-" {
+		return value, nil
+	}
+	scanner := bufio.NewScanner(s.In)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return "", err
+		}
+		return "", fmt.Errorf("expected value on stdin but got EOF")
+	}
+	return scanner.Text(), nil
+}
+
+// ReadSecret reads a sensitive value from the streams in context.
+// Returns value as-is unless value is "-", in which case reads one line from stdin.
+func ReadSecret(ctx context.Context, value string) (string, error) {
+	return fromContext(ctx).ReadSecret(value)
 }
 
 // Confirm presents a y/N confirmation prompt via bubbletea.

@@ -38,6 +38,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/settings"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/workflow"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 )
 
 // NewRootCmd builds the root cobra command and wires all subcommands.
@@ -55,11 +56,18 @@ func NewRootCmd(version string) *cobra.Command {
 		`),
 		SilenceErrors: true, // main.go handles error printing
 		SilenceUsage:  true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			configPath, _ := cmd.Flags().GetString("config")
+			ctx := cmdutil.WithConfigPath(cmd.Context(), configPath)
+			cmd.SetContext(ctx)
+			return nil
+		},
 	}
 
 	cmd.Version = version
 	cmd.SetVersionTemplate("circleci version {{.Version}}\n")
 
+	cmd.PersistentFlags().StringP("config", "c", "", "path to config file (default: ~/.config/circleci/config.yml)")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "suppress informational output; data on stdout is unaffected")
 	cmd.PersistentFlags().Bool("debug", false, "enable debug logging")
 

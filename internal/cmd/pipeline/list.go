@@ -24,14 +24,12 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
@@ -111,13 +109,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git",
-				err.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify the project: circleci pipeline list --project gh/org/repo",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci pipeline list --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}
@@ -133,9 +125,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(entries)
+		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
 	}
 
 	if len(pipelines) == 0 {

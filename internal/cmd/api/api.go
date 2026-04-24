@@ -191,9 +191,7 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 	if jsonOut {
 		var v any
 		if jsonErr := json.Unmarshal(respBody, &v); jsonErr == nil {
-			enc := json.NewEncoder(iostream.Out(ctx))
-			enc.SetIndent("", "  ")
-			_ = enc.Encode(v)
+			_ = cmdutil.WriteJSON(iostream.Out(ctx), v)
 		} else {
 			iostream.Println(ctx, output)
 		}

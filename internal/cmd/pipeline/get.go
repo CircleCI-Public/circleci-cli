@@ -24,7 +24,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"strings"
@@ -34,7 +33,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
@@ -147,13 +145,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 			if projectSlug == "" {
 				info, err := gitremote.Detect()
 				if err != nil {
-					return clierrors.New("git.detect_failed", "Could not detect project from git",
-						err.Error()).
-						WithSuggestions(
-							"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-							"Or specify the project: circleci pipeline get "+arg+" --project gh/org/repo",
-						).
-						WithExitCode(clierrors.ExitBadArguments)
+					return cmdutil.GitDetectErr(err, "Or specify the project: circleci pipeline get "+arg+" --project gh/org/repo")
 				}
 				projectSlug = info.Slug
 			}
@@ -172,13 +164,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		// No arg: infer from git context.
 		info, err := gitremote.Detect()
 		if err != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git",
-				err.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub remote",
-					"Or provide a pipeline number or UUID: circleci pipeline get <number>",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(err, "Or provide a pipeline number or UUID: circleci pipeline get <number>")
 		}
 
 		effectiveBranch := branch
@@ -211,9 +197,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	out := buildOutput(pipeline, workflows, wfJobs)
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	printPipeline(ctx, out)

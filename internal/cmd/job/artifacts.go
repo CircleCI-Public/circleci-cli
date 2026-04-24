@@ -24,7 +24,6 @@ package job
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -110,12 +109,7 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber in
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify the project: circleci job artifacts <number> --project gh/org/repo",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci job artifacts <number> --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}
@@ -147,9 +141,7 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber in
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(entries)
+		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
 	}
 
 	for _, e := range entries {

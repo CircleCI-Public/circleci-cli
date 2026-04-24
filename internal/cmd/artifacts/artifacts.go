@@ -25,7 +25,6 @@ package artifacts
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc"
@@ -117,7 +116,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 		if projectSlug == "" {
 			info, err := gitremote.Detect()
 			if err != nil {
-				return gitDetectErr(err)
+				return cmdutil.GitDetectErr(err, "Or provide a pipeline UUID: circleci artifacts <id>")
 			}
 			projectSlug = info.Slug
 		}
@@ -140,7 +139,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 		// Infer pipeline from git context
 		info, err := gitremote.Detect()
 		if err != nil {
-			return gitDetectErr(err)
+			return cmdutil.GitDetectErr(err, "Or provide a pipeline UUID: circleci artifacts <id>")
 		}
 		effectiveBranch := branch
 		if effectiveBranch == "" {
@@ -178,9 +177,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(entries)
+		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
 	}
 
 	printArtifacts(ctx, entries)
@@ -209,15 +206,6 @@ func printArtifacts(ctx context.Context, entries []artifacts.Entry) {
 			iostream.Println(ctx, e.Path)
 		}
 	}
-}
-
-func gitDetectErr(err error) *clierrors.CLIError {
-	return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-		WithSuggestions(
-			"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-			"Or provide a pipeline UUID: circleci artifacts <id>",
-		).
-		WithExitCode(clierrors.ExitBadArguments)
 }
 
 func apiErr(err error, subject string) *clierrors.CLIError {

@@ -24,7 +24,6 @@ package runner
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 
@@ -136,9 +135,7 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, namespa
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	if len(out) == 0 {
@@ -214,9 +211,7 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resou
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	iostream.Printf(ctx, "Created resource class: %s\n", out.ResourceClass)
@@ -273,20 +268,16 @@ func newResourceClassDeleteCmd() *cobra.Command {
 }
 
 func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resourceClass string, force bool) error {
-	if !force {
-		if iostream.IsInteractive(ctx) {
-			prompt := fmt.Sprintf("Delete resource class %q? All tokens and runner connections will be removed.", resourceClass)
-			if !iostream.Confirm(ctx, prompt) {
-				return clierrors.New("runner.delete_aborted", "Deletion aborted",
-					"Resource class deletion was not confirmed.").
-					WithExitCode(clierrors.ExitCancelled)
-			}
-		} else {
-			return clierrors.New("runner.delete_requires_force", "Deletion requires --force",
-				fmt.Sprintf("Deleting resource class %q is irreversible.", resourceClass)).
-				WithSuggestions("Pass --force (-f) to confirm deletion in non-interactive mode").
-				WithExitCode(clierrors.ExitCancelled)
-		}
+	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+		fmt.Sprintf("Delete resource class %q? All tokens and runner connections will be removed.", resourceClass),
+		clierrors.New("runner.delete_aborted", "Deletion aborted",
+			"Resource class deletion was not confirmed.").
+			WithExitCode(clierrors.ExitCancelled),
+		clierrors.New("runner.delete_requires_force", "Deletion requires --force",
+			fmt.Sprintf("Deleting resource class %q is irreversible.", resourceClass)).
+			WithExitCode(clierrors.ExitCancelled),
+	); err != nil {
+		return err
 	}
 
 	if err := client.DeleteResourceClass(ctx, resourceClass); err != nil {

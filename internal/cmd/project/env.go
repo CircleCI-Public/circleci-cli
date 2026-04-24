@@ -24,7 +24,6 @@ package project
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -117,7 +116,7 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return gitDetectErr(err, "list")
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci envvar list --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}
@@ -133,9 +132,7 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(vars)
+		return cmdutil.WriteJSON(iostream.Out(ctx), vars)
 	}
 
 	if len(vars) == 0 {
@@ -226,7 +223,7 @@ func RunEnvSet(ctx context.Context, client *apiclient.Client, projectSlug, name,
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return gitDetectErr(err, "set")
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci envvar set --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}
@@ -296,26 +293,22 @@ func NewEnvDeleteCmd() *cobra.Command {
 
 // RunEnvDelete is the business logic for deleting an env var.
 func RunEnvDelete(ctx context.Context, client *apiclient.Client, projectSlug, name string, force bool) error {
-	if !force {
-		if iostream.IsInteractive(ctx) {
-			prompt := fmt.Sprintf("Delete environment variable %q? This cannot be undone.", name)
-			if !iostream.Confirm(ctx, prompt) {
-				return clierrors.New("envvar.delete_aborted", "Deletion aborted",
-					"Environment variable deletion was not confirmed.").
-					WithExitCode(clierrors.ExitCancelled)
-			}
-		} else {
-			return clierrors.New("envvar.delete_requires_force", "Deletion requires --force",
-				fmt.Sprintf("Deleting environment variable %q is irreversible.", name)).
-				WithSuggestions("Pass --force (-f) to confirm deletion in non-interactive mode").
-				WithExitCode(clierrors.ExitCancelled)
-		}
+	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+		fmt.Sprintf("Delete environment variable %q? This cannot be undone.", name),
+		clierrors.New("envvar.delete_aborted", "Deletion aborted",
+			"Environment variable deletion was not confirmed.").
+			WithExitCode(clierrors.ExitCancelled),
+		clierrors.New("envvar.delete_requires_force", "Deletion requires --force",
+			fmt.Sprintf("Deleting environment variable %q is irreversible.", name)).
+			WithExitCode(clierrors.ExitCancelled),
+	); err != nil {
+		return err
 	}
 
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return gitDetectErr(err, "delete")
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci envvar delete --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}
@@ -331,13 +324,4 @@ func RunEnvDelete(ctx context.Context, client *apiclient.Client, projectSlug, na
 
 	iostream.Printf(ctx, "%s Deleted %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
 	return nil
-}
-
-func gitDetectErr(err error, subcmd string) *clierrors.CLIError {
-	return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-		WithSuggestions(
-			"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-			fmt.Sprintf("Or specify the project: circleci envvar %s --project gh/org/repo", subcmd),
-		).
-		WithExitCode(clierrors.ExitBadArguments)
 }

@@ -24,7 +24,6 @@ package workflow
 
 import (
 	"context"
-	"encoding/json"
 	"strconv"
 	"strings"
 
@@ -145,9 +144,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 		if out == nil {
 			out = []workflowListOutput{}
 		}
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	if len(out) == 0 {
@@ -164,12 +161,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 	if projectSlug == "" {
 		info, gitErr := gitremote.Detect()
 		if gitErr != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git", gitErr.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify --project explicitly",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(gitErr, "Or specify --project explicitly")
 		}
 		projectSlug = info.Slug
 	}
@@ -199,9 +191,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		if out == nil {
 			out = []workflowRecentOutput{}
 		}
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(out)
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
 	if len(pipelines) == 0 {
@@ -257,12 +247,7 @@ func resolvePipelineID(ctx context.Context, client *apiclient.Client, arg, proje
 	if projectSlug == "" {
 		info, gitErr := gitremote.Detect()
 		if gitErr != nil {
-			return "", clierrors.New("git.detect_failed", "Could not detect project from git", gitErr.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify --project explicitly",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return "", cmdutil.GitDetectErr(gitErr, "Or specify --project explicitly")
 		}
 		projectSlug = info.Slug
 	}

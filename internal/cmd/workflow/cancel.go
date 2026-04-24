@@ -82,20 +82,16 @@ func newCancelCmd() *cobra.Command {
 }
 
 func runCancel(ctx context.Context, client *apiclient.Client, id string, force bool) error {
-	if !force {
-		if iostream.IsInteractive(ctx) {
-			prompt := fmt.Sprintf("Cancel workflow %s? In-progress jobs will be stopped.", id)
-			if !iostream.Confirm(ctx, prompt) {
-				return clierrors.New("workflow.cancel_aborted", "Cancellation aborted",
-					"Workflow cancellation was not confirmed.").
-					WithExitCode(clierrors.ExitCancelled)
-			}
-		} else {
-			return clierrors.New("workflow.cancel_requires_force", "Cancellation requires --force",
-				fmt.Sprintf("Cancelling workflow %s will stop all in-progress jobs.", id)).
-				WithSuggestions("Pass --force (-f) to confirm cancellation in non-interactive mode").
-				WithExitCode(clierrors.ExitCancelled)
-		}
+	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+		fmt.Sprintf("Cancel workflow %s? In-progress jobs will be stopped.", id),
+		clierrors.New("workflow.cancel_aborted", "Cancellation aborted",
+			"Workflow cancellation was not confirmed.").
+			WithExitCode(clierrors.ExitCancelled),
+		clierrors.New("workflow.cancel_requires_force", "Cancellation requires --force",
+			fmt.Sprintf("Cancelling workflow %s will stop all in-progress jobs.", id)).
+			WithExitCode(clierrors.ExitCancelled),
+	); err != nil {
+		return err
 	}
 
 	if err := client.CancelWorkflow(ctx, id); err != nil {

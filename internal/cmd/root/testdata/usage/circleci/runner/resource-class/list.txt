@@ -20,5 +20,6 @@ Flags:
       --namespace string   Filter by namespace (organization)
 
 Global Flags:
-      --debug   enable debug logging
-  -q, --quiet   suppress informational output; data on stdout is unaffected
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

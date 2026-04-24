@@ -17,5 +17,6 @@ Flags:
       --project string   Project slug (e.g. gh/org/repo); used when cancelling by number
 
 Global Flags:
-      --debug   enable debug logging
-  -q, --quiet   suppress informational output; data on stdout is unaffected
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

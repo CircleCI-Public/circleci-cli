@@ -128,12 +128,7 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 	if needsGit {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
-				WithSuggestions(
-					"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					"Or specify --project and --branch explicitly",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return cmdutil.GitDetectErr(err, "Or specify --project and --branch explicitly")
 		}
 		if projectSlug == "" {
 			projectSlug = info.Slug

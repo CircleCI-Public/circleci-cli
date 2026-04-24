@@ -5,6 +5,9 @@ Examples:
 # Store your personal API token
 $ circleci settings set token mytoken123
 
+# Read the token from stdin to avoid shell history exposure
+$ echo "mytoken123" | circleci settings set token -
+
 # Point to a self-hosted CircleCI server
 $ circleci settings set host https://circleci.mycompany.com
 
@@ -13,5 +16,6 @@ $ CIRCLECI_TOKEN=mytoken123 circleci pipeline get
 
 
 Global Flags:
-      --debug   enable debug logging
-  -q, --quiet   suppress informational output; data on stdout is unaffected
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
