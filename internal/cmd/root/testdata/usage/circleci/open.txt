@@ -1,0 +1,11 @@
+Usage:
+  circleci open [flags]
+
+Examples:
+# Open pipelines for the current repo
+$ circleci open
+
+
+Global Flags:
+      --debug   enable debug logging
+  -q, --quiet   suppress informational output; data on stdout is unaffected
