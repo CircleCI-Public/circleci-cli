@@ -1,0 +1,4 @@
+# Prevent git from converting \n to \r\n on Windows checkout.
+# Without this, golden file comparisons fail because the CLI outputs \n
+# but git-checked-out files contain \r\n.
+**/testdata/**/*.txt text eol=lf

@@ -136,7 +136,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 
 	var (
 		jobNumber   int64
-		fetchLogsSp *iostream.Spinner
+		fetchLogsSp *iostream.Spin
 	)
 
 	switch {
@@ -169,7 +169,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 			}
 		}
 
-		sp1 := iostream.Spin(ctx, true, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", projectSlug, effectiveBranch))
+		sp1 := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", projectSlug, effectiveBranch))
 		pipeline, err := client.GetLatestPipeline(ctx, projectSlug, effectiveBranch)
 		sp1.Stop()
 		if err != nil {
@@ -194,7 +194,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 			return apiErr(err, pipeline.ID)
 		}
 
-		fetchLogsSp = iostream.Spin(ctx, true, fmt.Sprintf("Fetching logs for job #%d", jobNumber))
+		fetchLogsSp = iostream.Spinner(ctx, true, fmt.Sprintf("Fetching logs for job #%d", jobNumber))
 	}
 
 	stepLogs, err := logs.ForJob(ctx, client, projectSlug, jobNumber, step)

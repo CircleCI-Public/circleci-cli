@@ -1,0 +1,5 @@
+# User
+- ID: `user-uuid-1234`
+- Name: Test User
+- Login: testuser
+- Avatar URL: https://example.com/avatar.png

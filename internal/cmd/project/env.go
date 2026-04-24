@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -142,10 +143,34 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 		return nil
 	}
 
-	var md strings.Builder
-	md.WriteString("# Environment variables\n")
+	const createdHeader = "Created At"
+	nameW := len("Name")
+	valW := len("Value")
+	createdW := len(createdHeader)
 	for _, v := range vars {
-		_, _ = fmt.Fprintf(&md, "- %-40s  %s\n", v.Name, v.Value)
+		if len(v.Name) > nameW {
+			nameW = len(v.Name)
+		}
+		if len(v.Value) > valW {
+			valW = len(v.Value)
+		}
+		if v.CreatedAt != nil {
+			if n := len(v.CreatedAt.Format(time.RFC3339)); n > createdW {
+				createdW = n
+			}
+		}
+	}
+
+	var md strings.Builder
+	md.WriteString("# Environment Variables\n")
+	_, _ = fmt.Fprintf(&md, "| %-*s | %-*s | %-*s |\n", nameW, "Name", valW, "Value", createdW, createdHeader)
+	_, _ = fmt.Fprintf(&md, "| %s | %s | %s |\n", strings.Repeat("-", nameW), strings.Repeat("-", valW), strings.Repeat("-", createdW))
+	for _, v := range vars {
+		created := ""
+		if v.CreatedAt != nil {
+			created = v.CreatedAt.Format(time.RFC3339)
+		}
+		_, _ = fmt.Fprintf(&md, "| %-*s | %-*s | %-*s |\n", nameW, v.Name, valW, v.Value, createdW, created)
 	}
 	iostream.PrintMarkdown(ctx, md.String())
 	return nil

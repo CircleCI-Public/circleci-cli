@@ -136,7 +136,7 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber in
 	}
 
 	if downloadDir != "" {
-		sp := iostream.Spin(ctx, true, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
+		sp := iostream.Spinner(ctx, true, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
 		dlErr := artifacts.Download(ctx, client, entries, downloadDir)
 		sp.Stop()
 		if dlErr != nil {

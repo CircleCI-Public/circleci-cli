@@ -25,6 +25,7 @@ package apiclient
 import (
 	"context"
 	"fmt"
+	"time"
 )
 
 // Project is a followed CircleCI project.
@@ -39,8 +40,9 @@ type Project struct {
 // EnvVar is a project environment variable.
 // The value is masked in list responses; it is only returned on set.
 type EnvVar struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name      string     `json:"name"`
+	Value     string     `json:"value"`
+	CreatedAt *time.Time `json:"created_at"`
 }
 
 // ListProjects returns all followed projects for the authenticated user.

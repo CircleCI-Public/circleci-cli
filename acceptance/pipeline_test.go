@@ -30,6 +30,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -38,16 +39,17 @@ import (
 
 // fakePipeline returns a minimal pipeline payload for the fake server.
 func fakePipeline(id string, number int, state, slug, branch string) map[string]any {
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
 	return map[string]any{
 		"id":           id,
 		"state":        state,
 		"number":       number,
 		"project_slug": slug,
-		"created_at":   time.Now().UTC().Format(time.RFC3339),
-		"updated_at":   time.Now().UTC().Format(time.RFC3339),
+		"created_at":   now.Format(time.RFC3339),
+		"updated_at":   now.Format(time.RFC3339),
 		"trigger": map[string]any{
 			"type":        "webhook",
-			"received_at": time.Now().UTC().Format(time.RFC3339),
+			"received_at": now.Format(time.RFC3339),
 			"actor":       map[string]any{"login": "testuser", "avatar_url": ""},
 		},
 		"vcs": map[string]any{
@@ -78,13 +80,7 @@ func TestPipelineGet_ByID(t *testing.T) {
 	result := binary.RunCLI(t, []string{"pipeline", "get", pipelineID}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline #42"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, pipelineID), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "gh/testorg/testrepo"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "run-tests"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "#101"), "stdout should contain job number: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "deploy"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "#102"), "stdout should contain job number: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestPipelineGet_ByNumber(t *testing.T) {
@@ -107,8 +103,7 @@ func TestPipelineGet_ByNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline #42"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "run-tests"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestPipelineGet_ByID_JSON(t *testing.T) {

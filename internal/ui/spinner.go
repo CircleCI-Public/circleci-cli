@@ -20,32 +20,44 @@
 //
 // SPDX-License-Identifier: MIT
 
-package root_test
+package ui
 
 import (
-	"fmt"
-	"path"
-	"testing"
-
-	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/root"
+	"charm.land/bubbles/v2/spinner"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 )
 
-func TestUsage(t *testing.T) {
-	cmd := root.NewRootCmd("1.2.3")
-	testSubCommandUsage(t, cmd.Name(), cmd)
+var spinnerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+
+// SpinnerModel is a bubbletea model that displays an animated spinner with a
+// message. Run it in a goroutine via tea.NewProgram; call p.Quit() to stop it.
+type SpinnerModel struct {
+	spinner spinner.Model
+	msg     string
 }
 
-func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command) {
-	t.Helper()
-	t.Run(parent.Name(), func(t *testing.T) {
-		usageString := parent.UsageString()
-		assert.Check(t, golden.String(usageString, path.Join("usage", fmt.Sprintf("%s.txt", prefix))))
-		for _, cmd := range parent.Commands() {
-			testSubCommandUsage(t, path.Join(prefix, cmd.Name()), cmd)
-		}
-	})
+func NewSpinnerModel(msg string, color bool) SpinnerModel {
+	s := spinner.New()
+	if color {
+		s.Spinner = spinner.MiniDot
+		s.Style = spinnerStyle
+	} else {
+		s.Spinner = spinner.Line
+	}
+	return SpinnerModel{spinner: s, msg: msg}
+}
+
+func (m SpinnerModel) Init() tea.Cmd {
+	return m.spinner.Tick
+}
+
+func (m SpinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	s, cmd := m.spinner.Update(msg)
+	m.spinner = s
+	return m, cmd
+}
+
+func (m SpinnerModel) View() tea.View {
+	return tea.NewView(m.spinner.View() + " " + m.msg)
 }
