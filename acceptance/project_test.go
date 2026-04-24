@@ -25,9 +25,11 @@ package acceptance_test
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -52,8 +54,9 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"vcs_type": "github",
 		"name":     "beta",
 	})
-	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx")
-	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx")
+	createdAt := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx", nil)
+	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx", &createdAt)
 
 	env := testenv.New(t)
 	env.Token = "testtoken"
@@ -153,8 +156,7 @@ func TestEnvList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "DATABASE_URL"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "SECRET_KEY"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestEnvList_JSON(t *testing.T) {

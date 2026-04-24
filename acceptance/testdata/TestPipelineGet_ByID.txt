@@ -1,0 +1,20 @@
+# Pipeline
+- ID: `5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Number: 42
+- Project: gh/testorg/testrepo
+- Branch: main
+- Commit: abc1234
+- Status: success
+
+## Trigger
+- Created At: 2020-01-01 12:00:00 UTC
+- By: testuser
+- Type: webhook
+
+## Workflows
+### build
+- Status: success
+- Jobs:
+  - run-tests                             success  #101
+  - deploy                                success  #102
+

@@ -129,7 +129,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 	case len(args) == 1:
 		// Explicit pipeline UUID
 		pipelineID := args[0]
-		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Fetching artifacts for pipeline %s", pipelineID))
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching artifacts for pipeline %s", pipelineID))
 		entries, err = artifacts.ForPipeline(ctx, client, pipelineID)
 		sp.Stop()
 		if err != nil {
@@ -146,7 +146,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 		if effectiveBranch == "" {
 			effectiveBranch = info.Branch
 		}
-		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
 		pipeline, err := client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
 		sp.Stop()
 		if err != nil {
@@ -167,7 +167,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 	}
 
 	if downloadDir != "" {
-		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
 		dlErr := artifacts.Download(ctx, client, entries, downloadDir)
 		sp.Stop()
 		if dlErr != nil {

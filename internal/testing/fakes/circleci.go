@@ -31,6 +31,7 @@ import (
 	"strconv"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -755,10 +756,14 @@ func (f *CircleCI) AddFollowedProject(proj any) {
 
 // AddEnvVar registers an env var for a project.
 // slug should be in "vcs/org/repo" form.
-func (f *CircleCI) AddEnvVar(slug, name, value string) {
+func (f *CircleCI) AddEnvVar(slug, name, value string, createdAt *time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.envVars[slug] = append(f.envVars[slug], map[string]any{"name": name, "value": value})
+	f.envVars[slug] = append(f.envVars[slug], map[string]any{
+		"name":       name,
+		"value":      value,
+		"created_at": createdAt,
+	})
 }
 
 // --- Project / env-var handlers ---

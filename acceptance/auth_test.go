@@ -28,6 +28,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -57,8 +58,7 @@ func TestAuthMe(t *testing.T) {
 	result := binary.RunCLI(t, []string{"auth", "me"}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "testuser"))
-	assert.Check(t, cmp.Contains(result.Stdout, "Test User"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestAuthMe_JSON(t *testing.T) {

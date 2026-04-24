@@ -131,7 +131,7 @@ func In(ctx context.Context) io.Reader {
 	return fromContext(ctx).In
 }
 
-func Spin(ctx context.Context, active bool, msg string) *Spinner {
+func Spinner(ctx context.Context, active bool, msg string) *Spin {
 	return fromContext(ctx).Spinner(active, msg)
 }
 

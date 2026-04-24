@@ -186,7 +186,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 			effectiveBranch = info.Branch
 		}
 
-		sp := iostream.Spin(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
 		pipeline, err = client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
 		sp.Stop()
 		if err != nil {
@@ -312,35 +312,51 @@ func looksLikeNumber(s string) bool {
 }
 
 func printPipeline(ctx context.Context, p pipelineGetOutput) {
-	iostream.Printf(ctx, "Pipeline #%d  %s\n", p.Number, p.ID)
-	iostream.Printf(ctx, "Project:   %s\n", p.ProjectSlug)
+	var md strings.Builder
+	md.WriteString("# Pipeline\n")
+
+	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", p.ID)
+	_, _ = fmt.Fprintf(&md, "- Number: %d\n", p.Number)
+	_, _ = fmt.Fprintf(&md, "- Project: %s\n", p.ProjectSlug)
 	if p.Branch != "" {
-		iostream.Printf(ctx, "Branch:    %s\n", p.Branch)
+		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", p.Branch)
 	}
 	if p.Revision != "" {
-		iostream.Printf(ctx, "Commit:    %s\n", p.Revision)
+		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", p.Revision)
 	}
-	iostream.Printf(ctx, "Status:    %s\n", p.Status)
-	iostream.Printf(ctx, "Triggered: %s by %s (%s)\n", p.CreatedAt, p.Trigger.Actor, p.Trigger.Type)
+	_, _ = fmt.Fprintf(&md, "- Status: %s\n", p.Status)
+	md.WriteString("\n")
+
+	md.WriteString("## Trigger\n")
+	_, _ = fmt.Fprintf(&md, "- Created At: %s\n", p.CreatedAt)
+	_, _ = fmt.Fprintf(&md, "- By: %s\n", p.Trigger.Actor)
+	_, _ = fmt.Fprintf(&md, "- Type: %s\n", p.Trigger.Type)
+	md.WriteString("\n")
 
 	if len(p.Errors) > 0 {
-		iostream.Printf(ctx, "\nErrors:\n")
+		md.WriteString("## Errors\n")
 		for _, e := range p.Errors {
-			iostream.Printf(ctx, "  [%s] %s\n", e.Type, e.Message)
+			_, _ = fmt.Fprintf(&md, "- [%s] %s\n", e.Type, e.Message)
 		}
+		md.WriteString("\n")
 	}
 
 	if len(p.Workflows) > 0 {
-		iostream.Printf(ctx, "\nWorkflows:\n")
+		md.WriteString("## Workflows\n")
 		for _, w := range p.Workflows {
-			iostream.Printf(ctx, "  %-30s  %s\n", w.Name, w.Status)
+			_, _ = fmt.Fprintf(&md, "### %s\n", w.Name)
+			_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
+			_, _ = fmt.Fprintf(&md, "- Jobs:\n")
 			for _, j := range w.Jobs {
 				if j.Type == "approval" {
-					iostream.Printf(ctx, "    %-36s  %s\n", j.Name, j.Status)
+					_, _ = fmt.Fprintf(&md, "  - %-36s  %s\n", j.Name, j.Status)
 				} else {
-					iostream.Printf(ctx, "    %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
+					_, _ = fmt.Fprintf(&md, "  - %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
 				}
 			}
 		}
+		md.WriteString("\n")
 	}
+
+	iostream.PrintMarkdown(ctx, md.String())
 }

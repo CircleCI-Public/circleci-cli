@@ -26,79 +26,59 @@ import (
 	"fmt"
 	"os"
 	"sync"
-	"time"
+
+	tea "charm.land/bubbletea/v2"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
-// Spinner is a progress indicator. Call Stop when the operation completes.
-// It is safe to call Stop on a nil or no-op Spinner, and safe to call it
+// Spin is a progress indicator. Call Stop when the operation completes.
+// It is safe to call Stop on a nil or no-op Spin, and safe to call it
 // more than once.
-type Spinner struct {
-	done   chan struct{}
-	wg     sync.WaitGroup
-	once   sync.Once
-	active bool // true when the animation goroutine is running
+type Spin struct {
+	program *tea.Program
+	once    sync.Once
+	active  bool
 }
 
 // Spinner creates and starts a progress indicator for msg.
 //
-// Pass active=false (e.g. !jsonOut) to get a no-op Spinner with no output.
-// When quiet mode is on, the Spinner is also a no-op.
+// Pass active=false (e.g. !jsonOut) to get a no-op Spin with no output.
+// When quiet mode is on, the Spin is also a no-op.
 // In a non-interactive session (no TTY, CI=true, spinner disabled) a plain
 // "msg...\n" line is written to stderr instead of animating.
 //
 // Always call Stop() when the operation completes.
-func (s Streams) Spinner(active bool, msg string) *Spinner {
+func (s Streams) Spinner(active bool, msg string) *Spin {
 	if !active || s.Quiet {
-		return &Spinner{}
+		return &Spin{}
 	}
 
 	if !s.IsInteractive() || spinnerDisabled() {
 		// Non-TTY or explicitly disabled: static one-liner, no animation.
 		_, _ = fmt.Fprintf(s.Err, "%s...\n", msg)
-		return &Spinner{}
+		return &Spin{}
 	}
 
-	sp := &Spinner{
-		done:   make(chan struct{}),
-		active: true,
-	}
+	p := tea.NewProgram(
+		ui.NewSpinnerModel(msg, s.ColorEnabled()),
+		tea.WithOutput(s.Err),
+	)
 
-	sp.wg.Add(1)
-	go func() {
-		defer sp.wg.Done()
-		var frames []string
-		if s.ColorEnabled() {
-			frames = []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
-		} else {
-			frames = []string{"|", "/", "-", "\\"}
-		}
-		tick := time.NewTicker(100 * time.Millisecond)
-		defer tick.Stop()
-		i := 0
-		for {
-			select {
-			case <-sp.done:
-				_, _ = fmt.Fprintf(s.Err, "\r\033[K") // erase spinner line
-				return
-			case <-tick.C:
-				_, _ = fmt.Fprintf(s.Err, "\r%s %s", frames[i%len(frames)], msg)
-				i++
-			}
-		}
-	}()
-
+	sp := &Spin{program: p, active: true}
+	go p.Run() //nolint:errcheck
 	return sp
 }
 
 // Stop halts the spinner and clears its line. It is safe to call on a nil or
-// no-op Spinner and safe to call more than once.
-func (sp *Spinner) Stop() {
+// no-op Spin and safe to call more than once.
+func (sp *Spin) Stop() {
 	if sp == nil || !sp.active {
 		return
 	}
 	sp.once.Do(func() {
-		close(sp.done)
-		sp.wg.Wait()
+		sp.program.Quit()
+		sp.program.Wait()
 	})
 }
 
