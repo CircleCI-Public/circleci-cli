@@ -159,7 +159,10 @@ func (c *Config) loadToken(ctx context.Context) error {
 	case errors.Is(err, keyring.ErrNotFound):
 		return nil
 	case err != nil:
-		return err
+		// Keyring unavailable (no secret service, D-Bus not running, etc.).
+		// Treat as "no stored token" — the user can still authenticate via
+		// CIRCLECI_TOKEN env var or by passing --insecure-storage.
+		return nil
 	}
 
 	c.Token = password
