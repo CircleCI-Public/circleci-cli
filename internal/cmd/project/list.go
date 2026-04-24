@@ -25,6 +25,7 @@ package project
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -128,8 +129,11 @@ func runProjectList(ctx context.Context, client *apiclient.Client, jsonOut bool)
 		return nil
 	}
 
+	var md strings.Builder
+	md.WriteString("# Projects\n")
 	for _, p := range out {
-		iostream.Println(ctx, p.Slug)
+		_, _ = fmt.Fprintf(&md, "- %s\n", p.Slug)
 	}
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }

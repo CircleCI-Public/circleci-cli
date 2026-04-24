@@ -25,6 +25,7 @@ package cmdauth
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -66,8 +67,11 @@ func runMe(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
 		return enc.Encode(me)
 	}
 
-	iostream.Printf(ctx, "User: %s\n\n", me.ID)
-	iostream.Printf(ctx, "%-10s  %s\n", "name", me.Name)
-	iostream.Printf(ctx, "%-10s  %s\n", "login", me.Login)
+	iostream.PrintMarkdown(ctx, fmt.Sprintf(`# User
+- ID: `+"`%s`"+`
+- Name: %s
+- Login: %s
+- Avatar URL: %s
+`, me.ID, me.Name, me.Login, me.AvatarUrl))
 	return nil
 }

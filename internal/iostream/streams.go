@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"charm.land/glamour/v2"
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
@@ -112,6 +113,10 @@ func Confirm(ctx context.Context, prompt string) bool {
 
 func DebugContext(ctx context.Context, msg string, args ...any) {
 	fromContext(ctx).DebugContext(ctx, msg, args...)
+}
+
+func PrintMarkdown(ctx context.Context, md string) {
+	fromContext(ctx).PrintMarkdown(md)
 }
 
 func Out(ctx context.Context) io.Writer {
@@ -263,4 +268,32 @@ func (s Streams) Confirm(ctx context.Context, prompt string) bool {
 
 func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
 	s.slog.DebugContext(ctx, msg, args...)
+}
+
+// RenderMarkdown renders md as styled markdown when color is enabled, falling
+// back to the raw string when output is not a TTY or color is disabled.
+// The rendered string is returned; use PrintMarkdown to write it to Out.
+func (s Streams) RenderMarkdown(md string) (string, error) {
+	if !s.ColorEnabled() {
+		return md, nil
+	}
+	r, err := glamour.NewTermRenderer(
+		glamour.WithEnvironmentConfig(),
+		glamour.WithWordWrap(100),
+	)
+	if err != nil {
+		return md, err
+	}
+	return r.Render(md)
+}
+
+// PrintMarkdown renders md and writes the result to Out.
+// Falls back to writing raw markdown on render error.
+func (s Streams) PrintMarkdown(md string) {
+	rendered, err := s.RenderMarkdown(md)
+	if err != nil {
+		_, _ = fmt.Fprint(s.Out, md)
+		return
+	}
+	_, _ = fmt.Fprint(s.Out, rendered)
 }
