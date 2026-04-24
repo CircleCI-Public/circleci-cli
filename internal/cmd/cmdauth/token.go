@@ -61,7 +61,11 @@ func runToken(ctx context.Context, secureStorage bool) error {
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	p := tea.NewProgram(ui.NewTokenModel())
+	p := tea.NewProgram(ui.NewTokenModel(),
+		tea.WithContext(ctx),
+		tea.WithInput(iostream.In(ctx)),
+		tea.WithOutput(iostream.Err(ctx)),
+	)
 	anyModel, err := p.Run()
 	if err != nil {
 		return err
