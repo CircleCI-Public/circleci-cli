@@ -26,6 +26,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 )
 
 // WorkflowDetail holds the full details of a single workflow.
@@ -80,13 +82,26 @@ type WorkflowJob struct {
 	StoppedAt   time.Time `json:"stopped_at"`
 }
 
-// GetWorkflowJobs returns all jobs belonging to a workflow.
+// GetWorkflowJobs returns all jobs belonging to a workflow, paginating automatically.
 func (c *Client) GetWorkflowJobs(ctx context.Context, workflowID string) ([]WorkflowJob, error) {
-	var resp struct {
-		Items []WorkflowJob `json:"items"`
+	var all []WorkflowJob
+	pageToken := ""
+	for {
+		var resp struct {
+			Items         []WorkflowJob `json:"items"`
+			NextPageToken string        `json:"next_page_token"`
+		}
+		opts := []func(*httpcl.Request){}
+		if pageToken != "" {
+			opts = append(opts, httpcl.QueryParam("page-token", pageToken))
+		}
+		if err := c.get(ctx, "/workflow/"+workflowID+"/job", &resp, opts...); err != nil {
+			return nil, err
+		}
+		all = append(all, resp.Items...)
+		if resp.NextPageToken == "" {
+			return all, nil
+		}
+		pageToken = resp.NextPageToken
 	}
-	if err := c.get(ctx, "/workflow/"+workflowID+"/job", &resp); err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
 }

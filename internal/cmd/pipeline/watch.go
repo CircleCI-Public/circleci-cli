@@ -219,58 +219,90 @@ func waitForPipelineBySHA(ctx context.Context, client *apiclient.Client, project
 
 // watchUntilDone polls the given pipeline until all workflows reach a terminal
 // state or the timeout elapses.
+//
+// For TTY output, polling and rendering are decoupled: a 1-second display
+// ticker keeps the elapsed timer smooth while the poll interval ramps up to
+// 30s. For non-TTY output a nil displayC disables the ticker branch entirely.
 func watchUntilDone(ctx context.Context, client *apiclient.Client, pipelineID string, pipelineNumber int64, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	start := time.Now()
 	tty := iostream.IsTerminal(ctx)
 
+	var state pipelineGetOutput
 	var prevLines int
-	var prevFingerprint string
+
 	pollInterval := 5 * time.Second
+	pollTimer := time.NewTimer(0) // fire immediately for the first fetch
+	defer pollTimer.Stop()
+
+	// displayC is nil for non-TTY; a nil channel is never selected, so the
+	// display case is a no-op without any extra branching.
+	var displayC <-chan time.Time
+	if tty {
+		t := time.NewTicker(time.Second)
+		defer t.Stop()
+		displayC = t.C
+	}
+
+	redraw := func(elapsed time.Duration) {
+		if prevLines > 0 {
+			_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
+		}
+		prevLines = printWatchTable(ctx, state, elapsed)
+	}
 
 	for {
-		state, err := fetchWatchState(ctx, client, pipelineID)
-		if err != nil {
-			return clierrors.New("api.error", "API error while watching pipeline", err.Error()).
-				WithExitCode(clierrors.ExitAPIError)
-		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
 
-		elapsed := time.Since(start)
-		fingerprint := watchFingerprint(state)
-		changed := fingerprint != prevFingerprint
-
-		if tty {
-			// Erase previous table, redraw with updated elapsed.
-			if prevLines > 0 {
-				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
-			}
-			prevLines = printWatchTable(ctx, state, elapsed)
-		} else if changed {
-			printWatchLine(ctx, state, elapsed)
-		}
-		prevFingerprint = fingerprint
-
-		if allWorkflowsDone(state.Workflows) {
-			if tty && prevLines > 0 {
-				// Final redraw without the elapsed ticker line.
-				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
-				printWatchTableFinal(ctx, state)
+		case <-displayC:
+			// TTY only: redraw with a fresh elapsed value between polls.
+			redraw(time.Since(start))
+			if time.Now().After(deadline) {
 				iostream.ErrPrintf(ctx, "\n")
+				return clierrors.New("pipeline.timeout", "Watch timed out",
+					fmt.Sprintf("Pipeline #%d did not complete within %s.", pipelineNumber, timeout)).
+					WithExitCode(clierrors.ExitTimeout)
 			}
-			return watchFinalResult(ctx, state, pipelineNumber, elapsed)
-		}
 
-		if time.Now().After(deadline) {
-			iostream.ErrPrintf(ctx, "\n")
-			return clierrors.New("pipeline.timeout", "Watch timed out",
-				fmt.Sprintf("Pipeline #%d did not complete within %s.", pipelineNumber, timeout)).
-				WithExitCode(clierrors.ExitTimeout)
-		}
+		case <-pollTimer.C:
+			newState, err := fetchWatchState(ctx, client, pipelineID)
+			if err != nil {
+				return clierrors.New("api.error", "API error while watching pipeline", err.Error()).
+					WithExitCode(clierrors.ExitAPIError)
+			}
 
-		time.Sleep(pollInterval)
-		// Ramp from 5s to 30s over the first few polls.
-		if pollInterval < 30*time.Second {
-			pollInterval += 5 * time.Second
+			elapsed := time.Since(start)
+			state = newState
+
+			if tty {
+				redraw(elapsed)
+			} else {
+				printWatchLine(ctx, state, elapsed)
+			}
+
+			if allWorkflowsDone(state.Workflows) {
+				if tty && prevLines > 0 {
+					_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
+					printWatchTableFinal(ctx, state)
+					iostream.ErrPrintf(ctx, "\n")
+				}
+				return watchFinalResult(ctx, state, pipelineNumber, elapsed)
+			}
+
+			if time.Now().After(deadline) {
+				iostream.ErrPrintf(ctx, "\n")
+				return clierrors.New("pipeline.timeout", "Watch timed out",
+					fmt.Sprintf("Pipeline #%d did not complete within %s.", pipelineNumber, timeout)).
+					WithExitCode(clierrors.ExitTimeout)
+			}
+
+			// Ramp poll interval from 5s to 30s over the first few cycles.
+			pollTimer.Reset(pollInterval)
+			if pollInterval < 30*time.Second {
+				pollInterval += 5 * time.Second
+			}
 		}
 	}
 }
@@ -315,25 +347,6 @@ func allWorkflowsDone(workflows []workflowOutput) bool {
 	return true
 }
 
-// watchFingerprint returns a string that changes whenever workflow or job
-// statuses change, used to detect updates for non-TTY output.
-func watchFingerprint(state pipelineGetOutput) string {
-	var b strings.Builder
-	for _, wf := range state.Workflows {
-		b.WriteString(wf.Name)
-		b.WriteByte('=')
-		b.WriteString(wf.Status)
-		b.WriteByte(';')
-		for _, j := range wf.Jobs {
-			b.WriteString(j.Name)
-			b.WriteByte('=')
-			b.WriteString(j.Status)
-			b.WriteByte(';')
-		}
-	}
-	return b.String()
-}
-
 // printWatchTable renders the workflow/job table to Err and returns the line count
 // written (used for TTY cursor rewind).
 func printWatchTable(ctx context.Context, state pipelineGetOutput, elapsed time.Duration) int {
@@ -369,13 +382,20 @@ func printWatchTableFinal(ctx context.Context, state pipelineGetOutput) {
 	}
 }
 
-// printWatchLine emits a single-line status update for non-TTY output.
+// printWatchLine emits a status block for non-TTY output. Each workflow gets
+// a timestamped header line; its jobs are indented beneath it.
 func printWatchLine(ctx context.Context, state pipelineGetOutput, elapsed time.Duration) {
-	var parts []string
 	for _, wf := range state.Workflows {
-		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, wf.Status))
+		iostream.ErrPrintf(ctx, "[%s]  %-28s  %s\n", formatElapsed(elapsed), wf.Name, wf.Status)
+		for _, j := range wf.Jobs {
+			if j.Number > 0 {
+				iostream.ErrPrintf(ctx, "        %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
+			} else {
+				iostream.ErrPrintf(ctx, "        %-30s  %s\n", j.Name, j.Status)
+			}
+		}
 	}
-	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
+	iostream.ErrPrintf(ctx, "\n")
 }
 
 // watchFinalResult prints the outcome and returns an appropriate error (or nil).

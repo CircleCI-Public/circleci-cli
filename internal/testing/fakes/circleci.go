@@ -72,6 +72,10 @@ type CircleCI struct {
 
 	// Auth state.
 	me any // response for GET /api/v2/me
+
+	// Pagination controls — 0 means no pagination (all items on one page).
+	workflowJobsPageSize int
+	workflowsPageSize    int
 }
 
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
@@ -205,6 +209,24 @@ func (f *CircleCI) AddWorkflowJobs(workflowID string, jobs ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowJobs[workflowID] = jobs
+}
+
+// SetWorkflowJobsPageSize causes GET /api/v2/workflow/<id>/job to paginate,
+// returning n items per page. n <= 0 disables pagination (the default).
+// Call before running any CLI commands against the fake.
+func (f *CircleCI) SetWorkflowJobsPageSize(n int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowJobsPageSize = n
+}
+
+// SetPipelineWorkflowsPageSize causes GET /api/v2/pipeline/<id>/workflow to
+// paginate, returning n items per page. n <= 0 disables pagination (the default).
+// Call before running any CLI commands against the fake.
+func (f *CircleCI) SetPipelineWorkflowsPageSize(n int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowsPageSize = n
 }
 
 // AddJobArtifacts registers artifact responses for a job.
@@ -343,6 +365,7 @@ func (f *CircleCI) handleGetPipelineWorkflows(w http.ResponseWriter, r *http.Req
 	f.mu.RLock()
 	_, pipelineExists := f.pipelines[id]
 	workflows := f.workflows[id]
+	pageSize := f.workflowsPageSize
 	f.mu.RUnlock()
 
 	if !pipelineExists {
@@ -353,19 +376,22 @@ func (f *CircleCI) handleGetPipelineWorkflows(w http.ResponseWriter, r *http.Req
 	if workflows == nil {
 		workflows = []any{}
 	}
-	render.JSON(w, r, map[string]any{"items": workflows, "next_page_token": nil})
+	items, nextToken := fakePaginate(workflows, r.URL.Query().Get("page-token"), pageSize)
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nextToken})
 }
 
 func (f *CircleCI) handleGetWorkflowJobs(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	jobs := f.workflowJobs[id]
+	pageSize := f.workflowJobsPageSize
 	f.mu.RUnlock()
 
 	if jobs == nil {
 		jobs = []any{}
 	}
-	render.JSON(w, r, map[string]any{"items": jobs, "next_page_token": nil})
+	items, nextToken := fakePaginate(jobs, r.URL.Query().Get("page-token"), pageSize)
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nextToken})
 }
 
 func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request) {
@@ -494,6 +520,29 @@ func (f *CircleCI) handleStepOutput(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.PlainText(w, r, content)
+}
+
+// fakePaginate returns a page of items and the next-page token string.
+// When pageSize <= 0, all items are returned and the token is empty.
+// The token is the decimal string offset of the next page's first item.
+func fakePaginate(items []any, token string, pageSize int) ([]any, string) {
+	if pageSize <= 0 {
+		return items, ""
+	}
+	offset := 0
+	if token != "" {
+		if n, err := strconv.Atoi(token); err == nil {
+			offset = n
+		}
+	}
+	if offset >= len(items) {
+		return []any{}, ""
+	}
+	end := offset + pageSize
+	if end >= len(items) {
+		return items[offset:], ""
+	}
+	return items[offset:end], strconv.Itoa(end)
 }
 
 // --- Runner helpers ---

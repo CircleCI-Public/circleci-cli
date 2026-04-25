@@ -162,6 +162,78 @@ func TestPipelineGet_NoToken(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
 }
 
+// --- pagination ---
+
+func TestPipelineGet_PaginatedWorkflowJobs(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	pipelineID := "paginated-pipeline-001"
+	wfID := "paginated-wf-001"
+	slug := "gh/testorg/testrepo"
+
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 99, "created", slug, "main"))
+	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
+	fake.AddWorkflowJobs(wfID,
+		fakeJob("job-1", "lint", 1, slug),
+		fakeJob("job-2", "test", 2, slug),
+		fakeJob("job-3", "build", 3, slug),
+		fakeJob("job-4", "deploy", 4, slug),
+		fakeJob("job-5", "notify", 5, slug),
+	)
+	fake.SetWorkflowJobsPageSize(2) // 5 jobs → 3 pages (2, 2, 1)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, []string{"pipeline", "get", "--json", pipelineID}, env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	wfs := out["workflows"].([]any)
+	assert.Check(t, cmp.Len(wfs, 1))
+	jobs := wfs[0].(map[string]any)["jobs"].([]any)
+	assert.Check(t, cmp.Len(jobs, 5), "expected all 5 paginated jobs, got %d", len(jobs))
+
+	names := make([]string, len(jobs))
+	for i, j := range jobs {
+		names[i] = j.(map[string]any)["name"].(string)
+	}
+	assert.Check(t, cmp.DeepEqual(names, []string{"lint", "test", "build", "deploy", "notify"}))
+}
+
+func TestPipelineGet_PaginatedWorkflows(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	pipelineID := "paginated-pipeline-002"
+	slug := "gh/testorg/testrepo"
+
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 100, "created", slug, "main"))
+	fake.AddPipelineWorkflows(pipelineID,
+		fakeWorkflow("wf-p-1", "build"),
+		fakeWorkflow("wf-p-2", "test"),
+		fakeWorkflow("wf-p-3", "deploy"),
+	)
+	fake.SetPipelineWorkflowsPageSize(2) // 3 workflows → 2 pages (2, 1)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, []string{"pipeline", "get", "--json", pipelineID}, env.Environ(), t.TempDir())
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	wfs := out["workflows"].([]any)
+	assert.Check(t, cmp.Len(wfs, 3), "expected all 3 paginated workflows, got %d", len(wfs))
+
+	names := make([]string, len(wfs))
+	for i, w := range wfs {
+		names[i] = w.(map[string]any)["name"].(string)
+	}
+	assert.Check(t, cmp.DeepEqual(names, []string{"build", "test", "deploy"}))
+}
+
 // --- pipeline list ---
 
 func TestPipelineList(t *testing.T) {
