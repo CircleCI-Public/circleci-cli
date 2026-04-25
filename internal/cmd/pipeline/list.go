@@ -79,7 +79,7 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, projectSlug, branch, limit, jsonOut)
+			return RunList(ctx, client, projectSlug, branch, limit, jsonOut)
 		},
 	}
 
@@ -105,7 +105,7 @@ type pipelineListEntry struct {
 	} `json:"trigger"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
+func RunList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {

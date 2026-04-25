@@ -1,0 +1,25 @@
+Usage:
+  circleci mcp serve [flags]
+
+Examples:
+# Add to Claude Code's MCP configuration (~/.claude.json or project .claude.json):
+{
+  "mcpServers": {
+    "circleci": {
+      "command": "circleci",
+      "args": ["mcp", "serve"]
+    }
+  }
+}
+
+# Verify the server starts cleanly
+$ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"0"}}}' | circleci mcp serve
+
+# Run with a custom config file
+$ circleci --config /path/to/config.yml mcp serve
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

@@ -78,7 +78,7 @@ func newCancelCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runPipelineCancel(ctx, client, args[0], projectSlug, force)
+			return RunPipelineCancel(ctx, client, args[0], projectSlug, force)
 		},
 	}
 
@@ -88,7 +88,7 @@ func newCancelCmd() *cobra.Command {
 	return cmd
 }
 
-func runPipelineCancel(ctx context.Context, client *apiclient.Client, arg, projectSlug string, force bool) error {
+func RunPipelineCancel(ctx context.Context, client *apiclient.Client, arg, projectSlug string, force bool) error {
 	pipelineID := arg
 	displayName := arg
 

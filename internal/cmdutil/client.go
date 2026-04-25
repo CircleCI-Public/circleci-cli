@@ -78,6 +78,30 @@ func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, err
 	return apiclient.New(cfg.EffectiveHost(), token, nil), nil
 }
 
+// LoadClientForMCP creates an authenticated API client for use outside of a
+// Cobra command (e.g. the MCP server). It uses the default config path and
+// secure storage; the CIRCLECI_TOKEN env var is honoured as usual.
+func LoadClientForMCP(ctx context.Context) (*apiclient.Client, error) {
+	configPath, _ := ctx.Value(configPathKey{}).(string)
+	cfg, err := config.LoadFrom(configPath, ctx, true /* secureStorage */)
+	if err != nil {
+		return nil, clierrors.New("config.load_failed", "Failed to load config", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+	token := cfg.EffectiveToken()
+	if token == "" {
+		return nil, clierrors.New("auth.token_missing", "Authentication required",
+			"No CircleCI API token found.").
+			WithSuggestions(
+				"Run: circleci settings set token <your-token>",
+				"Or set the CIRCLECI_TOKEN environment variable",
+			).
+			WithRef("https://app.circleci.com/settings/user/tokens").
+			WithExitCode(clierrors.ExitAuthError)
+	}
+	return apiclient.New(cfg.EffectiveHost(), token, nil), nil
+}
+
 // APIErr converts an apiclient error into a structured CLIError.
 //
 // notFoundCode and notFoundMsg customise the 404 case for the calling resource

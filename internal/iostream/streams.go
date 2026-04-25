@@ -61,7 +61,13 @@ type contextKey struct{}
 func fromContext(ctx context.Context) Streams {
 	v := ctx.Value(contextKey{})
 	if v == nil {
-		return Streams{Out: io.Discard, Err: io.Discard, In: strings.NewReader(""), Quiet: true}
+		return Streams{
+			Out:   io.Discard,
+			Err:   io.Discard,
+			In:    strings.NewReader(""),
+			Quiet: true,
+			slog:  slog.New(slog.NewTextHandler(io.Discard, nil)),
+		}
 	}
 	return v.(Streams)
 }
@@ -183,7 +189,12 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 // Test returns a Streams backed by the provided writers with no-op stdin,
 // useful in tests that don't exercise interactive prompts.
 func Test(ctx context.Context, out, err io.Writer) context.Context {
-	return WithStreams(ctx, Streams{Out: out, Err: err, In: strings.NewReader("")})
+	return WithStreams(ctx, Streams{
+		Out:  out,
+		Err:  err,
+		In:   strings.NewReader(""),
+		slog: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
 }
 
 // IsTerminal reports whether Out is a terminal (i.e. a human is watching).

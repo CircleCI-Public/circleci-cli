@@ -33,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/envvar"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/job"
 	cmdlogs "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/logs"
+	cmdmcp "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/mcp"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/pipeline"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/project"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/runner"
@@ -76,6 +77,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 	cmd.AddCommand(cmdauth.NewAuthCmd())
 	cmd.AddCommand(cmdapi.NewAPICmd())
+	cmd.AddCommand(cmdmcp.NewMCPCmd(version))
 	cmd.AddCommand(artifacts.NewArtifactsCmd())
 	cmd.AddCommand(completion.NewCompletionCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())

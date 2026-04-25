@@ -81,7 +81,7 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args, projectSlug, branch, jsonOut)
+			return RunGet(ctx, client, args, projectSlug, branch, jsonOut)
 		},
 	}
 
@@ -131,7 +131,7 @@ type jobOutput struct {
 	Type   string `json:"type"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
+func RunGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
 	var (
 		err      error
 		pipeline *apiclient.Pipeline
