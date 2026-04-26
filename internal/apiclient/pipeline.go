@@ -197,13 +197,26 @@ type PipelineWorkflowSummary struct {
 	Status string `json:"status"`
 }
 
-// GetPipelineWorkflows returns the workflows for a pipeline.
+// GetPipelineWorkflows returns all workflows for a pipeline, paginating automatically.
 func (c *Client) GetPipelineWorkflows(ctx context.Context, pipelineID string) ([]PipelineWorkflowSummary, error) {
-	var resp struct {
-		Items []PipelineWorkflowSummary `json:"items"`
+	var all []PipelineWorkflowSummary
+	pageToken := ""
+	for {
+		var resp struct {
+			Items         []PipelineWorkflowSummary `json:"items"`
+			NextPageToken string                    `json:"next_page_token"`
+		}
+		opts := []func(*httpcl.Request){}
+		if pageToken != "" {
+			opts = append(opts, httpcl.QueryParam("page-token", pageToken))
+		}
+		if err := c.get(ctx, "/pipeline/"+pipelineID+"/workflow", &resp, opts...); err != nil {
+			return nil, err
+		}
+		all = append(all, resp.Items...)
+		if resp.NextPageToken == "" {
+			return all, nil
+		}
+		pageToken = resp.NextPageToken
 	}
-	if err := c.get(ctx, "/pipeline/"+pipelineID+"/workflow", &resp); err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
 }
