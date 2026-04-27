@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -38,6 +37,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newEnvCmd() *cobra.Command {
@@ -140,36 +140,15 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 		return nil
 	}
 
-	const createdHeader = "Created At"
-	nameW := len("Name")
-	valW := len("Value")
-	createdW := len(createdHeader)
-	for _, v := range vars {
-		if len(v.Name) > nameW {
-			nameW = len(v.Name)
-		}
-		if len(v.Value) > valW {
-			valW = len(v.Value)
-		}
-		if v.CreatedAt != nil {
-			if n := len(v.CreatedAt.Format(time.RFC3339)); n > createdW {
-				createdW = n
-			}
-		}
-	}
-
-	var md strings.Builder
-	md.WriteString("# Environment Variables\n")
-	_, _ = fmt.Fprintf(&md, "| %-*s | %-*s | %-*s |\n", nameW, "Name", valW, "Value", createdW, createdHeader)
-	_, _ = fmt.Fprintf(&md, "| %s | %s | %s |\n", strings.Repeat("-", nameW), strings.Repeat("-", valW), strings.Repeat("-", createdW))
+	tbl := mdtable.New("Name", "Value", "Created At")
 	for _, v := range vars {
 		created := ""
 		if v.CreatedAt != nil {
 			created = v.CreatedAt.Format(time.RFC3339)
 		}
-		_, _ = fmt.Fprintf(&md, "| %-*s | %-*s | %-*s |\n", nameW, v.Name, valW, v.Value, createdW, created)
+		tbl.Row(v.Name, v.Value, created)
 	}
-	iostream.PrintMarkdown(ctx, md.String())
+	iostream.PrintMarkdown(ctx, "# Environment Variables\n"+tbl.Render())
 	return nil
 }
 

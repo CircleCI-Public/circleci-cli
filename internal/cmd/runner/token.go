@@ -36,6 +36,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newTokenCmd() *cobra.Command {
@@ -170,9 +171,11 @@ func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass s
 		}
 		return nil
 	}
+	table := mdtable.New("ID", "Nickname", "Created")
 	for _, t := range out {
-		iostream.Printf(ctx, "%-36s  %-20s  %s\n", t.ID, t.Nickname, t.CreatedAt)
+		table.Row(t.ID, t.Nickname, t.CreatedAt)
 	}
+	iostream.PrintMarkdown(ctx, "# Runner Tokens\n"+table.Render())
 	return nil
 }
 

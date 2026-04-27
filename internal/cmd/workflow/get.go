@@ -24,6 +24,8 @@ package workflow
 
 import (
 	"context"
+	"fmt"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -31,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newGetCmd() *cobra.Command {
@@ -135,24 +138,32 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 }
 
 func printGet(ctx context.Context, w workflowGetOutput) {
-	iostream.Printf(ctx, "Workflow  %s\n", w.ID)
-	iostream.Printf(ctx, "Name:     %s\n", w.Name)
-	iostream.Printf(ctx, "Pipeline: #%d (%s)\n", w.PipelineNumber, w.PipelineID)
-	iostream.Printf(ctx, "Project:  %s\n", w.ProjectSlug)
-	iostream.Printf(ctx, "Status:   %s\n", w.Status)
-	iostream.Printf(ctx, "Created:  %s\n", w.CreatedAt)
+	var md strings.Builder
+	md.WriteString("# Workflow\n")
+
+	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
+	_, _ = fmt.Fprintf(&md, "- Name: %s\n", w.Name)
+	_, _ = fmt.Fprintf(&md, "- Pipeline:\n")
+	_, _ = fmt.Fprintf(&md, "  - Number: #%d\n", w.PipelineNumber)
+	_, _ = fmt.Fprintf(&md, "  - ID: `%s`\n", w.PipelineID)
+	_, _ = fmt.Fprintf(&md, "- Project: %s\n", w.ProjectSlug)
+	_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
+	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
 	if w.StoppedAt != "" {
-		iostream.Printf(ctx, "Stopped:  %s\n", w.StoppedAt)
+		_, _ = fmt.Fprintf(&md, "- Stopped:  %s\n", w.StoppedAt)
 	}
 
 	if len(w.Jobs) > 0 {
-		iostream.Printf(ctx, "\nJobs:\n")
+		_, _ = fmt.Fprintf(&md, "\n## Jobs\n")
+		table := mdtable.New("Name", "Status", "Number")
 		for _, j := range w.Jobs {
 			if j.Type == "approval" {
-				iostream.Printf(ctx, "  %-36s  %s\n", j.Name, j.Status)
+				table.Row(j.Name, j.Status, "")
 			} else {
-				iostream.Printf(ctx, "  %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
+				table.Row(j.Name, j.Status, fmt.Sprintf("%d", j.Number))
 			}
 		}
+		md.WriteString(table.Render())
 	}
+	iostream.PrintMarkdown(ctx, md.String())
 }

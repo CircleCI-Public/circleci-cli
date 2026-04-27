@@ -31,6 +31,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -106,8 +107,7 @@ func TestArtifacts_ByPipelineID(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "test-results.xml"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
@@ -136,8 +136,7 @@ func TestArtifacts_ByJobNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"))
-	assert.Check(t, cmp.Contains(result.Stdout, "test-results.xml"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestJobArtifacts_ByJobNumber(t *testing.T) {
@@ -148,8 +147,7 @@ func TestJobArtifacts_ByJobNumber(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"))
-	assert.Check(t, cmp.Contains(result.Stdout, "test-results.xml"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestArtifacts_Download(t *testing.T) {

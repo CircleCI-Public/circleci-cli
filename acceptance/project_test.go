@@ -72,8 +72,7 @@ func TestProjectList(t *testing.T) {
 	result := binary.RunCLI(t, []string{"project", "list"}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "gh/myorg/alpha"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "gh/myorg/beta"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestProjectList_JSON(t *testing.T) {
@@ -195,7 +194,7 @@ func TestProjectEnvList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "DATABASE_URL"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 // --- env set ---

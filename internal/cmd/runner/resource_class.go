@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -36,6 +37,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newResourceClassCmd() *cobra.Command {
@@ -142,13 +144,11 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, namespa
 		iostream.Printf(ctx, "No resource classes found.\n")
 		return nil
 	}
+	table := mdtable.New("Resource Class", "Description")
 	for _, rc := range out {
-		if rc.Description != "" {
-			iostream.Printf(ctx, "%-40s  %s\n", rc.ResourceClass, rc.Description)
-		} else {
-			iostream.Printf(ctx, "%s\n", rc.ResourceClass)
-		}
+		table.Row(rc.ResourceClass, rc.Description)
 	}
+	iostream.PrintMarkdown(ctx, "# Runner Resource Classes\n"+table.Render())
 	return nil
 }
 
@@ -214,11 +214,14 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resou
 		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
-	iostream.Printf(ctx, "Created resource class: %s\n", out.ResourceClass)
+	var md strings.Builder
+	md.WriteString("# Created Resource Class\n")
+	_, _ = fmt.Fprintf(&md, "- Resource Class: %s\n", out.ResourceClass)
 	if out.Description != "" {
-		iostream.Printf(ctx, "Description: %s\n", out.Description)
+		_, _ = fmt.Fprintf(&md, "- Description: %s\n", out.Description)
 	}
-	iostream.Printf(ctx, "ID: %s\n", out.ID)
+	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", out.ID)
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }
 

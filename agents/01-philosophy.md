@@ -39,6 +39,8 @@ The right amount of output:
 - Surfaces anything the user needs to act on
 - Stays out of the way for scripting contexts
 
+Use markdown for regular (non-JSON) output. There is a markdown helper in the iostreams package.
+
 ---
 
 ## 5. Ease of Discovery

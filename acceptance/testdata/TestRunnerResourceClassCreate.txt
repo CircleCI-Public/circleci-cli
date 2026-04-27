@@ -1,0 +1,4 @@
+# Created Resource Class
+- Resource Class: my-org/new-runner
+- Description: New runner
+- ID: `rc-my-org/new-runner`

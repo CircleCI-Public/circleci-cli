@@ -1,0 +1,2 @@
+# Artifacts- coverage/index.html
+- test-results.xml

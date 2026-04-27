@@ -1,0 +1,18 @@
+# Recent pipelines
+## Pipeline #10
+- Branch: main
+- Commit: abc1234
+### Workflows
+| ID            | Name   | Status  |
+| ------------- | ------ | ------- |
+| wf-recent-aaa | build  | success |
+| wf-recent-bbb | deploy | failed  |
+
+## Pipeline #9
+- Branch: main
+- Commit: abc1234
+### Workflows
+| ID            | Name  | Status  |
+| ------------- | ----- | ------- |
+| wf-recent-ccc | build | running |
+

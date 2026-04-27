@@ -24,6 +24,7 @@ package workflow
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -35,6 +36,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newListCmd() *cobra.Command {
@@ -151,9 +153,12 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 		iostream.Printf(ctx, "No workflows found for pipeline %s.\n", arg)
 		return nil
 	}
-	for _, wf := range out {
-		iostream.Printf(ctx, "%-36s  %-28s  %s\n", wf.ID, wf.Name, wf.Status)
+
+	table := mdtable.New("ID", "Name", "Status")
+	for _, wf := range workflows {
+		table.Row(wf.ID, wf.Name, wf.Status)
 	}
+	iostream.PrintMarkdown(ctx, "# Workflows\n"+table.Render())
 	return nil
 }
 
@@ -199,10 +204,10 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		return nil
 	}
 
-	for i, p := range pipelines {
-		if i > 0 {
-			iostream.Printf(ctx, "\n")
-		}
+	var md strings.Builder
+	md.WriteString("# Recent pipelines\n")
+
+	for _, p := range pipelines {
 		branchName := ""
 		revision := ""
 		if p.VCS != nil {
@@ -212,20 +217,28 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 				revision = revision[:7]
 			}
 		}
-		iostream.Printf(ctx, "Pipeline #%d  %s  %s\n", p.Number, branchName, revision)
+		_, _ = fmt.Fprintf(&md, "## Pipeline #%d\n", p.Number)
+		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", branchName)
+		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", revision)
 
 		workflows, wErr := client.GetPipelineWorkflows(ctx, p.ID)
 		if wErr != nil {
 			return apiErr(wErr, p.ID)
 		}
+
 		if len(workflows) == 0 {
-			iostream.Printf(ctx, "  (no workflows)\n")
+			_, _ = fmt.Fprintf(&md, "- Workflows: none\n")
 			continue
 		}
+		_, _ = fmt.Fprintf(&md, "### Workflows\n")
+		table := mdtable.New("ID", "Name", "Status")
 		for _, wf := range workflows {
-			iostream.Printf(ctx, "  %-36s  %-28s  %s\n", wf.ID, wf.Name, wf.Status)
+			table.Row(wf.ID, wf.Name, wf.Status)
 		}
+		md.WriteString(table.Render())
+		md.WriteString("\n")
 	}
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }
 

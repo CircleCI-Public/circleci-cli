@@ -1,0 +1,5 @@
+# Environment Variables
+| Name         | Value | Created At           |
+| ------------ | ----- | -------------------- |
+| DATABASE_URL | xxxx  |                      |
+| SECRET_KEY   | xxxx  | 2020-01-01T00:00:00Z |
