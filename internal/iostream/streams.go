@@ -328,9 +328,14 @@ func (s Streams) RenderMarkdown(md string) (_ string, err error) {
 	if !s.ColorEnabled() {
 		return md, nil
 	}
-
+	width := 120
+	if f, ok := s.Out.(*os.File); ok {
+		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 {
+			width = w
+		}
+	}
 	r, err := glamour.NewTermRenderer(
-		glamour.WithWordWrap(120),
+		glamour.WithWordWrap(width),
 		glamour.WithStyles(s.styleConfig()),
 		glamour.WithInlineTableLinks(true),
 	)
