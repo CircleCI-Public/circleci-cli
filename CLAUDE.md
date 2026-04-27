@@ -4,6 +4,10 @@ A new CircleCI CLI built from scratch in Go + Cobra, targeting exemplary CLI des
 
 Full architecture, command surface, and phased roadmap: `docs/build-plan.md`
 
+> **Branch context:** `next` is the active v2 rewrite. `main` is the legacy CLI that ships
+> today. These are independent codebases — `next` does not import from `main`. All new feature
+> work happens on `next`; `main` receives only critical fixes.
+
 ---
 
 ## Critical rules — read before writing any command
@@ -165,6 +169,17 @@ goreleaser build --snapshot --clean    # test multi-platform release builds
 ./dist/circleci --help                 # smoke test
 NO_COLOR=1 ./dist/circleci --help      # verify color is disabled
 CI=true ./dist/circleci --help         # verify CI mode
+```
+
+To wire up the CLI as an MCP server:
+
+```sh
+# Once — build, install, and register with Claude Desktop
+task dev-install
+circleci mcp claude enable
+
+# Per project — import from Claude Desktop into Claude Code
+claude mcp add-from-claude-desktop
 ```
 
 `task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
