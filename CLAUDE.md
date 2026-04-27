@@ -166,13 +166,15 @@ NO_COLOR=1 ./dist/circleci --help      # verify color is disabled
 CI=true ./dist/circleci --help         # verify CI mode
 ```
 
-To test the CLI as an MCP server in Claude Desktop:
+To wire up the CLI as an MCP server:
 
 ```sh
-task dev-install                       # build and install to ~/.local/bin
-circleci mcp claude enable             # register with Claude Desktop
-circleci mcp claude list               # verify registration
-circleci mcp start --log-level debug   # run server manually for inspection
+# Once — build, install, and register with Claude Desktop
+task dev-install
+circleci mcp claude enable
+
+# Per project — import from Claude Desktop into Claude Code
+claude mcp add-from-claude-desktop
 ```
 
 `task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
