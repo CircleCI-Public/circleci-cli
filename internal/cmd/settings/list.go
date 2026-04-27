@@ -25,6 +25,7 @@ package settings
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -33,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newListCmd() *cobra.Command {
@@ -89,9 +91,15 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
-	iostream.Printf(ctx, "Config file: %s\n\n", path)
-	iostream.Printf(ctx, "%-10s  %s\n", "token", maskToken(cfg.EffectiveToken()))
-	iostream.Printf(ctx, "%-10s  %s\n", "host", cfg.EffectiveHost())
+	var md strings.Builder
+	_, _ = fmt.Fprintf(&md, "# Settings\n")
+	_, _ = fmt.Fprintf(&md, "- Path: %s\n", path)
+	_, _ = fmt.Fprintf(&md, "- Keyring: %t\n\n", secureStorage)
+	table := mdtable.New("Name", "Value")
+	table.Row("host", cfg.EffectiveHost())
+	table.Row("token", maskToken(cfg.EffectiveToken()))
+	md.WriteString(table.Render() + "\n")
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }
 
