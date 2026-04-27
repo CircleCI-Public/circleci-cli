@@ -79,25 +79,18 @@ func newSetCmd() *cobra.Command {
 	return cmd
 }
 
-func runSet(ctx context.Context, secureStorage bool, key, value string) error {
-	cfg, err := config.Load(ctx, secureStorage)
-	if err != nil {
-		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-
+func runSet(ctx context.Context, secureStorage bool, key, value string) (err error) {
 	switch key {
 	case "token":
-		cfg.Token = value
+		err = config.SetToken(ctx, value, secureStorage)
 	case "host":
-		cfg.Host = value
+		err = config.SetHost(ctx, value, secureStorage)
 	default:
 		return clierrors.New("settings.unknown_key", "Unknown setting", "Unknown setting key: "+key).
 			WithSuggestions("Valid keys are: token, host").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
-
-	if err := config.Save(ctx, cfg, secureStorage); err != nil {
+	if err != nil {
 		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}

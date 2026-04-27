@@ -55,12 +55,6 @@ func newTokenCmd() *cobra.Command {
 }
 
 func runToken(ctx context.Context, secureStorage bool) error {
-	cfg, err := config.Load(ctx, secureStorage)
-	if err != nil {
-		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-
 	p := tea.NewProgram(ui.NewTokenModel(),
 		tea.WithContext(ctx),
 		tea.WithInput(iostream.In(ctx)),
@@ -76,8 +70,8 @@ func runToken(ctx context.Context, secureStorage bool) error {
 		return nil
 	}
 
-	cfg.Token = m.Token()
-	if err := config.Save(ctx, cfg, secureStorage); err != nil {
+	err = config.SetToken(ctx, m.Token(), secureStorage)
+	if err != nil {
 		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}

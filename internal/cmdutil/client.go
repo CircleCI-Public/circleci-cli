@@ -59,7 +59,7 @@ func IsSecureStorage(cmd *cobra.Command) bool {
 // Honors a --config path set by the root PersistentPreRunE via WithConfigPath.
 func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, error) {
 	configPath, _ := ctx.Value(configPathKey{}).(string)
-	cfg, err := config.LoadFrom(configPath, ctx, IsSecureStorage(cmd))
+	cfg, err := config.LoadFrom(ctx, configPath, IsSecureStorage(cmd))
 	if err != nil {
 		return nil, clierrors.New("config.load_failed", "Failed to load config", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)

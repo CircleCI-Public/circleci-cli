@@ -20,44 +20,16 @@
 //
 // SPDX-License-Identifier: MIT
 
-package cmdauth
+package closer
 
-import (
-	"context"
+import "io"
 
-	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-)
-
-func newLogoutCmd() *cobra.Command {
-	var jsonOut bool
-
-	cmd := &cobra.Command{
-		Use:   "logout",
-		Short: "Remove stored credentials",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runLogout(ctx, secureStorage)
-		},
+// ErrorHandler closes an io.Closer with error handling. If there's an
+// error during Close when `in` is `nil`, sets `in` to the value of
+// the Close error.
+func ErrorHandler(c io.Closer, in *error) {
+	cerr := c.Close()
+	if *in == nil {
+		*in = cerr
 	}
-
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
-	return cmd
-}
-
-func runLogout(ctx context.Context, secureStorage bool) error {
-	err := config.SetToken(ctx, "", secureStorage)
-	if err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-
-	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.Symbol(ctx, "✓", "OK:"), "token")
-	return nil
 }

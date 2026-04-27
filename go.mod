@@ -11,6 +11,7 @@ require (
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/render v1.0.3
+	github.com/gofrs/flock v0.13.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/njayp/ophis v1.1.4
 	github.com/spf13/cobra v1.10.2
@@ -108,7 +109,6 @@ require (
 	github.com/gobwas/glob v0.2.3 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/godoc-lint/godoc-lint v0.11.2 // indirect
-	github.com/gofrs/flock v0.13.0 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
 	github.com/golangci/asciicheck v0.5.0 // indirect
 	github.com/golangci/dupl v0.0.0-20250308024227-f665c8d69b32 // indirect
