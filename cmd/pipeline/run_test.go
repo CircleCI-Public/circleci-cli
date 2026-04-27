@@ -174,7 +174,7 @@ func Test_newRunCommand(t *testing.T) {
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
-				ConfigBranch:         "cli-run",
+				ConfigBranch:         "feature",
 				ConfigTag:            "",
 				CheckoutBranch:       "feature",
 				CheckoutTag:          "",
@@ -199,7 +199,7 @@ func Test_newRunCommand(t *testing.T) {
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
-				ConfigBranch:         "cli-run",
+				ConfigBranch:         "feature",
 				ConfigTag:            "",
 				CheckoutBranch:       "feature",
 				CheckoutTag:          "",
@@ -223,9 +223,24 @@ func Test_newRunCommand(t *testing.T) {
 				Organization:         "my-org",
 				Project:              "my-project",
 				PipelineDefinitionID: "abc123",
-				ConfigBranch:         "cli-run",
+				ConfigBranch:         "feature",
 				ConfigTag:            "",
 				CheckoutBranch:       "feature",
+				CheckoutTag:          "",
+				ConfigFilePath:       "/path/to/config.yml",
+				Parameters:           map[string]interface{}{},
+			},
+		},
+		{
+			name: "with local config file via flag with checkout branch",
+			args: []string{"my-org", "my-project", "--pipeline-definition-id", "abc123", "--local-config-file", "/path/to/config.yml", "--checkout-branch", "develop"},
+			expectedConfig: pipeline.PipelineRunOptions{
+				Organization:         "my-org",
+				Project:              "my-project",
+				PipelineDefinitionID: "abc123",
+				ConfigBranch:         "develop",
+				ConfigTag:            "",
+				CheckoutBranch:       "develop",
 				CheckoutTag:          "",
 				ConfigFilePath:       "/path/to/config.yml",
 				Parameters:           map[string]interface{}{},
@@ -275,6 +290,11 @@ func Test_newRunCommand(t *testing.T) {
 				defer cleanup()
 				// Patch the expected config to use the temp file path
 				tt.expectedConfig.ConfigFilePath = tempConfigFile
+				for i, arg := range tt.args {
+					if arg == "/path/to/config.yml" {
+						tt.args[i] = tempConfigFile
+					}
+				}
 				if tt.reader != nil {
 					for k, v := range tt.reader.responses {
 						if v == "/path/to/config.yml" {
