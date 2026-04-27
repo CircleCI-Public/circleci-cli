@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -144,8 +145,11 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber in
 		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
 	}
 
+	var md strings.Builder
+	md.WriteString("# Artifacts")
 	for _, e := range entries {
-		iostream.Println(ctx, e.Path)
+		_, _ = fmt.Fprintf(&md, "- %s\n", e.Path)
 	}
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }

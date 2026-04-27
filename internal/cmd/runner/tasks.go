@@ -24,7 +24,9 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -109,8 +111,11 @@ func runTasks(ctx context.Context, client *apiclient.Client, resourceClass strin
 		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
-	iostream.Printf(ctx, "Resource class: %s\n", out.ResourceClass)
-	iostream.Printf(ctx, "  Unclaimed:    %d\n", out.Unclaimed)
-	iostream.Printf(ctx, "  Running:      %d\n", out.Running)
+	var md strings.Builder
+	md.WriteString("# Tasks\n")
+	_, _ = fmt.Fprintf(&md, "## %s\n", out.ResourceClass)
+	_, _ = fmt.Fprintf(&md, "- Unclaimed: %d\n", out.Unclaimed)
+	_, _ = fmt.Fprintf(&md, "- Running: %d\n", out.Running)
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }

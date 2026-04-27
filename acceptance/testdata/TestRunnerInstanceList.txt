@@ -1,0 +1,5 @@
+# Runner Instances
+| Resource Class      | Hostname | Status  | Last Connected |
+| ------------------- | -------- | ------- | -------------- |
+| my-org/linux-runner |          | unknown |                |
+| my-org/arm-runner   |          | unknown |                |

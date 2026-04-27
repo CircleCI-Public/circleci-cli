@@ -314,7 +314,7 @@ func (s Streams) RenderMarkdown(md string) (string, error) {
 	}
 	r, err := glamour.NewTermRenderer(
 		glamour.WithEnvironmentConfig(),
-		glamour.WithWordWrap(100),
+		glamour.WithWordWrap(120),
 	)
 	if err != nil {
 		return md, err

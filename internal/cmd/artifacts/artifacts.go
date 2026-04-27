@@ -26,6 +26,7 @@ package artifacts
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -36,6 +37,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 // NewArtifactsCmd returns the top-level "circleci artifacts" command.
@@ -195,17 +197,21 @@ func printArtifacts(ctx context.Context, entries []artifacts.Entry) {
 		}
 	}
 
+	md := ""
 	if multiJob {
-		iostream.Printf(ctx, "%-30s  %-6s  %s\n", "JOB", "JOB #", "PATH")
-		iostream.Printf(ctx, "%-30s  %-6s  %s\n", "---", "-----", "----")
+		table := mdtable.New("Job", "Job #", "Path")
 		for _, e := range entries {
-			iostream.Printf(ctx, "%-30s  %-6d  %s\n", e.JobName, e.JobNumber, e.Path)
+			table.Row(e.JobName, fmt.Sprintf("%d", e.JobNumber), e.Path)
 		}
+		md = table.Render()
 	} else {
+		var sb strings.Builder
 		for _, e := range entries {
-			iostream.Println(ctx, e.Path)
+			_, _ = fmt.Fprintf(&sb, "- %s\n", e.Path)
 		}
+		md = sb.String()
 	}
+	iostream.PrintMarkdown(ctx, "# Artifacts\n"+md)
 }
 
 func apiErr(err error, subject string) *clierrors.CLIError {

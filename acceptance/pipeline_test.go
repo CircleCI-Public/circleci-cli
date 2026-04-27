@@ -24,7 +24,6 @@ package acceptance_test
 
 import (
 	"encoding/json"
-	"strings"
 	"testing"
 	"time"
 
@@ -182,9 +181,7 @@ func TestPipelineList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "#10"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "#9"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "errored"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestPipelineList_Limit(t *testing.T) {
@@ -205,9 +202,7 @@ func TestPipelineList_Limit(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "#10"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "#9"), "stdout: %s", result.Stdout)
-	assert.Check(t, !strings.Contains(result.Stdout, "#8"), "should be truncated by --limit: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestPipelineList_JSON(t *testing.T) {

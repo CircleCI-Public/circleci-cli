@@ -24,6 +24,7 @@ package pipeline
 
 import (
 	"context"
+	"strconv"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -32,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newListCmd() *cobra.Command {
@@ -158,12 +160,9 @@ func pipelineToListEntry(p *apiclient.Pipeline) pipelineListEntry {
 }
 
 func printList(ctx context.Context, entries []pipelineListEntry) {
+	table := mdtable.New("#", "Branch", "Revision", "Pipeline", "Created", "State")
 	for _, e := range entries {
-		state := ""
-		if e.State == "errored" {
-			state = "  [errored]"
-		}
-		iostream.Printf(ctx, "#%-4d  %-20s  %s  %s  %s%s\n",
-			e.Number, e.Branch, e.Revision, e.ID, e.CreatedAt, state)
+		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, e.ID, e.CreatedAt, e.State)
 	}
+	iostream.PrintMarkdown(ctx, "# Pipelines\n"+table.Render())
 }

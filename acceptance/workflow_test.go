@@ -31,6 +31,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -43,7 +44,7 @@ const (
 )
 
 func fakeWorkflowDetail(id, name, status, pipelineID, slug string) map[string]any {
-	now := time.Now().UTC().Format(time.RFC3339)
+	ts := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
 	return map[string]any{
 		"id":              id,
 		"name":            name,
@@ -52,8 +53,8 @@ func fakeWorkflowDetail(id, name, status, pipelineID, slug string) map[string]an
 		"pipeline_number": 42,
 		"project_slug":    slug,
 		"started_by":      "testuser-uuid",
-		"created_at":      now,
-		"stopped_at":      now,
+		"created_at":      ts,
+		"stopped_at":      ts,
 	}
 }
 
@@ -86,12 +87,7 @@ func TestWorkflowGet(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "failed"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "run-tests"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "#201"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "#202"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowGet_JSON(t *testing.T) {
@@ -207,11 +203,7 @@ func TestWorkflowList(t *testing.T) {
 	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "wf-uuid-aaa"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "wf-uuid-bbb"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "deploy"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "failed"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowList_JSON(t *testing.T) {
@@ -313,11 +305,7 @@ func TestWorkflowList_NoArg(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline #10"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "wf-recent-aaa"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "build"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline #9"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "wf-recent-ccc"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowList_NoArg_JSON(t *testing.T) {

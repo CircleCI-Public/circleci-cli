@@ -1,0 +1,16 @@
+# Workflow
+- ID: `cccccccc-0000-0000-0000-000000000010`
+- Name: build
+- Pipeline:
+  - Number: #42
+  - ID: `aaaaaaaa-0000-0000-0000-000000000010`
+- Project: gh/testorg/testrepo
+- Status: failed
+- Created: 2020-01-01 12:00:00 UTC
+- Stopped:  2020-01-01 12:00:00 UTC
+
+## Jobs
+| Name      | Status  | Number |
+| --------- | ------- | ------ |
+| run-tests | success | 201    |
+| deploy    | success | 202    |

@@ -25,11 +25,11 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -95,8 +95,7 @@ func TestRunnerResourceClassList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/arm-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerResourceClassList_Namespace(t *testing.T) {
@@ -107,7 +106,7 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerResourceClassList_JSON(t *testing.T) {
@@ -148,7 +147,7 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/new-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerResourceClassCreate_JSON(t *testing.T) {
@@ -214,9 +213,7 @@ func TestRunnerTokenList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "tok-id-1"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "prod-server-1"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "prod-server-2"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerTokenList_JSON(t *testing.T) {
@@ -260,8 +257,7 @@ func TestRunnerTokenCreate(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "fake-runner-token-value"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-server"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerTokenCreate_JSON(t *testing.T) {
@@ -328,8 +324,7 @@ func TestRunnerInstanceList(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/arm-runner"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerInstanceList_ResourceClass(t *testing.T) {
@@ -340,8 +335,7 @@ func TestRunnerInstanceList_ResourceClass(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "my-org/linux-runner"), "stdout: %s", result.Stdout)
-	assert.Check(t, !strings.Contains(result.Stdout, "my-org/arm-runner"), "arm-runner should be filtered out, stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerInstanceList_JSON(t *testing.T) {

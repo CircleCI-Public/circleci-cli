@@ -36,6 +36,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newInstanceCmd() *cobra.Command {
@@ -197,9 +198,10 @@ func runInstanceList(ctx context.Context, client *apiclient.Client, resourceClas
 		return nil
 	}
 
+	table := mdtable.New("Resource Class", "Hostname", "Status", "Last Connected")
 	for _, inst := range out {
-		iostream.Printf(ctx, "%-40s  %-20s  %-7s  %s\n",
-			inst.ResourceClass, inst.Hostname, inst.Status, inst.LastConnected)
+		table.Row(inst.ResourceClass, inst.Hostname, inst.Status, inst.LastConnected)
 	}
+	iostream.PrintMarkdown(ctx, "# Runner Instances\n"+table.Render())
 	return nil
 }
