@@ -162,7 +162,7 @@ func pipelineToListEntry(p *apiclient.Pipeline) pipelineListEntry {
 func printList(ctx context.Context, entries []pipelineListEntry) {
 	table := mdtable.New("#", "Branch", "Revision", "Pipeline", "Created", "State")
 	for _, e := range entries {
-		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, e.ID, e.CreatedAt, e.State)
+		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, e.State)
 	}
 	iostream.PrintMarkdown(ctx, "# Pipelines\n"+table.Render())
 }
