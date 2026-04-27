@@ -20,44 +20,46 @@
 //
 // SPDX-License-Identifier: MIT
 
-package cmdauth
+package closer
 
 import (
-	"context"
+	"errors"
+	"testing"
 
-	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
-func newLogoutCmd() *cobra.Command {
-	var jsonOut bool
+func TestErrorHandler(t *testing.T) {
+	t.Run("with error", func(t *testing.T) {
+		var errorSentinel = errors.New("error sentinel")
 
-	cmd := &cobra.Command{
-		Use:   "logout",
-		Short: "Remove stored credentials",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runLogout(ctx, secureStorage)
-		},
-	}
+		called := false
+		closer := func() error {
+			called = true
+			return errorSentinel
+		}
+		var err error
+		ErrorHandler(closerFunc(closer), &err)
+		assert.Check(t, called)
+		assert.Check(t, cmp.ErrorIs(err, errorSentinel))
+	})
 
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
-	return cmd
+	t.Run("no error", func(t *testing.T) {
+		called := false
+		closer := func() error {
+			called = true
+			return nil
+		}
+		var err error
+		ErrorHandler(closerFunc(closer), &err)
+		assert.Check(t, called)
+		assert.Check(t, err)
+	})
 }
 
-func runLogout(ctx context.Context, secureStorage bool) error {
-	err := config.SetToken(ctx, "", secureStorage)
-	if err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+type closerFunc func() error
 
-	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.Symbol(ctx, "✓", "OK:"), "token")
-	return nil
+func (f closerFunc) Close() error {
+	return f()
 }

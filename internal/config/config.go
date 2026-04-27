@@ -34,14 +34,21 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
+	"github.com/gofrs/flock"
 	"gopkg.in/yaml.v3"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/keyring"
 )
 
 // Config holds all persisted CLI settings.
 type Config struct {
+	state state
+}
+
+type state struct {
 	Token string `yaml:"token,omitempty"`
 	Host  string `yaml:"host,omitempty"`
 }
@@ -52,33 +59,50 @@ const DefaultHost = "https://circleci.com"
 // Load reads the config file from the default path, returning an empty Config
 // if the file does not exist.
 func Load(ctx context.Context, secureStorage bool) (*Config, error) {
-	return LoadFrom("", ctx, secureStorage)
+	return LoadFrom(ctx, "", secureStorage)
 }
 
 // LoadFrom reads the config file from the given path. If path is empty the
 // default XDG path is used. Returns an empty Config if the file does not exist.
-func LoadFrom(path string, ctx context.Context, secureStorage bool) (*Config, error) {
+func LoadFrom(ctx context.Context, path string, secureStorage bool) (*Config, error) {
 	resolved, err := resolvePath(path)
 	if err != nil {
 		return nil, err
 	}
 
+	err = mkConfigDir(resolved)
+	if err != nil {
+		return nil, err
+	}
+
+	fl := flock.New(lockPath(resolved))
+	rlock, err := fl.TryRLockContext(ctx, time.Second)
+	switch {
+	case err != nil:
+		return nil, fmt.Errorf("error opening lock file: %w", err)
+	default:
+		if !rlock {
+			return nil, fmt.Errorf("could not lock config file %s", resolved)
+		}
+		defer closer.ErrorHandler(fl, &err)
+	}
+
+	var cfg Config
+
 	data, err := os.ReadFile(resolved)
 	if os.IsNotExist(err) {
-		cfg := &Config{}
 		if secureStorage {
 			err = cfg.loadToken(ctx)
 			if err != nil {
 				return nil, err
 			}
 		}
-		return cfg, nil
+		return &cfg, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	var cfg Config
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, fmt.Errorf("parsing config file %s: %w", resolved, err)
 	}
@@ -93,25 +117,74 @@ func LoadFrom(path string, ctx context.Context, secureStorage bool) (*Config, er
 	return &cfg, nil
 }
 
-// Save writes cfg to the default config file path, creating parent directories
-// as needed.
-func Save(ctx context.Context, cfg *Config, secureStorage bool) error {
-	return SaveTo("", ctx, cfg, secureStorage)
+func mkConfigDir(resolved string) error {
+	err := os.MkdirAll(filepath.Dir(resolved), 0o700)
+	if err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+	return nil
 }
 
-// SaveTo writes cfg to the given path, creating parent directories as needed.
+func lockPath(path string) string {
+	return path + ".lock"
+}
+
+func SetToken(ctx context.Context, token string, secureStorage bool) error {
+	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+		cfg.state.Token = token
+		return nil
+	})
+}
+
+func SetHost(ctx context.Context, host string, secureStorage bool) error {
+	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+		cfg.state.Host = host
+		return nil
+	})
+}
+
+// saveTo writes cfg to the given path, creating parent directories as needed.
 // If path is empty the default XDG path is used.
-func SaveTo(path string, ctx context.Context, cfg *Config, secureStorage bool) error {
+func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) error {
 	resolved, err := resolvePath(path)
 	if err != nil {
 		return err
 	}
 
-	if err := os.MkdirAll(filepath.Dir(resolved), 0o700); err != nil {
-		return fmt.Errorf("creating config directory: %w", err)
+	err = mkConfigDir(resolved)
+	if err != nil {
+		return err
 	}
 
-	cp := *cfg
+	fl := flock.New(lockPath(resolved))
+	lock, err := fl.TryLockContext(ctx, time.Second)
+	if err != nil {
+		return err
+	}
+	if !lock {
+		return fmt.Errorf("could not lock config file %s", resolved)
+	}
+	defer closer.ErrorHandler(fl, &err)
+
+	var cfg Config
+
+	data, err := os.ReadFile(resolved)
+	switch {
+	case os.IsNotExist(err):
+	case err != nil:
+		return fmt.Errorf("reading config file: %w", err)
+	}
+
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return fmt.Errorf("parsing config file %s: %w", resolved, err)
+	}
+
+	err = cb(&cfg)
+	if err != nil {
+		return err
+	}
+
+	cp := cfg.state
 	if secureStorage {
 		cp.Token = ""
 
@@ -121,7 +194,7 @@ func SaveTo(path string, ctx context.Context, cfg *Config, secureStorage bool) e
 		}
 	}
 
-	data, err := yaml.Marshal(cp)
+	data, err = yaml.Marshal(cp)
 	if err != nil {
 		return fmt.Errorf("serialising config: %w", err)
 	}
@@ -137,8 +210,8 @@ func Path() (string, error) {
 	return configPath()
 }
 
-// PathFrom returns the resolved path for the given override. If override is
-// empty, returns the default XDG path.
+// PathFrom returns the resolved path for the given override. If the override is
+// empty, it returns the default XDG path.
 func PathFrom(override string) (string, error) {
 	return resolvePath(override)
 }
@@ -149,8 +222,8 @@ func (c *Config) EffectiveHost() string {
 	if h := os.Getenv("CIRCLECI_HOST"); h != "" {
 		return h
 	}
-	if c.Host != "" {
-		return c.Host
+	if c.state.Host != "" {
+		return c.state.Host
 	}
 	return DefaultHost
 }
@@ -164,7 +237,7 @@ func (c *Config) EffectiveToken() string {
 	if t := os.Getenv("CIRCLECI_CLI_TOKEN"); t != "" {
 		return t
 	}
-	return c.Token
+	return c.state.Token
 }
 
 func (c *Config) loadToken(ctx context.Context) error {
@@ -185,7 +258,7 @@ func (c *Config) loadToken(ctx context.Context) error {
 		return nil
 	}
 
-	c.Token = password
+	c.state.Token = password
 	return nil
 }
 
@@ -195,7 +268,7 @@ func (c *Config) storeToken(ctx context.Context) error {
 		return err
 	}
 
-	return keyring.Set(ctx, c.EffectiveHost(), u.Username, c.Token)
+	return keyring.Set(ctx, c.EffectiveHost(), u.Username, c.state.Token)
 }
 
 // resolvePath returns override if non-empty, otherwise the default XDG path.
