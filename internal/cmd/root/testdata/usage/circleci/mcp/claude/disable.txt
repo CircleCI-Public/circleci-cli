@@ -1,0 +1,11 @@
+Usage:
+  circleci mcp claude disable [flags]
+
+Flags:
+      --config-path string   Path to Claude config file
+      --server-name string   Name of the MCP server to remove (default: derived from executable name)
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

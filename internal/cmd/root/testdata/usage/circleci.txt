@@ -9,6 +9,7 @@ Available Commands:
   envvar      Manage project environment variables
   job         Manage jobs
   logs        Fetch job logs
+  mcp         MCP server management
   pipeline    Manage pipelines
   project     Manage CircleCI projects
   runner      Manage self-hosted runners

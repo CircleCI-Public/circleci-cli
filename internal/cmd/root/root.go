@@ -24,6 +24,7 @@ package root
 
 import (
 	"github.com/MakeNowJust/heredoc"
+	"github.com/njayp/ophis"
 	"github.com/spf13/cobra"
 
 	cmdapi "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/api"
@@ -86,6 +87,9 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(settings.NewSettingsCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
+
+	// Wire in MCP commands
+	cmd.AddCommand(ophis.Command(nil))
 
 	return cmd
 }
