@@ -153,9 +153,14 @@ Defined in `internal/errors/exitcodes.go`. Document new codes there before using
 ```sh
 task build                             # build binary → dist/circleci
 task test                              # all tests including acceptance, with -race
-task lint                              # golangci-lint
-task fmt                               # gosimports formatting
+task check                             # run all static checks
+task fix                               # auto-fix static check issues
+
+task lint                              # run golangci-lint check
+task license                           # apply license headers
+task fmt                               # golangci-lint formatting
 task mod-tidy                          # go mod tidy
+
 goreleaser build --snapshot --clean    # test multi-platform release builds
 ./dist/circleci --help                 # smoke test
 NO_COLOR=1 ./dist/circleci --help      # verify color is disabled

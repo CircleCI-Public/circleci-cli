@@ -51,6 +51,16 @@ tasks:
         vars:
           CLI_ARGS: -diff
 
+  fix:
+    desc: Auto-fix static checks
+    cmds:
+      - task: fmt
+      - task: license
+      - task: mod-tidy
+      - task: lint
+        vars:
+          CLI_ARGS: ./... --fix
+
   lint:
     desc: Run golangci-lint
     vars:
