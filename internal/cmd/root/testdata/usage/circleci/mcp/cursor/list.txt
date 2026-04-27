@@ -1,0 +1,11 @@
+Usage:
+  circleci mcp cursor list [flags]
+
+Flags:
+      --config-path string   Path to Cursor config file
+      --workspace            List from workspace settings (.cursor/mcp.json) instead of user settings
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

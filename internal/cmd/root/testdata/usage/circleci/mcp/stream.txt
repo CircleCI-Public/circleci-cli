@@ -1,0 +1,12 @@
+Usage:
+  circleci mcp stream [flags]
+
+Flags:
+      --host string        host to listen on
+      --log-level string   Log level (debug, info, warn, error)
+      --port int           port number to listen on (default 8080)
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
