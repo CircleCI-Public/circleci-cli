@@ -16,6 +16,7 @@ $ circleci runner resource-class list --namespace my-org --json
 
 
 Flags:
+      --jq string          Process values from the response using jq syntax
       --json               Output as JSON
       --namespace string   Filter by namespace (organization)
 

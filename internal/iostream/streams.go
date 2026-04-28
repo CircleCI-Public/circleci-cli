@@ -44,9 +44,16 @@ import (
 	"golang.org/x/term"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/jq"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
+
+type jqFilterKey struct{}
+
+func WithJQFilter(ctx context.Context, jqFilter string) context.Context {
+	return context.WithValue(ctx, jqFilterKey{}, jqFilter)
+}
 
 // colorDisabled returns true when any of the standard "no color" signals are present.
 // Checked: NO_COLOR (no-color.org), CIRCLECI_NO_COLOR, TERM=dumb.
@@ -133,11 +140,11 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
 }
 
 func PrintJSON(ctx context.Context, v any) error {
-	return fromContext(ctx).PrintJSON(v)
+	return fromContext(ctx).PrintJSON(ctx, v)
 }
 
 func PrintJSONFromReader(ctx context.Context, r io.Reader) error {
-	return fromContext(ctx).PrintJSONFromReader(r)
+	return fromContext(ctx).PrintJSONFromReader(ctx, r)
 }
 
 func PrintMarkdown(ctx context.Context, md string) {
@@ -342,7 +349,7 @@ func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
 	s.slog.DebugContext(ctx, msg, args...)
 }
 
-func (s Streams) PrintJSON(v any) error {
+func (s Streams) PrintJSON(ctx context.Context, v any) error {
 	buf := bytes.Buffer{}
 	encoder := json.NewEncoder(&buf)
 	encoder.SetEscapeHTML(false)
@@ -350,16 +357,39 @@ func (s Streams) PrintJSON(v any) error {
 		return err
 	}
 
-	return s.PrintJSONFromReader(&buf)
+	return s.PrintJSONFromReader(ctx, &buf)
 }
 
-func (s Streams) PrintJSONFromReader(r io.Reader) error {
+func (s Streams) PrintJSONFromReader(ctx context.Context, r io.Reader) error {
+	jqFilter := filterFromContext(ctx)
+
+	indent := ""
+	if s.IsTerminal() {
+		indent = "  "
+	}
+	if jqFilter != "" {
+		return jq.Evaluate(r, s.Out, jq.Options{
+			Expr:     jqFilter,
+			Indent:   indent,
+			Colorize: s.ColorEnabled(),
+		})
+	}
+
 	if s.ColorEnabled() {
 		return jsoncolor.Write(s.Out, r, "  ")
 	}
 
 	_, err := io.Copy(s.Out, r)
 	return err
+}
+
+func filterFromContext(ctx context.Context) string {
+	v := ctx.Value(jqFilterKey{})
+	jqFilter, ok := v.(string)
+	if !ok {
+		panic("no jq filter")
+	}
+	return jqFilter
 }
 
 // RenderMarkdown renders md as styled markdown when color is enabled, falling

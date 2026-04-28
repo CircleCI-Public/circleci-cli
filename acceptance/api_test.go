@@ -23,9 +23,11 @@
 package acceptance_test
 
 import (
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
@@ -49,6 +51,24 @@ func TestAPI_Get(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestAPI_Get_JQ(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "--jq", ".id", "/pipeline/" + testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), testPipelineID))
 }
 
 func TestAPI_Get_Color(t *testing.T) {

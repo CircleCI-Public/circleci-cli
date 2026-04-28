@@ -23,6 +23,7 @@ $ circleci pipeline list --json
 
 Flags:
   -b, --branch string    Filter by branch
+      --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --limit int        Maximum number of pipelines to show [default: 10] (default 10)
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote

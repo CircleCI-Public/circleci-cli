@@ -2,7 +2,8 @@ Usage:
   circleci auth logout [flags]
 
 Flags:
-      --json   Output as JSON
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

@@ -14,6 +14,7 @@ require (
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/flock v0.13.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
+	github.com/itchyny/gojq v0.12.19
 	github.com/njayp/ophis v1.1.4
 	github.com/spf13/cobra v1.10.2
 	github.com/zalando/go-keyring v0.2.8
@@ -141,6 +142,7 @@ require (
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/hexops/gotextdiff v1.0.3 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/jgautheron/goconst v1.8.2 // indirect
 	github.com/jingyugao/rowserrcheck v1.1.1 // indirect
 	github.com/jjti/go-spancheck v0.6.5 // indirect

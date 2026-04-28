@@ -96,7 +96,8 @@ func newLogsCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVar(&step, "step", "", "Filter output to a single step by name")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }

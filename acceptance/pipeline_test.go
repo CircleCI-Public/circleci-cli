@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -198,6 +199,28 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["number"], float64(101)))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestPipelineGet_ByID_JQ(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	wfID := "wf-uuid-001"
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
+	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "--json", "--jq", ".id", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), pipelineID))
 }
 
 func TestPipelineGet_ByID_JSON_Color(t *testing.T) {

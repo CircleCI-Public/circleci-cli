@@ -87,7 +87,8 @@ func newTriggerCmd() *cobra.Command {
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch to trigger (defaults to current branch)")
 	cmd.Flags().StringArrayVar(&params, "parameter", nil, "Pipeline parameter as key=value (repeatable)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output the triggered pipeline as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }

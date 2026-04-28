@@ -13,6 +13,7 @@ $ circleci envvar list --json
 
 
 Flags:
+      --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
 

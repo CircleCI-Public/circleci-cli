@@ -13,6 +13,7 @@ $ circleci runner token create my-org/my-runner --json
 
 
 Flags:
+      --jq string         Process values from the response using jq syntax
       --json              Output as JSON
       --nickname string   Human-readable nickname for the token
 

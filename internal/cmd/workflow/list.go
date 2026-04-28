@@ -104,7 +104,8 @@ func newListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter by branch (recent-pipelines mode)")
 	cmd.Flags().IntVar(&limit, "limit", 10, "Number of recent pipelines to show (recent-pipelines mode)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 

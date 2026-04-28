@@ -87,7 +87,8 @@ func newGetCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used when looking up by number")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch name (defaults to current branch)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }

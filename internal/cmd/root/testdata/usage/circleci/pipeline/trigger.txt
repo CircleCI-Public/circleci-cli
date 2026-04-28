@@ -17,7 +17,8 @@ $ circleci pipeline trigger --json
 
 Flags:
   -b, --branch string           Branch to trigger (defaults to current branch)
-      --json                    Output the triggered pipeline as JSON
+      --jq string               Process values from the response using jq syntax
+      --json                    Output as JSON
       --parameter stringArray   Pipeline parameter as key=value (repeatable)
       --project string          Project slug (e.g. gh/org/repo); defaults to git remote
 

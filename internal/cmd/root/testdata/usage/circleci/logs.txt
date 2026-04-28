@@ -23,6 +23,7 @@ $ circleci logs 123 --json
 
 Flags:
   -b, --branch string    Branch for job inference (default: current branch)
+      --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --last-failed      Fetch logs from the latest failed job on the current branch
       --last-job         Fetch logs from the last completed job on the current branch

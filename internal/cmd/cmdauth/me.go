@@ -34,7 +34,9 @@ import (
 )
 
 func newMeCmd() *cobra.Command {
-	var jsonOut bool
+	var (
+		jsonOut bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "me",
@@ -50,7 +52,8 @@ func newMeCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 

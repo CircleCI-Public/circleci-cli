@@ -25,6 +25,7 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -343,6 +344,19 @@ func TestRunnerTokenList_JSON_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestRunnerTokenList_JQ(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json", "--jq", ".[0].nickname"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "prod-server-1"))
 }
 
 func TestRunnerTokenList_Empty(t *testing.T) {

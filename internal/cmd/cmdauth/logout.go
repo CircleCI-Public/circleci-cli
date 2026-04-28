@@ -47,7 +47,8 @@ func newLogoutCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 

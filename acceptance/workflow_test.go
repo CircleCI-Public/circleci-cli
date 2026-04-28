@@ -130,6 +130,19 @@ func TestWorkflowGet_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["number"], float64(201)))
 }
 
+func TestWorkflowGet_JQ(t *testing.T) {
+	_, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", "--json", "--jq", ".name", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "build"))
+}
+
 func TestWorkflowGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
