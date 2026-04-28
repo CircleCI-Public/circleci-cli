@@ -29,14 +29,19 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"runtime"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
 	"charm.land/glamour/v2"
+	"charm.land/glamour/v2/ansi"
+	"charm.land/glamour/v2/styles"
+	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
@@ -147,11 +152,12 @@ func Spinner(ctx context.Context, active bool, msg string) *Spin {
 // Streams bundles the I/O channels passed through every command.
 // All output must go through Streams — never write to os.Stdout directly.
 type Streams struct {
-	Out   io.Writer // structured output (data results)
-	Err   io.Writer // status messages, errors, progress
-	In    io.Reader // user input for interactive prompts
-	Quiet bool      // when true, ErrPrintf/ErrPrintln produce no output
-	slog  *slog.Logger
+	Out       io.Writer // structured output (data results)
+	Err       io.Writer // status messages, errors, progress
+	In        io.Reader // user input for interactive prompts
+	Quiet     bool      // when true, ErrPrintf/ErrPrintln produce no output
+	slog      *slog.Logger
+	hasDarkBg bool
 }
 
 // OS returns a Streams wired to the real os.Stdin / os.Stdout / os.Stderr.
@@ -169,15 +175,25 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 	}
 
 	quiet, _ := cmd.Flags().GetBool("quiet")
+
+	stdin := cmd.InOrStdin()
+	stdout := cmd.OutOrStdout()
+	stderr := cmd.ErrOrStderr()
 	return WithStreams(ctx, Streams{
-		Out:   cmd.OutOrStdout(),
-		Err:   cmd.ErrOrStderr(),
-		In:    cmd.InOrStdin(),
-		Quiet: quiet,
-		slog: slog.New(log.NewWithOptions(cmd.ErrOrStderr(), log.Options{
+		Out:       stdout,
+		Err:       stderr,
+		In:        stdin,
+		Quiet:     quiet,
+		hasDarkBg: hasDarkBackground(),
+		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: lvl,
 		})),
 	})
+}
+
+func hasDarkBackground() bool {
+	// This lipgloss function doesn't work on Windows
+	return runtime.GOOS == "windows" || lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
 }
 
 // Test returns a Streams backed by the provided writers with no-op stdin,
@@ -308,17 +324,26 @@ func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
 // RenderMarkdown renders md as styled markdown when color is enabled, falling
 // back to the raw string when output is not a TTY or color is disabled.
 // The rendered string is returned; use PrintMarkdown to write it to Out.
-func (s Streams) RenderMarkdown(md string) (string, error) {
+func (s Streams) RenderMarkdown(md string) (_ string, err error) {
 	if !s.ColorEnabled() {
 		return md, nil
 	}
+	width := 120
+	if f, ok := s.Out.(*os.File); ok {
+		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 {
+			width = w
+		}
+	}
 	r, err := glamour.NewTermRenderer(
-		glamour.WithEnvironmentConfig(),
-		glamour.WithWordWrap(120),
+		glamour.WithWordWrap(width),
+		glamour.WithStyles(s.styleConfig()),
+		glamour.WithInlineTableLinks(true),
 	)
 	if err != nil {
 		return md, err
 	}
+	defer closer.ErrorHandler(r, &err)
+
 	return r.Render(md)
 }
 
@@ -331,4 +356,12 @@ func (s Streams) PrintMarkdown(md string) {
 		return
 	}
 	_, _ = fmt.Fprint(s.Out, rendered)
+}
+
+func (s Streams) styleConfig() ansi.StyleConfig {
+	style := styles.DarkStyleConfig
+	if !s.hasDarkBg {
+		style = styles.LightStyleConfig
+	}
+	return style
 }

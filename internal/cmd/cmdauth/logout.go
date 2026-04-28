@@ -52,15 +52,8 @@ func newLogoutCmd() *cobra.Command {
 }
 
 func runLogout(ctx context.Context, secureStorage bool) error {
-	cfg, err := config.Load(ctx, secureStorage)
+	err := config.SetToken(ctx, "", secureStorage)
 	if err != nil {
-		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-
-	cfg.Token = ""
-
-	if err := config.Save(ctx, cfg, secureStorage); err != nil {
 		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}

@@ -1,0 +1,12 @@
+[
+  {
+    "id": "rc-id-1",
+    "resource_class": "my-org/linux-runner",
+    "description": "Linux amd64 runner"
+  },
+  {
+    "id": "rc-id-2",
+    "resource_class": "my-org/arm-runner",
+    "description": "ARM runner"
+  }
+]

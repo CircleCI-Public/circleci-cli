@@ -83,6 +83,7 @@ internal/
 │   ├── runner/           circleci runner resource-class/token/instance
 │   ├── policy/           circleci policy push/diff/fetch/...
 │   ├── settings/         circleci settings list/get/set
+│   ├── mcp/              circleci mcp start/stream/tools + editor integrations (claude/cursor/vscode)
 │   └── api/              circleci api <endpoint> (raw API escape hatch)
 │
 ├── artifacts/            Business logic for artifact listing and downloading.
@@ -156,6 +157,7 @@ Defined in `internal/errors/exitcodes.go`. Document new codes there before using
 
 ```sh
 task build                             # build binary → dist/circleci
+task dev-install                       # build and copy to ~/.local/bin
 task test                              # all tests including acceptance, with -race
 task check                             # run all static checks
 task fix                               # auto-fix static check issues

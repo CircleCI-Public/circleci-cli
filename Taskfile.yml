@@ -30,8 +30,10 @@ vars:
 tasks:
   build:
     desc: Build the circleci binary
+    vars:
+      DEST: '{{default "dist/circleci" .DEST}}'
     cmds:
-      - go build -o dist/circleci .
+      - go build -o "{{.DEST}}" .
 
   test:
     desc: Run unit tests
@@ -112,10 +114,13 @@ tasks:
 
   dev-install:
     desc: Build from source and install to ~/.local/bin
+    vars:
+      DEST: '${HOME}/.local/bin'
     cmds:
+      - mkdir -p "{{.DEST}}"
       - task: build
-      - mkdir -p ${HOME}/.local/bin
-      - cp dist/circleci ${HOME}/.local/bin
+        vars:
+          DEST: '{{.DEST}}/circleci'
 
   generate:
     desc: Run go generate

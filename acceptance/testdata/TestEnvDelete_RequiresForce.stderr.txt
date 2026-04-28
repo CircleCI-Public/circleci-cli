@@ -1,0 +1,4 @@
+error: Deleting environment variable "DATABASE_URL" is irreversible.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode
