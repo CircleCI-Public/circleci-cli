@@ -123,7 +123,7 @@ func TestWorkflowGet_NotFound(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Check(t, cmp.Contains(result.Stderr, "No workflow found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestWorkflowGet_NoToken(t *testing.T) {
@@ -134,7 +134,7 @@ func TestWorkflowGet_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestWorkflowGet_NotFound_JSON(t *testing.T) {
@@ -227,6 +227,8 @@ func TestWorkflowList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["id"], "wf-uuid-aaa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestWorkflowList_Empty(t *testing.T) {
@@ -241,7 +243,7 @@ func TestWorkflowList_Empty(t *testing.T) {
 	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "No workflows"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowList_NotFound(t *testing.T) {
@@ -263,7 +265,7 @@ func TestWorkflowList_NoToken(t *testing.T) {
 	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- workflow list (no-arg / recent-pipelines mode) ---
@@ -337,6 +339,8 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
@@ -352,7 +356,7 @@ func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "No pipelines found"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 // --- workflow rerun ---
@@ -365,8 +369,7 @@ func TestWorkflowRerun(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "from scratch"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowRerun_FromFailed(t *testing.T) {
@@ -377,7 +380,7 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "failed jobs"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowRerun_NoToken(t *testing.T) {
@@ -388,7 +391,7 @@ func TestWorkflowRerun_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestWorkflowRerun_NotFound(t *testing.T) {
@@ -414,8 +417,7 @@ func TestWorkflowCancel(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "Cancelled"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, testWorkflowDetailID), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowCancel_RequiresForce(t *testing.T) {
@@ -427,7 +429,7 @@ func TestWorkflowCancel_RequiresForce(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestWorkflowCancel_NoToken(t *testing.T) {
@@ -438,7 +440,7 @@ func TestWorkflowCancel_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestWorkflowCancel_NotFound(t *testing.T) {

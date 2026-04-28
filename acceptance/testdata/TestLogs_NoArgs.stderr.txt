@@ -1,0 +1,4 @@
+error: Specify a job number or use --last-failed or --last-job.
+
+Suggestions:
+  • Run 'circleci pipeline get' to see job numbers for the latest pipeline

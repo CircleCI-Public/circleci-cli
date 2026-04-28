@@ -1,0 +1,16 @@
+[
+  {
+    "slug": "gh/myorg/alpha",
+    "name": "alpha",
+    "vcs_type": "github",
+    "username": "myorg",
+    "reponame": "alpha"
+  },
+  {
+    "slug": "gh/myorg/beta",
+    "name": "beta",
+    "vcs_type": "github",
+    "username": "myorg",
+    "reponame": "beta"
+  }
+]

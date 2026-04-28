@@ -29,11 +29,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -107,8 +110,8 @@ func RunCLI(t *testing.T, args []string, env []string, workDir string) CLIResult
 	cmd.Env = env
 
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 
 	err := cmd.Run()
 	exitCode := 0
@@ -122,8 +125,28 @@ func RunCLI(t *testing.T, args []string, env []string, workDir string) CLIResult
 	}
 
 	return CLIResult{
-		Stdout:   stdout.String(),
-		Stderr:   stderr.String(),
+		Stdout:   normalizeLocalURLs(stdout.String()),
+		Stderr:   filterDebugLines(stderr.String()),
 		ExitCode: exitCode,
 	}
+}
+
+var localURLPortRe = regexp.MustCompile(`http://127\.0\.0\.1:\d+/`)
+
+// normalizeLocalURLs replaces random-port localhost URLs with a fixed port so
+// golden file comparisons are stable across test runs.
+func normalizeLocalURLs(s string) string {
+	return localURLPortRe.ReplaceAllString(s, "http://127.0.0.1:8000/")
+}
+
+// filterDebugLines removes lines beginning with "DEBU" from s.
+func filterDebugLines(s string) string {
+	lines := strings.Split(s, "\n")
+	out := lines[:0]
+	for _, line := range lines {
+		if !strings.HasPrefix(line, "DEBU") {
+			out = append(out, line)
+		}
+	}
+	return strings.Join(out, "\n")
 }

@@ -1,0 +1,4 @@
+error: "notaslug" is not a valid project slug.
+
+Suggestions:
+  • Use the form: vcs/org/repo (e.g. gh/myorg/myrepo)

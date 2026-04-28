@@ -1,0 +1,6 @@
+{
+  "name": "Test User",
+  "login": "testuser",
+  "id": "user-uuid-1234",
+  "avatar_url": "https://example.com/avatar.png"
+}

@@ -73,6 +73,8 @@ func TestAuthMe_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["login"], "testuser"))
 	assert.Check(t, cmp.Equal(out["name"], "Test User"))
 	assert.Check(t, cmp.Equal(out["id"], "user-uuid-1234"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestAuthMe_NoToken(t *testing.T) {
@@ -82,7 +84,7 @@ func TestAuthMe_NoToken(t *testing.T) {
 	result := binary.RunCLI(t, []string{"auth", "me"}, env.Environ(), t.TempDir())
 
 	assert.Check(t, result.ExitCode != 0)
-	assert.Check(t, cmp.Contains(result.Stderr, "token"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- auth logout ---
@@ -93,5 +95,5 @@ func TestAuthLogout(t *testing.T) {
 	result := binary.RunCLI(t, []string{"auth", "logout"}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "token"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }

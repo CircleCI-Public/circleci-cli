@@ -1,0 +1,5 @@
+Fetching latest pipeline for gh/testorg/testrepo on branch main...
+error: all workflows in this pipeline passed
+
+Suggestions:
+  • Run 'circleci pipeline get' to inspect the pipeline's workflows and jobs

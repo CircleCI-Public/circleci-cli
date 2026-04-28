@@ -124,6 +124,8 @@ func TestRunnerResourceClassList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Len(out, 2))
 	assert.Check(t, cmp.Equal(out[0]["resource_class"], "my-org/linux-runner"))
 	assert.Check(t, cmp.Equal(out[0]["description"], "Linux amd64 runner"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestRunnerResourceClassList_NoToken(t *testing.T) {
@@ -134,7 +136,7 @@ func TestRunnerResourceClassList_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- resource-class create ---
@@ -164,6 +166,8 @@ func TestRunnerResourceClassCreate_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["resource_class"], "my-org/new-runner"))
 	assert.Check(t, cmp.Equal(out["description"], "New runner"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 // --- resource-class delete ---
@@ -176,7 +180,7 @@ func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassDelete_Force(t *testing.T) {
@@ -187,7 +191,7 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "Deleted"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
@@ -231,6 +235,8 @@ func TestRunnerTokenList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Len(out, 2))
 	assert.Check(t, cmp.Equal(out[0]["id"], "tok-id-1"))
 	assert.Check(t, cmp.Equal(out[0]["nickname"], "prod-server-1"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestRunnerTokenList_Empty(t *testing.T) {
@@ -244,7 +250,7 @@ func TestRunnerTokenList_Empty(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "No tokens found"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 // --- token create ---
@@ -274,6 +280,8 @@ func TestRunnerTokenCreate_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["resource_class"], "my-org/linux-runner"))
 	assert.Check(t, cmp.Equal(out["token"], "fake-runner-token-value"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 // --- token delete ---
@@ -286,7 +294,7 @@ func TestRunnerTokenDelete(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "Deleted"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
@@ -298,7 +306,7 @@ func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenDelete_NotFound(t *testing.T) {
@@ -351,6 +359,8 @@ func TestRunnerInstanceList_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestRunnerInstanceList_Empty(t *testing.T) {
@@ -364,7 +374,7 @@ func TestRunnerInstanceList_Empty(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "No runner instances found"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerInstanceList_NoToken(t *testing.T) {
@@ -375,7 +385,7 @@ func TestRunnerInstanceList_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // verify the fake server returns a proper 202 for rerun (used by TestRunnerResourceClassDelete_Force indirectly)

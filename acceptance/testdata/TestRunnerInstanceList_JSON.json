@@ -1,0 +1,24 @@
+[
+  {
+    "resource_class": "my-org/linux-runner",
+    "hostname": "",
+    "name": "",
+    "version": "",
+    "ip": "",
+    "status": "unknown",
+    "first_connected": "",
+    "last_connected": "",
+    "last_used": ""
+  },
+  {
+    "resource_class": "my-org/arm-runner",
+    "hostname": "",
+    "name": "",
+    "version": "",
+    "ip": "",
+    "status": "unknown",
+    "first_connected": "",
+    "last_connected": "",
+    "last_used": ""
+  }
+]

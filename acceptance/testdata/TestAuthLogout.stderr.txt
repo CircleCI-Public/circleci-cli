@@ -1,0 +1,1 @@
+OK: Removed token from keyring
