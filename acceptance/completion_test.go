@@ -31,6 +31,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -145,8 +146,7 @@ func TestCompletionInstallUnsupportedShell(t *testing.T) {
 	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
 
 	assert.Check(t, result.ExitCode != 0, "expected non-zero exit for unsupported shell")
-	assert.Check(t, cmp.Contains(result.Stderr, "unsupported shell"),
-		"expected unsupported shell error, got: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestCompletionInstallEmptyShell(t *testing.T) {

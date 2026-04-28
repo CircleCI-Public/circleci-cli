@@ -1,0 +1,4 @@
+error: Cancelling workflow cccccccc-0000-0000-0000-000000000010 will stop all in-progress jobs.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode

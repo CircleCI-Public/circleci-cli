@@ -31,6 +31,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -179,6 +180,8 @@ func TestJobLogs_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
 	assert.Check(t, cmp.Equal(out[1]["step"], "Run tests"))
 	assert.Check(t, cmp.Equal(out[1]["status"], "failed"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestLogs_ByNumber(t *testing.T) {
@@ -237,7 +240,7 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Check(t, cmp.Contains(result.Stderr, "all workflows in this pipeline passed"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestLogs_NoArgs(t *testing.T) {
@@ -249,7 +252,7 @@ func TestLogs_NoArgs(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Check(t, cmp.Contains(result.Stderr, "--last-failed or --last-job"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestLogs_ConflictingArgs(t *testing.T) {
@@ -261,7 +264,7 @@ func TestLogs_ConflictingArgs(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Check(t, cmp.Contains(result.Stderr, "Provide exactly one of"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // TestJobLogs_V1Fallback verifies that when the v2 job endpoint returns no steps,
@@ -328,5 +331,5 @@ func TestLogs_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }

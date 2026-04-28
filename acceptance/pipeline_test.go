@@ -134,6 +134,8 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 	assert.Check(t, cmp.Len(jobs, 1))
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["name"], "run-tests"))
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["number"], float64(101)))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestPipelineGet_NotFound(t *testing.T) {
@@ -148,7 +150,7 @@ func TestPipelineGet_NotFound(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5) // ExitNotFound
-	assert.Check(t, cmp.Contains(result.Stderr, "No pipeline found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestPipelineGet_NoToken(t *testing.T) {
@@ -158,7 +160,7 @@ func TestPipelineGet_NoToken(t *testing.T) {
 	result := binary.RunCLI(t, []string{"pipeline", "get", "any-id"}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- pipeline list ---
@@ -230,6 +232,8 @@ func TestPipelineList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["id"], "pid-1"))
 	assert.Check(t, cmp.Equal(out[0]["state"], "created"))
 	assert.Check(t, cmp.Equal(out[1]["state"], "errored"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestPipelineList_NoToken(t *testing.T) {
@@ -240,7 +244,7 @@ func TestPipelineList_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- pipeline trigger ---
@@ -264,8 +268,7 @@ func TestPipelineTrigger(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "#43"), "stdout: %s", result.Stdout)
-	assert.Check(t, cmp.Contains(result.Stdout, "new-pipeline-uuid"), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestPipelineTrigger_JSON(t *testing.T) {
@@ -275,7 +278,7 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 		"id":         "new-pipeline-uuid",
 		"state":      "created",
 		"number":     43,
-		"created_at": time.Now().UTC().Format(time.RFC3339),
+		"created_at": time.Date(2021, 1, 1, 1, 1, 1, 1, time.UTC).Format(time.RFC3339),
 	})
 
 	env := testenv.New(t)
@@ -294,6 +297,8 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["id"], "new-pipeline-uuid"))
 	assert.Check(t, cmp.Equal(out["state"], "created"))
 	assert.Check(t, cmp.Equal(out["number"], float64(43)))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestPipelineTrigger_InvalidParam(t *testing.T) {
@@ -305,7 +310,7 @@ func TestPipelineTrigger_InvalidParam(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Check(t, cmp.Contains(result.Stderr, "key=value"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestPipelineTrigger_NoToken(t *testing.T) {
@@ -316,7 +321,7 @@ func TestPipelineTrigger_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- pipeline cancel ---
@@ -336,7 +341,7 @@ func TestPipelineCancel(t *testing.T) {
 	result := binary.RunCLI(t, []string{"pipeline", "cancel", "--force", pipelineID}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, pipelineID), "stdout: %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestPipelineCancel_RequiresForce(t *testing.T) {
@@ -352,7 +357,7 @@ func TestPipelineCancel_RequiresForce(t *testing.T) {
 	result := binary.RunCLI(t, []string{"pipeline", "cancel", pipelineID}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
-	assert.Check(t, cmp.Contains(result.Stderr, "--force"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestPipelineCancel_AlreadyDone(t *testing.T) {
@@ -369,7 +374,7 @@ func TestPipelineCancel_AlreadyDone(t *testing.T) {
 	result := binary.RunCLI(t, []string{"pipeline", "cancel", "--force", pipelineID}, env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Check(t, cmp.Contains(result.Stderr, "no active workflows"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestPipelineCancel_NotFound(t *testing.T) {
@@ -384,7 +389,7 @@ func TestPipelineCancel_NotFound(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Check(t, cmp.Contains(result.Stderr, "No pipeline found"), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestPipelineCancel_MissingArg(t *testing.T) {

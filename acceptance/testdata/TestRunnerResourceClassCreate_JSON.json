@@ -1,0 +1,5 @@
+{
+  "id": "rc-my-org/new-runner",
+  "resource_class": "my-org/new-runner",
+  "description": "New runner"
+}

@@ -126,6 +126,8 @@ func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["job_name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["path"], "coverage/index.html"))
 	assert.Check(t, cmp.Equal(out[1]["path"], "test-results.xml"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
 func TestArtifacts_ByJobNumber(t *testing.T) {
@@ -183,7 +185,7 @@ func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Equal(result.Stderr, ""), "expected empty stderr with --quiet")
-	assert.Check(t, cmp.Contains(result.Stdout, "coverage/index.html"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestArtifacts_NoToken(t *testing.T) {
@@ -194,5 +196,5 @@ func TestArtifacts_NoToken(t *testing.T) {
 		env.Environ(), t.TempDir())
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
-	assert.Check(t, cmp.Contains(result.Stderr, "No CircleCI API token found"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }

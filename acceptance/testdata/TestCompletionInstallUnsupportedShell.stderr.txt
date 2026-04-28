@@ -1,0 +1,1 @@
+unsupported shell "/bin/fish" — set SHELL to bash or zsh
