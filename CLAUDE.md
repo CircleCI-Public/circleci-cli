@@ -174,12 +174,15 @@ CI=true ./dist/circleci --help         # verify CI mode
 To wire up the CLI as an MCP server:
 
 ```sh
-# Once — build, install, and register with Claude Desktop
+# Once — build and install the binary
 task dev-install
-circleci mcp claude enable
 
-# Per project — import from Claude Desktop into Claude Code
+# Option A: register with Claude Desktop, then import per-project
+circleci mcp claude enable
 claude mcp add-from-claude-desktop
+
+# Option B: add globally to Claude Code (available in all sessions)
+claude mcp add -s user circleci -- ~/.local/bin/circleci mcp start
 ```
 
 `task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
