@@ -131,7 +131,7 @@ func runJobLogs(ctx context.Context, client *apiclient.Client, jobNumber int64, 
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), stepLogs)
+		return iostream.PrintJSON(ctx, stepLogs)
 	}
 
 	for i, sl := range stepLogs {

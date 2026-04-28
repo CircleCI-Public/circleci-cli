@@ -1,0 +1,24 @@
+[1;37m[[m
+  [1;37m{[m
+    [1;34m"resource_class"[m[1;37m:[m [32m"my-org/linux-runner"[m[1;37m,[m
+    [1;34m"hostname"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"version"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"ip"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"status"[m[1;37m:[m [32m"unknown"[m[1;37m,[m
+    [1;34m"first_connected"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"last_connected"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"last_used"[m[1;37m:[m [32m""[m
+  [1;37m}[m[1;37m,[m
+  [1;37m{[m
+    [1;34m"resource_class"[m[1;37m:[m [32m"my-org/arm-runner"[m[1;37m,[m
+    [1;34m"hostname"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"version"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"ip"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"status"[m[1;37m:[m [32m"unknown"[m[1;37m,[m
+    [1;34m"first_connected"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"last_connected"[m[1;37m:[m [32m""[m[1;37m,[m
+    [1;34m"last_used"[m[1;37m:[m [32m""[m
+  [1;37m}[m
+[1;37m][m

@@ -76,7 +76,37 @@ func TestPipelineGet_ByID(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"pipeline", "get", pipelineID}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestPipelineGet_ByID_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	wfID := "wf-uuid-001"
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
+	fake.AddWorkflowJobs(wfID,
+		fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"),
+		fakeJob("job-uuid-2", "deploy", 102, "gh/testorg/testrepo"),
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -97,11 +127,39 @@ func TestPipelineGet_ByNumber(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "get", "42", "--project", slug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "42", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestPipelineGet_ByNumber_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	wfID := "wf-uuid-002"
+	slug := "gh/testorg/testrepo"
+	p := fakePipeline(pipelineID, 42, "created", slug, "main")
+	fake.AddPipeline(pipelineID, p)
+	fake.AddProjectPipelines(slug, p)
+	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
+	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, slug))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "42", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -117,7 +175,11 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"pipeline", "get", "--json", pipelineID}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "--json", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0)
 
@@ -138,6 +200,29 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestPipelineGet_ByID_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	wfID := "wf-uuid-001"
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
+	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "--json", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestPipelineGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
@@ -145,9 +230,11 @@ func TestPipelineGet_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "get", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5) // ExitNotFound
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -157,7 +244,11 @@ func TestPipelineGet_NoToken(t *testing.T) {
 	env := testenv.New(t)
 	// No token set
 
-	result := binary.RunCLI(t, []string{"pipeline", "get", "any-id"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "get", "any-id"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -178,11 +269,37 @@ func TestPipelineList(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "list", "--project", slug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestPipelineList_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	fake.AddProjectPipelines(slug,
+		fakePipeline("pid-1", 10, "created", slug, "main"),
+		fakePipeline("pid-2", 9, "errored", slug, "feature"),
+		fakePipeline("pid-3", 8, "created", slug, "main"),
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -199,11 +316,37 @@ func TestPipelineList_Limit(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "list", "--project", slug, "--limit", "2"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", slug, "--limit", "2"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestPipelineList_Limit_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	fake.AddProjectPipelines(slug,
+		fakePipeline("pid-1", 10, "created", slug, "main"),
+		fakePipeline("pid-2", 9, "created", slug, "main"),
+		fakePipeline("pid-3", 8, "created", slug, "main"),
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", slug, "--limit", "2"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -219,9 +362,11 @@ func TestPipelineList_JSON(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "list", "--project", slug, "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", slug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -236,12 +381,37 @@ func TestPipelineList_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestPipelineList_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	fake.AddProjectPipelines(slug,
+		fakePipeline("pid-1", 10, "created", slug, "main"),
+		fakePipeline("pid-2", 9, "errored", slug, "feature"),
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", slug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestPipelineList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "list", "--project", "gh/org/repo"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "list", "--project", "gh/org/repo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -263,11 +433,38 @@ func TestPipelineTrigger(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "trigger", "--project", slug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestPipelineTrigger_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	fake.SetTriggerResponse(slug, map[string]any{
+		"id":         "new-pipeline-uuid",
+		"state":      "created",
+		"number":     43,
+		"created_at": time.Now().UTC().Format(time.RFC3339),
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -285,9 +482,11 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -301,13 +500,40 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestPipelineTrigger_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := "gh/testorg/testrepo"
+	fake.SetTriggerResponse(slug, map[string]any{
+		"id":         "new-pipeline-uuid",
+		"state":      "created",
+		"number":     43,
+		"created_at": time.Date(2021, 1, 1, 1, 1, 1, 1, time.UTC).Format(time.RFC3339),
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestPipelineTrigger_InvalidParam(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = "testtoken"
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "trigger", "--project", "gh/org/repo", "--branch", "main", "--parameter", "noequals"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "trigger", "--project", "gh/org/repo", "--branch", "main", "--parameter", "noequals"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -316,9 +542,11 @@ func TestPipelineTrigger_InvalidParam(t *testing.T) {
 func TestPipelineTrigger_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "trigger", "--project", "gh/org/repo", "--branch", "main"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "trigger", "--project", "gh/org/repo", "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -338,7 +566,11 @@ func TestPipelineCancel(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"pipeline", "cancel", "--force", pipelineID}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "cancel", "--force", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -354,7 +586,11 @@ func TestPipelineCancel_RequiresForce(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"pipeline", "cancel", pipelineID}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "cancel", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -371,7 +607,11 @@ func TestPipelineCancel_AlreadyDone(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"pipeline", "cancel", "--force", pipelineID}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "cancel", "--force", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -384,9 +624,11 @@ func TestPipelineCancel_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "cancel", "--force", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "cancel", "--force", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -396,7 +638,11 @@ func TestPipelineCancel_MissingArg(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = "testtoken"
 
-	result := binary.RunCLI(t, []string{"pipeline", "cancel"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "cancel"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 }
@@ -404,9 +650,11 @@ func TestPipelineCancel_MissingArg(t *testing.T) {
 func TestPipelineCancel_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "cancel", "--force", "5034460f-c7c4-4c43-9457-de07e2029e7b"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "cancel", "--force", "5034460f-c7c4-4c43-9457-de07e2029e7b"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }

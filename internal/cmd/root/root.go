@@ -70,7 +70,9 @@ func NewRootCmd(version string) *cobra.Command {
 
 	cmd.PersistentFlags().StringP("config", "c", "", "path to config file (default: ~/.config/circleci/config.yml)")
 	cmd.PersistentFlags().BoolP("quiet", "q", false, "suppress informational output; data on stdout is unaffected")
-	cmd.PersistentFlags().Bool("debug", false, "enable debug logging")
+	cmd.PersistentFlags().BoolP("debug", "", false, "enable debug logging")
+	cmd.PersistentFlags().StringP("theme", "", "auto", "set the color theme (default: auto)")
+	_ = cmd.PersistentFlags().MarkHidden("theme")
 
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")

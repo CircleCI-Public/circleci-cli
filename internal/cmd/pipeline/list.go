@@ -127,7 +127,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
+		return iostream.PrintJSON(ctx, entries)
 	}
 
 	if len(pipelines) == 0 {

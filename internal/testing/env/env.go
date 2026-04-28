@@ -59,7 +59,7 @@ func (e *TestEnv) Environ() []string {
 		"HOME=" + e.HomeDir,
 		"XDG_CONFIG_HOME=" + filepath.Join(e.HomeDir, ".config"),
 		"PATH=" + os.Getenv("PATH"),
-		"NO_COLOR=1", // deterministic output in tests
+		"CIRCLECI_SPINNER_DISABLED=true",
 	}
 	if e.Token != "" {
 		env = append(env, "CIRCLECI_TOKEN="+e.Token)

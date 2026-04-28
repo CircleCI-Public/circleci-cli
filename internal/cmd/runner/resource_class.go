@@ -137,7 +137,7 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, namespa
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	if len(out) == 0 {
@@ -211,7 +211,7 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resou
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	var md strings.Builder

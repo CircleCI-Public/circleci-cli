@@ -1,0 +1,7 @@
+Created token for resource class: my-org/linux-runner
+Nickname:  my-server
+ID:        tok-my-org/linux-runner
+Created:   2026-01-01T00:00:00Z
+
+Token (save this — it will not be shown again):
+fake-runner-token-value

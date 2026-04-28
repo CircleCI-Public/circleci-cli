@@ -134,7 +134,7 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 			State:     resp.State,
 			CreatedAt: resp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 		}
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	iostream.Printf(ctx, "Triggered pipeline #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)

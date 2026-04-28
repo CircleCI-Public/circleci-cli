@@ -1,0 +1,12 @@
+[1;37m[[m
+  [1;37m{[m
+    [1;34m"id"[m[1;37m:[m [32m"rc-id-1"[m[1;37m,[m
+    [1;34m"resource_class"[m[1;37m:[m [32m"my-org/linux-runner"[m[1;37m,[m
+    [1;34m"description"[m[1;37m:[m [32m"Linux amd64 runner"[m
+  [1;37m}[m[1;37m,[m
+  [1;37m{[m
+    [1;34m"id"[m[1;37m:[m [32m"rc-id-2"[m[1;37m,[m
+    [1;34m"resource_class"[m[1;37m:[m [32m"my-org/arm-runner"[m[1;37m,[m
+    [1;34m"description"[m[1;37m:[m [32m"ARM runner"[m
+  [1;37m}[m
+[1;37m][m

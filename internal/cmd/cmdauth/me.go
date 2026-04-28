@@ -24,7 +24,6 @@ package cmdauth
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -62,9 +61,7 @@ func runMe(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
 	}
 
 	if jsonOut {
-		enc := json.NewEncoder(iostream.Out(ctx))
-		enc.SetIndent("", "  ")
-		return enc.Encode(me)
+		return iostream.PrintJSON(ctx, me)
 	}
 
 	iostream.PrintMarkdown(ctx, fmt.Sprintf(`# User

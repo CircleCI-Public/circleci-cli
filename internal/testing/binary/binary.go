@@ -38,8 +38,16 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"testing"
 	"time"
+
+	"github.com/aymanbagabas/go-pty"
+	"golang.org/x/sync/errgroup"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/skip"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
 )
 
 var (
@@ -89,38 +97,81 @@ type CLIResult struct {
 	ExitCode int
 }
 
+type RunOpts struct {
+	Args    []string
+	Env     []string
+	WorkDir string
+	TTY     bool
+}
+
 // RunCLI executes the circleci binary with the given args, env, and working directory.
-func RunCLI(t *testing.T, args []string, env []string, workDir string) CLIResult {
+func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 	t.Helper()
+
+	skip.If(t, opts.TTY && runtime.GOOS == "windows", "No good way to manage golden TTY snapshots on Windows")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	fullArgs := []string{
 		"--insecure-storage",
+		"--theme=dark",
 	}
-	if !slices.Contains(args, "--quiet") {
+	if !opts.TTY && !slices.Contains(opts.Args, "--quiet") {
 		fullArgs = append(fullArgs, "--debug")
 	}
-	fullArgs = append(fullArgs, args...)
+	fullArgs = append(fullArgs, opts.Args...)
 	t.Logf("Running CLI: %s %s\n", binaryPath, fullArgs)
 
-	cmd := exec.CommandContext(ctx, binaryPath, fullArgs...)
-	cmd.Dir = workDir
-	cmd.Env = env
-
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
-	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
-
-	err := cmd.Run()
 	exitCode := 0
-	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
+	var stdout, stderr bytes.Buffer
+
+	if opts.TTY {
+		p, err := pty.New()
+		assert.NilError(t, err)
+
+		cmd := p.CommandContext(ctx, binaryPath, fullArgs...)
+		cmd.Dir = opts.WorkDir
+		cmd.Env = opts.Env
+
+		err = cmd.Start()
+		assert.NilError(t, err)
+
+		// Both goroutines run concurrently to avoid deadlock:
+		// - WriteTo drains output so the process never blocks on a full PTY buffer.
+		// - Wait captures the exit code then closes the PTY, which unblocks WriteTo.
+		var eg errgroup.Group
+		eg.Go(func() (err error) {
+			defer closer.ErrorHandler(p, &err)
+
+			err = cmd.Wait()
+			if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+				exitCode = exitErr.ExitCode()
+				return nil
+			}
+			return err
+		})
+		eg.Go(func() (err error) {
+			_, err = io.Copy(&stdout, p)
+			if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) || errors.Is(err, os.ErrClosed) {
+				// Handle expected PTY close errors on Mac, Linux, Windows respectively
+				return nil
+			}
+			return err
+		})
+		assert.NilError(t, eg.Wait())
+	} else {
+		cmd := exec.CommandContext(ctx, binaryPath, fullArgs...)
+		cmd.Dir = opts.WorkDir
+		cmd.Env = opts.Env
+		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
+		cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+
+		err := cmd.Run()
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			exitCode = exitErr.ExitCode()
 		} else {
-			t.Fatalf("failed to run CLI: %v", err)
+			assert.NilError(t, err)
 		}
 	}
 

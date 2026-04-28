@@ -1,13 +1,1 @@
-[
-  {
-    "step": "Spin up environment",
-    "status": "success",
-    "output": "Setting up...\n"
-  },
-  {
-    "step": "Run tests",
-    "status": "failed",
-    "exit_code": 1,
-    "output": "FAIL: TestFoo\n"
-  }
-]
+[{"step":"Spin up environment","status":"success","output":"Setting up...\n"},{"step":"Run tests","status":"failed","exit_code":1,"output":"FAIL: TestFoo\n"}]
