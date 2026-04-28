@@ -16,6 +16,7 @@ $ circleci runner instance list --resource-class my-org/my-runner --json
 
 
 Flags:
+      --jq string               Process values from the response using jq syntax
       --json                    Output as JSON
       --namespace string        Filter by namespace (organization); defaults to git remote
       --resource-class string   Filter by resource class (namespace/name)

@@ -105,7 +105,8 @@ func newTokenListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 
@@ -222,7 +223,8 @@ func newTokenCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&nickname, "nickname", "", "Human-readable nickname for the token")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 

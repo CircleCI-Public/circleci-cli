@@ -25,6 +25,7 @@ Flags:
   -b, --branch string     Branch for pipeline inference (default: current branch)
   -d, --download string   Download artifacts into this directory
   -j, --job int           Scope to a single job number
+      --jq string         Process values from the response using jq syntax
       --json              Output as JSON
       --project string    Project slug (e.g. gh/org/repo); used with --job, defaults to git remote
 

@@ -27,9 +27,21 @@ import (
 	"encoding/json"
 	"io"
 
+	"github.com/spf13/cobra"
+
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
+
+// AddJSONFlag registers --json on cmd and binds it to out.
+func AddJSONFlag(cmd *cobra.Command, out *bool) {
+	cmd.Flags().BoolVar(out, "json", false, "Output as JSON")
+}
+
+// AddJQFlag registers --jq on cmd and binds it to out.
+func AddJQFlag(cmd *cobra.Command) {
+	cmd.Flags().StringP("jq", "", "", "Process values from the response using jq syntax")
+}
 
 // WriteJSON encodes v as indented JSON to w. Use streams.Out as the writer.
 // Returns the encoder error, if any.

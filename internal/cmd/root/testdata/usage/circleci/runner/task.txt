@@ -15,6 +15,7 @@ $ for rc in my-org/build my-org/deploy; do
 
 
 Flags:
+      --jq string               Process values from the response using jq syntax
       --json                    Output as JSON
       --resource-class string   Resource class to query (namespace/name)
 

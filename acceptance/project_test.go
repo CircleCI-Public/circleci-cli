@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 	"time"
 
@@ -112,6 +113,19 @@ func TestProjectList_JSON(t *testing.T) {
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 
+}
+
+func TestProjectList_JQ(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list", "--json", "--jq", ".[0].slug"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "gh/myorg/alpha"))
 }
 
 func TestProjectList_JSON_Color(t *testing.T) {

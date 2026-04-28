@@ -40,6 +40,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/settings"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
 // NewRootCmd builds the root cobra command and wires all subcommands.
@@ -58,8 +59,14 @@ func NewRootCmd(version string) *cobra.Command {
 		SilenceErrors: true, // main.go handles error printing
 		SilenceUsage:  true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
 			configPath, _ := cmd.Flags().GetString("config")
-			ctx := cmdutil.WithConfigPath(cmd.Context(), configPath)
+			ctx = cmdutil.WithConfigPath(ctx, configPath)
+
+			jqFilter, _ := cmd.Flags().GetString("jq")
+			ctx = iostream.WithJQFilter(ctx, jqFilter)
+
 			cmd.SetContext(ctx)
 			return nil
 		},

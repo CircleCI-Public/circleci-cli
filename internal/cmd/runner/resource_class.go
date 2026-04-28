@@ -97,7 +97,8 @@ func newResourceClassListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 
@@ -194,7 +195,8 @@ func newResourceClassCreateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&description, "description", "", "Human-readable description of the resource class")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 

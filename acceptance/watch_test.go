@@ -153,7 +153,7 @@ func TestPipelineWatch_SHA(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-005", "watch-wf-005", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Args:    []string{"pipeline", "watch", "--sha", "abc1234",
+		Args: []string{"pipeline", "watch", "--sha", "abc1234",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -176,7 +176,7 @@ func TestPipelineWatch_SHA_NotFound(t *testing.T) {
 	env.Extra["CIRCLECI_SHA_WAIT_MS"] = "50"
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Args:    []string{"pipeline", "watch", "--sha", "deadbeef",
+		Args: []string{"pipeline", "watch", "--sha", "deadbeef",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

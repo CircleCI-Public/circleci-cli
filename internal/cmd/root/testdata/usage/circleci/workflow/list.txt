@@ -26,6 +26,7 @@ $ circleci workflow list --json
 
 Flags:
   -b, --branch string    Filter by branch (recent-pipelines mode)
+      --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --limit int        Number of recent pipelines to show (recent-pipelines mode) (default 10)
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote

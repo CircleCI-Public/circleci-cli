@@ -102,6 +102,7 @@ func NewAPICmd() *cobra.Command {
 	cmd.Flags().StringVarP(&method, "method", "X", "", "HTTP method (default: GET, or POST when -f is used)")
 	cmd.Flags().StringArrayVarP(&fields, "field", "f", nil, "Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH)")
 	cmd.Flags().StringArrayVarP(&headers, "header", "H", nil, "Add a request header: \"Key: Value\"")
+	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }

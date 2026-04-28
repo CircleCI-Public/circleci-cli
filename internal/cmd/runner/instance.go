@@ -99,7 +99,8 @@ func newInstanceListCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
 	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization); defaults to git remote")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 

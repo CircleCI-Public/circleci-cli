@@ -77,7 +77,8 @@ func newTasksCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Resource class to query (namespace/name)")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	_ = cmd.MarkFlagRequired("resource-class")
 
 	return cmd
