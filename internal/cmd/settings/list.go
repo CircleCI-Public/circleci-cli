@@ -88,7 +88,7 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 			"token_set": tokenSet,
 			"host":      cfg.EffectiveHost(),
 		}
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	var md strings.Builder

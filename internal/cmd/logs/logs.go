@@ -213,7 +213,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), stepLogs)
+		return iostream.PrintJSON(ctx, stepLogs)
 	}
 
 	printLogs(ctx, stepLogs)

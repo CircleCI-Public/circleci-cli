@@ -24,7 +24,6 @@ $ circleci api /api/v1.1/me
 Flags:
   -f, --field stringArray    Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH)
   -H, --header stringArray   Add a request header: "Key: Value"
-      --json                 Pretty-print the response as JSON
   -X, --method string        HTTP method (default: GET, or POST when -f is used)
 
 Global Flags:

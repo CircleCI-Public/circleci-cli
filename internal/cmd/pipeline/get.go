@@ -197,7 +197,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	out := buildOutput(pipeline, workflows, wfJobs)
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	printPipeline(ctx, out)

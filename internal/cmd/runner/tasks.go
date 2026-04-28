@@ -108,7 +108,7 @@ func runTasks(ctx context.Context, client *apiclient.Client, resourceClass strin
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	var md strings.Builder

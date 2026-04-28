@@ -24,7 +24,9 @@ package iostream
 
 import (
 	"bufio"
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -42,6 +44,7 @@ import (
 	"golang.org/x/term"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
@@ -129,6 +132,14 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
 	fromContext(ctx).DebugContext(ctx, msg, args...)
 }
 
+func PrintJSON(ctx context.Context, v any) error {
+	return fromContext(ctx).PrintJSON(v)
+}
+
+func PrintJSONFromReader(ctx context.Context, r io.Reader) error {
+	return fromContext(ctx).PrintJSONFromReader(r)
+}
+
 func PrintMarkdown(ctx context.Context, md string) {
 	fromContext(ctx).PrintMarkdown(md)
 }
@@ -173,6 +184,16 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 	if verbose {
 		lvl = log.DebugLevel
 	}
+	theme, _ := cmd.Flags().GetString("theme")
+	hasDarkBg := true
+	switch theme {
+	case "auto":
+		hasDarkBg = hasDarkBackground()
+	case "dark":
+		hasDarkBg = true
+	case "light":
+		hasDarkBg = false
+	}
 
 	quiet, _ := cmd.Flags().GetBool("quiet")
 
@@ -184,7 +205,7 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 		Err:       stderr,
 		In:        stdin,
 		Quiet:     quiet,
-		hasDarkBg: hasDarkBackground(),
+		hasDarkBg: hasDarkBg,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: lvl,
 		})),
@@ -319,6 +340,26 @@ func (s Streams) Confirm(ctx context.Context, prompt string) bool {
 
 func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
 	s.slog.DebugContext(ctx, msg, args...)
+}
+
+func (s Streams) PrintJSON(v any) error {
+	buf := bytes.Buffer{}
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(v); err != nil {
+		return err
+	}
+
+	return s.PrintJSONFromReader(&buf)
+}
+
+func (s Streams) PrintJSONFromReader(r io.Reader) error {
+	if s.ColorEnabled() {
+		return jsoncolor.Write(s.Out, r, "  ")
+	}
+
+	_, err := io.Copy(s.Out, r)
+	return err
 }
 
 // RenderMarkdown renders md as styled markdown when color is enabled, falling

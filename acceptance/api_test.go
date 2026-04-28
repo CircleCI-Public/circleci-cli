@@ -41,11 +41,32 @@ func TestAPI_Get(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"api", "/pipeline/" + testPipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestAPI_Get_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -56,9 +77,11 @@ func TestAPI_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"api", "/pipeline/does-not-exist"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "/pipeline/does-not-exist"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 4, "stderr: %s", result.Stderr) // ExitAPIError
 }
@@ -66,9 +89,11 @@ func TestAPI_NotFound(t *testing.T) {
 func TestAPI_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"api", "/me"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "/me"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 }
@@ -82,10 +107,31 @@ func TestAPI_PathDefaultsToV2(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	// Path without /api/ prefix should be routed to /api/v2.
-	result := binary.RunCLI(t,
-		[]string{"api", "/pipeline/" + testPipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestAPI_PathDefaultsToV2_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }

@@ -62,9 +62,11 @@ func setupWatchFake(t *testing.T, pipelineID, wfID, wfStatus string) (*fakes.Cir
 func TestPipelineWatch_ByNumber(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-001", "watch-wf-001", "success")
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "75", "--project", watchSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "#75"), "stderr: %s", result.Stderr)
@@ -77,9 +79,11 @@ func TestPipelineWatch_ByUUID(t *testing.T) {
 	pipelineID := "0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd"
 	_, env := setupWatchFake(t, pipelineID, "watch-wf-uuid-001", "success")
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", pipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", pipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "#75"), "stderr: %s", result.Stderr)
@@ -103,9 +107,11 @@ func TestPipelineWatch_Latest(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "--project", watchSlug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
@@ -116,9 +122,11 @@ func TestPipelineWatch_Latest(t *testing.T) {
 func TestPipelineWatch_Failed(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-003", "watch-wf-003", "failed")
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "75", "--project", watchSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
@@ -129,9 +137,11 @@ func TestPipelineWatch_Failed(t *testing.T) {
 func TestPipelineWatch_Cancelled(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-004", "watch-wf-004", "canceled")
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "75", "--project", watchSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "cancelled"), "stderr: %s", result.Stderr)
@@ -142,10 +152,12 @@ func TestPipelineWatch_Cancelled(t *testing.T) {
 func TestPipelineWatch_SHA(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-005", "watch-wf-005", "success")
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "--sha", "abc1234",
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "--sha", "abc1234",
 			"--project", watchSlug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
@@ -163,10 +175,12 @@ func TestPipelineWatch_SHA_NotFound(t *testing.T) {
 	// Shorten the 2-minute SHA wait window so the test is fast.
 	env.Extra["CIRCLECI_SHA_WAIT_MS"] = "50"
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "--sha", "deadbeef",
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "--sha", "deadbeef",
 			"--project", watchSlug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 	assert.Check(t, cmp.Contains(result.Stderr, "No pipeline found"), "stderr: %s", result.Stderr)
@@ -190,9 +204,11 @@ func TestPipelineWatch_Timeout(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "77", "--project", watchSlug, "--timeout", "1s"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "77", "--project", watchSlug, "--timeout", "1s"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 8, "stderr: %s", result.Stderr) // ExitTimeout
 }
@@ -202,9 +218,11 @@ func TestPipelineWatch_Timeout(t *testing.T) {
 func TestPipelineWatch_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"pipeline", "watch", "75", "--project", watchSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }

@@ -90,20 +90,38 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 func TestRunnerResourceClassList(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "list", "--namespace", "my-org"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerResourceClassList_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerResourceClassList_Namespace(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "list", "--namespace", "my-org"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -112,9 +130,11 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 func TestRunnerResourceClassList_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -128,12 +148,28 @@ func TestRunnerResourceClassList_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunnerResourceClassList_JSON_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestRunnerResourceClassList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "list"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -144,20 +180,38 @@ func TestRunnerResourceClassList_NoToken(t *testing.T) {
 func TestRunnerResourceClassCreate(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerResourceClassCreate_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerResourceClassCreate_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -170,14 +224,30 @@ func TestRunnerResourceClassCreate_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunnerResourceClassCreate_JSON_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 // --- resource-class delete ---
 
 func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "delete", "my-org/linux-runner"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "delete", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -186,9 +256,11 @@ func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 func TestRunnerResourceClassDelete_Force(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -200,9 +272,11 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "resource-class", "delete", "my-org/nonexistent", "--force"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "delete", "my-org/nonexistent", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 }
@@ -212,20 +286,38 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 func TestRunnerTokenList(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "list", "--resource-class", "my-org/linux-runner"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerTokenList_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerTokenList_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -239,15 +331,31 @@ func TestRunnerTokenList_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunnerTokenList_JSON_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestRunnerTokenList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "list", "--resource-class", "my-org/linux-runner"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -258,20 +366,38 @@ func TestRunnerTokenList_Empty(t *testing.T) {
 func TestRunnerTokenCreate(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "create", "my-org/linux-runner", "--nickname", "my-server"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner", "--nickname", "my-server"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerTokenCreate_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner", "--nickname", "my-server"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerTokenCreate_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "create", "my-org/linux-runner", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -284,16 +410,46 @@ func TestRunnerTokenCreate_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunnerTokenCreate_JSON_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 // --- token delete ---
 
 func TestRunnerTokenDelete(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "delete", "--force", "tok-id-1"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "delete", "--force", "tok-id-1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerTokenDelete_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "delete", "--force", "tok-id-1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -301,9 +457,11 @@ func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
 	// In non-interactive mode (no TTY), --force is required.
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "delete", "tok-id-1"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "delete", "tok-id-1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -315,9 +473,11 @@ func TestRunnerTokenDelete_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "token", "delete", "--force", "nonexistent-token-id"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "delete", "--force", "nonexistent-token-id"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 }
@@ -327,31 +487,65 @@ func TestRunnerTokenDelete_NotFound(t *testing.T) {
 func TestRunnerInstanceList(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "instance", "list", "--namespace", "my-org"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--namespace", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerInstanceList_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--namespace", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerInstanceList_ResourceClass(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "instance", "list", "--resource-class", "my-org/linux-runner"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerInstanceList_ResourceClass_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestRunnerInstanceList_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "instance", "list", "--namespace", "my-org", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--namespace", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -363,15 +557,31 @@ func TestRunnerInstanceList_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunnerInstanceList_JSON_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--namespace", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestRunnerInstanceList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "instance", "list", "--namespace", "my-org"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list", "--namespace", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -380,9 +590,11 @@ func TestRunnerInstanceList_Empty(t *testing.T) {
 func TestRunnerInstanceList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"runner", "instance", "list"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "instance", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))

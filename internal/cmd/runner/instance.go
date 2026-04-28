@@ -186,7 +186,7 @@ func runInstanceList(ctx context.Context, client *apiclient.Client, resourceClas
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	if len(out) == 0 {

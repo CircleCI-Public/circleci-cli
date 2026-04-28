@@ -142,7 +142,7 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber in
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
+		return iostream.PrintJSON(ctx, entries)
 	}
 
 	var md strings.Builder

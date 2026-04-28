@@ -1,0 +1,16 @@
+[1;37m[[m
+  [1;37m{[m
+    [1;34m"slug"[m[1;37m:[m [32m"gh/myorg/alpha"[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m"alpha"[m[1;37m,[m
+    [1;34m"vcs_type"[m[1;37m:[m [32m"github"[m[1;37m,[m
+    [1;34m"username"[m[1;37m:[m [32m"myorg"[m[1;37m,[m
+    [1;34m"reponame"[m[1;37m:[m [32m"alpha"[m
+  [1;37m}[m[1;37m,[m
+  [1;37m{[m
+    [1;34m"slug"[m[1;37m:[m [32m"gh/myorg/beta"[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m"beta"[m[1;37m,[m
+    [1;34m"vcs_type"[m[1;37m:[m [32m"github"[m[1;37m,[m
+    [1;34m"username"[m[1;37m:[m [32m"myorg"[m[1;37m,[m
+    [1;34m"reponame"[m[1;37m:[m [32m"beta"[m
+  [1;37m}[m
+[1;37m][m

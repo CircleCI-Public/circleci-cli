@@ -82,20 +82,38 @@ func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 func TestWorkflowGet(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "get", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowGet_Color(t *testing.T) {
+	_, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowGet_JSON(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "get", "--json", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", "--json", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -118,9 +136,11 @@ func TestWorkflowGet_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "get", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -129,9 +149,11 @@ func TestWorkflowGet_NotFound(t *testing.T) {
 func TestWorkflowGet_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "get", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -143,9 +165,11 @@ func TestWorkflowGet_NotFound_JSON(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "get", "--quiet", "--json", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", "--quiet", "--json", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 
@@ -164,9 +188,11 @@ func TestWorkflowGet_NotFound_JSON(t *testing.T) {
 func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "get", "--json", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get", "--json", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 
@@ -200,9 +226,36 @@ func TestWorkflowList(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddPipelineWorkflows(testPipelineForWF,
+		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
+		map[string]any{"id": "wf-uuid-bbb", "name": "deploy", "status": "failed"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -217,7 +270,11 @@ func TestWorkflowList_JSON(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"workflow", "list", "--json", testPipelineForWF}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--json", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	var out []map[string]any
@@ -231,6 +288,28 @@ func TestWorkflowList_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestWorkflowList_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddPipelineWorkflows(testPipelineForWF,
+		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--json", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestWorkflowList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
@@ -240,7 +319,11 @@ func TestWorkflowList_Empty(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -252,9 +335,11 @@ func TestWorkflowList_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "list", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 }
@@ -262,7 +347,11 @@ func TestWorkflowList_NotFound(t *testing.T) {
 func TestWorkflowList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t, []string{"workflow", "list", testPipelineForWF}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -302,11 +391,45 @@ func TestWorkflowList_NoArg(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "list", "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_NoArg_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddPipeline(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
+	fake.AddProjectPipelines(testSlug,
+		recentPipeline(testPipelineRecent1, 10, "main"),
+		recentPipeline(testPipelineRecent2, 9, "main"),
+	)
+	fake.AddPipelineWorkflows(testPipelineRecent1,
+		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
+		map[string]any{"id": "wf-recent-bbb", "name": "deploy", "status": "failed"},
+	)
+	fake.AddPipelineWorkflows(testPipelineRecent2,
+		map[string]any{"id": "wf-recent-ccc", "name": "build", "status": "running"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -325,9 +448,11 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "list", "--json", "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--json", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	var out []map[string]any
@@ -343,6 +468,32 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddProjectPipelines(testSlug,
+		recentPipeline(testPipelineRecent1, 10, "main"),
+	)
+	fake.AddPipelineWorkflows(testPipelineRecent1,
+		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
+	)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--json", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	// no pipelines registered for project
@@ -351,9 +502,11 @@ func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "list", "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "list", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
@@ -364,31 +517,65 @@ func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 func TestWorkflowRerun(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "rerun", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowRerun_Color(t *testing.T) {
+	_, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowRerun_FromFailed(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "rerun", "--from-failed", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun", "--from-failed", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowRerun_FromFailed_Color(t *testing.T) {
+	_, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun", "--from-failed", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestWorkflowRerun_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "rerun", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -400,9 +587,11 @@ func TestWorkflowRerun_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "rerun", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 }
@@ -412,11 +601,27 @@ func TestWorkflowRerun_NotFound(t *testing.T) {
 func TestWorkflowCancel(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "cancel", "--force", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "cancel", "--force", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowCancel_Color(t *testing.T) {
+	_, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "cancel", "--force", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -424,9 +629,11 @@ func TestWorkflowCancel_RequiresForce(t *testing.T) {
 	// In non-interactive mode (no TTY), --force is required.
 	_, env := setupWorkflowFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "cancel", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "cancel", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -435,9 +642,11 @@ func TestWorkflowCancel_RequiresForce(t *testing.T) {
 func TestWorkflowCancel_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "cancel", "--force", testWorkflowDetailID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "cancel", "--force", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -449,9 +658,11 @@ func TestWorkflowCancel_NotFound(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"workflow", "cancel", "--force", "00000000-0000-0000-0000-000000000000"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "cancel", "--force", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 }

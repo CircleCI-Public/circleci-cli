@@ -102,20 +102,38 @@ func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 func TestArtifacts_ByPipelineID(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"artifacts", testPipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestArtifacts_ByPipelineID_Color(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"artifacts", "--json", testPipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", "--json", testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -130,25 +148,71 @@ func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestArtifacts_ByPipelineID_JSON_Color(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", "--json", testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestArtifacts_ByJobNumber(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"artifacts", "--job", "42", "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", "--job", "42", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestArtifacts_ByJobNumber_Color(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", "--job", "42", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestJobArtifacts_ByJobNumber(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"job", "artifacts", "42", "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "artifacts", "42", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestJobArtifacts_ByJobNumber_Color(t *testing.T) {
+	_, env := setupArtifactFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "artifacts", "42", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -162,9 +226,11 @@ func TestArtifacts_Download(t *testing.T) {
 	fake.AddStaticFile("/artifacts/test-results.xml", "<xml/>")
 
 	downloadDir := t.TempDir()
-	result := binary.RunCLI(t,
-		[]string{"artifacts", testPipelineID, "--download", downloadDir},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", testPipelineID, "--download", downloadDir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -179,9 +245,11 @@ func TestArtifacts_Download(t *testing.T) {
 func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"artifacts", "--quiet", testPipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", "--quiet", testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Equal(result.Stderr, ""), "expected empty stderr with --quiet")
@@ -191,9 +259,11 @@ func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
 func TestArtifacts_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"artifacts", testPipelineID},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"artifacts", testPipelineID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
