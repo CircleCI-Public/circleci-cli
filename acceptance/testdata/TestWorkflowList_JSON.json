@@ -1,7 +1,1 @@
-[
-  {
-    "id": "wf-uuid-aaa",
-    "name": "build",
-    "status": "success"
-  }
-]
+[{"id":"wf-uuid-aaa","name":"build","status":"success"}]

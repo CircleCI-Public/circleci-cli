@@ -45,7 +45,11 @@ func TestCompletionInstallZsh(t *testing.T) {
 	err := os.WriteFile(zshrc, []byte("# zshrc\n"), 0o644)
 	assert.NilError(t, err)
 
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	data, err := os.ReadFile(zshrc)
@@ -64,7 +68,11 @@ func TestCompletionInstallBash(t *testing.T) {
 	err := os.WriteFile(bashrc, []byte("# bashrc\n"), 0o644)
 	assert.NilError(t, err)
 
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	data, err := os.ReadFile(bashrc)
@@ -84,7 +92,11 @@ func TestCompletionInstallBashProfile(t *testing.T) {
 	err := os.WriteFile(bashProfile, []byte("# bash_profile\n"), 0o644)
 	assert.NilError(t, err)
 
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	data, err := os.ReadFile(bashProfile)
@@ -98,7 +110,11 @@ func TestCompletionInstallBashCreatesRCFile(t *testing.T) {
 	env.Extra["SHELL"] = "/bin/bash"
 	// Neither .bashrc nor .bash_profile exists — should create .bash_profile
 
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	bashProfile := filepath.Join(env.HomeDir, ".bash_profile")
@@ -123,13 +139,21 @@ func TestCompletionInstallIdempotent(t *testing.T) {
 	assert.NilError(t, err)
 
 	// First install
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assert.Equal(t, result.ExitCode, 0, "first install failed")
 	dataAfterFirst, err := os.ReadFile(zshrc)
 	assert.NilError(t, err)
 
 	// Second install should be a no-op
-	result = binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result = binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assert.Equal(t, result.ExitCode, 0, "second install failed")
 	assert.Check(t, cmp.Contains(result.Stderr, "already installed"),
 		"expected 'already installed' message, got stderr: %s", result.Stderr)
@@ -143,7 +167,11 @@ func TestCompletionInstallUnsupportedShell(t *testing.T) {
 	env := testenv.New(t)
 	env.Extra["SHELL"] = "/bin/fish"
 
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Check(t, result.ExitCode != 0, "expected non-zero exit for unsupported shell")
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -153,7 +181,11 @@ func TestCompletionInstallEmptyShell(t *testing.T) {
 	env := testenv.New(t)
 	env.Extra["SHELL"] = ""
 
-	result := binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Check(t, result.ExitCode != 0, "expected non-zero exit for empty SHELL")
 }
@@ -168,8 +200,16 @@ func TestCompletionUninstallZsh(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Install then uninstall
-	binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
-	result := binary.RunCLI(t, []string{"completion", "uninstall"}, env.Environ(), t.TempDir())
+	binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "uninstall"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	data, err := os.ReadFile(zshrc)
@@ -189,8 +229,16 @@ func TestCompletionUninstallPreservesOtherContent(t *testing.T) {
 	err := os.WriteFile(bashrc, []byte(original), 0o644)
 	assert.NilError(t, err)
 
-	binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
-	result := binary.RunCLI(t, []string{"completion", "uninstall"}, env.Environ(), t.TempDir())
+	binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "uninstall"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	data, err := os.ReadFile(bashrc)
@@ -210,7 +258,11 @@ func TestCompletionUninstallNoBlockPresent(t *testing.T) {
 	err := os.WriteFile(zshrc, []byte("export BAR=baz\n"), 0o644)
 	assert.NilError(t, err)
 
-	result := binary.RunCLI(t, []string{"completion", "uninstall"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "uninstall"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "uninstall with no block should succeed")
 	data, err := os.ReadFile(zshrc)
@@ -228,8 +280,16 @@ func TestCompletionInstallUninstallRoundTrip(t *testing.T) {
 	err := os.WriteFile(zshrc, []byte(original), 0o644)
 	assert.NilError(t, err)
 
-	binary.RunCLI(t, []string{"completion", "install"}, env.Environ(), t.TempDir())
-	binary.RunCLI(t, []string{"completion", "uninstall"}, env.Environ(), t.TempDir())
+	binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "install"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "uninstall"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	data, err := os.ReadFile(zshrc)
 	assert.NilError(t, err)
@@ -242,7 +302,11 @@ func TestCompletionInstallUninstallRoundTrip(t *testing.T) {
 func TestCompletionBashGeneratesScript(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t, []string{"completion", "bash"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "bash"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, len(result.Stdout) > 0, "expected bash completion output")
@@ -253,7 +317,11 @@ func TestCompletionBashGeneratesScript(t *testing.T) {
 func TestCompletionZshGeneratesScript(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t, []string{"completion", "zsh"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"completion", "zsh"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, len(result.Stdout) > 0, "expected zsh completion output")

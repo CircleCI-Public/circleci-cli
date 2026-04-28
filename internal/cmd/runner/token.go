@@ -160,7 +160,7 @@ func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass s
 		if out == nil {
 			out = []tokenOutput{}
 		}
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	if len(out) == 0 {
@@ -249,7 +249,7 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	iostream.Printf(ctx, "Created token for resource class: %s\n", out.ResourceClass)

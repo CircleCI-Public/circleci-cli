@@ -146,7 +146,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 		if out == nil {
 			out = []workflowListOutput{}
 		}
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	if len(out) == 0 {
@@ -196,7 +196,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		if out == nil {
 			out = []workflowRecentOutput{}
 		}
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	if len(pipelines) == 0 {

@@ -49,7 +49,6 @@ func NewAPICmd() *cobra.Command {
 		method  string
 		fields  []string
 		headers []string
-		jsonOut bool
 	)
 
 	cmd := &cobra.Command{
@@ -96,19 +95,18 @@ func NewAPICmd() *cobra.Command {
 			if cliErr != nil {
 				return cliErr
 			}
-			return run(ctx, client, args[0], method, fields, headers, jsonOut)
+			return run(ctx, client, args[0], method, fields, headers)
 		},
 	}
 
 	cmd.Flags().StringVarP(&method, "method", "X", "", "HTTP method (default: GET, or POST when -f is used)")
 	cmd.Flags().StringArrayVarP(&fields, "field", "f", nil, "Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH)")
 	cmd.Flags().StringArrayVarP(&headers, "header", "H", nil, "Add a request header: \"Key: Value\"")
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "Pretty-print the response as JSON")
 
 	return cmd
 }
 
-func run(ctx context.Context, client *apiclient.Client, path, method string, fields, headers []string, jsonOut bool) error {
+func run(ctx context.Context, client *apiclient.Client, path, method string, fields, headers []string) error {
 	// Parse key=value fields.
 	parsedFields := make(map[string]string, len(fields))
 	for _, f := range fields {
@@ -186,17 +184,10 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 			WithExitCode(clierrors.ExitAPIError)
 	}
 
-	// Print the response body. --json pretty-prints if the body is valid JSON.
-	output := strings.TrimRight(string(respBody), "\n")
-	if jsonOut {
-		var v any
-		if jsonErr := json.Unmarshal(respBody, &v); jsonErr == nil {
-			_ = cmdutil.WriteJSON(iostream.Out(ctx), v)
-		} else {
-			iostream.Println(ctx, output)
-		}
-	} else {
-		iostream.Println(ctx, output)
+	// At the moment we are assuming all API calls return plain JSON.
+	err = iostream.PrintJSONFromReader(ctx, bytes.NewReader(respBody))
+	if err != nil {
+		return err
 	}
 
 	if status >= 400 {

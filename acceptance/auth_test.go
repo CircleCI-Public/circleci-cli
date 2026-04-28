@@ -55,16 +55,38 @@ func setupAuthFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 func TestAuthMe(t *testing.T) {
 	_, env := setupAuthFake(t)
 
-	result := binary.RunCLI(t, []string{"auth", "me"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"auth", "me"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestAuthMe_Color(t *testing.T) {
+	_, env := setupAuthFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"auth", "me"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestAuthMe_JSON(t *testing.T) {
 	_, env := setupAuthFake(t)
 
-	result := binary.RunCLI(t, []string{"auth", "me", "--json"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"auth", "me", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	var out map[string]any
@@ -77,11 +99,29 @@ func TestAuthMe_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestAuthMe_JSON_Color(t *testing.T) {
+	_, env := setupAuthFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"auth", "me", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestAuthMe_NoToken(t *testing.T) {
 	_, env := setupAuthFake(t)
 	env.Token = ""
 
-	result := binary.RunCLI(t, []string{"auth", "me"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"auth", "me"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Check(t, result.ExitCode != 0)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -92,7 +132,11 @@ func TestAuthMe_NoToken(t *testing.T) {
 func TestAuthLogout(t *testing.T) {
 	_, env := setupAuthFake(t)
 
-	result := binary.RunCLI(t, []string{"auth", "logout"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"auth", "logout"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))

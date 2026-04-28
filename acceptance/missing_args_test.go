@@ -52,19 +52,31 @@ func assertMissingArg(t *testing.T, result binary.CLIResult, argName string) {
 
 func TestWorkflowGet_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"workflow", "get"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "get"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "workflow-id")
 }
 
 func TestWorkflowRerun_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"workflow", "rerun"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "rerun"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "workflow-id")
 }
 
 func TestWorkflowCancel_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"workflow", "cancel"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"workflow", "cancel"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "workflow-id")
 }
 
@@ -72,13 +84,21 @@ func TestWorkflowCancel_MissingArg(t *testing.T) {
 
 func TestRunnerResourceClassCreate_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"runner", "resource-class", "create"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "create"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "namespace/name")
 }
 
 func TestRunnerResourceClassDelete_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"runner", "resource-class", "delete"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "resource-class", "delete"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "namespace/name")
 }
 
@@ -86,13 +106,21 @@ func TestRunnerResourceClassDelete_MissingArg(t *testing.T) {
 
 func TestRunnerTokenCreate_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"runner", "token", "create"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "create"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "resource-class")
 }
 
 func TestRunnerTokenDelete_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"runner", "token", "delete"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"runner", "token", "delete"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "token-id")
 }
 
@@ -100,13 +128,21 @@ func TestRunnerTokenDelete_MissingArg(t *testing.T) {
 
 func TestJobLogs_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"job", "logs"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "logs"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "job-number")
 }
 
 func TestJobArtifacts_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"job", "artifacts"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "artifacts"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "job-number")
 }
 
@@ -114,12 +150,20 @@ func TestJobArtifacts_MissingArg(t *testing.T) {
 
 func TestSettingsSet_MissingBothArgs(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"settings", "set"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"settings", "set"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "key")
 }
 
 func TestSettingsSet_MissingValue(t *testing.T) {
 	env := missingArgEnv(t)
-	result := binary.RunCLI(t, []string{"settings", "set", "token"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"settings", "set", "token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 	assertMissingArg(t, result, "value")
 }

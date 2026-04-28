@@ -140,9 +140,11 @@ func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 func TestJobLogs_ByNumber(t *testing.T) {
 	_, env := setupLogsFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "Spin up environment"), "stdout: %s", result.Stdout)
@@ -154,9 +156,11 @@ func TestJobLogs_ByNumber(t *testing.T) {
 func TestJobLogs_FilterStep(t *testing.T) {
 	_, env := setupLogsFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--step", "Run tests"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--step", "Run tests"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
@@ -166,9 +170,11 @@ func TestJobLogs_FilterStep(t *testing.T) {
 func TestJobLogs_JSON(t *testing.T) {
 	_, env := setupLogsFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -184,12 +190,28 @@ func TestJobLogs_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestJobLogs_JSON_Color(t *testing.T) {
+	_, env := setupLogsFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestLogs_ByNumber(t *testing.T) {
 	_, env := setupLogsFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "Spin up environment"), "stdout: %s", result.Stdout)
@@ -199,9 +221,11 @@ func TestLogs_ByNumber(t *testing.T) {
 func TestLogs_LastFailed(t *testing.T) {
 	_, env := setupLogsFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"logs", "--last-failed", "--project", testSlug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs", "--last-failed", "--project", testSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
@@ -210,9 +234,11 @@ func TestLogs_LastFailed(t *testing.T) {
 func TestLogs_LastJob(t *testing.T) {
 	_, env := setupLogsFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"logs", "--last-job", "--project", testSlug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs", "--last-job", "--project", testSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "FAIL: TestFoo"), "stdout: %s", result.Stdout)
@@ -235,9 +261,11 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"logs", "--last-failed", "--project", testSlug, "--branch", "main"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs", "--last-failed", "--project", testSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -247,9 +275,11 @@ func TestLogs_NoArgs(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = "testtoken"
 
-	result := binary.RunCLI(t,
-		[]string{"logs"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -259,9 +289,11 @@ func TestLogs_ConflictingArgs(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = "testtoken"
 
-	result := binary.RunCLI(t,
-		[]string{"logs", "99", "--last-failed"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs", "99", "--last-failed"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -315,9 +347,11 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t,
-		[]string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "v1 output"), "stdout: %s", result.Stdout)
@@ -326,9 +360,11 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 func TestLogs_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"logs", "99", "--project", testSlug},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"logs", "99", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))

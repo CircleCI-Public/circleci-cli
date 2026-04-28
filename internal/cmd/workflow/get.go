@@ -130,7 +130,7 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	printGet(ctx, out)

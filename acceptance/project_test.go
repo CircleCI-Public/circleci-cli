@@ -69,16 +69,38 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 func TestProjectList(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t, []string{"project", "list"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestProjectList_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestProjectList_JSON(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t, []string{"project", "list", "--json"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -92,13 +114,31 @@ func TestProjectList_JSON(t *testing.T) {
 
 }
 
+func TestProjectList_JSON_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestProjectList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()
 
-	result := binary.RunCLI(t, []string{"project", "list"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -107,7 +147,11 @@ func TestProjectList_Empty(t *testing.T) {
 func TestProjectList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t, []string{"project", "list"}, env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -118,11 +162,27 @@ func TestProjectList_NoToken(t *testing.T) {
 func TestProjectFollow(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"project", "follow", "--project", "gh/myorg/newrepo"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "follow", "--project", "gh/myorg/newrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestProjectFollow_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "follow", "--project", "gh/myorg/newrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -130,9 +190,11 @@ func TestProjectFollow_Idempotent(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	// Follow an already-followed project — should succeed.
-	result := binary.RunCLI(t,
-		[]string{"project", "follow", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "follow", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 }
@@ -140,9 +202,11 @@ func TestProjectFollow_Idempotent(t *testing.T) {
 func TestProjectFollow_InvalidSlug(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"project", "follow", "--project", "notaslug"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "follow", "--project", "notaslug"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -153,20 +217,38 @@ func TestProjectFollow_InvalidSlug(t *testing.T) {
 func TestEnvList(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "list", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestEnvList_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 func TestEnvList_JSON(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "list", "--project", "gh/myorg/alpha", "--json"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
@@ -179,12 +261,28 @@ func TestEnvList_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestEnvList_JSON_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
 func TestEnvList_Empty(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "list", "--project", "gh/myorg/beta"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "list", "--project", "gh/myorg/beta"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -194,11 +292,27 @@ func TestEnvList_Empty(t *testing.T) {
 func TestProjectEnvList(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"project", "envvar", "list", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "envvar", "list", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestProjectEnvList_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"project", "envvar", "list", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -207,11 +321,27 @@ func TestProjectEnvList(t *testing.T) {
 func TestEnvSet(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "set", "NEW_VAR", "newvalue", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "set", "NEW_VAR", "newvalue", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestEnvSet_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "set", "NEW_VAR", "newvalue", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -219,11 +349,27 @@ func TestEnvSet_Overwrite(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	// Overwrite existing var.
-	result := binary.RunCLI(t,
-		[]string{"envvar", "set", "DATABASE_URL", "postgres://new", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "set", "DATABASE_URL", "postgres://new", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestEnvSet_Overwrite_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "set", "DATABASE_URL", "postgres://new", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -232,11 +378,27 @@ func TestEnvSet_Overwrite(t *testing.T) {
 func TestEnvDelete(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "delete", "--force", "DATABASE_URL", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "delete", "--force", "DATABASE_URL", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestEnvDelete_Color(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "delete", "--force", "DATABASE_URL", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -244,9 +406,11 @@ func TestEnvDelete_RequiresForce(t *testing.T) {
 	// In non-interactive mode (no TTY), --force is required.
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "delete", "DATABASE_URL", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "delete", "DATABASE_URL", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -255,9 +419,11 @@ func TestEnvDelete_RequiresForce(t *testing.T) {
 func TestEnvDelete_NotFound(t *testing.T) {
 	_, env := setupProjectFake(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "delete", "--force", "DOES_NOT_EXIST", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "delete", "--force", "DOES_NOT_EXIST", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
@@ -266,9 +432,11 @@ func TestEnvDelete_NotFound(t *testing.T) {
 func TestEnvDelete_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
-	result := binary.RunCLI(t,
-		[]string{"envvar", "delete", "--force", "FOO", "--project", "gh/myorg/alpha"},
-		env.Environ(), t.TempDir())
+	result := binary.RunCLI(t, binary.RunOpts{
+		Args:    []string{"envvar", "delete", "--force", "FOO", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }

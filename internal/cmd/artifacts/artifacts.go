@@ -179,7 +179,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), entries)
+		return iostream.PrintJSON(ctx, entries)
 	}
 
 	printArtifacts(ctx, entries)

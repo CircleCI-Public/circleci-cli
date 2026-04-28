@@ -132,7 +132,7 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), vars)
+		return iostream.PrintJSON(ctx, vars)
 	}
 
 	if len(vars) == 0 {

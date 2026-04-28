@@ -118,7 +118,7 @@ func runProjectList(ctx context.Context, client *apiclient.Client, jsonOut bool)
 	}
 
 	if jsonOut {
-		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+		return iostream.PrintJSON(ctx, out)
 	}
 
 	if len(out) == 0 {
