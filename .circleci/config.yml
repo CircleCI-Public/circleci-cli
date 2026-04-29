@@ -8,14 +8,14 @@ orbs:
 executors:
   go:
     docker:
-      - image: cimg/go:1.23.4
+      - image: cimg/go:1.25
     resource_class: large
     environment:
       CGO_ENABLED: 0
   mac:
     macos:
-      xcode: 15.1.0
-    resource_class: macos.m1.medium.gen1
+      xcode: 26.3.0
+    resource_class: m4pro.medium
     environment:
       CGO_ENABLED: 0
       TERM: xterm-256color
@@ -89,11 +89,7 @@ jobs:
 
       - run:
           name: Run tests
-          command: |
-            export GOBIN=/c/go/bin
-            export PATH=$GOBIN:$PATH
-            go install gotest.tools/gotestsum@latest
-            gotestsum --junitfile test_results/windows.xml
+          command: go tool gotestsum --junitfile test_results/windows.xml
       - store_test_results:
           path: test_results
       - store_artifacts:
@@ -103,8 +99,8 @@ jobs:
     steps:
       - checkout
       - run: |
-          curl -OL https://go.dev/dl/go1.23.4.darwin-arm64.pkg
-          sudo installer -pkg ./go1.23.4.darwin-arm64.pkg -target /
+          curl -OL https://go.dev/dl/go1.25.9.darwin-arm64.pkg
+          sudo installer -pkg ./go1.25.9.darwin-arm64.pkg -target /
           echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
       - gomod
       - run: make test
@@ -143,7 +139,11 @@ jobs:
     steps:
       - checkout
       - gomod
-      - run: make test
+      - run: go tool gotestsum --junitfile test_results/linux.xml
+      - store_test_results:
+          path: test_results
+      - store_artifacts:
+          path: test_results
 
   coverage:
     executor: go
@@ -180,10 +180,10 @@ jobs:
           path: ./docs
           destination: docs
       - run: ./.circleci/generate-docs.sh
-      - run: ./.circleci/deploy-gh-pages.sh
       - run:
           name: Update deployment status to running
           command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
+      - run: ./.circleci/deploy-gh-pages.sh
       - run:
           name: Update deployment status to success
           command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
@@ -194,12 +194,11 @@ jobs:
           when: on_fail
 
   lint:
-    docker:
-      - image: golangci/golangci-lint:v1.63.4-alpine
-    resource_class: large
+    executor: go
     steps:
       - checkout
-      - run: golangci-lint run
+      - gomod
+      - run: go tool golangci-lint run
 
   deploy-test:
     executor: go
@@ -232,10 +231,10 @@ jobs:
           docker_layer_caching: true
       - build-docker-image
       - build-alpine-image
-      - deploy-save-workspace-and-artifacts
       - run:
           name: Update deployment status to running
           command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
+      - deploy-save-workspace-and-artifacts
       - run:
           name: Update deployment status to success
           command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
@@ -275,6 +274,9 @@ jobs:
           command: docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
       - build-docker-image
       - run:
+          name: Update deployment status to running
+          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
+      - run:
           name: Deploy Docker Image
           command: |
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
@@ -287,9 +289,6 @@ jobs:
             docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
             docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
             docker push     circleci/circleci-cli:alpine
-      - run:
-          name: Update deployment status to running
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
       - deploy-save-workspace-and-artifacts
       - run:
           name: Update deployment status to success
@@ -314,8 +313,11 @@ jobs:
       - run:
           name: Publish to store
           command: |
-            # The Snapcraft login file here will expire: 2021-03-05T18:12:13. A new one will need to be created then.
-            mkdir .snapcraft
+            # Credentials are read from the SNAPCRAFT_LOGIN_FILE env var (base64-encoded).
+            # To refresh: run `snapcraft login` and `snapcraft export-login creds`
+            # inside cibuilds/snapcraft:stable, then `cat creds | base64 | tr -d '\n'`
+            # and store the output as SNAPCRAFT_LOGIN_FILE in CircleCI project settings.
+            mkdir -p .snapcraft
             echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
             snapcraft push *.snap --release stable
 
@@ -341,12 +343,12 @@ jobs:
           command: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
           working_directory: chocolatey
       - run:
+          name: Update deployment status to running
+          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
+      - run:
           name: Push to Chocolatey package repository
           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
           working_directory: chocolatey
-      - run:
-          name: Update deployment status to running
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
       - run:
           name: Update deployment status to success
           command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
@@ -380,7 +382,7 @@ jobs:
                 fail-on-issues: true
                 severity-threshold: high
                 monitor-on-build: true
-                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL} -d"
+                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL}"
       - unless:
           condition:
             or:
@@ -394,7 +396,7 @@ jobs:
                 fail-on-issues: true
                 severity-threshold: high
                 monitor-on-build: false
-                additional-arguments: "--all-projects -d"
+                additional-arguments: "--all-projects"
 
 workflows:
   ci:
