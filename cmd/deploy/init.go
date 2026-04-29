@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -162,9 +163,9 @@ func runInit(out io.Writer, deployOpts *deployOpts, iopts initOptions) error {
 	}
 
 	fmt.Fprintf(out, "\nUpdated %s.\n", iopts.configPath)
-	fmt.Fprintf(out, "Added deploy marker step to: %s\n", joinJobs(result.Modified))
+	fmt.Fprintf(out, "Added deploy marker step to: %s\n", strings.Join(result.Modified, ", "))
 	if len(result.Skipped) > 0 {
-		fmt.Fprintf(out, "Left untouched (already instrumented): %s\n", joinJobs(result.Skipped))
+		fmt.Fprintf(out, "Left untouched (already instrumented): %s\n", strings.Join(result.Skipped, ", "))
 	}
 
 	fmt.Fprintln(out, "")
@@ -210,20 +211,6 @@ func allInstrumented(jobs []DetectedJob) bool {
 		}
 	}
 	return len(jobs) > 0
-}
-
-func joinJobs(names []string) string {
-	switch len(names) {
-	case 0:
-		return ""
-	case 1:
-		return names[0]
-	}
-	out := names[0]
-	for _, n := range names[1:] {
-		out += ", " + n
-	}
-	return out
 }
 
 func pluralS(n int) string {
