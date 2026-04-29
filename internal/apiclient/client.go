@@ -116,6 +116,12 @@ func (c *Client) postV1(ctx context.Context, path string, body, dst any) error {
 	return err
 }
 
+func (c *Client) put(ctx context.Context, path string, body, dst any) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPut, "/api/v2"+path,
+		httpcl.Body(body), httpcl.JSONDecoder(dst)))
+	return err
+}
+
 func (c *Client) deleteV2(ctx context.Context, path string) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2"+path))
 	return err

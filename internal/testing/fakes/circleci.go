@@ -70,6 +70,14 @@ type CircleCI struct {
 	envVars          map[string][]any // project slug → env vars
 	deletedEnvVars   map[string]bool  // "slug/name" → deleted
 
+	// Context state.
+	contexts             map[string]any    // context id → context object
+	contextsByOrg        map[string][]any  // org slug → ordered context objects
+	contextEnvVars       map[string][]any  // context id → env var objects
+	contextRestrictions  map[string][]any  // context id → restriction objects
+	deletedContexts      map[string]bool   // context id → deleted
+	deletedContextVars   map[string]bool   // "contextID/name" → deleted
+
 	// Auth state.
 	me any // response for GET /api/v2/me
 }
@@ -101,6 +109,12 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		followedSlugs:           map[string]bool{},
 		envVars:                 map[string][]any{},
 		deletedEnvVars:          map[string]bool{},
+		contexts:                map[string]any{},
+		contextsByOrg:           map[string][]any{},
+		contextEnvVars:          map[string][]any{},
+		contextRestrictions:     map[string][]any{},
+		deletedContexts:         map[string]bool{},
+		deletedContextVars:      map[string]bool{},
 	}
 
 	r := newRouter()
@@ -122,6 +136,14 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v1.1/projects", f.handleListProjects)
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
 	r.Get("/api/v2/me", f.handleGetMe)
+	// Context routes.
+	r.Get("/api/v2/context", f.handleListContexts)
+	r.Post("/api/v2/context", f.handleCreateContext)
+	r.Get("/api/v2/context/{id}", f.handleGetContext)
+	r.Delete("/api/v2/context/{id}", f.handleDeleteContext)
+	r.Get("/api/v2/context/{id}/environment-variable", f.handleListContextEnvVars)
+	r.Put("/api/v2/context/{id}/environment-variable/{name}", f.handleSetContextEnvVar)
+	r.Delete("/api/v2/context/{id}/environment-variable/{name}", f.handleDeleteContextEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
@@ -854,6 +876,236 @@ func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
 
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, ev)
+}
+
+// --- Context helpers ---
+
+// AddContext registers a context object for GET /api/v2/context/{id}.
+// ctx should be a map with at least "id", "name", and "created_at" fields.
+// It is also indexed by org slug for list responses.
+func (f *CircleCI) AddContext(orgSlug string, ctx any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	m, ok := ctx.(map[string]any)
+	if ok {
+		if id, _ := m["id"].(string); id != "" {
+			f.contexts[id] = ctx
+		}
+	}
+	f.contextsByOrg[orgSlug] = append(f.contextsByOrg[orgSlug], ctx)
+}
+
+// AddContextEnvVar registers an environment variable for a context.
+func (f *CircleCI) AddContextEnvVar(contextID string, envVar any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.contextEnvVars[contextID] = append(f.contextEnvVars[contextID], envVar)
+}
+
+// AddContextRestriction registers a restriction for a context.
+func (f *CircleCI) AddContextRestriction(contextID string, restriction any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.contextRestrictions[contextID] = append(f.contextRestrictions[contextID], restriction)
+}
+
+// --- Context handlers ---
+
+func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
+	ownerSlug := r.URL.Query().Get("owner-slug")
+	f.mu.RLock()
+	items := f.contextsByOrg[ownerSlug]
+	deleted := f.deletedContexts
+	f.mu.RUnlock()
+
+	var result []any
+	for _, ctx := range items {
+		m, ok := ctx.(map[string]any)
+		if ok {
+			if id, _ := m["id"].(string); deleted[id] {
+				continue
+			}
+		}
+		result = append(result, ctx)
+	}
+	if result == nil {
+		result = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": result, "next_page_token": nil})
+}
+
+func (f *CircleCI) handleCreateContext(w http.ResponseWriter, r *http.Request) {
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+	name, _ := body["name"].(string)
+	var orgSlug string
+	if owner, ok := body["owner"].(map[string]any); ok {
+		orgSlug, _ = owner["slug"].(string)
+	}
+	id := "c0000099-0000-4000-8000-000000000099"
+	ctx := map[string]any{
+		"id":         id,
+		"name":       name,
+		"created_at": "2026-01-01T00:00:00Z",
+	}
+	f.mu.Lock()
+	f.contexts[id] = ctx
+	if orgSlug != "" {
+		f.contextsByOrg[orgSlug] = append(f.contextsByOrg[orgSlug], ctx)
+	}
+	f.mu.Unlock()
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, ctx)
+}
+
+func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	ctx, ok := f.contexts[id]
+	deleted := f.deletedContexts[id]
+	vars := f.contextEnvVars[id]
+	restrictions := f.contextRestrictions[id]
+	deletedVars := f.deletedContextVars
+	f.mu.RUnlock()
+
+	if !ok || deleted {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	// Build a ContextDetail-shaped response with env vars embedded.
+	var liveVars []any
+	for _, v := range vars {
+		m, ok := v.(map[string]any)
+		if ok {
+			name, _ := m["variable"].(string)
+			if deletedVars[id+"/"+name] {
+				continue
+			}
+		}
+		liveVars = append(liveVars, v)
+	}
+	if liveVars == nil {
+		liveVars = []any{}
+	}
+	if restrictions == nil {
+		restrictions = []any{}
+	}
+
+	m, _ := ctx.(map[string]any)
+	detail := map[string]any{
+		"id":                    m["id"],
+		"name":                  m["name"],
+		"created_at":            m["created_at"],
+		"org_id":                "00000000-0000-0000-0000-000000000000",
+		"environment_variables": liveVars,
+		"restrictions":          restrictions,
+	}
+	render.JSON(w, r, detail)
+}
+
+func (f *CircleCI) handleDeleteContext(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.Lock()
+	_, ok := f.contexts[id]
+	if ok {
+		f.deletedContexts[id] = true
+	}
+	f.mu.Unlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"message": "Deleted."})
+}
+
+func (f *CircleCI) handleListContextEnvVars(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	vars := f.contextEnvVars[id]
+	deleted := f.deletedContextVars
+	f.mu.RUnlock()
+
+	var items []any
+	for _, v := range vars {
+		m, ok := v.(map[string]any)
+		if ok {
+			name, _ := m["variable"].(string)
+			if deleted[id+"/"+name] {
+				continue
+			}
+		}
+		items = append(items, v)
+	}
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
+}
+
+func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	name := chi.URLParam(r, "name")
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+	ev := map[string]any{
+		"variable":   name,
+		"context_id": id,
+		"created_at": "2026-01-01T00:00:00Z",
+		"updated_at": "2026-01-01T00:00:00Z",
+	}
+	f.mu.Lock()
+	// Remove existing var with same name.
+	var kept []any
+	for _, v := range f.contextEnvVars[id] {
+		m, ok := v.(map[string]any)
+		if ok && m["variable"] == name {
+			continue
+		}
+		kept = append(kept, v)
+	}
+	f.contextEnvVars[id] = append(kept, ev)
+	delete(f.deletedContextVars, id+"/"+name)
+	f.mu.Unlock()
+	render.JSON(w, r, ev)
+}
+
+func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	name := chi.URLParam(r, "name")
+	key := id + "/" + name
+
+	f.mu.Lock()
+	found := false
+	for _, v := range f.contextEnvVars[id] {
+		m, ok := v.(map[string]any)
+		if ok && m["variable"] == name {
+			found = true
+			break
+		}
+	}
+	if found {
+		f.deletedContextVars[key] = true
+	}
+	f.mu.Unlock()
+
+	if !found {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {

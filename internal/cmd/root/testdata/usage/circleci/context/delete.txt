@@ -1,0 +1,22 @@
+Usage:
+  circleci context delete <context-id> [flags]
+
+Examples:
+# Delete a context by UUID (with confirmation)
+$ circleci context delete ctx-uuid-here
+
+# Delete without confirmation
+$ circleci context delete ctx-uuid-here --force
+
+# Look up a context by name and delete it
+$ circleci context list --org gh/myorg --json | jq -r '.[] | select(.name=="my-ctx") | .id' | xargs circleci context delete --force
+
+
+Flags:
+  -f, --force        skip confirmation prompt
+      --org string   Organization slug (e.g. gh/myorg); used when resolving name to ID
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

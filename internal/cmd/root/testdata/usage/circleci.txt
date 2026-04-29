@@ -6,6 +6,7 @@ Available Commands:
   artifacts   List or download pipeline artifacts
   auth        Manage CLI auth
   completion  Manage shell completions
+  context     Manage contexts
   envvar      Manage project environment variables
   job         Manage jobs
   logs        Fetch job logs
