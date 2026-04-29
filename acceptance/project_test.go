@@ -71,6 +71,7 @@ func TestProjectList(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -84,6 +85,7 @@ func TestProjectList_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -98,6 +100,7 @@ func TestProjectList_JSON(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -119,6 +122,7 @@ func TestProjectList_JQ(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list", "--json", "--jq", ".[0].slug"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -132,6 +136,7 @@ func TestProjectList_JSON_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -149,6 +154,7 @@ func TestProjectList_Empty(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -162,6 +168,7 @@ func TestProjectList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -177,6 +184,7 @@ func TestProjectFollow(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "follow", "--project", "gh/myorg/newrepo"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -190,6 +198,7 @@ func TestProjectFollow_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "follow", "--project", "gh/myorg/newrepo"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -205,6 +214,7 @@ func TestProjectFollow_Idempotent(t *testing.T) {
 
 	// Follow an already-followed project — should succeed.
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "follow", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -217,6 +227,7 @@ func TestProjectFollow_InvalidSlug(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "follow", "--project", "notaslug"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -232,6 +243,7 @@ func TestEnvList(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -245,6 +257,7 @@ func TestEnvList_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -259,6 +272,7 @@ func TestEnvList_JSON(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -279,6 +293,7 @@ func TestEnvList_JSON_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "list", "--project", "gh/myorg/alpha", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -293,6 +308,7 @@ func TestEnvList_Empty(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "list", "--project", "gh/myorg/beta"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -307,6 +323,7 @@ func TestProjectEnvList(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "envvar", "list", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -320,6 +337,7 @@ func TestProjectEnvList_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"project", "envvar", "list", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -336,6 +354,7 @@ func TestEnvSet(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "set", "NEW_VAR", "newvalue", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -349,6 +368,7 @@ func TestEnvSet_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "set", "NEW_VAR", "newvalue", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -364,6 +384,7 @@ func TestEnvSet_Overwrite(t *testing.T) {
 
 	// Overwrite existing var.
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "set", "DATABASE_URL", "postgres://new", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -377,6 +398,7 @@ func TestEnvSet_Overwrite_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "set", "DATABASE_URL", "postgres://new", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -393,6 +415,7 @@ func TestEnvDelete(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "delete", "--force", "DATABASE_URL", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -406,6 +429,7 @@ func TestEnvDelete_Color(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "delete", "--force", "DATABASE_URL", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -421,6 +445,7 @@ func TestEnvDelete_RequiresForce(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "delete", "DATABASE_URL", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -434,6 +459,7 @@ func TestEnvDelete_NotFound(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "delete", "--force", "DOES_NOT_EXIST", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -447,6 +473,7 @@ func TestEnvDelete_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"envvar", "delete", "--force", "FOO", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

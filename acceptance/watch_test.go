@@ -63,6 +63,7 @@ func TestPipelineWatch_ByNumber(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-001", "watch-wf-001", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -80,6 +81,7 @@ func TestPipelineWatch_ByUUID(t *testing.T) {
 	_, env := setupWatchFake(t, pipelineID, "watch-wf-uuid-001", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -108,6 +110,7 @@ func TestPipelineWatch_Latest(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", "--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -123,6 +126,7 @@ func TestPipelineWatch_Failed(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-003", "watch-wf-003", "failed")
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -138,6 +142,7 @@ func TestPipelineWatch_Cancelled(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-004", "watch-wf-004", "canceled")
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -153,6 +158,7 @@ func TestPipelineWatch_SHA(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-005", "watch-wf-005", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args: []string{"pipeline", "watch", "--sha", "abc1234",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
@@ -176,6 +182,7 @@ func TestPipelineWatch_SHA_NotFound(t *testing.T) {
 	env.Extra["CIRCLECI_SHA_WAIT_MS"] = "50"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args: []string{"pipeline", "watch", "--sha", "deadbeef",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
@@ -205,6 +212,7 @@ func TestPipelineWatch_Timeout(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", "77", "--project", watchSlug, "--timeout", "1s"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -219,6 +227,7 @@ func TestPipelineWatch_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

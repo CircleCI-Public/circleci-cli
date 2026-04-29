@@ -103,6 +103,7 @@ func TestArtifacts_ByPipelineID(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -116,6 +117,7 @@ func TestArtifacts_ByPipelineID_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -130,6 +132,7 @@ func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", "--json", testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -152,6 +155,7 @@ func TestArtifacts_ByPipelineID_JSON_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", "--json", testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -166,6 +170,7 @@ func TestArtifacts_ByJobNumber(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", "--job", "42", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -179,6 +184,7 @@ func TestArtifacts_ByJobNumber_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", "--job", "42", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -193,6 +199,7 @@ func TestJobArtifacts_ByJobNumber(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "artifacts", "42", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -206,6 +213,7 @@ func TestJobArtifacts_ByJobNumber_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "artifacts", "42", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -227,6 +235,7 @@ func TestArtifacts_Download(t *testing.T) {
 
 	downloadDir := t.TempDir()
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", testPipelineID, "--download", downloadDir},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -246,6 +255,7 @@ func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", "--quiet", testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -260,6 +270,7 @@ func TestArtifacts_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"artifacts", testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

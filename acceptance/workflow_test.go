@@ -83,6 +83,7 @@ func TestWorkflowGet(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -96,6 +97,7 @@ func TestWorkflowGet_Color(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -110,6 +112,7 @@ func TestWorkflowGet_JSON(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", "--json", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -134,6 +137,7 @@ func TestWorkflowGet_JQ(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", "--json", "--jq", ".name", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -150,6 +154,7 @@ func TestWorkflowGet_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -163,6 +168,7 @@ func TestWorkflowGet_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -179,6 +185,7 @@ func TestWorkflowGet_NotFound_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", "--quiet", "--json", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -202,6 +209,7 @@ func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "get", "--json", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -240,6 +248,7 @@ func TestWorkflowList(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", testPipelineForWF},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -262,6 +271,7 @@ func TestWorkflowList_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", testPipelineForWF},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -284,6 +294,7 @@ func TestWorkflowList_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--json", testPipelineForWF},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -313,6 +324,7 @@ func TestWorkflowList_JSON_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--json", testPipelineForWF},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -333,6 +345,7 @@ func TestWorkflowList_Empty(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", testPipelineForWF},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -349,6 +362,7 @@ func TestWorkflowList_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -361,6 +375,7 @@ func TestWorkflowList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", testPipelineForWF},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -405,6 +420,7 @@ func TestWorkflowList_NoArg(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -436,6 +452,7 @@ func TestWorkflowList_NoArg_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -462,6 +479,7 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--json", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -497,6 +515,7 @@ func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--json", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -516,6 +535,7 @@ func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "list", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -531,6 +551,7 @@ func TestWorkflowRerun(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -544,6 +565,7 @@ func TestWorkflowRerun_Color(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -558,6 +580,7 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "rerun", "--from-failed", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -571,6 +594,7 @@ func TestWorkflowRerun_FromFailed_Color(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "rerun", "--from-failed", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -585,6 +609,7 @@ func TestWorkflowRerun_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -601,6 +626,7 @@ func TestWorkflowRerun_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "rerun", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -615,6 +641,7 @@ func TestWorkflowCancel(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "cancel", "--force", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -628,6 +655,7 @@ func TestWorkflowCancel_Color(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "cancel", "--force", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -643,6 +671,7 @@ func TestWorkflowCancel_RequiresForce(t *testing.T) {
 	_, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "cancel", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -656,6 +685,7 @@ func TestWorkflowCancel_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "cancel", "--force", testWorkflowDetailID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -672,6 +702,7 @@ func TestWorkflowCancel_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"workflow", "cancel", "--force", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

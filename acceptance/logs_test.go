@@ -141,6 +141,7 @@ func TestJobLogs_ByNumber(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -157,6 +158,7 @@ func TestJobLogs_FilterStep(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--step", "Run tests"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -171,6 +173,7 @@ func TestJobLogs_JSON(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -194,6 +197,7 @@ func TestJobLogs_JSON_Color(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -208,6 +212,7 @@ func TestLogs_ByNumber(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -222,6 +227,7 @@ func TestLogs_LastFailed(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs", "--last-failed", "--project", testSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -235,6 +241,7 @@ func TestLogs_LastJob(t *testing.T) {
 	_, env := setupLogsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs", "--last-job", "--project", testSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -262,6 +269,7 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs", "--last-failed", "--project", testSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -276,6 +284,7 @@ func TestLogs_NoArgs(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -290,6 +299,7 @@ func TestLogs_ConflictingArgs(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs", "99", "--last-failed"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -348,6 +358,7 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"job", "logs", fmt.Sprintf("%d", testLogsJobNumber), "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -361,6 +372,7 @@ func TestLogs_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"logs", "99", "--project", testSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
