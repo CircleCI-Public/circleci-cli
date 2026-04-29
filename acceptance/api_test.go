@@ -44,6 +44,7 @@ func TestAPI_Get(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "/pipeline/" + testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -62,6 +63,7 @@ func TestAPI_Get_JQ(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "--jq", ".id", "/pipeline/" + testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -80,6 +82,7 @@ func TestAPI_Get_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "/pipeline/" + testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -98,6 +101,7 @@ func TestAPI_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "/pipeline/does-not-exist"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -110,6 +114,7 @@ func TestAPI_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "/me"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -128,6 +133,7 @@ func TestAPI_PathDefaultsToV2(t *testing.T) {
 
 	// Path without /api/ prefix should be routed to /api/v2.
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "/pipeline/" + testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -146,6 +152,7 @@ func TestAPI_PathDefaultsToV2_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"api", "/pipeline/" + testPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

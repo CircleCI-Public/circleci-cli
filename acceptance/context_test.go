@@ -79,6 +79,7 @@ func TestContextList(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "list", "--org", testOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -98,6 +99,7 @@ func TestContextList_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "list", "--org", testOrgSlug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -122,6 +124,7 @@ func TestContextList_JQ(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "list", "--org", testOrgSlug, "--json", "--jq", ".[0].name"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -139,6 +142,7 @@ func TestContextList_Empty(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "list", "--org", testOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -152,6 +156,7 @@ func TestContextList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "list", "--org", testOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -177,6 +182,7 @@ func TestContextGet(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "get", testContextID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -200,6 +206,7 @@ func TestContextGet_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "get", testContextID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -228,6 +235,7 @@ func TestContextGet_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "get", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -242,6 +250,7 @@ func TestContextGet_MissingArg(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "get"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -254,6 +263,7 @@ func TestContextGet_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "get", testContextID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -272,6 +282,7 @@ func TestContextCreate(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "create", "new-context", "--org", testOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -289,6 +300,7 @@ func TestContextCreate_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "create", "new-context", "--org", testOrgSlug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -308,6 +320,7 @@ func TestContextCreate_MissingArg(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "create"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -320,6 +333,7 @@ func TestContextCreate_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "create", "new-context", "--org", testOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -339,6 +353,7 @@ func TestContextDelete(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "delete", testContextID, "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -357,6 +372,7 @@ func TestContextDelete_RequiresForce(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "delete", testContextID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -374,6 +390,7 @@ func TestContextDelete_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "delete", "00000000-0000-0000-0000-000000000000", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -388,6 +405,7 @@ func TestContextDelete_MissingArg(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "delete"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -409,6 +427,7 @@ func TestContextSecretList(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "list", testContextID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -428,6 +447,7 @@ func TestContextSecretList_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "list", testContextID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -450,6 +470,7 @@ func TestContextSecretList_Empty(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "list", testContextID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -464,6 +485,7 @@ func TestContextSecretList_MissingArg(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -483,6 +505,7 @@ func TestContextSecretSet(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "set", testContextID, "--name", "MY_VAR", "--value", "s3cr3t"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -497,6 +520,7 @@ func TestContextSecretSet_MissingName(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "set", testContextID, "--value", "s3cr3t"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -510,6 +534,7 @@ func TestContextSecretSet_MissingValue(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "set", testContextID, "--name", "MY_VAR"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -523,6 +548,7 @@ func TestContextSecretSet_MissingContextID(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "set"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -535,6 +561,7 @@ func TestContextSecretSet_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "set", testContextID, "--name", "MY_VAR", "--value", "val"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -555,6 +582,7 @@ func TestContextSecretDelete(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "delete", testContextID, "--name", "MY_VAR", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -574,6 +602,7 @@ func TestContextSecretDelete_RequiresForce(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "delete", testContextID, "--name", "MY_VAR"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -591,6 +620,7 @@ func TestContextSecretDelete_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "delete", testContextID, "--name", "NONEXISTENT", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -605,6 +635,7 @@ func TestContextSecretDelete_MissingArgs(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "delete", testContextID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

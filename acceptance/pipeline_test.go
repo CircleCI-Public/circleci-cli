@@ -78,6 +78,7 @@ func TestPipelineGet_ByID(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -103,6 +104,7 @@ func TestPipelineGet_ByID_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -129,6 +131,7 @@ func TestPipelineGet_ByNumber(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "42", "--project", slug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -154,6 +157,7 @@ func TestPipelineGet_ByNumber_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "42", "--project", slug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -177,6 +181,7 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "--json", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -214,6 +219,7 @@ func TestPipelineGet_ByID_JQ(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "--json", "--jq", ".id", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -236,6 +242,7 @@ func TestPipelineGet_ByID_JSON_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "--json", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -254,6 +261,7 @@ func TestPipelineGet_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -268,6 +276,7 @@ func TestPipelineGet_NoToken(t *testing.T) {
 	// No token set
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "get", "any-id"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -293,6 +302,7 @@ func TestPipelineList(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", slug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -316,6 +326,7 @@ func TestPipelineList_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", slug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -340,6 +351,7 @@ func TestPipelineList_Limit(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", slug, "--limit", "2"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -363,6 +375,7 @@ func TestPipelineList_Limit_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", slug, "--limit", "2"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -386,6 +399,7 @@ func TestPipelineList_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", slug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -417,6 +431,7 @@ func TestPipelineList_JSON_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", slug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -431,6 +446,7 @@ func TestPipelineList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "list", "--project", "gh/org/repo"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -457,6 +473,7 @@ func TestPipelineTrigger(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -481,6 +498,7 @@ func TestPipelineTrigger_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -506,6 +524,7 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -538,6 +557,7 @@ func TestPipelineTrigger_JSON_Color(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "trigger", "--project", slug, "--branch", "main", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -553,6 +573,7 @@ func TestPipelineTrigger_InvalidParam(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "trigger", "--project", "gh/org/repo", "--branch", "main", "--parameter", "noequals"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -566,6 +587,7 @@ func TestPipelineTrigger_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "trigger", "--project", "gh/org/repo", "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -590,6 +612,7 @@ func TestPipelineCancel(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "cancel", "--force", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -610,6 +633,7 @@ func TestPipelineCancel_RequiresForce(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "cancel", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -631,6 +655,7 @@ func TestPipelineCancel_AlreadyDone(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "cancel", "--force", pipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -648,6 +673,7 @@ func TestPipelineCancel_NotFound(t *testing.T) {
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "cancel", "--force", "00000000-0000-0000-0000-000000000000"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -662,6 +688,7 @@ func TestPipelineCancel_MissingArg(t *testing.T) {
 	env.Token = "testtoken"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "cancel"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -674,6 +701,7 @@ func TestPipelineCancel_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"pipeline", "cancel", "--force", "5034460f-c7c4-4c43-9457-de07e2029e7b"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

@@ -46,6 +46,7 @@ func TestCompletionInstallZsh(t *testing.T) {
 	assert.NilError(t, err)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -69,6 +70,7 @@ func TestCompletionInstallBash(t *testing.T) {
 	assert.NilError(t, err)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -93,6 +95,7 @@ func TestCompletionInstallBashProfile(t *testing.T) {
 	assert.NilError(t, err)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -111,6 +114,7 @@ func TestCompletionInstallBashCreatesRCFile(t *testing.T) {
 	// Neither .bashrc nor .bash_profile exists — should create .bash_profile
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -140,6 +144,7 @@ func TestCompletionInstallIdempotent(t *testing.T) {
 
 	// First install
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -150,6 +155,7 @@ func TestCompletionInstallIdempotent(t *testing.T) {
 
 	// Second install should be a no-op
 	result = binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -168,6 +174,7 @@ func TestCompletionInstallUnsupportedShell(t *testing.T) {
 	env.Extra["SHELL"] = "/bin/fish"
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -182,6 +189,7 @@ func TestCompletionInstallEmptyShell(t *testing.T) {
 	env.Extra["SHELL"] = ""
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -201,11 +209,13 @@ func TestCompletionUninstallZsh(t *testing.T) {
 
 	// Install then uninstall
 	binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "uninstall"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -230,11 +240,13 @@ func TestCompletionUninstallPreservesOtherContent(t *testing.T) {
 	assert.NilError(t, err)
 
 	binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "uninstall"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -259,6 +271,7 @@ func TestCompletionUninstallNoBlockPresent(t *testing.T) {
 	assert.NilError(t, err)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "uninstall"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -281,11 +294,13 @@ func TestCompletionInstallUninstallRoundTrip(t *testing.T) {
 	assert.NilError(t, err)
 
 	binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "install"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 	binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "uninstall"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -303,6 +318,7 @@ func TestCompletionBashGeneratesScript(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "bash"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -318,6 +334,7 @@ func TestCompletionZshGeneratesScript(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"completion", "zsh"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

@@ -56,6 +56,7 @@ func TestAuthMe(t *testing.T) {
 	_, env := setupAuthFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"auth", "me"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -69,6 +70,7 @@ func TestAuthMe_Color(t *testing.T) {
 	_, env := setupAuthFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"auth", "me"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -83,6 +85,7 @@ func TestAuthMe_JSON(t *testing.T) {
 	_, env := setupAuthFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"auth", "me", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -103,6 +106,7 @@ func TestAuthMe_JSON_Color(t *testing.T) {
 	_, env := setupAuthFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"auth", "me", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -118,6 +122,7 @@ func TestAuthMe_NoToken(t *testing.T) {
 	env.Token = ""
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"auth", "me"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -133,6 +138,7 @@ func TestAuthLogout(t *testing.T) {
 	_, env := setupAuthFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
 		Args:    []string{"auth", "logout"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

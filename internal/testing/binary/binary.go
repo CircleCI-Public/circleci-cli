@@ -37,7 +37,6 @@ import (
 	"runtime"
 	"slices"
 	"strings"
-	"sync"
 	"syscall"
 	"testing"
 	"time"
@@ -50,44 +49,39 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
 )
 
-var (
-	once       sync.Once
-	binaryPath string
-	buildErr   error
-)
-
 // BuildBinary compiles the CLI binary once and returns its path.
 // Call from TestMain; on error, the binary could not be built and tests
 // should be skipped rather than failed.
-func BuildBinary() (string, error) {
-	once.Do(func() {
-		dir, err := os.MkdirTemp("", "circleci-cli-test-*")
-		if err != nil {
-			buildErr = fmt.Errorf("create temp dir: %w", err)
-			return
-		}
-		binaryPath = filepath.Join(dir, "circleci")
-		if runtime.GOOS == "windows" {
-			binaryPath += ".exe"
-		}
+func BuildBinary() (string, func(), error) {
+	dir, err := os.MkdirTemp("", "circleci-cli-test-*")
+	if err != nil {
+		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
 
-		// acceptance/ is one level below the module root.
-		repoRoot, err := filepath.Abs(filepath.Join("..", ""))
-		if err != nil {
-			buildErr = fmt.Errorf("resolve repo root: %w", err)
-			return
-		}
+	}
+	binaryPath := filepath.Join(dir, "circleci")
+	if runtime.GOOS == "windows" {
+		binaryPath += ".exe"
+	}
 
-		cmd := exec.Command("go", "build", "-o", binaryPath, ".")
-		cmd.Dir = repoRoot
-		var stderr bytes.Buffer
-		cmd.Stderr = &stderr
-		if err := cmd.Run(); err != nil {
-			buildErr = fmt.Errorf("go build failed: %w\nstderr: %s", err, stderr.String())
-			return
-		}
-	})
-	return binaryPath, buildErr
+	// acceptance/ is one level below the module root.
+	repoRoot, err := filepath.Abs(filepath.Join("..", ""))
+	if err != nil {
+		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
+	}
+
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	cmd.Dir = repoRoot
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+	if err != nil {
+		return "", func() {}, fmt.Errorf("go build failed: %w\nstderr: %s", err, stderr.String())
+	}
+
+	return binaryPath, func() {
+		_ = os.RemoveAll(dir)
+	}, nil
 }
 
 // CLIResult holds the output of a CLI invocation.
@@ -98,6 +92,7 @@ type CLIResult struct {
 }
 
 type RunOpts struct {
+	Binary  string
 	Args    []string
 	Env     []string
 	WorkDir string
@@ -121,7 +116,7 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		fullArgs = append(fullArgs, "--debug")
 	}
 	fullArgs = append(fullArgs, opts.Args...)
-	t.Logf("Running CLI: %s %s\n", binaryPath, fullArgs)
+	t.Logf("Running CLI: %s %s\n", opts.Binary, fullArgs)
 
 	exitCode := 0
 	var stdout, stderr bytes.Buffer
@@ -130,7 +125,7 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		p, err := pty.New()
 		assert.NilError(t, err)
 
-		cmd := p.CommandContext(ctx, binaryPath, fullArgs...)
+		cmd := p.CommandContext(ctx, opts.Binary, fullArgs...)
 		cmd.Dir = opts.WorkDir
 		cmd.Env = opts.Env
 
@@ -161,7 +156,7 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		})
 		assert.NilError(t, eg.Wait())
 	} else {
-		cmd := exec.CommandContext(ctx, binaryPath, fullArgs...)
+		cmd := exec.CommandContext(ctx, opts.Binary, fullArgs...)
 		cmd.Dir = opts.WorkDir
 		cmd.Env = opts.Env
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
