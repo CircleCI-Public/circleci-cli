@@ -1,0 +1,22 @@
+Usage:
+  circleci context get <context-id> [flags]
+
+Examples:
+# Get a context by UUID
+$ circleci context get ctx-uuid-here
+
+# Output as JSON
+$ circleci context get ctx-uuid-here --json
+
+# Get just the org ID
+$ circleci context get ctx-uuid-here --json | jq -r '.org_id'
+
+
+Flags:
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

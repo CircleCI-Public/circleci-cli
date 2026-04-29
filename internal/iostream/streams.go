@@ -135,6 +135,12 @@ func Confirm(ctx context.Context, prompt string) bool {
 	return fromContext(ctx).Confirm(ctx, prompt)
 }
 
+// PromptSecret presents a masked text input to collect a secret value.
+// Returns ("", nil) if the user cancels.
+func PromptSecret(ctx context.Context, header string) (string, error) {
+	return fromContext(ctx).PromptSecret(ctx, header)
+}
+
 func DebugContext(ctx context.Context, msg string, args ...any) {
 	fromContext(ctx).DebugContext(ctx, msg, args...)
 }
@@ -343,6 +349,27 @@ func (s Streams) Confirm(ctx context.Context, prompt string) bool {
 		return false
 	}
 	return anyModel.(ui.ConfirmModel).Confirmed()
+}
+
+// PromptSecret presents a masked text input via bubbletea to collect a secret
+// value. header is displayed above the input field (e.g. "Enter value for MY_VAR").
+// Returns ("", nil) if the user cancels with esc or ctrl+c.
+func (s Streams) PromptSecret(ctx context.Context, header string) (string, error) {
+	p := tea.NewProgram(
+		ui.NewSecretModel(header),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
+		return "", err
+	}
+	m := anyModel.(ui.SecretModel)
+	if m.Quitting() {
+		return "", nil
+	}
+	return m.Value(), nil
 }
 
 func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {

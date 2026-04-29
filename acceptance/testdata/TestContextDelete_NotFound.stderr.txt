@@ -1,0 +1,5 @@
+error: No context found for "00000000-0000-0000-0000-000000000000".
+
+Suggestions:
+  • Check the context name or ID and try again
+  • Run: circleci context list --org <org-slug>

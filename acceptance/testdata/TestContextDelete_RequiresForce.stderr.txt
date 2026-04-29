@@ -1,0 +1,4 @@
+error: Deleting context c0000001-0000-4000-8000-000000000001 will remove all its environment variables.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode
