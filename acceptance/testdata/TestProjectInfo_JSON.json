@@ -1,0 +1,11 @@
+{
+  "id": "proj-uuid-1234",
+  "slug": "gh/myorg/alpha",
+  "name": "alpha",
+  "organization_name": "myorg",
+  "organization_slug": "gh/myorg",
+  "organization_id": "org-uuid-5678",
+  "vcs_provider": "GitHub",
+  "vcs_default_branch": "main",
+  "vcs_url": "https://github.com/myorg/alpha"
+}

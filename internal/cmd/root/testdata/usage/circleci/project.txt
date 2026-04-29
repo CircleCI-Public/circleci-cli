@@ -4,6 +4,7 @@ Usage:
 Available Commands:
   envvar      Manage project environment variables
   follow      Follow a project
+  info        Show project details
   list        List followed projects
 
 Global Flags:

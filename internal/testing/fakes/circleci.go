@@ -70,6 +70,7 @@ type CircleCI struct {
 	followedSlugs    map[string]bool  // vcs+org+repo → true (for follow idempotency)
 	envVars          map[string][]any // project slug → env vars
 	deletedEnvVars   map[string]bool  // "slug/name" → deleted
+	projectInfos     map[string]any   // project slug → project info response
 
 	// Context state.
 	contexts             map[string]any    // context id → context object
@@ -118,6 +119,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		deletedContexts:            map[string]bool{},
 		deletedContextVars:         map[string]bool{},
 		deletedContextRestrictions: map[string]bool{},
+		projectInfos:               map[string]any{},
 	}
 
 	r := newRouter()
@@ -152,6 +154,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
 	// Runner (v3) routes. GET /runner dispatches on query param:
 	// ?namespace=  → resource classes, ?resource-class= → instances.
 	r.Get("/api/v3/runner", f.handleRunnerList)
@@ -773,6 +776,14 @@ func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
 
 // --- Project / env-var helpers ---
 
+// AddProjectInfo registers a project info response for GET /api/v2/project/<slug>.
+// slug should be in "vcs/org/repo" form.
+func (f *CircleCI) AddProjectInfo(slug string, info any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.projectInfos[slug] = info
+}
+
 // AddFollowedProject registers a project returned by GET /api/v1.1/projects.
 // proj should be a map or struct with at least "slug", "username", and "reponame" fields.
 func (f *CircleCI) AddFollowedProject(proj any) {
@@ -1190,6 +1201,20 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 		return
 	}
 	render.JSON(w, r, map[string]any{"message": "Context restriction deleted."})
+}
+
+func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	f.mu.RLock()
+	info, ok := f.projectInfos[slug]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, info)
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {

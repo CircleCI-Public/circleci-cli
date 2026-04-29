@@ -55,6 +55,20 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"vcs_type": "github",
 		"name":     "beta",
 	})
+	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
+		"id":                "proj-uuid-1234",
+		"slug":              "gh/myorg/alpha",
+		"name":              "alpha",
+		"organization_name": "myorg",
+		"organization_slug": "gh/myorg",
+		"organization_id":   "org-uuid-5678",
+		"vcs_info": map[string]any{
+			"provider":       "GitHub",
+			"default_branch": "main",
+			"vcs_url":        "https://github.com/myorg/alpha",
+		},
+	})
+
 	createdAt := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx", nil)
 	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx", &createdAt)
@@ -480,4 +494,55 @@ func TestEnvDelete_NoToken(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+}
+
+// --- project info ---
+
+func TestProjectInfo(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "info", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestProjectInfo_JSON(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "info", "--project", "gh/myorg/alpha", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["id"], "proj-uuid-1234"))
+	assert.Check(t, cmp.Equal(out["organization_id"], "org-uuid-5678"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestProjectInfo_NotFound(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "info", "--project", "gh/myorg/nonexistent"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
