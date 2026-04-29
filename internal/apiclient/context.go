@@ -171,3 +171,27 @@ func (c *Client) DeleteContextEnvVar(ctx context.Context, contextID, name string
 		url.PathEscape(contextID), url.PathEscape(name))
 	return c.deleteV2(ctx, path)
 }
+
+// CreateContextRestriction adds a project, expression, or group restriction to a context.
+// restrictionType must be one of "project", "expression", or "group".
+// For project restrictions, restrictionValue is the project UUID.
+// For expression restrictions, restrictionValue is the pipeline expression rule.
+// For group restrictions, restrictionValue is the group UUID.
+func (c *Client) CreateContextRestriction(ctx context.Context, contextID uuid.UUID, restrictionType, restrictionValue string) (*ContextRestriction, error) {
+	path := "/context/" + contextID.String() + "/restrictions"
+	body := map[string]any{
+		"restriction_type":  restrictionType,
+		"restriction_value": restrictionValue,
+	}
+	var r ContextRestriction
+	if err := c.post(ctx, path, body, &r); err != nil {
+		return nil, err
+	}
+	return &r, nil
+}
+
+// DeleteContextRestriction removes a restriction from a context by its restriction UUID.
+func (c *Client) DeleteContextRestriction(ctx context.Context, contextID, restrictionID uuid.UUID) error {
+	path := "/context/" + contextID.String() + "/restrictions/" + restrictionID.String()
+	return c.deleteV2(ctx, path)
+}

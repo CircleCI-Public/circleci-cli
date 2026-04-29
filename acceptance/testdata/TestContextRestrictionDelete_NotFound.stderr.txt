@@ -1,0 +1,5 @@
+error: No restriction found for "e0000001-0000-4000-8000-000000000001".
+
+Suggestions:
+  • Check the context ID and try again
+  • Run: circleci context get <context-id>
