@@ -137,6 +137,28 @@ jobs:
             - run: task ci:test
             - store_results
 
+  mark-release:
+    executor: linux
+    steps:
+      - run:
+          name: Plan deployment
+          command: |
+            circleci run release plan "${CIRCLE_JOB}" \
+              --environment-name="default" \
+              --component-name="${CIRCLE_PROJECT_REPONAME}" \
+              --target-version="1.0.${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:7}"
+      - run:
+          name: Update deployment status to running
+          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
+      - run:
+          name: Update deployment status to success
+          command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
+          when: on_success
+      - run:
+          name: Update deployment status to failed
+          command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
+          when: on_fail
+
 workflows:
   ci:
     jobs:
@@ -148,3 +170,7 @@ workflows:
                 - linux
                 - macos
                 - windows
+      - mark-release:
+          requires:
+            - check
+            - test
