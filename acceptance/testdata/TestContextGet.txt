@@ -5,10 +5,10 @@
 - Created: 2020-01-01T12:00:00Z
 
 ## Environment Variables
-| Variable    | Updated              |
-| ----------- | -------------------- |
-| DB_PASSWORD | 2020-06-01T12:00:00Z |
-| API_KEY     | 2020-06-01T12:00:00Z |
+| Variable    | Value    | Updated              |
+| ----------- | -------- | -------------------- |
+| DB_PASSWORD | ****abcd | 2020-06-01T12:00:00Z |
+| API_KEY     | ****abcd | 2020-06-01T12:00:00Z |
 
 ## Restrictions
 | Type    | Value                                | Name   | ID                                     |

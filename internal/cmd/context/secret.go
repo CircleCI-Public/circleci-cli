@@ -72,7 +72,7 @@ func newSecretListCmd() *cobra.Command {
 			Variable values are never returned by the API — CircleCI does not
 			expose secret values after they are set.
 
-			JSON fields: variable, context_id, created_at, updated_at
+			JSON fields: variable, truncated_value, context_id, created_at, updated_at
 		`),
 		Example: heredoc.Doc(`
 			# List env vars in a context
@@ -105,10 +105,11 @@ func newSecretListCmd() *cobra.Command {
 }
 
 type secretListEntry struct {
-	Variable  string    `json:"variable"`
-	ContextID uuid.UUID `json:"context_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	Variable       string    `json:"variable"`
+	TruncatedValue string    `json:"truncated_value,omitempty"`
+	ContextID      uuid.UUID `json:"context_id"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
 }
 
 func runSecretList(ctx context.Context, client *apiclient.Client, contextID string, jsonOut bool) error {
@@ -120,10 +121,11 @@ func runSecretList(ctx context.Context, client *apiclient.Client, contextID stri
 	entries := make([]secretListEntry, len(vars))
 	for i, v := range vars {
 		entries[i] = secretListEntry{
-			Variable:  v.Variable,
-			ContextID: v.ContextID,
-			CreatedAt: v.CreatedAt,
-			UpdatedAt: v.UpdatedAt,
+			Variable:       v.Variable,
+			TruncatedValue: v.TruncatedValue,
+			ContextID:      v.ContextID,
+			CreatedAt:      v.CreatedAt,
+			UpdatedAt:      v.UpdatedAt,
 		}
 	}
 
@@ -136,9 +138,9 @@ func runSecretList(ctx context.Context, client *apiclient.Client, contextID stri
 		return nil
 	}
 
-	tbl := mdtable.New("Variable", "Created", "Updated")
+	tbl := mdtable.New("Variable", "Value", "Created", "Updated")
 	for _, e := range entries {
-		tbl.Row(e.Variable, e.CreatedAt.Format(time.RFC3339), e.UpdatedAt.Format(time.RFC3339))
+		tbl.Row(e.Variable, "****"+e.TruncatedValue, e.CreatedAt.Format(time.RFC3339), e.UpdatedAt.Format(time.RFC3339))
 	}
 	iostream.PrintMarkdown(ctx, "# Environment Variables\n"+tbl.Render())
 	return nil
