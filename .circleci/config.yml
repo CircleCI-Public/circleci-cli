@@ -174,3 +174,6 @@ workflows:
           requires:
             - check
             - test
+          filters:
+            branches:
+              only: next
