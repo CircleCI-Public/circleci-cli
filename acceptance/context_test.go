@@ -50,10 +50,11 @@ func fakeContext(id, name string) map[string]any {
 
 func fakeContextEnvVar(contextID, variable string) map[string]any {
 	return map[string]any{
-		"variable":   variable,
-		"context_id": contextID,
-		"created_at": "2020-01-01T12:00:00Z",
-		"updated_at": "2020-06-01T12:00:00Z",
+		"variable":        variable,
+		"truncated_value": "abcd",
+		"context_id":      contextID,
+		"created_at":      "2020-01-01T12:00:00Z",
+		"updated_at":      "2020-06-01T12:00:00Z",
 	}
 }
 
