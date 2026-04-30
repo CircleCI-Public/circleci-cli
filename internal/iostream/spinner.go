@@ -63,6 +63,7 @@ func (s Streams) Spinner(active bool, msg string) *Spin {
 	p := tea.NewProgram(
 		ui.NewSpinnerModel(msg, s.ColorEnabled()),
 		tea.WithOutput(s.Err),
+		tea.WithInput(nil), // keep stdin out of raw mode so Ctrl+C still generates SIGINT
 	)
 
 	sp := &Spin{program: p, active: true}

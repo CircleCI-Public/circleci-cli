@@ -29,7 +29,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
@@ -70,16 +69,5 @@ func runToken(ctx context.Context, secureStorage bool) error {
 		return nil
 	}
 
-	err = config.SetToken(ctx, m.Token(), secureStorage)
-	if err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-
-	path, _ := config.Path()
-	if secureStorage {
-		path = "keyring"
-	}
-	iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.Symbol(ctx, "✓", "OK:"), "token", path)
-	return nil
+	return persistToken(ctx, m.Token(), secureStorage)
 }
