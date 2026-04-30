@@ -327,6 +327,7 @@ jobs:
       - checkout
       - run:
           name: Plan deployment
+          shell: bash.exe
           command: |
             circleci run release plan "${CIRCLE_JOB}" \
               --environment-name="default" \
@@ -344,6 +345,7 @@ jobs:
           working_directory: chocolatey
       - run:
           name: Update deployment status to running
+          shell: bash.exe
           command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
       - run:
           name: Push to Chocolatey package repository
@@ -351,10 +353,12 @@ jobs:
           working_directory: chocolatey
       - run:
           name: Update deployment status to success
+          shell: bash.exe
           command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
           when: on_success
       - run:
           name: Update deployment status to failed
+          shell: bash.exe
           command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
           when: on_fail
 
