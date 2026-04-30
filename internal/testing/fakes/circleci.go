@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -917,6 +918,7 @@ func (f *CircleCI) AddContextRestriction(contextID string, restriction any) {
 
 func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
 	ownerSlug := r.URL.Query().Get("owner-slug")
+	nameFilter := r.URL.Query().Get("name")
 	f.mu.RLock()
 	items := f.contextsByOrg[ownerSlug]
 	deleted := f.deletedContexts
@@ -928,6 +930,11 @@ func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			if id, _ := m["id"].(string); deleted[id] {
 				continue
+			}
+			if nameFilter != "" {
+				if name, _ := m["name"].(string); !strings.Contains(strings.ToLower(name), strings.ToLower(nameFilter)) {
+					continue
+				}
 			}
 		}
 		result = append(result, ctx)

@@ -276,3 +276,24 @@ withinTolerance := func(got, want, delta float64) cmp.Comparison {
 
 assert.Check(t, withinTolerance(actual, expected, 0.01))
 ```
+
+### Acceptance tests
+
+In acceptance tests, there should be a test for the stdout/stderr output of the
+command. This must use gotesttools' `golden.String` comparison:
+```go
+assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+```
+
+You should not construct the golden test file yourself. Instead, run the tests
+with `-update` to generate/update the golden files.
+
+There should be a separate test for JSON output, if the command produces it.
+This must use `assert.Check` with `cmp.DeepEqual`:
+```go
+var out map[string]any
+assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+assert.Check(t, cmp.DeepEqual(out, map[string]any {
+	"key": "value",	
+}))
+```

@@ -129,7 +129,7 @@ func runDelete(ctx context.Context, client *apiclient.Client, contextName, orgSl
 
 // resolveContextID looks up a context by name and returns its UUID.
 func resolveContextID(ctx context.Context, client *apiclient.Client, name, orgSlug string) (uuid.UUID, error) {
-	contexts, err := client.ListContexts(ctx, orgSlug)
+	contexts, err := client.ListContexts(ctx, orgSlug, name)
 	if err != nil {
 		return uuid.Nil, apiErr(err, orgSlug)
 	}
