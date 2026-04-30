@@ -1,0 +1,16 @@
+version: 2.1
+
+jobs:
+  deploy-prod:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run: ./deploy.sh
+      - run:
+          name: Log deploy marker
+          command: |
+            circleci run release log \
+              --component-name=api \
+              --environment-name=production \
+              --target-version=$CIRCLE_SHA1

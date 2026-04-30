@@ -130,6 +130,27 @@ Config file at .circleci/config.yml is valid
 ```
 
 
+## Set Up Deploy Markers
+
+If your project already deploys something from CircleCI, `circleci deploy init`
+will wire up [deploy markers](https://circleci.com/docs/guides/deploy/configure-deploy-markers/)
+for you without any manual YAML editing. From the root of your repo:
+
+```
+$ circleci deploy init
+```
+
+The command scans `.circleci/config.yml`, detects jobs that look like
+deployments (by name), asks a couple of questions (component and
+environment name), and appends a `circleci run release log` step to each
+matching job. It does not commit, push, or make any API calls — you
+review the diff and commit the change yourself. Re-running it on an
+already instrumented config is a no-op.
+
+For richer workflows (status tracking, rollbacks, etc.) see the
+[deploy markers guide](https://circleci.com/docs/guides/deploy/configure-deploy-markers/).
+
+
 ## Docker
 
 The CLI may also be used without installation by using Docker.
