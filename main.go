@@ -51,16 +51,15 @@ func run() int {
 	rootCmd := root.NewRootCmd(version)
 	rootCmd.SetContext(ctx)
 	if err := rootCmd.Execute(); err != nil {
-		var cliErr *clierrors.CLIError
-		if errors.As(err, &cliErr) {
+		if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 			if jsonFlagPresent() {
-				fmt.Fprint(os.Stderr, cliErr.FormatJSON())
+				_, _ = fmt.Fprint(os.Stderr, cliErr.FormatJSON())
 			} else {
-				fmt.Fprint(os.Stderr, cliErr.Format())
+				_, _ = fmt.Fprint(os.Stderr, cliErr.Format())
 			}
 			return cliErr.ExitCode
 		}
-		fmt.Fprintln(os.Stderr, err)
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		return clierrors.ExitGeneralError
 	}
 	return clierrors.ExitSuccess

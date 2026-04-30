@@ -122,8 +122,7 @@ func runPipelineCancel(ctx context.Context, client *apiclient.Client, arg, proje
 	}
 
 	if err := pipeline.Cancel(ctx, client, pipelineID); err != nil {
-		var nothingToCancel *pipeline.ErrNothingToCancel
-		if errors.As(err, &nothingToCancel) {
+		if _, ok := errors.AsType[*pipeline.ErrNothingToCancel](err); ok {
 			return clierrors.New("pipeline.not_running", "Pipeline is not running",
 				fmt.Sprintf("Pipeline %s has no active workflows to cancel.", displayName)).
 				WithSuggestions("The pipeline may have already completed or been cancelled.").

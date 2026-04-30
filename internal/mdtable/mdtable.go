@@ -72,20 +72,20 @@ func (t *Table) Render() string {
 
 	// Header row
 	for i, h := range t.headers {
-		fmt.Fprintf(&sb, "| %-*s ", t.widths[i], h)
+		_, _ = fmt.Fprintf(&sb, "| %-*s ", t.widths[i], h)
 	}
 	sb.WriteString("|\n")
 
 	// Separator row
 	for _, w := range t.widths {
-		fmt.Fprintf(&sb, "| %s ", strings.Repeat("-", w))
+		_, _ = fmt.Fprintf(&sb, "| %s ", strings.Repeat("-", w))
 	}
 	sb.WriteString("|\n")
 
 	// Data rows
 	for _, row := range t.rows {
 		for i, v := range row {
-			fmt.Fprintf(&sb, "| %-*s ", t.widths[i], v)
+			_, _ = fmt.Fprintf(&sb, "| %-*s ", t.widths[i], v)
 		}
 		sb.WriteString("|\n")
 	}

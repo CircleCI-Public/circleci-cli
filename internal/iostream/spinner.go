@@ -66,7 +66,9 @@ func (s Streams) Spinner(active bool, msg string) *Spin {
 	)
 
 	sp := &Spin{program: p, active: true}
-	go p.Run() //nolint:errcheck
+	go func() {
+		_, _ = p.Run()
+	}()
 	return sp
 }
 

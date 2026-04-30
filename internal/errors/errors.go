@@ -100,15 +100,15 @@ func (e *CLIError) FormatJSON() string {
 // Output is intentionally multi-line so suggestions are readable.
 func (e *CLIError) Format() string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "error: %s\n", e.Message)
+	_, _ = fmt.Fprintf(&b, "error: %s\n", e.Message)
 	if len(e.Suggestions) > 0 {
 		b.WriteString("\nSuggestions:\n")
 		for _, s := range e.Suggestions {
-			fmt.Fprintf(&b, "  • %s\n", s)
+			_, _ = fmt.Fprintf(&b, "  • %s\n", s)
 		}
 	}
 	if e.Ref != "" {
-		fmt.Fprintf(&b, "\nReference: %s\n", e.Ref)
+		_, _ = fmt.Fprintf(&b, "\nReference: %s\n", e.Ref)
 	}
 	return b.String()
 }
