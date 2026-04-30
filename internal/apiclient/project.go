@@ -24,7 +24,6 @@ package apiclient
 
 import (
 	"context"
-	"fmt"
 	"time"
 )
 
@@ -49,7 +48,8 @@ type EnvVar struct {
 // Uses the v1.1 API.
 func (c *Client) ListProjects(ctx context.Context) ([]Project, error) {
 	var projects []Project
-	if err := c.getV1(ctx, "/projects", &projects); err != nil {
+	err := c.getV1(ctx, "/projects", &projects)
+	if err != nil {
 		return nil, err
 	}
 	return projects, nil
@@ -60,8 +60,9 @@ func (c *Client) FollowProject(ctx context.Context, vcsType, org, repo string) e
 	var resp struct {
 		Following bool `json:"following"`
 	}
-	path := fmt.Sprintf("/project/%s/%s/%s/follow", vcsType, org, repo)
-	return c.postV1(ctx, path, nil, &resp)
+	return c.postV1(ctx, "/project/%s/%s/%s/follow", nil, &resp,
+		routeParams(vcsType, org, repo),
+	)
 }
 
 // ListEnvVars returns the environment variables for a project.
@@ -70,7 +71,10 @@ func (c *Client) ListEnvVars(ctx context.Context, projectSlug string) ([]EnvVar,
 	var resp struct {
 		Items []EnvVar `json:"items"`
 	}
-	if err := c.get(ctx, fmt.Sprintf("/project/%s/envvar", projectSlug), &resp); err != nil {
+	err := c.get(ctx, "/project/%s/envvar", &resp,
+		routeParams(projectSlug),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return resp.Items, nil
@@ -80,7 +84,10 @@ func (c *Client) ListEnvVars(ctx context.Context, projectSlug string) ([]EnvVar,
 func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string) (*EnvVar, error) {
 	body := map[string]any{"name": name, "value": value}
 	var ev EnvVar
-	if err := c.post(ctx, fmt.Sprintf("/project/%s/envvar", projectSlug), body, &ev); err != nil {
+	err := c.post(ctx, "/project/%s/envvar", body, &ev,
+		routeParams(projectSlug),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &ev, nil
@@ -88,7 +95,9 @@ func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string)
 
 // DeleteEnvVar deletes a project environment variable by name.
 func (c *Client) DeleteEnvVar(ctx context.Context, projectSlug, name string) error {
-	return c.deleteV2(ctx, fmt.Sprintf("/project/%s/envvar/%s", projectSlug, name))
+	return c.deleteV2(ctx, "/project/%s/envvar/%s",
+		routeParams(projectSlug, name),
+	)
 }
 
 // ProjectInfo contains detailed information about a CircleCI project.
@@ -112,7 +121,10 @@ type VCSInfo struct {
 // GetProjectInfo returns detailed information about a project by slug.
 func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*ProjectInfo, error) {
 	var info ProjectInfo
-	if err := c.get(ctx, fmt.Sprintf("/project/%s", projectSlug), &info); err != nil {
+	err := c.get(ctx, "/project/%s", &info,
+		routeParams(projectSlug),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &info, nil

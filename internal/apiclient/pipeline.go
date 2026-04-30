@@ -24,9 +24,7 @@ package apiclient
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"net/url"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
@@ -84,7 +82,10 @@ type PipelineError struct {
 // GetPipeline fetches a single pipeline by its UUID.
 func (c *Client) GetPipeline(ctx context.Context, id string) (*Pipeline, error) {
 	var p Pipeline
-	if err := c.get(ctx, "/pipeline/"+id, &p); err != nil {
+	err := c.get(ctx, "/pipeline/%s", &p,
+		routeParams(id),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &p, nil
@@ -93,8 +94,10 @@ func (c *Client) GetPipeline(ctx context.Context, id string) (*Pipeline, error) 
 // GetPipelineByNumber fetches a pipeline by its project-scoped number.
 func (c *Client) GetPipelineByNumber(ctx context.Context, projectSlug string, number int64) (*Pipeline, error) {
 	var p Pipeline
-	path := fmt.Sprintf("/project/%s/pipeline/%d", url.PathEscape(projectSlug), number)
-	if err := c.get(ctx, path, &p); err != nil {
+	err := c.get(ctx, "/project/%s/pipeline/%d", &p,
+		routeParams(projectSlug, number),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &p, nil
@@ -103,21 +106,19 @@ func (c *Client) GetPipelineByNumber(ctx context.Context, projectSlug string, nu
 // GetLatestPipeline returns the most recent pipeline for the given project slug
 // and branch. Pass an empty branch to get the latest pipeline regardless of branch.
 func (c *Client) GetLatestPipeline(ctx context.Context, projectSlug, branch string) (*Pipeline, error) {
-	path := fmt.Sprintf("/project/%s/pipeline", url.PathEscape(projectSlug))
-
 	var resp struct {
 		Items []Pipeline `json:"items"`
 	}
-	opts := []func(*httpcl.Request){}
-	if branch != "" {
-		opts = append(opts, httpcl.QueryParam("branch", branch))
-	}
-	if err := c.get(ctx, path, &resp, opts...); err != nil {
+	err := c.get(ctx, "/project/%s/pipeline", &resp,
+		routeParams(projectSlug),
+		optionalQueryParam("branch", branch),
+	)
+	if err != nil {
 		return nil, err
 	}
 
 	if len(resp.Items) == 0 {
-		return nil, &httpcl.HTTPError{Method: http.MethodGet, Route: path, StatusCode: http.StatusNotFound}
+		return nil, &httpcl.HTTPError{Method: http.MethodGet, Route: "/project/%s/pipeline", StatusCode: http.StatusNotFound}
 	}
 	return &resp.Items[0], nil
 }
@@ -126,8 +127,6 @@ func (c *Client) GetLatestPipeline(ctx context.Context, projectSlug, branch stri
 // by branch. It paginates the API automatically until the limit is reached or all
 // results are exhausted. Pass limit <= 0 for no limit (fetches all pages).
 func (c *Client) ListPipelines(ctx context.Context, projectSlug, branch string, limit int) ([]Pipeline, error) {
-	path := fmt.Sprintf("/project/%s/pipeline", url.PathEscape(projectSlug))
-
 	var all []Pipeline
 	pageToken := ""
 
@@ -137,15 +136,12 @@ func (c *Client) ListPipelines(ctx context.Context, projectSlug, branch string, 
 			NextPageToken string     `json:"next_page_token"`
 		}
 
-		opts := []func(*httpcl.Request){}
-		if branch != "" {
-			opts = append(opts, httpcl.QueryParam("branch", branch))
-		}
-		if pageToken != "" {
-			opts = append(opts, httpcl.QueryParam("page-token", pageToken))
-		}
-
-		if err := c.get(ctx, path, &resp, opts...); err != nil {
+		err := c.get(ctx, "/project/%s/pipeline", &resp,
+			routeParams(projectSlug),
+			optionalQueryParam("branch", branch),
+			optionalQueryParam("page-token", pageToken),
+		)
+		if err != nil {
 			return nil, err
 		}
 
@@ -173,8 +169,6 @@ type TriggerResponse struct {
 // TriggerPipeline triggers a new pipeline for the given project and branch.
 // params may be nil or empty if no pipeline parameters are needed.
 func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string, params map[string]any) (*TriggerResponse, error) {
-	path := fmt.Sprintf("/project/%s/pipeline", url.PathEscape(projectSlug))
-
 	body := map[string]any{}
 	if branch != "" {
 		body["branch"] = branch
@@ -184,7 +178,10 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 	}
 
 	var resp TriggerResponse
-	if err := c.post(ctx, path, body, &resp); err != nil {
+	err := c.post(ctx, "/project/%s/pipeline", body, &resp,
+		routeParams(projectSlug),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &resp, nil
@@ -202,7 +199,10 @@ func (c *Client) GetPipelineWorkflows(ctx context.Context, pipelineID string) ([
 	var resp struct {
 		Items []PipelineWorkflowSummary `json:"items"`
 	}
-	if err := c.get(ctx, "/pipeline/"+pipelineID+"/workflow", &resp); err != nil {
+	err := c.get(ctx, "/pipeline/%s/workflow", &resp,
+		routeParams(pipelineID),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return resp.Items, nil

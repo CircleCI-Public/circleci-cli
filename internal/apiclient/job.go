@@ -74,9 +74,11 @@ type LogLine struct {
 // absent, GetJob transparently retries against the v1.1 API which always
 // includes step output.
 func (c *Client) GetJob(ctx context.Context, projectSlug string, jobNumber int64) (*Job, error) {
-	path := fmt.Sprintf("/project/%s/job/%d", url.PathEscape(projectSlug), jobNumber)
 	var job Job
-	if err := c.get(ctx, path, &job); err != nil {
+	err := c.get(ctx, "/project/%s/job/%d", &job,
+		routeParams(projectSlug, jobNumber),
+	)
+	if err != nil {
 		return nil, err
 	}
 
@@ -95,7 +97,8 @@ func (c *Client) getJobStepsV1(ctx context.Context, projectSlug string, jobNumbe
 	var resp struct {
 		Steps []JobStep `json:"steps"`
 	}
-	if err := c.getV1(ctx, v1ProjectPath(projectSlug, jobNumber), &resp); err != nil {
+	err := c.getV1(ctx, v1ProjectPath(projectSlug, jobNumber), &resp)
+	if err != nil {
 		return nil, err
 	}
 	return resp.Steps, nil

@@ -108,7 +108,21 @@ func New(cfg Config) *Client {
 func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	start := time.Now()
 
-	u, err := url.Parse(c.baseURL + r.route)
+	path := r.route
+	if len(r.routeParams) > 0 {
+		params := make([]any, len(r.routeParams))
+		for i, value := range r.routeParams {
+			switch value.(type) {
+			case int, int8, int16, int32, int64, float32, float64:
+				params[i] = value
+			default:
+				params[i] = url.PathEscape(fmt.Sprint(value))
+			}
+		}
+		path = fmt.Sprintf(r.route, params...)
+	}
+
+	u, err := url.Parse(c.baseURL + path)
 	if err != nil {
 		return 0, fmt.Errorf("httpcl: bad url: %w", err)
 	}
@@ -187,7 +201,7 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	body, _ := io.ReadAll(resp.Body)
 	return status, &HTTPError{
 		Method:     r.method,
-		Route:      r.route,
+		Route:      path,
 		StatusCode: status,
 		Body:       body,
 	}

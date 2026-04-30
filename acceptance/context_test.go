@@ -518,7 +518,6 @@ func TestContextDelete_ByName(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-
 func TestContextDelete_ByName_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
