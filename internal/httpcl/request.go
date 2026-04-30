@@ -87,7 +87,7 @@ func OptionalQueryParam(key, val string) func(*Request) {
 	return QueryParam(key, val)
 }
 
-func noop(r *Request) {}
+func noop(_ *Request) {}
 
 func RouteParams(v ...any) func(*Request) {
 	return func(r *Request) { r.routeParams = v }

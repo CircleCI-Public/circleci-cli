@@ -25,6 +25,7 @@
 package gitremote
 
 import (
+	"errors"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -125,9 +126,9 @@ func buildSlug(host, org, repo string) (string, error) {
 }
 
 func gitOutput(args ...string) (string, error) {
-	out, err := exec.Command("git", args...).Output()
+	out, err := exec.Command("git", args...).Output() //#nosec:G204 // args are controlled caller-supplied git subcommand names, not user input
 	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
 		}
 		return "", err

@@ -47,14 +47,13 @@ func (m ConfirmModel) Done() bool      { return m.done }
 func (m ConfirmModel) Init() tea.Cmd { return nil }
 
 func (m ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
 		case "y", "Y":
 			m.confirmed = true
 			m.done = true
 			return m, tea.Quit
-		case "n", "N", "esc", "ctrl+c", "enter":
+		case "n", "N", keyEsc, keyCtrlC, keyEnter:
 			m.done = true
 			return m, tea.Quit
 		}

@@ -371,7 +371,7 @@ func printWatchTableFinal(ctx context.Context, state pipelineGetOutput) {
 
 // printWatchLine emits a single-line status update for non-TTY output.
 func printWatchLine(ctx context.Context, state pipelineGetOutput, elapsed time.Duration) {
-	var parts []string
+	parts := make([]string, 0, len(state.Workflows))
 	for _, wf := range state.Workflows {
 		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, wf.Status))
 	}

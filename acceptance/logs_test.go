@@ -132,7 +132,7 @@ func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -265,7 +265,7 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 		map[string]any{"id": passedWorkflowID, "name": "build", "status": "success"})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -281,7 +281,7 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 
 func TestLogs_NoArgs(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -296,7 +296,7 @@ func TestLogs_NoArgs(t *testing.T) {
 
 func TestLogs_ConflictingArgs(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -354,7 +354,7 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

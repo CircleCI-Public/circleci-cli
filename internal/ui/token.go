@@ -28,6 +28,12 @@ import (
 	"charm.land/lipgloss/v2"
 )
 
+const (
+	keyCtrlC = "ctrl+c"
+	keyEnter = "enter"
+	keyEsc   = "esc"
+)
+
 type TokenModel struct {
 	textInput textinput.Model
 	quitting  bool
@@ -61,13 +67,12 @@ func (m TokenModel) Init() tea.Cmd {
 func (m TokenModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "esc":
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case keyCtrlC, keyEsc:
 			m.quitting = true
 			return m, tea.Quit
-		case "enter":
+		case keyEnter:
 			m.token = m.textInput.Value()
 			return m, tea.Quit
 		}

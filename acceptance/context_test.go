@@ -78,7 +78,7 @@ func TestContextList(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -98,7 +98,7 @@ func TestContextList_JSON(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -123,7 +123,7 @@ func TestContextList_JQ(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -141,7 +141,7 @@ func TestContextList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -161,7 +161,7 @@ func TestContextList_Name(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -181,7 +181,7 @@ func TestContextList_Name_JSON(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -224,7 +224,7 @@ func TestContextGet(t *testing.T) {
 	))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -248,7 +248,7 @@ func TestContextGet_JSON(t *testing.T) {
 	))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -277,7 +277,7 @@ func TestContextGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -293,7 +293,7 @@ func TestContextGet_NotFound(t *testing.T) {
 
 func TestContextGet_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -324,7 +324,7 @@ func TestContextGet_ByName(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -343,7 +343,7 @@ func TestContextGet_ByName_NotFound(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -363,7 +363,7 @@ func TestContextCreate(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -381,7 +381,7 @@ func TestContextCreate_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -402,7 +402,7 @@ func TestContextCreate_JSON(t *testing.T) {
 
 func TestContextCreate_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -434,7 +434,7 @@ func TestContextDelete(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -453,7 +453,7 @@ func TestContextDelete_RequiresForce(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -471,7 +471,7 @@ func TestContextDelete_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -487,7 +487,7 @@ func TestContextDelete_NotFound(t *testing.T) {
 
 func TestContextDelete_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -504,7 +504,7 @@ func TestContextDelete_ByName(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -523,7 +523,7 @@ func TestContextDelete_ByName_NotFound(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -545,7 +545,7 @@ func TestContextSecretList(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "API_KEY"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -565,7 +565,7 @@ func TestContextSecretList_JSON(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -588,7 +588,7 @@ func TestContextSecretList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -604,7 +604,7 @@ func TestContextSecretList_Empty(t *testing.T) {
 
 func TestContextSecretList_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -623,7 +623,7 @@ func TestContextSecretList_ByName(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "API_KEY"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -644,7 +644,7 @@ func TestContextSecretSet(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -660,7 +660,7 @@ func TestContextSecretSet(t *testing.T) {
 
 func TestContextSecretSet_MissingName(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -674,7 +674,7 @@ func TestContextSecretSet_MissingName(t *testing.T) {
 
 func TestContextSecretSet_MissingValue(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -688,7 +688,7 @@ func TestContextSecretSet_MissingValue(t *testing.T) {
 
 func TestContextSecretSet_MissingContextID(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -718,7 +718,7 @@ func TestContextSecretSet_ByName(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -740,7 +740,7 @@ func TestContextSecretDelete(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -760,7 +760,7 @@ func TestContextSecretDelete_RequiresForce(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -778,7 +778,7 @@ func TestContextSecretDelete_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -794,7 +794,7 @@ func TestContextSecretDelete_NotFound(t *testing.T) {
 
 func TestContextSecretDelete_MissingArgs(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -812,7 +812,7 @@ func TestContextSecretDelete_ByName(t *testing.T) {
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -833,7 +833,7 @@ func TestContextRestrictionCreate(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -852,7 +852,7 @@ func TestContextRestrictionCreate_Color(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -872,7 +872,7 @@ func TestContextRestrictionCreate_JSON(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -893,7 +893,7 @@ func TestContextRestrictionCreate_JSON(t *testing.T) {
 
 func TestContextRestrictionCreate_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -907,7 +907,7 @@ func TestContextRestrictionCreate_MissingArg(t *testing.T) {
 
 func TestContextRestrictionCreate_MissingType(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -921,7 +921,7 @@ func TestContextRestrictionCreate_MissingType(t *testing.T) {
 
 func TestContextRestrictionCreate_MissingValue(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -937,7 +937,7 @@ func TestContextRestrictionCreate_InvalidType(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -955,7 +955,7 @@ func TestContextRestrictionCreate_ByName(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -977,7 +977,7 @@ func TestContextRestrictionDelete(t *testing.T) {
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -997,7 +997,7 @@ func TestContextRestrictionDelete_Color(t *testing.T) {
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -1018,7 +1018,7 @@ func TestContextRestrictionDelete_RequiresForce(t *testing.T) {
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -1037,7 +1037,7 @@ func TestContextRestrictionDelete_NotFound(t *testing.T) {
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -1053,7 +1053,7 @@ func TestContextRestrictionDelete_NotFound(t *testing.T) {
 
 func TestContextRestrictionDelete_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -1071,7 +1071,7 @@ func TestContextRestrictionDelete_ByName(t *testing.T) {
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

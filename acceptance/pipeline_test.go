@@ -37,6 +37,11 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/fakes"
 )
 
+const (
+	getPipelineID = "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	testWfID      = "wf-uuid-001"
+)
+
 // fakePipeline returns a minimal pipeline payload for the fake server.
 func fakePipeline(id string, number int, state, slug, branch string) map[string]any {
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
@@ -64,17 +69,17 @@ func fakePipeline(id string, number int, state, slug, branch string) map[string]
 
 func TestPipelineGet_ByID(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	wfID := "wf-uuid-001"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	pipelineID := getPipelineID
+	wfID := testWfID
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID,
-		fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"),
-		fakeJob("job-uuid-2", "deploy", 102, "gh/testorg/testrepo"),
+		fakeJob("job-uuid-1", "run-tests", 101, watchSlug),
+		fakeJob("job-uuid-2", "deploy", 102, watchSlug),
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -90,17 +95,17 @@ func TestPipelineGet_ByID(t *testing.T) {
 
 func TestPipelineGet_ByID_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	wfID := "wf-uuid-001"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	pipelineID := getPipelineID
+	wfID := testWfID
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID,
-		fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"),
-		fakeJob("job-uuid-2", "deploy", 102, "gh/testorg/testrepo"),
+		fakeJob("job-uuid-1", "run-tests", 101, watchSlug),
+		fakeJob("job-uuid-2", "deploy", 102, watchSlug),
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -117,9 +122,9 @@ func TestPipelineGet_ByID_Color(t *testing.T) {
 
 func TestPipelineGet_ByNumber(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	pipelineID := getPipelineID
 	wfID := "wf-uuid-002"
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	p := fakePipeline(pipelineID, 42, "created", slug, "main")
 	fake.AddPipeline(pipelineID, p)
 	fake.AddProjectPipelines(slug, p)
@@ -127,7 +132,7 @@ func TestPipelineGet_ByNumber(t *testing.T) {
 	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, slug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -143,9 +148,9 @@ func TestPipelineGet_ByNumber(t *testing.T) {
 
 func TestPipelineGet_ByNumber_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	pipelineID := getPipelineID
 	wfID := "wf-uuid-002"
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	p := fakePipeline(pipelineID, 42, "created", slug, "main")
 	fake.AddPipeline(pipelineID, p)
 	fake.AddProjectPipelines(slug, p)
@@ -153,7 +158,7 @@ func TestPipelineGet_ByNumber_Color(t *testing.T) {
 	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, slug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -170,14 +175,14 @@ func TestPipelineGet_ByNumber_Color(t *testing.T) {
 
 func TestPipelineGet_ByID_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	wfID := "wf-uuid-001"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	pipelineID := getPipelineID
+	wfID := testWfID
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"))
+	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -194,7 +199,7 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["id"], pipelineID))
 	assert.Check(t, cmp.Equal(out["status"], "success"))
-	assert.Check(t, cmp.Equal(out["project_slug"], "gh/testorg/testrepo"))
+	assert.Check(t, cmp.Equal(out["project_slug"], watchSlug))
 
 	wfs := out["workflows"].([]any)
 	assert.Check(t, cmp.Len(wfs, 1))
@@ -208,14 +213,14 @@ func TestPipelineGet_ByID_JSON(t *testing.T) {
 
 func TestPipelineGet_ByID_JQ(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	wfID := "wf-uuid-001"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	pipelineID := getPipelineID
+	wfID := testWfID
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"))
+	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -231,14 +236,14 @@ func TestPipelineGet_ByID_JQ(t *testing.T) {
 
 func TestPipelineGet_ByID_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	wfID := "wf-uuid-001"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	pipelineID := getPipelineID
+	wfID := testWfID
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, "gh/testorg/testrepo"))
+	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -257,7 +262,7 @@ func TestPipelineGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -290,7 +295,7 @@ func TestPipelineGet_NoToken(t *testing.T) {
 
 func TestPipelineList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.AddProjectPipelines(slug,
 		fakePipeline("pid-1", 10, "created", slug, "main"),
 		fakePipeline("pid-2", 9, "errored", slug, "feature"),
@@ -298,7 +303,7 @@ func TestPipelineList(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -314,7 +319,7 @@ func TestPipelineList(t *testing.T) {
 
 func TestPipelineList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.AddProjectPipelines(slug,
 		fakePipeline("pid-1", 10, "created", slug, "main"),
 		fakePipeline("pid-2", 9, "errored", slug, "feature"),
@@ -322,7 +327,7 @@ func TestPipelineList_Color(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -339,7 +344,7 @@ func TestPipelineList_Color(t *testing.T) {
 
 func TestPipelineList_Limit(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.AddProjectPipelines(slug,
 		fakePipeline("pid-1", 10, "created", slug, "main"),
 		fakePipeline("pid-2", 9, "created", slug, "main"),
@@ -347,7 +352,7 @@ func TestPipelineList_Limit(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -363,7 +368,7 @@ func TestPipelineList_Limit(t *testing.T) {
 
 func TestPipelineList_Limit_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.AddProjectPipelines(slug,
 		fakePipeline("pid-1", 10, "created", slug, "main"),
 		fakePipeline("pid-2", 9, "created", slug, "main"),
@@ -371,7 +376,7 @@ func TestPipelineList_Limit_Color(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -388,14 +393,14 @@ func TestPipelineList_Limit_Color(t *testing.T) {
 
 func TestPipelineList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.AddProjectPipelines(slug,
 		fakePipeline("pid-1", 10, "created", slug, "main"),
 		fakePipeline("pid-2", 9, "errored", slug, "feature"),
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -420,14 +425,14 @@ func TestPipelineList_JSON(t *testing.T) {
 
 func TestPipelineList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.AddProjectPipelines(slug,
 		fakePipeline("pid-1", 10, "created", slug, "main"),
 		fakePipeline("pid-2", 9, "errored", slug, "feature"),
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -460,7 +465,7 @@ func TestPipelineList_NoToken(t *testing.T) {
 
 func TestPipelineTrigger(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.SetTriggerResponse(slug, map[string]any{
 		"id":         "new-pipeline-uuid",
 		"state":      "created",
@@ -469,7 +474,7 @@ func TestPipelineTrigger(t *testing.T) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -485,7 +490,7 @@ func TestPipelineTrigger(t *testing.T) {
 
 func TestPipelineTrigger_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.SetTriggerResponse(slug, map[string]any{
 		"id":         "new-pipeline-uuid",
 		"state":      "created",
@@ -494,7 +499,7 @@ func TestPipelineTrigger_Color(t *testing.T) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -511,7 +516,7 @@ func TestPipelineTrigger_Color(t *testing.T) {
 
 func TestPipelineTrigger_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.SetTriggerResponse(slug, map[string]any{
 		"id":         "new-pipeline-uuid",
 		"state":      "created",
@@ -520,7 +525,7 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -544,7 +549,7 @@ func TestPipelineTrigger_JSON(t *testing.T) {
 
 func TestPipelineTrigger_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	slug := "gh/testorg/testrepo"
+	slug := watchSlug
 	fake.SetTriggerResponse(slug, map[string]any{
 		"id":         "new-pipeline-uuid",
 		"state":      "created",
@@ -553,7 +558,7 @@ func TestPipelineTrigger_JSON_Color(t *testing.T) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -570,7 +575,7 @@ func TestPipelineTrigger_JSON_Color(t *testing.T) {
 
 func TestPipelineTrigger_InvalidParam(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -601,14 +606,14 @@ func TestPipelineTrigger_NoToken(t *testing.T) {
 
 func TestPipelineCancel(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	pipelineID := getPipelineID
 	wfID := "wf-cancel-001"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, map[string]any{"id": wfID, "name": "build", "status": "running"})
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -625,11 +630,11 @@ func TestPipelineCancel(t *testing.T) {
 func TestPipelineCancel_RequiresForce(t *testing.T) {
 	// In non-interactive mode (no TTY), --force is required.
 	fake := fakes.NewCircleCI(t)
-	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", "gh/testorg/testrepo", "main"))
+	pipelineID := getPipelineID
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 42, "created", watchSlug, "main"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -647,11 +652,11 @@ func TestPipelineCancel_AlreadyDone(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	pipelineID := "5034460f-c7c4-4c43-9457-de07e2029e7c"
 	wfID := "wf-cancel-002"
-	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 43, "created", "gh/testorg/testrepo", "main"))
+	fake.AddPipeline(pipelineID, fakePipeline(pipelineID, 43, "created", watchSlug, "main"))
 	fake.AddPipelineWorkflows(pipelineID, map[string]any{"id": wfID, "name": "build", "status": "success"})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -669,7 +674,7 @@ func TestPipelineCancel_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -685,7 +690,7 @@ func TestPipelineCancel_NotFound(t *testing.T) {
 
 func TestPipelineCancel_MissingArg(t *testing.T) {
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -702,7 +707,7 @@ func TestPipelineCancel_NoToken(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"pipeline", "cancel", "--force", "5034460f-c7c4-4c43-9457-de07e2029e7b"},
+		Args:    []string{"pipeline", "cancel", "--force", getPipelineID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

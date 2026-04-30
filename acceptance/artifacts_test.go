@@ -93,7 +93,7 @@ func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	return fake, env

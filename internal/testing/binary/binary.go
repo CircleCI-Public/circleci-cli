@@ -69,7 +69,7 @@ func BuildBinary() (string, func(), error) {
 		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".")
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".") //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
 	cmd.Dir = repoRoot
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -156,7 +156,7 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		})
 		assert.NilError(t, eg.Wait())
 	} else {
-		cmd := exec.CommandContext(ctx, opts.Binary, fullArgs...)
+		cmd := exec.CommandContext(ctx, opts.Binary, fullArgs...) //#nosec:G204 // opts.Binary is the test-built CLI binary, fullArgs are test-controlled
 		cmd.Dir = opts.WorkDir
 		cmd.Env = opts.Env
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)

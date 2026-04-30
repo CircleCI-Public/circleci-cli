@@ -160,7 +160,7 @@ func runRestrictionCreate(ctx context.Context, client *apiclient.Client, context
 	}
 
 	out := restrictionCreateOutput{
-		ID:               r.Id.String(),
+		ID:               r.ID.String(),
 		Name:             r.Name,
 		RestrictionType:  r.RestrictionType,
 		RestrictionValue: r.RestrictionValue,

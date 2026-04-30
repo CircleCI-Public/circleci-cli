@@ -27,6 +27,7 @@ package cmdutil
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -103,7 +104,7 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 		}
 		return nf
 	}
-	if he, ok := err.(*httpcl.HTTPError); ok {
+	if he, ok := errors.AsType[*httpcl.HTTPError](err); ok {
 		return clierrors.New("api.error", "CircleCI API error",
 			fmt.Sprintf("API returned %d: %s", he.StatusCode, string(he.Body))).
 			WithExitCode(clierrors.ExitAPIError)

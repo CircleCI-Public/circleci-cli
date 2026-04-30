@@ -45,7 +45,7 @@ func setupAuthFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"avatar_url": "https://example.com/avatar.png",
 	})
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }

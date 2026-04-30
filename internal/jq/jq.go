@@ -62,9 +62,7 @@ func Evaluate(r io.Reader, w io.Writer, opts Options) error {
 		return err
 	}
 
-	code, err := gojq.Compile(query, gojq.WithEnvironLoader(func() []string {
-		return os.Environ()
-	}))
+	code, err := gojq.Compile(query, gojq.WithEnvironLoader(os.Environ))
 	if err != nil {
 		return err
 	}
