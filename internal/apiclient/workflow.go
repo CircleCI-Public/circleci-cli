@@ -24,7 +24,6 @@ package apiclient
 
 import (
 	"context"
-	"fmt"
 	"time"
 )
 
@@ -44,7 +43,10 @@ type WorkflowDetail struct {
 // GetWorkflow fetches a single workflow by its UUID.
 func (c *Client) GetWorkflow(ctx context.Context, id string) (*WorkflowDetail, error) {
 	var wf WorkflowDetail
-	if err := c.get(ctx, "/workflow/"+id, &wf); err != nil {
+	err := c.get(ctx, "/workflow/%s", &wf,
+		routeParams(id),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &wf, nil
@@ -57,7 +59,9 @@ func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) 
 	var resp struct {
 		Message string `json:"message"`
 	}
-	return c.post(ctx, fmt.Sprintf("/workflow/%s/rerun", id), body, &resp)
+	return c.post(ctx, "/workflow/%s/rerun", body, &resp,
+		routeParams(id),
+	)
 }
 
 // CancelWorkflow requests cancellation of a running workflow.
@@ -65,7 +69,9 @@ func (c *Client) CancelWorkflow(ctx context.Context, id string) error {
 	var resp struct {
 		Message string `json:"message"`
 	}
-	return c.post(ctx, fmt.Sprintf("/workflow/%s/cancel", id), map[string]any{}, &resp)
+	return c.post(ctx, "/workflow/%s/cancel", map[string]any{}, &resp,
+		routeParams(id),
+	)
 }
 
 // WorkflowJob is a job belonging to a workflow.
@@ -85,7 +91,10 @@ func (c *Client) GetWorkflowJobs(ctx context.Context, workflowID string) ([]Work
 	var resp struct {
 		Items []WorkflowJob `json:"items"`
 	}
-	if err := c.get(ctx, "/workflow/"+workflowID+"/job", &resp); err != nil {
+	err := c.get(ctx, "/workflow/%s/job", &resp,
+		routeParams(workflowID),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return resp.Items, nil

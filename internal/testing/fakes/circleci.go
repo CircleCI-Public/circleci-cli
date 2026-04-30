@@ -73,13 +73,13 @@ type CircleCI struct {
 	projectInfos     map[string]any   // project slug → project info response
 
 	// Context state.
-	contexts             map[string]any    // context id → context object
-	contextsByOrg        map[string][]any  // org slug → ordered context objects
-	contextEnvVars       map[string][]any  // context id → env var objects
-	contextRestrictions         map[string][]any  // context id → restriction objects
-	deletedContexts             map[string]bool   // context id → deleted
-	deletedContextVars          map[string]bool   // "contextID/name" → deleted
-	deletedContextRestrictions  map[string]bool   // "contextID/restrictionID" → deleted
+	contexts                   map[string]any   // context id → context object
+	contextsByOrg              map[string][]any // org slug → ordered context objects
+	contextEnvVars             map[string][]any // context id → env var objects
+	contextRestrictions        map[string][]any // context id → restriction objects
+	deletedContexts            map[string]bool  // context id → deleted
+	deletedContextVars         map[string]bool  // "contextID/name" → deleted
+	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
 	// Auth state.
 	me any // response for GET /api/v2/me
@@ -89,32 +89,32 @@ type CircleCI struct {
 func NewCircleCI(t *testing.T) *CircleCI {
 	t.Helper()
 	f := &CircleCI{
-		pipelines:               map[string]any{},
-		projects:                map[string][]any{},
-		workflows:               map[string][]any{},
-		workflowDetails:         map[string]any{},
-		workflowJobs:            map[string][]any{},
-		jobArtifacts:            map[string][]any{},
-		staticFiles:             map[string]string{},
-		jobs:                    map[string]any{},
-		jobsV1:                  map[string]any{},
-		stepOutputs:             map[string]string{},
-		triggerResponses:        map[string]any{},
-		rerunResponses:          map[string]int{},
-		cancelResponses:         map[string]int{},
-		pipelineCancelResponses: map[string]int{},
-		resourceClasses:         []any{},
-		runnerTokens:            map[string][]any{},
-		runnerInstances:         []any{},
-		deletedTokens:           map[string]bool{},
-		deletedRCs:              map[string]bool{},
-		followedProjects:        []any{},
-		followedSlugs:           map[string]bool{},
-		envVars:                 map[string][]any{},
-		deletedEnvVars:          map[string]bool{},
-		contexts:                map[string]any{},
-		contextsByOrg:           map[string][]any{},
-		contextEnvVars:          map[string][]any{},
+		pipelines:                  map[string]any{},
+		projects:                   map[string][]any{},
+		workflows:                  map[string][]any{},
+		workflowDetails:            map[string]any{},
+		workflowJobs:               map[string][]any{},
+		jobArtifacts:               map[string][]any{},
+		staticFiles:                map[string]string{},
+		jobs:                       map[string]any{},
+		jobsV1:                     map[string]any{},
+		stepOutputs:                map[string]string{},
+		triggerResponses:           map[string]any{},
+		rerunResponses:             map[string]int{},
+		cancelResponses:            map[string]int{},
+		pipelineCancelResponses:    map[string]int{},
+		resourceClasses:            []any{},
+		runnerTokens:               map[string][]any{},
+		runnerInstances:            []any{},
+		deletedTokens:              map[string]bool{},
+		deletedRCs:                 map[string]bool{},
+		followedProjects:           []any{},
+		followedSlugs:              map[string]bool{},
+		envVars:                    map[string][]any{},
+		deletedEnvVars:             map[string]bool{},
+		contexts:                   map[string]any{},
+		contextsByOrg:              map[string][]any{},
+		contextEnvVars:             map[string][]any{},
 		contextRestrictions:        map[string][]any{},
 		deletedContexts:            map[string]bool{},
 		deletedContextVars:         map[string]bool{},

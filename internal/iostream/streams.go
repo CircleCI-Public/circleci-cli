@@ -185,9 +185,23 @@ type Streams struct {
 	hasDarkBg bool
 }
 
-// OS returns a Streams wired to the real os.Stdin / os.Stdout / os.Stderr.
-func OS(ctx context.Context) context.Context {
-	return WithStreams(ctx, Streams{Out: os.Stdout, Err: os.Stderr, In: os.Stdin})
+func Testing(ctx context.Context) context.Context {
+	stdin := os.Stdin
+	stdout := os.Stdout
+	stderr := os.Stderr
+	width, dark := terminalProperties("dark", stdin, stdout)
+
+	return WithStreams(ctx, Streams{
+		Out:       stdout,
+		Err:       stderr,
+		In:        stdin,
+		Quiet:     false,
+		hasDarkBg: dark,
+		width:     width,
+		slog: slog.New(log.NewWithOptions(stderr, log.Options{
+			Level: log.DebugLevel,
+		})),
+	})
 }
 
 // FromCmd extracts Streams from a cobra.Command's Out/Err/In and reads the

@@ -32,12 +32,13 @@ import (
 // Request is an individual HTTP request to be executed by Client.Call.
 // Use NewRequest to create one.
 type Request struct {
-	method  string
-	route   string
-	body    any
-	decoder func(io.Reader) error
-	headers http.Header
-	query   url.Values
+	method      string
+	route       string
+	body        any
+	decoder     func(io.Reader) error
+	headers     http.Header
+	query       url.Values
+	routeParams []any
 }
 
 // NewRequest creates a request with functional options.
@@ -70,10 +71,24 @@ func JSONDecoder(v any) func(*Request) {
 
 // Header sets a single request header.
 func Header(key, val string) func(*Request) {
-	return func(r *Request) { r.headers.Set(key, val) }
+	return func(r *Request) { r.headers.Add(key, val) }
 }
 
 // QueryParam sets a single query parameter.
 func QueryParam(key, val string) func(*Request) {
-	return func(r *Request) { r.query.Set(key, val) }
+	return func(r *Request) {
+		r.query.Add(key, val)
+	}
+}
+func OptionalQueryParam(key, val string) func(*Request) {
+	if val == "" {
+		return noop
+	}
+	return QueryParam(key, val)
+}
+
+func noop(r *Request) {}
+
+func RouteParams(v ...any) func(*Request) {
+	return func(r *Request) { r.routeParams = v }
 }

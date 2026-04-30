@@ -24,13 +24,9 @@ package apiclient
 
 import (
 	"context"
-	"fmt"
-	"net/url"
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 )
 
 // Context is a CircleCI context — a named collection of secret environment
@@ -62,17 +58,12 @@ func (c *Client) ListContexts(ctx context.Context, ownerSlug, name string) ([]Co
 			Items         []Context `json:"items"`
 			NextPageToken string    `json:"next_page_token"`
 		}
-		var opts []func(*httpcl.Request)
-		if ownerSlug != "" {
-			opts = append(opts, httpcl.QueryParam("owner-slug", ownerSlug))
-		}
-		if name != "" {
-			opts = append(opts, httpcl.QueryParam("name", name))
-		}
-		if pageToken != "" {
-			opts = append(opts, httpcl.QueryParam("page-token", pageToken))
-		}
-		if err := c.get(ctx, "/context", &resp, opts...); err != nil {
+		err := c.get(ctx, "/context", &resp,
+			optionalQueryParam("owner-slug", ownerSlug),
+			optionalQueryParam("name", name),
+			optionalQueryParam("page-token", pageToken),
+		)
+		if err != nil {
 			return nil, err
 		}
 		all = append(all, resp.Items...)
@@ -93,7 +84,8 @@ func (c *Client) CreateContext(ctx context.Context, name, ownerSlug string) (*Co
 		},
 	}
 	var ctxt Context
-	if err := c.post(ctx, "/context", body, &ctxt); err != nil {
+	err := c.post(ctx, "/context", body, &ctxt)
+	if err != nil {
 		return nil, err
 	}
 	return &ctxt, nil
@@ -119,7 +111,10 @@ type ContextRestriction struct {
 // GetContext returns a context by its UUID.
 func (c *Client) GetContext(ctx context.Context, id uuid.UUID) (*ContextDetail, error) {
 	var ctxt ContextDetail
-	if err := c.get(ctx, "/context/"+id.String(), &ctxt); err != nil {
+	err := c.get(ctx, "/context/%s", &ctxt,
+		routeParams(id),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &ctxt, nil
@@ -127,7 +122,9 @@ func (c *Client) GetContext(ctx context.Context, id uuid.UUID) (*ContextDetail, 
 
 // DeleteContext deletes a context by its UUID.
 func (c *Client) DeleteContext(ctx context.Context, id uuid.UUID) error {
-	return c.deleteV2(ctx, "/context/"+id.String())
+	return c.deleteV2(ctx, "/context/%s",
+		routeParams(id),
+	)
 }
 
 // ListContextEnvVars returns the environment variable names stored in a context.
@@ -135,18 +132,17 @@ func (c *Client) DeleteContext(ctx context.Context, id uuid.UUID) error {
 func (c *Client) ListContextEnvVars(ctx context.Context, contextID string) ([]ContextEnvVar, error) {
 	var all []ContextEnvVar
 	pageToken := ""
-	path := fmt.Sprintf("/context/%s/environment-variable", url.PathEscape(contextID))
 
 	for {
 		var resp struct {
 			Items         []ContextEnvVar `json:"items"`
 			NextPageToken string          `json:"next_page_token"`
 		}
-		var opts []func(*httpcl.Request)
-		if pageToken != "" {
-			opts = append(opts, httpcl.QueryParam("page-token", pageToken))
-		}
-		if err := c.get(ctx, path, &resp, opts...); err != nil {
+		err := c.get(ctx, "/context/%s/environment-variable", &resp,
+			routeParams(contextID),
+			optionalQueryParam("page-token", pageToken),
+		)
+		if err != nil {
 			return nil, err
 		}
 		all = append(all, resp.Items...)
@@ -159,11 +155,12 @@ func (c *Client) ListContextEnvVars(ctx context.Context, contextID string) ([]Co
 
 // SetContextEnvVar adds or updates an environment variable in a context.
 func (c *Client) SetContextEnvVar(ctx context.Context, contextID, name, value string) (*ContextEnvVar, error) {
-	path := fmt.Sprintf("/context/%s/environment-variable/%s",
-		url.PathEscape(contextID), url.PathEscape(name))
 	body := map[string]any{"value": value}
 	var ev ContextEnvVar
-	if err := c.put(ctx, path, body, &ev); err != nil {
+	err := c.put(ctx, "/context/%s/environment-variable/%s", body, &ev,
+		routeParams(contextID, name),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &ev, nil
@@ -171,9 +168,9 @@ func (c *Client) SetContextEnvVar(ctx context.Context, contextID, name, value st
 
 // DeleteContextEnvVar removes an environment variable from a context.
 func (c *Client) DeleteContextEnvVar(ctx context.Context, contextID, name string) error {
-	path := fmt.Sprintf("/context/%s/environment-variable/%s",
-		url.PathEscape(contextID), url.PathEscape(name))
-	return c.deleteV2(ctx, path)
+	return c.deleteV2(ctx, "/context/%s/environment-variable/%s",
+		routeParams(contextID, name),
+	)
 }
 
 // CreateContextRestriction adds a project, expression, or group restriction to a context.
@@ -182,13 +179,15 @@ func (c *Client) DeleteContextEnvVar(ctx context.Context, contextID, name string
 // For expression restrictions, restrictionValue is the pipeline expression rule.
 // For group restrictions, restrictionValue is the group UUID.
 func (c *Client) CreateContextRestriction(ctx context.Context, contextID uuid.UUID, restrictionType, restrictionValue string) (*ContextRestriction, error) {
-	path := "/context/" + contextID.String() + "/restrictions"
 	body := map[string]any{
 		"restriction_type":  restrictionType,
 		"restriction_value": restrictionValue,
 	}
 	var r ContextRestriction
-	if err := c.post(ctx, path, body, &r); err != nil {
+	err := c.post(ctx, "/context/%s/restrictions", body, &r,
+		routeParams(contextID),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return &r, nil
@@ -196,6 +195,7 @@ func (c *Client) CreateContextRestriction(ctx context.Context, contextID uuid.UU
 
 // DeleteContextRestriction removes a restriction from a context by its restriction UUID.
 func (c *Client) DeleteContextRestriction(ctx context.Context, contextID, restrictionID uuid.UUID) error {
-	path := "/context/" + contextID.String() + "/restrictions/" + restrictionID.String()
-	return c.deleteV2(ctx, path)
+	return c.deleteV2(ctx, "/context/%s/restrictions/%s",
+		routeParams(contextID, restrictionID),
+	)
 }

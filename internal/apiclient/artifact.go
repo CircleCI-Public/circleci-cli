@@ -27,7 +27,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
 )
@@ -42,11 +41,13 @@ type Artifact struct {
 // GetJobArtifacts returns the artifacts produced by a specific job number
 // within a project.
 func (c *Client) GetJobArtifacts(ctx context.Context, projectSlug string, jobNumber int64) ([]Artifact, error) {
-	path := fmt.Sprintf("/project/%s/%d/artifacts", url.PathEscape(projectSlug), jobNumber)
 	var resp struct {
 		Items []Artifact `json:"items"`
 	}
-	if err := c.get(ctx, path, &resp); err != nil {
+	err := c.get(ctx, "/project/%s/%d/artifacts", &resp,
+		routeParams(projectSlug, jobNumber),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return resp.Items, nil
