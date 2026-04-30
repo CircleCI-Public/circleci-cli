@@ -40,8 +40,8 @@ import (
 	"charm.land/glamour/v2/styles"
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
+	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/jq"
@@ -181,6 +181,7 @@ type Streams struct {
 	In        io.Reader // user input for interactive prompts
 	Quiet     bool      // when true, ErrPrintf/ErrPrintln produce no output
 	slog      *slog.Logger
+	width     int
 	hasDarkBg bool
 }
 
@@ -198,36 +199,62 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 		lvl = log.DebugLevel
 	}
 	theme, _ := cmd.Flags().GetString("theme")
-	hasDarkBg := true
-	switch theme {
-	case "auto":
-		hasDarkBg = hasDarkBackground()
-	case "dark":
-		hasDarkBg = true
-	case "light":
-		hasDarkBg = false
-	}
-
 	quiet, _ := cmd.Flags().GetBool("quiet")
 
 	stdin := cmd.InOrStdin()
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
+	width, dark := terminalProperties(theme, stdin, stdout)
+
 	return WithStreams(ctx, Streams{
 		Out:       stdout,
 		Err:       stderr,
 		In:        stdin,
 		Quiet:     quiet,
-		hasDarkBg: hasDarkBg,
+		hasDarkBg: dark,
+		width:     width,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: lvl,
 		})),
 	})
 }
 
-func hasDarkBackground() bool {
-	// This lipgloss function doesn't work on Windows
-	return runtime.GOOS == "windows" || lipgloss.HasDarkBackground(os.Stdin, os.Stdout)
+func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, dark bool) {
+	dark = true
+	switch theme {
+	case "auto":
+		// This lipgloss function doesn't seem to work on Windows
+		if runtime.GOOS == "windows" {
+			break
+		}
+
+		stdIn, ok := in.(term.File)
+		if !ok {
+			break
+		}
+
+		stdOut, ok := out.(term.File)
+		if !ok {
+			break
+		}
+
+		dark = lipgloss.HasDarkBackground(stdIn, stdOut)
+	case "dark":
+	case "light":
+		dark = false
+	}
+
+	width = 120
+	if f, ok := out.(term.File); ok {
+		if w, _, err := term.GetSize(f.Fd()); err == nil && w > 0 {
+			width = w
+		}
+	}
+	if width > 140 {
+		width = 140
+	}
+
+	return width, dark
 }
 
 // Test returns a Streams backed by the provided writers with no-op stdin,
@@ -239,7 +266,7 @@ func Test(ctx context.Context, out, err io.Writer) context.Context {
 // IsTerminal reports whether Out is a terminal (i.e. a human is watching).
 func (s Streams) IsTerminal() bool {
 	if f, ok := s.Out.(*os.File); ok {
-		return term.IsTerminal(int(f.Fd()))
+		return term.IsTerminal(f.Fd())
 	}
 	return false
 }
@@ -426,14 +453,8 @@ func (s Streams) RenderMarkdown(md string) (_ string, err error) {
 	if !s.ColorEnabled() {
 		return md, nil
 	}
-	width := 120
-	if f, ok := s.Out.(*os.File); ok {
-		if w, _, err := term.GetSize(int(f.Fd())); err == nil && w > 0 {
-			width = w
-		}
-	}
 	r, err := glamour.NewTermRenderer(
-		glamour.WithWordWrap(width),
+		glamour.WithWordWrap(s.width),
 		glamour.WithStyles(s.styleConfig()),
 		glamour.WithInlineTableLinks(true),
 	)
