@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"github.com/gofrs/flock"
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
@@ -49,8 +50,9 @@ type Config struct {
 }
 
 type state struct {
-	Token string `yaml:"token,omitempty"`
-	Host  string `yaml:"host,omitempty"`
+	Token    string `yaml:"token,omitempty"`
+	Host     string `yaml:"host,omitempty"`
+	DeviceID string `yaml:"device_id,omitempty"`
 }
 
 // DefaultHost is the CircleCI API host used when none is configured.
@@ -104,7 +106,7 @@ func LoadFrom(ctx context.Context, path string, secureStorage bool) (*Config, er
 		return nil, fmt.Errorf("reading config file: %w", err)
 	}
 
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg.state); err != nil {
 		return nil, fmt.Errorf("parsing config file %s: %w", resolved, err)
 	}
 
@@ -144,6 +146,26 @@ func SetHost(ctx context.Context, host string, secureStorage bool) error {
 	})
 }
 
+// EnsureDeviceID returns the device_id stored in the config file at path,
+// generating and persisting a new UUID if none exists yet. path follows the
+// same convention as LoadFrom (empty → XDG default). If the config file
+// cannot be written, an ephemeral UUID is returned so the caller always gets
+// a non-empty value.
+func EnsureDeviceID(ctx context.Context, path string) string {
+	var id string
+	err := saveTo(ctx, path, false, func(cfg *Config) error {
+		if cfg.state.DeviceID == "" {
+			cfg.state.DeviceID = uuid.New().String()
+		}
+		id = cfg.state.DeviceID
+		return nil
+	})
+	if err != nil || id == "" {
+		return uuid.New().String()
+	}
+	return id
+}
+
 // saveTo writes cfg to the given path, creating parent directories as needed.
 // If path is empty the default XDG path is used.
 func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) error {
@@ -177,7 +199,7 @@ func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config
 		return fmt.Errorf("reading config file: %w", err)
 	}
 
-	if err := yaml.Unmarshal(data, &cfg); err != nil {
+	if err := yaml.Unmarshal(data, &cfg.state); err != nil {
 		return fmt.Errorf("parsing config file %s: %w", resolved, err)
 	}
 

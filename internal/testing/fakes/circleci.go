@@ -82,7 +82,9 @@ type CircleCI struct {
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
 	// Auth state.
-	me any // response for GET /api/v2/me
+	me                 any // response for GET /api/v2/me
+	oauthTokenResponse any // response body for POST /oauth/token
+	oauthTokenStatus   int // HTTP status for POST /oauth/token (0 → 200 OK)
 }
 
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
@@ -141,6 +143,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v1.1/projects", f.handleListProjects)
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
 	r.Get("/api/v2/me", f.handleGetMe)
+	r.Post("/oauth/token", f.handleOAuthToken)
 	// Context routes.
 	r.Get("/api/v2/context", f.handleListContexts)
 	r.Post("/api/v2/context", f.handleCreateContext)
@@ -772,6 +775,42 @@ func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, me)
+}
+
+// SetOAuthTokenResponse sets the response body for POST /oauth/token.
+func (f *CircleCI) SetOAuthTokenResponse(resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.oauthTokenResponse = resp
+}
+
+// SetOAuthTokenError configures POST /oauth/token to return the given status
+// and JSON body. Use for testing token-exchange failure paths.
+func (f *CircleCI) SetOAuthTokenError(status int, resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.oauthTokenStatus = status
+	f.oauthTokenResponse = resp
+}
+
+func (f *CircleCI) handleOAuthToken(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	resp := f.oauthTokenResponse
+	status := f.oauthTokenStatus
+	f.mu.RUnlock()
+
+	if resp == nil {
+		resp = map[string]any{
+			"access_token":  "fake-access-token",
+			"token_type":    "Bearer",
+			"expires_in":    int64(3600),
+			"refresh_token": "fake-refresh-token",
+		}
+	}
+	if status != 0 {
+		render.Status(r, status)
+	}
+	render.JSON(w, r, resp)
 }
 
 // --- Project / env-var helpers ---

@@ -23,58 +23,58 @@
 package cmdauth
 
 import (
-	"context"
+	"runtime"
 
-	tea "charm.land/bubbletea/v2"
+	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
-func newTokenCmd() *cobra.Command {
+func newDeviceIDCmd() *cobra.Command {
+	var jsonOut bool
+
 	cmd := &cobra.Command{
-		Use:   "token",
-		Short: "Set personal access token for authenticating to CircleCI",
-		Args:  cobra.NoArgs,
+		Use:   "id",
+		Short: "Show the device ID for this CLI installation",
+		Long: heredoc.Doc(`
+			Print the device ID for this CLI installation as "<os>:<uuid>".
+
+			The UUID is generated on first use and stored in the config file.
+			The OS prefix (e.g. darwin, linux) is added at print time so you
+			can identify the machine and platform at a glance. The same UUID
+			is sent with every OAuth authorization request, so you can match
+			a token in the CircleCI UI back to this installation.
+
+			JSON fields:
+			  device_id  string  Stable identifier in the form <os>:<uuid>
+		`),
+		Example: heredoc.Doc(`
+			# Print the device ID
+			$ circleci auth id
+
+			# Output as JSON
+			$ circleci auth id --json
+
+			# Use in a script
+			$ DEVICE=$(circleci auth id)
+		`),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			if !iostream.IsInteractive(ctx) {
-				return clierrors.New("auth.token.aborted", "Login aborted",
-					"Login requires an interactive session.").
-					WithExitCode(clierrors.ExitCancelled)
-			}
 			configPath, _ := cmd.Flags().GetString("config")
-			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runToken(ctx, configPath, secureStorage)
+			id := runtime.GOOS + ":" + config.EnsureDeviceID(ctx, configPath)
+
+			if jsonOut {
+				return iostream.PrintJSON(ctx, map[string]string{"device_id": id})
+			}
+			iostream.Println(ctx, id)
+			return nil
 		},
 	}
+
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	return cmd
-}
-
-func runToken(ctx context.Context, configPath string, secureStorage bool) error {
-	cfg, err := config.LoadFrom(ctx, configPath, false)
-	if err != nil {
-		return clierrors.New("config.load_failed", "Failed to load config", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-	p := tea.NewProgram(ui.NewTokenModel(),
-		tea.WithContext(ctx),
-		tea.WithInput(iostream.In(ctx)),
-		tea.WithOutput(iostream.Err(ctx)),
-	)
-	anyModel, err := p.Run()
-	if err != nil {
-		return err
-	}
-
-	m := anyModel.(ui.TokenModel)
-	if m.Quitting() {
-		return nil
-	}
-
-	return persistToken(ctx, cfg.EffectiveHost(), m.Token(), secureStorage)
 }

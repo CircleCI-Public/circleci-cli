@@ -1,0 +1,21 @@
+Usage:
+  circleci auth login [flags]
+
+Examples:
+# Open the browser and authorize the CLI
+$ circleci auth login
+
+# Print the authorize URL instead of opening a browser
+$ circleci auth login --no-browser
+
+# Authenticate against a non-default host
+$ CIRCLECI_HOST=https://example.circleci.com circleci auth login
+
+
+Flags:
+      --no-browser   Print the authorize URL instead of opening a browser
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

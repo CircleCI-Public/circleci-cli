@@ -2,6 +2,8 @@ Usage:
   circleci auth [command]
 
 Available Commands:
+  id          Show the device ID for this CLI installation
+  login       Authenticate via the CircleCI OAuth flow
   logout      Remove stored credentials
   me          Get info about the current user
   token       Set personal access token for authenticating to CircleCI
