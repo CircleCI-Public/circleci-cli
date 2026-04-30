@@ -496,14 +496,14 @@ func TestEnvDelete_NoToken(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }
 
-// --- project info ---
+// --- project get ---
 
-func TestProjectInfo(t *testing.T) {
+func TestProjectGet(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "info", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "get", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -512,12 +512,12 @@ func TestProjectInfo(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestProjectInfo_JSON(t *testing.T) {
+func TestProjectGet_JSON(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "info", "--project", "gh/myorg/alpha", "--json"},
+		Args:    []string{"project", "get", "--project", "gh/myorg/alpha", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -533,12 +533,12 @@ func TestProjectInfo_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestProjectInfo_NotFound(t *testing.T) {
+func TestProjectGet_NotFound(t *testing.T) {
 	_, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "info", "--project", "gh/myorg/nonexistent"},
+		Args:    []string{"project", "get", "--project", "gh/myorg/nonexistent"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

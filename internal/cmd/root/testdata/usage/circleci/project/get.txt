@@ -1,15 +1,15 @@
 Usage:
-  circleci project info [flags]
+  circleci project get [flags]
 
 Examples:
-# Show info for the current git repository's project
-$ circleci project info
+# Show details for the current git repository's project
+$ circleci project get
 
-# Show info for a specific project
-$ circleci project info --project gh/myorg/myrepo
+# Show details for a specific project
+$ circleci project get --project gh/myorg/myrepo
 
 # Output as JSON for scripting
-$ circleci project info --json
+$ circleci project get --json
 
 
 Flags:

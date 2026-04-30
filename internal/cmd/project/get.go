@@ -36,14 +36,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
-func newInfoCmd() *cobra.Command {
+func newGetCmd() *cobra.Command {
 	var (
 		projectSlug string
 		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "info",
+		Use:   "get",
 		Short: "Show project details",
 		Long: heredoc.Doc(`
 			Display detailed information about a CircleCI project, including
@@ -57,14 +57,14 @@ func newInfoCmd() *cobra.Command {
 			             organization_id, vcs_provider, vcs_default_branch, vcs_url
 		`),
 		Example: heredoc.Doc(`
-			# Show info for the current git repository's project
-			$ circleci project info
+			# Show details for the current git repository's project
+			$ circleci project get
 
-			# Show info for a specific project
-			$ circleci project info --project gh/myorg/myrepo
+			# Show details for a specific project
+			$ circleci project get --project gh/myorg/myrepo
 
 			# Output as JSON for scripting
-			$ circleci project info --json
+			$ circleci project get --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
@@ -98,7 +98,7 @@ func runProjectInfo(ctx context.Context, client *apiclient.Client, projectSlug s
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify the project: circleci project info --project gh/org/repo")
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci project get --project gh/org/repo")
 		}
 		projectSlug = info.Slug
 	}
