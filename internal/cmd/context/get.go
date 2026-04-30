@@ -181,7 +181,7 @@ func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug 
 	if len(envVars) > 0 {
 		tbl := mdtable.New("Variable", "Value", "Updated")
 		for _, v := range envVars {
-			tbl.Row(v.Variable, "****"+v.TruncatedValue, v.UpdatedAt.Format(time.RFC3339))
+			tbl.Row(v.Variable, "`****"+v.TruncatedValue+"`", v.UpdatedAt.Format(time.RFC3339))
 		}
 		lines += "\n## Environment Variables\n" + tbl.Render()
 	}

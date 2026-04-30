@@ -140,7 +140,7 @@ func runSecretList(ctx context.Context, client *apiclient.Client, contextID stri
 
 	tbl := mdtable.New("Variable", "Value", "Created", "Updated")
 	for _, e := range entries {
-		tbl.Row(e.Variable, "****"+e.TruncatedValue, e.CreatedAt.Format(time.RFC3339), e.UpdatedAt.Format(time.RFC3339))
+		tbl.Row(e.Variable, "`****"+e.TruncatedValue+"`", e.CreatedAt.Format(time.RFC3339), e.UpdatedAt.Format(time.RFC3339))
 	}
 	iostream.PrintMarkdown(ctx, "# Environment Variables\n"+tbl.Render())
 	return nil
