@@ -617,6 +617,27 @@ func TestContextSecretList_MissingArg(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
 }
 
+func TestContextSecretList_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
+	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "API_KEY"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "secret", "list", "my-context", "--org", testOrgSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
 // --- context secret set ---
 
 func TestContextSecretSet(t *testing.T) {
@@ -693,6 +714,25 @@ func TestContextSecretSet_NoToken(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
 }
 
+func TestContextSecretSet_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "secret", "set", "my-context", "--org", testOrgSlug, "--name", "MY_VAR", "--value", "s3cr3t"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
 // --- context secret delete ---
 
 func TestContextSecretDelete(t *testing.T) {
@@ -765,6 +805,26 @@ func TestContextSecretDelete_MissingArgs(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+func TestContextSecretDelete_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "secret", "delete", "my-context", "--org", testOrgSlug, "--name", "MY_VAR", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 // --- context restriction create ---
@@ -891,6 +951,25 @@ func TestContextRestrictionCreate_InvalidType(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
 }
 
+func TestContextRestrictionCreate_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", "my-context", "--org", testOrgSlug, "--type", "project", "--value", "p0000001-0000-4000-8000-000000000001"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
 // --- context restriction delete ---
 
 func TestContextRestrictionDelete(t *testing.T) {
@@ -985,4 +1064,24 @@ func TestContextRestrictionDelete_MissingArg(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+func TestContextRestrictionDelete_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "delete", "my-context", "--org", testOrgSlug, "--restriction-id", testRestrictionID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
