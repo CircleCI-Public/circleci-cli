@@ -66,7 +66,7 @@ func newDeleteCmd() *cobra.Command {
 			$ circleci context delete ctx-uuid-here --force
 
 			# Look up a context by name and delete it
-			$ circleci context list --org gh/myorg --json | jq -r '.[] | select(.name=="my-ctx") | .id' | xargs circleci context delete --force
+			$ circleci context list --org gh/myorg --json --jq '.[] | select(.name=="my-ctx") | .id' | xargs circleci context delete --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

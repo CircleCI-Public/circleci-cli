@@ -56,7 +56,7 @@ func newRerunCmd() *cobra.Command {
 			$ circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed
 
 			# Find a workflow ID from the latest pipeline
-			$ circleci pipeline get --json | jq -r '.workflows[].id'
+			$ circleci pipeline get --json --jq '.workflows[].id'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -60,7 +60,7 @@ func newCancelCmd() *cobra.Command {
 			$ circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force
 
 			# Find a running workflow ID from the latest pipeline and cancel it
-			$ circleci pipeline get --json | jq -r '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
+			$ circleci pipeline get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

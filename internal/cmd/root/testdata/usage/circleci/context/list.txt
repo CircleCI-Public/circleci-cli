@@ -15,7 +15,7 @@ $ circleci context list --org gh/myorg
 $ circleci context list --json
 
 # Get just context names
-$ circleci context list --json | jq '.[].name'
+$ circleci context list --json --jq '.[].name'
 
 
 Flags:

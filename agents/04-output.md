@@ -44,7 +44,7 @@ preview       running    10 minutes ago
 Provide `--json` for structured output when the data is complex. Pretty-print it (indented). This is widely supported by tooling like `jq` and web services via `curl`.
 
 ```sh
-myapp list --json | jq '.[] | select(.status == "running") | .name'
+myapp list --json --jq '.[] | select(.status == "running") | .name'
 ```
 
 Output:

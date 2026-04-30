@@ -93,8 +93,8 @@ func newRestrictionCreateCmd() *cobra.Command {
 			# Restrict context using a pipeline expression
 			$ circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'
 
-			# Output as JSON and capture the restriction ID
-			$ circleci context restriction create ctx-uuid --type project --value proj-uuid --json | jq -r '.id'
+			# Capture the restriction ID
+			$ circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

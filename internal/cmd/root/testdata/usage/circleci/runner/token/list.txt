@@ -14,8 +14,8 @@ $ circleci runner token list --resource-class my-org/my-runner
 # Output as JSON
 $ circleci runner token list --json
 
-# Pipe to jq to extract IDs
-$ circleci runner token list --resource-class my-org/my-runner --json | jq '.[].id'
+# Extract IDs with --jq
+$ circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'
 
 
 Flags:

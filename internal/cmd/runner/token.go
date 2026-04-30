@@ -91,8 +91,8 @@ func newTokenListCmd() *cobra.Command {
 			# Output as JSON
 			$ circleci runner token list --json
 
-			# Pipe to jq to extract IDs
-			$ circleci runner token list --resource-class my-org/my-runner --json | jq '.[].id'
+			# Extract IDs with --jq
+			$ circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
@@ -291,7 +291,7 @@ func newTokenDeleteCmd() *cobra.Command {
 			$ circleci runner token delete abc12345-0000-0000-0000-000000000000 --force
 
 			# Delete in a script using JSON output
-			$ ID=$(circleci runner token list --resource-class my-org/my-runner --json | jq -r '.[0].id')
+			$ ID=$(circleci runner token list --resource-class my-org/my-runner --json --jq '.[0].id')
 			$ circleci runner token delete "$ID" --force
 		`),
 		Args: cobra.MaximumNArgs(1),

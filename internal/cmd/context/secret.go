@@ -82,7 +82,7 @@ func newSecretListCmd() *cobra.Command {
 			$ circleci context secret list ctx-uuid-here --json
 
 			# Get variable names only
-			$ circleci context secret list ctx-uuid-here --json | jq '.[].variable'
+			$ circleci context secret list ctx-uuid-here --json --jq '.[].variable'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -66,7 +66,7 @@ func newCancelCmd() *cobra.Command {
 			$ circleci pipeline cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force
 
 			# Cancel the latest pipeline on a branch
-			$ circleci pipeline list --branch main --json | jq -r '.[0].id' | xargs circleci pipeline cancel --force
+			$ circleci pipeline list --branch main --json --jq '.[0].id' | xargs circleci pipeline cancel --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
