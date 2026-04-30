@@ -28,6 +28,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
@@ -57,11 +58,20 @@ func NewAuthCmd() *cobra.Command {
 	return cmd
 }
 
-// persistToken saves token to the configured backend (keyring by default,
+// persistToken probes the new token via /me, prints "Logged in as <login>" on
+// success, then saves the token to the configured backend (keyring by default,
 // or the YAML config when --insecure-storage is set) and prints a
 // "Saved token to <path>" status line on stderr. Shared by `auth login`
 // (after OAuth token exchange) and `auth token` (after the TUI prompt).
-func persistToken(ctx context.Context, token string, secureStorage bool) error {
+//
+// A failed /me call (network blip, 401, etc.) is non-fatal: we skip the
+// identity line and still save the token. The user explicitly authenticated;
+// a transient probe failure shouldn't drop the credential on the floor.
+func persistToken(ctx context.Context, host, token string, secureStorage bool) error {
+	if me, err := apiclient.New(host, token, nil).GetMe(ctx); err == nil && me.Login != "" {
+		iostream.ErrPrintf(ctx, "%s Logged in as %s\n", iostream.Symbol(ctx, "✓", "OK:"), me.Login)
+	}
+
 	if err := config.SetToken(ctx, token, secureStorage); err != nil {
 		return clierrors.New("auth.save_failed", "Failed to save token", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)

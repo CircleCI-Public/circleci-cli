@@ -112,7 +112,9 @@ func runLoginCLI(t *testing.T, baseURL string, extraEnv ...string) (cmd *exec.Cm
 }
 
 // extractAuthorizeURL returns the authorize URL on a line if present, else "".
-// Matches any http(s) URL that contains "/oauth/authorize?".
+// Matches any http(s) URL that contains "/oauth/authorize?". Stops at the
+// first whitespace or ANSI escape (\x1b) so styled output doesn't bleed into
+// the captured URL.
 func extractAuthorizeURL(line string) string {
 	for _, scheme := range []string{"https://", "http://"} {
 		i := strings.Index(line, scheme)
@@ -123,7 +125,7 @@ func extractAuthorizeURL(line string) string {
 		if !strings.Contains(rest, "/oauth/authorize?") {
 			continue
 		}
-		if end := strings.IndexAny(rest, " \t\r\n"); end > 0 {
+		if end := strings.IndexAny(rest, " \t\r\n\x1b"); end > 0 {
 			return rest[:end]
 		}
 		return rest
@@ -176,6 +178,11 @@ func TestAuthLogin(t *testing.T) {
 		"expires_in":    int64(3600),
 		"refresh_token": "test-refresh-token",
 	})
+	fake.SetMe(map[string]any{
+		"id":    "user-id",
+		"login": "test-user",
+		"name":  "Test User",
+	})
 
 	cmd, authorizeURL, stdout, stderr, stderrPipe := runLoginCLI(t, fake.URL())
 
@@ -188,6 +195,7 @@ func TestAuthLogin(t *testing.T) {
 	exit := finishLoginCLI(t, cmd, stderr, stderrPipe)
 	assert.Equal(t, exit, 0, "stderr: %s", stderr.String())
 	assert.Equal(t, stdout.String(), "")
+	assert.Check(t, cmp.Contains(stderr.String(), "OK: Logged in as test-user"))
 	assert.Check(t, cmp.Contains(stderr.String(), "OK: Saved token to"))
 	assert.Check(t, !strings.Contains(stderr.String(), "Received authorization code"),
 		"stderr should not leak internal protocol step; got: %s", stderr.String())
@@ -259,6 +267,10 @@ func runLoginCLIPTY(t *testing.T, baseURL, browserCmd string) (cmd *pty.Cmd, p p
 
 	p, err = pty.New()
 	assert.NilError(t, err)
+	// Bubble Tea v2's renderer draws into a buffer sized by the PTY's window
+	// size. Without an explicit Resize, the slave reports 0×0 and rendered
+	// content is silently dropped (only init escapes appear on the master).
+	assert.NilError(t, p.Resize(80, 24))
 
 	cmd = p.CommandContext(ctx, binPath,
 		"--insecure-storage",
@@ -270,6 +282,7 @@ func runLoginCLIPTY(t *testing.T, baseURL, browserCmd string) (cmd *pty.Cmd, p p
 
 	output := &bytes.Buffer{}
 	urlCh := make(chan string, 1)
+	selectCh := make(chan struct{}, 1)
 	drained := make(chan struct{})
 	go func() {
 		defer close(drained)
@@ -278,6 +291,12 @@ func runLoginCLIPTY(t *testing.T, baseURL, browserCmd string) (cmd *pty.Cmd, p p
 			n, err := p.Read(buf)
 			if n > 0 {
 				output.Write(buf[:n])
+				if strings.Contains(output.String(), "How would you like to authenticate") {
+					select {
+					case selectCh <- struct{}{}:
+					default:
+					}
+				}
 				if u := extractAuthorizeURL(output.String()); u != "" {
 					select {
 					case urlCh <- u:
@@ -290,6 +309,17 @@ func runLoginCLIPTY(t *testing.T, baseURL, browserCmd string) (cmd *pty.Cmd, p p
 			}
 		}
 	}()
+
+	// Dismiss the method-select prompt by accepting the default (browser).
+	select {
+	case <-selectCh:
+	case <-time.After(10 * time.Second):
+		_ = cmd.Process.Kill()
+		t.Fatalf("timed out waiting for method-select prompt on PTY output\noutput: %q", output.String())
+	}
+	// In raw mode (bubbletea) Enter arrives as \r, not \n.
+	_, err = p.Write([]byte("\r"))
+	assert.NilError(t, err)
 
 	select {
 	case authorizeURL = <-urlCh:
@@ -344,8 +374,9 @@ func TestAuthLogin_InteractivePrompt(t *testing.T) {
 	out, exit := finish()
 	assert.Equal(t, exit, 0, "output: %s", out)
 
-	assert.Check(t, cmp.Contains(out, "The following URL will be opened in your browser to authorize the CLI:"))
-	assert.Check(t, cmp.Contains(out, "Press Enter to continue (Ctrl+C to abort)"))
+	assert.Check(t, cmp.Contains(out, "How would you like to authenticate"))
+	assert.Check(t, cmp.Contains(out, "Press Enter to open"))
+	assert.Check(t, cmp.Contains(out, "in your browser"))
 	assert.Check(t, cmp.Contains(out, "Saved token to"))
 	assert.Check(t, !strings.Contains(out, "Received authorization code"),
 		"PTY output should not leak internal protocol step; got: %s", out)
@@ -394,7 +425,8 @@ func TestAuthLogin_Timeout(t *testing.T) {
 
 	exit := finishLoginCLI(t, cmd, stderr, stderrPipe)
 	assert.Equal(t, exit, 8, "expected ExitTimeout; stderr: %s", stderr.String())
-	assert.Check(t, cmp.Contains(stderr.String(), "error: No callback received within the timeout window."))
+	assert.Check(t, cmp.Contains(stderr.String(), "Login timed out"))
+	assert.Check(t, cmp.Contains(stderr.String(), "no browser callback received within"))
 	assert.Check(t, cmp.Contains(stderr.String(), "Re-run 'circleci auth login'"))
 }
 

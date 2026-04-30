@@ -29,6 +29,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
@@ -46,14 +47,20 @@ func newTokenCmd() *cobra.Command {
 					"Login requires an interactive session.").
 					WithExitCode(clierrors.ExitCancelled)
 			}
+			configPath, _ := cmd.Flags().GetString("config")
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runToken(ctx, secureStorage)
+			return runToken(ctx, configPath, secureStorage)
 		},
 	}
 	return cmd
 }
 
-func runToken(ctx context.Context, secureStorage bool) error {
+func runToken(ctx context.Context, configPath string, secureStorage bool) error {
+	cfg, err := config.LoadFrom(ctx, configPath, false)
+	if err != nil {
+		return clierrors.New("config.load_failed", "Failed to load config", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
 	p := tea.NewProgram(ui.NewTokenModel(),
 		tea.WithContext(ctx),
 		tea.WithInput(iostream.In(ctx)),
@@ -69,5 +76,5 @@ func runToken(ctx context.Context, secureStorage bool) error {
 		return nil
 	}
 
-	return persistToken(ctx, m.Token(), secureStorage)
+	return persistToken(ctx, cfg.EffectiveHost(), m.Token(), secureStorage)
 }

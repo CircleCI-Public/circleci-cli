@@ -27,10 +27,12 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/url"
 	"os"
 	"runtime"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
@@ -40,6 +42,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/oauth"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
 )
 
 // defaultCallbackTimeout caps how long we'll wait for the user to complete the
@@ -105,6 +108,21 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 	host := cfg.EffectiveHost()
+
+	// In an interactive session (and unless --no-browser forces the URL-only
+	// path), let the user pick between OAuth and pasting a token. --no-browser
+	// and non-interactive sessions skip the prompt and fall through to the
+	// browser flow, which prints the authorize URL when it can't open one.
+	if !noBrowser && iostream.IsInteractive(ctx) {
+		method, err := promptAuthMethod(ctx, host)
+		if err != nil {
+			return err
+		}
+		if method == authMethodToken {
+			return runToken(ctx, configPath, secureStorage)
+		}
+	}
+
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
 	flow, err := oauth.Start(ctx, host, deviceID, runtime.GOOS)
@@ -119,8 +137,10 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	if noBrowser || !iostream.IsInteractive(ctx) {
 		iostream.ErrPrintf(ctx, "Open this URL in your browser to continue:\n\n  %s\n\n", flow.AuthorizeURL)
 	} else {
-		iostream.ErrPrintf(ctx, "The following URL will be opened in your browser to authorize the CLI:\n\n  %s\n\n", flow.AuthorizeURL)
-		iostream.ErrPrintf(ctx, "Press Enter to continue (Ctrl+C to abort)...")
+		// Show the destination URL muted so the user can verify where they're
+		// being sent (and so they have a fallback if the browser doesn't open).
+		iostream.ErrPrintf(ctx, "%s\n", ui.HelperStyle.Render(flow.AuthorizeURL))
+		iostream.ErrPrintf(ctx, "Press Enter to open %s in your browser...", hostDisplay(host))
 		if err := waitForEnter(ctx); err != nil {
 			return err
 		}
@@ -133,14 +153,14 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	waitCtx, cancel := context.WithTimeout(ctx, callbackTimeout())
 	defer cancel()
 
-	sp := iostream.Spinner(ctx, true, "Waiting for authorization")
+	sp := iostream.Spinner(ctx, true, "Waiting for browser authentication")
 	res, err := flow.Wait(waitCtx)
 	sp.Stop()
 	if err != nil {
 		if waitCtx.Err() == context.DeadlineExceeded {
 			return clierrors.New("auth.login.timeout",
-				"Timed out waiting for authorization",
-				"No callback received within the timeout window.").
+				"Login timed out",
+				"Login timed out — no browser callback received within "+callbackTimeout().String()+".").
 				WithSuggestions("Re-run 'circleci auth login' and complete the browser flow promptly").
 				WithExitCode(clierrors.ExitTimeout)
 		}
@@ -156,7 +176,55 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 			WithExitCode(clierrors.ExitAuthError)
 	}
 
-	return persistToken(ctx, token.AccessToken, secureStorage)
+	return persistToken(ctx, host, token.AccessToken, secureStorage)
+}
+
+type authMethod int
+
+const (
+	authMethodBrowser authMethod = iota
+	authMethodToken
+)
+
+// promptAuthMethod presents the login method picker. The default selection is
+// browser-based OAuth; users can arrow down to "paste a token" instead.
+func promptAuthMethod(ctx context.Context, host string) (authMethod, error) {
+	model := ui.NewSelectModel(
+		"How would you like to authenticate "+hostDisplay(host)+"?",
+		[]string{"Login with a web browser", "Paste an authentication token"},
+	)
+	p := tea.NewProgram(model,
+		tea.WithContext(ctx),
+		tea.WithInput(iostream.In(ctx)),
+		tea.WithOutput(iostream.Err(ctx)),
+	)
+	finalModel, err := p.Run()
+	if err != nil {
+		return 0, clierrors.New("auth.login.prompt_failed",
+			"Failed to read authentication method", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+	m := finalModel.(ui.SelectModel)
+	if m.Cancelled() {
+		return 0, clierrors.New("auth.login.cancelled",
+			"Login cancelled",
+			"Interrupted before authorization started.").
+			WithExitCode(clierrors.ExitCancelled)
+	}
+	if m.Selected() == 1 {
+		return authMethodToken, nil
+	}
+	return authMethodBrowser, nil
+}
+
+// hostDisplay returns the bare hostname of a configured host URL (e.g.
+// "circleci.com" for "https://circleci.com"). Falls back to the input string
+// if it doesn't parse as a URL with a host component.
+func hostDisplay(host string) string {
+	if u, err := url.Parse(host); err == nil && u.Host != "" {
+		return u.Host
+	}
+	return host
 }
 
 // waitForEnter blocks until the user presses Enter on stdin or ctx is cancelled.
