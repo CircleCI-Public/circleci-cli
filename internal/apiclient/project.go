@@ -90,3 +90,30 @@ func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string)
 func (c *Client) DeleteEnvVar(ctx context.Context, projectSlug, name string) error {
 	return c.deleteV2(ctx, fmt.Sprintf("/project/%s/envvar/%s", projectSlug, name))
 }
+
+// ProjectInfo contains detailed information about a CircleCI project.
+type ProjectInfo struct {
+	ID               string   `json:"id"`
+	Slug             string   `json:"slug"`
+	Name             string   `json:"name"`
+	OrganizationName string   `json:"organization_name"`
+	OrganizationSlug string   `json:"organization_slug"`
+	OrganizationID   string   `json:"organization_id"`
+	VCSInfo          *VCSInfo `json:"vcs_info"`
+}
+
+// VCSInfo contains version control information for a project.
+type VCSInfo struct {
+	Provider      string `json:"provider"`
+	DefaultBranch string `json:"default_branch"`
+	VCSURL        string `json:"vcs_url"`
+}
+
+// GetProjectInfo returns detailed information about a project by slug.
+func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*ProjectInfo, error) {
+	var info ProjectInfo
+	if err := c.get(ctx, fmt.Sprintf("/project/%s", projectSlug), &info); err != nil {
+		return nil, err
+	}
+	return &info, nil
+}

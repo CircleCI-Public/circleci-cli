@@ -1,0 +1,12 @@
+# Project
+- Name: alpha
+- Slug: gh/myorg/alpha
+- Project ID: `proj-uuid-1234`
+- Organization: myorg
+- Organization ID: `org-uuid-5678`
+
+## VCS
+- Provider: GitHub
+- Default Branch: main
+- URL: https://github.com/myorg/alpha
+
