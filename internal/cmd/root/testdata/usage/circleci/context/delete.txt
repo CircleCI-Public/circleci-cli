@@ -1,15 +1,15 @@
 Usage:
-  circleci context delete <context-id> [flags]
+  circleci context delete <context-id|context-name> [flags]
 
 Examples:
 # Delete a context by UUID (with confirmation)
 $ circleci context delete ctx-uuid-here
 
-# Delete without confirmation
-$ circleci context delete ctx-uuid-here --force
+# Delete a context by name (org inferred from git remote)
+$ circleci context delete my-context
 
-# Look up a context by name and delete it
-$ circleci context list --org gh/myorg --json --jq '.[] | select(.name=="my-ctx") | .id' | xargs circleci context delete --force
+# Delete a context by name in a specific org, without confirmation
+$ circleci context delete my-context --org gh/myorg --force
 
 
 Flags:

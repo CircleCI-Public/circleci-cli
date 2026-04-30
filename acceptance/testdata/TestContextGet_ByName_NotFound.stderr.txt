@@ -1,0 +1,4 @@
+error: No context named "nonexistent" found in organization "gh/testorg".
+
+Suggestions:
+  • Run: circleci context list --org gh/testorg

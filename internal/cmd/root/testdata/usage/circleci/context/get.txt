@@ -1,20 +1,27 @@
 Usage:
-  circleci context get <context-id> [flags]
+  circleci context get <context-id|context-name> [flags]
 
 Examples:
 # Get a context by UUID
 $ circleci context get ctx-uuid-here
 
+# Get a context by name (org inferred from git remote)
+$ circleci context get my-context
+
+# Get a context by name in a specific org
+$ circleci context get my-context --org gh/myorg
+
 # Output as JSON
-$ circleci context get ctx-uuid-here --json
+$ circleci context get my-context --json
 
 # Get just the org ID
 $ circleci context get ctx-uuid-here --json --jq '.org_id'
 
 
 Flags:
-      --jq string   Process values from the response using jq syntax
-      --json        Output as JSON
+      --jq string    Process values from the response using jq syntax
+      --json         Output as JSON
+      --org string   Organization slug (e.g. gh/myorg); used when resolving name to ID
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

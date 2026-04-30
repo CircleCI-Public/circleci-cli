@@ -318,6 +318,45 @@ func TestContextGet_NoToken(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
 }
 
+func TestContextGet_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "get", "my-context", "--org", testOrgSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestContextGet_ByName_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "get", "nonexistent", "--org", testOrgSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5) // ExitNotFound
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // --- context create ---
 
 func TestContextCreate(t *testing.T) {
@@ -476,7 +515,7 @@ func TestContextDelete_ByName(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stdout, "my-context"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
 
