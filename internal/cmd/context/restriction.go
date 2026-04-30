@@ -33,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
@@ -69,17 +70,22 @@ func newRestrictionCreateCmd() *cobra.Command {
 	var (
 		restrictionType  string
 		restrictionValue string
+		orgSlug          string
 		jsonOut          bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create <context-id>",
+		Use:   "create <context-id|context-name>",
 		Short: "Add a restriction to a context",
 		Long: heredoc.Doc(`
 			Add a restriction to a CircleCI context.
 
 			Use --type to specify the restriction type: project, expression, or group.
 			Use --value to provide the restriction value.
+
+			Pass a UUID to identify the context by ID, or a name to look up by name.
+			When looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
 
 			JSON fields: id, name, restriction_type, restriction_value
 		`),
@@ -114,16 +120,25 @@ func newRestrictionCreateCmd() *cobra.Command {
 					fmt.Sprintf("%q is not a valid restriction type. Must be one of: project, expression, group.", restrictionType)).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			contextID, err := uuid.Parse(args[0])
-			if err != nil {
-				return clierrors.New("args.invalid_context_id", "Invalid context ID",
-					fmt.Sprintf("%q is not a valid UUID.", args[0])).
-					WithExitCode(clierrors.ExitBadArguments)
-			}
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
 				return err
+			}
+			contextID, err := uuid.Parse(args[0])
+			if err != nil {
+				if orgSlug == "" {
+					info, err := gitremote.Detect()
+					if err != nil {
+						return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context restriction create --org gh/myorg")
+					}
+					orgSlug = orgFromSlug(info.Slug)
+				}
+				id, err := resolveContextID(ctx, client, args[0], orgSlug)
+				if err != nil {
+					return err
+				}
+				contextID = id
 			}
 			return runRestrictionCreate(ctx, client, contextID, restrictionType, restrictionValue, jsonOut)
 		},
@@ -131,6 +146,7 @@ func newRestrictionCreateCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&restrictionType, "type", "", "Restriction type: project, expression, or group")
 	cmd.Flags().StringVar(&restrictionValue, "value", "", "Value of the restriction")
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -164,17 +180,22 @@ func runRestrictionCreate(ctx context.Context, client *apiclient.Client, context
 func newRestrictionDeleteCmd() *cobra.Command {
 	var (
 		restrictionID string
+		orgSlug       string
 		force         bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete <context-id>",
+		Use:   "delete <context-id|context-name>",
 		Short: "Delete a restriction from a context",
 		Long: heredoc.Doc(`
 			Remove a restriction from a CircleCI context.
 
 			This action is irreversible. Once removed, the context will be
 			accessible to any project or group that was previously blocked.
+
+			Pass a UUID to identify the context by ID, or a name to look up by name.
+			When looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
 
 			In a terminal, you will be prompted to confirm before deleting.
 			Use --force (-f) to skip the prompt for scripting.
@@ -190,12 +211,6 @@ func newRestrictionDeleteCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if err := cmdutil.RequireArgs(args, "context-id"); err != nil {
 				return err
-			}
-			contextID, err := uuid.Parse(args[0])
-			if err != nil {
-				return clierrors.New("args.invalid_context_id", "Invalid context ID",
-					fmt.Sprintf("%q is not a valid UUID.", args[0])).
-					WithExitCode(clierrors.ExitBadArguments)
 			}
 			rID, err := uuid.Parse(restrictionID)
 			if err != nil {
@@ -219,6 +234,21 @@ func newRestrictionDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			contextID, err := uuid.Parse(args[0])
+			if err != nil {
+				if orgSlug == "" {
+					info, err := gitremote.Detect()
+					if err != nil {
+						return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context restriction delete --org gh/myorg")
+					}
+					orgSlug = orgFromSlug(info.Slug)
+				}
+				id, err := resolveContextID(ctx, client, args[0], orgSlug)
+				if err != nil {
+					return err
+				}
+				contextID = id
+			}
 			if err := client.DeleteContextRestriction(ctx, contextID, rID); err != nil {
 				return restrictionAPIErr(err, restrictionID)
 			}
@@ -230,6 +260,7 @@ func newRestrictionDeleteCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&restrictionID, "restriction-id", "", "UUID of the restriction to delete")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation prompt")
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
 	_ = cmd.MarkFlagRequired("restriction-id")
 
 	return cmd

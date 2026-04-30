@@ -34,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
@@ -60,10 +61,13 @@ func newSecretCmd() *cobra.Command {
 // --- secret list ---
 
 func newSecretListCmd() *cobra.Command {
-	var jsonOut bool
+	var (
+		jsonOut bool
+		orgSlug string
+	)
 
 	cmd := &cobra.Command{
-		Use:     "list <context-id>",
+		Use:     "list <context-id|context-name>",
 		Aliases: []string{"ls"},
 		Short:   "List environment variables in a context",
 		Long: heredoc.Doc(`
@@ -72,14 +76,21 @@ func newSecretListCmd() *cobra.Command {
 			Variable values are never returned by the API — CircleCI does not
 			expose secret values after they are set.
 
+			Pass a UUID to identify the context by ID, or a name to look up by name.
+			When looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
+
 			JSON fields: variable, truncated_value, context_id, created_at, updated_at
 		`),
 		Example: heredoc.Doc(`
-			# List env vars in a context
+			# List env vars in a context by UUID
 			$ circleci context secret list ctx-uuid-here
 
-			# Output as JSON
-			$ circleci context secret list ctx-uuid-here --json
+			# List env vars by context name (org inferred from git remote)
+			$ circleci context secret list my-context
+
+			# List env vars by context name in a specific org
+			$ circleci context secret list my-context --org gh/myorg
 
 			# Get variable names only
 			$ circleci context secret list ctx-uuid-here --json --jq '.[].variable'
@@ -94,10 +105,16 @@ func newSecretListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runSecretList(ctx, client, args[0], jsonOut)
+			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
+				"circleci context secret list --org gh/myorg")
+			if err != nil {
+				return err
+			}
+			return runSecretList(ctx, client, contextID, jsonOut)
 		},
 	}
 
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -150,12 +167,13 @@ func runSecretList(ctx context.Context, client *apiclient.Client, contextID stri
 
 func newSecretSetCmd() *cobra.Command {
 	var (
-		name  string
-		value string
+		name    string
+		value   string
+		orgSlug string
 	)
 
 	cmd := &cobra.Command{
-		Use:   "set <context-id>",
+		Use:   "set <context-id|context-name>",
 		Short: "Set an environment variable in a context",
 		Long: heredoc.Doc(`
 			Add or update an environment variable in a CircleCI context.
@@ -164,15 +182,19 @@ func newSecretSetCmd() *cobra.Command {
 			is never retrievable after being set — CircleCI masks it in all
 			subsequent list responses.
 
+			Pass a UUID to identify the context by ID, or a name to look up by name.
+			When looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
+
 			In a terminal, --value may be omitted and the value will be prompted
 			interactively with input masking.
 		`),
 		Example: heredoc.Doc(`
-			# Set an environment variable interactively (value prompted)
+			# Set an environment variable by context UUID (value prompted)
 			$ circleci context secret set ctx-uuid-here --name MY_SECRET
 
-			# Set an environment variable non-interactively
-			$ circleci context secret set ctx-uuid-here --name MY_SECRET --value s3cr3t
+			# Set an environment variable by context name
+			$ circleci context secret set my-context --org gh/myorg --name MY_SECRET --value s3cr3t
 
 			# Read a value from a file
 			$ circleci context secret set ctx-uuid-here --name MY_SECRET --value "$(cat secret.txt)"
@@ -211,12 +233,18 @@ func newSecretSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runSecretSet(ctx, client, args[0], name, value)
+			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
+				"circleci context secret set --org gh/myorg")
+			if err != nil {
+				return err
+			}
+			return runSecretSet(ctx, client, contextID, name, value)
 		},
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "Name of the environment variable")
 	cmd.Flags().StringVar(&value, "value", "", "Value of the environment variable (prompted if omitted in a terminal)")
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
 
 	return cmd
 }
@@ -234,18 +262,23 @@ func runSecretSet(ctx context.Context, client *apiclient.Client, contextID, name
 
 func newSecretDeleteCmd() *cobra.Command {
 	var (
-		name  string
-		force bool
+		name    string
+		orgSlug string
+		force   bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete <context-id>",
+		Use:   "delete <context-id|context-name>",
 		Short: "Delete an environment variable from a context",
 		Long: heredoc.Doc(`
 			Remove an environment variable from a CircleCI context.
 
 			This action is irreversible. Jobs that depend on this variable will
 			fail until a new value is set.
+
+			Pass a UUID to identify the context by ID, or a name to look up by name.
+			When looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
 
 			In a terminal, you will be prompted to confirm before deleting.
 			Use --force (-f) to skip the prompt for scripting.
@@ -270,12 +303,18 @@ func newSecretDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runSecretDelete(ctx, client, args[0], name, force)
+			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
+				"circleci context secret delete --org gh/myorg")
+			if err != nil {
+				return err
+			}
+			return runSecretDelete(ctx, client, contextID, name, force)
 		},
 	}
 
 	cmd.Flags().StringVar(&name, "name", "", "Name of the environment variable to delete")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip confirmation prompt")
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
 
 	return cmd
 }
@@ -305,4 +344,25 @@ func secretAPIErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"context.secret_not_found", "No environment variable found for %q.",
 		"Check the context ID and variable name and try again")
+}
+
+// resolveContextArg resolves a context UUID or name to a UUID string.
+// If arg is a valid UUID it is returned as-is. Otherwise it looks up by name,
+// requiring orgSlug or a detectable git remote.
+func resolveContextArg(ctx context.Context, client *apiclient.Client, arg, orgSlug, hint string) (string, error) {
+	if _, err := uuid.Parse(arg); err == nil {
+		return arg, nil
+	}
+	if orgSlug == "" {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return "", cmdutil.GitDetectErr(err, "Or specify the organization: "+hint)
+		}
+		orgSlug = orgFromSlug(info.Slug)
+	}
+	id, err := resolveContextID(ctx, client, arg, orgSlug)
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }

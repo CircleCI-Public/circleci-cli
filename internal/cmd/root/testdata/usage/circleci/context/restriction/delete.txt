@@ -1,5 +1,5 @@
 Usage:
-  circleci context restriction delete <context-id> [flags]
+  circleci context restriction delete <context-id|context-name> [flags]
 
 Examples:
 # Delete a restriction (with confirmation)
@@ -11,6 +11,7 @@ $ circleci context restriction delete ctx-uuid --restriction-id r-uuid --force
 
 Flags:
   -f, --force                   Skip confirmation prompt
+      --org string              Organization slug (e.g. gh/myorg); used when resolving name to ID
       --restriction-id string   UUID of the restriction to delete
 
 Global Flags:
