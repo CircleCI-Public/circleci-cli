@@ -117,7 +117,9 @@ Global Options:
 
 Output Options:
   --json                output in JSON format
+  --jq string           Process values from the response using jq syntax
   -q, --quiet           suppress non-essential output
+  --debug               enable debug logging
   -v, --verbose         show more details
 
 Advanced Options:

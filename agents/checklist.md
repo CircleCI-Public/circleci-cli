@@ -176,7 +176,7 @@ myapp
 
 # Does piping work?
 myapp list | grep foo
-myapp export --json | jq '.'
+myapp export --json --jq '.'
 
 # Does it handle bad input?
 myapp --invalid-flag

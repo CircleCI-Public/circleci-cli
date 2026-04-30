@@ -61,8 +61,8 @@ func newCreateCmd() *cobra.Command {
 			# Create a context for a specific organization
 			$ circleci context create my-context --org gh/myorg
 
-			# Create and capture the ID with jq
-			$ circleci context create my-context --org gh/myorg --json | jq -r '.id'
+			# Create and capture the ID
+			$ circleci context create my-context --org gh/myorg --json --jq '.id'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -1,0 +1,4 @@
+error: Deleting restriction e0000001-0000-4000-8000-000000000001 is irreversible.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode

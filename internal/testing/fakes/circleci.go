@@ -74,9 +74,10 @@ type CircleCI struct {
 	contexts             map[string]any    // context id → context object
 	contextsByOrg        map[string][]any  // org slug → ordered context objects
 	contextEnvVars       map[string][]any  // context id → env var objects
-	contextRestrictions  map[string][]any  // context id → restriction objects
-	deletedContexts      map[string]bool   // context id → deleted
-	deletedContextVars   map[string]bool   // "contextID/name" → deleted
+	contextRestrictions         map[string][]any  // context id → restriction objects
+	deletedContexts             map[string]bool   // context id → deleted
+	deletedContextVars          map[string]bool   // "contextID/name" → deleted
+	deletedContextRestrictions  map[string]bool   // "contextID/restrictionID" → deleted
 
 	// Auth state.
 	me any // response for GET /api/v2/me
@@ -112,9 +113,10 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		contexts:                map[string]any{},
 		contextsByOrg:           map[string][]any{},
 		contextEnvVars:          map[string][]any{},
-		contextRestrictions:     map[string][]any{},
-		deletedContexts:         map[string]bool{},
-		deletedContextVars:      map[string]bool{},
+		contextRestrictions:        map[string][]any{},
+		deletedContexts:            map[string]bool{},
+		deletedContextVars:         map[string]bool{},
+		deletedContextRestrictions: map[string]bool{},
 	}
 
 	r := newRouter()
@@ -144,6 +146,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/context/{id}/environment-variable", f.handleListContextEnvVars)
 	r.Put("/api/v2/context/{id}/environment-variable/{name}", f.handleSetContextEnvVar)
 	r.Delete("/api/v2/context/{id}/environment-variable/{name}", f.handleDeleteContextEnvVar)
+	r.Post("/api/v2/context/{id}/restrictions", f.handleCreateContextRestriction)
+	r.Delete("/api/v2/context/{id}/restrictions/{restriction_id}", f.handleDeleteContextRestriction)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
@@ -970,6 +974,7 @@ func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
 	vars := f.contextEnvVars[id]
 	restrictions := f.contextRestrictions[id]
 	deletedVars := f.deletedContextVars
+	deletedRestrictions := f.deletedContextRestrictions
 	f.mu.RUnlock()
 
 	if !ok || deleted {
@@ -993,8 +998,19 @@ func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
 	if liveVars == nil {
 		liveVars = []any{}
 	}
-	if restrictions == nil {
-		restrictions = []any{}
+	var liveRestrictions []any
+	for _, restr := range restrictions {
+		m, ok := restr.(map[string]any)
+		if ok {
+			rid, _ := m["id"].(string)
+			if deletedRestrictions[id+"/"+rid] {
+				continue
+			}
+		}
+		liveRestrictions = append(liveRestrictions, restr)
+	}
+	if liveRestrictions == nil {
+		liveRestrictions = []any{}
 	}
 
 	m, _ := ctx.(map[string]any)
@@ -1004,7 +1020,7 @@ func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
 		"created_at":            m["created_at"],
 		"org_id":                "00000000-0000-0000-0000-000000000000",
 		"environment_variables": liveVars,
-		"restrictions":          restrictions,
+		"restrictions":          liveRestrictions,
 	}
 	render.JSON(w, r, detail)
 }
@@ -1106,6 +1122,67 @@ func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Requ
 		return
 	}
 	render.JSON(w, r, map[string]any{"message": "Deleted."})
+}
+
+func (f *CircleCI) handleCreateContextRestriction(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	_, ok := f.contexts[id]
+	deleted := f.deletedContexts[id]
+	f.mu.RUnlock()
+
+	if !ok || deleted {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+	restrictionType, _ := body["restriction_type"].(string)
+	restrictionValue, _ := body["restriction_value"].(string)
+	restr := map[string]any{
+		"id":                "c0000003-0000-4000-8000-000000000003",
+		"name":              "",
+		"restriction_type":  restrictionType,
+		"restriction_value": restrictionValue,
+	}
+	f.mu.Lock()
+	f.contextRestrictions[id] = append(f.contextRestrictions[id], restr)
+	f.mu.Unlock()
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, restr)
+}
+
+func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http.Request) {
+	contextID := chi.URLParam(r, "id")
+	restrictionID := chi.URLParam(r, "restriction_id")
+	key := contextID + "/" + restrictionID
+
+	f.mu.Lock()
+	found := false
+	for _, restr := range f.contextRestrictions[contextID] {
+		m, ok := restr.(map[string]any)
+		if ok && m["id"] == restrictionID {
+			found = true
+			break
+		}
+	}
+	if found {
+		f.deletedContextRestrictions[key] = true
+	}
+	f.mu.Unlock()
+
+	if !found {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"message": "Context restriction deleted."})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {

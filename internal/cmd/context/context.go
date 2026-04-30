@@ -50,6 +50,7 @@ func NewContextCmd() *cobra.Command {
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newDeleteCmd())
 	cmd.AddCommand(newSecretCmd())
+	cmd.AddCommand(newRestrictionCmd())
 
 	return cmd
 }

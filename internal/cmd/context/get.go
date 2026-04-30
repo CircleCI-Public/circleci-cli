@@ -61,7 +61,7 @@ func newGetCmd() *cobra.Command {
 			$ circleci context get ctx-uuid-here --json
 
 			# Get just the org ID
-			$ circleci context get ctx-uuid-here --json | jq -r '.org_id'
+			$ circleci context get ctx-uuid-here --json --jq '.org_id'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -58,8 +58,8 @@ func newListCmd() *cobra.Command {
 			# Output as JSON for scripting
 			$ circleci project list --json
 
-			# Filter by org with jq
-			$ circleci project list --json | jq '.[] | select(.username == "myorg")'
+			# Filter by org
+			$ circleci project list --json --jq '.[] | select(.username == "myorg")'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)

@@ -39,6 +39,8 @@ import (
 const testOrgSlug = "gh/testorg"
 const testContextID = "c0000001-0000-4000-8000-000000000001"
 const testContextID2 = "c0000002-0000-4000-8000-000000000002"
+const testRestrictionID = "e0000001-0000-4000-8000-000000000001"
+const testCreatedRestrictionID = "c0000003-0000-4000-8000-000000000003"
 
 func fakeContext(id, name string) map[string]any {
 	return map[string]any{
@@ -638,6 +640,226 @@ func TestContextSecretDelete_MissingArgs(t *testing.T) {
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"context", "secret", "delete", testContextID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+// --- context restriction create ---
+
+func TestContextRestrictionCreate(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--type", "project", "--value", "p0000001-0000-4000-8000-000000000001"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestContextRestrictionCreate_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--type", "project", "--value", "p0000001-0000-4000-8000-000000000001"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestContextRestrictionCreate_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--type", "project", "--value", "p0000001-0000-4000-8000-000000000001", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out["id"], testCreatedRestrictionID))
+	assert.Check(t, cmp.Equal(out["restriction_type"], "project"))
+	assert.Check(t, cmp.Equal(out["restriction_value"], "p0000001-0000-4000-8000-000000000001"))
+}
+
+func TestContextRestrictionCreate_MissingArg(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = "testtoken"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", "--type", "project", "--value", "some-value"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+func TestContextRestrictionCreate_MissingType(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = "testtoken"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--value", "some-value"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+func TestContextRestrictionCreate_MissingValue(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = "testtoken"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--type", "project"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+func TestContextRestrictionCreate_InvalidType(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--type", "invalid", "--value", "some-value"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+// --- context restriction delete ---
+
+func TestContextRestrictionDelete(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "delete", testContextID, "--restriction-id", testRestrictionID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestContextRestrictionDelete_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "delete", testContextID, "--restriction-id", testRestrictionID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestContextRestrictionDelete_RequiresForce(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "delete", testContextID, "--restriction-id", testRestrictionID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 6) // ExitCancelled
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestContextRestrictionDelete_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "delete", testContextID, "--restriction-id", testRestrictionID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5) // ExitNotFound
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestContextRestrictionDelete_MissingArg(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = "testtoken"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "delete", "--restriction-id", testRestrictionID, "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

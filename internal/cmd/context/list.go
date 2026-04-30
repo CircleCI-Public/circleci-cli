@@ -68,7 +68,7 @@ func newListCmd() *cobra.Command {
 			$ circleci context list --json
 
 			# Get just context names
-			$ circleci context list --json | jq '.[].name'
+			$ circleci context list --json --jq '.[].name'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
