@@ -1,0 +1,10 @@
+# Context
+- ID: `c0000001-0000-4000-8000-000000000001`
+- Name: my-context
+- Org ID: `00000000-0000-0000-0000-000000000000`
+- Created: 2020-01-01T12:00:00Z
+
+## Environment Variables
+| Variable    | Value    | Updated              |
+| ----------- | -------- | -------------------- |
+| DB_PASSWORD | ****abcd | 2020-06-01T12:00:00Z |

@@ -44,16 +44,17 @@ func newDeleteCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete <context-id>",
+		Use:   "delete <context-id|context-name>",
 		Short: "Delete a context",
 		Long: heredoc.Doc(`
-			Delete a CircleCI context by its UUID.
+			Delete a CircleCI context by UUID or name.
 
 			Deleting a context removes all environment variables stored in it.
 			Jobs that reference this context will fail until they are updated.
 
-			Pass --org to look up a context by name instead of UUID; the org slug
-			is otherwise inferred from the git remote.
+			Pass a UUID to delete by ID, or a name to delete by name. When
+			looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
 
 			In a terminal, you will be prompted to confirm before deleting.
 			Use --force (-f) to skip the prompt for scripting.
@@ -62,11 +63,11 @@ func newDeleteCmd() *cobra.Command {
 			# Delete a context by UUID (with confirmation)
 			$ circleci context delete ctx-uuid-here
 
-			# Delete without confirmation
-			$ circleci context delete ctx-uuid-here --force
+			# Delete a context by name (org inferred from git remote)
+			$ circleci context delete my-context
 
-			# Look up a context by name and delete it
-			$ circleci context list --org gh/myorg --json --jq '.[] | select(.name=="my-ctx") | .id' | xargs circleci context delete --force
+			# Delete a context by name in a specific org, without confirmation
+			$ circleci context delete my-context --org gh/myorg --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

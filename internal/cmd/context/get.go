@@ -33,20 +33,27 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
 func newGetCmd() *cobra.Command {
-	var jsonOut bool
+	var (
+		jsonOut bool
+		orgSlug string
+	)
 
 	cmd := &cobra.Command{
-		Use:   "get <context-id>",
+		Use:   "get <context-id|context-name>",
 		Short: "Get details of a context",
 		Long: heredoc.Doc(`
 			Display details of a CircleCI context, including its environment
 			variable names and metadata.
+
+			Pass a UUID to look up by ID, or a name to look up by name. When
+			looking up by name, pass --org or run from a git repository so the
+			organization can be inferred from the remote.
 
 			Variable values are never returned by the API — CircleCI does not
 			expose secret values after they are set.
@@ -57,8 +64,14 @@ func newGetCmd() *cobra.Command {
 			# Get a context by UUID
 			$ circleci context get ctx-uuid-here
 
+			# Get a context by name (org inferred from git remote)
+			$ circleci context get my-context
+
+			# Get a context by name in a specific org
+			$ circleci context get my-context --org gh/myorg
+
 			# Output as JSON
-			$ circleci context get ctx-uuid-here --json
+			$ circleci context get my-context --json
 
 			# Get just the org ID
 			$ circleci context get ctx-uuid-here --json --jq '.org_id'
@@ -73,10 +86,11 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args[0], jsonOut)
+			return runGet(ctx, client, args[0], orgSlug, jsonOut)
 		},
 	}
 
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -106,12 +120,21 @@ type contextRestrictionEntry struct {
 	RestrictionValue string `json:"restriction_value"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, contextName string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug string, jsonOut bool) error {
 	contextID, err := uuid.Parse(contextName)
 	if err != nil {
-		return clierrors.New("args.invalid_context_id", "Invalid context ID",
-			fmt.Sprintf("%q is not a valid UUID.", contextName)).
-			WithExitCode(clierrors.ExitBadArguments)
+		if orgSlug == "" {
+			info, err := gitremote.Detect()
+			if err != nil {
+				return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context get --org gh/myorg")
+			}
+			orgSlug = orgFromSlug(info.Slug)
+		}
+		id, err := resolveContextID(ctx, client, contextName, orgSlug)
+		if err != nil {
+			return err
+		}
+		contextID = id
 	}
 
 	ctxt, err := client.GetContext(ctx, contextID)
