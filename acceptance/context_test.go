@@ -155,6 +155,49 @@ func TestContextList_Empty(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestContextList_Name(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "list", "--org", testOrgSlug, "--name", "my"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestContextList_Name_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "list", "--org", testOrgSlug, "--name", "my", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["name"], "my-context"))
+}
+
 func TestContextList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
@@ -415,6 +458,44 @@ func TestContextDelete_MissingArg(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2) // ExitBadArguments
+}
+
+func TestContextDelete_ByName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "delete", "my-context", "--org", testOrgSlug, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "my-context"))
+}
+
+
+func TestContextDelete_ByName_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "delete", "nonexistent", "--org", testOrgSlug, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5) // ExitNotFound
 }
 
 // --- context secret list ---

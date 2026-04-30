@@ -41,6 +41,7 @@ import (
 func newListCmd() *cobra.Command {
 	var (
 		orgSlug string
+		name    string
 		jsonOut bool
 	)
 
@@ -61,6 +62,9 @@ func newListCmd() *cobra.Command {
 			# List contexts for the org inferred from git remote
 			$ circleci context list
 
+			# List contexts containing the given name
+			$ circleci context list --name substring
+
 			# List contexts for a specific organization
 			$ circleci context list --org gh/myorg
 
@@ -77,11 +81,12 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, orgSlug, jsonOut)
+			return runList(ctx, client, orgSlug, name, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); defaults to git remote")
+	cmd.Flags().StringVar(&name, "name", "", "Find contexts by name (partial match)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -94,7 +99,7 @@ type contextListEntry struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, orgSlug string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, orgSlug string, name string, jsonOut bool) error {
 	if orgSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -103,7 +108,7 @@ func runList(ctx context.Context, client *apiclient.Client, orgSlug string, json
 		orgSlug = orgFromSlug(info.Slug)
 	}
 
-	contexts, err := client.ListContexts(ctx, orgSlug)
+	contexts, err := client.ListContexts(ctx, orgSlug, name)
 	if err != nil {
 		return apiErr(err, orgSlug)
 	}

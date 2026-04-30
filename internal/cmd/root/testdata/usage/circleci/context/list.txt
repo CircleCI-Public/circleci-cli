@@ -8,6 +8,9 @@ Examples:
 # List contexts for the org inferred from git remote
 $ circleci context list
 
+# List contexts containing the given name
+$ circleci context list --name substring
+
 # List contexts for a specific organization
 $ circleci context list --org gh/myorg
 
@@ -19,9 +22,10 @@ $ circleci context list --json --jq '.[].name'
 
 
 Flags:
-      --jq string    Process values from the response using jq syntax
-      --json         Output as JSON
-      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+      --jq string     Process values from the response using jq syntax
+      --json          Output as JSON
+      --name string   Find contexts by name (partial match)
+      --org string    Organization slug (e.g. gh/myorg); defaults to git remote
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

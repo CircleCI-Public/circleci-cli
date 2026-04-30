@@ -53,7 +53,7 @@ type ContextEnvVar struct {
 
 // ListContexts returns all contexts owned by the given organization slug
 // (e.g. "gh/myorg"). Paginates automatically.
-func (c *Client) ListContexts(ctx context.Context, ownerSlug string) ([]Context, error) {
+func (c *Client) ListContexts(ctx context.Context, ownerSlug, name string) ([]Context, error) {
 	var all []Context
 	pageToken := ""
 
@@ -62,8 +62,12 @@ func (c *Client) ListContexts(ctx context.Context, ownerSlug string) ([]Context,
 			Items         []Context `json:"items"`
 			NextPageToken string    `json:"next_page_token"`
 		}
-		opts := []func(*httpcl.Request){
-			httpcl.QueryParam("owner-slug", ownerSlug),
+		var opts []func(*httpcl.Request)
+		if ownerSlug != "" {
+			opts = append(opts, httpcl.QueryParam("owner-slug", ownerSlug))
+		}
+		if name != "" {
+			opts = append(opts, httpcl.QueryParam("name", name))
 		}
 		if pageToken != "" {
 			opts = append(opts, httpcl.QueryParam("page-token", pageToken))
