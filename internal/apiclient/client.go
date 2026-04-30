@@ -25,9 +25,7 @@ package apiclient
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 
@@ -49,11 +47,8 @@ type Client struct {
 // An http.RoundTripper can be injected for testing. Set CIRCLECI_DEBUG=1 to log
 // all HTTP requests and response status codes to stderr.
 func New(baseURL, token string, transport http.RoundTripper) *Client {
-	if os.Getenv("CIRCLECI_DEBUG") != "" {
-		if transport == nil {
-			transport = http.DefaultTransport
-		}
-		transport = &debugTransport{wrapped: transport}
+	if transport == nil {
+		transport = http.DefaultTransport
 	}
 
 	cfg := httpcl.Config{
@@ -144,20 +139,4 @@ func (c *Client) postRunner(ctx context.Context, path string, body, dst any) err
 func (c *Client) deleteRunner(ctx context.Context, path string) error {
 	_, err := c.runner.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3"+path))
 	return err
-}
-
-// debugTransport logs HTTP requests and response status codes to stderr.
-type debugTransport struct {
-	wrapped http.RoundTripper
-}
-
-func (d *debugTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	fmt.Fprintf(os.Stderr, "DEBUG: %s %s\n", req.Method, req.URL)
-	resp, err := d.wrapped.RoundTrip(req)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "DEBUG: error: %v\n", err)
-	} else {
-		fmt.Fprintf(os.Stderr, "DEBUG: %s\n", resp.Status)
-	}
-	return resp, err
 }
