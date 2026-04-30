@@ -72,6 +72,6 @@ func runMe(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
 - Name: %s
 - Login: %s
 - Avatar URL: %s
-`, me.ID, me.Name, me.Login, me.AvatarUrl))
+`, me.ID, me.Name, me.Login, me.AvatarURL))
 	return nil
 }

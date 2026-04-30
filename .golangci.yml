@@ -1,0 +1,128 @@
+# Copyright (c) 2026 Circle Internet Services, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+version: "2"
+issues:
+  # Make sure all the errors are getting returned.
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+  exclusions:
+    generated: lax
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+linters:
+  settings:
+    depguard:
+      rules:
+        main:
+          deny:
+            - pkg: gotest.tools/assert
+              desc: use gotest.tools/v3/assert instead
+
+    govet:
+      enable-all: true
+      disable:
+        - fieldalignment
+
+    errorlint:
+      errorf: true
+      asserts: true
+      comparison: true
+
+  exclusions:
+    generated: lax
+
+    rules:
+      # We're fine shadowing err since it's the standard way to name
+      # returned errors
+      - linters: [govet]
+        text: 'shadow: declaration of "err"'
+
+        # We're fine shadowing ctx since it's the standard way to name
+        # the context
+      - linters: [govet]
+        text: 'shadow: declaration of "ctx"'
+
+        # We don't require comments on everything in services
+      - linters: [revive]
+        text: 'exported: exported (type|method|function|var) (.+) should have comment or be unexported'
+
+        # We don't require comments on package level
+      - linters: [revive]
+        text: 'package-comments: should have a package comment'
+
+      - linters: [revive]
+        text: "parameter 'args' seems to be unused"
+
+        # We don't require package docs
+      - linters: [staticcheck]
+        text: ST1000
+
+        # we remove a few annoying things from our tests, because they
+        # don't provide much beside complexity
+      - path: _test\.go
+        linters:
+          - errcheck
+          - funlen
+          - gosec
+          - govet
+          - unparam
+
+    paths:
+      - third_party$
+      - builtin$
+      - examples$
+
+  default: none
+  enable:
+    - asciicheck # Simple linter to check that your code does not contain non-ASCII identifiers
+    - bidichk # Checks for dangerous unicode character sequences
+    - bodyclose # checks whether HTTP response body is closed successfully
+    - depguard # checks if package imports are in a list of acceptable packages
+    - errcheck # Checks for unchecked errors
+    - errorlint # Checks that errors are checked and wrapped correctly
+    - exhaustive # Check exhaustiveness of enum switch statements
+    - gochecknoinits # Checks that no init functions are present in Go code
+    - goconst # Finds repeated strings that could be replaced by a constant
+    - gocritic # Provides diagnostics that check for bugs, performance and style issues
+    - gocyclo # Computes and checks the cyclomatic complexity of functions
+    - gosec # Inspects source code for security problems
+    - govet # Reports suspicious constructs, such as Printf calls whose arguments do not align with the format string, or shadowed variables.
+    - ineffassign # Detects when assignments to existing variables are not used
+    - misspell # Finds commonly misspelled English words in comments
+    - nakedret # Finds naked returns in functions greater than a specified function length
+    - prealloc # Finds slice declarations that could potentially be preallocated
+    - predeclared # Find code that shadows one of Go's predeclared identifiers (new, int, case, etc.)
+    - revive # Replacement for golint
+    - staticcheck # Applies a ton of static analysis checks
+    - tparallel # Finds improper usage of the t.Parallel() method in test code
+    - unconvert # Remove unnecessary type conversions
+    - unparam # Reports unused function parameters
+    - unused # Checks Go code for unused constants, variables, functions and types

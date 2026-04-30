@@ -40,7 +40,7 @@ func TestAPI_Get(t *testing.T) {
 	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -59,7 +59,7 @@ func TestAPI_Get_JQ(t *testing.T) {
 	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -78,7 +78,7 @@ func TestAPI_Get_Color(t *testing.T) {
 	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -97,7 +97,7 @@ func TestAPI_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -128,7 +128,7 @@ func TestAPI_PathDefaultsToV2(t *testing.T) {
 	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	// Path without /api/ prefix should be routed to /api/v2.
@@ -148,7 +148,7 @@ func TestAPI_PathDefaultsToV2_Color(t *testing.T) {
 	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

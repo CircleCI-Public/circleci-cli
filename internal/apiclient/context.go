@@ -92,17 +92,17 @@ func (c *Client) CreateContext(ctx context.Context, name, ownerSlug string) (*Co
 }
 
 type ContextDetail struct {
-	Id                   uuid.UUID            `json:"id"`
+	ID                   uuid.UUID            `json:"id"`
 	Name                 string               `json:"name"`
 	CreatedAt            time.Time            `json:"created_at"`
-	OrgId                uuid.UUID            `json:"org_id"`
+	OrgID                uuid.UUID            `json:"org_id"`
 	EnvironmentVariables []ContextEnvVar      `json:"environment_variables"`
 	Restrictions         []ContextRestriction `json:"restrictions"`
 }
 
 type ContextRestriction struct {
-	ContextId        uuid.UUID `json:"context_id"`
-	Id               uuid.UUID `json:"id"`
+	ContextID        uuid.UUID `json:"context_id"`
+	ID               uuid.UUID `json:"id"`
 	Name             string    `json:"name"`
 	RestrictionType  string    `json:"restriction_type"`
 	RestrictionValue string    `json:"restriction_value"`

@@ -37,6 +37,11 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
+const (
+	statusCanceled = "canceled"
+	statusSuccess  = "success"
+)
+
 func newGetCmd() *cobra.Command {
 	var (
 		projectSlug string
@@ -278,13 +283,13 @@ func deriveStatus(pipelineState string, workflows []workflowOutput) string {
 		}
 	}
 	for _, wf := range workflows {
-		if wf.Status == "canceled" {
-			return "canceled"
+		if wf.Status == statusCanceled {
+			return statusCanceled
 		}
 	}
 	for _, wf := range workflows {
-		if wf.Status == "success" {
-			return "success"
+		if wf.Status == statusSuccess {
+			return statusSuccess
 		}
 	}
 	return pipelineState

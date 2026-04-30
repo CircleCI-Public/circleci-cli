@@ -52,7 +52,7 @@ func setupWatchFake(t *testing.T, pipelineID, wfID, wfStatus string) (*fakes.Cir
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -106,7 +106,7 @@ func TestPipelineWatch_Latest(t *testing.T) {
 	fake.AddWorkflowJobs(wfID, fakeJob("job-1", "test", 100, watchSlug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -176,7 +176,7 @@ func TestPipelineWatch_SHA_NotFound(t *testing.T) {
 	fake.AddProjectPipelines(watchSlug) // empty — no matching pipeline
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	// Shorten the 2-minute SHA wait window so the test is fast.
 	env.Extra["CIRCLECI_SHA_WAIT_MS"] = "50"
@@ -208,7 +208,7 @@ func TestPipelineWatch_Timeout(t *testing.T) {
 	fake.AddWorkflowJobs(wfID, fakeJob("job-1", "test", 100, watchSlug))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

@@ -37,7 +37,7 @@ import (
 func missingArgEnv(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	return env
 }
 

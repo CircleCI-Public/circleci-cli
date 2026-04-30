@@ -89,7 +89,7 @@ func LoadFrom(ctx context.Context, path string, secureStorage bool) (*Config, er
 
 	var cfg Config
 
-	data, err := os.ReadFile(resolved)
+	data, err := os.ReadFile(resolved) //#nosec:G304 // resolved is derived from XDG config path or an explicit user-supplied flag, not arbitrary input
 	if os.IsNotExist(err) {
 		if secureStorage {
 			err = cfg.loadToken(ctx)
@@ -168,7 +168,7 @@ func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config
 
 	var cfg Config
 
-	data, err := os.ReadFile(resolved)
+	data, err := os.ReadFile(resolved) //#nosec:G304 // resolved is derived from XDG config path or an explicit user-supplied flag, not arbitrary input
 	switch {
 	case os.IsNotExist(err):
 	case err != nil:

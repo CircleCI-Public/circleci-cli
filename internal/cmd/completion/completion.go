@@ -82,7 +82,7 @@ func detectShell(home string) (shellConfig, error) {
 		}, nil
 	case strings.HasSuffix(shell, "bash"):
 		rcFile := filepath.Join(home, ".bash_profile")
-		if _, err := os.Stat(filepath.Join(home, ".bashrc")); err == nil {
+		if _, err := os.Stat(filepath.Join(home, ".bashrc")); err == nil { //#nosec:G703 // path is constructed from the user's own HOME directory
 			rcFile = filepath.Join(home, ".bashrc")
 		}
 		return shellConfig{
@@ -95,9 +95,9 @@ func detectShell(home string) (shellConfig, error) {
 	}
 }
 
-// CompletionInstalled reports whether the completion tag is already present
+// Installed reports whether the completion tag is already present
 // in the user's shell rc file.
-func CompletionInstalled() (bool, error) {
+func Installed() (bool, error) {
 	home := os.Getenv("HOME")
 	if home == "" {
 		return false, fmt.Errorf("HOME not set")
@@ -129,7 +129,7 @@ func installCompletion(ctx context.Context) error {
 		return nil
 	}
 
-	f, err := os.OpenFile(sh.rcFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	f, err := os.OpenFile(sh.rcFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644) //#nosec:G302 // shell RC files are world-readable by convention
 	if err != nil {
 		return fmt.Errorf("open %s: %w", sh.rcFile, err)
 	}
@@ -223,8 +223,8 @@ func newUninstallCmd() *cobra.Command {
 				skip = false
 				lines = append(lines, line)
 			}
-
-			if err := os.WriteFile(sh.rcFile, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+			err = os.WriteFile(sh.rcFile, []byte(strings.Join(lines, "\n")+"\n"), 0o644) //#nosec:G306,G703 // shell RC files are world-readable by convention
+			if err != nil {
 				return fmt.Errorf("write %s: %w", sh.rcFile, err)
 			}
 

@@ -37,9 +37,14 @@ import (
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
 )
 
+const (
+	zshPath  = "/bin/zsh"
+	bashPath = "/bin/bash"
+)
+
 func TestCompletionInstallZsh(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/zsh"
+	env.Extra["SHELL"] = zshPath
 
 	zshrc := filepath.Join(env.HomeDir, ".zshrc")
 	err := os.WriteFile(zshrc, []byte("# zshrc\n"), 0o644)
@@ -63,7 +68,7 @@ func TestCompletionInstallZsh(t *testing.T) {
 
 func TestCompletionInstallBash(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/bash"
+	env.Extra["SHELL"] = bashPath
 
 	bashrc := filepath.Join(env.HomeDir, ".bashrc")
 	err := os.WriteFile(bashrc, []byte("# bashrc\n"), 0o644)
@@ -87,7 +92,7 @@ func TestCompletionInstallBash(t *testing.T) {
 
 func TestCompletionInstallBashProfile(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/bash"
+	env.Extra["SHELL"] = bashPath
 
 	// macOS: .bash_profile exists, .bashrc does not
 	bashProfile := filepath.Join(env.HomeDir, ".bash_profile")
@@ -110,7 +115,7 @@ func TestCompletionInstallBashProfile(t *testing.T) {
 
 func TestCompletionInstallBashCreatesRCFile(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/bash"
+	env.Extra["SHELL"] = bashPath
 	// Neither .bashrc nor .bash_profile exists — should create .bash_profile
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -136,7 +141,7 @@ func TestCompletionInstallBashCreatesRCFile(t *testing.T) {
 
 func TestCompletionInstallIdempotent(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/zsh"
+	env.Extra["SHELL"] = zshPath
 
 	zshrc := filepath.Join(env.HomeDir, ".zshrc")
 	err := os.WriteFile(zshrc, []byte("# zshrc\n"), 0o644)
@@ -200,7 +205,7 @@ func TestCompletionInstallEmptyShell(t *testing.T) {
 
 func TestCompletionUninstallZsh(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/zsh"
+	env.Extra["SHELL"] = zshPath
 
 	zshrc := filepath.Join(env.HomeDir, ".zshrc")
 	original := "# existing config\nexport FOO=bar\n"
@@ -232,7 +237,7 @@ func TestCompletionUninstallZsh(t *testing.T) {
 
 func TestCompletionUninstallPreservesOtherContent(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/bash"
+	env.Extra["SHELL"] = bashPath
 
 	bashrc := filepath.Join(env.HomeDir, ".bashrc")
 	original := "# my config\nexport PATH=/usr/local/bin:$PATH\nalias ll='ls -la'\n"
@@ -264,7 +269,7 @@ func TestCompletionUninstallPreservesOtherContent(t *testing.T) {
 
 func TestCompletionUninstallNoBlockPresent(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/zsh"
+	env.Extra["SHELL"] = zshPath
 
 	zshrc := filepath.Join(env.HomeDir, ".zshrc")
 	err := os.WriteFile(zshrc, []byte("export BAR=baz\n"), 0o644)
@@ -286,7 +291,7 @@ func TestCompletionUninstallNoBlockPresent(t *testing.T) {
 
 func TestCompletionInstallUninstallRoundTrip(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["SHELL"] = "/bin/zsh"
+	env.Extra["SHELL"] = zshPath
 
 	zshrc := filepath.Join(env.HomeDir, ".zshrc")
 	original := "# existing config\nexport FOO=bar\n"
@@ -344,11 +349,4 @@ func TestCompletionZshGeneratesScript(t *testing.T) {
 	assert.Check(t, len(result.Stdout) > 0, "expected zsh completion output")
 	assert.Check(t, strings.Contains(result.Stdout, "compdef") || strings.Contains(result.Stdout, "#compdef"),
 		"expected zsh completion markers, got: %s", result.Stdout[:min(200, len(result.Stdout))])
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
 }

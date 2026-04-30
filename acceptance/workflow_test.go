@@ -72,7 +72,7 @@ func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.SetCancelResponse(testWorkflowDetailID, http.StatusAccepted)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -150,7 +150,7 @@ func TestWorkflowGet_JQ(t *testing.T) {
 func TestWorkflowGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -181,7 +181,7 @@ func TestWorkflowGet_NoToken(t *testing.T) {
 func TestWorkflowGet_NotFound_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -244,7 +244,7 @@ func TestWorkflowList(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -267,7 +267,7 @@ func TestWorkflowList_Color(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -290,7 +290,7 @@ func TestWorkflowList_JSON(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -320,7 +320,7 @@ func TestWorkflowList_JSON_Color(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -341,7 +341,7 @@ func TestWorkflowList_Empty(t *testing.T) {
 	fake.AddPipelineWorkflows(testPipelineForWF) // no workflows
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -358,7 +358,7 @@ func TestWorkflowList_Empty(t *testing.T) {
 func TestWorkflowList_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -416,7 +416,7 @@ func TestWorkflowList_NoArg(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -448,7 +448,7 @@ func TestWorkflowList_NoArg_Color(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -475,7 +475,7 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -511,7 +511,7 @@ func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -531,7 +531,7 @@ func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 	// no pipelines registered for project
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -622,7 +622,7 @@ func TestWorkflowRerun_NoToken(t *testing.T) {
 func TestWorkflowRerun_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -698,7 +698,7 @@ func TestWorkflowCancel_NoToken(t *testing.T) {
 func TestWorkflowCancel_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

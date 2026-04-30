@@ -30,6 +30,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 )
 
+const testToken = "testtoken"
+
 var binaryPath string
 
 func TestMain(m *testing.M) {

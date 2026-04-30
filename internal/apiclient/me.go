@@ -30,7 +30,7 @@ type Me struct {
 	Name      string `json:"name"`
 	Login     string `json:"login"`
 	ID        string `json:"id"`
-	AvatarUrl string `json:"avatar_url"`
+	AvatarURL string `json:"avatar_url"`
 }
 
 func (c *Client) GetMe(ctx context.Context) (*Me, error) {

@@ -30,6 +30,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 )
 
+const statusFailed = "failed"
+
 // StepLog holds the output of a single job step.
 type StepLog struct {
 	Name     string `json:"step"`
@@ -88,7 +90,7 @@ func LastFailed(ctx context.Context, client *apiclient.Client, pipelineID string
 			return 0, "", fmt.Errorf("fetching jobs for workflow %q: %w", wf.Name, err)
 		}
 		for _, job := range jobs {
-			if job.Status == "failed" && job.JobNumber != 0 {
+			if job.Status == statusFailed && job.JobNumber != 0 {
 				return job.JobNumber, job.ProjectSlug, nil
 			}
 		}

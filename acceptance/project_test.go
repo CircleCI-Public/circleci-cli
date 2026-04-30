@@ -74,7 +74,7 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx", &createdAt)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -164,7 +164,7 @@ func TestProjectList_JSON_Color(t *testing.T) {
 func TestProjectList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

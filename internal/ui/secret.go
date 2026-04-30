@@ -61,13 +61,12 @@ func (m SecretModel) Init() tea.Cmd {
 func (m SecretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
-	switch msg := msg.(type) {
-	case tea.KeyPressMsg:
-		switch msg.String() {
-		case "ctrl+c", "esc":
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case keyCtrlC, keyEsc:
 			m.quitting = true
 			return m, tea.Quit
-		case "enter":
+		case keyEnter:
 			m.value = m.textInput.Value()
 			return m, tea.Quit
 		}

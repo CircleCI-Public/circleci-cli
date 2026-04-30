@@ -81,7 +81,7 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.AddRunnerInstance(fakeInstance("my-org/arm-runner", "arm-host.example.com", "runner-2", "1.0.0"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -282,7 +282,7 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -380,7 +380,7 @@ func TestRunnerTokenList_JQ(t *testing.T) {
 func TestRunnerTokenList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -510,7 +510,7 @@ func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
 func TestRunnerTokenDelete_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -621,7 +621,7 @@ func TestRunnerInstanceList_JSON_Color(t *testing.T) {
 func TestRunnerInstanceList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

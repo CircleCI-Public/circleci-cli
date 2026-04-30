@@ -155,7 +155,7 @@ func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug 
 	restrictions := make([]contextRestrictionEntry, len(ctxt.Restrictions))
 	for i, r := range ctxt.Restrictions {
 		restrictions[i] = contextRestrictionEntry{
-			ID:               r.Id.String(),
+			ID:               r.ID.String(),
 			Name:             r.Name,
 			RestrictionType:  r.RestrictionType,
 			RestrictionValue: r.RestrictionValue,
@@ -163,9 +163,9 @@ func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug 
 	}
 
 	out := contextGetOutput{
-		ID:                   ctxt.Id.String(),
+		ID:                   ctxt.ID.String(),
 		Name:                 ctxt.Name,
-		OrgID:                ctxt.OrgId.String(),
+		OrgID:                ctxt.OrgID.String(),
 		CreatedAt:            ctxt.CreatedAt,
 		EnvironmentVariables: envVars,
 		Restrictions:         restrictions,

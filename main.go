@@ -41,7 +41,10 @@ func main() {
 	// surfaces as a normal EPIPE write error rather than terminating the process
 	// with exit code 141. Go's I/O layer handles EPIPE silently on stdout/stderr.
 	signal.Ignore(syscall.SIGPIPE)
+	os.Exit(run())
+}
 
+func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
@@ -55,11 +58,12 @@ func main() {
 			} else {
 				fmt.Fprint(os.Stderr, cliErr.Format())
 			}
-			os.Exit(cliErr.ExitCode)
+			return cliErr.ExitCode
 		}
 		fmt.Fprintln(os.Stderr, err)
-		os.Exit(clierrors.ExitGeneralError)
+		return clierrors.ExitGeneralError
 	}
+	return clierrors.ExitSuccess
 }
 
 // jsonFlagPresent reports whether --json appears anywhere in the raw argument

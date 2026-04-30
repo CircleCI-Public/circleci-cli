@@ -127,10 +127,10 @@ func Download(ctx context.Context, client Client, entries []Entry, dir string) e
 			return fmt.Errorf("artifact path %q escapes download directory", e.Path)
 		}
 
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil { //#nosec:G301 // 0o755 is appropriate for artifact download directories
 			return fmt.Errorf("creating directory for %q: %w", e.Path, err)
 		}
-		f, err := os.Create(dest)
+		f, err := os.Create(dest) //#nosec:G304 // dest is validated above via HasPrefix check against the clean download dir
 		if err != nil {
 			return fmt.Errorf("creating file %q: %w", dest, err)
 		}

@@ -87,11 +87,12 @@ func Write(w io.Writer, r io.Reader, indent string) error {
 			idx++
 
 			var color string
-			if isKey {
+			switch {
+			case isKey:
 				color = colorKey
-			} else if tt == nil {
+			case tt == nil:
 				color = colorNull
-			} else {
+			default:
 				switch tt.(type) {
 				case string:
 					color = colorString
@@ -113,13 +114,14 @@ func Write(w io.Writer, r io.Reader, indent string) error {
 			}
 		}
 
-		if dec.More() {
+		switch {
+		case dec.More():
 			ansi(w, colorDelim, ",")
 			_, _ = io.WriteString(w, "\n")
 			_, _ = io.WriteString(w, strings.Repeat(indent, len(stack)))
-		} else if len(stack) > 0 {
+		case len(stack) > 0:
 			_, _ = fmt.Fprint(w, "\n", strings.Repeat(indent, len(stack)-1))
-		} else {
+		default:
 			_, _ = fmt.Fprint(w, "\n")
 		}
 	}
