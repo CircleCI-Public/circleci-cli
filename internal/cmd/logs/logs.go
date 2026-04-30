@@ -182,8 +182,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 			jobNumber, projectSlug, err = logs.LastJob(ctx, client, pipeline.ID)
 		}
 		if err != nil {
-			var noneFound *logs.ErrNoneFound
-			if errors.As(err, &noneFound) {
+			if noneFound, ok := errors.AsType[*logs.ErrNoneFound](err); ok {
 				return clierrors.New("logs.none_found", "No matching job",
 					noneFound.Reason).
 					WithSuggestions(

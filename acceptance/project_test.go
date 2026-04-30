@@ -69,9 +69,10 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		},
 	})
 
-	createdAt := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx", nil)
-	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx", &createdAt)
+	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx",
+		new(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
+	)
 
 	env := testenv.New(t)
 	env.Token = testToken

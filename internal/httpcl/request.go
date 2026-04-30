@@ -80,6 +80,7 @@ func QueryParam(key, val string) func(*Request) {
 		r.query.Add(key, val)
 	}
 }
+
 func OptionalQueryParam(key, val string) func(*Request) {
 	if val == "" {
 		return noop

@@ -131,10 +131,6 @@ func ErrPrintln(ctx context.Context, a ...any) {
 	fromContext(ctx).ErrPrintln(a...)
 }
 
-func Confirm(ctx context.Context, prompt string) bool {
-	return fromContext(ctx).Confirm(ctx, prompt)
-}
-
 // PromptSecret presents a masked text input to collect a secret value.
 // Returns ("", nil) if the user cancels.
 func PromptSecret(ctx context.Context, header string) (string, error) {
@@ -269,12 +265,6 @@ func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, d
 	}
 
 	return width, dark
-}
-
-// Test returns a Streams backed by the provided writers with no-op stdin,
-// useful in tests that don't exercise interactive prompts.
-func Test(ctx context.Context, out, err io.Writer) context.Context {
-	return WithStreams(ctx, Streams{Out: out, Err: err, In: strings.NewReader("")})
 }
 
 // IsTerminal reports whether Out is a terminal (i.e. a human is watching).

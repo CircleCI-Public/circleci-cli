@@ -48,6 +48,7 @@ func TestClient_Call(t *testing.T) {
 			"id":       chi.URLParam(r, "id"),
 			"child-id": chi.URLParam(r, "child-id"),
 			"query":    r.URL.Query().Encode(),
+			"header":   r.Header.Get("X-Header"),
 		})
 	})
 
@@ -68,12 +69,14 @@ func TestClient_Call(t *testing.T) {
 			httpcl.QueryParam("q1", "first"),
 			httpcl.QueryParam("q1", "second"),
 			httpcl.QueryParam("q2", "other"),
+			httpcl.Header("X-Header", "the-value"),
 			httpcl.JSONDecoder(&body),
 		))
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Equal(status, http.StatusOK))
 		assert.Check(t, cmp.DeepEqual(body, map[string]any{
 			"id":       "abc",
+			"header":   "the-value",
 			"child-id": "123",
 			"message":  "hello",
 			"query":    "q1=first&q1=second&q2=other",

@@ -30,17 +30,17 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 )
 
-const testToken = "testtoken"
+const testToken = "test-token"
 
 var binaryPath string
 
 func TestMain(m *testing.M) {
 	path, cleanup, err := binary.BuildBinary()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "skipping acceptance tests: %v\n", err)
+		_, _ = fmt.Fprintf(os.Stderr, "skipping acceptance tests: %v\n", err)
 		os.Exit(0)
 	}
-	fmt.Fprintf(os.Stderr, "built circleci binary: %s\n", path)
+	_, _ = fmt.Fprintf(os.Stderr, "built circleci binary: %s\n", path)
 
 	binaryPath = path
 	code := m.Run()

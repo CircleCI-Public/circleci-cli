@@ -76,6 +76,8 @@ func LoadFrom(ctx context.Context, path string, secureStorage bool) (*Config, er
 	}
 
 	fl := flock.New(lockPath(resolved))
+	defer closer.ErrorHandler(fl, &err)
+
 	rlock, err := fl.TryRLockContext(ctx, time.Second)
 	switch {
 	case err != nil:
@@ -84,7 +86,6 @@ func LoadFrom(ctx context.Context, path string, secureStorage bool) (*Config, er
 		if !rlock {
 			return nil, fmt.Errorf("could not lock config file %s", resolved)
 		}
-		defer closer.ErrorHandler(fl, &err)
 	}
 
 	var cfg Config
@@ -157,6 +158,8 @@ func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config
 	}
 
 	fl := flock.New(lockPath(resolved))
+	defer closer.ErrorHandler(fl, &err)
+
 	lock, err := fl.TryLockContext(ctx, time.Second)
 	if err != nil {
 		return err
@@ -164,7 +167,6 @@ func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config
 	if !lock {
 		return fmt.Errorf("could not lock config file %s", resolved)
 	}
-	defer closer.ErrorHandler(fl, &err)
 
 	var cfg Config
 
@@ -186,11 +188,17 @@ func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config
 
 	cp := cfg.state
 	if secureStorage {
-		cp.Token = ""
-
-		err = cfg.storeToken(ctx)
-		if err != nil {
-			return err
+		if cp.Token == "" {
+			err = cfg.deleteToken(ctx)
+			if err != nil {
+				return err
+			}
+		} else {
+			cp.Token = ""
+			err = cfg.storeToken(ctx)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -208,12 +216,6 @@ func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config
 // Path returns the resolved path to the default config file.
 func Path() (string, error) {
 	return configPath()
-}
-
-// PathFrom returns the resolved path for the given override. If the override is
-// empty, it returns the default XDG path.
-func PathFrom(override string) (string, error) {
-	return resolvePath(override)
 }
 
 // EffectiveHost returns the host, checked in priority order:
@@ -269,6 +271,15 @@ func (c *Config) storeToken(ctx context.Context) error {
 	}
 
 	return keyring.Set(ctx, c.EffectiveHost(), u.Username, c.state.Token)
+}
+
+func (c *Config) deleteToken(ctx context.Context) error {
+	u, err := user.Current()
+	if err != nil {
+		return err
+	}
+
+	return keyring.Delete(ctx, c.EffectiveHost(), u.Username)
 }
 
 // resolvePath returns override if non-empty, otherwise the default XDG path.
