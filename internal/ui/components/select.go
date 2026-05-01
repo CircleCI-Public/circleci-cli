@@ -20,50 +20,54 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package components
 
 import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
 )
 
 // SelectModel is a single-choice picker rendered as a vertical list with a
 // cursor (›) marking the focused option. ↑/↓ or k/j move; Enter confirms;
 // Esc/Ctrl+C cancels.
 type SelectModel struct {
-	prompt   string
-	options  []string
-	cursor   int
-	chosen   bool
-	quitting bool
+	prompt  string
+	options []string
+	hint    string
+	cursor  int
+	chosen  bool
 }
 
 func NewSelectModel(prompt string, options []string) SelectModel {
-	return SelectModel{prompt: prompt, options: options}
+	return SelectModel{
+		prompt:  prompt,
+		options: options,
+		hint:    "(↑/↓ to move, enter to select, esc to quit)",
+	}
 }
 
-// Selected returns the index chosen by the user. Only valid when Done() and
-// !Cancelled().
+// WithHint returns a copy of the model with a custom footer hint line.
+func (m SelectModel) WithHint(hint string) SelectModel {
+	m.hint = hint
+	return m
+}
+
+// Selected returns the index chosen by the user. Only valid when Done().
 func (m SelectModel) Selected() int { return m.cursor }
 
-// Cancelled reports whether the user dismissed the prompt with Esc/Ctrl+C.
-func (m SelectModel) Cancelled() bool { return m.quitting }
-
-// Done reports whether the model has finished (either chosen or cancelled).
-func (m SelectModel) Done() bool { return m.chosen || m.quitting }
+// Done reports whether the user has confirmed a selection.
+func (m SelectModel) Done() bool { return m.chosen }
 
 func (m SelectModel) Init() tea.Cmd { return nil }
 
 func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
-		case keyCtrlC, keyEsc:
-			m.quitting = true
-			return m, tea.Quit
-		case keyEnter:
+		case KeyEnter:
 			m.chosen = true
-			return m, tea.Quit
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
@@ -79,20 +83,20 @@ func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m SelectModel) View() tea.View {
 	var b strings.Builder
-	b.WriteString(TitleStyle.Render("? "+m.prompt) + "\n")
+	b.WriteString(theme.TitleStyle.Render("? "+m.prompt) + "\n")
 
 	if m.chosen {
-		b.WriteString("  " + SuccessStyle.Render(m.options[m.cursor]) + "\n")
+		b.WriteString("  " + theme.SuccessStyle.Render(m.options[m.cursor]) + "\n")
 		return tea.NewView(b.String())
 	}
 
 	for i, opt := range m.options {
 		if i == m.cursor {
-			b.WriteString(AccentStyle.Render("› "+opt) + "\n")
+			b.WriteString(theme.AccentStyle.Render("› "+opt) + "\n")
 		} else {
 			b.WriteString("  " + opt + "\n")
 		}
 	}
-	b.WriteString(HelperStyle.Render("(↑/↓ to move, enter to select, esc to quit)"))
+	b.WriteString(theme.HelperStyle.Render(m.hint))
 	return tea.NewView(b.String())
 }

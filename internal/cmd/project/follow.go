@@ -100,7 +100,7 @@ func runProjectFollow(ctx context.Context, client *apiclient.Client, projectSlug
 		return cmdutil.APIErr(apiErr, projectSlug, "project.follow_failed", "Could not follow project %q.")
 	}
 
-	iostream.Printf(ctx, "%s Now following %s\n", iostream.Symbol(ctx, "✓", "OK:"), projectSlug)
+	iostream.Printf(ctx, "%s Now following %s\n", iostream.SymbolOK(ctx), projectSlug)
 	return nil
 }
 

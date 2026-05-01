@@ -59,6 +59,6 @@ func runLogout(ctx context.Context, secureStorage bool) error {
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.Symbol(ctx, "✓", "OK:"), "token")
+	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.SymbolOK(ctx), "token")
 	return nil
 }

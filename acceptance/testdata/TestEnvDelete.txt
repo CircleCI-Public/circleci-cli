@@ -1,1 +1,1 @@
-OK: Deleted DATABASE_URL
+✓ Deleted DATABASE_URL

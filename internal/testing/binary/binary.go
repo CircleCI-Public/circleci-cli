@@ -37,17 +37,16 @@ import (
 	"runtime"
 	"slices"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 
-	"github.com/aymanbagabas/go-pty"
-	"golang.org/x/sync/errgroup"
+	"github.com/Netflix/go-expect"
+	cpty "github.com/creack/pty"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/skip"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
 )
+
+const osWindows = "windows"
 
 // BuildBinary compiles the CLI binary once and returns its path.
 // Call from TestMain; on error, the binary could not be built and tests
@@ -59,7 +58,7 @@ func BuildBinary() (string, func(), error) {
 
 	}
 	binaryPath := filepath.Join(dir, "circleci")
-	if runtime.GOOS == "windows" {
+	if runtime.GOOS == osWindows {
 		binaryPath += ".exe"
 	}
 
@@ -103,15 +102,13 @@ type RunOpts struct {
 func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 	t.Helper()
 
-	skip.If(t, opts.TTY && runtime.GOOS == "windows", "No good way to manage golden TTY snapshots on Windows")
+	skip.If(t, opts.TTY && runtime.GOOS == osWindows, "No good way to manage golden TTY snapshots on Windows")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	fullArgs := []string{
-		"--insecure-storage",
-		"--theme=dark",
-	}
+	fullArgs := make([]string, 0, 3+len(opts.Args))
+	fullArgs = append(fullArgs, "--insecure-storage", "--theme=dark")
 	if !opts.TTY && !slices.Contains(opts.Args, "--quiet") {
 		fullArgs = append(fullArgs, "--debug")
 	}
@@ -120,45 +117,39 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 
 	exitCode := 0
 	var stdout, stderr bytes.Buffer
+	cmd := exec.CommandContext(ctx, opts.Binary, fullArgs...) //#nosec:G204 // opts.Binary is the test-built CLI binary, fullArgs are test-controlled
+	cmd.Dir = opts.WorkDir
+	cmd.Env = opts.Env
 
 	if opts.TTY {
-		p, err := pty.New()
+		c, err := expect.NewConsole(
+			expect.WithStdout(&stdout),
+			expect.WithStdout(os.Stdout),
+		)
 		assert.NilError(t, err)
+		defer func() {
+			assert.Check(t, c.Close())
+		}()
 
-		cmd := p.CommandContext(ctx, opts.Binary, fullArgs...)
-		cmd.Dir = opts.WorkDir
-		cmd.Env = opts.Env
+		cmd.Stdin = c.Tty()
+		cmd.Stdout = c.Tty()
+		cmd.Stderr = c.Tty()
 
-		err = cmd.Start()
-		assert.NilError(t, err)
+		err = cmd.Run()
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			exitCode = exitErr.ExitCode()
+		} else {
+			assert.NilError(t, err)
+		}
 
-		// Both goroutines run concurrently to avoid deadlock:
-		// - WriteTo drains output so the process never blocks on a full PTY buffer.
-		// - Wait captures the exit code then closes the PTY, which unblocks WriteTo.
-		var eg errgroup.Group
-		eg.Go(func() (err error) {
-			defer closer.ErrorHandler(p, &err)
+		// go-expect holds the slave PTY open, so the master never sees EOF
+		// until we explicitly close it. Close slave first, then drain.
+		err = c.Tty().Close()
+		assert.Check(t, err)
 
-			err = cmd.Wait()
-			if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-				exitCode = exitErr.ExitCode()
-				return nil
-			}
-			return err
-		})
-		eg.Go(func() (err error) {
-			_, err = io.Copy(&stdout, p)
-			if errors.Is(err, io.EOF) || errors.Is(err, syscall.EIO) || errors.Is(err, os.ErrClosed) {
-				// Handle expected PTY close errors on Mac, Linux, Windows respectively
-				return nil
-			}
-			return err
-		})
-		assert.NilError(t, eg.Wait())
+		_, err = c.ExpectEOF()
+		assert.Check(t, err)
 	} else {
-		cmd := exec.CommandContext(ctx, opts.Binary, fullArgs...) //#nosec:G204 // opts.Binary is the test-built CLI binary, fullArgs are test-controlled
-		cmd.Dir = opts.WorkDir
-		cmd.Env = opts.Env
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
 		cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
 
@@ -175,6 +166,59 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		Stderr:   filterDebugLines(stderr.String()),
 		ExitCode: exitCode,
 	}
+}
+
+// RunCLIInteractive executes the circleci binary attached to a PTY and returns
+// both the running command and the console so callers can drive interactive
+// input with Expect/Send. Call cmd.Wait() after interaction is complete.
+func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
+	t.Helper()
+	skip.If(t, runtime.GOOS == osWindows, "PTY-based interactive tests are not supported on Windows")
+
+	c, err := expect.NewConsole(
+		expect.WithStdout(os.Stdout),
+	)
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		_, err := c.ExpectEOF()
+		assert.Check(t, err)
+	})
+	t.Cleanup(func() {
+		assert.Check(t, c.Close())
+	})
+
+	// go-expect creates PTYs with a 0×0 window size by default. Bubbletea
+	// won't render any content until it receives a non-zero terminal size.
+	// Use 500 columns so OAuth authorize URLs (≈300 chars) are never
+	// hard-wrapped, keeping the URL on a single line for easy extraction.
+	err = cpty.Setsize(c.Tty(), &cpty.Winsize{
+		Rows: 24,
+		Cols: 500,
+	})
+	assert.NilError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+
+	fullArgs := make([]string, 0, 2+len(opts.Args))
+	fullArgs = append(fullArgs, "--insecure-storage", "--theme=dark")
+	fullArgs = append(fullArgs, opts.Args...)
+	t.Logf("Running CLI: %s %s\n", opts.Binary, fullArgs)
+
+	cmd := exec.CommandContext(ctx, opts.Binary, fullArgs...) //#nosec:G204 // opts.Binary is the test-built CLI binary, fullArgs are test-controlled
+	cmd.Dir = opts.WorkDir
+	cmd.Env = opts.Env
+	cmd.Stdin = c.Tty()
+	cmd.Stdout = c.Tty()
+	cmd.Stderr = c.Tty()
+
+	err = cmd.Start()
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		assert.Check(t, cmd.Wait())
+	})
+
+	return c
 }
 
 var localURLPortRe = regexp.MustCompile(`http://127\.0\.0\.1:\d+/`)

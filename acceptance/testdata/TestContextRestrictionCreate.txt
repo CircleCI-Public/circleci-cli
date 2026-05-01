@@ -1,1 +1,1 @@
-OK: Created project restriction c0000003-0000-4000-8000-000000000003
+✓ Created project restriction c0000003-0000-4000-8000-000000000003

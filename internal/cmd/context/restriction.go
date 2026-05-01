@@ -171,7 +171,7 @@ func runRestrictionCreate(ctx context.Context, client *apiclient.Client, context
 	}
 
 	iostream.Printf(ctx, "%s Created %s restriction %s\n",
-		iostream.Symbol(ctx, "✓", "OK:"), out.RestrictionType, out.ID)
+		iostream.SymbolOK(ctx), out.RestrictionType, out.ID)
 	return nil
 }
 
@@ -253,7 +253,7 @@ func newRestrictionDeleteCmd() *cobra.Command {
 				return restrictionAPIErr(err, restrictionID)
 			}
 			iostream.Printf(ctx, "%s Deleted restriction %s\n",
-				iostream.Symbol(ctx, "✓", "OK:"), restrictionID)
+				iostream.SymbolOK(ctx), restrictionID)
 			return nil
 		},
 	}

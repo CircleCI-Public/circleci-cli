@@ -1,1 +1,1 @@
-✓ Set DATABASE_URL
+[38;5;42m✓[m Set DATABASE_URL

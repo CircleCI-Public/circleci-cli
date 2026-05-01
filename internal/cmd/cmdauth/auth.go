@@ -28,7 +28,6 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
@@ -43,14 +42,12 @@ func NewAuthCmd() *cobra.Command {
 			Manage authentication for the CLI.
 
 			Use 'circleci auth login' to authenticate via the browser-based OAuth flow.
-			Use 'circleci auth token' to configure your personal API token.
 			Use 'circleci auth me' to get current user info.
 			Use 'circleci auth logout' to clear your stored credentials.
 		`),
 	}
 
 	cmd.AddCommand(newLoginCmd())
-	cmd.AddCommand(newTokenCmd())
 	cmd.AddCommand(newMeCmd())
 	cmd.AddCommand(newLogoutCmd())
 	cmd.AddCommand(newDeviceIDCmd())
@@ -63,23 +60,17 @@ func NewAuthCmd() *cobra.Command {
 // or the YAML config when --insecure-storage is set) and prints a
 // "Saved token to <path>" status line on stderr. Shared by `auth login`
 // (after OAuth token exchange) and `auth token` (after the TUI prompt).
-//
-// A failed /me call (network blip, 401, etc.) is non-fatal: we skip the
-// identity line and still save the token. The user explicitly authenticated;
-// a transient probe failure shouldn't drop the credential on the floor.
 func persistToken(ctx context.Context, host, token string, secureStorage bool) error {
-	if me, err := apiclient.New(host, token, nil).GetMe(ctx); err == nil && me.Login != "" {
-		iostream.ErrPrintf(ctx, "%s Logged in as %s\n", iostream.Symbol(ctx, "✓", "OK:"), me.Login)
-	}
-
-	if err := config.SetToken(ctx, token, secureStorage); err != nil {
+	if err := config.SetHostAndToken(ctx, host, token, secureStorage); err != nil {
 		return clierrors.New("auth.save_failed", "Failed to save token", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 	path, _ := config.Path()
+	securePath := path
 	if secureStorage {
-		path = "keyring"
+		securePath = "keyring"
 	}
-	iostream.ErrPrintf(ctx, "%s Saved token to %s\n", iostream.Symbol(ctx, "✓", "OK:"), path)
+	iostream.ErrPrintf(ctx, "%s Saved token to %s\n", iostream.SymbolOK(ctx), securePath)
+	iostream.ErrPrintf(ctx, "%s Saved host to %s\n", iostream.SymbolOK(ctx), path)
 	return nil
 }

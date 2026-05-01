@@ -26,6 +26,9 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
 )
 
 // SecretModel is a bubbletea model for prompting a secret value.
@@ -63,10 +66,10 @@ func (m SecretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch keyMsg.String() {
-		case keyCtrlC, keyEsc:
+		case components.KeyCtrlC, components.KeyEsc:
 			m.quitting = true
 			return m, tea.Quit
-		case keyEnter:
+		case components.KeyEnter:
 			m.value = m.textInput.Value()
 			return m, tea.Quit
 		}
@@ -97,5 +100,5 @@ func (m SecretModel) View() tea.View {
 	return v
 }
 
-func (m SecretModel) headerView() string { return m.header + "\n" }
-func (m SecretModel) footerView() string { return "\n(esc to quit)" }
+func (m SecretModel) headerView() string { return theme.TitleStyle.Render(m.header) }
+func (m SecretModel) footerView() string { return theme.HelperStyle.Render("(esc to quit)") }

@@ -98,6 +98,6 @@ func runCancel(ctx context.Context, client *apiclient.Client, id string, force b
 		return apiErr(err, id)
 	}
 
-	iostream.Printf(ctx, "%s Cancelled workflow %s\n", iostream.Symbol(ctx, "✓", "OK:"), id)
+	iostream.Printf(ctx, "%s Cancelled workflow %s\n", iostream.SymbolOK(ctx), id)
 	return nil
 }

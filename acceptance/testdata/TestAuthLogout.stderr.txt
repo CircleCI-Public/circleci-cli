@@ -1,1 +1,1 @@
-OK: Removed token from keyring
+✓ Removed token from keyring

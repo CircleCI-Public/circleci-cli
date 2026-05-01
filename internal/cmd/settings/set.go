@@ -97,9 +97,9 @@ func runSet(ctx context.Context, secureStorage bool, key, value string) (err err
 
 	path, _ := config.Path()
 	if key == "token" && secureStorage {
-		iostream.ErrPrintf(ctx, "%s Saved %s to keyring\n", iostream.Symbol(ctx, "✓", "OK:"), key)
+		iostream.ErrPrintf(ctx, "%s Saved %s to keyring\n", iostream.SymbolOK(ctx), key)
 	} else {
-		iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.Symbol(ctx, "✓", "OK:"), key, path)
+		iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.SymbolOK(ctx), key, path)
 	}
 	return nil
 }

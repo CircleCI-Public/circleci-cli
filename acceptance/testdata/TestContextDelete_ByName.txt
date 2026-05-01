@@ -1,1 +1,1 @@
-OK: Deleted context my-context
+✓ Deleted context my-context

@@ -132,6 +132,14 @@ func lockPath(path string) string {
 	return path + ".lock"
 }
 
+func SetHostAndToken(ctx context.Context, host, token string, secureStorage bool) error {
+	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+		cfg.state.Host = host
+		cfg.state.Token = token
+		return nil
+	})
+}
+
 func SetToken(ctx context.Context, token string, secureStorage bool) error {
 	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Token = token

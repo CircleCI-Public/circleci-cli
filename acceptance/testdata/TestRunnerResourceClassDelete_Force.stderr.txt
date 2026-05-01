@@ -1,1 +1,1 @@
-OK: Deleted resource class my-org/linux-runner
+✓ Deleted resource class my-org/linux-runner

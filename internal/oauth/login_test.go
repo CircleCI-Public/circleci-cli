@@ -104,8 +104,8 @@ func TestStart_AuthorizeURL(t *testing.T) {
 
 	t.Run("redirect_uri is loopback", func(t *testing.T) {
 		r := u.Query().Get("redirect_uri")
-		assert.Check(t, strings.HasPrefix(r, "http://127.0.0.1:"))
-		assert.Check(t, strings.HasSuffix(r, "/callback"))
+		assert.Check(t, strings.HasPrefix(r, "http://127.0.0.1:"), r)
+		assert.Check(t, strings.HasSuffix(r, "/callback"), r)
 	})
 }
 

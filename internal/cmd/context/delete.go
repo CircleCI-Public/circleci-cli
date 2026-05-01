@@ -124,7 +124,7 @@ func runDelete(ctx context.Context, client *apiclient.Client, contextName, orgSl
 		return apiErr(err, displayName)
 	}
 
-	iostream.Printf(ctx, "%s Deleted context %s\n", iostream.Symbol(ctx, "✓", "OK:"), displayName)
+	iostream.Printf(ctx, "%s Deleted context %s\n", iostream.SymbolOK(ctx), displayName)
 	return nil
 }
 

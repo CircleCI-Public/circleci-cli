@@ -141,7 +141,7 @@ func installCompletion(ctx context.Context) error {
 	}
 
 	iostream.ErrPrintf(ctx, "%s Installed %s completion in %s\n",
-		iostream.Symbol(ctx, "✓", "OK:"), sh.name, sh.rcFile)
+		iostream.SymbolOK(ctx), sh.name, sh.rcFile)
 	return nil
 }
 
@@ -203,7 +203,7 @@ func newUninstallCmd() *cobra.Command {
 			data, err := os.ReadFile(sh.rcFile)
 			if err != nil {
 				// Nothing to uninstall.
-				iostream.ErrPrintf(ctx, "%s Completion not installed\n", iostream.Symbol(ctx, "✓", "OK:"))
+				iostream.ErrPrintf(ctx, "%s Completion not installed\n", iostream.SymbolOK(ctx))
 				return nil
 			}
 
@@ -228,7 +228,7 @@ func newUninstallCmd() *cobra.Command {
 				return fmt.Errorf("write %s: %w", sh.rcFile, err)
 			}
 
-			iostream.ErrPrintf(ctx, "%s Removed completion from %s\n", iostream.Symbol(ctx, "✓", "OK:"), sh.rcFile)
+			iostream.ErrPrintf(ctx, "%s Removed completion from %s\n", iostream.SymbolOK(ctx), sh.rcFile)
 			return nil
 		},
 	}

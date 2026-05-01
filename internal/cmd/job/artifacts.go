@@ -139,7 +139,7 @@ func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber in
 			return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
 				WithExitCode(clierrors.ExitGeneralError)
 		}
-		iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.Symbol(ctx, "✓", "OK:"), len(entries))
+		iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.SymbolOK(ctx), len(entries))
 	}
 
 	if jsonOut {

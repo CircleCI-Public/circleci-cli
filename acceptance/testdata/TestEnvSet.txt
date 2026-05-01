@@ -1,1 +1,1 @@
-OK: Set NEW_VAR
+✓ Set NEW_VAR

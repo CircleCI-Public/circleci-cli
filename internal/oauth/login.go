@@ -36,6 +36,7 @@ package oauth
 import (
 	"context"
 	"crypto/rand"
+	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -115,7 +116,7 @@ func Start(ctx context.Context, host, deviceID, osInfo string) (*Flow, error) {
 	if err != nil {
 		return nil, fmt.Errorf("starting callback server: %w", err)
 	}
-	port := listener.Addr().(*net.TCPAddr).Port
+	addr := listener.Addr()
 
 	host = strings.TrimRight(host, "/")
 	cfg := &oauth2.Config{
@@ -124,7 +125,7 @@ func Start(ctx context.Context, host, deviceID, osInfo string) (*Flow, error) {
 			AuthURL:  host + "/oauth/authorize",
 			TokenURL: host + "/oauth/token",
 		},
-		RedirectURL: fmt.Sprintf("http://127.0.0.1:%d/callback", port),
+		RedirectURL: fmt.Sprintf("http://%s/callback", addr),
 	}
 
 	params := []oauth2.AuthCodeOption{oauth2.S256ChallengeOption(verifier)}
@@ -145,8 +146,11 @@ func Start(ctx context.Context, host, deviceID, osInfo string) (*Flow, error) {
 	}
 
 	mux := http.NewServeMux()
-	mux.HandleFunc("/callback", f.handleCallback)
-	f.server = &http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}
+	mux.HandleFunc("GET /callback", f.handleCallback)
+	f.server = &http.Server{
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 
 	go func() {
 		_ = f.server.Serve(listener)
@@ -241,23 +245,9 @@ func (f *Flow) deliver(res callbackResult) {
 	}
 }
 
-var browserResponseTmpl = template.Must(template.New("browser").Parse(`<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>{{.Title}} — CircleCI CLI</title>
-<style>
-body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; padding: 3rem; max-width: 36rem; margin: 0 auto; color: #1a1a1a; }
-h1 { font-size: 1.5rem; margin-bottom: 0.5rem; }
-p { color: #555; line-height: 1.5; }
-</style>
-</head>
-<body>
-<h1>{{.Title}}</h1>
-<p>{{.Body}}</p>
-</body>
-</html>
-`))
+//go:embed page.html
+var page string
+var browserResponseTmpl = template.Must(template.New("browser").Parse(page))
 
 func writeBrowserResponse(w http.ResponseWriter, status int, title, body string) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

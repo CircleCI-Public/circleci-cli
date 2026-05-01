@@ -217,7 +217,7 @@ func RunEnvSet(ctx context.Context, client *apiclient.Client, projectSlug, name,
 		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
 	}
 
-	iostream.Printf(ctx, "%s Set %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
+	iostream.Printf(ctx, "%s Set %s\n", iostream.SymbolOK(ctx), name)
 	return nil
 }
 
@@ -302,6 +302,6 @@ func RunEnvDelete(ctx context.Context, client *apiclient.Client, projectSlug, na
 		return cmdutil.APIErr(err, name, "envvar.not_found", "No environment variable %q found.")
 	}
 
-	iostream.Printf(ctx, "%s Deleted %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
+	iostream.Printf(ctx, "%s Deleted %s\n", iostream.SymbolOK(ctx), name)
 	return nil
 }

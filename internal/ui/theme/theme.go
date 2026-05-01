@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package theme
 
 import "charm.land/lipgloss/v2"
 
@@ -60,6 +60,8 @@ var (
 	SuccessStyle = lipgloss.NewStyle().Foreground(ColorSuccess)
 	ErrorStyle   = lipgloss.NewStyle().Foreground(ColorError)
 	WarningStyle = lipgloss.NewStyle().Foreground(ColorWarning)
+
+	NoColorStyle = lipgloss.NewStyle().Foreground(lipgloss.NoColor{})
 )
 
 // Status icons. Keep these in one place so prompts, results, and JSON-text
