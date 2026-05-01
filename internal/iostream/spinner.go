@@ -82,6 +82,7 @@ func (sp *Spin) Stop() {
 	sp.once.Do(func() {
 		sp.program.Quit()
 		sp.program.Wait()
+		drainStdin()
 	})
 }
 
