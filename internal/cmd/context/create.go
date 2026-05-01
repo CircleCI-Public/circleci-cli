@@ -114,6 +114,6 @@ func runCreate(ctx context.Context, client *apiclient.Client, name, orgSlug stri
 	}
 
 	iostream.Printf(ctx, "%s Created context %q (%s)\n",
-		iostream.Symbol(ctx, "✓", "OK:"), ctxt.Name, ctxt.ID)
+		iostream.SymbolOK(ctx), ctxt.Name, ctxt.ID)
 	return nil
 }

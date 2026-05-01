@@ -131,6 +131,6 @@ func runPipelineCancel(ctx context.Context, client *apiclient.Client, arg, proje
 		return apiErr(err, displayName)
 	}
 
-	iostream.Printf(ctx, "%s Cancelled pipeline %s\n", iostream.Symbol(ctx, "✓", "OK:"), displayName)
+	iostream.Printf(ctx, "%s Cancelled pipeline %s\n", iostream.SymbolOK(ctx), displayName)
 	return nil
 }

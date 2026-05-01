@@ -254,7 +254,7 @@ func runSecretSet(ctx context.Context, client *apiclient.Client, contextID, name
 		return secretAPIErr(err, contextID)
 	}
 
-	iostream.Printf(ctx, "%s Set %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
+	iostream.Printf(ctx, "%s Set %s\n", iostream.SymbolOK(ctx), name)
 	return nil
 }
 
@@ -336,7 +336,7 @@ func runSecretDelete(ctx context.Context, client *apiclient.Client, contextID, n
 		return secretAPIErr(err, name)
 	}
 
-	iostream.Printf(ctx, "%s Deleted %s\n", iostream.Symbol(ctx, "✓", "OK:"), name)
+	iostream.Printf(ctx, "%s Deleted %s\n", iostream.SymbolOK(ctx), name)
 	return nil
 }
 

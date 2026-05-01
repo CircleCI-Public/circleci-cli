@@ -1,1 +1,1 @@
-✓ Cancelled workflow cccccccc-0000-0000-0000-000000000010
+[38;5;42m✓[m Cancelled workflow cccccccc-0000-0000-0000-000000000010

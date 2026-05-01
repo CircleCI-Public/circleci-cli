@@ -20,37 +20,12 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package components
 
 import (
-	"charm.land/bubbles/v2/spinner"
-	tea "charm.land/bubbletea/v2"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/components"
+	"charm.land/lipgloss/v2"
 )
 
-// SpinnerModel is a bubbletea model that displays an animated spinner with a
-// message. Run it in a goroutine via tea.NewProgram; call p.Quit() to stop it.
-type SpinnerModel struct {
-	spinner spinner.Model
-	msg     string
-}
-
-func NewSpinnerModel(msg string, color bool) SpinnerModel {
-	s := components.NewSpinner(color)
-	return SpinnerModel{spinner: s, msg: msg}
-}
-
-func (m SpinnerModel) Init() tea.Cmd {
-	return m.spinner.Tick
-}
-
-func (m SpinnerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	s, cmd := m.spinner.Update(msg)
-	m.spinner = s
-	return m, cmd
-}
-
-func (m SpinnerModel) View() tea.View {
-	return tea.NewView(m.spinner.View() + " " + m.msg)
-}
+var LinkStyle = lipgloss.NewStyle().
+	Foreground(lipgloss.Color("#00ADD8")).
+	Underline(true)

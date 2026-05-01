@@ -383,7 +383,7 @@ func watchFinalResult(ctx context.Context, state pipelineGetOutput, number int64
 	switch state.Status {
 	case "success":
 		iostream.ErrPrintf(ctx, "%s Pipeline #%d succeeded (%s)\n",
-			iostream.Symbol(ctx, "✓", "OK:"), number, formatElapsed(elapsed))
+			iostream.SymbolOK(ctx), number, formatElapsed(elapsed))
 		return nil
 	case "canceled":
 		iostream.ErrPrintf(ctx, "Pipeline #%d was cancelled (%s)\n", number, formatElapsed(elapsed))
@@ -392,7 +392,7 @@ func watchFinalResult(ctx context.Context, state pipelineGetOutput, number int64
 			WithExitCode(clierrors.ExitCancelled)
 	default:
 		iostream.ErrPrintf(ctx, "%s Pipeline #%d failed (%s)\n",
-			iostream.Symbol(ctx, "✗", "FAIL:"), number, formatElapsed(elapsed))
+			iostream.SymbolFail(ctx), number, formatElapsed(elapsed))
 		return clierrors.New("pipeline.failed", "Pipeline failed",
 			fmt.Sprintf("Pipeline #%d failed.", number)).
 			WithExitCode(clierrors.ExitGeneralError)

@@ -1,1 +1,1 @@
-✓ Now following gh/myorg/newrepo
+[38;5;42m✓[m Now following gh/myorg/newrepo

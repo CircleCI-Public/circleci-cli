@@ -1,7 +1,0 @@
-Usage:
-  circleci auth token [flags]
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected

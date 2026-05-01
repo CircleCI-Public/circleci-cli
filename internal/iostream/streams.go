@@ -47,6 +47,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/jq"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
 )
 
 type jqFilterKey struct{}
@@ -107,8 +108,16 @@ func IsInteractive(ctx context.Context) bool {
 	return fromContext(ctx).IsInteractive()
 }
 
-func Symbol(ctx context.Context, unicode, ascii string) string {
-	return fromContext(ctx).Symbol(unicode, ascii)
+func SymbolOK(ctx context.Context) string {
+	return fromContext(ctx).SymbolSuccess(theme.IconOK)
+}
+
+func SymbolWarn(ctx context.Context) string {
+	return fromContext(ctx).SymbolSuccess(theme.IconWarn)
+}
+
+func SymbolFail(ctx context.Context) string {
+	return fromContext(ctx).SymbolSuccess(theme.IconFail)
 }
 
 func Print(ctx context.Context, v string) {
@@ -297,15 +306,28 @@ func (s Streams) IsInteractive() bool {
 	return true
 }
 
-// Symbol returns the Unicode symbol when color is enabled, or the ASCII
-// fallback otherwise. Use this for decorative indicators like checkmarks.
-//
-//	streams.Symbol("✓", "ok")   →  "✓"  (TTY)  or  "ok"  (non-TTY/no-color)
-func (s Streams) Symbol(unicode, ascii string) string {
-	if s.ColorEnabled() {
-		return unicode
+func (s Streams) SymbolSuccess(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
 	}
-	return ascii
+
+	return theme.SuccessStyle.Render(strs...)
+}
+
+func (s Streams) SymbolWarning(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
+	}
+
+	return theme.WarningStyle.Render(strs...)
+}
+
+func (s Streams) SymbolError(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
+	}
+
+	return theme.WarningStyle.Render(strs...)
 }
 
 // Print writes a string to Out with no newline appended.

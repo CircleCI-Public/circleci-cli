@@ -1,1 +1,1 @@
-✓ Deleted DATABASE_URL
+[38;5;42m✓[m Deleted DATABASE_URL

@@ -6,7 +6,6 @@ Available Commands:
   login       Authenticate via the CircleCI OAuth flow
   logout      Remove stored credentials
   me          Get info about the current user
-  token       Set personal access token for authenticating to CircleCI
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

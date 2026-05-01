@@ -25,9 +25,10 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-)
 
-var confirmTitleStyle = lipgloss.NewStyle().Bold(true).MarginRight(2)
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
+)
 
 // ConfirmModel is a bubbletea model for a y/N confirmation prompt.
 // Press y/Y to confirm, n/N/esc/ctrl+c to decline.
@@ -53,7 +54,7 @@ func (m ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.confirmed = true
 			m.done = true
 			return m, tea.Quit
-		case "n", "N", keyEsc, keyCtrlC, keyEnter:
+		case "n", "N", components.KeyEsc, components.KeyCtrlC, components.KeyEnter:
 			m.done = true
 			return m, tea.Quit
 		}
@@ -62,7 +63,7 @@ func (m ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m ConfirmModel) View() tea.View {
-	title := confirmTitleStyle.Render(m.prompt)
+	title := theme.TitleStyle.Render(m.prompt)
 
 	var input string
 	if m.done {

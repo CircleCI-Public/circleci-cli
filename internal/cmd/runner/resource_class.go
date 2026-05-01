@@ -289,6 +289,6 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resou
 		return apiErr(err, resourceClass)
 	}
 
-	iostream.ErrPrintf(ctx, "%s Deleted resource class %s\n", iostream.Symbol(ctx, "✓", "OK:"), resourceClass)
+	iostream.ErrPrintf(ctx, "%s Deleted resource class %s\n", iostream.SymbolOK(ctx), resourceClass)
 	return nil
 }

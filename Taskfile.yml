@@ -91,6 +91,7 @@ tasks:
           -ignore ".circleci/**" \
           -ignore ".claude/**" \
           -ignore "test-reports/**" \
+          -ignore "**/*.html" \
           {{.ARGS}}
 
   mod-tidy:

@@ -20,23 +20,18 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package components
 
 import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
-)
 
-const (
-	keyCtrlC = "ctrl+c"
-	keyEnter = "enter"
-	keyEsc   = "esc"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
 )
 
 type TokenModel struct {
 	textInput textinput.Model
-	quitting  bool
 	token     string
 }
 
@@ -52,10 +47,6 @@ func NewTokenModel() TokenModel {
 	return TokenModel{textInput: ti}
 }
 
-func (m TokenModel) Quitting() bool {
-	return m.quitting
-}
-
 func (m TokenModel) Token() string {
 	return m.token
 }
@@ -65,28 +56,16 @@ func (m TokenModel) Init() tea.Cmd {
 }
 
 func (m TokenModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmd tea.Cmd
-
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case keyCtrlC, keyEsc:
-			m.quitting = true
-			return m, tea.Quit
-		case keyEnter:
-			m.token = m.textInput.Value()
-			return m, tea.Quit
-		}
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == KeyEnter {
+		m.token = m.textInput.Value()
+		return m, nil
 	}
-
+	var cmd tea.Cmd
 	m.textInput, cmd = m.textInput.Update(msg)
 	return m, cmd
 }
 
 func (m TokenModel) View() tea.View {
-	if m.token != "" {
-		return tea.NewView("")
-	}
-
 	var c *tea.Cursor
 	if !m.textInput.VirtualCursor() {
 		c = m.textInput.Cursor()
@@ -94,14 +73,14 @@ func (m TokenModel) View() tea.View {
 	}
 
 	str := lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
-	if m.quitting {
-		str += "\n"
-	}
-
 	v := tea.NewView(str)
 	v.Cursor = c
 	return v
 }
 
-func (m TokenModel) headerView() string { return "Enter CircleCI personal access token\n" }
-func (m TokenModel) footerView() string { return "\n(esc to quit)" }
+func (m TokenModel) headerView() string {
+	return theme.TitleStyle.Render("Enter CircleCI personal access token")
+}
+func (m TokenModel) footerView() string {
+	return theme.HelperStyle.Render("(enter to confirm, esc to go back)")
+}
