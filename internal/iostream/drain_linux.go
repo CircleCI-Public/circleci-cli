@@ -24,11 +24,7 @@
 
 package iostream
 
-import (
-	"os"
-
-	"golang.org/x/sys/unix"
-)
+import "golang.org/x/sys/unix"
 
 // drainStdin discards bytes pending in stdin's line discipline buffer.
 //
@@ -43,10 +39,9 @@ import (
 // may arrive after the first flush. On local terminals the poll returns
 // immediately with no data. See: charmbracelet/bubbletea#1590.
 func drainStdin() {
-	fd := int(os.Stdin.Fd())
-	fds := []unix.PollFd{{Fd: int32(fd), Events: unix.POLLIN}}
+	fds := []unix.PollFd{{Fd: 0, Events: unix.POLLIN}} // stdin is always fd 0
 	for {
-		_ = unix.IoctlSetInt(fd, unix.TCFLSH, 0) // 0 = TCIFLUSH: discard received, unread data
+		_ = unix.IoctlSetInt(0, unix.TCFLSH, 0) // 0 = TCIFLUSH: discard received, unread data
 		n, _ := unix.Poll(fds, 200)
 		if n <= 0 {
 			return
