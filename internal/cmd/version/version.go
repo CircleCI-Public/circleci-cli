@@ -88,7 +88,7 @@ func NewVersionCmd(version string) *cobra.Command {
 
 			if jsonOut {
 				b, _ := json.MarshalIndent(info, "", "  ")
-				fmt.Fprintln(iostream.Out(ctx), string(b))
+				_, _ = fmt.Fprintln(iostream.Out(ctx), string(b))
 				return nil
 			}
 
@@ -99,7 +99,7 @@ func NewVersionCmd(version string) *cobra.Command {
 			if info.Modified {
 				commit += " (modified)"
 			}
-			fmt.Fprintf(iostream.Out(ctx), "circleci %s (%s)\n", info.Version, commit)
+			_, _ = fmt.Fprintf(iostream.Out(ctx), "circleci %s (%s)\n", info.Version, commit)
 			return nil
 		},
 	}

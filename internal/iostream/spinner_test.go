@@ -154,12 +154,12 @@ func TestSpinner_NoopPaths(t *testing.T) {
 		sp.Stop()
 	})
 
-	t.Run("Stop on nil Spin does not panic", func(t *testing.T) {
+	t.Run("Stop on nil Spin does not panic", func(_ *testing.T) {
 		var sp *Spin
 		sp.Stop()
 	})
 
-	t.Run("Stop called twice does not panic", func(t *testing.T) {
+	t.Run("Stop called twice does not panic", func(_ *testing.T) {
 		s, _ := makeStreams()
 		sp := s.Spinner(false, "x")
 		sp.Stop()

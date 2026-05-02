@@ -49,10 +49,11 @@ import (
 // to 100 ms (in case of very fast calls) and then non-blocking-read everything
 // present.
 func drainStdinBuffer() {
-	fd := int(os.Stdin.Fd())
-	if !term.IsTerminal(uintptr(fd)) {
+	rawFd := os.Stdin.Fd()
+	if !term.IsTerminal(rawFd) {
 		return
 	}
+	fd := int(rawFd) //nolint:gosec // fd value is always small; overflow impossible
 
 	// Wait up to 100 ms for data.  For Ghostty the response is already
 	// buffered so Select returns immediately; the timeout only matters for
