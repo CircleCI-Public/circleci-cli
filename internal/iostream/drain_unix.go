@@ -31,6 +31,7 @@ import (
 
 	"github.com/charmbracelet/x/term"
 	"golang.org/x/sys/unix"
+	xterm "golang.org/x/term"
 )
 
 // drainStdinBuffer discards any terminal query responses that bubbletea left
@@ -44,10 +45,11 @@ import (
 // as typed input — the "\x1b[?" prefix is swallowed by the terminal line
 // editor and the trailing "1u" appears as garbage on the prompt.
 //
-// The response is written within ~17 ms of spinner startup and has been in
-// stdin for the entire duration of the API call. We use unix.Select to wait up
-// to 100 ms (in case of very fast calls) and then non-blocking-read everything
-// present.
+// The critical subtlety: tea.WithInput(nil) leaves stdin in canonical mode
+// (ICANON). In canonical mode, select(2) on a TTY returns readable only when
+// a complete line (ending in \n) is buffered. The Kitty keyboard reply has no
+// newline, so select blocks until the 100 ms timeout — the bytes are never
+// drained. We must switch to raw mode first so select sees any buffered bytes.
 func drainStdinBuffer() {
 	rawFd := os.Stdin.Fd()
 	if !term.IsTerminal(rawFd) {
@@ -55,9 +57,17 @@ func drainStdinBuffer() {
 	}
 	fd := int(rawFd) //nolint:gosec // fd value is always small; overflow impossible
 
-	// Wait up to 100 ms for data.  For Ghostty the response is already
-	// buffered so Select returns immediately; the timeout only matters for
-	// terminals that don't respond to the Kitty keyboard query at all.
+	// Switch to raw mode so select(2) can see non-newline-terminated responses.
+	// Restore the original state on return regardless of outcome.
+	state, err := xterm.MakeRaw(fd)
+	if err != nil {
+		return
+	}
+	defer xterm.Restore(fd, state) //nolint:errcheck
+
+	// Wait up to 100 ms for data. For Ghostty the response is already buffered
+	// so Select returns immediately; the timeout handles terminals that don't
+	// respond to the Kitty keyboard query.
 	var rfds unix.FdSet
 	rfds.Set(fd)
 	tv := unix.NsecToTimeval(int64(100 * time.Millisecond))
