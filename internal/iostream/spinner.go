@@ -25,6 +25,7 @@ package iostream
 import (
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 
 	tea "charm.land/bubbletea/v2"
@@ -63,7 +64,8 @@ func (s Streams) Spinner(active bool, msg string) *Spin {
 	p := tea.NewProgram(
 		ui.NewSpinnerModel(msg, s.ColorEnabled()),
 		tea.WithOutput(s.Err),
-		tea.WithInput(nil), // keep stdin out of raw mode so Ctrl+C still generates SIGINT
+		tea.WithInput(nil),           // keep stdin out of raw mode so Ctrl+C still generates SIGINT
+		tea.WithEnvironment(noQueryEnviron()), // prevent terminal capability queries (see below)
 	)
 
 	sp := &Spin{program: p, active: true}
@@ -82,10 +84,54 @@ func (sp *Spin) Stop() {
 	sp.once.Do(func() {
 		sp.program.Quit()
 		sp.program.Wait()
+		drainStdinBuffer()
 	})
 }
 
 // spinnerDisabled reports whether animation should be suppressed even in a TTY.
 func spinnerDisabled() bool {
 	return os.Getenv("CIRCLECI_SPINNER_DISABLED") != ""
+}
+
+// noQueryEnviron returns a copy of the process environment adjusted to prevent
+// bubbletea from sending DECRQM terminal capability queries (modes 2026 and
+// 2027). When input is disabled via tea.WithInput(nil), bubbletea cannot
+// consume the terminal's responses; those bytes land in stdin and appear as
+// garbage on the shell prompt after the program exits.
+//
+// bubbletea's shouldQuerySynchronizedOutput function has several trigger
+// conditions we need to suppress:
+//
+//  1. (no TERM_PROGRAM && no SSH_TTY) — fires on plain xterm-like sessions.
+//     Defeated by injecting SSH_TTY=1.
+//
+//  2. (TERM_PROGRAM set && not "Apple" && no SSH_TTY) — fires for Ghostty,
+//     WezTerm, etc. that set TERM_PROGRAM. Defeated by SSH_TTY=1.
+//
+//  3. TERM contains "ghostty", "wezterm", "alacritty", "kitty", or "rio" —
+//     fires regardless of SSH_TTY. Defeated by replacing the matching TERM
+//     value with "xterm-256color".
+//
+// SSH_TTY=1 suppresses conditions 1 and 2 in one shot. The TERM substitution
+// handles condition 3.  Our theme uses 256-color codes, so downgrading the
+// color profile from TrueColor to 256-color has no visible effect on the
+// spinner.
+func noQueryEnviron() []string {
+	triggerTerms := []string{"ghostty", "wezterm", "alacritty", "kitty", "rio"}
+	env := make([]string, 0, len(os.Environ())+1)
+	for _, e := range os.Environ() {
+		if strings.HasPrefix(e, "TERM=") {
+			val := strings.TrimPrefix(e, "TERM=")
+			for _, name := range triggerTerms {
+				if strings.Contains(val, name) {
+					val = "xterm-256color"
+					break
+				}
+			}
+			e = "TERM=" + val
+		}
+		env = append(env, e)
+	}
+	env = append(env, "SSH_TTY=1")
+	return env
 }
