@@ -22,3 +22,4 @@ archives:
 
 release:
   prerelease: auto
+  make_latest: false
