@@ -39,6 +39,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/project"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/settings"
+	cmdversion "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/version"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
@@ -85,6 +86,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
 
+	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(cmdauth.NewAuthCmd())
 	cmd.AddCommand(cmdapi.NewAPICmd())
 	cmd.AddCommand(artifacts.NewArtifactsCmd())
