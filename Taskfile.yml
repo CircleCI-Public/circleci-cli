@@ -32,8 +32,13 @@ tasks:
     desc: Build the circleci binary
     vars:
       DEST: '{{default "dist/circleci" .DEST}}'
+      COMMIT:
+        sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
+      DIRTY:
+        sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
+      VERSION: '1.0.0-dev+{{.COMMIT}}{{.DIRTY}}'
     cmds:
-      - go build -o "{{.DEST}}" .
+      - go build -ldflags="-X main.version={{.VERSION}}" -o "{{.DEST}}" .
 
   test:
     desc: Run unit tests
