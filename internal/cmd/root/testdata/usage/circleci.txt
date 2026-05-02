@@ -15,7 +15,6 @@ Available Commands:
   project     Manage CircleCI projects
   runner      Manage self-hosted runners
   settings    Manage CLI settings
-  version     Print version information
   workflow    Manage workflows
 
 Flags:
