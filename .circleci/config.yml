@@ -16,6 +16,15 @@ commands:
       - install-task
       - run: task mod-download
 
+  install-goreleaser:
+    steps:
+      - run:
+          name: Install GoReleaser
+          command: |
+            echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
+            sudo apt -q update -y
+            sudo apt -q install -y --no-install-recommends goreleaser
+
 
   install-go:
     # TODO: Fix the Go orb install command, so it supports Windows.
@@ -159,6 +168,22 @@ jobs:
           command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
           when: on_fail
 
+  deploy:
+    executor: linux
+    steps:
+      - checkout
+      - install-go
+      - install-goreleaser
+      - run: task mod-download
+      - run:
+          name: Tag and release
+          command: |
+            git config --global user.email $GH_EMAIL
+            git config --global user.name $GH_NAME
+            git tag -a "v2.0.0-beta.${CIRCLE_BUILD_NUM}" -m "Release v2.0.0-beta.${CIRCLE_BUILD_NUM}"
+            git push origin "v2.0.0-beta.${CIRCLE_BUILD_NUM}"
+            goreleaser release --clean
+
 workflows:
   ci:
     jobs:
@@ -177,3 +202,12 @@ workflows:
           filters:
             branches:
               only: next
+      - deploy:
+          requires:
+            - check
+            - test
+          filters:
+            branches:
+              only: next
+          context:
+            - devex-release
