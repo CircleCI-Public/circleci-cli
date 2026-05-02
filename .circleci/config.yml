@@ -180,8 +180,8 @@ jobs:
           command: |
             git config --global user.email $GH_EMAIL
             git config --global user.name $GH_NAME
-            git tag -a "v1.0.0-beta.${CIRCLE_BUILD_NUM}" -m "Release v1.0.0-beta.${CIRCLE_BUILD_NUM}"
-            git push origin "v1.0.0-beta.${CIRCLE_BUILD_NUM}"
+            git tag -a "v1.0.0-preview.${CIRCLE_BUILD_NUM}" -m "Release v1.0.0-preview.${CIRCLE_BUILD_NUM}"
+            git push origin "v1.0.0-preview.${CIRCLE_BUILD_NUM}"
             goreleaser release --clean
 
 workflows:

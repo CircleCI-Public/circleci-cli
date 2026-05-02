@@ -20,6 +20,8 @@
 #
 # SPDX-License-Identifier: MIT
 
+version: 2
+
 project_name: circleci-cli
 
 builds:
@@ -40,8 +42,17 @@ archives:
   - wrap_in_directory: true
     format_overrides:
       - goos: windows
-        format: zip
+        formats:
+          - zip
 
 release:
   prerelease: auto
   make_latest: false
+  header: |
+    > **⚠️ Preview release — not recommended for production use.**
+    >
+    > This is a preview of the next-generation CircleCI CLI (v2 rewrite).
+    > It is published from the `next` branch for early testing and feedback.
+    > For the production-ready CLI, install the latest stable release from
+    > [Homebrew](https://formulae.brew.sh/formula/circleci), Snap, Chocolatey,
+    > or the [install script](https://github.com/CircleCI-Public/circleci-cli#install-script).
