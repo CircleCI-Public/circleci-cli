@@ -1,0 +1,319 @@
+{
+  "metadata": {
+    "organization": "CircleCI-Public",
+    "since": "2026-02-01",
+    "analyzedAt": "2026-05-01",
+    "totalReposAnalyzed": 1,
+    "totalComments": 22
+  },
+  "comments": [
+    {
+      "reviewer": "calvis",
+      "body": "just curious why this is an intellij warning",
+      "diffHunk": "@@ -30,17 +30,17 @@ import (\n \t\"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary\"\n )\n \n-const testToken = \"testtoken\"\n+const testToken = \"test-token\"",
+      "createdAt": "2026-04-30T15:45:30Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1261,
+        "title": "Fix IntelliJ warnings",
+        "author": "pete-woods",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1261",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "avalcepina",
+      "body": "why this downgrade?",
+      "diffHunk": "@@ -99,8 +103,8 @@ jobs:\n     steps:\n       - checkout\n       - run: |\n-          curl -OL https://go.dev/dl/go1.25.9.darwin-arm64.pkg",
+      "createdAt": "2026-04-29T10:43:56Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1246,
+        "title": "Add deploy markers configuration",
+        "author": "gcirclest",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1246",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "avalcepina",
+      "body": "I'd probably move this before `deploy-save-workspace-and-artifacts`",
+      "diffHunk": "@@ -207,12 +233,30 @@ jobs:\n       - build-docker-image\n       - build-alpine-image\n       - deploy-save-workspace-and-artifacts\n+      - run:",
+      "createdAt": "2026-04-29T10:47:18Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1246,
+        "title": "Add deploy markers configuration",
+        "author": "gcirclest",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1246",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "avalcepina",
+      "body": "I'd probably move ths before `./.circleci/deploy-gh-pages.sh`",
+      "diffHunk": "@@ -174,17 +181,36 @@ jobs:\n           destination: docs\n       - run: ./.circleci/generate-docs.sh\n       - run: ./.circleci/deploy-gh-pages.sh\n+      - run:",
+      "createdAt": "2026-04-29T10:47:37Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1246,
+        "title": "Add deploy markers configuration",
+        "author": "gcirclest",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1246",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "avalcepina",
+      "body": "I'd probably move this before the push.",
+      "diffHunk": "@@ -285,6 +344,17 @@ jobs:\n           name: Push to Chocolatey package repository\n           command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY\n           working_directory: chocolatey\n+      - run:",
+      "createdAt": "2026-04-29T10:48:08Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1246,
+        "title": "Add deploy markers configuration",
+        "author": "gcirclest",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1246",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "avalcepina",
+      "body": "why?",
+      "diffHunk": "@@ -8,14 +8,14 @@ orbs:\n executors:\n   go:\n     docker:\n-      - image: cimg/go:1.25\n+      - image: cimg/go:1.23.4\n     resource_class: large\n     environment:\n       CGO_ENABLED: 0\n   mac:\n     macos:\n-      xcode: 26.3.0\n-    resource_class: m4pro.medium\n+      xcode: 15.1.0",
+      "createdAt": "2026-04-29T10:48:38Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1246,
+        "title": "Add deploy markers configuration",
+        "author": "gcirclest",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1246",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "avalcepina",
+      "body": "I don't think we should do this",
+      "diffHunk": "@@ -8,14 +8,14 @@ orbs:\n executors:\n   go:\n     docker:\n-      - image: cimg/go:1.25\n+      - image: cimg/go:1.23.4",
+      "createdAt": "2026-04-29T10:48:56Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1246,
+        "title": "Add deploy markers configuration",
+        "author": "gcirclest",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1246",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "calvis",
+      "body": "filenames are a lil gross here",
+      "diffHunk": "@@ -0,0 +1 @@\n+\u001b[1;37m[\u001b[m\u001b[1;37m]\u001b[m",
+      "createdAt": "2026-04-28T16:53:13Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1245,
+        "title": "Add `--jq` switch to support processing JSON output",
+        "author": "pete-woods",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1245",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "calvis",
+      "body": "~ i dont know best practices here, should this be the full `circleci:` binary name or something `com.circleci`?",
+      "diffHunk": "@@ -0,0 +1,99 @@\n+// Copyright (c) 2026 Circle Internet Services, Inc.\n+//\n+// Permission is hereby granted, free of charge, to any person obtaining a copy\n+// of this software and associated documentation files (the \"Software\"), to deal\n+// in the Software without restriction, including without limitation the rights\n+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell\n+// copies of the Software, and to permit persons to whom the Software is\n+// furnished to do so, subject to the following conditions:\n+//\n+// The above copyright notice and this permission notice shall be included in\n+// all copies or substantial portions of the Software.\n+//\n+// THE SOFTWARE IS PROVIDED \"AS IS\", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR\n+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,\n+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE\n+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER\n+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,\n+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE\n+// SOFTWARE.\n+//\n+// SPDX-License-Identifier: MIT\n+\n+package keyring\n+\n+import (\n+\t\"context\"\n+\t\"errors\"\n+\t\"time\"\n+\n+\t\"github.com/zalando/go-keyring\"\n+)\n+\n+const timeout = 3 * time.Second\n+\n+var ErrNotFound = errors.New(\"password not found in keyring\")\n+\n+func Set(ctx context.Context, service, user, password string) error {\n+\tctx, cancel := context.WithTimeout(ctx, timeout)\n+\tdefer cancel()\n+\n+\tch := make(chan error, 1)\n+\tgo func() {\n+\t\tdefer close(ch)\n+\t\tch \u003c- keyring.Set(hostname(service), user, password)\n+\t}()\n+\tselect {\n+\tcase err := \u003c-ch:\n+\t\treturn err\n+\tcase \u003c-ctx.Done():\n+\t\treturn ctx.Err()\n+\t}\n+}\n+\n+func Get(ctx context.Context, service, user string) (password string, err error) {\n+\tctx, cancel := context.WithTimeout(ctx, timeout)\n+\tdefer cancel()\n+\n+\ttype msg struct {\n+\t\tpassword string\n+\t\terr      error\n+\t}\n+\n+\tch := make(chan msg, 1)\n+\tgo func() {\n+\t\tdefer close(ch)\n+\t\tpassword, err := keyring.Get(hostname(service), user)\n+\t\tch \u003c- msg{password: password, err: err}\n+\t}()\n+\tselect {\n+\tcase res := \u003c-ch:\n+\t\tif errors.Is(res.err, keyring.ErrNotFound) {\n+\t\t\treturn \"\", ErrNotFound\n+\t\t}\n+\t\treturn res.password, res.err\n+\tcase \u003c-ctx.Done():\n+\t\treturn \"\", ctx.Err()\n+\t}\n+}\n+\n+func hostname(service string) string {\n+\treturn \"cci:\" + service",
+      "createdAt": "2026-04-23T13:21:46Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1219,
+        "title": "Use system keyring to store token",
+        "author": "pete-woods",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1219",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "should the makefile jsut be aliases to the go tasks? seems silly to have to update both? can you see any reason for it?",
+      "diffHunk": "",
+      "createdAt": "2026-04-02T12:51:24Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1200,
+        "title": "Use go.mod tool directive, upgrade golangci-lint v2",
+        "author": "danmux",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1200",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "Klaney",
+      "body": "I noticed the second argument is no longer used. If that's intentional (just in case you underscored it and meant to come back to it later but didn't) then you can just remove it",
+      "diffHunk": "@@ -1,31 +1,93 @@\n package telemetry\n \n import (\n+\t\"fmt\"\n+\n \t\"github.com/spf13/cobra\"\n \t\"github.com/spf13/pflag\"\n )\n \n-// Utility function used when creating telemetry events.\n-// It takes a cobra Command and creates a telemetry.CommandInfo of it\n-// If getParent is true, puts both the command's args in `LocalArgs` and the parent's args\n-// Else only put the command's args\n-// Note: child flags overwrite parent flags with same name\n-func GetCommandInformation(cmd *cobra.Command, getParent bool) CommandInfo {\n+// GetCommandInformation takes a cobra Command and creates a telemetry.CommandInfo.\n+// Only flags explicitly set by the user are included (via pflag.Visit, not VisitAll).\n+// Values are sent for all flags except those in sensitiveFlags, which are redacted.\n+// The getParent parameter is retained for API compatibility but has no effect.\n+func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {",
+      "createdAt": "2026-02-24T18:23:46Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "Klaney",
+      "body": "I also think this would cause us to lose some data on the commands where we were supposed to getParent. Unless there is a replacement that I don't see, which is very possible.",
+      "diffHunk": "@@ -1,31 +1,93 @@\n package telemetry\n \n import (\n+\t\"fmt\"\n+\n \t\"github.com/spf13/cobra\"\n \t\"github.com/spf13/pflag\"\n )\n \n-// Utility function used when creating telemetry events.\n-// It takes a cobra Command and creates a telemetry.CommandInfo of it\n-// If getParent is true, puts both the command's args in `LocalArgs` and the parent's args\n-// Else only put the command's args\n-// Note: child flags overwrite parent flags with same name\n-func GetCommandInformation(cmd *cobra.Command, getParent bool) CommandInfo {\n+// GetCommandInformation takes a cobra Command and creates a telemetry.CommandInfo.\n+// Only flags explicitly set by the user are included (via pflag.Visit, not VisitAll).\n+// Values are sent for all flags except those in sensitiveFlags, which are redacted.\n+// The getParent parameter is retained for API compatibility but has no effect.\n+func GetCommandInformation(cmd *cobra.Command, _ bool) CommandInfo {",
+      "createdAt": "2026-02-24T18:24:58Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "shouldnt this use the same GQL Wrapped error helper?\r\n",
+      "diffHunk": "@@ -275,6 +276,9 @@ func (cl *Client) Run(request *Request, resp interface{}) error {\n \t}\n \n \tif len(wrappedResponse.Errors) \u003e 0 {\n+\t\tif strings.Contains(strings.ToLower(wrappedResponse.Errors.Error()), \"must log in\") {",
+      "createdAt": "2026-02-26T15:46:26Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "why did tests need modification? has behaviours changed?",
+      "diffHunk": "@@ -151,11 +151,13 @@ func TestTelemetry(t *testing.T) {\n \n \tassert.NilError(t, err)\n \n-\t// Read the telemetry events and compare them\n+\t// Read the telemetry events and compare them.\n+\t// No flags were explicitly set, so LocalArgs is empty — the old VisitAll\n+\t// behavior that sent default/unset flag values has been replaced with Visit.\n \tassert.DeepEqual(t, telemetryClient.events, []telemetry.Event{\n \t\ttelemetry.CreateInfoEvent(telemetry.CommandInfo{\n \t\t\tName:      \"org\",\n-\t\t\tLocalArgs: map[string]string{\"help\": \"false\", \"json\": \"false\"},\n+\t\t\tLocalArgs: map[string]string{},",
+      "createdAt": "2026-02-26T15:50:00Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "i'm just sus about test changes",
+      "diffHunk": "@@ -60,14 +60,10 @@ var _ = Describe(\"Orb telemetry\", func() {\n \t\tExpect(err).ShouldNot(HaveOccurred())\n \t\tEventually(session).Should(gexec.Exit(0))\n \n-\t\tclitest.CompareTelemetryEvent(tempSettings, []telemetry.Event{\n+\t\tclitest.CompareTelemetryEventSubset(tempSettings, []telemetry.Event{\n \t\t\ttelemetry.CreateOrbEvent(telemetry.CommandInfo{\n-\t\t\t\tName: \"validate\",\n-\t\t\t\tLocalArgs: map[string]string{\n-\t\t\t\t\t\"org-slug\": \"\",\n-\t\t\t\t\t\"help\":     \"false\",\n-\t\t\t\t\t\"org-id\":   \"\",\n-\t\t\t\t},\n+\t\t\t\tName:      \"validate\",\n+\t\t\t\tLocalArgs: map[string]string{},",
+      "createdAt": "2026-02-26T15:50:44Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "(note to self - where did this code go?)",
+      "diffHunk": "@@ -180,27 +179,10 @@ func loadTelemetrySettings(settings *settings.TelemetrySettings, user *telemetry\n \t}\n }\n \n-// Utility function used when creating telemetry events.\n-// It takes a cobra Command and creates a telemetry.CommandInfo of it\n-// If getParent is true, puts both the command's args in `LocalArgs` and the parent's args\n-// Else only put the command's args\n-// Note: child flags overwrite parent flags with same name\n+// GetCommandInformation takes a cobra Command and creates a telemetry.CommandInfo.\n+// If getParent is true, it also includes flags from the parent command.\n+// Only flags explicitly set by the user are included, and only safe enum/boolean\n+// values are sent — free-form strings (org slugs, tokens, branch names) are omitted.\n func GetCommandInformation(cmd *cobra.Command, getParent bool) telemetry.CommandInfo {\n-\tlocalArgs := map[string]string{}\n-\n-\tparent := cmd.Parent()\n-\tif getParent \u0026\u0026 parent != nil {\n-\t\tparent.LocalFlags().VisitAll(func(flag *pflag.Flag) {\n-\t\t\tlocalArgs[flag.Name] = flag.Value.String()\n-\t\t})\n-\t}\n-\n-\tcmd.LocalFlags().VisitAll(func(flag *pflag.Flag) {\n-\t\tlocalArgs[flag.Name] = flag.Value.String()\n-\t})\n-\n-\treturn telemetry.CommandInfo{\n-\t\tName:      cmd.Name(),\n-\t\tLocalArgs: localArgs,\n-\t}\n+\treturn telemetry.GetCommandInformation(cmd, getParent)",
+      "createdAt": "2026-02-26T15:53:34Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "maybe i'm missing something? but i dont see anything validating that redaction works here. \r\n\r\n[side discussion] I think as we accept we wont be as intimate with the code we generate, we have to be more strict about the tests to make sure they validate the outcomes we want",
+      "diffHunk": "@@ -0,0 +1,100 @@\n+package cmd_test",
+      "createdAt": "2026-02-26T17:14:00Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "meeech",
+      "body": "like im not clear what the sensitive flag is in this test that is being redacted?",
+      "diffHunk": "@@ -0,0 +1,100 @@\n+package cmd_test\n+\n+import (\n+\t\"fmt\"\n+\n+\t\"github.com/CircleCI-Public/circleci-cli/clitest\"\n+\t. \"github.com/onsi/ginkgo\"\n+\t. \"github.com/onsi/gomega\"\n+\t\"github.com/onsi/gomega/gexec\"\n+)\n+\n+var _ = Describe(\"Command instrumentation middleware\", func() {\n+\tvar (\n+\t\ttempSettings *clitest.TempSettings\n+\t)\n+\n+\tBeforeEach(func() {\n+\t\ttempSettings = clitest.WithTempSettings()\n+\t})\n+\n+\tAfterEach(func() {\n+\t\ttempSettings.Close()\n+\t})\n+\n+\tIt(\"emits cli_command_started and cli_command_finished with matching invocation_id\", func() {\n+\t\tcommand := commandWithHome(pathCLI, tempSettings.Home, \"version\")\n+\t\tcommand.Env = append(command.Env, fmt.Sprintf(\"MOCK_TELEMETRY=%s\", tempSettings.TelemetryDestPath))\n+\n+\t\tsession, err := gexec.Start(command, GinkgoWriter, GinkgoWriter)\n+\t\tExpect(err).ShouldNot(HaveOccurred())\n+\t\tEventually(session).Should(gexec.Exit(0))\n+\n+\t\tevents := clitest.ReadTelemetryEvents(tempSettings)\n+\n+\t\tvar started, finished map[string]interface{}\n+\t\tfor _, e := range events {\n+\t\t\tif e.Object == \"cli_command_started\" {\n+\t\t\t\tstarted = e.Properties\n+\t\t\t}\n+\t\t\tif e.Object == \"cli_command_finished\" {\n+\t\t\t\tfinished = e.Properties\n+\t\t\t}\n+\t\t}\n+\n+\t\tExpect(started).NotTo(BeNil(), \"expected cli_command_started event\")\n+\t\tExpect(finished).NotTo(BeNil(), \"expected cli_command_finished event\")\n+\n+\t\tExpect(started[\"command_path\"]).To(Equal(\"circleci version\"))\n+\t\tExpect(finished[\"command_path\"]).To(Equal(\"circleci version\"))\n+\n+\t\tExpect(started[\"invocation_id\"]).NotTo(BeEmpty())\n+\t\tExpect(started[\"invocation_id\"]).To(Equal(finished[\"invocation_id\"]))\n+\n+\t\tExpect(finished[\"outcome\"]).To(Equal(\"success\"))\n+\t\tExpect(finished[\"duration_ms\"]).NotTo(BeNil())\n+\t})\n+\n+\tIt(\"emits flags_used as a map with flag values, redacting sensitive flags\", func() {",
+      "createdAt": "2026-02-26T17:15:31Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1183,
+        "title": "[WEBXP-315] POC: Investigate how to get tracking within the CLI",
+        "author": "jackieg017",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1183",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "cursor",
+      "body": "### URL validation missing in non-interactive setup path\n\n**Medium Severity**\n\n\u003c!-- DESCRIPTION START --\u003e\nThe `ValidateHost` function is called in the interactive `setup` function (line 184) but not in `setupNoPrompt`. Users running `circleci setup --no-prompt --host INVALID_URL --token TOKEN` bypass URL validation entirely, allowing invalid URLs to be saved to config. This defeats the PR's purpose of providing clear error messages for invalid URLs during setup.\n\u003c!-- DESCRIPTION END --\u003e\n\n\u003c!-- BUGBOT_BUG_ID: b16d08c6-5591-424f-ad1a-4928d5503320 --\u003e\n\n\u003c!-- LOCATIONS START\ncmd/setup.go#L237-L281\ncmd/setup.go#L182-L187\nLOCATIONS END --\u003e\n\u003cdetails\u003e\n\u003csummary\u003eAdditional Locations (1)\u003c/summary\u003e\n\n- [`cmd/setup.go#L182-L187`](https://github.com/CircleCI-Public/circleci-cli/blob/e9981a6257f8001853dede62753a190675a51bf7/cmd/setup.go#L182-L187)\n\n\u003c/details\u003e\n\n\u003ca href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjVjYzMzYWU5LTQ2YTctNDA1My1iNWRlLWQ4YjZjMzNiNTY3YiIsImVuY3J5cHRpb25LZXkiOiJaQlJySUJWbjdqamV1bVJCOHdqSnBwY2Q4RUdnNGZoQ1Z4OGdEcGNZMFZrIiwiYnJhbmNoIjoiV0VCWFAtMjgvYWRkLWVycm9yLW1zZy10by1jaXJjbGVjaS1zZXR1cCIsInJlcG9Pd25lciI6IkNpcmNsZUNJLVB1YmxpYyIsInJlcG9OYW1lIjoiY2lyY2xlY2ktY2xpIn0sImlhdCI6MTc3MDIyOTY4MiwiZXhwIjoxNzcyODIxNjgyfQ.tttCAJw84ScYGifA9i84xDH6OvW4uPUl0VErvuMERU990Pf-7wfGOk_0fREDW-48vLnI4Ghju3n6rGtBIaHIcx4PXntD-L_60A71fxjHUtyRYroKnKZ6vq37_rbsKzdKAtabOUg05kXNJJ_kYPVcT7q4QePABZ5u7XzOTnfZYnQ6p7xCpkRQtvg4y6-JsL9I2GfSjRlqBStl_Yy5QC9N3-2c_x3qFegoS0jAgPG6cKLmjpf1jXJc3OyhJXur0eKFqvEWUOp2NV3-jlNCuZgoPfLzJdQ1wNtX6uUvTvwy6hDUhIjdDWgN69HJJPSnhet9zWZ_KVbIa8AOirlKzjcXCQ\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"\u003e\u003cimg alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u0026nbsp;\u003ca href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjVjYzMzYWU5LTQ2YTctNDA1My1iNWRlLWQ4YjZjMzNiNTY3YiIsImVuY3J5cHRpb25LZXkiOiJaQlJySUJWbjdqamV1bVJCOHdqSnBwY2Q4RUdnNGZoQ1Z4OGdEcGNZMFZrIiwiYnJhbmNoIjoiV0VCWFAtMjgvYWRkLWVycm9yLW1zZy10by1jaXJjbGVjaS1zZXR1cCIsInJlcG9Pd25lciI6IkNpcmNsZUNJLVB1YmxpYyIsInJlcG9OYW1lIjoiY2lyY2xlY2ktY2xpIiwicHJOdW1iZXIiOjExNzgsImNvbW1pdFNoYSI6ImU5OTgxYTYyNTdmODAwMTg1M2RlZGU2Mjc1M2ExOTA2NzVhNTFiZjciLCJwcm92aWRlciI6ImdpdGh1YiJ9LCJpYXQiOjE3NzAyMjk2ODIsImV4cCI6MTc3MjgyMTY4Mn0.EsR7fBJdWGt6w23LpTgGwFddICha50pigDkkBuhl1U3lkBZVedZ-89ixuSSPy-zth4WcotK5ucZxPsnG9OkBrpbPAjMS605XtsToUZlY8xiGS5_7VUP-j_u39trdCDnQ8wFA-3FWAJVRHKg8AEJS7nnN8cdLxZSR3E1-tkbySb923X3E1BGQYugr-jV8Y2obBceS0jAe2OqZFI5x3odmlCogyX-jrQ7f-6C-SQcceGmgJQYxvx3_1TtM9JpiCyw7a5TCV_gxw-6mqxG2OowegkRgB0Te01_iEBXRwiLjZa1E6n8Dd35zRgSGZRICp9_HvGr5hwrx_GCu0wGnGsc2_A\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"\u003e\u003cimg alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\n\n",
+      "diffHunk": "@@ -179,6 +179,12 @@ func setup(opts setupOptions) error {\n \t\tfmt.Println(\"API token has been set.\")\n \t}\n \topts.cfg.Host = opts.tty.readHostFromUser(\"CircleCI Host\", defaultHost)\n+\n+\tif !opts.integrationTesting {\n+\t\tif err := settings.ValidateHost(opts.cfg.Host); err != nil {\n+\t\t\treturn errors.New(\"invalid CircleCI URL\")\n+\t\t}\n+\t}",
+      "createdAt": "2026-02-04T18:28:02Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1178,
+        "title": "[WEBXP-28] Clear error message on invalid url",
+        "author": "hanabel1",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1178",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "cursor",
+      "body": "### Missing `integrationTesting` check in `setupNoPrompt` validation\n\n**Medium Severity**\n\n\u003c!-- DESCRIPTION START --\u003e\nThe URL validation in `setupNoPrompt()` does not check `opts.integrationTesting` before calling `ValidateHost`, while the `setup()` function correctly wraps its validation with `if !opts.integrationTesting`. The PR description states validation is skipped during integration testing to avoid breaking tests with mock/invalid URLs, but this is only implemented in one of the two code paths. If integration tests use the `--no-prompt` flow with mock hosts from existing config, validation will fail unexpectedly.\n\u003c!-- DESCRIPTION END --\u003e\n\n\u003c!-- BUGBOT_BUG_ID: 6b476190-700a-409e-ad0f-fefcd23e1538 --\u003e\n\n\u003c!-- LOCATIONS START\ncmd/setup.go#L273-L277\ncmd/setup.go#L182-L187\nLOCATIONS END --\u003e\n\u003cdetails\u003e\n\u003csummary\u003eAdditional Locations (1)\u003c/summary\u003e\n\n- [`cmd/setup.go#L182-L187`](https://github.com/CircleCI-Public/circleci-cli/blob/c6af1fa0a8f57e6f63c37901b2e5b0be6338b88b/cmd/setup.go#L182-L187)\n\n\u003c/details\u003e\n\n\u003cp\u003e\u003ca href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjU2MGM1NTNmLTU3NzYtNGVjNC1iN2EzLTg5YmZiOTYxMjc3NCIsImVuY3J5cHRpb25LZXkiOiJXb3VJUmc4dFdaclpYRnlqbjdxaTdTcGhEaDByaXRKNzRnUnlUMWFZN2tBIiwiYnJhbmNoIjoiV0VCWFAtMjgvYWRkLWVycm9yLW1zZy10by1jaXJjbGVjaS1zZXR1cCIsInJlcG9Pd25lciI6IkNpcmNsZUNJLVB1YmxpYyIsInJlcG9OYW1lIjoiY2lyY2xlY2ktY2xpIn0sImlhdCI6MTc3MDIzMzU4NCwiZXhwIjoxNzcyODI1NTg0fQ.KEEQrTq9PoY7P8yzRL_7qkDviICzvBco-H-gMe-CPzgdj964CgAPqs2_fIU4xtHrlF7ZtyiCJDuBoBtfvbdrlJ8VCdMDcVosFgfNu0WrCbs9QYsgdjhImqJcVYo3lh_r7mKB6NjDeAiAtu8i8ndtlZk97IDpUb1a0lvJxdPjPKcuzp6r1LgfYAQ9Ym_TiHAVU-i06yRyIPBVWve5LEG8uYBQbTgAyxwdFj0iP9TGvnszYVw1nwkm2O-qHYqJc5hK_zeNXLklZzHJgC4HL0K78RFmLhOzQNYt_ZIhfmA9vsyBT50bmAIHtMUWma1PDvIkyp-5lk2BsrC1CXwtfBCxgA\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"\u003e\u003cimg alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u0026nbsp;\u003ca href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjU2MGM1NTNmLTU3NzYtNGVjNC1iN2EzLTg5YmZiOTYxMjc3NCIsImVuY3J5cHRpb25LZXkiOiJXb3VJUmc4dFdaclpYRnlqbjdxaTdTcGhEaDByaXRKNzRnUnlUMWFZN2tBIiwiYnJhbmNoIjoiV0VCWFAtMjgvYWRkLWVycm9yLW1zZy10by1jaXJjbGVjaS1zZXR1cCIsInJlcG9Pd25lciI6IkNpcmNsZUNJLVB1YmxpYyIsInJlcG9OYW1lIjoiY2lyY2xlY2ktY2xpIiwicHJOdW1iZXIiOjExNzgsImNvbW1pdFNoYSI6ImM2YWYxZmEwYThmNTdlNmY2M2MzNzkwMWIyZTViMGJlNjMzOGI4OGIiLCJwcm92aWRlciI6ImdpdGh1YiJ9LCJpYXQiOjE3NzAyMzM1ODQsImV4cCI6MTc3MjgyNTU4NH0.Db4XEMaoz9HOwT8LeHCDuQzs-NUv2pbg-ouu4KRc5o4qzSSOfcJJl9iiL2tDQ8sgdqiDTjt_gdSBbHOTKlLCnSrseCwv_dXrZo38MdCm5IjkAhFxDHKFMxil0bQHi2E7uA2We6I1B5p4x0v50T4a7a_SdkdKvPL-y9LY2OzOe6fqPp5BNtLoR1V2UrdeYK5zWCQBlbAl9wKzbLqUUSYcJPTbLrqhTP-X_Whtljam_lWgEnnSQGa6EIdDuP3AiWcD18PyFpnNGfegN0NiPWDMpV1bjNCvJl7-imPqT4GJBzDbLlC7TDOyIInm2OAykNEJ_rHkF3YAFC5uYI-Dzx3mhA\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"\u003e\u003cimg alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u003c/p\u003e\n\n",
+      "diffHunk": "@@ -265,6 +271,11 @@ func setupNoPrompt(opts setupOptions) error {\n \t\tconfig.Token = opts.cfg.Token\n \t}\n \n+\t// Validate the host URL before saving\n+\tif err := settings.ValidateHost(config.Host); err != nil {\n+\t\treturn errors.New(\"invalid CircleCI URL\")\n+\t}",
+      "createdAt": "2026-02-04T19:33:05Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1178,
+        "title": "[WEBXP-28] Clear error message on invalid url",
+        "author": "hanabel1",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1178",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "cursor",
+      "body": "### URL validation in rest client is ineffective\n\n**Medium Severity**\n\n\u003c!-- DESCRIPTION START --\u003e\nThe URL validation check `baseURL == nil` in `NewFromConfig` is ineffective because `url.Parse` almost never returns a nil URL pointer. For example, `url.Parse(\"not-valid\")` succeeds with `Host: \"\"`. The `ValidateHost` function correctly checks `parsedURL.Host == \"\"`, but this check is missing here. Users with invalid hosts from environment variables, command-line flags, or legacy config files will bypass the panic and later encounter confusing errors when API calls fail.\n\u003c!-- DESCRIPTION END --\u003e\n\n\u003c!-- BUGBOT_BUG_ID: a58060c6-500d-4b18-9e89-2270bb9842fd --\u003e\n\n\u003c!-- LOCATIONS START\napi/rest/client.go#L39-L43\nLOCATIONS END --\u003e\n\u003cp\u003e\u003ca href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjY1M2I4MmUyLWQ3YWQtNDZmZC1iNjEzLWM0NTJjYTE3MTY0MSIsImVuY3J5cHRpb25LZXkiOiI2NVhrQXVTRzBqYW8xaDNUQ3FCTnlFdzYwT2E2UG80WmgxRG5hUEFWRkUwIiwiYnJhbmNoIjoiV0VCWFAtMjgvYWRkLWVycm9yLW1zZy10by1jaXJjbGVjaS1zZXR1cCIsInJlcG9Pd25lciI6IkNpcmNsZUNJLVB1YmxpYyIsInJlcG9OYW1lIjoiY2lyY2xlY2ktY2xpIn0sImlhdCI6MTc3MDIzNTc0NSwiZXhwIjoxNzcyODI3NzQ1fQ.ZYJPb0IAbKezJbUHBTdGuUJM0TEcsEC9wUhmkvo-iaMM_tMe7zT2JPxbnoOpwTwS85sNI3EF5oM8nr2uz1CClLpB5XTfTrSiLVFPsLAj8nyypx5sXeXdTb3ZqCoodA9-8bMvmphisiz535B0iXqGSs69Bgl_htAUsuGjwSW7m9BF5nlSpYTi1PmSVJfxEmSlDJ6n6QGp-6YsxREJmjw1NHqdGnhHqCVDB5kenEjTKuf7N4dy4kk3xJXXi3H0dvMt_3CRGHjcDV4561Wsr-GrwNMhXnRSsoY0MnMumaqIFeFfvtaNFfoVdRMVDqDYh3oJUwKR46vcByk5rijSJQo5UQ\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"\u003e\u003cimg alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u0026nbsp;\u003ca href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjY1M2I4MmUyLWQ3YWQtNDZmZC1iNjEzLWM0NTJjYTE3MTY0MSIsImVuY3J5cHRpb25LZXkiOiI2NVhrQXVTRzBqYW8xaDNUQ3FCTnlFdzYwT2E2UG80WmgxRG5hUEFWRkUwIiwiYnJhbmNoIjoiV0VCWFAtMjgvYWRkLWVycm9yLW1zZy10by1jaXJjbGVjaS1zZXR1cCIsInJlcG9Pd25lciI6IkNpcmNsZUNJLVB1YmxpYyIsInJlcG9OYW1lIjoiY2lyY2xlY2ktY2xpIiwicHJOdW1iZXIiOjExNzgsImNvbW1pdFNoYSI6IjJjMzViNzExYzk0MmRhMDQzZWQ0MWFkZTE5ZWM4ZDQ4MDNiMDgwNDIiLCJwcm92aWRlciI6ImdpdGh1YiJ9LCJpYXQiOjE3NzAyMzU3NDUsImV4cCI6MTc3MjgyNzc0NX0.aBDLHhSdQuMpysl-doJ7zbF7_iStvNO8uW8s9H06UK6BL2z2SKXR0604hSAMrCxGaSWyK3HmcjhssTiDLVBQvUzEzc_V_WfGbsBDNcqu_eECs3eM0pP2vYfV_ehIKT3w9lyyUt9rr89sUGS98HWRokuL1fkD9eh_yC2mzsl8BOLwjxSyNxctezyTy2ht5EpEgQ3f3FotbqDWIjdTdhbaD0nhaX351CPq4BTWAGtqUmNl9TiOiaGmgIPrvNrL30fsGP3WVLxuURiP0zkVJj1cg4L0GqczAuQ1bERZCWwXLD5_VF002L8Buo9NZ47tXiO9jW8b2UbDuyc8iAvWViVQww\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"\u003e\u003cimg alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u003c/p\u003e\n\n",
+      "diffHunk": "@@ -37,7 +37,11 @@ func NewFromConfig(host string, config *settings.Config) *Client {\n \t\tendpoint += \"/\"\n \t}\n \n-\tbaseURL, _ := url.Parse(host)\n+\tbaseURL, err := url.Parse(host)\n+\tif err != nil || baseURL == nil {\n+\t\tpanic(\"Error: invalid CircleCI URL\")\n+\t}",
+      "createdAt": "2026-02-04T20:09:05Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1178,
+        "title": "[WEBXP-28] Clear error message on invalid url",
+        "author": "hanabel1",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1178",
+        "state": "MERGED"
+      }
+    },
+    {
+      "reviewer": "cursor",
+      "body": "### TelemetrySettings may load and write to different paths\n\n**Low Severity**\n\n\u003c!-- DESCRIPTION START --\u003e\nUnlike `Config` and `UpdateCheck` which store the file path in a `FileUsed` field during `Load()` and reuse it in `WriteToDisk()`, `TelemetrySettings` recomputes the path by calling `StatePath()` independently in both `Load()` and `Write()`. Since `StatePath()` dynamically checks whether the legacy file `~/.circleci/telemetry.yml` exists, if that file is created or deleted between `Load()` and `Write()` calls, settings could be loaded from one location (e.g., XDG path) but written to another (e.g., legacy path), causing data inconsistency.\n\u003c!-- DESCRIPTION END --\u003e\n\n\u003c!-- BUGBOT_BUG_ID: c834f947-296a-49f1-87c9-bbeb6e87cf6d --\u003e\n\n\u003c!-- LOCATIONS START\nsettings/settings.go#L114-L141\nLOCATIONS END --\u003e\n\u003cp\u003e\u003ca href=\"https://cursor.com/open?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9DVVJTT1IiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjJiN2Y0ZTVmLWQ3ZTktNDllYS04YjZhLWVmOTc1ZDdhNzFkOSIsImVuY3J5cHRpb25LZXkiOiJiMkhzNUJ5ZHdRa1NBU0ZUcGRxSm1lLWtGSDgwcGpWMWlmbnJpeE5pNE5JIiwiYnJhbmNoIjoiZ2JlXzExNzdfeGRnX3N1cHBvcnQiLCJyZXBvT3duZXIiOiJDaXJjbGVDSS1QdWJsaWMiLCJyZXBvTmFtZSI6ImNpcmNsZWNpLWNsaSJ9LCJpYXQiOjE3NzA2MTExMjcsImV4cCI6MTc3MzIwMzEyN30.cAUqKuw-3bdE9ovM_8qMK59o2FAnCm3isSicAFtkP_p6_hUH4eULXfit0HdoziJRV897iyNU1GXxP5EhKixkHtGAzf0cteffrKTc91-VIVXxapD0c0MgsI2yPsVcU53F_M200accbaHfZhQ5dKUgP-QmoaPa5gnUP_UuI93ZknfJFM6ltxigPdEgRCkvLsc94VSbtdHm2nfrQeKAzna5dUx7lmlBgG4ZTKivK7_4W1tVmRFp8UYv6jwRtW_R_LWvuFJrkQs8GycgzhyDa-6S9VhQ8O68OxK9U1RN4qmGWI-hj3etsAiZJFe8pc-rFiJYClGwG8dJGMOFd1HI7lkqAw\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-cursor-light.png\"\u003e\u003cimg alt=\"Fix in Cursor\" width=\"115\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-cursor-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u0026nbsp;\u003ca href=\"https://cursor.com/agents?data=eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImJ1Z2JvdC12MiJ9.eyJ2ZXJzaW9uIjoxLCJ0eXBlIjoiQlVHQk9UX0ZJWF9JTl9XRUIiLCJkYXRhIjp7InJlZGlzS2V5IjoiYnVnYm90OjJiN2Y0ZTVmLWQ3ZTktNDllYS04YjZhLWVmOTc1ZDdhNzFkOSIsImVuY3J5cHRpb25LZXkiOiJiMkhzNUJ5ZHdRa1NBU0ZUcGRxSm1lLWtGSDgwcGpWMWlmbnJpeE5pNE5JIiwiYnJhbmNoIjoiZ2JlXzExNzdfeGRnX3N1cHBvcnQiLCJyZXBvT3duZXIiOiJDaXJjbGVDSS1QdWJsaWMiLCJyZXBvTmFtZSI6ImNpcmNsZWNpLWNsaSIsInByTnVtYmVyIjoxMTgxLCJjb21taXRTaGEiOiJjYjdhNDdiMzQzNzYxN2NlMGNhZTI2NjdkZWI1MjIxMGM5YjUwNTU5IiwicHJvdmlkZXIiOiJnaXRodWIifSwiaWF0IjoxNzcwNjExMTI3LCJleHAiOjE3NzMyMDMxMjd9.dKM9gn9EDaRNVxiQEhZUMErYHVCHiX0Lm9JxF5xDzsauLUXtoZ9XVOtiqbxvGnmAO4eMPOgSrtWfpCLpWkl_kxP2TKkt2A9mQSdxKBcb9XxxKxyLB5KgpjMJ05LnOVM-toQr06juvasPm_aY0Sy9avY4ZoP6FSfcuK3wivcnAHnxLQ32_xdMiDRiPD2bc4XXFF3HC_rNDzOlZvoe01fLZR47CWvPq_9JskhxS1-gu2SNNfJBIhAxd9bBKl4ur9HZJ1fDwiPtgvFE463KHras7LzxRbfBUVtvc7eHsMxFdKX5KPEKisJGbCezFEa3kdJ0O83EZtf2p8ToySnxjP-56g\" target=\"_blank\" rel=\"noopener noreferrer\"\u003e\u003cpicture\u003e\u003csource media=\"(prefers-color-scheme: dark)\" srcset=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003csource media=\"(prefers-color-scheme: light)\" srcset=\"https://cursor.com/assets/images/fix-in-web-light.png\"\u003e\u003cimg alt=\"Fix in Web\" width=\"99\" height=\"28\" src=\"https://cursor.com/assets/images/fix-in-web-dark.png\"\u003e\u003c/picture\u003e\u003c/a\u003e\u003c/p\u003e\n\n",
+      "diffHunk": "@@ -130,7 +135,7 @@ func (tel *TelemetrySettings) Write() error {\n \t\treturn err\n \t}\n \n-\tpath := filepath.Join(SettingsPath(), telemetryFilename())\n+\tpath := filepath.Join(StatePath(), telemetryFilename())",
+      "createdAt": "2026-02-09T04:25:28Z",
+      "pr": {
+        "repo": "circleci-cli",
+        "number": 1181,
+        "title": "feat: add XDG Base Directory spec support for config files",
+        "author": "graybear-io",
+        "url": "https://github.com/CircleCI-Public/circleci-cli/pull/1181",
+        "state": "OPEN"
+      }
+    }
+  ]
+}

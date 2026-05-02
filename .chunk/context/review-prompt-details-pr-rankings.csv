@@ -1,0 +1,9 @@
+rank,repo,pr_number,pr_title,pr_author,total_comments,reviewer_count,state,pr_url
+1,circleci-cli,1183,[WEBXP-315] POC: Investigate how to get tracking within the CLI,jackieg017,8,2,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1183
+2,circleci-cli,1246,Add deploy markers configuration,gcirclest,6,1,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1246
+3,circleci-cli,1178,[WEBXP-28] Clear error message on invalid url,hanabel1,3,1,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1178
+4,circleci-cli,1181,feat: add XDG Base Directory spec support for config files,graybear-io,1,1,OPEN,https://github.com/CircleCI-Public/circleci-cli/pull/1181
+5,circleci-cli,1261,Fix IntelliJ warnings,pete-woods,1,1,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1261
+6,circleci-cli,1245,Add `--jq` switch to support processing JSON output,pete-woods,1,1,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1245
+7,circleci-cli,1219,Use system keyring to store token,pete-woods,1,1,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1219
+8,circleci-cli,1200,"Use go.mod tool directive, upgrade golangci-lint v2",danmux,1,1,MERGED,https://github.com/CircleCI-Public/circleci-cli/pull/1200
