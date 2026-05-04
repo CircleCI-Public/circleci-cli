@@ -49,6 +49,6 @@ func NewDeployCmd() *cobra.Command {
 
 func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
-		"deploy.not_found", "No deploy components found for %q.",
-		"Check the org ID and try again")
+		"deploy.not_found", "No releases found for %q.",
+		"Check that CircleCI Deploys is configured for this project")
 }
