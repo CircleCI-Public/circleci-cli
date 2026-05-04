@@ -245,7 +245,7 @@ func (c *Client) SearchPipelines(ctx context.Context, req SearchPipelinesRequest
 			return nil, err
 		}
 		all = append(all, resp.Items...)
-		if len(all) >= limit {
+		if limit > 0 && len(all) >= limit {
 			return all[:limit], nil
 		}
 		if resp.NextPageToken == "" {

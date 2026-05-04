@@ -93,6 +93,12 @@ func newSearchCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if limit < 1 {
+				return clierrors.New("search.invalid_limit", "Invalid limit",
+					fmt.Sprintf("--limit must be a positive integer, got %d", limit),
+				).WithExitCode(clierrors.ExitBadArguments)
+			}
+
 			var afterTime, beforeTime *time.Time
 			if after != "" {
 				t, err := time.Parse(time.RFC3339, after)
