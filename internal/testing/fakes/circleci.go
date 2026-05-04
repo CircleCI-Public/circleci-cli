@@ -81,6 +81,9 @@ type CircleCI struct {
 	deletedContextVars         map[string]bool  // "contextID/name" → deleted
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
+	// Deploy state.
+	deployReleases map[string][]any // project id → releases
+
 	// Auth state.
 	me                 any // response for GET /api/v2/me
 	oauthTokenResponse any // response body for POST /oauth/token
@@ -122,6 +125,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		deletedContextVars:         map[string]bool{},
 		deletedContextRestrictions: map[string]bool{},
 		projectInfos:               map[string]any{},
+		deployReleases:             map[string][]any{},
 	}
 
 	r := newRouter()
@@ -158,6 +162,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
+	// Deploy routes.
+	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListReleases)
 	// Runner (v3) routes. GET /runner dispatches on query param:
 	// ?namespace=  → resource classes, ?resource-class= → instances.
 	r.Get("/api/v3/runner", f.handleRunnerList)
@@ -1254,6 +1260,28 @@ func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	render.JSON(w, r, info)
+}
+
+// --- Deploy helpers ---
+
+// AddRelease registers a release for a project, returned by
+// GET /api/v2/deploy/projects/{project_id}/releases.
+func (f *CircleCI) AddRelease(projectID string, release any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.deployReleases[projectID] = append(f.deployReleases[projectID], release)
+}
+
+func (f *CircleCI) handleListReleases(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "project_id")
+	f.mu.RLock()
+	items := f.deployReleases[id]
+	f.mu.RUnlock()
+
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {

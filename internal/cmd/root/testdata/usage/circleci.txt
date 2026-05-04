@@ -7,6 +7,7 @@ Available Commands:
   auth        Manage CLI auth
   completion  Manage shell completions
   context     Manage contexts
+  deploy      Manage deploys
   envvar      Manage project environment variables
   info        Show project details
   job         Manage jobs

@@ -1,0 +1,165 @@
+// Copyright (c) 2026 Circle Internet Services, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package deploy
+
+import (
+	"context"
+	"strings"
+
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
+)
+
+func newListCmd() *cobra.Command {
+	var (
+		projectSlug string
+		jsonOut     bool
+	)
+
+	cmd := &cobra.Command{
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List recent releases",
+		Long: heredoc.Doc(`
+			List releases for a CircleCI project.
+
+			The project is inferred from the current git repository's remote
+			unless overridden with --project. Each release shows the component,
+			version, status, type, and when it was created.
+
+			JSON fields: id, component_name, version, type, status, is_rollback,
+			             pipeline_id, workflow_id, created_at, ended_at
+		`),
+		Example: heredoc.Doc(`
+			# List releases (auto-detect project from git remote)
+			$ circleci deploy list
+
+			# List for a specific project
+			$ circleci deploy list --project gh/myorg/myrepo
+
+			# Output as JSON for scripting
+			$ circleci deploy list --json
+		`),
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+			return runList(ctx, client, projectSlug, jsonOut)
+		},
+	}
+
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
+
+	return cmd
+}
+
+type releaseEntry struct {
+	ID            string `json:"id"`
+	ComponentName string `json:"component_name"`
+	Version       string `json:"version"`
+	Type          string `json:"type"`
+	Status        string `json:"status"`
+	IsRollback    bool   `json:"is_rollback"`
+	PipelineID    string `json:"pipeline_id,omitempty"`
+	WorkflowID    string `json:"workflow_id,omitempty"`
+	CreatedAt     string `json:"created_at"`
+	EndedAt       string `json:"ended_at,omitempty"`
+}
+
+func runList(ctx context.Context, client *apiclient.Client, projectSlug string, jsonOut bool) error {
+	if projectSlug == "" {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return cmdutil.GitDetectErr(err, "Or specify the project: circleci deploy list --project gh/org/repo")
+		}
+		projectSlug = info.Slug
+	}
+
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	if err != nil {
+		return cmdutil.APIErr(err, projectSlug,
+			"project.not_found", "No project found for %q.",
+			"Check the project slug and try again",
+			"Use 'circleci project list' to see followed projects")
+	}
+
+	releases, err := client.ListReleases(ctx, proj.ID, proj.OrganizationID)
+	if err != nil {
+		return apiErr(err, projectSlug)
+	}
+
+	entries := make([]releaseEntry, len(releases))
+	for i, r := range releases {
+		version := ""
+		if r.TargetVersion != nil {
+			version = r.TargetVersion.Name
+		}
+		endedAt := ""
+		if !r.EndedAt.IsZero() {
+			endedAt = r.EndedAt.Format("2006-01-02 15:04 UTC")
+		}
+		entries[i] = releaseEntry{
+			ID:            r.ID,
+			ComponentName: r.ComponentName,
+			Version:       version,
+			Type:          r.Type,
+			Status:        r.Status,
+			IsRollback:    r.PlanIsRollback,
+			PipelineID:    r.PipelineID,
+			WorkflowID:    r.WorkflowID,
+			CreatedAt:     r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+			EndedAt:       endedAt,
+		}
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, entries)
+	}
+
+	if len(entries) == 0 {
+		iostream.ErrPrintln(ctx, "No releases found.")
+		return nil
+	}
+
+	printList(ctx, entries)
+	return nil
+}
+
+func printList(ctx context.Context, entries []releaseEntry) {
+	table := mdtable.New("Component", "Version", "Type", "Status", "Created")
+	for _, e := range entries {
+		table.Row(e.ComponentName, e.Version, strings.ToLower(e.Type), strings.ToLower(e.Status), e.CreatedAt)
+	}
+	iostream.PrintMarkdown(ctx, "# Releases\n"+table.Render())
+}
