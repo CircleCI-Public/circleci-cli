@@ -187,6 +187,74 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 	return &resp, nil
 }
 
+// SearchPipeline is a pipeline item returned by the search API. It has a
+// richer shape than Pipeline: a separate Status field, a WorkflowsSummary,
+// and a Project struct instead of a flat project_slug.
+type SearchPipeline struct {
+	ID               string            `json:"id"`
+	Number           int64             `json:"number"`
+	State            string            `json:"state"`
+	Status           string            `json:"status"`
+	CreatedAt        FlexTime          `json:"created_at"`
+	UpdatedAt        FlexTime          `json:"updated_at"`
+	Trigger          PipelineTrigger   `json:"trigger"`
+	VCS              *PipelineVCS      `json:"vcs,omitempty"`
+	Errors           []PipelineError   `json:"errors,omitempty"`
+	Project          *SearchProject    `json:"project,omitempty"`
+	WorkflowsSummary *WorkflowsSummary `json:"workflows_summary,omitempty"`
+}
+
+// SearchProject holds the project UUID returned by the search API.
+type SearchProject struct {
+	ID string `json:"id"`
+}
+
+// WorkflowsSummary holds aggregated workflow status counts for a pipeline.
+type WorkflowsSummary struct {
+	CountByStatus map[string]int `json:"count_by_status"`
+}
+
+// SearchPipelinesRequest is the request body for POST /api/v2/pipeline/search.
+type SearchPipelinesRequest struct {
+	Scope     *SearchScope `json:"scope,omitempty"`
+	Filter    string       `json:"filter,omitempty"`
+	OrderBy   string       `json:"order_by,omitempty"`
+	PageToken string       `json:"page_token,omitempty"`
+}
+
+// SearchScope narrows a pipeline search to specific projects and/or a date range.
+type SearchScope struct {
+	ProjectIDs    []string   `json:"project_ids,omitempty"`
+	CreatedAfter  *time.Time `json:"created_after,omitempty"`
+	CreatedBefore *time.Time `json:"created_before,omitempty"`
+}
+
+type searchPipelinesResponse struct {
+	Items         []SearchPipeline `json:"items"`
+	NextPageToken string           `json:"next_page_token"`
+	TotalSize     int              `json:"total_size"`
+}
+
+// SearchPipelines calls POST /api/v2/pipeline/search and paginates up to limit
+// results.
+func (c *Client) SearchPipelines(ctx context.Context, req SearchPipelinesRequest, limit int) ([]SearchPipeline, error) {
+	var all []SearchPipeline
+	for {
+		var resp searchPipelinesResponse
+		if err := c.post(ctx, "/pipeline/search", req, &resp); err != nil {
+			return nil, err
+		}
+		all = append(all, resp.Items...)
+		if len(all) >= limit {
+			return all[:limit], nil
+		}
+		if resp.NextPageToken == "" {
+			return all, nil
+		}
+		req.PageToken = resp.NextPageToken
+	}
+}
+
 // PipelineWorkflowSummary holds brief workflow status for a pipeline.
 type PipelineWorkflowSummary struct {
 	ID     string `json:"id"`

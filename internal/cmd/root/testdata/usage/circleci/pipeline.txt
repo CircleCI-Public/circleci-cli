@@ -5,6 +5,7 @@ Available Commands:
   cancel      Cancel a pipeline
   get         Get a pipeline's status
   list        List recent pipelines for a project
+  search      Search pipelines using filter expressions
   trigger     Trigger a new pipeline
   watch       Watch a pipeline until it completes
 

@@ -714,3 +714,176 @@ func TestPipelineCancel_NoToken(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }
+
+// --- pipeline search tests ---
+
+const searchProjectID = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+
+func fakeProjectInfo(slug, id string) map[string]any {
+	return map[string]any{
+		"id":   id,
+		"slug": slug,
+		"name": "testrepo",
+	}
+}
+
+func fakeSearchPipeline(id string, number int, status, branch string) map[string]any {
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
+	return map[string]any{
+		"id":         id,
+		"number":     number,
+		"state":      "created",
+		"status":     status,
+		"created_at": now.Format(time.RFC3339),
+		"updated_at": now.Format(time.RFC3339),
+		"trigger": map[string]any{
+			"type":        "webhook",
+			"received_at": now.Format(time.RFC3339),
+			"actor":       map[string]any{"id": "actor-uuid-1"},
+		},
+		"vcs": map[string]any{
+			"branch":   branch,
+			"revision": "abc1234def5678",
+		},
+		"project": map[string]any{
+			"id": searchProjectID,
+		},
+		"workflows_summary": map[string]any{
+			"count_by_status": map[string]any{
+				"success": 2,
+				"failed":  1,
+			},
+		},
+	}
+}
+
+func TestPipelineSearch(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectInfo(watchSlug, fakeProjectInfo(watchSlug, searchProjectID))
+	fake.SetSearchResponse(map[string]any{
+		"items": []any{
+			fakeSearchPipeline("pid-search-1", 10, "success", "main"),
+			fakeSearchPipeline("pid-search-2", 9, "failed", "feature"),
+		},
+		"next_page_token": nil,
+		"total_size":      2,
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "search", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestPipelineSearch_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectInfo(watchSlug, fakeProjectInfo(watchSlug, searchProjectID))
+	fake.SetSearchResponse(map[string]any{
+		"items": []any{
+			fakeSearchPipeline("pid-search-1", 10, "success", "main"),
+		},
+		"next_page_token": nil,
+		"total_size":      1,
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "search", "--project", watchSlug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestPipelineSearch_WithFilter(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectInfo(watchSlug, fakeProjectInfo(watchSlug, searchProjectID))
+	fake.SetSearchResponse(map[string]any{
+		"items":           []any{fakeSearchPipeline("pid-search-1", 10, "failed", "main")},
+		"next_page_token": nil,
+		"total_size":      1,
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	rawFilter := `pipeline.git.branch == "main" and pipeline.state == "errored"`
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "search", "--project", watchSlug, "--filter", rawFilter},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "pid-search-1"))
+
+	req := fake.LastSearchRequest()
+	assert.Assert(t, req != nil, "search endpoint was not called")
+	assert.Equal(t, req["filter"], rawFilter)
+}
+
+// The /pipeline/search API returns "" for timestamps on some pipelines.
+// This must not crash the JSON decoder.
+func TestPipelineSearch_EmptyTimestamp(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectInfo(watchSlug, fakeProjectInfo(watchSlug, searchProjectID))
+	pip := fakeSearchPipeline("pid-search-1", 10, "success", "main")
+	pip["created_at"] = ""
+	pip["updated_at"] = ""
+	fake.SetSearchResponse(map[string]any{
+		"items":           []any{pip},
+		"next_page_token": nil,
+		"total_size":      1,
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "search", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "pid-search-1"))
+}
+
+func TestPipelineSearch_EmptyResults(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectInfo(watchSlug, fakeProjectInfo(watchSlug, searchProjectID))
+	// No SetSearchResponse → handler returns empty items list.
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "search", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No pipelines found."))
+}

@@ -20,41 +20,31 @@
 //
 // SPDX-License-Identifier: MIT
 
-package pipeline
+package apiclient
 
 import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"strings"
+	"time"
 )
 
-// NewPipelineCmd returns the "circleci pipeline" command group.
-func NewPipelineCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "pipeline <command>",
-		Short: "Manage pipelines",
-		Long: heredoc.Doc(`
-			Work with CircleCI pipelines.
-
-			Pipelines are the top-level unit of work in CircleCI — they contain
-			one or more workflows, each of which contains jobs.
-		`),
-	}
-
-	cmd.AddCommand(newCancelCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newSearchCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newWatchCmd())
-
-	return cmd
+// FlexTime is a time.Time that unmarshals an empty JSON string as the zero
+// time rather than returning a parse error. The /pipeline/search endpoint
+// returns "" for timestamps on some pipelines, which time.Time's UnmarshalJSON
+// rejects.
+type FlexTime struct {
+	time.Time
 }
 
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
-		"pipeline.not_found", "No pipeline found for %q.",
-		"Check the pipeline UUID or branch name and try again")
+func (t *FlexTime) UnmarshalJSON(b []byte) error {
+	s := strings.Trim(string(b), `"`)
+	if s == "" || s == "null" {
+		t.Time = time.Time{}
+		return nil
+	}
+	parsed, err := time.Parse(time.RFC3339Nano, s)
+	if err != nil {
+		return err
+	}
+	t.Time = parsed
+	return nil
 }

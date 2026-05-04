@@ -1,0 +1,30 @@
+Usage:
+  circleci pipeline search [flags]
+
+Examples:
+# Search pipelines on the main branch
+$ circleci pipeline search --filter 'pipeline.git.branch == "main"'
+
+# Search pipelines on branches starting with "feature/"
+$ circleci pipeline search --filter 'pipeline.git.branch starts-with "feature/"'
+
+# Combine fields with "and"
+$ circleci pipeline search --filter 'pipeline.git.branch == "main" and actor.id == "104c584e-50cb-4f72-a43a-a38a7b0b6a7b"'
+
+# Search within a date range and output as JSON
+$ circleci pipeline search --after 2024-01-01T00:00:00Z --before 2024-02-01T00:00:00Z --json
+
+
+Flags:
+      --after string     Only pipelines created after this time (RFC3339)
+      --before string    Only pipelines created before this time (RFC3339)
+      --filter string    Filter expression (e.g. 'pipeline.git.branch == "main"')
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --limit int        Maximum number of results (default 20)
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

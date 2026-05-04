@@ -1,0 +1,5 @@
+# Pipeline Search Results
+| #  | Branch  | Revision | Status  | Workflows           | Created              | Pipeline       |
+| -- | ------- | -------- | ------- | ------------------- | -------------------- | -------------- |
+| 10 | main    | abc1234  | success | 1 failed, 2 success | 2020-01-01 12:00 UTC | `pid-search-1` |
+| 9  | feature | abc1234  | failed  | 1 failed, 2 success | 2020-01-01 12:00 UTC | `pid-search-2` |

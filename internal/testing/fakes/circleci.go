@@ -81,6 +81,10 @@ type CircleCI struct {
 	deletedContextVars         map[string]bool  // "contextID/name" → deleted
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
+	// Pipeline search state.
+	searchResponse    any            // response body for POST /api/v2/pipeline/search
+	lastSearchRequest map[string]any // most recent decoded request body, nil if not yet called
+
 	// Auth state.
 	me                 any // response for GET /api/v2/me
 	oauthTokenResponse any // response body for POST /oauth/token
@@ -137,6 +141,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJob)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
+	r.Post("/api/v2/pipeline/search", f.handleSearchPipelines)
 	r.Get("/api/v1.1/project/{vcs}/{org}/{repo}/{jobNumber}", f.handleGetJobV1)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
 	// project slug, so we match three separate path segments rather than {slug}.
@@ -257,6 +262,23 @@ func (f *CircleCI) AddJobV1(slug string, jobNumber int64, job any) {
 	defer f.mu.Unlock()
 	key := fmt.Sprintf("%s/%d", slug, jobNumber)
 	f.jobsV1[key] = job
+}
+
+// SetSearchResponse registers the response body returned when POST
+// /api/v2/pipeline/search is called. If never called the handler returns an
+// empty items list.
+func (f *CircleCI) SetSearchResponse(resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.searchResponse = resp
+}
+
+// LastSearchRequest returns the decoded JSON body of the most recent POST
+// /api/v2/pipeline/search request, or nil if the endpoint has not been called.
+func (f *CircleCI) LastSearchRequest() map[string]any {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.lastSearchRequest
 }
 
 // SetTriggerResponse registers the response body returned when POST
@@ -453,6 +475,26 @@ func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
+}
+
+func (f *CircleCI) handleSearchPipelines(w http.ResponseWriter, r *http.Request) {
+	var body map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.Lock()
+	f.lastSearchRequest = body
+	resp := f.searchResponse
+	f.mu.Unlock()
+
+	if resp == nil {
+		render.JSON(w, r, map[string]any{"items": []any{}, "next_page_token": nil, "total_size": 0})
+		return
+	}
 	render.JSON(w, r, resp)
 }
 
