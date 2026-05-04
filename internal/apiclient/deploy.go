@@ -52,7 +52,7 @@ type Version struct {
 }
 
 // ListReleases returns releases for a project. It paginates automatically.
-func (c *Client) ListReleases(ctx context.Context, projectID, orgID string) ([]Release, error) {
+func (c *Client) ListReleases(ctx context.Context, projectID string) ([]Release, error) {
 	var all []Release
 	pageToken := ""
 
@@ -64,7 +64,6 @@ func (c *Client) ListReleases(ctx context.Context, projectID, orgID string) ([]R
 
 		err := c.get(ctx, "/deploy/projects/%s/releases", &resp,
 			routeParams(projectID),
-			queryParam("org-id", orgID),
 			queryParam("page-size", "50"),
 			optionalQueryParam("page-token", pageToken),
 		)

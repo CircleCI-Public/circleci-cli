@@ -114,7 +114,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			"Use 'circleci project list' to see followed projects")
 	}
 
-	releases, err := client.ListReleases(ctx, proj.ID, proj.OrganizationID)
+	releases, err := client.ListReleases(ctx, proj.ID)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
