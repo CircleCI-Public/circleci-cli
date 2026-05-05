@@ -26,6 +26,7 @@ package apiclient
 import (
 	"context"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
@@ -43,6 +44,14 @@ type Client struct {
 	raw *http.Client
 }
 
+// DeviceID is set once at startup (in PersistentPreRunE, after --config is
+// parsed) and embedded in the User-Agent header as:
+//
+//	circleci-cli (<os>; <device-id>)
+//
+// The device ID is a stable per-machine UUID persisted in the config file.
+var DeviceID string
+
 // New creates a Client. baseURL should be the CircleCI host, e.g. "https://circleci.com".
 // An http.RoundTripper can be injected for testing. Set CIRCLECI_DEBUG=1 to log
 // all HTTP requests and response status codes to stderr.
@@ -54,6 +63,7 @@ func New(baseURL, token string, transport http.RoundTripper) *Client {
 	cfg := httpcl.Config{
 		AuthToken:  token,
 		AuthHeader: "Circle-Token",
+		UserAgent:  "circleci-cli (" + runtime.GOOS + "; " + DeviceID + ")",
 		Transport:  transport,
 	}
 
