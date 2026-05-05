@@ -1,0 +1,4 @@
+args [exit 123]
+token 
+url https://circleci.com
+exit with error 123

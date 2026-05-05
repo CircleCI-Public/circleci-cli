@@ -32,6 +32,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 )
 
 var version = "dev"
@@ -51,6 +52,22 @@ func run() int {
 	rootCmd := root.NewRootCmd(version)
 	rootCmd.SetContext(ctx)
 	if err := rootCmd.Execute(); err != nil {
+		// Extension binary disappeared between startup scan and exec — show a
+		// clean error rather than leaking the ErrNotFound message.
+		if notFound, ok := errors.AsType[*extension.ErrNotFound](err); ok {
+			_, _ = fmt.Fprintf(os.Stderr, "error: extension %q was found at startup but is no longer available in PATH\n", "circleci-"+notFound.Name)
+			return clierrors.ExitNotFound
+		}
+		// Extension exit codes are not errors — propagate them directly.
+		if exited, ok := errors.AsType[*extension.ErrExited](err); ok {
+			if exited.Code > 0 {
+				return exited.Code
+			}
+			if exited.Code < 0 {
+				_, _ = fmt.Fprintln(os.Stderr, "extension terminated by signal")
+			}
+			return clierrors.ExitGeneralError
+		}
 		if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 			if jsonFlagPresent() {
 				_, _ = fmt.Fprint(os.Stderr, cliErr.FormatJSON())
