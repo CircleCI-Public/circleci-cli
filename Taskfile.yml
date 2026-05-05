@@ -26,21 +26,26 @@ vars:
   RESULTS_DIR: test-reports
   TEST_REPORT: test-reports/tests.xml
   LINT_REPORT: test-reports/lint.xml
+  COMMIT:
+    sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
+  DIRTY:
+    sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
 
 tasks:
   build:
     desc: Build the circleci binary
     vars:
       DEST: '{{default "dist/circleci" .DEST}}'
+      VERSION: '1.0.0-dev+{{.COMMIT}}{{.DIRTY}}'
     cmds:
-      - go build -o "{{.DEST}}" .
+      - go build -ldflags="-X main.version={{.VERSION}}" -o "{{.DEST}}" .
 
   test:
     desc: Run unit tests
     vars:
       ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go tool gotestsum -- -race {{.ARGS}}
+      - go tool -modfile tools/go.mod gotestsum -- -race {{.ARGS}}
 
   check:
     desc: Run all static checks
@@ -68,14 +73,14 @@ tasks:
     vars:
       ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go tool golangci-lint run {{.ARGS}}
+      - go tool -modfile tools/go.mod golangci-lint run {{.ARGS}}
 
   fmt:
     desc: Format the code
     vars:
       ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go tool golangci-lint fmt {{.ARGS}}
+      - go tool -modfile tools/go.mod golangci-lint fmt {{.ARGS}}
 
   license:
     desc: Manage license headers
@@ -83,7 +88,7 @@ tasks:
       ARGS: '{{default "." .CLI_ARGS}}'
     cmds:
       - |
-        go tool addlicense \
+        go tool -modfile tools/go.mod addlicense \
           -c "Circle Internet Services, Inc." \
           -l mit \
           -s \
@@ -100,18 +105,20 @@ tasks:
       ARGS: '{{default "-v" .CLI_ARGS}}'
     cmds:
       - go mod tidy {{.ARGS}}
+      - go -C tools mod tidy {{.ARGS}}
 
   mod-download:
     desc: Run 'go mod download'
     cmds:
       - go mod download
+      - go mod download -modfile tools/go.mod
 
   acceptance-test:
     desc: Build binary and run acceptance tests
     vars:
       ARGS: '{{default "./acceptance/..." .CLI_ARGS}}'
     cmds:
-      - go tool gotestsum -- -race {{.ARGS}}
+      - go tool -modfile tools/go.mod gotestsum -- -race {{.ARGS}}
 
   dev-install:
     desc: Build from source and install to ~/.local/bin
@@ -127,45 +134,6 @@ tasks:
     desc: Run go generate
     cmds:
       - go generate ./...
-
-  release:
-    desc: Tag, build, and publish a release
-    vars:
-      VERSION: '{{.VERSION | default ""}}'
-    cmds:
-      - task: tag
-        vars: { VERSION: '{{.VERSION}}' }
-      - goreleaser release --clean
-
-  tag:
-    desc: Create the next git tag (vX.Y.Z), optionally specifying a version as X.Y.Z
-    vars:
-      VERSION: '{{.VERSION | default ""}}'
-    cmds:
-      - |
-        git fetch --force --tags
-
-        if [ -n "{{.VERSION}}" ]; then
-          TAG="v{{.VERSION}}"
-          if git tag | grep -q "^${TAG}$"; then
-            echo "Error: tag ${TAG} already exists" >&2
-            exit 1
-          fi
-        else
-          LATEST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' \
-            | sort -t. -k1,1V -k2,2n -k3,3n \
-            | tail -1)
-          if [ -z "$LATEST" ]; then
-            echo "Error: no existing vX.Y.Z tags found" >&2
-            exit 1
-          fi
-          PATCH=$(echo "$LATEST" | awk -F. '{print $3}')
-          TAG="${LATEST%.*}.$((PATCH + 1))"
-        fi
-
-        echo "Tagging version: ${TAG}"
-        git tag "${TAG}"
-        git push origin ${TAG}
 
   # CI tasks
 
@@ -187,7 +155,7 @@ tasks:
       RACE: '{{if not (eq OS "windows")}}-race{{end}}'
     cmds:
       - mkdir -p {{.RESULTS_DIR}}
-      - go tool gotestsum --junitfile="{{.TEST_REPORT}}" -- {{.RACE}} -count=1 {{.ARGS}}
+      - go tool -modfile tools/go.mod gotestsum --junitfile="{{.TEST_REPORT}}" -- {{.RACE}} -count=1 {{.ARGS}}
 
   ci:check:
     desc: Check no uncommitted diffs after generate/fmt/tidy
@@ -201,3 +169,15 @@ tasks:
           CLI_ARGS: -diff
       - task: generate
       - git diff --exit-code
+
+  ci:release:
+    desc: Tag, build, and publish a release
+    vars:
+      VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM"}}+{{.COMMIT}}{{.DIRTY}}.preview'
+
+    cmds:
+      - git config --global user.email $GH_EMAIL
+      - git config --global user.name $GH_NAME
+      - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
+      - git push origin '{{.VERSION}}'
+      - go tool -modfile tools/go.mod goreleaser release --clean --draft

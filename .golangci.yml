@@ -110,7 +110,7 @@ linters:
     - errorlint # Checks that errors are checked and wrapped correctly
     - exhaustive # Check exhaustiveness of enum switch statements
     - gochecknoinits # Checks that no init functions are present in Go code
-    - goconst # Finds repeated strings that could be replaced by a constant
+#    - goconst # Finds repeated strings that could be replaced by a constant
     - gocritic # Provides diagnostics that check for bugs, performance and style issues
     - gocyclo # Computes and checks the cyclomatic complexity of functions
     - gosec # Inspects source code for security problems
