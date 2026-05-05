@@ -128,6 +128,13 @@ func TestAuthLogin_Browser(t *testing.T) {
 		_ = resp.Body.Close()
 		assert.Equal(t, resp.StatusCode, http.StatusOK)
 	}))
+
+	assert.Assert(t, t.Run("logged in", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as testuser")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Saved host to")
+		assert.NilError(t, err)
+	}))
 }
 
 // TestAuthLogin_Token drives the interactive login TUI through the
@@ -167,6 +174,13 @@ func TestAuthLogin_Token(t *testing.T) {
 		_, err := console.ExpectString("Enter CircleCI personal access token")
 		assert.NilError(t, err)
 		_, err = console.Send("fake-token\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("logged in", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as testuser")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Saved host to")
 		assert.NilError(t, err)
 	}))
 }
