@@ -134,6 +134,7 @@ func TestPipelineWatch_Failed(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
 }
 
 // --- cancelled pipeline → exit 6 ---
