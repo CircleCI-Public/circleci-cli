@@ -26,16 +26,16 @@ vars:
   RESULTS_DIR: test-reports
   TEST_REPORT: test-reports/tests.xml
   LINT_REPORT: test-reports/lint.xml
-  COMMIT:
-    sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
-  DIRTY:
-    sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
 
 tasks:
   build:
     desc: Build the circleci binary
     vars:
       DEST: '{{default "dist/circleci" .DEST}}'
+      COMMIT:
+        sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
+      DIRTY:
+        sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
       VERSION: '1.0.0-dev+{{.COMMIT}}{{.DIRTY}}'
     cmds:
       - go build -ldflags="-X main.version={{.VERSION}}" -o "{{.DEST}}" .
@@ -173,11 +173,10 @@ tasks:
   ci:release:
     desc: Tag, build, and publish a release
     vars:
-      VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM"}}+{{.COMMIT}}{{.DIRTY}}.preview'
-
+      VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-preview'
     cmds:
       - git config --global user.email $GH_EMAIL
       - git config --global user.name $GH_NAME
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - git push origin '{{.VERSION}}'
-      - go tool -modfile tools/go.mod goreleaser release --clean --draft
+      - go tool -modfile tools/go.mod goreleaser release --snapshot --clean

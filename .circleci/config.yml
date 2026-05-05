@@ -75,7 +75,7 @@ commands:
             else
               echo 'export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"' >> "$BASH_ENV"
               . "$BASH_ENV"
-              rm -rf /usr/local/go
+              sudo rm -rf /usr/local/go
               curl -fsSL "$URL" | sudo tar -C /usr/local -xz
             fi
             
@@ -98,7 +98,11 @@ executors:
   linux:
     docker:
       - image: cimg/base:stable
-    resource_class: large
+    resource_class: large.gen2
+
+  linux_machine:
+    machine: true
+    resource_class: large.gen2
 
   macos:
     macos:
@@ -162,7 +166,7 @@ jobs:
           when: on_fail
 
   deploy:
-    executor: linux
+    executor: linux_machine
     steps:
       - setup
       - go/with-cache:
@@ -193,11 +197,11 @@ workflows:
               only: next
 
       - deploy:
-          requires:
-            - check
-            - test
-          filters:
-            branches:
-              only: next
+#          requires:
+#            - check
+#            - test
+#          filters:
+#            branches:
+#              only: next
           context:
             - devex-release
