@@ -51,8 +51,10 @@ type Version struct {
 	Name string `json:"name"`
 }
 
-// ListReleases returns releases for a project. It paginates automatically.
-func (c *Client) ListReleases(ctx context.Context, projectID string) ([]Release, error) {
+// ListReleases returns up to limit releases for a project. It paginates the API
+// automatically until the limit is reached or all results are exhausted. Pass
+// limit <= 0 for no limit (fetches all pages).
+func (c *Client) ListReleases(ctx context.Context, projectID, orgID string, limit int) ([]Release, error) {
 	var all []Release
 	pageToken := ""
 
@@ -64,7 +66,8 @@ func (c *Client) ListReleases(ctx context.Context, projectID string) ([]Release,
 
 		err := c.get(ctx, "/deploy/projects/%s/releases", &resp,
 			routeParams(projectID),
-			queryParam("page-size", "50"),
+			queryParam("org-id", orgID),
+			queryParam("page-size", "10"),
 			optionalQueryParam("page-token", pageToken),
 		)
 		if err != nil {
@@ -72,6 +75,10 @@ func (c *Client) ListReleases(ctx context.Context, projectID string) ([]Release,
 		}
 
 		all = append(all, resp.Items...)
+
+		if limit > 0 && len(all) >= limit {
+			return all[:limit], nil
+		}
 
 		if resp.NextPageToken == "" {
 			return all, nil

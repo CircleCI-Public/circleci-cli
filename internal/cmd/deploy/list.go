@@ -39,6 +39,7 @@ import (
 func newListCmd() *cobra.Command {
 	var (
 		projectSlug string
+		limit       int
 		jsonOut     bool
 	)
 
@@ -57,11 +58,14 @@ func newListCmd() *cobra.Command {
 			             pipeline_id, workflow_id, created_at, ended_at
 		`),
 		Example: heredoc.Doc(`
-			# List releases (auto-detect project from git remote)
+			# List the 10 most recent releases (auto-detect project from git remote)
 			$ circleci deploy list
 
 			# List for a specific project
 			$ circleci deploy list --project gh/myorg/myrepo
+
+			# Show more results
+			$ circleci deploy list --limit 25
 
 			# Output as JSON for scripting
 			$ circleci deploy list --json
@@ -73,11 +77,12 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, projectSlug, jsonOut)
+			return runList(ctx, client, projectSlug, limit, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmd.Flags().IntVar(&limit, "limit", 10, "Maximum number of releases to show [default: 10]")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -97,7 +102,7 @@ type releaseEntry struct {
 	EndedAt       string `json:"ended_at,omitempty"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, projectSlug string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, projectSlug string, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -114,7 +119,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			"Use 'circleci project list' to see followed projects")
 	}
 
-	releases, err := client.ListReleases(ctx, proj.ID)
+	releases, err := client.ListReleases(ctx, proj.ID, proj.OrganizationID, limit)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
