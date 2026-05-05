@@ -75,7 +75,7 @@ commands:
             else
               echo 'export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"' >> "$BASH_ENV"
               . "$BASH_ENV"
-              rm -rf /usr/local/go
+              sudo rm -rf /usr/local/go
               curl -fsSL "$URL" | sudo tar -C /usr/local -xz
             fi
             
@@ -98,7 +98,11 @@ executors:
   linux:
     docker:
       - image: cimg/base:stable
-    resource_class: large
+    resource_class: large.gen2
+
+  linux_machine:
+    machine: true
+    resource_class: large.gen2
 
   macos:
     macos:
@@ -162,9 +166,30 @@ jobs:
           when: on_fail
 
   deploy:
-    executor: linux
+    executor: linux_machine
     steps:
       - setup
+      - run:
+          name: Install snapcraft
+          command: |
+            sudo apt update --yes
+            sudo apt install snapd  --yes
+            sudo snap install snapcraft --classic
+      - run:
+          name: Configure snapcraft
+          # Credentials are read from the SNAPCRAFT_LOGIN_FILE env var (base64-encoded).
+          # To refresh: run `snapcraft login` and `snapcraft export-login creds`
+          # inside cibuilds/snapcraft:stable, then `cat creds | base64 | tr -d '\n'`
+          # and store the output as SNAPCRAFT_LOGIN_FILE in CircleCI project settings.
+          command: |
+            mkdir -p .snapcraft
+            echo -n "$SNAPCRAFT_LOGIN_FILE" | base64 --decode > .snapcraft/snapcraft.cfg
+      - run:
+          name: Install choco
+          command: |
+            sudo cp tools/choco.sh /usr/local/bin/choco
+            sudo chmod +x /usr/local/bin/choco
+            choco help
       - go/with-cache:
           checksum: *checksum
           steps:
