@@ -27,6 +27,7 @@ import (
 	"github.com/njayp/ophis"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	cmdapi "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/artifacts"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/cmdauth"
@@ -41,6 +42,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/settings"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
@@ -64,6 +66,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 			configPath, _ := cmd.Flags().GetString("config")
 			ctx = cmdutil.WithConfigPath(ctx, configPath)
+			apiclient.DeviceID = config.EnsureDeviceID(ctx, configPath)
 
 			jqFilter, _ := cmd.Flags().GetString("jq")
 			ctx = iostream.WithJQFilter(ctx, jqFilter)
