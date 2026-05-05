@@ -1,5 +1,8 @@
 version: 2.1
 
+x_values:
+  checksum: &checksum '{{ checksum "go.sum" }}_{{ checksum "tools/go.sum" }}'
+
 parameters:
   go_version_with_patch:
     type: string
@@ -15,16 +18,6 @@ commands:
       - install-go
       - install-task
       - run: task mod-download
-
-  install-goreleaser:
-    steps:
-      - run:
-          name: Install GoReleaser
-          command: |
-            echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
-            sudo apt -q update -y
-            sudo apt -q install -y --no-install-recommends goreleaser
-
 
   install-go:
     # TODO: Fix the Go orb install command, so it supports Windows.
@@ -127,6 +120,7 @@ jobs:
     steps:
       - setup
       - go/with-cache:
+          checksum: *checksum
           golangci-lint: true
           steps:
             - run: task ci:check
@@ -139,9 +133,8 @@ jobs:
     executor: << parameters.executor >>
     steps:
       - setup
-      - run: go env GOCACHE
       - go/with-cache:
-          key: 'v1'
+          checksum: *checksum
           steps:
             - run: task ci:test
             - store_results
@@ -171,23 +164,18 @@ jobs:
   deploy:
     executor: linux
     steps:
-      - checkout
-      - install-go
-      - install-goreleaser
-      - run: task mod-download
-      - run:
-          name: Tag and release
-          command: |
-            git config --global user.email $GH_EMAIL
-            git config --global user.name $GH_NAME
-            git tag -a "v1.0.0-preview.${CIRCLE_BUILD_NUM}" -m "Release v1.0.0-preview.${CIRCLE_BUILD_NUM}"
-            git push origin "v1.0.0-preview.${CIRCLE_BUILD_NUM}"
-            goreleaser release --clean
+      - setup
+      - go/with-cache:
+          checksum: *checksum
+          steps:
+            - run: task ci:release
 
 workflows:
   ci:
     jobs:
+
       - check
+
       - test:
           matrix:
             parameters:
@@ -195,6 +183,7 @@ workflows:
                 - linux
                 - macos
                 - windows
+
       - mark-release:
           requires:
             - check
@@ -202,6 +191,7 @@ workflows:
           filters:
             branches:
               only: next
+
       - deploy:
           requires:
             - check
