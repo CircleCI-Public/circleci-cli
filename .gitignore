@@ -17,6 +17,9 @@ Thumbs.db
 *.swp
 *.swo
 
+# Snapcraft
+/.snapcraft
+
 # chunk active sandbox tracking
 .chunk/sandbox.json
 .chunk/sandbox.*.json
