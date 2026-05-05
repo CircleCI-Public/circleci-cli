@@ -37,6 +37,70 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}}
+#    hooks: # TODO: Enable macOS signing
+#      post:
+#        - cmd: '{{ if eq .Os "darwin" -}}go tool -modfile tools/go.mod quill sign-and-notarize "{{ .Path }}"{{- else -}}true{{- end }}'
+#          env:
+#            - QUILL_SIGN_P12={{ .Env.APPLE_SIGN_P12 }}
+#            - QUILL_SIGN_PASSWORD={{ .Env.APPLE_SIGN_PASSWORD }}
+#            - QUILL_NOTARY_KEY={{ .Env.APPLE_NOTARY_KEY }}
+#            - QUILL_NOTARY_KEY_ID={{ .Env.APPLE_NOTARY_KEY_ID }}
+#            - QUILL_NOTARY_ISSUER={{ .Env.APPLE_NOTARY_ISSUER }}
+
+nfpms:
+  - license: MIT
+    maintainer: CircleCI
+    homepage: https://github.com/CircleCI-Public/circleci-cli
+    bindir: /usr
+    dependencies:
+      - git
+    description: CircleCI command line tool.
+    formats:
+      - deb
+      - rpm
+
+chocolateys:
+  - name: circleci-cli
+    package_source_url: https://github.com/CircleCI-Public/circleci-cli
+    owners: CircleCI
+    title: CircleCI CLI
+    authors: CircleCI
+    project_url: https://github.com/CircleCI-Public/circleci-cli
+    icon_url: "https://github.com/CircleCI-Public/circleci-cli/raw/main/chocolatey/icons/circleci-128x.png"
+    copyright: 2026 CircleCI Inc
+    license_url: https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/LICENSE
+    require_license_acceptance: false
+    project_source_url: https://github.com/CircleCI-Public/circleci-cli
+    docs_url: https://circleci-public.github.io/circleci-cli
+    bug_tracker_url: https://github.com/CircleCI-Public/circleci-cli/issues
+    tags: "ci"
+    summary: CircleCI command line tool
+    description: |
+      Command line tool for performing tasks related to a CircleCI project. Enables
+      you to run local builds, debug your continuous integration config files, and
+      manage Orbs.
+    api_key: "{{ .Env.CHOCO_API_KEY }}"
+    skip_publish: true # TODO: Remove this once we're ready to release
+
+snapcrafts:
+  - id: circleci
+    name: circleci
+    title: CircleCI CLI
+    summary: CircleCI command line tool
+    description: |
+      Command line tool for performing tasks related to a CircleCI project. Enables
+      you to run local builds, debug your continuous integration config files, and
+      manage Orbs.
+    license: MIT
+    grade: devel # TODO: Change to stable once we're ready to release
+    confinement: strict
+    apps:
+      circleci:
+        plugs:
+          - docker
+          - home
+          - network
+        command: circleci
 
 archives:
   - wrap_in_directory: true
@@ -47,6 +111,7 @@ archives:
 
 release:
   prerelease: auto
+  name_template: "CircleCI CLI {{.Version}}"
   make_latest: false
   header: |
     > **⚠️ Preview release — not recommended for production use.**
