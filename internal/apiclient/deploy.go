@@ -29,21 +29,21 @@ import (
 
 // Release represents a release returned by the CircleCI Deploy API.
 type Release struct {
-	ID              string    `json:"id"`
-	ProjectID       string    `json:"project_id"`
-	ComponentID     string    `json:"component_id"`
-	ComponentName   string    `json:"component_name"`
-	Type            string    `json:"type"`
-	Status          string    `json:"status"`
-	TargetVersion   *Version  `json:"target_version"`
-	PipelineID      string    `json:"pipeline_id,omitempty"`
-	WorkflowID      string    `json:"workflow_id,omitempty"`
-	PlanIsRollback  bool      `json:"plan_is_rollback"`
-	IsRerelease     bool      `json:"is_rerelease"`
-	FailureReason   string    `json:"failure_reason,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	StartedAt       time.Time `json:"started_at"`
-	EndedAt         time.Time `json:"ended_at"`
+	ID             string    `json:"id"`
+	ProjectID      string    `json:"project_id"`
+	ComponentID    string    `json:"component_id"`
+	ComponentName  string    `json:"component_name"`
+	Type           string    `json:"type"`
+	Status         string    `json:"status"`
+	TargetVersion  *Version  `json:"target_version"`
+	PipelineID     string    `json:"pipeline_id,omitempty"`
+	WorkflowID     string    `json:"workflow_id,omitempty"`
+	PlanIsRollback bool      `json:"plan_is_rollback"`
+	IsRerelease    bool      `json:"is_rerelease"`
+	FailureReason  string    `json:"failure_reason,omitempty"`
+	CreatedAt      time.Time `json:"created_at"`
+	StartedAt      time.Time `json:"started_at"`
+	EndedAt        time.Time `json:"ended_at"`
 }
 
 // Version holds a version name.
