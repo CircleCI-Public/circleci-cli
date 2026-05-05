@@ -177,13 +177,16 @@ func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
 
 	c, err := expect.NewConsole(
 		expect.WithStdout(os.Stdout),
+		expect.WithDefaultTimeout(5*time.Second),
 	)
 	assert.NilError(t, err)
 	t.Cleanup(func() {
-		_, err := c.ExpectEOF()
+		err := c.Tty().Close()
 		assert.Check(t, err)
-	})
-	t.Cleanup(func() {
+
+		_, err = c.ExpectEOF()
+		assert.Check(t, err)
+
 		assert.Check(t, c.Close())
 	})
 
@@ -215,6 +218,12 @@ func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
 	err = cmd.Start()
 	assert.NilError(t, err)
 	t.Cleanup(func() {
+		if t.Failed() {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return
+		}
+
 		assert.Check(t, cmd.Wait())
 	})
 
