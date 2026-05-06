@@ -27,8 +27,8 @@ import (
 	"time"
 )
 
-// Release represents a release returned by the CircleCI Deploy API.
-type Release struct {
+// Deploy represents a deploy returned by the CircleCI Deploy API.
+type Deploy struct {
 	ID             string    `json:"id"`
 	ProjectID      string    `json:"project_id"`
 	ComponentID    string    `json:"component_id"`
@@ -39,7 +39,7 @@ type Release struct {
 	PipelineID     string    `json:"pipeline_id,omitempty"`
 	WorkflowID     string    `json:"workflow_id,omitempty"`
 	PlanIsRollback bool      `json:"plan_is_rollback"`
-	IsRerelease    bool      `json:"is_rerelease"`
+	IsRedeploy     bool      `json:"is_rerelease"`
 	FailureReason  string    `json:"failure_reason,omitempty"`
 	CreatedAt      time.Time `json:"created_at"`
 	StartedAt      time.Time `json:"started_at"`
@@ -51,17 +51,17 @@ type Version struct {
 	Name string `json:"name"`
 }
 
-// ListReleases returns up to limit releases for a project. It paginates the API
+// ListDeploys returns up to limit deploys for a project. It paginates the API
 // automatically until the limit is reached or all results are exhausted. Pass
 // limit <= 0 for no limit (fetches all pages).
-func (c *Client) ListReleases(ctx context.Context, projectID, orgID string, limit int) ([]Release, error) {
-	var all []Release
+func (c *Client) ListDeploys(ctx context.Context, projectID, orgID string, limit int) ([]Deploy, error) {
+	var all []Deploy
 	pageToken := ""
 
 	for {
 		var resp struct {
-			Items         []Release `json:"items"`
-			NextPageToken string    `json:"next_page_token"`
+			Items         []Deploy `json:"items"`
+			NextPageToken string   `json:"next_page_token"`
 		}
 
 		err := c.get(ctx, "/deploy/projects/%s/releases", &resp,

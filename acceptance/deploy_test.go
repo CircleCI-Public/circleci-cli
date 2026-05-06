@@ -49,7 +49,7 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"organization_id":   "org-uuid-5678",
 	})
 
-	fake.AddRelease("proj-uuid-1234", map[string]any{
+	fake.AddDeploy("proj-uuid-1234", map[string]any{
 		"id":               "rel-uuid-0001",
 		"project_id":       "proj-uuid-1234",
 		"component_id":     "comp-uuid-1111",
@@ -63,7 +63,7 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"created_at":       "2026-04-28T14:30:00Z",
 		"ended_at":         "2026-04-28T14:35:00Z",
 	})
-	fake.AddRelease("proj-uuid-1234", map[string]any{
+	fake.AddDeploy("proj-uuid-1234", map[string]any{
 		"id":               "rel-uuid-0002",
 		"project_id":       "proj-uuid-1234",
 		"component_id":     "comp-uuid-2222",
@@ -78,7 +78,7 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"created_at":       "2026-04-27T09:15:00Z",
 		"ended_at":         "2026-04-27T09:25:00Z",
 	})
-	fake.AddRelease("proj-uuid-1234", map[string]any{
+	fake.AddDeploy("proj-uuid-1234", map[string]any{
 		"id":               "rel-uuid-0003",
 		"project_id":       "proj-uuid-1234",
 		"component_id":     "comp-uuid-1111",

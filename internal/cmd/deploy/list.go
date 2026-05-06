@@ -39,33 +39,29 @@ import (
 func newListCmd() *cobra.Command {
 	var (
 		projectSlug string
-		limit       int
 		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
 		Use:     "list",
 		Aliases: []string{"ls"},
-		Short:   "List recent releases",
+		Short:   "List recent deploys",
 		Long: heredoc.Doc(`
-			List releases for a CircleCI project.
+			List deploys for a CircleCI project.
 
 			The project is inferred from the current git repository's remote
-			unless overridden with --project. Each release shows the component,
+			unless overridden with --project. Each deploy shows the component,
 			version, status, type, and when it was created.
 
 			JSON fields: id, component_name, version, type, status, is_rollback,
 			             pipeline_id, workflow_id, created_at, ended_at
 		`),
 		Example: heredoc.Doc(`
-			# List the 10 most recent releases (auto-detect project from git remote)
+			# List the 10 most recent deploys (auto-detect project from git remote)
 			$ circleci deploy list
 
 			# List for a specific project
 			$ circleci deploy list --project gh/myorg/myrepo
-
-			# Show more results
-			$ circleci deploy list --limit 25
 
 			# Output as JSON for scripting
 			$ circleci deploy list --json
@@ -77,19 +73,18 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, projectSlug, limit, jsonOut)
+			return runList(ctx, client, projectSlug, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
-	cmd.Flags().IntVar(&limit, "limit", 10, "Maximum number of releases to show [default: 10]")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }
 
-type releaseEntry struct {
+type deployEntry struct {
 	ID            string `json:"id"`
 	ComponentName string `json:"component_name"`
 	Version       string `json:"version"`
@@ -102,7 +97,7 @@ type releaseEntry struct {
 	EndedAt       string `json:"ended_at,omitempty"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, projectSlug string, limit int, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, projectSlug string, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -119,31 +114,31 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			"Use 'circleci project list' to see followed projects")
 	}
 
-	releases, err := client.ListReleases(ctx, proj.ID, proj.OrganizationID, limit)
+	deploys, err := client.ListDeploys(ctx, proj.ID, proj.OrganizationID, 10)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
 
-	entries := make([]releaseEntry, len(releases))
-	for i, r := range releases {
+	entries := make([]deployEntry, len(deploys))
+	for i, d := range deploys {
 		version := ""
-		if r.TargetVersion != nil {
-			version = r.TargetVersion.Name
+		if d.TargetVersion != nil {
+			version = d.TargetVersion.Name
 		}
 		endedAt := ""
-		if !r.EndedAt.IsZero() {
-			endedAt = r.EndedAt.Format("2006-01-02 15:04 UTC")
+		if !d.EndedAt.IsZero() {
+			endedAt = d.EndedAt.Format("2006-01-02 15:04 UTC")
 		}
-		entries[i] = releaseEntry{
-			ID:            r.ID,
-			ComponentName: r.ComponentName,
+		entries[i] = deployEntry{
+			ID:            d.ID,
+			ComponentName: d.ComponentName,
 			Version:       version,
-			Type:          r.Type,
-			Status:        r.Status,
-			IsRollback:    r.PlanIsRollback,
-			PipelineID:    r.PipelineID,
-			WorkflowID:    r.WorkflowID,
-			CreatedAt:     r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+			Type:          d.Type,
+			Status:        d.Status,
+			IsRollback:    d.PlanIsRollback,
+			PipelineID:    d.PipelineID,
+			WorkflowID:    d.WorkflowID,
+			CreatedAt:     d.CreatedAt.Format("2006-01-02 15:04 UTC"),
 			EndedAt:       endedAt,
 		}
 	}
@@ -153,7 +148,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 	}
 
 	if len(entries) == 0 {
-		iostream.ErrPrintln(ctx, "No releases found.")
+		iostream.ErrPrintln(ctx, "No deploys found.")
 		return nil
 	}
 
@@ -161,10 +156,10 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 	return nil
 }
 
-func printList(ctx context.Context, entries []releaseEntry) {
+func printList(ctx context.Context, entries []deployEntry) {
 	table := mdtable.New("Component", "Version", "Type", "Status", "Created")
 	for _, e := range entries {
 		table.Row(e.ComponentName, e.Version, strings.ToLower(e.Type), strings.ToLower(e.Status), e.CreatedAt)
 	}
-	iostream.PrintMarkdown(ctx, "# Releases\n"+table.Render())
+	iostream.PrintMarkdown(ctx, "# Deploys\n"+table.Render())
 }

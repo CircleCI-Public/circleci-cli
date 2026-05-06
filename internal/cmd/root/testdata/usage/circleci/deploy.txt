@@ -2,7 +2,7 @@ Usage:
   circleci deploy [command]
 
 Available Commands:
-  list        List recent releases
+  list        List recent deploys
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

@@ -82,7 +82,7 @@ type CircleCI struct {
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
 	// Deploy state.
-	deployReleases map[string][]any // project id → releases
+	deploys map[string][]any // project id → deploys
 
 	// Auth state.
 	me                 any // response for GET /api/v2/me
@@ -125,7 +125,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		deletedContextVars:         map[string]bool{},
 		deletedContextRestrictions: map[string]bool{},
 		projectInfos:               map[string]any{},
-		deployReleases:             map[string][]any{},
+		deploys:                    map[string][]any{},
 	}
 
 	r := newRouter()
@@ -163,7 +163,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
 	// Deploy routes.
-	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListReleases)
+	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListDeploys)
 	// Runner (v3) routes. GET /runner dispatches on query param:
 	// ?namespace=  → resource classes, ?resource-class= → instances.
 	r.Get("/api/v3/runner", f.handleRunnerList)
@@ -1264,18 +1264,18 @@ func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) 
 
 // --- Deploy helpers ---
 
-// AddRelease registers a release for a project, returned by
+// AddDeploy registers a deploy for a project, returned by
 // GET /api/v2/deploy/projects/{project_id}/releases.
-func (f *CircleCI) AddRelease(projectID string, release any) {
+func (f *CircleCI) AddDeploy(projectID string, deploy any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.deployReleases[projectID] = append(f.deployReleases[projectID], release)
+	f.deploys[projectID] = append(f.deploys[projectID], deploy)
 }
 
-func (f *CircleCI) handleListReleases(w http.ResponseWriter, r *http.Request) {
+func (f *CircleCI) handleListDeploys(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "project_id")
 	f.mu.RLock()
-	items := f.deployReleases[id]
+	items := f.deploys[id]
 	f.mu.RUnlock()
 
 	if items == nil {

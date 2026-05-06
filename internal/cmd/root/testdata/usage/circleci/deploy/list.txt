@@ -5,14 +5,11 @@ Aliases:
   list, ls
 
 Examples:
-# List the 10 most recent releases (auto-detect project from git remote)
+# List the 10 most recent deploys (auto-detect project from git remote)
 $ circleci deploy list
 
 # List for a specific project
 $ circleci deploy list --project gh/myorg/myrepo
-
-# Show more results
-$ circleci deploy list --limit 25
 
 # Output as JSON for scripting
 $ circleci deploy list --json
@@ -21,7 +18,6 @@ $ circleci deploy list --json
 Flags:
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
-      --limit int        Maximum number of releases to show [default: 10] (default 10)
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
 
 Global Flags:
