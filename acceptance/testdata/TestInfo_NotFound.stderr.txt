@@ -1,0 +1,5 @@
+error: No project found for "gh/myorg/nonexistent".
+
+Suggestions:
+  • Check the project slug and try again
+  • Use 'circleci project list' to see followed projects

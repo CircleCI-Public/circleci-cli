@@ -36,14 +36,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
 
-func newGetCmd() *cobra.Command {
+func NewGetCmd(use string) *cobra.Command {
 	var (
 		projectSlug string
 		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "get",
+		Use:   use,
 		Short: "Show project details",
 		Long: heredoc.Doc(`
 			Display detailed information about a CircleCI project, including
