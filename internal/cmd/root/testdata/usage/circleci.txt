@@ -8,6 +8,7 @@ Available Commands:
   completion  Manage shell completions
   context     Manage contexts
   envvar      Manage project environment variables
+  info        Show project details
   job         Manage jobs
   logs        Fetch job logs
   mcp         MCP server management
