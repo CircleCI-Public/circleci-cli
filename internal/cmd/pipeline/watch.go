@@ -395,8 +395,35 @@ func watchFinalResult(ctx context.Context, state pipelineGetOutput, number int64
 			iostream.SymbolFail(ctx), number, formatElapsed(elapsed))
 		return clierrors.New("pipeline.failed", "Pipeline failed",
 			fmt.Sprintf("Pipeline #%d failed.", number)).
+			WithSuggestions(failedJobLogSuggestions(state)...).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
+}
+
+// failedJobLogSuggestions returns commands the user can run to view logs for
+// the failed jobs in the pipeline. Caps individual job suggestions so the
+// suggestion list stays readable when many jobs fail.
+func failedJobLogSuggestions(state pipelineGetOutput) []string {
+	const maxJobs = 3
+	var suggestions []string
+	for _, wf := range state.Workflows {
+		for _, j := range wf.Jobs {
+			if j.Status != "failed" || j.Number <= 0 {
+				continue
+			}
+			if len(suggestions) >= maxJobs {
+				suggestions = append(suggestions,
+					"More jobs failed; see all with: circleci pipeline get")
+				return append(suggestions,
+					"Or fetch logs for the latest failed job: circleci logs --last-failed")
+			}
+			suggestions = append(suggestions,
+				fmt.Sprintf("View logs for failed job %q: circleci logs %d", j.Name, j.Number))
+		}
+	}
+	suggestions = append(suggestions,
+		"Or fetch logs for the latest failed job: circleci logs --last-failed")
+	return suggestions
 }
 
 func formatElapsed(d time.Duration) string {
