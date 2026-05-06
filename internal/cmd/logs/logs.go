@@ -124,7 +124,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 		return clierrors.New("args.missing", "No job specified",
 			"Specify a job number or use --last-failed or --last-job.").
 			WithSuggestions(
-				"Run 'circleci pipeline get' to see job numbers for the latest pipeline",
+				"Run 'circleci run get' to see job numbers for the latest run",
 			).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
@@ -169,28 +169,28 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 			}
 		}
 
-		sp1 := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", projectSlug, effectiveBranch))
-		pipeline, err := client.GetLatestPipeline(ctx, projectSlug, effectiveBranch)
+		sp1 := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching latest run for %s on branch %s", projectSlug, effectiveBranch))
+		r, err := client.GetLatestPipeline(ctx, projectSlug, effectiveBranch)
 		sp1.Stop()
 		if err != nil {
 			return apiErr(err, fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
 		}
 
 		if lastFailed {
-			jobNumber, projectSlug, err = logs.LastFailed(ctx, client, pipeline.ID)
+			jobNumber, projectSlug, err = logs.LastFailed(ctx, client, r.ID)
 		} else {
-			jobNumber, projectSlug, err = logs.LastJob(ctx, client, pipeline.ID)
+			jobNumber, projectSlug, err = logs.LastJob(ctx, client, r.ID)
 		}
 		if err != nil {
 			if noneFound, ok := errors.AsType[*logs.ErrNoneFound](err); ok {
 				return clierrors.New("logs.none_found", "No matching job",
 					noneFound.Reason).
 					WithSuggestions(
-						"Run 'circleci pipeline get' to inspect the pipeline's workflows and jobs",
+						"Run 'circleci run get' to inspect the run's workflows and jobs",
 					).
 					WithExitCode(clierrors.ExitNotFound)
 			}
-			return apiErr(err, pipeline.ID)
+			return apiErr(err, r.ID)
 		}
 
 		fetchLogsSp = iostream.Spinner(ctx, true, fmt.Sprintf("Fetching logs for job #%d", jobNumber))
@@ -207,7 +207,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, lastFaile
 			fmt.Sprintf("Job #%d returned no step output.", jobNumber)).
 			WithSuggestions(
 				"The job may still be running, or output may have expired",
-				"Verify the job number with: circleci pipeline get",
+				"Verify the job number with: circleci run get",
 			).
 			WithExitCode(clierrors.ExitNotFound)
 	}

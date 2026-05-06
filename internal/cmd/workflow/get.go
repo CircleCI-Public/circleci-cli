@@ -45,9 +45,9 @@ func newGetCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Display the status and jobs of a CircleCI workflow.
 
-			Workflow IDs are shown in the output of 'circleci pipeline get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 
-			JSON fields: id, name, status, pipeline_id, pipeline_number,
+			JSON fields: id, name, status, run_id, run_number,
 			             project_slug, created_at, stopped_at, jobs
 		`),
 		Example: heredoc.Doc(`
@@ -57,8 +57,8 @@ func newGetCmd() *cobra.Command {
 			# Output as JSON
 			$ circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b --json
 
-			# Get workflow ID from a pipeline
-			$ circleci pipeline get | grep -A1 "Workflows"
+			# Get workflow ID from a run
+			$ circleci run get | grep -A1 "Workflows"
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,15 +80,15 @@ func newGetCmd() *cobra.Command {
 }
 
 type workflowGetOutput struct {
-	ID             string      `json:"id"`
-	Name           string      `json:"name"`
-	Status         string      `json:"status"`
-	PipelineID     string      `json:"pipeline_id"`
-	PipelineNumber int64       `json:"pipeline_number"`
-	ProjectSlug    string      `json:"project_slug"`
-	CreatedAt      string      `json:"created_at"`
-	StoppedAt      string      `json:"stopped_at,omitempty"`
-	Jobs           []jobOutput `json:"jobs"`
+	ID          string      `json:"id"`
+	Name        string      `json:"name"`
+	Status      string      `json:"status"`
+	RunID       string      `json:"run_id"`
+	RunNumber   int64       `json:"run_number"`
+	ProjectSlug string      `json:"project_slug"`
+	CreatedAt   string      `json:"created_at"`
+	StoppedAt   string      `json:"stopped_at,omitempty"`
+	Jobs        []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
@@ -110,13 +110,13 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 	}
 
 	out := workflowGetOutput{
-		ID:             wf.ID,
-		Name:           wf.Name,
-		Status:         wf.Status,
-		PipelineID:     wf.PipelineID,
-		PipelineNumber: wf.PipelineNumber,
-		ProjectSlug:    wf.ProjectSlug,
-		CreatedAt:      wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		ID:          wf.ID,
+		Name:        wf.Name,
+		Status:      wf.Status,
+		RunID:       wf.PipelineID,
+		RunNumber:   wf.PipelineNumber,
+		ProjectSlug: wf.ProjectSlug,
+		CreatedAt:   wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 	}
 	if wf.StoppedAt != nil {
 		out.StoppedAt = wf.StoppedAt.Format("2006-01-02 15:04:05 UTC")
@@ -144,9 +144,9 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", w.Name)
-	_, _ = fmt.Fprintf(&md, "- Pipeline:\n")
-	_, _ = fmt.Fprintf(&md, "  - Number: #%d\n", w.PipelineNumber)
-	_, _ = fmt.Fprintf(&md, "  - ID: `%s`\n", w.PipelineID)
+	_, _ = fmt.Fprintf(&md, "- Run:\n")
+	_, _ = fmt.Fprintf(&md, "  - Number: #%d\n", w.RunNumber)
+	_, _ = fmt.Fprintf(&md, "  - ID: `%s`\n", w.RunID)
 	_, _ = fmt.Fprintf(&md, "- Project: %s\n", w.ProjectSlug)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)

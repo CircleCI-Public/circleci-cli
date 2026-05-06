@@ -1,1 +1,1 @@
-No pipelines found for project gh/testorg/testrepo.
+No runs found for project gh/testorg/testrepo.

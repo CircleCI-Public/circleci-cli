@@ -79,11 +79,11 @@ func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddPipeline(testPipelineID,
-		fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
-	fake.AddProjectPipelines(testSlug,
-		fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
-	fake.AddPipelineWorkflows(testPipelineID,
+	fake.AddRun(testPipelineID,
+		fakeRun(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddProjectRuns(testSlug,
+		fakeRun(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddRunWorkflows(testPipelineID,
 		fakeWorkflow(testWorkflowID, "build"))
 	fake.AddWorkflowJobs(testWorkflowID,
 		fakeJob("job-uuid-1", "build", 42, testSlug))

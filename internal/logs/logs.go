@@ -62,12 +62,12 @@ func ForJob(ctx context.Context, client *apiclient.Client, projectSlug string, j
 	return results, nil
 }
 
-// LastFailed finds the latest failed job across all workflows in a pipeline.
+// LastFailed finds the latest failed job across all workflows in a run.
 // If all workflows passed, it returns ErrNoneFound with a clear message so
 // callers can surface a clean error rather than "no failed jobs found" after
 // a full traversal.
-func LastFailed(ctx context.Context, client *apiclient.Client, pipelineID string) (jobNumber int64, projectSlug string, err error) {
-	workflows, err := client.GetPipelineWorkflows(ctx, pipelineID)
+func LastFailed(ctx context.Context, client *apiclient.Client, runID string) (jobNumber int64, projectSlug string, err error) {
+	workflows, err := client.GetPipelineWorkflows(ctx, runID)
 	if err != nil {
 		return 0, "", fmt.Errorf("fetching workflows: %w", err)
 	}
@@ -81,7 +81,7 @@ func LastFailed(ctx context.Context, client *apiclient.Client, pipelineID string
 		}
 	}
 	if allPassed {
-		return 0, "", &ErrNoneFound{Reason: "all workflows in this pipeline passed"}
+		return 0, "", &ErrNoneFound{Reason: "all workflows in this run passed"}
 	}
 
 	for _, wf := range workflows {
@@ -96,12 +96,12 @@ func LastFailed(ctx context.Context, client *apiclient.Client, pipelineID string
 		}
 	}
 
-	return 0, "", &ErrNoneFound{Reason: "no failed jobs found in the latest pipeline"}
+	return 0, "", &ErrNoneFound{Reason: "no failed jobs found in the latest run"}
 }
 
-// LastJob finds the most recently completed job across all workflows in a pipeline.
-func LastJob(ctx context.Context, client *apiclient.Client, pipelineID string) (jobNumber int64, projectSlug string, err error) {
-	workflows, err := client.GetPipelineWorkflows(ctx, pipelineID)
+// LastJob finds the most recently completed job across all workflows in a run.
+func LastJob(ctx context.Context, client *apiclient.Client, runID string) (jobNumber int64, projectSlug string, err error) {
+	workflows, err := client.GetPipelineWorkflows(ctx, runID)
 	if err != nil {
 		return 0, "", fmt.Errorf("fetching workflows: %w", err)
 	}
@@ -123,7 +123,7 @@ func LastJob(ctx context.Context, client *apiclient.Client, pipelineID string) (
 	}
 
 	if latestJob == nil {
-		return 0, "", &ErrNoneFound{Reason: "no completed jobs found in the latest pipeline"}
+		return 0, "", &ErrNoneFound{Reason: "no completed jobs found in the latest run"}
 	}
 	return latestJob.JobNumber, latestJob.ProjectSlug, nil
 }

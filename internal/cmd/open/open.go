@@ -37,7 +37,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 )
 
-// projectURL builds the CircleCI pipelines URL for the given project slug.
+// projectURL builds the CircleCI runs URL for the given project slug.
 func projectURL(appURL, slug string) (string, error) {
 	parts := strings.SplitN(slug, "/", 3)
 	if len(parts) != 3 {
@@ -57,14 +57,14 @@ func NewOpenCmd() *cobra.Command {
 		Use:   "open",
 		Short: "Open the current project in the browser",
 		Long: heredoc.Doc(`
-			Open the CircleCI pipelines page for the current project in your
+			Open the CircleCI runs page for the current project in your
 			default web browser.
 
 			The project is inferred from the current git repository's remote.
 			Supports GitHub, Bitbucket, and GitLab remotes.
 		`),
 		Example: heredoc.Doc(`
-			# Open pipelines for the current repo
+			# Open runs for the current repo
 			$ circleci open
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {

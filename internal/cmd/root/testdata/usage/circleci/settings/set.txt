@@ -12,7 +12,7 @@ $ echo "mytoken123" | circleci settings set token -
 $ circleci settings set host https://circleci.mycompany.com
 
 # You can also supply the token via environment variable
-$ CIRCLECI_TOKEN=mytoken123 circleci pipeline get
+$ CIRCLECI_TOKEN=mytoken123 circleci run get
 
 
 Global Flags:

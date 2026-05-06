@@ -99,7 +99,7 @@ func AppURL(ctx context.Context, cmd *cobra.Command) (string, error) {
 // APIErr converts an apiclient error into a structured CLIError.
 //
 // notFoundCode and notFoundMsg customise the 404 case for the calling resource
-// (e.g. "pipeline.not_found", "No pipeline found for %q"). notFoundMsg is
+// (e.g. "run.not_found", "No run found for %q"). notFoundMsg is
 // passed through fmt.Sprintf with subject as the single argument.
 //
 // Optional notFoundSuggestions are appended to the 404 error (useful for

@@ -37,7 +37,7 @@ import (
 
 func TestAPI_Get(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
+	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 42, "created", testSlug, "main"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -56,7 +56,7 @@ func TestAPI_Get(t *testing.T) {
 
 func TestAPI_Get_JQ(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
+	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 42, "created", testSlug, "main"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -75,7 +75,7 @@ func TestAPI_Get_JQ(t *testing.T) {
 
 func TestAPI_Get_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 42, "created", testSlug, "main"))
+	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 42, "created", testSlug, "main"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -125,7 +125,7 @@ func TestAPI_NoToken(t *testing.T) {
 
 func TestAPI_PathDefaultsToV2(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 7, "created", testSlug, "main"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -145,7 +145,7 @@ func TestAPI_PathDefaultsToV2(t *testing.T) {
 
 func TestAPI_PathDefaultsToV2_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineID, fakePipeline(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 7, "created", testSlug, "main"))
 
 	env := testenv.New(t)
 	env.Token = testToken

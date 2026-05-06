@@ -59,7 +59,7 @@ func newSetCmd() *cobra.Command {
 			$ circleci settings set host https://circleci.mycompany.com
 
 			# You can also supply the token via environment variable
-			$ CIRCLECI_TOKEN=mytoken123 circleci pipeline get
+			$ CIRCLECI_TOKEN=mytoken123 circleci run get
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {

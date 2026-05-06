@@ -47,7 +47,7 @@ func newCancelCmd() *cobra.Command {
 			Any in-progress jobs will be stopped. Jobs that have already
 			completed are not affected.
 
-			Workflow IDs are shown in the output of 'circleci pipeline get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 
 			In a terminal, you will be prompted to confirm before cancelling.
 			Use --force (-f) to skip the prompt for scripting.
@@ -59,8 +59,8 @@ func newCancelCmd() *cobra.Command {
 			# Cancel without confirmation
 			$ circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force
 
-			# Find a running workflow ID from the latest pipeline and cancel it
-			$ circleci pipeline get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
+			# Find a running workflow ID from the latest run and cancel it
+			$ circleci run get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

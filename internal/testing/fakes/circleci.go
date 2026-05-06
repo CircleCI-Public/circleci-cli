@@ -211,26 +211,26 @@ func (f *CircleCI) SetCancelResponse(workflowID string, status int) {
 	f.cancelResponses[workflowID] = status
 }
 
-// AddPipeline registers a pipeline response for GET /api/v2/pipeline/<id>.
-func (f *CircleCI) AddPipeline(id string, pipeline any) {
+// AddRun registers a run response for GET /api/v2/pipeline/<id>.
+func (f *CircleCI) AddRun(id string, run any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.pipelines[id] = pipeline
+	f.pipelines[id] = run
 }
 
-// AddProjectPipelines registers pipelines for GET /api/v2/project/<slug>/pipeline.
+// AddProjectRuns registers runs for GET /api/v2/project/<slug>/pipeline.
 // slug should be in "vcs/org/repo" form, e.g. "gh/myorg/myrepo".
-func (f *CircleCI) AddProjectPipelines(slug string, pipelines ...any) {
+func (f *CircleCI) AddProjectRuns(slug string, runs ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.projects[slug] = pipelines
+	f.projects[slug] = runs
 }
 
-// AddPipelineWorkflows registers workflow responses for a pipeline.
-func (f *CircleCI) AddPipelineWorkflows(pipelineID string, workflows ...any) {
+// AddRunWorkflows registers workflow responses for a run.
+func (f *CircleCI) AddRunWorkflows(runID string, workflows ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.workflows[pipelineID] = workflows
+	f.workflows[runID] = workflows
 }
 
 // AddWorkflowJobs registers job responses for a workflow.
