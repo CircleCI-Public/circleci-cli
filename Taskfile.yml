@@ -179,4 +179,4 @@ tasks:
       - git config --global user.name $GH_NAME
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - git push origin '{{.VERSION}}'
-      - go tool -modfile tools/go.mod goreleaser release --clean --draft
+      - go tool -modfile tools/go.mod goreleaser release --clean
