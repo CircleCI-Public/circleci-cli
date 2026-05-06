@@ -137,6 +137,42 @@ func TestPipelineWatch_Failed(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
 }
 
+// --- failed pipeline with a failed job → suggests `circleci logs <num>` ---
+
+func TestPipelineWatch_Failed_SuggestsJobLogs(t *testing.T) {
+	pipelineID := "watch-pid-failedjob"
+	wfID := "watch-wf-failedjob"
+	p := fakePipeline(pipelineID, 75, "created", watchSlug, "main")
+
+	failedJob := fakeJob("job-1", "integration-test", 156057, watchSlug)
+	failedJob["status"] = "failed"
+
+	fake := fakes.NewCircleCI(t)
+	fake.AddPipeline(pipelineID, p)
+	fake.AddProjectPipelines(watchSlug, p)
+	fake.AddPipelineWorkflows(pipelineID, map[string]any{"id": wfID, "name": "build", "status": "failed"})
+	fake.AddWorkflowJobs(wfID,
+		failedJob,
+		fakeJob("job-2", "lint", 156058, watchSlug),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, `"integration-test"`), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs 156057"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
+}
+
 // --- cancelled pipeline → exit 6 ---
 
 func TestPipelineWatch_Cancelled(t *testing.T) {
