@@ -3,7 +3,7 @@ Usage:
 
 Available Commands:
   api         Make an authenticated request to the CircleCI API
-  artifacts   List or download pipeline artifacts
+  artifacts   List or download run artifacts
   auth        Manage CLI auth
   completion  Manage shell completions
   context     Manage contexts
@@ -13,8 +13,8 @@ Available Commands:
   logs        Fetch job logs
   mcp         MCP server management
   open        Open the current project in the browser
-  pipeline    Manage pipelines
   project     Manage CircleCI projects
+  run         Manage runs
   runner      Manage self-hosted runners
   settings    Manage CLI settings
   version     Print version information

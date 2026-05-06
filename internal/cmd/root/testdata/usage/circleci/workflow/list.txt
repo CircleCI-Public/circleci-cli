@@ -1,23 +1,23 @@
 Usage:
-  circleci workflow list [<pipeline-id>] [flags]
+  circleci workflow list [<run-id>] [flags]
 
 Aliases:
   list, ls
 
 Examples:
-# List workflows for recent pipelines in the current project
+# List workflows for recent runs in the current project
 $ circleci workflow list
 
 # Filter to a specific branch
 $ circleci workflow list --branch main
 
-# List workflows by pipeline UUID
+# List workflows by run UUID
 $ circleci workflow list 9e0c9d52-3b7e-4cd6-b5f7-bfc5e4a07e81
 
-# List workflows by pipeline number
+# List workflows by run number
 $ circleci workflow list 75
 
-# List workflows for a pipeline in a specific project
+# List workflows for a run in a specific project
 $ circleci workflow list 75 --project gh/myorg/myrepo
 
 # Output as JSON
@@ -25,10 +25,10 @@ $ circleci workflow list --json
 
 
 Flags:
-  -b, --branch string    Filter by branch (recent-pipelines mode)
+  -b, --branch string    Filter by branch (recent-runs mode)
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
-      --limit int        Number of recent pipelines to show (recent-pipelines mode) (default 10)
+      --limit int        Number of recent runs to show (recent-runs mode) (default 10)
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
 
 Global Flags:

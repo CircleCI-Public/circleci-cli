@@ -114,11 +114,11 @@ func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	})
 
 	// Wire up pipeline → workflow → job for --last-failed / --last-job inference.
-	fake.AddPipeline(testLogsPipelineID,
-		fakePipeline(testLogsPipelineID, 8, "created", testSlug, "main"))
-	fake.AddProjectPipelines(testSlug,
-		fakePipeline(testLogsPipelineID, 8, "created", testSlug, "main"))
-	fake.AddPipelineWorkflows(testLogsPipelineID,
+	fake.AddRun(testLogsPipelineID,
+		fakeRun(testLogsPipelineID, 8, "created", testSlug, "main"))
+	fake.AddProjectRuns(testSlug,
+		fakeRun(testLogsPipelineID, 8, "created", testSlug, "main"))
+	fake.AddRunWorkflows(testLogsPipelineID,
 		map[string]any{"id": testLogsWorkflowID, "name": "build", "status": "failed"})
 	fake.AddWorkflowJobs(testLogsWorkflowID, map[string]any{
 		"id":           "job-uuid-99",
@@ -257,11 +257,11 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 	passedPipelineID := "aaaaaaaa-0000-0000-0000-000000000099"
 	passedWorkflowID := "bbbbbbbb-0000-0000-0000-000000000099"
 
-	fake.AddPipeline(passedPipelineID,
-		fakePipeline(passedPipelineID, 9, "created", testSlug, "main"))
-	fake.AddProjectPipelines(testSlug,
-		fakePipeline(passedPipelineID, 9, "created", testSlug, "main"))
-	fake.AddPipelineWorkflows(passedPipelineID,
+	fake.AddRun(passedPipelineID,
+		fakeRun(passedPipelineID, 9, "created", testSlug, "main"))
+	fake.AddProjectRuns(testSlug,
+		fakeRun(passedPipelineID, 9, "created", testSlug, "main"))
+	fake.AddRunWorkflows(passedPipelineID,
 		map[string]any{"id": passedWorkflowID, "name": "build", "status": "success"})
 
 	env := testenv.New(t)

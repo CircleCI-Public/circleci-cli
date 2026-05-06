@@ -55,7 +55,7 @@ func newLogsCmd() *cobra.Command {
 			The project is inferred from the current git repository's remote
 			unless overridden with --project.
 
-			To infer the job from the latest pipeline, use 'circleci logs'
+			To infer the job from the latest run, use 'circleci logs'
 			with --last-failed or --last-job.
 
 			JSON fields: step, status, exit_code, output
@@ -126,7 +126,7 @@ func runJobLogs(ctx context.Context, client *apiclient.Client, jobNumber int64, 
 			fmt.Sprintf("Job #%d returned no step output.", jobNumber)).
 			WithSuggestions(
 				"The job may still be running, or output may have expired",
-				"Verify the job number with: circleci pipeline get",
+				"Verify the job number with: circleci run get",
 			).
 			WithExitCode(clierrors.ExitNotFound)
 	}

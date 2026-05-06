@@ -51,31 +51,31 @@ func NewArtifactsCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "artifacts [<pipeline-id>]",
-		Short: "List or download pipeline artifacts",
+		Use:   "artifacts [<run-id>]",
+		Short: "List or download run artifacts",
 		Long: heredoc.Doc(`
-			List or download artifacts produced by a CircleCI pipeline or job.
+			List or download artifacts produced by a CircleCI run or job.
 
-			With no arguments, the pipeline is inferred from the current git
-			repository's remote and checked-out branch. Pass a pipeline UUID to
-			target a specific pipeline. Use --job to scope to a single job number.
+			With no arguments, the run is inferred from the current git
+			repository's remote and checked-out branch. Pass a run UUID to
+			target a specific run. Use --job to scope to a single job number.
 
-			When listing at pipeline level, each artifact is shown with the job
+			When listing at run level, each artifact is shown with the job
 			name and number it came from.
 
 			JSON fields: job_name, job_number, path, url, node_index
 		`),
 		Example: heredoc.Doc(`
-			# List all artifacts for the latest pipeline on the current branch
+			# List all artifacts for the latest run on the current branch
 			$ circleci artifacts
 
-			# List artifacts for a specific pipeline
+			# List artifacts for a specific run
 			$ circleci artifacts 5034460f-c7c4-4c43-9457-de07e2029e7b
 
 			# List artifacts for a specific job number
 			$ circleci artifacts --job 123
 
-			# Download all artifacts from the latest pipeline into ./artifacts
+			# Download all artifacts from the latest run into ./artifacts
 			$ circleci artifacts --download ./artifacts
 
 			# Download artifacts for a specific branch
@@ -99,7 +99,7 @@ func NewArtifactsCmd() *cobra.Command {
 
 	cmd.Flags().Int64VarP(&jobNumber, "job", "j", 0, "Scope to a single job number")
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used with --job, defaults to git remote")
-	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch for pipeline inference (default: current branch)")
+	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch for run inference (default: current branch)")
 	cmd.Flags().StringVarP(&downloadDir, "download", "d", "", "Download artifacts into this directory")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -119,7 +119,7 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 		if projectSlug == "" {
 			info, err := gitremote.Detect()
 			if err != nil {
-				return cmdutil.GitDetectErr(err, "Or provide a pipeline UUID: circleci artifacts <id>")
+				return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci artifacts <id>")
 			}
 			projectSlug = info.Slug
 		}
@@ -129,34 +129,34 @@ func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber
 		}
 
 	case len(args) == 1:
-		// Explicit pipeline UUID
-		pipelineID := args[0]
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching artifacts for pipeline %s", pipelineID))
-		entries, err = artifacts.ForPipeline(ctx, client, pipelineID)
+		// Explicit run UUID
+		runID := args[0]
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching artifacts for run %s", runID))
+		entries, err = artifacts.ForPipeline(ctx, client, runID)
 		sp.Stop()
 		if err != nil {
-			return apiErr(err, pipelineID)
+			return apiErr(err, runID)
 		}
 
 	default:
-		// Infer pipeline from git context
+		// Infer run from git context
 		info, err := gitremote.Detect()
 		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or provide a pipeline UUID: circleci artifacts <id>")
+			return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci artifacts <id>")
 		}
 		effectiveBranch := branch
 		if effectiveBranch == "" {
 			effectiveBranch = info.Branch
 		}
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest pipeline for %s on branch %s", info.Slug, effectiveBranch))
-		pipeline, err := client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest run for %s on branch %s", info.Slug, effectiveBranch))
+		r, err := client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
 		sp.Stop()
 		if err != nil {
 			return apiErr(err, fmt.Sprintf("%s@%s", info.Slug, effectiveBranch))
 		}
-		entries, err = artifacts.ForPipeline(ctx, client, pipeline.ID)
+		entries, err = artifacts.ForPipeline(ctx, client, r.ID)
 		if err != nil {
-			return apiErr(err, pipeline.ID)
+			return apiErr(err, r.ID)
 		}
 	}
 

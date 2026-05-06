@@ -237,8 +237,8 @@ func minimalPipeline(id string) map[string]any {
 
 func TestWorkflowList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddPipelineWorkflows(testPipelineForWF,
+	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddRunWorkflows(testPipelineForWF,
 		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
 		map[string]any{"id": "wf-uuid-bbb", "name": "deploy", "status": "failed"},
 	)
@@ -260,8 +260,8 @@ func TestWorkflowList(t *testing.T) {
 
 func TestWorkflowList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddPipelineWorkflows(testPipelineForWF,
+	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddRunWorkflows(testPipelineForWF,
 		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
 		map[string]any{"id": "wf-uuid-bbb", "name": "deploy", "status": "failed"},
 	)
@@ -284,8 +284,8 @@ func TestWorkflowList_Color(t *testing.T) {
 
 func TestWorkflowList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddPipelineWorkflows(testPipelineForWF,
+	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddRunWorkflows(testPipelineForWF,
 		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
 	)
 
@@ -314,8 +314,8 @@ func TestWorkflowList_JSON(t *testing.T) {
 
 func TestWorkflowList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddPipelineWorkflows(testPipelineForWF,
+	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddRunWorkflows(testPipelineForWF,
 		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
 	)
 
@@ -337,8 +337,8 @@ func TestWorkflowList_JSON_Color(t *testing.T) {
 
 func TestWorkflowList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddPipeline(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddPipelineWorkflows(testPipelineForWF) // no workflows
+	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
+	fake.AddRunWorkflows(testPipelineForWF) // no workflows
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -401,17 +401,17 @@ func recentPipeline(id string, number int64, branch string) map[string]any {
 func TestWorkflowList_NoArg(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddPipeline(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
-	fake.AddProjectPipelines(testSlug,
+	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddRun(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
+	fake.AddProjectRuns(testSlug,
 		recentPipeline(testPipelineRecent1, 10, "main"),
 		recentPipeline(testPipelineRecent2, 9, "main"),
 	)
-	fake.AddPipelineWorkflows(testPipelineRecent1,
+	fake.AddRunWorkflows(testPipelineRecent1,
 		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
 		map[string]any{"id": "wf-recent-bbb", "name": "deploy", "status": "failed"},
 	)
-	fake.AddPipelineWorkflows(testPipelineRecent2,
+	fake.AddRunWorkflows(testPipelineRecent2,
 		map[string]any{"id": "wf-recent-ccc", "name": "build", "status": "running"},
 	)
 
@@ -433,17 +433,17 @@ func TestWorkflowList_NoArg(t *testing.T) {
 func TestWorkflowList_NoArg_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddPipeline(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
-	fake.AddProjectPipelines(testSlug,
+	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddRun(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
+	fake.AddProjectRuns(testSlug,
 		recentPipeline(testPipelineRecent1, 10, "main"),
 		recentPipeline(testPipelineRecent2, 9, "main"),
 	)
-	fake.AddPipelineWorkflows(testPipelineRecent1,
+	fake.AddRunWorkflows(testPipelineRecent1,
 		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
 		map[string]any{"id": "wf-recent-bbb", "name": "deploy", "status": "failed"},
 	)
-	fake.AddPipelineWorkflows(testPipelineRecent2,
+	fake.AddRunWorkflows(testPipelineRecent2,
 		map[string]any{"id": "wf-recent-ccc", "name": "build", "status": "running"},
 	)
 
@@ -466,11 +466,11 @@ func TestWorkflowList_NoArg_Color(t *testing.T) {
 func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddProjectPipelines(testSlug,
+	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddProjectRuns(testSlug,
 		recentPipeline(testPipelineRecent1, 10, "main"),
 	)
-	fake.AddPipelineWorkflows(testPipelineRecent1,
+	fake.AddRunWorkflows(testPipelineRecent1,
 		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
 	)
 
@@ -490,8 +490,8 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 1))
-	assert.Check(t, cmp.Equal(out[0]["pipeline_id"], testPipelineRecent1))
-	assert.Check(t, cmp.Equal(out[0]["pipeline_number"], float64(10)))
+	assert.Check(t, cmp.Equal(out[0]["run_id"], testPipelineRecent1))
+	assert.Check(t, cmp.Equal(out[0]["run_number"], float64(10)))
 	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
@@ -502,11 +502,11 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddPipeline(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddProjectPipelines(testSlug,
+	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
+	fake.AddProjectRuns(testSlug,
 		recentPipeline(testPipelineRecent1, 10, "main"),
 	)
-	fake.AddPipelineWorkflows(testPipelineRecent1,
+	fake.AddRunWorkflows(testPipelineRecent1,
 		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
 	)
 

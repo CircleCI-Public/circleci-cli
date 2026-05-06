@@ -1,4 +1,0 @@
-error: No pipeline found for "00000000-0000-0000-0000-000000000000".
-
-Suggestions:
-  • Check the pipeline UUID or branch name and try again

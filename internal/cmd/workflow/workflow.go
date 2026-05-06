@@ -39,10 +39,10 @@ func NewWorkflowCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Work with CircleCI workflows.
 
-			Workflows orchestrate jobs within a pipeline. Use these commands to
+			Workflows orchestrate jobs within a run. Use these commands to
 			inspect workflow status, rerun failed jobs, or cancel a running workflow.
 
-			Workflow IDs are shown in the output of 'circleci pipeline get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 		`),
 	}
 
@@ -57,5 +57,5 @@ func NewWorkflowCmd() *cobra.Command {
 func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"workflow.not_found", "No workflow found for %q.",
-		"Check the workflow ID with: circleci pipeline get")
+		"Check the workflow ID with: circleci run get")
 }

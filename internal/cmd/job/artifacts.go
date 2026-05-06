@@ -57,7 +57,7 @@ func newArtifactsCmd() *cobra.Command {
 			The project is inferred from the current git repository's remote
 			unless overridden with --project.
 
-			To list artifacts across a whole pipeline, use 'circleci artifacts'.
+			To list artifacts across a whole run, use 'circleci artifacts'.
 
 			JSON fields: job_name, job_number, path, url, node_index
 		`),

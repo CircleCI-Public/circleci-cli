@@ -40,7 +40,7 @@ func NewContextCmd() *cobra.Command {
 			Work with CircleCI contexts.
 
 			Contexts are named collections of secret environment variables that
-			can be shared across pipelines within an organization. Jobs can
+			can be shared across runs within an organization. Jobs can
 			reference a context to inject its variables into the build environment.
 		`),
 	}

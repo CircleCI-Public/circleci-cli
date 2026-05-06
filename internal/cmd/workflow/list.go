@@ -48,40 +48,40 @@ func newListCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:     "list [<pipeline-id>]",
+		Use:     "list [<run-id>]",
 		Aliases: []string{"ls"},
-		Short:   "List workflows for a pipeline or recent pipelines",
+		Short:   "List workflows for a run or recent runs",
 		Long: heredoc.Doc(`
-			List workflows for a CircleCI pipeline.
+			List workflows for a CircleCI run.
 
-			With no argument, lists workflows for recent pipelines in the current
-			project, grouped by pipeline. Use --branch to filter to a specific branch
-			and --limit to control how many pipelines are shown.
+			With no argument, lists workflows for recent runs in the current
+			project, grouped by run. Use --branch to filter to a specific branch
+			and --limit to control how many runs are shown.
 
-			Pass a pipeline UUID or pipeline number to list workflows for a single
-			pipeline. Pipeline numbers are shown in 'circleci pipeline list'; UUIDs
-			are shown in 'circleci pipeline list --json'.
+			Pass a run UUID or run number to list workflows for a single
+			run. Run numbers are shown in 'circleci run list'; UUIDs
+			are shown in 'circleci run list --json'.
 
-			When passing a pipeline number, the project is inferred from the
+			When passing a run number, the project is inferred from the
 			current git repository unless overridden with --project.
 
-			JSON fields (single pipeline):  id, name, status
-			JSON fields (recent pipelines): pipeline_id, pipeline_number, id, name, status
+			JSON fields (single run):  id, name, status
+			JSON fields (recent runs): run_id, run_number, id, name, status
 		`),
 		Example: heredoc.Doc(`
-			# List workflows for recent pipelines in the current project
+			# List workflows for recent runs in the current project
 			$ circleci workflow list
 
 			# Filter to a specific branch
 			$ circleci workflow list --branch main
 
-			# List workflows by pipeline UUID
+			# List workflows by run UUID
 			$ circleci workflow list 9e0c9d52-3b7e-4cd6-b5f7-bfc5e4a07e81
 
-			# List workflows by pipeline number
+			# List workflows by run number
 			$ circleci workflow list 75
 
-			# List workflows for a pipeline in a specific project
+			# List workflows for a run in a specific project
 			$ circleci workflow list 75 --project gh/myorg/myrepo
 
 			# Output as JSON
@@ -102,8 +102,8 @@ func newListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
-	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter by branch (recent-pipelines mode)")
-	cmd.Flags().IntVar(&limit, "limit", 10, "Number of recent pipelines to show (recent-pipelines mode)")
+	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter by branch (recent-runs mode)")
+	cmd.Flags().IntVar(&limit, "limit", 10, "Number of recent runs to show (recent-runs mode)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 	return cmd
@@ -116,22 +116,22 @@ type workflowListOutput struct {
 }
 
 type workflowRecentOutput struct {
-	PipelineID     string `json:"pipeline_id"`
-	PipelineNumber int64  `json:"pipeline_number"`
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Status         string `json:"status"`
+	RunID     string `json:"run_id"`
+	RunNumber int64  `json:"run_number"`
+	ID        string `json:"id"`
+	Name      string `json:"name"`
+	Status    string `json:"status"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug string, jsonOut bool) error {
-	pipelineID, err := resolvePipelineID(ctx, client, arg, projectSlug)
+	runID, err := resolveRunID(ctx, client, arg, projectSlug)
 	if err != nil {
 		return err
 	}
 
-	workflows, err := client.GetPipelineWorkflows(ctx, pipelineID)
+	workflows, err := client.GetPipelineWorkflows(ctx, runID)
 	if err != nil {
-		return apiErr(err, pipelineID)
+		return apiErr(err, runID)
 	}
 
 	var out []workflowListOutput
@@ -151,7 +151,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 	}
 
 	if len(out) == 0 {
-		iostream.Printf(ctx, "No workflows found for pipeline %s.\n", arg)
+		iostream.Printf(ctx, "No workflows found for run %s.\n", arg)
 		return nil
 	}
 
@@ -186,11 +186,11 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 			}
 			for _, wf := range workflows {
 				out = append(out, workflowRecentOutput{
-					PipelineID:     p.ID,
-					PipelineNumber: p.Number,
-					ID:             wf.ID,
-					Name:           wf.Name,
-					Status:         wf.Status,
+					RunID:     p.ID,
+					RunNumber: p.Number,
+					ID:        wf.ID,
+					Name:      wf.Name,
+					Status:    wf.Status,
 				})
 			}
 		}
@@ -201,12 +201,12 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 	}
 
 	if len(pipelines) == 0 {
-		iostream.Printf(ctx, "No pipelines found for project %s.\n", projectSlug)
+		iostream.Printf(ctx, "No runs found for project %s.\n", projectSlug)
 		return nil
 	}
 
 	var md strings.Builder
-	md.WriteString("# Recent pipelines\n")
+	md.WriteString("# Recent runs\n")
 
 	for _, p := range pipelines {
 		branchName := ""
@@ -218,7 +218,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 				revision = revision[:7]
 			}
 		}
-		_, _ = fmt.Fprintf(&md, "## Pipeline #%d\n", p.Number)
+		_, _ = fmt.Fprintf(&md, "## Run #%d\n", p.Number)
 		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", branchName)
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", revision)
 
@@ -243,18 +243,18 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 	return nil
 }
 
-// resolvePipelineID returns a pipeline UUID from either a UUID string or a
-// pipeline number (requires project slug resolution from git if not provided).
-func resolvePipelineID(ctx context.Context, client *apiclient.Client, arg, projectSlug string) (string, error) {
+// resolveRunID returns a run UUID from either a UUID string or a
+// run number (requires project slug resolution from git if not provided).
+func resolveRunID(ctx context.Context, client *apiclient.Client, arg, projectSlug string) (string, error) {
 	if strings.Contains(arg, "-") {
 		return arg, nil
 	}
 
 	number, err := strconv.ParseInt(arg, 10, 64)
 	if err != nil {
-		return "", clierrors.New("args.invalid_pipeline_id", "Invalid pipeline ID",
-			"Expected a pipeline UUID or pipeline number, got: "+arg).
-			WithSuggestions("Use 'circleci pipeline list' to find pipeline IDs and numbers").
+		return "", clierrors.New("args.invalid_run_id", "Invalid run ID",
+			"Expected a run UUID or run number, got: "+arg).
+			WithSuggestions("Use 'circleci run list' to find run IDs and numbers").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
@@ -266,9 +266,9 @@ func resolvePipelineID(ctx context.Context, client *apiclient.Client, arg, proje
 		projectSlug = info.Slug
 	}
 
-	pipeline, pipelineErr := client.GetPipelineByNumber(ctx, projectSlug, number)
-	if pipelineErr != nil {
-		return "", apiErr(pipelineErr, arg)
+	r, rErr := client.GetPipelineByNumber(ctx, projectSlug, number)
+	if rErr != nil {
+		return "", apiErr(rErr, arg)
 	}
-	return pipeline.ID, nil
+	return r.ID, nil
 }

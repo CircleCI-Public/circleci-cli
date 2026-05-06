@@ -2,7 +2,7 @@ Usage:
   circleci open [flags]
 
 Examples:
-# Open pipelines for the current repo
+# Open runs for the current repo
 $ circleci open
 
 
