@@ -17,7 +17,6 @@ commands:
       - checkout
       - install-go
       - install-task
-      - run: task mod-download
 
   install-go:
     # TODO: Fix the Go orb install command, so it supports Windows.
@@ -195,6 +194,9 @@ jobs:
           steps:
             - run: task ci:release
 
+  ok-to-deploy:
+    type: no-op
+
 workflows:
   ci:
     jobs:
@@ -209,7 +211,7 @@ workflows:
                 - macos
                 - windows
 
-      - mark-release:
+      - ok-to-deploy:
           requires:
             - check
             - test
@@ -217,12 +219,12 @@ workflows:
             branches:
               only: next
 
+      - mark-release:
+          requires:
+            - ok-to-deploy
+
       - deploy:
           requires:
-            - check
-            - test
-          filters:
-            branches:
-              only: next
+            - ok-to-deploy
           context:
             - devex-release
