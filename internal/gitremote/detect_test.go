@@ -23,10 +23,14 @@
 package gitremote
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/projectref"
 )
 
 func TestSlugFromRemote(t *testing.T) {
@@ -144,4 +148,69 @@ func TestSlugFromRemote(t *testing.T) {
 			assert.Check(t, cmp.Equal(slug, tc.wantSlug))
 		})
 	}
+}
+
+// TestDetect_PrefersInfoYml verifies that an existing .circleci/info.yml takes
+// priority over the git remote, and that a UUID-bearing record is normalised
+// to the canonical "circleci/<orgID>/<projectID>" slug.
+func TestDetect_PrefersInfoYml(t *testing.T) {
+	tests := []struct {
+		name     string
+		info     projectref.Info
+		wantSlug string
+	}{
+		{
+			name: "uuids present yields canonical slug",
+			info: projectref.Info{
+				Slug:           "gh/myorg/myrepo",
+				ProjectID:      "13c8F7nusayivoSxC6GMsw",
+				OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
+			},
+			wantSlug: "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
+		},
+		{
+			name:     "slug-only falls through verbatim",
+			info:     projectref.Info{Slug: "gh/myorg/legacy"},
+			wantSlug: "gh/myorg/legacy",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			assert.NilError(t, projectref.Write(dir, &tc.info))
+
+			cwd, err := os.Getwd()
+			assert.NilError(t, err)
+			t.Cleanup(func() { _ = os.Chdir(cwd) })
+			assert.NilError(t, os.Chdir(dir))
+
+			info, err := Detect()
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(info.Slug, tc.wantSlug))
+		})
+	}
+}
+
+// Sanity check that DetectFromRemote does not consult info.yml — used by
+// `project link` to avoid short-circuiting against an existing entry.
+func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
+	dir := t.TempDir()
+	assert.NilError(t, projectref.Write(dir, &projectref.Info{
+		Slug:           "gh/myorg/myrepo",
+		ProjectID:      "PID",
+		OrganizationID: "OID",
+	}))
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	assert.NilError(t, os.Chdir(dir))
+
+	_, err = DetectFromRemote()
+	assert.Check(t, err != nil, "expected git-remote detection to fail in a non-git temp dir")
+
+	// And info.yml is still present — DetectFromRemote did not consume it.
+	_, statErr := os.Stat(filepath.Join(dir, projectref.FilePath))
+	assert.NilError(t, statErr)
 }

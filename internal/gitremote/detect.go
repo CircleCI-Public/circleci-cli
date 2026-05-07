@@ -20,16 +20,21 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package gitremote detects the CircleCI project slug from a git repository's
-// remote URL and the current branch.
+// Package gitremote resolves the CircleCI project slug for the current
+// working directory. Resolution prefers the per-checkout .circleci/info.yml
+// recorded by `circleci project link` (so repository renames and standalone
+// projects stay addressable), falling back to parsing the git remote URL.
 package gitremote
 
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/projectref"
 )
 
 // ProjectInfo holds the information needed to identify a CircleCI project.
@@ -63,9 +68,32 @@ func DetectNamespace() (string, error) {
 	return parts[1], nil
 }
 
-// Detect reads the git remote "origin" and current branch from the working
-// directory and returns a ProjectInfo suitable for CircleCI API calls.
+// Detect resolves the CircleCI project for the current working directory.
+//
+// Resolution priority:
+//  1. .circleci/info.yml in the working directory (written by `circleci project link`).
+//     When this file carries both project_id and organization_id, the canonical
+//     "circleci/<orgID>/<projectID>" slug is returned so lookups survive VCS-side
+//     renames; otherwise the file's stored slug is returned verbatim.
+//  2. The git remote "origin" URL.
+//
+// The branch is always read from git (best-effort when info.yml supplied the slug,
+// since the branch is per-checkout and never persisted in info.yml).
 func Detect() (*ProjectInfo, error) {
+	if cwd, err := os.Getwd(); err == nil {
+		if ref, err := projectref.Read(cwd); err == nil {
+			branch, _ := gitOutput("rev-parse", "--abbrev-ref", "HEAD")
+			return &ProjectInfo{Slug: ref.EffectiveSlug(), Branch: branch}, nil
+		}
+	}
+	return DetectFromRemote()
+}
+
+// DetectFromRemote resolves the project from the git "origin" remote without
+// consulting .circleci/info.yml. Use this from the `project link` command itself
+// — reading info.yml there would short-circuit the very write that link is
+// about to perform.
+func DetectFromRemote() (*ProjectInfo, error) {
 	remoteURL, err := gitOutput("remote", "get-url", "origin")
 	if err != nil {
 		return nil, fmt.Errorf("could not read git remote: %w", err)
