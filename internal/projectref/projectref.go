@@ -42,27 +42,51 @@ const FilePath = ".circleci/info.yml"
 
 // Info is the on-disk record written by `circleci project link`.
 //
-// Slug is always populated. ProjectID and OrganizationID are populated when
-// the slug was verified against the CircleCI API at link time; they let
-// callers reference the project by its stable UUID even after a repo rename.
+// Schema:
+//
+//	organization:
+//	  id: <uuid>          # required
+//	  name: <string>      # optional, populated from API when available
+//	project:
+//	  id: <uuid>          # required
+//	  slug: <string>      # required — VCS-style or canonical "circleci/<orgID>/<projectID>"
+//	  name: <string>      # optional, populated from API when available
+//
+// Project.Slug is always populated. Organization.ID and Project.ID are also
+// populated when the slug was verified against the CircleCI API at link time;
+// they let callers reference the project by its stable UUID even after a repo
+// rename.
 type Info struct {
-	Slug           string `yaml:"slug"`
-	ProjectID      string `yaml:"project_id,omitempty"`
-	OrganizationID string `yaml:"organization_id,omitempty"`
+	Organization Organization `yaml:"organization"`
+	Project      Project      `yaml:"project"`
+}
+
+// Organization is the CircleCI organization that owns the project.
+type Organization struct {
+	ID   string `yaml:"id,omitempty"`
+	Name string `yaml:"name,omitempty"`
+}
+
+// Project identifies a CircleCI project.
+type Project struct {
+	ID   string `yaml:"id,omitempty"`
+	Slug string `yaml:"slug"`
+	Name string `yaml:"name,omitempty"`
 }
 
 // EffectiveSlug returns the slug to use when calling the CircleCI API.
-// When both ProjectID and OrganizationID are known, the canonical
+// When both Project.ID and Organization.ID are known, the canonical
 // "circleci/<orgID>/<projectID>" form is returned so the lookup is stable
-// across VCS-side renames; otherwise the stored Slug is returned as-is.
+// across VCS-side renames; otherwise the stored Project.Slug is returned
+// as-is.
 func (i *Info) EffectiveSlug() string {
 	if i == nil {
 		return ""
 	}
-	if i.ProjectID != "" && i.OrganizationID != "" {
-		return "circleci/" + i.OrganizationID + "/" + i.ProjectID
+	if i.Project.ID != "" && i.Organization.ID != "" {
+		return "circleci/" + i.Organization.ID + "/" + i.Project.ID
 	}
-	return i.Slug
+	return i.Project.Slug
 }
 
 // ErrNotFound is returned by Read when no info file exists.
@@ -88,8 +112,8 @@ func Read(workDir string) (*Info, error) {
 	if err := yaml.Unmarshal(data, &info); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", FilePath, err)
 	}
-	if info.Slug == "" {
-		return nil, fmt.Errorf("%s is missing required 'slug' field", FilePath)
+	if info.Project.Slug == "" {
+		return nil, fmt.Errorf("%s is missing required 'project.slug' field", FilePath)
 	}
 	return &info, nil
 }

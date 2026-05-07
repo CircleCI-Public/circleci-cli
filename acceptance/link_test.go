@@ -65,9 +65,14 @@ func TestProjectLink_WithFlag(t *testing.T) {
 	assert.NilError(t, err)
 	body := string(data)
 
-	assert.Check(t, strings.Contains(body, "slug: gh/myorg/alpha"), "got: %s", body)
-	assert.Check(t, strings.Contains(body, "project_id: proj-uuid-1234"), "got: %s", body)
-	assert.Check(t, strings.Contains(body, "organization_id: org-uuid-5678"), "got: %s", body)
+	// New schema: organization + project as top-level keys with nested fields.
+	assert.Check(t, strings.Contains(body, "organization:\n"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    id: org-uuid-5678"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    name: myorg"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "project:\n"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    id: proj-uuid-1234"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    slug: gh/myorg/alpha"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    name: alpha"), "got: %s", body)
 }
 
 // Standalone-project slugs (circleci/<orgID>/<projectID>) should round-trip

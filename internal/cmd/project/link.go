@@ -150,13 +150,17 @@ func runProjectLink(ctx context.Context, cmd *cobra.Command, projectSlug string,
 	}
 
 	// Step 4: if we still don't have project info, prompt for the slug.
+	// Interactive sessions get a bubbletea text-input; non-interactive callers
+	// (CI, agents driving the CLI without a TTY) get a structured error that
+	// tells them exactly which flag to pass instead.
 	if info == nil {
 		if !iostream.IsInteractive(ctx) {
 			return clierrors.New("project.link.cannot_resolve", "Could not resolve project",
 				"No project found via --project flag or git remote, and this session is not interactive.").
 				WithSuggestions(
-					"Pass --project <slug> (find it on the project's settings page in the CircleCI UI)",
-					"Or run from inside a git checkout with a CircleCI-connected origin",
+					"Re-run with --project <slug>, e.g. circleci project link --project gh/myorg/myrepo",
+					"For a standalone project, use the slug circleci/<orgID>/<projectID> from its CircleCI Project Settings page",
+					"Or run from inside a git checkout whose origin is connected to CircleCI",
 				).
 				WithExitCode(clierrors.ExitBadArguments)
 		}
@@ -169,10 +173,14 @@ func runProjectLink(ctx context.Context, cmd *cobra.Command, projectSlug string,
 	}
 
 	// Step 5: write .circleci/info.yml.
-	out := &projectref.Info{Slug: slug}
+	out := &projectref.Info{
+		Project: projectref.Project{Slug: slug},
+	}
 	if info != nil {
-		out.ProjectID = info.ID
-		out.OrganizationID = info.OrganizationID
+		out.Project.ID = info.ID
+		out.Project.Name = info.Name
+		out.Organization.ID = info.OrganizationID
+		out.Organization.Name = info.OrganizationName
 	}
 	if err := projectref.Write(cwd, out); err != nil {
 		return clierrors.New("project.link.write_failed", "Could not write .circleci/info.yml",
@@ -183,33 +191,41 @@ func runProjectLink(ctx context.Context, cmd *cobra.Command, projectSlug string,
 	return nil
 }
 
-// promptAndLookup asks the user for a project slug, validates it against the
-// API, and returns the slug + info. It loops until the user enters a slug the
-// API recognises, cancels (empty input), or an unrecoverable error occurs.
+// promptAndLookup asks the user for a project identifier — either a slug like
+// "circleci/<orgID>/<projectID>" or a bare project UUID — validates it against
+// the API, and returns the canonical slug + info. The /project/{slug} V2
+// endpoint accepts both forms, so a single prompt covers both cases. The
+// function loops on lookup failure until the user enters a value the API
+// recognises, cancels (esc / ctrl+c / empty input), or an unrecoverable
+// error occurs.
+//
+// Callers must guard this function with iostream.IsInteractive(ctx) — running
+// a bubbletea program without a TTY produces an unhelpful error and would
+// hang an agent that pipes the CLI's stdin.
 func promptAndLookup(ctx context.Context, client *apiclient.Client) (string, *apiclient.ProjectInfo, error) {
 	iostream.ErrPrintln(ctx,
 		"Could not resolve a CircleCI project for this directory.")
 	iostream.ErrPrintln(ctx,
-		"Find your project's slug on its Project Settings page in the CircleCI UI")
-	iostream.ErrPrintln(ctx,
-		"  (e.g. gh/myorg/myrepo, or circleci/<orgID>/<projectID> for standalone projects).")
+		"Enter a project slug (e.g. circleci/<orgID>/<projectID>) or project UUID (e.g. dcb570ed-b01e-4dd1-ac60-95fcc0f16872).")
 
 	for {
-		entered, err := iostream.PromptLine(ctx, "Project slug: ")
+		entered, err := iostream.PromptText(ctx,
+			"Project slug or UUID",
+			"circleci/<orgID>/<projectID> or dcb570ed-b01e-4dd1-ac60-95fcc0f16872")
 		if err != nil {
-			return "", nil, clierrors.New("project.link.prompt_failed", "Could not read project slug",
+			return "", nil, clierrors.New("project.link.prompt_failed", "Could not read project identifier",
 				err.Error()).WithExitCode(clierrors.ExitGeneralError)
 		}
 		entered = strings.TrimSpace(entered)
 		if entered == "" {
 			return "", nil, clierrors.New("project.link.cancelled", "Link cancelled",
-				"No project slug entered.").WithExitCode(clierrors.ExitCancelled)
+				"No project identifier entered.").WithExitCode(clierrors.ExitCancelled)
 		}
 
 		info, perr := client.GetProjectInfo(ctx, entered)
 		switch {
 		case perr == nil:
-			return entered, info, nil
+			return info.Slug, info, nil
 		case httpcl.HasStatusCode(perr, http.StatusUnauthorized):
 			return "", nil, clierrors.New("auth.token_invalid", "Authentication failed",
 				"The API token was rejected by CircleCI.").

@@ -106,7 +106,7 @@ func runProjectInfo(ctx context.Context, client *apiclient.Client, projectSlug s
 	proj, err := client.GetProjectInfo(ctx, projectSlug)
 	if err != nil {
 		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.",
-			"Run 'circleci project link' to bind this checkout to a CircleCI project",
+			"Run 'circleci project link' to bind this repository to a CircleCI project",
 			"Check the project slug and try again",
 			"Use 'circleci project list' to see followed projects")
 	}

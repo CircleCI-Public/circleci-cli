@@ -162,15 +162,17 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 		{
 			name: "uuids present yields canonical slug",
 			info: projectref.Info{
-				Slug:           "gh/myorg/myrepo",
-				ProjectID:      "13c8F7nusayivoSxC6GMsw",
-				OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
+				Organization: projectref.Organization{ID: "E6i3yYZeWZhcf8UNqcKfjN"},
+				Project: projectref.Project{
+					Slug: "gh/myorg/myrepo",
+					ID:   "13c8F7nusayivoSxC6GMsw",
+				},
 			},
 			wantSlug: "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
 		},
 		{
 			name:     "slug-only falls through verbatim",
-			info:     projectref.Info{Slug: "gh/myorg/legacy"},
+			info:     projectref.Info{Project: projectref.Project{Slug: "gh/myorg/legacy"}},
 			wantSlug: "gh/myorg/legacy",
 		},
 	}
@@ -197,9 +199,11 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
 	dir := t.TempDir()
 	assert.NilError(t, projectref.Write(dir, &projectref.Info{
-		Slug:           "gh/myorg/myrepo",
-		ProjectID:      "PID",
-		OrganizationID: "OID",
+		Organization: projectref.Organization{ID: "OID"},
+		Project: projectref.Project{
+			Slug: "gh/myorg/myrepo",
+			ID:   "PID",
+		},
 	}))
 
 	cwd, err := os.Getwd()
