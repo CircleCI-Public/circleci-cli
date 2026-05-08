@@ -60,6 +60,7 @@ func newWatchCmd() *cobra.Command {
 		branch      string
 		sha         string
 		timeout     time.Duration
+		failFast    bool
 	)
 
 	cmd := &cobra.Command{
@@ -80,6 +81,9 @@ func newWatchCmd() *cobra.Command {
 			With --sha, searches the run list for a run matching that
 			commit. If not yet found, polls for up to 2 minutes — useful when run
 			immediately after git push.
+
+			With --failfast, exits as soon as any job is observed to have failed,
+			without waiting for the remaining workflows to finish.
 		`),
 		Example: heredoc.Doc(`
 			# Watch the latest run on the current branch
@@ -99,6 +103,9 @@ func newWatchCmd() *cobra.Command {
 
 			# Watch with a longer timeout
 			$ circleci run watch --timeout 60m
+
+			# Exit as soon as any job fails
+			$ circleci run watch --failfast
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -107,7 +114,7 @@ func newWatchCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runWatch(ctx, client, args, projectSlug, branch, sha, timeout)
+			return runWatch(ctx, client, args, projectSlug, branch, sha, timeout, failFast)
 		},
 	}
 
@@ -115,11 +122,12 @@ func newWatchCmd() *cobra.Command {
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch to watch (defaults to current branch)")
 	cmd.Flags().StringVar(&sha, "sha", "", "Watch run for this commit SHA; polls up to 2m if not yet created")
 	cmd.Flags().DurationVar(&timeout, "timeout", 30*time.Minute, "Maximum time to wait for run completion")
+	cmd.Flags().BoolVar(&failFast, "failfast", false, "Exit as soon as any job fails, without waiting for the rest of the run")
 
 	return cmd
 }
 
-func runWatch(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch, sha string, timeout time.Duration) error {
+func runWatch(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch, sha string, timeout time.Duration, failFast bool) error {
 	// If the argument looks like a UUID, we can resolve the run directly
 	// without needing a project slug or branch from git.
 	isUUID := len(args) == 1 && strings.Contains(args[0], "-")
@@ -177,7 +185,7 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 
 	iostream.ErrPrintf(ctx, "Watching run #%d (%s @ %s)\n\n", r.Number, r.ProjectSlug, branch)
 
-	return watchUntilDone(ctx, client, r.ID, r.Number, timeout)
+	return watchUntilDone(ctx, client, r.ID, r.Number, timeout, failFast)
 }
 
 // waitForRunBySHA searches for a run matching the given commit SHA,
@@ -224,8 +232,9 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 }
 
 // watchUntilDone polls the given run until all workflows reach a terminal
-// state or the timeout elapses.
-func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string, runNumber int64, timeout time.Duration) error {
+// state or the timeout elapses. With failFast, it returns as soon as any
+// job is observed to have failed.
+func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string, runNumber int64, timeout time.Duration, failFast bool) error {
 	deadline := time.Now().Add(timeout)
 	start := time.Now()
 	tty := iostream.IsTerminal(ctx)
@@ -272,6 +281,15 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 			return watchFinalResult(ctx, state, runNumber, elapsed)
 		}
 
+		if failFast && hasFailedJob(state) {
+			if tty && prevLines > 0 {
+				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
+				printWatchTableFinal(ctx, state)
+				iostream.ErrPrintf(ctx, "\n")
+			}
+			return watchFailFastResult(ctx, state, runNumber, elapsed)
+		}
+
 		if time.Now().After(deadline) {
 			iostream.ErrPrintf(ctx, "\n")
 			return clierrors.New("run.timeout", "Watch timed out",
@@ -290,6 +308,20 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 			pollInterval += 5 * time.Second
 		}
 	}
+}
+
+// hasFailedJob reports whether any job in any workflow has reached a failed
+// status. Used by --failfast to bail out without waiting for the rest of the
+// run.
+func hasFailedJob(state runGetOutput) bool {
+	for _, wf := range state.Workflows {
+		for _, j := range wf.Jobs {
+			if j.Status == "failed" {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // sleepOrCancel waits for d to elapse, returning nil. If ctx is cancelled
@@ -414,6 +446,31 @@ func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Durati
 		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, wf.Status))
 	}
 	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
+}
+
+// watchFailFastResult prints the early-exit message for --failfast and
+// returns a structured failure error listing the failing job(s).
+func watchFailFastResult(ctx context.Context, state runGetOutput, number int64, elapsed time.Duration) error {
+	names := failedJobNames(state)
+	iostream.ErrPrintf(ctx, "%s Run #%d has failing job(s): %s — exiting (%s)\n",
+		iostream.SymbolFail(ctx), number, strings.Join(names, ", "), formatElapsed(elapsed))
+	return clierrors.New("run.failed", "Run failed",
+		fmt.Sprintf("Run #%d has %d failing job(s); exiting due to --failfast.", number, len(names))).
+		WithSuggestions(failedJobLogSuggestions(state)...).
+		WithExitCode(clierrors.ExitGeneralError)
+}
+
+// failedJobNames returns the names of all failed jobs across all workflows.
+func failedJobNames(state runGetOutput) []string {
+	var names []string
+	for _, wf := range state.Workflows {
+		for _, j := range wf.Jobs {
+			if j.Status == "failed" {
+				names = append(names, j.Name)
+			}
+		}
+	}
+	return names
 }
 
 // watchFinalResult prints the outcome and returns an appropriate error (or nil).
