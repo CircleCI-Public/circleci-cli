@@ -238,6 +238,46 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "No run found"), "stderr: %s", result.Stderr)
 }
 
+// --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
+
+func TestRunWatch_FailFast(t *testing.T) {
+	runID := "watch-pid-failfast"
+	wfID := "watch-wf-failfast"
+	r := fakeRun(runID, 79, "created", watchSlug, "main")
+
+	failedJob := fakeJob("job-1", "integration-test", 200, watchSlug)
+	failedJob["status"] = "failed"
+
+	fake := fakes.NewCircleCI(t)
+	fake.AddRun(runID, r)
+	fake.AddProjectRuns(watchSlug, r)
+	// Workflow is still "running" — but it has a failed job. Without --failfast
+	// the watch would block until the workflow finishes (or until the test
+	// timeout); with --failfast it must exit on the first poll that sees the
+	// failure.
+	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "running"})
+	fake.AddWorkflowJobs(wfID,
+		failedJob,
+		fakeJob("job-2", "lint", 201, watchSlug),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "79", "--project", watchSlug, "--failfast"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "failing job"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "integration-test"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs 200"), "stderr: %s", result.Stderr)
+}
+
 // --- watch timeout while run still running → exit 8 ---
 
 func TestRunWatch_Timeout(t *testing.T) {
