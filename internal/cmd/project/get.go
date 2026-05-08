@@ -66,6 +66,7 @@ func NewGetCmd(use string) *cobra.Command {
 			# Output as JSON for scripting
 			$ circleci project get --json
 		`),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			client, err := cmdutil.LoadClient(ctx, cmd)
