@@ -24,6 +24,7 @@ package run
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -190,6 +191,9 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 	for {
 		runs, err := client.ListPipelines(ctx, projectSlug, branch, 10)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				return nil, watchInterrupted()
+			}
 			return nil, apiErr(err, projectSlug)
 		}
 		for i := range runs {
@@ -213,7 +217,9 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 			iostream.ErrPrintf(ctx, "Waiting for run for commit %s...\n", sha)
 			printed = true
 		}
-		time.Sleep(interval)
+		if err := sleepOrCancel(ctx, interval); err != nil {
+			return nil, watchInterrupted()
+		}
 	}
 }
 
@@ -231,6 +237,12 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 	for {
 		state, err := fetchWatchState(ctx, client, runID)
 		if err != nil {
+			if errors.Is(err, context.Canceled) {
+				if tty {
+					iostream.ErrPrintf(ctx, "\n")
+				}
+				return watchInterrupted()
+			}
 			return clierrors.New("api.error", "API error while watching run", err.Error()).
 				WithExitCode(clierrors.ExitAPIError)
 		}
@@ -267,12 +279,38 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 				WithExitCode(clierrors.ExitTimeout)
 		}
 
-		time.Sleep(pollInterval)
+		if err := sleepOrCancel(ctx, pollInterval); err != nil {
+			if tty {
+				iostream.ErrPrintf(ctx, "\n")
+			}
+			return watchInterrupted()
+		}
 		// Ramp from 5s to 30s over the first few polls.
 		if pollInterval < 30*time.Second {
 			pollInterval += 5 * time.Second
 		}
 	}
+}
+
+// sleepOrCancel waits for d to elapse, returning nil. If ctx is cancelled
+// first (e.g. user pressed Ctrl-C), it returns ctx.Err() immediately.
+func sleepOrCancel(ctx context.Context, d time.Duration) error {
+	t := time.NewTimer(d)
+	defer t.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-t.C:
+		return nil
+	}
+}
+
+// watchInterrupted is the structured error returned when the user cancels
+// the watch (Ctrl-C) before the run reaches a terminal state.
+func watchInterrupted() *clierrors.CLIError {
+	return clierrors.New("run.interrupted", "Watch interrupted",
+		"Stopped watching before the run completed. The run is still active in CircleCI.").
+		WithExitCode(clierrors.ExitCancelled)
 }
 
 // fetchWatchState retrieves the current run state including all workflows

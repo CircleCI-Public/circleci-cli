@@ -23,10 +23,18 @@
 package acceptance_test
 
 import (
+	"bytes"
+	"errors"
+	"io"
+	"os"
+	"os/exec"
+	"runtime"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/skip"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
@@ -256,6 +264,71 @@ func TestRunWatch_Timeout(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 8, "stderr: %s", result.Stderr) // ExitTimeout
+}
+
+// --- Ctrl-C during polling exits within a poll interval (regression: was stuck for 5–30s) ---
+
+func TestRunWatch_InterruptDuringPolling(t *testing.T) {
+	skip.If(t, runtime.GOOS == "windows", "os.Interrupt is not supported on Windows")
+
+	runID := "watch-pid-interrupt"
+	wfID := "watch-wf-interrupt"
+	r := fakeRun(runID, 78, "created", watchSlug, "main")
+
+	fake := fakes.NewCircleCI(t)
+	fake.AddRun(runID, r)
+	fake.AddProjectRuns(watchSlug, r)
+	// Workflow stays "running" forever, so the watch loop is in its
+	// time-based poll wait when the signal arrives.
+	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "running"})
+	fake.AddWorkflowJobs(wfID, fakeJob("job-1", "test", 100, watchSlug))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	// Start the CLI directly (not via RunCLI) so we can deliver SIGINT.
+	args := []string{
+		"--insecure-storage", "--theme=dark",
+		"run", "watch", "78", "--project", watchSlug,
+	}
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command(binaryPath, args...)
+	cmd.Dir = t.TempDir()
+	cmd.Env = env.Environ()
+	cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
+	cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+
+	assert.NilError(t, cmd.Start())
+
+	// Let the watch loop enter its first sleep.
+	time.Sleep(1 * time.Second)
+	assert.NilError(t, cmd.Process.Signal(os.Interrupt))
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	// With ctx-aware sleep, the process should exit within a fraction of a
+	// second. Allow a generous 3s budget — but well below the 5s minimum
+	// poll interval that would prove the bug is back.
+	select {
+	case err := <-done:
+		var exitCode int
+		var exitErr *exec.ExitError
+		switch {
+		case err == nil:
+			exitCode = 0
+		case errors.As(err, &exitErr):
+			exitCode = exitErr.ExitCode()
+		default:
+			t.Fatalf("unexpected wait error: %v", err)
+		}
+		assert.Equal(t, exitCode, 6, "expected ExitCancelled (6); stderr: %s", stderr.String())
+	case <-time.After(3 * time.Second):
+		_ = cmd.Process.Kill()
+		<-done
+		t.Fatalf("watch did not exit within 3s of SIGINT — stuck in time.Sleep?")
+	}
 }
 
 // --- no token → exit 3 ---
