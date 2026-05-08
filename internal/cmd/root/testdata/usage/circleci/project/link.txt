@@ -1,0 +1,25 @@
+Usage:
+  circleci project link [flags]
+
+Examples:
+# Auto-detect from the current git repository
+$ circleci project link
+
+# Bind to a specific project (skips lookup if it exists)
+$ circleci project link --project gh/myorg/myrepo
+
+# Bind to a standalone project by its CircleCI slug
+$ circleci project link --project circleci/<orgID>/<projectID>
+
+# Overwrite an existing .circleci/info.yml
+$ circleci project link --force
+
+
+Flags:
+  -f, --force            Overwrite an existing .circleci/info.yml
+      --project string   Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>)
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

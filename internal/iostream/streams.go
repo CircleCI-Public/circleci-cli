@@ -146,6 +146,29 @@ func PromptSecret(ctx context.Context, header string) (string, error) {
 	return fromContext(ctx).PromptSecret(ctx, header)
 }
 
+// PromptText presents a plain (non-secret) single-line text input via
+// bubbletea. header is the bold heading above the input; placeholder is
+// shown inside the empty field. Returns ("", nil) if the user cancels with
+// esc or ctrl+c.
+func PromptText(ctx context.Context, header, placeholder string) (string, error) {
+	s := fromContext(ctx)
+	p := tea.NewProgram(
+		ui.NewPromptModel(header, placeholder),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
+		return "", err
+	}
+	m := anyModel.(ui.PromptModel)
+	if m.Quitting() {
+		return "", nil
+	}
+	return m.Value(), nil
+}
+
 func DebugContext(ctx context.Context, msg string, args ...any) {
 	fromContext(ctx).DebugContext(ctx, msg, args...)
 }
@@ -385,6 +408,26 @@ func (s Streams) ReadSecret(value string) (string, error) {
 // Returns value as-is unless value is "-", in which case reads one line from stdin.
 func ReadSecret(ctx context.Context, value string) (string, error) {
 	return fromContext(ctx).ReadSecret(value)
+}
+
+// PromptLine writes prompt to Err and reads a single line from In.
+// The returned value has surrounding whitespace trimmed. Used for plain
+// (non-secret) interactive input where bubbletea's terminal UI is overkill.
+func (s Streams) PromptLine(prompt string) (string, error) {
+	_, _ = fmt.Fprint(s.Err, prompt)
+	scanner := bufio.NewScanner(s.In)
+	if !scanner.Scan() {
+		if err := scanner.Err(); err != nil {
+			return "", err
+		}
+		return "", fmt.Errorf("expected input but got EOF")
+	}
+	return strings.TrimSpace(scanner.Text()), nil
+}
+
+// PromptLine reads a single line of plain text input from the streams in context.
+func PromptLine(ctx context.Context, prompt string) (string, error) {
+	return fromContext(ctx).PromptLine(prompt)
 }
 
 // Confirm presents a y/N confirmation prompt via bubbletea.

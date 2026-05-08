@@ -5,6 +5,7 @@ Available Commands:
   envvar      Manage project environment variables
   follow      Follow a project
   get         Show project details
+  link        Bind this checkout to a CircleCI project
   list        List followed projects
 
 Global Flags:
