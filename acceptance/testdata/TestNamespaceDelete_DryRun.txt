@@ -1,0 +1,1 @@
+Would delete namespace myorg and all its orbs.

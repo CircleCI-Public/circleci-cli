@@ -1,0 +1,4 @@
+error: Deleting namespace "myorg" will remove all its orbs.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode
