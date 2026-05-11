@@ -10,6 +10,7 @@ Available Commands:
   deploy      Manage deploys
   envvar      Manage project environment variables
   info        Show project details
+  init        Set up CircleCI for the current project
   job         Manage jobs
   logs        Fetch job logs
   mcp         MCP server management
