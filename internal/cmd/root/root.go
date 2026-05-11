@@ -31,6 +31,7 @@ import (
 	cmdapi "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/artifacts"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/cmdauth"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/cmdinit"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/completion"
 	cmdcontext "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/context"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/deploy"
@@ -103,6 +104,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(completion.NewCompletionCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())
+	cmd.AddCommand(cmdinit.NewInitCmd())
 	cmd.AddCommand(project.NewGetCmd("info")) // Alias to project get
 	cmd.AddCommand(job.NewJobCmd())
 	cmd.AddCommand(cmdrun.NewRunCmd())
