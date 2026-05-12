@@ -13,6 +13,7 @@ Available Commands:
   job         Manage jobs
   logs        Fetch job logs
   mcp         MCP server management
+  namespace   Manage orb namespaces
   open        Open the current project in the browser
   project     Manage CircleCI projects
   run         Manage runs
