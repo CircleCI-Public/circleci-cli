@@ -26,6 +26,7 @@ package logs
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 )
@@ -42,22 +43,48 @@ type StepLog struct {
 
 // ForJob fetches the log output for every step in a job, returning one StepLog
 // per step. If stepFilter is non-empty, only steps whose name matches are included.
+// Steps are fetched concurrently; output order matches the original step order.
 func ForJob(ctx context.Context, client *apiclient.Client, projectSlug string, jobNumber int64, stepFilter string) ([]StepLog, error) {
 	job, err := client.GetJob(ctx, projectSlug, jobNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	var results []StepLog
-	for _, step := range job.Steps {
+	// Collect the steps we actually need to fetch.
+	type indexedStep struct {
+		idx  int
+		step apiclient.JobStep
+	}
+	var toFetch []indexedStep
+	for i, step := range job.Steps {
 		if stepFilter != "" && step.Name != stepFilter {
 			continue
 		}
-		sl, err := fetchStep(ctx, client, step)
-		if err != nil {
-			return nil, fmt.Errorf("fetching output for step %q: %w", step.Name, err)
+		toFetch = append(toFetch, indexedStep{i, step})
+	}
+
+	results := make([]StepLog, len(toFetch))
+	errs := make([]error, len(toFetch))
+
+	var wg sync.WaitGroup
+	for i, item := range toFetch {
+		wg.Add(1)
+		go func(resultIdx int, s apiclient.JobStep) {
+			defer wg.Done()
+			sl, ferr := fetchStep(ctx, client, s)
+			if ferr != nil {
+				errs[resultIdx] = fmt.Errorf("fetching output for step %q: %w", s.Name, ferr)
+				return
+			}
+			results[resultIdx] = sl
+		}(i, item.step)
+	}
+	wg.Wait()
+
+	for _, ferr := range errs {
+		if ferr != nil {
+			return nil, ferr
 		}
-		results = append(results, sl)
 	}
 	return results, nil
 }
