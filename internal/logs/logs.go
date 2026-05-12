@@ -28,6 +28,7 @@ import (
 	"fmt"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/bulkhead"
 )
 
 const statusFailed = "failed"
@@ -40,24 +41,39 @@ type StepLog struct {
 	Output   string `json:"output"`
 }
 
+// maxStepParallelism caps concurrent step-output fetches to avoid hammering
+// the API or exhausting file descriptors on jobs with many steps.
+const maxStepParallelism = 8
+
 // ForJob fetches the log output for every step in a job, returning one StepLog
 // per step. If stepFilter is non-empty, only steps whose name matches are included.
+// Steps are fetched concurrently (up to maxStepParallelism at a time); output
+// order matches the original step order.
 func ForJob(ctx context.Context, client *apiclient.Client, projectSlug string, jobNumber int64, stepFilter string) ([]StepLog, error) {
 	job, err := client.GetJob(ctx, projectSlug, jobNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	var results []StepLog
+	var toFetch []apiclient.JobStep
 	for _, step := range job.Steps {
 		if stepFilter != "" && step.Name != stepFilter {
 			continue
 		}
+		toFetch = append(toFetch, step)
+	}
+
+	results := make([]StepLog, len(toFetch))
+	err = bulkhead.Do(ctx, maxStepParallelism, toFetch, func(step apiclient.JobStep, i int) error {
 		sl, err := fetchStep(ctx, client, step)
 		if err != nil {
-			return nil, fmt.Errorf("fetching output for step %q: %w", step.Name, err)
+			return fmt.Errorf("fetching output for step %q: %w", step.Name, err)
 		}
-		results = append(results, sl)
+		results[i] = sl
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 	return results, nil
 }
