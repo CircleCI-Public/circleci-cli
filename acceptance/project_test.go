@@ -602,10 +602,10 @@ func TestInfo_NotFound(t *testing.T) {
 // --- project trigger create ---
 
 const (
-	triggerProjectID    = "proj-uuid-1234"
+	triggerProjectID     = "proj-uuid-1234"
 	triggerPipelineDefID = "pdef-uuid-5678"
-	triggerRepoID       = "987654321"
-	triggerID           = "trig-uuid-abcd"
+	triggerRepoID        = "987654321"
+	triggerID            = "trig-uuid-abcd"
 )
 
 var triggerFixture = map[string]any{
