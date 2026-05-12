@@ -598,3 +598,254 @@ func TestInfo_NotFound(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
+
+// --- project trigger create ---
+
+const (
+	triggerProjectID    = "proj-uuid-1234"
+	triggerPipelineDefID = "pdef-uuid-5678"
+	triggerRepoID       = "987654321"
+	triggerID           = "trig-uuid-abcd"
+)
+
+var triggerFixture = map[string]any{
+	"id":         triggerID,
+	"created_at": "2026-01-01T00:00:00Z",
+	"event_source": map[string]any{
+		"provider": "github_app",
+		"repo": map[string]any{
+			"external_id": triggerRepoID,
+			"full_name":   "myorg/myrepo",
+		},
+	},
+	"event_preset": "all-pushes",
+}
+
+func setupTriggerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake, env := setupProjectFake(t)
+	fake.SetCreateTriggerResponse(triggerProjectID, triggerPipelineDefID, triggerFixture)
+	fake.AddTrigger(triggerProjectID, triggerPipelineDefID, triggerFixture)
+	return fake, env
+}
+
+// --- project trigger list ---
+
+func TestProjectTriggerList(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "list",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, triggerID))
+}
+
+func TestProjectTriggerList_JSON(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "list",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--json",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["id"], triggerID))
+	assert.Check(t, cmp.Equal(out[0]["event_preset"], "all-pushes"))
+}
+
+func TestProjectTriggerList_Empty(t *testing.T) {
+	fake, env := setupProjectFake(t)
+	// Register project but no triggers
+	fake.AddProjectInfo("gh/myorg/beta", map[string]any{
+		"id":   "proj-uuid-beta",
+		"slug": "gh/myorg/beta",
+		"name": "beta",
+	})
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "list",
+			"--project-id", "proj-uuid-beta",
+			"--pipeline-definition-id", triggerPipelineDefID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "No triggers found."))
+}
+
+func TestProjectTriggerList_MissingPipelineDefinitionID(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "list", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--pipeline-definition-id"))
+}
+
+// --- project trigger create ---
+
+func TestProjectTriggerCreate(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, triggerID))
+}
+
+func TestProjectTriggerCreate_JSON(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+			"--json",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["id"], triggerID))
+}
+
+func TestProjectTriggerCreate_MissingPipelineDefinitionID(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--repo-id", triggerRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--pipeline-definition-id"))
+}
+
+func TestProjectTriggerCreate_MissingRepoID(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--repo-id"))
+}
+
+func TestProjectTriggerCreate_ProjectNotFound(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/nonexistent",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+}
+
+func TestProjectTriggerCreate_InvalidEventPreset(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+			"--event-preset", "push-only",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "push-only"))
+}
+
+func TestProjectTriggerCreate_DirectProjectID(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project-id", triggerProjectID,
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, triggerID))
+}
