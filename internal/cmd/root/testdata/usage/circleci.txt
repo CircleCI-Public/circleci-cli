@@ -16,6 +16,7 @@ Available Commands:
   namespace   Manage orb namespaces
   open        Open the current project in the browser
   project     Manage CircleCI projects
+  repo        Inspect the current repository
   run         Manage runs
   runner      Manage self-hosted runners
   settings    Manage CLI settings
