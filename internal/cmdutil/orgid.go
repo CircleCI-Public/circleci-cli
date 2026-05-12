@@ -23,40 +23,35 @@
 package cmdutil
 
 import (
+	"context"
 	"fmt"
-	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
 )
 
-// RequireArgs returns a structured CLIError if args contains fewer elements
-// than the number of names provided. Each name describes an expected positional
-// argument (e.g. "workflow-id", "resource-class") and appears in the error
-// message as <name>.
+// ResolveOrgID returns orgID as-is when non-empty. Otherwise it detects the
+// project from the current git remote and resolves it through the API to
+// recover the org UUID.
 //
-// Use alongside cobra.MaximumNArgs(N) so that too many args are still rejected
-// by Cobra, while the missing-arg case produces a structured error from RunE.
-func RequireArgs(args []string, names ...string) error {
-	if len(args) >= len(names) {
-		return nil
+// cmdName is included in the GitDetectErr suggestion text so users see the
+// exact override flag for the command they invoked, e.g.
+// "circleci certificate list".
+func ResolveOrgID(ctx context.Context, client *apiclient.Client, orgID, cmdName string) (string, error) {
+	if orgID != "" {
+		return orgID, nil
 	}
-	var missing []string
-	for i := len(args); i < len(names); i++ {
-		missing = append(missing, "<"+names[i]+">")
+	info, err := gitremote.Detect()
+	if err != nil {
+		return "", GitDetectErr(err, "Or specify the organization: "+cmdName+" --org-id <org-uuid>")
 	}
-	noun := "argument"
-	if len(missing) > 1 {
-		noun = "arguments"
+	proj, err := client.GetProjectInfo(ctx, info.Slug)
+	if err != nil {
+		return "", clierrors.New("org.resolve_failed", "Could not resolve organization",
+			fmt.Sprintf("Failed to look up project %q to recover its organization: %s", info.Slug, err.Error())).
+			WithSuggestions("Pass --org-id <org-uuid> explicitly").
+			WithExitCode(clierrors.ExitBadArguments)
 	}
-	return clierrors.New("args.missing", "Missing required argument",
-		fmt.Sprintf("Required %s missing: %s", noun, strings.Join(missing, " "))).
-		WithExitCode(clierrors.ExitBadArguments)
-}
-
-// RequireFlag returns a structured CLIError reporting that a required flag was
-// not set. name is the long flag name without the leading dashes (e.g. "org-id").
-func RequireFlag(name string) error {
-	return clierrors.New("args.flag_missing", "Missing required flag",
-		"Required flag --"+name+" was not set.").
-		WithExitCode(clierrors.ExitBadArguments)
+	return proj.OrganizationID, nil
 }

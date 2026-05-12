@@ -85,6 +85,14 @@ type CircleCI struct {
 	// Deploy state.
 	deploys map[string][]any // project id → deploys
 
+	// iOS code signing state.
+	iosCerts          map[string][]any // org id → certificate objects
+	iosBundles        map[string][]any // org id → signing bundle objects
+	deletedIOSCerts   map[string]bool  // cert id → deleted
+	deletedIOSBundles map[string]bool  // bundle id → deleted
+	iosCertCounter    int              // monotonic ID generator for uploaded certs
+	iosBundleCounter  int              // monotonic ID generator for created bundles
+
 	// Auth state.
 	me                 any // response for GET /api/v2/me
 	oauthTokenResponse any // response body for POST /oauth/token
@@ -135,6 +143,10 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		namespaces:                 map[string]any{},
 		namespacesByName:           map[string]string{},
 		deletedNamespaces:          map[string]bool{},
+		iosCerts:                   map[string][]any{},
+		iosBundles:                 map[string][]any{},
+		deletedIOSCerts:            map[string]bool{},
+		deletedIOSBundles:          map[string]bool{},
 	}
 
 	r := newRouter()
@@ -173,6 +185,13 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
 	// Deploy routes.
 	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListDeploys)
+	// iOS code signing routes.
+	r.Post("/api/v2/certificates", f.handleUploadIOSCert)
+	r.Get("/api/v2/certificates", f.handleListIOSCerts)
+	r.Delete("/api/v2/certificates/{cert_id}", f.handleDeleteIOSCert)
+	r.Post("/api/v2/signing-configs", f.handleCreateIOSBundle)
+	r.Get("/api/v2/signing-configs", f.handleListIOSBundles)
+	r.Delete("/api/v2/signing-configs/{id}", f.handleDeleteIOSBundle)
 	// Runner (v3) routes. GET /runner dispatches on query param:
 	// ?namespace=  → resource classes, ?resource-class= → instances.
 	r.Get("/api/v3/runner", f.handleRunnerList)
@@ -1468,4 +1487,285 @@ func (f *CircleCI) handleGQLDeleteNamespace(w http.ResponseWriter, r *http.Reque
 			},
 		},
 	})
+}
+
+// --- iOS code signing helpers ---
+
+// AddIOSCert registers an iOS certificate for an org, returned by
+// GET /api/v2/certificates?org-id=<orgID>.
+func (f *CircleCI) AddIOSCert(orgID string, cert any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.iosCerts[orgID] = append(f.iosCerts[orgID], cert)
+}
+
+// AddIOSBundle registers an iOS signing bundle for an org, returned by
+// GET /api/v2/signing-configs?org-id=<orgID>.
+func (f *CircleCI) AddIOSBundle(orgID string, bundle any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.iosBundles[orgID] = append(f.iosBundles[orgID], bundle)
+}
+
+// DeletedIOSCert reports whether the given cert ID was deleted.
+func (f *CircleCI) DeletedIOSCert(certID string) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.deletedIOSCerts[certID]
+}
+
+// DeletedIOSBundle reports whether the given bundle ID was deleted.
+func (f *CircleCI) DeletedIOSBundle(id string) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.deletedIOSBundles[id]
+}
+
+func (f *CircleCI) handleUploadIOSCert(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		OrgID    string `json:"org_id"`
+		FileName string `json:"cert_file_name"`
+		Blob     string `json:"cert_blob"`
+		Password string `json:"cert_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": err.Error()})
+		return
+	}
+	if body.OrgID == "" || body.FileName == "" || body.Blob == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "missing required fields"})
+		return
+	}
+	f.mu.Lock()
+	f.iosCertCounter++
+	certID := fmt.Sprintf("cert-%05d", f.iosCertCounter)
+	f.iosCerts[body.OrgID] = append(f.iosCerts[body.OrgID], map[string]any{
+		"id":        certID,
+		"file_name": body.FileName,
+		"cert_type": "distribution",
+	})
+	f.mu.Unlock()
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, map[string]any{"id": certID})
+}
+
+func (f *CircleCI) handleListIOSCerts(w http.ResponseWriter, r *http.Request) {
+	orgID := r.URL.Query().Get("org-id")
+	f.mu.RLock()
+	all := f.iosCerts[orgID]
+	deleted := make(map[string]bool, len(f.deletedIOSCerts))
+	for k, v := range f.deletedIOSCerts {
+		deleted[k] = v
+	}
+	f.mu.RUnlock()
+
+	items := make([]any, 0, len(all))
+	for _, c := range all {
+		if m, ok := c.(map[string]any); ok {
+			if id, _ := m["id"].(string); id != "" && deleted[id] {
+				continue
+			}
+		}
+		items = append(items, c)
+	}
+	render.JSON(w, r, map[string]any{"items": items})
+}
+
+func (f *CircleCI) handleDeleteIOSCert(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "cert_id")
+	f.mu.Lock()
+	found := false
+	for _, certs := range f.iosCerts {
+		for _, c := range certs {
+			if m, ok := c.(map[string]any); ok && m["id"] == id {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	// Reject if any live signing config references this cert.
+	inUse := false
+	if found {
+		for _, bundles := range f.iosBundles {
+			for _, b := range bundles {
+				m, ok := b.(map[string]any)
+				if !ok || m["_cert_id"] != id {
+					continue
+				}
+				if bid, _ := m["id"].(string); bid != "" && !f.deletedIOSBundles[bid] {
+					inUse = true
+					break
+				}
+			}
+			if inUse {
+				break
+			}
+		}
+	}
+	if found && !inUse {
+		f.deletedIOSCerts[id] = true
+	}
+	f.mu.Unlock()
+
+	if !found {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	if inUse {
+		render.Status(r, http.StatusConflict)
+		render.JSON(w, r, map[string]any{"message": "certificate is in use by one or more signing configurations"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name                 string           `json:"name"`
+		OrgID                string           `json:"org_id"`
+		CertID               string           `json:"cert_id"`
+		ProvisioningProfiles []map[string]any `json:"provisioning_profiles"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": err.Error()})
+		return
+	}
+	if body.Name == "" || body.OrgID == "" || body.CertID == "" || len(body.ProvisioningProfiles) == 0 {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "missing required fields"})
+		return
+	}
+	f.mu.Lock()
+
+	// Reject if no live cert with the given id exists in this org.
+	var certRef map[string]any
+	for _, c := range f.iosCerts[body.OrgID] {
+		m, ok := c.(map[string]any)
+		if !ok || m["id"] != body.CertID {
+			continue
+		}
+		if id, _ := m["id"].(string); f.deletedIOSCerts[id] {
+			continue
+		}
+		certRef = map[string]any{
+			"file_name": m["file_name"],
+			"cert_type": m["cert_type"],
+		}
+		break
+	}
+	if certRef == nil {
+		f.mu.Unlock()
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "certificate not found"})
+		return
+	}
+
+	// Reject if a live signing config already uses this name in this org.
+	for _, b := range f.iosBundles[body.OrgID] {
+		m, ok := b.(map[string]any)
+		if !ok || m["name"] != body.Name {
+			continue
+		}
+		if bid, _ := m["id"].(string); bid != "" && f.deletedIOSBundles[bid] {
+			continue
+		}
+		f.mu.Unlock()
+		render.Status(r, http.StatusConflict)
+		render.JSON(w, r, map[string]any{"message": "a signing configuration with this name already exists"})
+		return
+	}
+
+	f.iosBundleCounter++
+	id := fmt.Sprintf("bundle-%05d", f.iosBundleCounter)
+
+	// Provisioning-profile list response echoes only file_name, not the blob.
+	profiles := make([]map[string]any, len(body.ProvisioningProfiles))
+	for i, p := range body.ProvisioningProfiles {
+		profiles[i] = map[string]any{"file_name": p["file_name"]}
+	}
+
+	stored := map[string]any{
+		"id":                    id,
+		"name":                  body.Name,
+		"certificate":           certRef,
+		"provisioning_profiles": profiles,
+		// Internal-only — used by handleDeleteIOSCert's in-use check; not
+		// part of the real API response shape but harmless extras for the
+		// CLI, which only decodes documented fields.
+		"_cert_id": body.CertID,
+		"_org_id":  body.OrgID,
+	}
+	f.iosBundles[body.OrgID] = append(f.iosBundles[body.OrgID], stored)
+	f.mu.Unlock()
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, map[string]any{"id": id})
+}
+
+func (f *CircleCI) handleListIOSBundles(w http.ResponseWriter, r *http.Request) {
+	orgID := r.URL.Query().Get("org-id")
+	f.mu.RLock()
+	all := f.iosBundles[orgID]
+	deleted := make(map[string]bool, len(f.deletedIOSBundles))
+	for k, v := range f.deletedIOSBundles {
+		deleted[k] = v
+	}
+	f.mu.RUnlock()
+
+	items := make([]any, 0, len(all))
+	for _, b := range all {
+		m, ok := b.(map[string]any)
+		if !ok {
+			items = append(items, b)
+			continue
+		}
+		if id, _ := m["id"].(string); id != "" && deleted[id] {
+			continue
+		}
+		// Strip internal-only fields (prefixed with "_") so the wire shape
+		// matches what the real API returns.
+		clean := make(map[string]any, len(m))
+		for k, v := range m {
+			if strings.HasPrefix(k, "_") {
+				continue
+			}
+			clean[k] = v
+		}
+		items = append(items, clean)
+	}
+	render.JSON(w, r, map[string]any{"items": items})
+}
+
+func (f *CircleCI) handleDeleteIOSBundle(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.Lock()
+	found := false
+	for _, bundles := range f.iosBundles {
+		for _, b := range bundles {
+			if m, ok := b.(map[string]any); ok && m["id"] == id {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if found {
+		f.deletedIOSBundles[id] = true
+	}
+	f.mu.Unlock()
+
+	if !found {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

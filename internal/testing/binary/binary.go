@@ -96,6 +96,9 @@ type RunOpts struct {
 	Env     []string
 	WorkDir string
 	TTY     bool
+	// Stdin, if non-nil, is connected to the CLI's stdin (non-TTY mode only).
+	// TTY mode always uses the expect pty.
+	Stdin io.Reader
 }
 
 // RunCLI executes the circleci binary with the given args, env, and working directory.
@@ -152,6 +155,9 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 	} else {
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
 		cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+		if opts.Stdin != nil {
+			cmd.Stdin = opts.Stdin
+		}
 
 		err := cmd.Run()
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
