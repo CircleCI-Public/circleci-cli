@@ -1,0 +1,126 @@
+// Copyright (c) 2026 Circle Internet Services, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package reposcan
+
+import (
+	"bytes"
+	"context"
+	"strings"
+	"testing"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+)
+
+func captureCtx() (context.Context, *bytes.Buffer) {
+	var errBuf bytes.Buffer
+	ctx := iostream.WithStreams(context.Background(), iostream.Streams{
+		Out: &bytes.Buffer{},
+		Err: &errBuf,
+		In:  strings.NewReader(""),
+	})
+	return ctx, &errBuf
+}
+
+func TestRender_PopulatedStack_PrintsStackAndImage(t *testing.T) {
+	ctx, errBuf := captureCtx()
+
+	r := &Result{
+		Stack:        "go",
+		Image:        "cimg/go",
+		ImageVersion: "1.22",
+		Setup: []SetupStep{
+			{Name: "install", Command: "go mod download"},
+			{Name: "test", Command: "go test ./..."},
+		},
+	}
+
+	Render(ctx, r)
+
+	out := errBuf.String()
+	assert.Check(t, cmp.Contains(out, "Detected go"), "out=%q", out)
+	assert.Check(t, cmp.Contains(out, "cimg/go:1.22"), "out=%q", out)
+	assert.Check(t, cmp.Contains(out, "go mod download"), "out=%q", out)
+	assert.Check(t, cmp.Contains(out, "go test ./..."), "out=%q", out)
+}
+
+func TestRender_EmptyDetection_PrintsFallback(t *testing.T) {
+	ctx, errBuf := captureCtx()
+
+	Render(ctx, &Result{Stack: StackUnknown})
+
+	out := errBuf.String()
+	assert.Check(t, cmp.Contains(out, "No supported stack detected"), "out=%q", out)
+	assert.Check(t, !strings.Contains(out, "Detected"), "should not print Detected for unknown stack, out=%q", out)
+}
+
+func TestRender_EmptyString_PrintsFallback(t *testing.T) {
+	ctx, errBuf := captureCtx()
+
+	Render(ctx, &Result{Stack: ""})
+
+	assert.Check(t, cmp.Contains(errBuf.String(), "No supported stack detected"))
+}
+
+func TestRender_NilResult_PrintsFallback(t *testing.T) {
+	ctx, errBuf := captureCtx()
+
+	Render(ctx, nil)
+
+	assert.Check(t, cmp.Contains(errBuf.String(), "No supported stack detected"))
+}
+
+func TestRender_NoSetupSteps_OmitsCommandLines(t *testing.T) {
+	ctx, errBuf := captureCtx()
+
+	Render(ctx, &Result{
+		Stack:        "ruby",
+		Image:        "cimg/ruby",
+		ImageVersion: "3.2",
+	})
+
+	out := errBuf.String()
+	assert.Check(t, cmp.Contains(out, "Detected ruby"), "out=%q", out)
+	assert.Check(t, !strings.Contains(out, "install:"), "should not print install line when absent, out=%q", out)
+	assert.Check(t, !strings.Contains(out, "test:"), "should not print test line when absent, out=%q", out)
+}
+
+func TestRender_SystemSetupStep_IsRendered(t *testing.T) {
+	ctx, errBuf := captureCtx()
+
+	Render(ctx, &Result{
+		Stack:        "python",
+		Image:        "cimg/python",
+		ImageVersion: "3.12",
+		Setup: []SetupStep{
+			{Name: "system", Command: "sudo apt-get install -y libpq-dev"},
+			{Name: "install", Command: "pip install -r requirements.txt"},
+		},
+	})
+
+	out := errBuf.String()
+	assert.Check(t, cmp.Contains(out, "libpq-dev"), "system step should render, out=%q", out)
+	assert.Check(t, cmp.Contains(out, "pip install"), "out=%q", out)
+}
