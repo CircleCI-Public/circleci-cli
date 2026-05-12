@@ -50,13 +50,18 @@ type Config struct {
 }
 
 type state struct {
-	Token    string `yaml:"token,omitempty"`
-	Host     string `yaml:"host,omitempty"`
-	DeviceID string `yaml:"device_id,omitempty"`
+	Token            string `yaml:"token,omitempty"`
+	Host             string `yaml:"host,omitempty"`
+	DeviceID         string `yaml:"device_id,omitempty"`
+	TelemetryEnabled *bool  `yaml:"telemetry_enabled,omitempty"`
 }
 
 // DefaultHost is the CircleCI API host used when none is configured.
 const DefaultHost = "https://circleci.com"
+
+// NoTelemetryEnvVars is the set of environment variables that disable telemetry
+// regardless of the stored config preference.
+var NoTelemetryEnvVars = []string{"CIRCLECI_NO_TELEMETRY", "NO_ANALYTICS", "DO_NOT_TRACK", "CI"}
 
 // Load reads the config file from the default path, returning an empty Config
 // if the file does not exist.
@@ -152,6 +157,30 @@ func SetHost(ctx context.Context, host string, secureStorage bool) error {
 		cfg.state.Host = host
 		return nil
 	})
+}
+
+// SetTelemetryEnabled persists the telemetry opt-in/opt-out preference.
+// path follows the same convention as LoadFrom (empty → XDG default).
+func SetTelemetryEnabled(ctx context.Context, enabled bool, path string) error {
+	return saveTo(ctx, path, false, func(cfg *Config) error {
+		cfg.state.TelemetryEnabled = &enabled
+		return nil
+	})
+}
+
+// IsTelemetryEnabled returns true when telemetry should be collected.
+// Environment variables always take precedence over the stored config value.
+// When no preference has been set, telemetry is enabled by default.
+func (c *Config) IsTelemetryEnabled() bool {
+	for _, env := range NoTelemetryEnvVars {
+		if os.Getenv(env) != "" {
+			return false
+		}
+	}
+	if c.state.TelemetryEnabled != nil {
+		return *c.state.TelemetryEnabled
+	}
+	return true
 }
 
 // EnsureDeviceID returns the device_id stored in the config file at path,

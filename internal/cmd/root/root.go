@@ -45,6 +45,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/settings"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/telemetry"
 	cmdversion "github.com/CircleCI-Public/circleci-cli/internal/cmd/version"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -113,6 +114,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(settings.NewSettingsCmd())
 	cmd.AddCommand(signingconfig.NewSigningConfigCmd())
+	cmd.AddCommand(telemetry.NewTelemetryCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
 
 	// Wire in MCP commands
