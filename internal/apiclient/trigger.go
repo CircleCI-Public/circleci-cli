@@ -79,16 +79,19 @@ func (c *Client) ListTriggers(ctx context.Context, projectID, pipelineDefinition
 }
 
 // CreateTrigger creates a new trigger for a project's pipeline definition.
-// projectID is the project UUID, pipelineDefinitionID is the pipeline definition UUID,
-// repoID is the GitHub repository external ID.
-func (c *Client) CreateTrigger(ctx context.Context, projectID, pipelineDefinitionID, repoID, eventPreset, configRef, checkoutRef string) (*Trigger, error) {
+// provider must be one of: github_app, github_server, github_oauth, webhook, schedule.
+// repoID is the repository external ID; required for github_app, github_server, and github_oauth.
+func (c *Client) CreateTrigger(ctx context.Context, projectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef string) (*Trigger, error) {
+	eventSource := map[string]any{
+		"provider": provider,
+	}
+	if repoID != "" {
+		eventSource["repo"] = map[string]any{
+			"external_id": repoID,
+		}
+	}
 	body := map[string]any{
-		"event_source": map[string]any{
-			"provider": "github_app",
-			"repo": map[string]any{
-				"external_id": repoID,
-			},
-		},
+		"event_source": eventSource,
 	}
 	if eventPreset != "" {
 		body["event_preset"] = eventPreset

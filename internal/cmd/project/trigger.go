@@ -38,6 +38,22 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
 )
 
+// repoProviders are the event source providers that require a repository ID.
+var repoProviders = map[string]bool{
+	"github_app":    true,
+	"github_server": true,
+	"github_oauth":  true,
+}
+
+// validProviders lists the allowed values for --provider.
+var validProviders = []string{
+	"github_app",
+	"github_server",
+	"github_oauth",
+	"webhook",
+	"schedule",
+}
+
 // validEventPresets lists the allowed values for --event-preset.
 var validEventPresets = []string{
 	"all-pushes",
@@ -296,6 +312,7 @@ func newTriggerCreateCmd() *cobra.Command {
 		projectSlug          string
 		projectID            string
 		pipelineDefinitionID string
+		provider             string
 		repoID               string
 		eventPreset          string
 		configRef            string
@@ -309,32 +326,36 @@ func newTriggerCreateCmd() *cobra.Command {
 		Long: heredoc.Docf(`
 			Create a new trigger for a CircleCI project.
 
-			A trigger connects a GitHub repository to a pipeline definition so that
-			matching events automatically start a pipeline run. Only projects using
-			the CircleCI GitHub App are supported.
+			A trigger connects an event source to a pipeline definition so that
+			matching events automatically start a pipeline run.
 
 			The project is resolved from --project-id if provided; otherwise the
 			project slug (--project or git remote) is used to look up the project UUID.
 
-			--pipeline-definition-id and --repo-id are required. In a terminal they
-			will be prompted interactively if omitted; in non-interactive mode (CI,
-			agents) they must be passed as flags.
+			--pipeline-definition-id is required. In a terminal it will be prompted
+			interactively if omitted (showing available pipeline definitions to choose
+			from); in non-interactive mode (CI, agents) it must be passed as a flag.
+
+			--repo-id is required for repo-based providers (github_app, github_server,
+			github_oauth). In a terminal it will be prompted if omitted.
+
+			Valid --provider values: %s
 
 			Valid --event-preset values:
 			  %s
 
 			JSON fields: id, created_at, event_name, event_preset, config_ref,
 			             checkout_ref, disabled
-		`, strings.Join(validEventPresets, "\n  ")),
+		`, strings.Join(validProviders, ", "), strings.Join(validEventPresets, "\n  ")),
 		Example: heredoc.Doc(`
-			# Create a trigger for the current git repository's project
+			# Create a GitHub App trigger (provider defaults to github_app)
 			$ circleci project trigger create \
 			    --pipeline-definition-id a1b2c3d4-... \
 			    --repo-id 123456789
 
-			# Create a trigger for a specific project
+			# Create a trigger for a GitHub Server installation
 			$ circleci project trigger create \
-			    --project gh/myorg/myrepo \
+			    --provider github_server \
 			    --pipeline-definition-id a1b2c3d4-... \
 			    --repo-id 123456789
 
@@ -352,14 +373,15 @@ func newTriggerCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, repoID, eventPreset, configRef, checkoutRef, jsonOut)
+			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVar(&projectID, "project-id", "", "Project UUID (overrides --project)")
 	cmd.Flags().StringVar(&pipelineDefinitionID, "pipeline-definition-id", "", "Pipeline definition ID (required)")
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "GitHub repository external ID (required)")
+	cmd.Flags().StringVar(&provider, "provider", "github_app", fmt.Sprintf("Event source provider (one of: %s)", strings.Join(validProviders, ", ")))
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository external ID (required for github_app, github_server, github_oauth)")
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("Event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref for fetching config (only needed when config repo differs from event source repo)")
 	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref for checking out code (only needed when checkout repo differs from event source repo)")
@@ -382,9 +404,13 @@ type triggerCreateOutput struct {
 func runTriggerCreate(
 	ctx context.Context,
 	client *apiclient.Client,
-	projectSlug, projectID, pipelineDefinitionID, repoID, eventPreset, configRef, checkoutRef string,
+	projectSlug, projectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef string,
 	jsonOut bool,
 ) error {
+	if err := validateProvider(provider); err != nil {
+		return err
+	}
+
 	resolvedProjectID, err := resolveProjectID(ctx, client, projectSlug, projectID)
 	if err != nil {
 		return err
@@ -407,23 +433,23 @@ func runTriggerCreate(
 		}
 	}
 
-	if repoID == "" {
+	if repoID == "" && repoProviders[provider] {
 		if !iostream.IsInteractive(ctx) {
 			return clierrors.New("args.missing_flag", "Missing required flag",
-				"--repo-id is required in non-interactive mode.").
+				fmt.Sprintf("--repo-id is required for provider %q in non-interactive mode.", provider)).
 				WithSuggestions(
-					"Pass --repo-id <github-repo-id>",
+					"Pass --repo-id <external-repo-id>",
 					"Find the repository ID via the GitHub API: GET /repos/{owner}/{repo}",
 					"See: https://docs.github.com/en/rest/repos/repos#get-a-repository",
 				).
 				WithExitCode(clierrors.ExitBadArguments)
 		}
-		var err error
-		repoID, err = iostream.PromptText(ctx,
-			"GitHub repository ID",
+		var promptErr error
+		repoID, promptErr = iostream.PromptText(ctx,
+			"Repository external ID",
 			"e.g. 123456789")
-		if err != nil {
-			return err
+		if promptErr != nil {
+			return promptErr
 		}
 		if repoID == "" {
 			return clierrors.New("trigger.create_cancelled", "Aborted",
@@ -438,7 +464,7 @@ func runTriggerCreate(
 		}
 	}
 
-	resp, err := client.CreateTrigger(ctx, resolvedProjectID, pipelineDefinitionID, repoID, eventPreset, configRef, checkoutRef)
+	resp, err := client.CreateTrigger(ctx, resolvedProjectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef)
 	if err != nil {
 		return cmdutil.APIErr(err, resolvedProjectID, "trigger.create_failed", "Failed to create trigger for project %q.",
 			"Ensure the GitHub App is installed in your repository",
@@ -462,6 +488,18 @@ func runTriggerCreate(
 
 	iostream.Printf(ctx, "Trigger created (ID: %s)\n", out.ID)
 	return nil
+}
+
+func validateProvider(v string) *clierrors.CLIError {
+	for _, valid := range validProviders {
+		if v == valid {
+			return nil
+		}
+	}
+	return clierrors.New("args.invalid_provider", "Invalid --provider value",
+		fmt.Sprintf("%q is not a valid provider.", v)).
+		WithSuggestions("Valid values: " + strings.Join(validProviders, ", ")).
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 func validateEventPreset(v string) *clierrors.CLIError {

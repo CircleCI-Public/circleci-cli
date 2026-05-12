@@ -831,6 +831,26 @@ func TestProjectTriggerCreate_InvalidEventPreset(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "push-only"))
 }
 
+func TestProjectTriggerCreate_InvalidProvider(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+			"--provider", "bitbucket",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "bitbucket"))
+}
+
 func TestProjectTriggerCreate_DirectProjectID(t *testing.T) {
 	_, env := setupTriggerFake(t)
 

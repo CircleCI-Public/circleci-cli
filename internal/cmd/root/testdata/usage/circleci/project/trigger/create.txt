@@ -2,14 +2,14 @@ Usage:
   circleci project trigger create [flags]
 
 Examples:
-# Create a trigger for the current git repository's project
+# Create a GitHub App trigger (provider defaults to github_app)
 $ circleci project trigger create \
     --pipeline-definition-id a1b2c3d4-... \
     --repo-id 123456789
 
-# Create a trigger for a specific project
+# Create a trigger for a GitHub Server installation
 $ circleci project trigger create \
-    --project gh/myorg/myrepo \
+    --provider github_server \
     --pipeline-definition-id a1b2c3d4-... \
     --repo-id 123456789
 
@@ -30,7 +30,8 @@ Flags:
       --pipeline-definition-id string   Pipeline definition ID (required)
       --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
       --project-id string               Project UUID (overrides --project)
-      --repo-id string                  GitHub repository external ID (required)
+      --provider string                 Event source provider (one of: github_app, github_server, github_oauth, webhook, schedule) (default "github_app")
+      --repo-id string                  Repository external ID (required for github_app, github_server, github_oauth)
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
