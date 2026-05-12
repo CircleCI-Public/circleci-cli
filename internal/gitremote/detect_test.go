@@ -24,6 +24,7 @@ package gitremote
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -217,4 +218,27 @@ func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
 	// And info.yml is still present — DetectFromRemote did not consume it.
 	_, statErr := os.Stat(filepath.Join(dir, projectref.FilePath))
 	assert.NilError(t, statErr)
+}
+
+func TestWorkTreeRoot_FromNestedDirectory(t *testing.T) {
+	dir := t.TempDir()
+	out, err := exec.Command("git", "init", dir).CombinedOutput()
+	assert.NilError(t, err, "git init failed: %s", out)
+
+	nested := filepath.Join(dir, "one", "two")
+	assert.NilError(t, os.MkdirAll(nested, 0o755))
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	assert.NilError(t, os.Chdir(nested))
+
+	root, err := WorkTreeRoot()
+	assert.NilError(t, err)
+	realRoot, err := filepath.EvalSymlinks(root)
+	assert.NilError(t, err)
+	realDir, err := filepath.EvalSymlinks(dir)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(realRoot, realDir))
+	assert.Check(t, InsideWorkTree(), "expected nested directory to be inside work tree")
 }

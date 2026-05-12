@@ -72,8 +72,19 @@ func DetectNamespace() (string, error) {
 // git working tree. Used by commands that only need to confirm "is this a
 // repo" without requiring a parseable CircleCI remote.
 func InsideWorkTree() bool {
-	out, err := gitOutput("rev-parse", "--is-inside-work-tree")
-	return err == nil && out == "true"
+	_, err := WorkTreeRoot()
+	return err == nil
+}
+
+// WorkTreeRoot returns the absolute path to the current git working tree root.
+// It is intentionally looser than Detect: fresh init targets may not have a
+// CircleCI-compatible remote yet.
+func WorkTreeRoot() (string, error) {
+	out, err := gitOutput("rev-parse", "--show-toplevel")
+	if err != nil {
+		return "", err
+	}
+	return out, nil
 }
 
 // Detect resolves the CircleCI project for the current working directory.

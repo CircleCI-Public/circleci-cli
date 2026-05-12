@@ -24,7 +24,6 @@
 package cmdinit
 
 import (
-	"os"
 	"path/filepath"
 
 	"github.com/MakeNowJust/heredoc"
@@ -70,7 +69,8 @@ func NewInitCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
 
-			if !gitremote.InsideWorkTree() {
+			root, err := gitremote.WorkTreeRoot()
+			if err != nil {
 				return clierrors.New("init.not_in_git_repo",
 					"Not in a git repository",
 					"You must be in a valid git repository directory to run this command.").
@@ -81,8 +81,7 @@ func NewInitCmd() *cobra.Command {
 			}
 
 			ok := iostream.SymbolOK(ctx)
-			cwd, _ := os.Getwd()
-			repoName := filepath.Base(cwd)
+			repoName := filepath.Base(root)
 
 			iostream.ErrPrintf(ctx, "%s Git repository detected.\n\n", ok)
 			iostream.ErrPrintf(ctx, "circleci init will:\n")
@@ -97,6 +96,10 @@ func NewInitCmd() *cobra.Command {
 
 			iostream.ErrPrintf(ctx, "Next: sign up for CircleCI to run your generated config file.\n")
 			iostream.ErrPrintf(ctx, "  %s\n", signupURL)
+			iostream.ErrPrintf(ctx, "  • Runs on git events and webhooks\n")
+			iostream.ErrPrintf(ctx, "  • Pass/fail checks on PRs with shared dashboards and Slack alerts\n")
+			iostream.ErrPrintf(ctx, "  • Optimize speed with test parallelism and larger resource classes\n")
+			iostream.ErrPrintf(ctx, "  • Deploy to staging or prod after tests pass, gated on branch\n")
 			return nil
 		},
 	}
