@@ -31,6 +31,11 @@
 //     ?code=...&state=... and validate the state.
 //  5. Return the captured code and PKCE verifier so the caller can exchange
 //     them for a token (once /oauth/token ships).
+//
+// Two entry points share the same underlying flow:
+//   - Start lands the user on the OAuth login page.
+//   - StartSignup appends signup=true so unauthenticated users land on the
+//     signup page instead. Everything past the authorize step is identical.
 package oauth
 
 import (
@@ -105,6 +110,18 @@ type callbackResult struct {
 // deviceID and osInfo are appended as query parameters on the authorize URL
 // so the server can correlate requests by CLI installation and platform.
 func Start(ctx context.Context, host, deviceID, osInfo string) (*Flow, error) {
+	return start(ctx, host, deviceID, osInfo, false)
+}
+
+// StartSignup is like Start, but appends signup=true to the authorize URL so
+// the OAuth provider routes unauthenticated users to the signup page rather
+// than the login page. The PKCE handshake, loopback callback, and token
+// exchange are otherwise identical.
+func StartSignup(ctx context.Context, host, deviceID, osInfo string) (*Flow, error) {
+	return start(ctx, host, deviceID, osInfo, true)
+}
+
+func start(ctx context.Context, host, deviceID, osInfo string, signup bool) (*Flow, error) {
 	verifier := oauth2.GenerateVerifier()
 
 	state, err := generateState()
@@ -134,6 +151,9 @@ func Start(ctx context.Context, host, deviceID, osInfo string) (*Flow, error) {
 	}
 	if osInfo != "" {
 		params = append(params, oauth2.SetAuthURLParam("os", osInfo))
+	}
+	if signup {
+		params = append(params, oauth2.SetAuthURLParam("signup", "true"))
 	}
 
 	f := &Flow{
