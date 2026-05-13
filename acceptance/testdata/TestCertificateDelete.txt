@@ -1,0 +1,1 @@
+✓ Deleted certificate cert-zzzz

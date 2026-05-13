@@ -1,0 +1,1 @@
+✓ Deleted signing config cfg-zzzz

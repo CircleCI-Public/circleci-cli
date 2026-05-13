@@ -1,0 +1,5 @@
+error: A signing config named "production-signing" already exists in this organization.
+
+Suggestions:
+  • Pick a different --name
+  • Or delete the existing config first: circleci signing-config delete <id> --force

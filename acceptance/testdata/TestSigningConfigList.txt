@@ -1,0 +1,5 @@
+# iOS Signing Configs
+| ID       | Name               | Certificate Name | Profiles |
+| -------- | ------------------ | ---------------- | -------- |
+| cfg-1111 | production-signing | Distribution.p12 | 1        |
+| cfg-2222 | staging-signing    | Distribution.p12 | 2        |

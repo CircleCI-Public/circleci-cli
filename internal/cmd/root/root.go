@@ -30,6 +30,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	cmdapi "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/artifacts"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/certificate"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/cmdauth"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/completion"
 	cmdcontext "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/context"
@@ -43,6 +44,7 @@ import (
 	cmdrun "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/run"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/settings"
+	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/signingconfig"
 	cmdversion "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/version"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
@@ -95,6 +97,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(artifacts.NewArtifactsCmd())
 	cmd.AddCommand(cmdapi.NewAPICmd())
 	cmd.AddCommand(cmdauth.NewAuthCmd())
+	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(cmdcontext.NewContextCmd())
 	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(cmdlogs.NewLogsCmd())
@@ -109,6 +112,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(project.NewProjectCmd())
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(settings.NewSettingsCmd())
+	cmd.AddCommand(signingconfig.NewSigningConfigCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
 
 	// Wire in MCP commands

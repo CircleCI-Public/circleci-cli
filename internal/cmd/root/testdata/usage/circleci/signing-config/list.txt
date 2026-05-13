@@ -1,0 +1,29 @@
+Usage:
+  circleci signing-config list [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List signing configs (org inferred from git remote)
+$ circleci signing-config list
+
+# List for a specific org
+$ circleci signing-config list --org-id <org-uuid>
+
+# Output as JSON
+$ circleci signing-config list --json
+
+# Get signing config names only
+$ circleci signing-config list --json --jq '.[].name'
+
+
+Flags:
+      --jq string       Process values from the response using jq syntax
+      --json            Output as JSON
+      --org-id string   CircleCI organization UUID; defaults to the org of the current git project
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
