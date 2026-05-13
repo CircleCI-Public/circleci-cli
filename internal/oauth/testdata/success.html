@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <title>{{.Title}} — CircleCI CLI</title>
+    <title>Authorization successful — CircleCI CLI</title>
     <style>
         *, *::before, *::after { box-sizing: border-box; }
 
@@ -70,18 +70,14 @@
     </div>
     <div class="card">
         <div class="checkmark">
-            {{if .Success}}
+            
             <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                 <path d="M7 18L15 26L29 10" stroke="#3d7a3d" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
-            {{else}}
-            <svg viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M10 10L26 26M26 10L10 26" stroke="#c0392b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-            {{end}}
+            
         </div>
-        <h1>{{.Title}}</h1>
-        <p>{{.Body}}</p>
+        <h1>Authorization successful</h1>
+        <p>You can close this window and return to your terminal.</p>
     </div>
 </body>
 </html>

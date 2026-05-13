@@ -36,11 +36,9 @@ package oauth
 import (
 	"context"
 	"crypto/rand"
-	_ "embed"
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"html/template"
 	"net"
 	"net/http"
 	"strings"
@@ -209,28 +207,37 @@ func (f *Flow) handleCallback(w http.ResponseWriter, r *http.Request) {
 		if desc := q.Get("error_description"); desc != "" {
 			msg = errParam + ": " + desc
 		}
-		writeBrowserResponse(w, http.StatusBadRequest, "Authorization failed", msg)
+		writeBrowserResponse(w, http.StatusBadRequest, browserState{
+			Title: "Authorization failed",
+			Body:  msg,
+		})
 		f.deliver(callbackResult{err: fmt.Errorf("authorization failed: %s", msg)})
 		return
 	}
 
 	if got := q.Get("state"); got != f.state {
-		writeBrowserResponse(w, http.StatusBadRequest, "Authorization failed",
-			"The state parameter did not match. This may indicate a CSRF attempt.")
+		writeBrowserResponse(w, http.StatusBadRequest, browserState{
+			Title: "Authorization failed",
+			Body:  "The state parameter did not match. This may indicate a CSRF attempt.",
+		})
 		f.deliver(callbackResult{err: errors.New("state parameter does not match the CLI's expected value")})
 		return
 	}
 
 	code := q.Get("code")
 	if code == "" {
-		writeBrowserResponse(w, http.StatusBadRequest, "Authorization failed",
-			"The authorization response did not include a code.")
+		writeBrowserResponse(w, http.StatusBadRequest, browserState{
+			Title: "Authorization failed",
+			Body:  "The authorization response did not include a code.",
+		})
 		f.deliver(callbackResult{err: errors.New("authorization response missing code")})
 		return
 	}
 
-	writeBrowserResponse(w, http.StatusOK, "Authorization successful",
-		"You can close this window and return to your terminal.")
+	writeBrowserResponse(w, http.StatusOK, browserState{
+		Title: "Authorization successful",
+		Body:  "You can close this window and return to your terminal.",
+	})
 	f.deliver(callbackResult{code: code})
 }
 
@@ -245,14 +252,10 @@ func (f *Flow) deliver(res callbackResult) {
 	}
 }
 
-//go:embed page.html
-var page string
-var browserResponseTmpl = template.Must(template.New("browser").Parse(page))
-
-func writeBrowserResponse(w http.ResponseWriter, status int, title, body string) {
+func writeBrowserResponse(w http.ResponseWriter, status int, state browserState) {
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(status)
-	_ = browserResponseTmpl.Execute(w, struct{ Title, Body string }{title, body})
+	renderPage(w, state)
 }
 
 // generateState returns a 32-character hex string suitable for the OAuth
