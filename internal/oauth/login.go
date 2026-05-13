@@ -235,8 +235,9 @@ func (f *Flow) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeBrowserResponse(w, http.StatusOK, browserState{
-		Title: "Authorization successful",
-		Body:  "You can close this window and return to your terminal.",
+		Title:   "Authorization successful",
+		Body:    "You can close this window and return to your terminal.",
+		Success: true,
 	})
 	f.deliver(callbackResult{code: code})
 }
