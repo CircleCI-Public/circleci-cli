@@ -87,8 +87,8 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 
 	if jsonOut {
 		out := map[string]any{
-			"token_set":        tokenSet,
-			"host":             cfg.EffectiveHost(),
+			"token_set":         tokenSet,
+			"host":              cfg.EffectiveHost(),
 			"telemetry_enabled": cfg.IsTelemetryEnabled(),
 		}
 		return iostream.PrintJSON(ctx, out)
