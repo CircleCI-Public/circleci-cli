@@ -15,17 +15,17 @@ This is CircleCI's command-line application.
 
 CircleCI CLI is available on the following package managers:
 
-### Homebrew
+Homebrew:
 ```
 brew install circleci
-```shell
+```
 
-### Snap
+Snap:
 ```shell
 sudo snap install circleci
 ```
 
-### Chocolatey
+Chocolatey:
 ```shell
 choco install circleci-cli -y
 ```
@@ -41,18 +41,18 @@ circleci auth login
 ### Model Context Protocol (MCP)
 The CLI supports the MCP protocol. To enable it, run:
 
-#### Claude
+Claude:
 ```shell
 circleci mcp claude enable # Enable the MCP protocol
 claude mcp add-from-claude-desktop -s user # Add for current user
 ```
 
-#### Cursor
+Cursor:
 ```shell
 circleci mcp cursor enable
 ```
 
-#### VS Code
+VS Code:
 ```shell
 circleci mcp vscode enable
 ```
