@@ -59,6 +59,10 @@ func newGenerateCmd() *cobra.Command {
 			Detect the language stack, container image, and setup commands for a
 			repository, then write a starter pipeline to <path>/.circleci/config.yml.
 
+			If no supported stack is detected, a minimal cimg/base:stable template
+			with a placeholder build step is written instead so you have something
+			to iterate on.
+
 			If a config file already exists at that path, generate does not overwrite
 			it; it prints a confirmation and exits successfully. The .circleci/
 			directory is created if needed, and the file is written atomically.
@@ -199,7 +203,7 @@ func renderConfig(r *reposcan.Result) ([]byte, error) {
 // step after the temp file is created fails, the temp file is removed so the
 // .circleci/ directory is never left littered with config.*.yml.tmp files.
 func writeConfigAtomic(path string, body []byte) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil { //#nosec:G301 // .circleci/ is a repo-shared directory, world-readable like the surrounding workspace
 		return err
 	}
 
@@ -226,7 +230,7 @@ func writeConfigAtomic(path string, body []byte) error {
 	if err := tmp.Close(); err != nil {
 		return err
 	}
-	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
+	if err := os.Chmod(tmp.Name(), 0o644); err != nil { //#nosec:G302 // config.yml is intended to be committed alongside the rest of .circleci/
 		return err
 	}
 	if err := rename(tmp.Name(), path); err != nil {
