@@ -108,6 +108,10 @@ func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
 
 	var cliErr *clierrors.CLIError
 	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T", err)
-	assert.Check(t, cmp.Equal(cliErr.Code, "config_generate.path_not_found"))
+	// ExitCode is load-bearing for the process exit code but not part of
+	// Format() output, so assert it directly.
 	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitBadArguments))
+
+	rendered := strings.ReplaceAll(cliErr.Format(), missing, "<MISSING_PATH>")
+	assert.Check(t, golden.String(rendered, "path-not-found.error.golden"))
 }
