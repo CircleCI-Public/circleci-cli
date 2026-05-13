@@ -137,18 +137,29 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// renderConfig builds the pipeline YAML body for a detected scan result.
-// Output is deterministic: struct field order controls top-level layout and
-// yaml.v3 sorts map keys alphabetically.
+// renderConfig builds the pipeline YAML body for a scan result. When the scan
+// produced no usable detection (IsEmpty), a generic cimg/base:stable template
+// is emitted with a placeholder build step. Output is deterministic: struct
+// field order controls top-level layout and yaml.v3 sorts map keys
+// alphabetically.
 func renderConfig(r *reposcan.Result) ([]byte, error) {
-	image := r.Image
-	if r.ImageVersion != "" {
-		image = r.Image + ":" + r.ImageVersion
-	}
-
+	var image string
 	steps := []step{{Checkout: true}}
-	for _, s := range r.Setup {
-		steps = append(steps, step{Run: &runStep{Name: s.Name, Command: s.Command}})
+
+	if r.IsEmpty() {
+		image = "cimg/base:stable"
+		steps = append(steps, step{Run: &runStep{
+			Name:    "build",
+			Command: `echo "Add your build steps here"`,
+		}})
+	} else {
+		image = r.Image
+		if r.ImageVersion != "" {
+			image = r.Image + ":" + r.ImageVersion
+		}
+		for _, s := range r.Setup {
+			steps = append(steps, step{Run: &runStep{Name: s.Name, Command: s.Command}})
+		}
 	}
 
 	p := pipeline{

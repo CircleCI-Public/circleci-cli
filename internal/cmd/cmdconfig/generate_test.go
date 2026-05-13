@@ -166,6 +166,22 @@ func TestGenerateCmd_DetectedStack_WritesYAML(t *testing.T) {
 	assert.Check(t, golden.Bytes(written, "detected-node.yml.golden"))
 }
 
+func TestGenerateCmd_UnknownStack_WritesFallback(t *testing.T) {
+	dir := t.TempDir()
+
+	cmdconfig.SetScanForTest(t, func(_ context.Context, _ string) (*reposcan.Result, error) {
+		return &reposcan.Result{Stack: reposcan.StackUnknown}, nil
+	})
+
+	stderr, err := runGenerate(t, dir)
+	assert.NilError(t, err)
+
+	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.NilError(t, readErr)
+	assert.Check(t, golden.Bytes(written, "fallback.yml.golden"))
+	assert.Check(t, golden.String(stderr, "fallback.stderr.golden"))
+}
+
 func TestGenerateCmd_ScannerErrorIsStructured(t *testing.T) {
 	dir := t.TempDir()
 
