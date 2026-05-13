@@ -24,6 +24,7 @@ package cmdconfig_test
 
 import (
 	"bytes"
+	stderrors "errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -35,6 +36,7 @@ import (
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdconfig"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 func TestGenerateCmd_RegisteredUnderConfigGroup(t *testing.T) {
@@ -95,4 +97,17 @@ func TestGenerateCmd_SkipsWhenConfigExists(t *testing.T) {
 	assert.DeepEqual(t, got, original)
 
 	assert.Check(t, golden.String(stderr, "skip-existing.stderr.golden"))
+}
+
+func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "does-not-exist")
+
+	_, err := runGenerate(t, missing)
+	assert.Assert(t, err != nil, "expected error for non-existent path")
+
+	var cliErr *clierrors.CLIError
+	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T", err)
+	assert.Check(t, cmp.Equal(cliErr.Code, "config_generate.path_not_found"))
+	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitBadArguments))
 }

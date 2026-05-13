@@ -24,12 +24,14 @@ package cmdconfig
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -68,6 +70,18 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	dir := "."
 	if len(args) == 1 {
 		dir = args[0]
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil || !info.IsDir() {
+		return clierrors.New(
+			"config_generate.path_not_found",
+			"Path not found",
+			fmt.Sprintf("No directory exists at %q.", dir),
+		).WithSuggestions(
+			"Check the path you passed and try again",
+			"Omit the argument to scan the current directory",
+		).WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	configPath := filepath.Join(dir, ".circleci", "config.yml")
