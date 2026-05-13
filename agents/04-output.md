@@ -190,23 +190,6 @@ As a rule of thumb: if a user would pipe the output, it's an output command. If 
 
 ---
 
-## Delight
-
-A well-designed CLI can be enjoyable to use, not just functional. This is especially true for internal developer tooling, where adoption and satisfaction are meaningful outcomes.
-
-Delight doesn't mean frivolity — it means the tool feels crafted. Some ways to achieve it:
-
-- **Branded startup or success moments** — a short ASCII art logo on first run, or a celebratory message on first successful deploy
-- **Personality in messages** — success messages that feel human, not mechanical (`✓ You're all set!` vs `Operation completed`)
-- **Thoughtful color and emoji** — used consistently, not randomly (see the color section below)
-- **Wit in error messages** — where the context allows it; internal tools have more latitude than production infrastructure CLIs
-
-> "A CLI does not have to be dull black-and-white text. Make a developer's day with some ASCII art or emoji." — Thoughtworks
-
-Use good judgement on context: a developer experience platform can afford more personality than a production database migration tool. Delight should feel appropriate, not jarring.
-
----
-
 ## Animations and Progress Bars
 
 Progress indicators are valuable for long operations, but must be disabled outside a TTY, and should always be routed to **stderr** (not stdout). Spinners and progress bars are "out-of-band" information about a running task — sending them to stderr ensures they don't corrupt piped data on stdout.
