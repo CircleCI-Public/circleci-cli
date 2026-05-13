@@ -20,21 +20,16 @@
 //
 // SPDX-License-Identifier: MIT
 
-package cmdconfig
+package configgen
 
-import (
-	"context"
-	"testing"
+import "testing"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
-)
-
-// SetScanForTest replaces the package-level scan function for the duration of
-// t. It exists so external tests can stub the env-builder backed scanner
-// without hitting the network.
-func SetScanForTest(t *testing.T, fn func(ctx context.Context, dir string) (*reposcan.Result, error)) {
+// SetRenameForTest replaces the package-level rename function for the duration
+// of t. Tests use it to inject failures and confirm the atomic-write
+// cleanup path.
+func SetRenameForTest(t *testing.T, fn func(oldpath, newpath string) error) {
 	t.Helper()
-	orig := scan
-	scan = fn
-	t.Cleanup(func() { scan = orig })
+	orig := rename
+	rename = fn
+	t.Cleanup(func() { rename = orig })
 }

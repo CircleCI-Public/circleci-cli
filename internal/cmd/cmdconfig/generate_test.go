@@ -143,73 +143,9 @@ func TestGenerateCmd_RendersScanSummary(t *testing.T) {
 	assert.Check(t, golden.String(stderr, "detected-node.stderr.golden"))
 }
 
-func TestGenerateCmd_DetectedStack_WritesYAML(t *testing.T) {
-	dir := t.TempDir()
-
-	cmdconfig.SetScanForTest(t, func(_ context.Context, _ string) (*reposcan.Result, error) {
-		return &reposcan.Result{
-			Stack:        "node",
-			Image:        "cimg/node",
-			ImageVersion: "20.10",
-			Setup: []reposcan.SetupStep{
-				{Name: "install", Command: "npm ci"},
-				{Name: "test", Command: "npm test"},
-			},
-		}, nil
-	})
-
-	_, err := runGenerate(t, dir)
-	assert.NilError(t, err)
-
-	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
-	assert.NilError(t, readErr)
-	assert.Check(t, golden.Bytes(written, "detected-node.yml.golden"))
-}
-
-func TestGenerateCmd_UnknownStack_WritesFallback(t *testing.T) {
-	dir := t.TempDir()
-
-	cmdconfig.SetScanForTest(t, func(_ context.Context, _ string) (*reposcan.Result, error) {
-		return &reposcan.Result{Stack: reposcan.StackUnknown}, nil
-	})
-
-	stderr, err := runGenerate(t, dir)
-	assert.NilError(t, err)
-
-	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
-	assert.NilError(t, readErr)
-	assert.Check(t, golden.Bytes(written, "fallback.yml.golden"))
-	assert.Check(t, golden.String(stderr, "fallback.stderr.golden"))
-}
-
-func TestGenerateCmd_WriteFailure_CleansUpTempFile(t *testing.T) {
-	dir := t.TempDir()
-
-	cmdconfig.SetScanForTest(t, func(_ context.Context, _ string) (*reposcan.Result, error) {
-		return &reposcan.Result{Stack: reposcan.StackUnknown}, nil
-	})
-	cmdconfig.SetRenameForTest(t, func(_, _ string) error {
-		return stderrors.New("simulated rename failure")
-	})
-
-	_, err := runGenerate(t, dir)
-	assert.Assert(t, err != nil, "expected error when rename fails")
-
-	var cliErr *clierrors.CLIError
-	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T", err)
-	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitGeneralError))
-
-	// .circleci/ may exist (MkdirAll succeeded) but must not contain any
-	// stale config.*.yml.tmp files.
-	entries, _ := os.ReadDir(filepath.Join(dir, ".circleci"))
-	var leftover []string
-	for _, e := range entries {
-		if strings.HasPrefix(e.Name(), "config.") && strings.HasSuffix(e.Name(), ".tmp") {
-			leftover = append(leftover, e.Name())
-		}
-	}
-	assert.Check(t, cmp.Len(leftover, 0), "expected no temp files left behind, got %v", leftover)
-}
+// Per-stack YAML output and atomic-write semantics are covered by the
+// configgen package's tests. cmdconfig only verifies that the CLI flow
+// invokes the scanner correctly and surfaces scanner errors.
 
 func TestGenerateCmd_ScannerErrorIsStructured(t *testing.T) {
 	dir := t.TempDir()
