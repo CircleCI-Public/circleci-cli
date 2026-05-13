@@ -40,31 +40,31 @@ type Namespace struct {
 // ErrNamespaceNotFound is returned by GetNamespace when the namespace does not exist.
 var ErrNamespaceNotFound = errors.New("namespace not found")
 
-// namespaceEnvelope is the response envelope for /api/v3/namespaces endpoints.
-type namespaceEnvelope struct {
-	Data struct {
-		ID         string `json:"id"`
-		Attributes struct {
-			Name string `json:"name"`
-		} `json:"attributes"`
-	} `json:"data"`
+// namespace is the response envelope for /api/v3/namespaces endpoints.
+type namespace struct {
+	ID         string `json:"id"`
+	Attributes struct {
+		Name string `json:"name"`
+	} `json:"attributes"`
 }
 
-func (e *namespaceEnvelope) toNamespace() *Namespace {
-	return &Namespace{ID: e.Data.ID, Name: e.Data.Attributes.Name}
+func (e *namespace) toNamespace() *Namespace {
+	return &Namespace{ID: e.ID, Name: e.Attributes.Name}
 }
 
 // GetNamespace looks up a namespace by name and returns its ID and name.
 func (c *Client) GetNamespace(ctx context.Context, name string) (*Namespace, error) {
-	var env namespaceEnvelope
-	err := c.getV3(ctx, "/namespaces", &env, queryParam("filter[name]", name))
+	var env v3Entity[namespace]
+	err := c.getV3(ctx, "/namespaces", &env,
+		queryParam("filter[name]", name),
+	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return env.toNamespace(), nil
+	return env.Data.toNamespace(), nil
 }
 
 type CreateNamespaceRequest struct {
@@ -79,12 +79,12 @@ type RenameNamespaceRequest struct {
 
 // CreateNamespace creates a namespace for the given organization ID.
 func (c *Client) CreateNamespace(ctx context.Context, req CreateNamespaceRequest) (*Namespace, error) {
-	var env namespaceEnvelope
+	var env v3Entity[namespace]
 	err := c.postV3(ctx, "/namespaces", req, &env)
 	if err != nil {
 		return nil, err
 	}
-	return env.toNamespace(), nil
+	return env.Data.toNamespace(), nil
 }
 
 // RenameNamespace renames a namespace. The current name is resolved to an ID first.
@@ -93,15 +93,17 @@ func (c *Client) RenameNamespace(ctx context.Context, req RenameNamespaceRequest
 	if err != nil {
 		return nil, err
 	}
-	var env namespaceEnvelope
-	err = c.postV3(ctx, "/namespaces/"+ns.ID+"/rename", req, &env)
+	var env v3Entity[namespace]
+	err = c.postV3(ctx, "/namespaces/%s/rename", req, &env,
+		routeParams(ns.ID),
+	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, req.Name)
 	}
 	if err != nil {
 		return nil, err
 	}
-	return env.toNamespace(), nil
+	return env.Data.toNamespace(), nil
 }
 
 // DeleteNamespace deletes a namespace and all its orbs.
@@ -111,7 +113,9 @@ func (c *Client) DeleteNamespace(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	err = c.deleteV3(ctx, "/namespaces/"+ns.ID)
+	err = c.deleteV3(ctx, "/namespaces/%s",
+		routeParams(ns.ID),
+	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
 	}
