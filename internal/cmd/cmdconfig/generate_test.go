@@ -24,6 +24,7 @@ package cmdconfig_test
 
 import (
 	"bytes"
+	"context"
 	stderrors "errors"
 	"io"
 	"os"
@@ -37,6 +38,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdconfig"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 
 func TestGenerateCmd_RegisteredUnderConfigGroup(t *testing.T) {
@@ -66,11 +68,14 @@ func TestGenerateCmd_HelpText(t *testing.T) {
 // runGenerate invokes 'circleci config generate' in-process against the given
 // project directory and returns the captured stderr (with dir replaced by the
 // placeholder "<DIR>" so golden files are stable across machines) plus the
-// error from RunE.
+// error from RunE. Cobra's default error rendering is silenced because the
+// production root command does the same — errors are formatted by main.go.
 func runGenerate(t *testing.T, dir string, extraArgs ...string) (stderr string, err error) {
 	t.Helper()
 	var buf bytes.Buffer
 	group := cmdconfig.NewConfigCmd()
+	group.SilenceErrors = true
+	group.SilenceUsage = true
 	group.SetOut(io.Discard)
 	group.SetErr(&buf)
 	args := append([]string{"generate", dir}, extraArgs...)
@@ -114,4 +119,42 @@ func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
 
 	rendered := strings.ReplaceAll(cliErr.Format(), missing, "<MISSING_PATH>")
 	assert.Check(t, golden.String(rendered, "path-not-found.error.golden"))
+}
+
+func TestGenerateCmd_RendersScanSummary(t *testing.T) {
+	dir := t.TempDir()
+
+	var scanned string
+	cmdconfig.SetScanForTest(t, func(_ context.Context, d string) (*reposcan.Result, error) {
+		scanned = d
+		return &reposcan.Result{
+			Stack:        "node",
+			Image:        "cimg/node",
+			ImageVersion: "20.10",
+			Setup: []reposcan.SetupStep{
+				{Name: "install", Command: "npm ci"},
+				{Name: "test", Command: "npm test"},
+			},
+		}, nil
+	})
+
+	stderr, _ := runGenerate(t, dir)
+	assert.Check(t, cmp.Equal(scanned, dir), "scanner must be called with the target dir")
+	assert.Check(t, golden.String(stderr, "detected-node.stderr.golden"))
+}
+
+func TestGenerateCmd_ScannerErrorIsStructured(t *testing.T) {
+	dir := t.TempDir()
+
+	cmdconfig.SetScanForTest(t, func(_ context.Context, _ string) (*reposcan.Result, error) {
+		return nil, stderrors.New("docker hub unreachable")
+	})
+
+	_, err := runGenerate(t, dir)
+	assert.Assert(t, err != nil, "expected error from scanner failure")
+
+	var cliErr *clierrors.CLIError
+	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T", err)
+	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitGeneralError))
+	assert.Check(t, golden.String(cliErr.Format(), "scan-failed.error.golden"))
 }

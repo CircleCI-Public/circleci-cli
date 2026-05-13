@@ -23,6 +23,7 @@
 package cmdconfig
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -33,7 +34,14 @@ import (
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
+
+// scan is the package-level seam for repository scanning. Tests swap it via
+// SetScanForTest in export_test.go.
+var scan = func(ctx context.Context, dir string) (*reposcan.Result, error) {
+	return reposcan.NewDefaultScanner().Scan(ctx, dir)
+}
 
 func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -90,6 +98,20 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 			iostream.SymbolOK(ctx), configPath)
 		return nil
 	}
+
+	result, err := scan(ctx, dir)
+	if err != nil {
+		return clierrors.New(
+			"config_generate.scan_failed",
+			"Repository scan failed",
+			fmt.Sprintf("Could not detect the project stack: %s.", err),
+		).WithSuggestions(
+			"Re-run with --debug to see scan details",
+			"Try again; image resolution requires network access",
+		).WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	reposcan.Render(ctx, result)
 
 	return errors.New("not implemented")
 }
