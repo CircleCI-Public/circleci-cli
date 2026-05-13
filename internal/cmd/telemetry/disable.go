@@ -69,10 +69,15 @@ func newDisableCmd() *cobra.Command {
 func runDisable(ctx context.Context, configPath string) error {
 	resolvedPath := configPath
 	if resolvedPath == "" {
-		resolvedPath, _ = config.Path()
+		var err error
+		resolvedPath, err = config.Path()
+		if err != nil {
+			return clierrors.New("telemetry.config_path", "Failed to resolve config path", err.Error()).
+				WithExitCode(clierrors.ExitGeneralError)
+		}
 	}
 
-	if err := config.SetTelemetryEnabled(ctx, false, configPath); err != nil {
+	if err := config.SetTelemetryEnabled(ctx, false, resolvedPath); err != nil {
 		return clierrors.New("telemetry.save_failed", "Failed to save telemetry setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}

@@ -24,7 +24,6 @@ package telemetry
 
 import (
 	"context"
-	"os"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -68,20 +67,23 @@ func newEnableCmd() *cobra.Command {
 func runEnable(ctx context.Context, configPath string) error {
 	resolvedPath := configPath
 	if resolvedPath == "" {
-		resolvedPath, _ = config.Path()
+		var err error
+		resolvedPath, err = config.Path()
+		if err != nil {
+			return clierrors.New("telemetry.config_path", "Failed to resolve config path", err.Error()).
+				WithExitCode(clierrors.ExitGeneralError)
+		}
 	}
 
-	if err := config.SetTelemetryEnabled(ctx, true, configPath); err != nil {
+	if err := config.SetTelemetryEnabled(ctx, true, resolvedPath); err != nil {
 		return clierrors.New("telemetry.save_failed", "Failed to save telemetry setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
 	iostream.ErrPrintf(ctx, "%s Telemetry enabled. Saved to %s\n", iostream.SymbolOK(ctx), resolvedPath)
 
-	for _, env := range config.NoTelemetryEnvVars {
-		if os.Getenv(env) != "" {
-			iostream.ErrPrintf(ctx, "Note: %s is set — telemetry remains disabled for this session.\n", env)
-		}
+	for _, env := range config.ActiveTelemetryOverrides() {
+		iostream.ErrPrintf(ctx, "Note: %s is set — telemetry remains disabled for this session.\n", env)
 	}
 
 	return nil

@@ -59,9 +59,21 @@ type state struct {
 // DefaultHost is the CircleCI API host used when none is configured.
 const DefaultHost = "https://circleci.com"
 
-// NoTelemetryEnvVars is the set of environment variables that disable telemetry
+// noTelemetryEnvVars is the set of environment variables that disable telemetry
 // regardless of the stored config preference.
-var NoTelemetryEnvVars = []string{"CIRCLECI_NO_TELEMETRY", "NO_ANALYTICS", "DO_NOT_TRACK", "CI"}
+var noTelemetryEnvVars = []string{"CIRCLECI_NO_TELEMETRY", "NO_ANALYTICS", "DO_NOT_TRACK", "CI"}
+
+// ActiveTelemetryOverrides returns the names of environment variables that are
+// currently set and override the stored telemetry preference.
+func ActiveTelemetryOverrides() []string {
+	var active []string
+	for _, env := range noTelemetryEnvVars {
+		if os.Getenv(env) != "" {
+			active = append(active, env)
+		}
+	}
+	return active
+}
 
 // Load reads the config file from the default path, returning an empty Config
 // if the file does not exist.
@@ -172,7 +184,7 @@ func SetTelemetryEnabled(ctx context.Context, enabled bool, path string) error {
 // Environment variables always take precedence over the stored config value.
 // When no preference has been set, telemetry is enabled by default.
 func (c *Config) IsTelemetryEnabled() bool {
-	for _, env := range NoTelemetryEnvVars {
+	for _, env := range noTelemetryEnvVars {
 		if os.Getenv(env) != "" {
 			return false
 		}
