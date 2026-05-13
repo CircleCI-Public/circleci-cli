@@ -30,7 +30,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/projectref"
+	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
 
 func TestSlugFromRemote(t *testing.T) {

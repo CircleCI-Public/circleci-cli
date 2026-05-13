@@ -40,8 +40,8 @@ import (
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/keyring"
+	"github.com/CircleCI-Public/circleci-cli/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli/internal/keyring"
 )
 
 // Config holds all persisted CLI settings.

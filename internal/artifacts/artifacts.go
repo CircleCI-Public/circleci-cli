@@ -32,7 +32,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
 // Entry is a single artifact with the job context it came from.

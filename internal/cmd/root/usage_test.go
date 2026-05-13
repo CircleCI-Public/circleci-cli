@@ -31,7 +31,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/root"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
 )
 
 func TestUsage(t *testing.T) {

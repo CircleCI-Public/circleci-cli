@@ -28,7 +28,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/project"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
 )
 
 // NewEnvVarCmd returns the "circleci envvar" command, the primary entry point for

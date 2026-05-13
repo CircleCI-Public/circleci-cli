@@ -31,7 +31,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
+	"github.com/CircleCI-Public/circleci-cli/internal/jsoncolor"
 )
 
 func TestWrite(t *testing.T) {

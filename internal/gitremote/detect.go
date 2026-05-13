@@ -34,7 +34,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/projectref"
+	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
 
 // ProjectInfo holds the information needed to identify a CircleCI project.

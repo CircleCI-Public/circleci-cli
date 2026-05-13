@@ -28,7 +28,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Namespace represents a CircleCI orb registry namespace.

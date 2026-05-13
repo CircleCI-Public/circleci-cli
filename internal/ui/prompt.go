@@ -27,8 +27,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/components"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 // PromptModel is a bubbletea model for prompting a single line of plain

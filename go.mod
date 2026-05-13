@@ -1,4 +1,4 @@
-module github.com/CircleCI-Public/circleci-cli-v2
+module github.com/CircleCI-Public/circleci-cli
 
 go 1.26.2
 

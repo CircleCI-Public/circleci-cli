@@ -31,9 +31,9 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
-	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
 const testOrgSlug = "gh/testorg"

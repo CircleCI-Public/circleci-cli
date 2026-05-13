@@ -43,11 +43,11 @@ import (
 	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jq"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli/internal/jq"
+	"github.com/CircleCI-Public/circleci-cli/internal/jsoncolor"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 type jqFilterKey struct{}
