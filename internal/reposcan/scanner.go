@@ -28,23 +28,18 @@ import (
 	"github.com/CircleCI-Public/chunk-cli/envbuilder"
 )
 
-// Scanner detects the stack and setup commands for a repository at dir.
-// Implementations should treat dir as a read-only filesystem path.
-type Scanner interface {
-	Scan(ctx context.Context, dir string) (*Result, error)
+// EnvBuilderScanner detects the stack and setup commands for a repository
+// using chunk-cli's env-builder library. It may make network calls (e.g. to
+// Docker Hub) while resolving image versions, so callers should pass a context
+// with a timeout if they need to bound the operation.
+type EnvBuilderScanner struct{}
+
+// NewDefaultScanner returns an EnvBuilderScanner ready for use.
+func NewDefaultScanner() *EnvBuilderScanner {
+	return &EnvBuilderScanner{}
 }
 
-// NewDefaultScanner returns a Scanner backed by chunk-cli's env-builder
-// library. The default scanner may make network calls (e.g. to Docker Hub)
-// while resolving image versions, so callers should pass a context with a
-// timeout if they need to bound the operation.
-func NewDefaultScanner() Scanner {
-	return &envbuilderScanner{}
-}
-
-type envbuilderScanner struct{}
-
-func (s *envbuilderScanner) Scan(ctx context.Context, dir string) (*Result, error) {
+func (s *EnvBuilderScanner) Scan(ctx context.Context, dir string) (*Result, error) {
 	env, err := envbuilder.DetectEnvironment(ctx, dir)
 	if err != nil {
 		return nil, err
