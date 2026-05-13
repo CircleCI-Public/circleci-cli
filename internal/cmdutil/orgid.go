@@ -26,9 +26,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
 // ResolveOrgID returns orgID as-is when non-empty. Otherwise it detects the

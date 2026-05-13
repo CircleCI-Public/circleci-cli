@@ -27,7 +27,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 )
 
 const testToken = "test-token"

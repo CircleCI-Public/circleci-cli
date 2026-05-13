@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Client is an authenticated CircleCI API client.

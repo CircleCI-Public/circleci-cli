@@ -28,8 +28,8 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
 // --- signing-config create ---

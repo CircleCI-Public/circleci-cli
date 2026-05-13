@@ -30,8 +30,8 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/root"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 var version = "dev"

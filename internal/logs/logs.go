@@ -27,8 +27,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/bulkhead"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/bulkhead"
 )
 
 const statusFailed = "failed"

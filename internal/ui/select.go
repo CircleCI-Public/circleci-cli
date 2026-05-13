@@ -25,7 +25,7 @@ package ui
 import (
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 )
 
 // SelectModel is a top-level bubbletea model that wraps components.SelectModel

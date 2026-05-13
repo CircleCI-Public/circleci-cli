@@ -32,7 +32,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Job holds the details of a CircleCI job including its steps.

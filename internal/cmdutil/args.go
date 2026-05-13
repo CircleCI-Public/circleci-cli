@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"strings"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // RequireArgs returns a structured CLIError if args contains fewer elements

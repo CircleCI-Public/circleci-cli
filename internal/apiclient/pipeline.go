@@ -27,7 +27,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Pipeline represents a CircleCI pipeline.
