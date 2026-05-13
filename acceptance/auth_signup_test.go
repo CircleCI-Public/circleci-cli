@@ -58,13 +58,17 @@ func TestAuthSignup_Timeout(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 8, "stderr: %s", result.Stderr) // ExitTimeout
-	assert.Check(t, cmp.Contains(result.Stderr, "Signup timed out"))
-	// Verify the URL the CLI printed carries signup=true.
+
+	// Targeted URL semantics: lock down the params we care about while the
+	// rest of the URL (host, ports, PKCE values, state, device_id) is random.
 	assert.Check(t, cmp.Contains(result.Stderr, "signup=true"))
-	// Verify it's a loopback redirect URI shape (encoded or raw colon).
 	assert.Check(t, strings.Contains(result.Stderr, "127.0.0.1%3A") ||
 		strings.Contains(result.Stderr, "127.0.0.1:"),
 		"authorize URL must include a loopback redirect_uri:\n%s", result.Stderr)
+
+	// Golden-compare the surrounding stderr after scrubbing the random URL.
+	scrubbed := regexp.MustCompile(`https?://\S+`).ReplaceAllString(result.Stderr, "<authorize-url>")
+	assert.Check(t, golden.String(scrubbed, t.Name()+".stderr.txt"))
 }
 
 // TestAuthSignup_AlreadyAuthenticated asserts that running `circleci auth

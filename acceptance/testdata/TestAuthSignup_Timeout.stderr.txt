@@ -1,0 +1,9 @@
+Open this URL in your browser to sign up:
+
+  <authorize-url>
+
+Waiting for signup to complete...
+error: Signup timed out — no browser callback received within 200ms.
+
+Suggestions:
+  • Re-run 'circleci auth signup' and complete the browser flow promptly
