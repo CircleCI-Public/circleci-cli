@@ -171,6 +171,10 @@ func (c *Client) deleteRunner(ctx context.Context, route string, opts ...func(*h
 	return err
 }
 
+type v3Entity[T any] struct {
+	Data T `json:"data"`
+}
+
 func (c *Client) getV3(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
 		httpcl.JSONDecoder(dst),
