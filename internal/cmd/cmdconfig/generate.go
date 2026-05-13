@@ -46,6 +46,11 @@ var scan = func(ctx context.Context, dir string) (*reposcan.Result, error) {
 	return reposcan.NewDefaultScanner().Scan(ctx, dir)
 }
 
+// rename is the package-level seam for finalizing the atomic write. Tests
+// swap it via SetRenameForTest to inject failures and confirm the temp-file
+// cleanup path works.
+var rename = os.Rename
+
 func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate [path]",
@@ -190,7 +195,9 @@ func renderConfig(r *reposcan.Result) ([]byte, error) {
 }
 
 // writeConfigAtomic writes body to path via a temp file in the same directory
-// followed by os.Rename. The .circleci directory is created if missing.
+// followed by rename. The .circleci directory is created if missing. If any
+// step after the temp file is created fails, the temp file is removed so the
+// .circleci/ directory is never left littered with config.*.yml.tmp files.
 func writeConfigAtomic(path string, body []byte) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -200,6 +207,13 @@ func writeConfigAtomic(path string, body []byte) error {
 	if err != nil {
 		return err
 	}
+
+	committed := false
+	defer func() {
+		if !committed {
+			_ = os.Remove(tmp.Name())
+		}
+	}()
 
 	if _, err := tmp.Write(body); err != nil {
 		_ = tmp.Close()
@@ -215,7 +229,11 @@ func writeConfigAtomic(path string, body []byte) error {
 	if err := os.Chmod(tmp.Name(), 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp.Name(), path)
+	if err := rename(tmp.Name(), path); err != nil {
+		return err
+	}
+	committed = true
+	return nil
 }
 
 type pipeline struct {

@@ -38,3 +38,13 @@ func SetScanForTest(t *testing.T, fn func(ctx context.Context, dir string) (*rep
 	scan = fn
 	t.Cleanup(func() { scan = orig })
 }
+
+// SetRenameForTest replaces the package-level rename function for the duration
+// of t. Tests use it to inject failures and confirm the atomic-write
+// cleanup path.
+func SetRenameForTest(t *testing.T, fn func(oldpath, newpath string) error) {
+	t.Helper()
+	orig := rename
+	rename = fn
+	t.Cleanup(func() { rename = orig })
+}
