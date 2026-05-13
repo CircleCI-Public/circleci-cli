@@ -79,7 +79,7 @@ func newRenameCmd() *cobra.Command {
 }
 
 func runRename(ctx context.Context, client *apiclient.Client, name, newName string, jsonOut bool) error {
-	ns, err := client.RenameNamespace(ctx, name, newName)
+	ns, err := client.RenameNamespace(ctx, apiclient.RenameNamespaceRequest{Name: name, NewName: newName})
 	if err != nil {
 		return apiErr(err, name)
 	}

@@ -1387,8 +1387,8 @@ func (f *CircleCI) handleRESTGetNamespaceByID(w http.ResponseWriter, r *http.Req
 
 func (f *CircleCI) handleRESTCreateNamespace(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name           string `json:"name"`
-		OrganizationID string `json:"organization_id"`
+		Name  string `json:"name"`
+		OrgID string `json:"org_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
 		render.Status(r, http.StatusBadRequest)
