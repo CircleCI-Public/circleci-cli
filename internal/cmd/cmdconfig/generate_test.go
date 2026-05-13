@@ -143,6 +143,29 @@ func TestGenerateCmd_RendersScanSummary(t *testing.T) {
 	assert.Check(t, golden.String(stderr, "detected-node.stderr.golden"))
 }
 
+func TestGenerateCmd_DetectedStack_WritesYAML(t *testing.T) {
+	dir := t.TempDir()
+
+	cmdconfig.SetScanForTest(t, func(_ context.Context, _ string) (*reposcan.Result, error) {
+		return &reposcan.Result{
+			Stack:        "node",
+			Image:        "cimg/node",
+			ImageVersion: "20.10",
+			Setup: []reposcan.SetupStep{
+				{Name: "install", Command: "npm ci"},
+				{Name: "test", Command: "npm test"},
+			},
+		}, nil
+	})
+
+	_, err := runGenerate(t, dir)
+	assert.NilError(t, err)
+
+	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.NilError(t, readErr)
+	assert.Check(t, golden.Bytes(written, "detected-node.yml.golden"))
+}
+
 func TestGenerateCmd_ScannerErrorIsStructured(t *testing.T) {
 	dir := t.TempDir()
 

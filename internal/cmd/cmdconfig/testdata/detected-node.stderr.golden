@@ -1,3 +1,4 @@
 ✓ Detected node project (cimg/node:20.10)
     install: npm ci
     test: npm test
+✓ Generated <DIR>/.circleci/config.yml
