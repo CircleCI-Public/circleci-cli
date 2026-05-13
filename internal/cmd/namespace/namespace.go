@@ -71,9 +71,5 @@ func apiErr(err error, name string) *clierrors.CLIError {
 			WithSuggestions("Check the namespace name and try again").
 			WithExitCode(clierrors.ExitNotFound)
 	}
-	if gqlErr, ok := errors.AsType[*apiclient.GQLError](err); ok {
-		return clierrors.New("namespace.api_error", "Namespace operation failed", gqlErr.Error()).
-			WithExitCode(clierrors.ExitAPIError)
-	}
 	return cmdutil.APIErr(err, name, "namespace.api_error", "Namespace API request failed for %q.")
 }

@@ -181,6 +181,12 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
+	// Namespace (v3) routes.
+	r.Get("/api/v3/namespaces", f.handleRESTGetNamespaceByName)
+	r.Get("/api/v3/namespaces/{id}", f.handleRESTGetNamespaceByID)
+	r.Post("/api/v3/namespaces", f.handleRESTCreateNamespace)
+	r.Post("/api/v3/namespaces/{id}/rename", f.handleRESTRenameNamespace)
+	r.Delete("/api/v3/namespaces/{id}", f.handleRESTDeleteNamespace)
 	// Wildcard routes for downloads and step output — populated via helpers before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
 	r.Get("/output/*", f.handleStepOutput)
@@ -1322,14 +1328,128 @@ func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
-// AddNamespace registers a namespace for GraphQL queries.
-// id and name form the namespace object returned by registryNamespace and mutations.
+// AddNamespace registers a namespace for REST API queries.
+// id and name form the namespace record returned by the /api/v3/namespaces endpoints.
 func (f *CircleCI) AddNamespace(id, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	ns := map[string]any{"id": id, "name": name}
-	f.namespaces[id] = ns
+	f.namespaces[id] = map[string]any{"id": id, "name": name}
 	f.namespacesByName[name] = id
+}
+
+func namespaceDataResponse(id, name string) map[string]any {
+	return map[string]any{
+		"data": map[string]any{
+			"id":         id,
+			"attributes": map[string]any{"name": name},
+		},
+	}
+}
+
+func (f *CircleCI) handleRESTGetNamespaceByName(w http.ResponseWriter, r *http.Request) {
+	name := r.URL.Query().Get("filter[name]")
+	if name == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "filter[name] is required"}})
+		return
+	}
+	f.mu.RLock()
+	id, ok := f.namespacesByName[name]
+	var deleted bool
+	if ok {
+		deleted = f.deletedNamespaces[id]
+	}
+	f.mu.RUnlock()
+
+	if !ok || deleted {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "namespace not found"}})
+		return
+	}
+	render.JSON(w, r, namespaceDataResponse(id, name))
+}
+
+func (f *CircleCI) handleRESTGetNamespaceByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	ns, ok := f.namespaces[id]
+	deleted := f.deletedNamespaces[id]
+	f.mu.RUnlock()
+
+	if !ok || deleted {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "namespace not found"}})
+		return
+	}
+	name, _ := ns.(map[string]any)["name"].(string)
+	render.JSON(w, r, namespaceDataResponse(id, name))
+}
+
+func (f *CircleCI) handleRESTCreateNamespace(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name           string `json:"name"`
+		OrganizationID string `json:"organization_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "name is required"}})
+		return
+	}
+	id := uuid.New().String()
+	f.mu.Lock()
+	f.namespaces[id] = map[string]any{"id": id, "name": body.Name}
+	f.namespacesByName[body.Name] = id
+	f.mu.Unlock()
+
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, namespaceDataResponse(id, body.Name))
+}
+
+func (f *CircleCI) handleRESTRenameNamespace(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Name string `json:"name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Name == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "name is required"}})
+		return
+	}
+	f.mu.Lock()
+	ns, ok := f.namespaces[id]
+	deleted := f.deletedNamespaces[id]
+	if ok && !deleted {
+		oldName, _ := ns.(map[string]any)["name"].(string)
+		delete(f.namespacesByName, oldName)
+		f.namespaces[id] = map[string]any{"id": id, "name": body.Name}
+		f.namespacesByName[body.Name] = id
+	}
+	f.mu.Unlock()
+
+	if !ok || deleted {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "namespace not found"}})
+		return
+	}
+	render.JSON(w, r, namespaceDataResponse(id, body.Name))
+}
+
+func (f *CircleCI) handleRESTDeleteNamespace(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.Lock()
+	_, ok := f.namespaces[id]
+	alreadyDeleted := f.deletedNamespaces[id]
+	if ok && !alreadyDeleted {
+		f.deletedNamespaces[id] = true
+	}
+	f.mu.Unlock()
+
+	if !ok || alreadyDeleted {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "namespace not found"}})
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // handleGraphQL dispatches GraphQL operations by the operationName field sent by the client.
@@ -1345,127 +1465,5 @@ func (f *CircleCI) handleGraphQL(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	switch body.OperationName {
-	case "GetNamespace":
-		f.handleGQLGetNamespace(w, r, body.Variables)
-	case "CreateNamespace":
-		f.handleGQLCreateNamespace(w, r, body.Variables)
-	case "RenameNamespace":
-		f.handleGQLRenameNamespace(w, r, body.Variables)
-	case "DeleteNamespace":
-		f.handleGQLDeleteNamespace(w, r, body.Variables)
-	default:
-		render.JSON(w, r, map[string]any{"errors": []any{map[string]any{"message": "unknown operation: " + body.OperationName}}})
-	}
-}
-
-func (f *CircleCI) handleGQLGetNamespace(w http.ResponseWriter, r *http.Request, vars map[string]any) {
-	name, _ := vars["name"].(string)
-	f.mu.RLock()
-	id, ok := f.namespacesByName[name]
-	var ns any
-	var deleted bool
-	if ok {
-		ns = f.namespaces[id]
-		deleted = f.deletedNamespaces[id]
-	}
-	f.mu.RUnlock()
-
-	if !ok || deleted {
-		render.JSON(w, r, map[string]any{"data": map[string]any{"registryNamespace": nil}})
-		return
-	}
-	render.JSON(w, r, map[string]any{"data": map[string]any{"registryNamespace": ns}})
-}
-
-func (f *CircleCI) handleGQLCreateNamespace(w http.ResponseWriter, r *http.Request, vars map[string]any) {
-	name, _ := vars["name"].(string)
-	id := uuid.New().String()
-
-	f.mu.Lock()
-	ns := map[string]any{"id": id, "name": name}
-	f.namespaces[id] = ns
-	f.namespacesByName[name] = id
-	f.mu.Unlock()
-
-	render.JSON(w, r, map[string]any{
-		"data": map[string]any{
-			"createNamespace": map[string]any{
-				"namespace": map[string]any{"id": id},
-				"errors":    []any{},
-			},
-		},
-	})
-}
-
-func (f *CircleCI) handleGQLRenameNamespace(w http.ResponseWriter, r *http.Request, vars map[string]any) {
-	nsID, _ := vars["namespaceId"].(string)
-	newName, _ := vars["newName"].(string)
-
-	f.mu.Lock()
-	ns, ok := f.namespaces[nsID]
-	var deleted bool
-	if ok {
-		deleted = f.deletedNamespaces[nsID]
-	}
-	if ok && !deleted {
-		oldName, _ := ns.(map[string]any)["name"].(string)
-		delete(f.namespacesByName, oldName)
-		updated := map[string]any{"id": nsID, "name": newName}
-		f.namespaces[nsID] = updated
-		f.namespacesByName[newName] = nsID
-	}
-	f.mu.Unlock()
-
-	if !ok || deleted {
-		render.JSON(w, r, map[string]any{
-			"data": map[string]any{
-				"renameNamespace": map[string]any{
-					"namespace": nil,
-					"errors":    []any{map[string]any{"message": "namespace not found", "type": "NOT_FOUND"}},
-				},
-			},
-		})
-		return
-	}
-	render.JSON(w, r, map[string]any{
-		"data": map[string]any{
-			"renameNamespace": map[string]any{
-				"namespace": map[string]any{"id": nsID},
-				"errors":    []any{},
-			},
-		},
-	})
-}
-
-func (f *CircleCI) handleGQLDeleteNamespace(w http.ResponseWriter, r *http.Request, vars map[string]any) {
-	nsID, _ := vars["id"].(string)
-
-	f.mu.Lock()
-	_, ok := f.namespaces[nsID]
-	alreadyDeleted := f.deletedNamespaces[nsID]
-	if ok && !alreadyDeleted {
-		f.deletedNamespaces[nsID] = true
-	}
-	f.mu.Unlock()
-
-	if !ok || alreadyDeleted {
-		render.JSON(w, r, map[string]any{
-			"data": map[string]any{
-				"deleteNamespaceAndRelatedOrbs": map[string]any{
-					"deleted": false,
-					"errors":  []any{map[string]any{"message": "namespace not found", "type": "NOT_FOUND"}},
-				},
-			},
-		})
-		return
-	}
-	render.JSON(w, r, map[string]any{
-		"data": map[string]any{
-			"deleteNamespaceAndRelatedOrbs": map[string]any{
-				"deleted": true,
-				"errors":  []any{},
-			},
-		},
-	})
+	render.JSON(w, r, map[string]any{"errors": []any{map[string]any{"message": "unknown operation: " + body.OperationName}}})
 }
