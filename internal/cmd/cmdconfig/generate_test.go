@@ -23,11 +23,16 @@
 package cmdconfig_test
 
 import (
+	"bytes"
+	"io"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdconfig"
 )
@@ -54,4 +59,40 @@ func TestGenerateCmd_HelpText(t *testing.T) {
 	exampleCount := strings.Count(generate.Example, "circleci config generate")
 	assert.Check(t, exampleCount >= 3,
 		"Example must show at least 3 invocations of 'circleci config generate', got %d", exampleCount)
+}
+
+// runGenerate invokes 'circleci config generate' in-process against the given
+// project directory and returns the captured stderr (with dir replaced by the
+// placeholder "<DIR>" so golden files are stable across machines) plus the
+// error from RunE.
+func runGenerate(t *testing.T, dir string, extraArgs ...string) (stderr string, err error) {
+	t.Helper()
+	var buf bytes.Buffer
+	group := cmdconfig.NewConfigCmd()
+	group.SetOut(io.Discard)
+	group.SetErr(&buf)
+	args := append([]string{"generate", dir}, extraArgs...)
+	group.SetArgs(args)
+	err = group.Execute()
+	return strings.ReplaceAll(buf.String(), dir, "<DIR>"), err
+}
+
+func TestGenerateCmd_SkipsWhenConfigExists(t *testing.T) {
+	dir := t.TempDir()
+
+	configDir := filepath.Join(dir, ".circleci")
+	assert.NilError(t, os.MkdirAll(configDir, 0o755))
+	configPath := filepath.Join(configDir, "config.yml")
+	original := []byte("# user's existing config\nversion: 2.1\n")
+	assert.NilError(t, os.WriteFile(configPath, original, 0o644))
+
+	stderr, err := runGenerate(t, dir)
+	assert.NilError(t, err)
+
+	// File must be untouched.
+	got, readErr := os.ReadFile(configPath)
+	assert.NilError(t, readErr)
+	assert.DeepEqual(t, got, original)
+
+	assert.Check(t, golden.String(stderr, "skip-existing.stderr.golden"))
 }

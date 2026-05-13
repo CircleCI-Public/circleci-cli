@@ -24,9 +24,13 @@ package cmdconfig
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newGenerateCmd() *cobra.Command {
@@ -53,9 +57,25 @@ func newGenerateCmd() *cobra.Command {
 			✓ Using existing config at .circleci/config.yml
 		`),
 		Args: cobra.MaximumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			return errors.New("not implemented")
-		},
+		RunE: runGenerate,
 	}
 	return cmd
+}
+
+func runGenerate(cmd *cobra.Command, args []string) error {
+	ctx := iostream.FromCmd(cmd.Context(), cmd)
+
+	dir := "."
+	if len(args) == 1 {
+		dir = args[0]
+	}
+
+	configPath := filepath.Join(dir, ".circleci", "config.yml")
+	if _, err := os.Stat(configPath); err == nil {
+		iostream.ErrPrintf(ctx, "%s Using existing config at %s\n",
+			iostream.SymbolOK(ctx), configPath)
+		return nil
+	}
+
+	return errors.New("not implemented")
 }
