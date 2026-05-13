@@ -55,6 +55,9 @@ type CircleCI struct {
 	jobsV1                  map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
 	stepOutputs             map[string]string // path → JSON log lines content
 	triggerResponses        map[string]any    // project slug → trigger response body
+	pipelineDefinitions     map[string][]any  // projectID → list of pipeline definition objects
+	createTriggerResponses  map[string]any    // "projectID/pipelineDefinitionID" → response body
+	listTriggerResponses    map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
 	rerunResponses          map[string]int    // workflow id → HTTP status to return
 	cancelResponses         map[string]int    // workflow id → HTTP status to return
 	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
@@ -111,6 +114,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		jobsV1:                     map[string]any{},
 		stepOutputs:                map[string]string{},
 		triggerResponses:           map[string]any{},
+		pipelineDefinitions:        map[string][]any{},
+		createTriggerResponses:     map[string]any{},
+		listTriggerResponses:       map[string][]any{},
 		rerunResponses:             map[string]int{},
 		cancelResponses:            map[string]int{},
 		pipelineCancelResponses:    map[string]int{},
@@ -171,6 +177,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
+	r.Get("/api/v2/projects/{projectID}/pipeline-definitions", f.handleListPipelineDefinitions)
+	r.Get("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleListTriggers)
+	r.Post("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleCreateTrigger)
 	// Deploy routes.
 	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListDeploys)
 	// Runner (v3) routes. GET /runner dispatches on query param:
@@ -846,6 +855,32 @@ func (f *CircleCI) AddProjectInfo(slug string, info any) {
 	f.projectInfos[slug] = info
 }
 
+// AddPipelineDefinition registers a pipeline definition for a project, returned by
+// GET /api/v2/projects/{projectID}/pipeline-definitions.
+func (f *CircleCI) AddPipelineDefinition(projectID string, def any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.pipelineDefinitions[projectID] = append(f.pipelineDefinitions[projectID], def)
+}
+
+// AddTrigger registers a trigger returned by GET
+// /api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers.
+func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := projectID + "/" + pipelineDefinitionID
+	f.listTriggerResponses[key] = append(f.listTriggerResponses[key], trigger)
+}
+
+// SetCreateTriggerResponse registers the response body returned when POST
+// /api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers
+// is called. Pass nil to simulate a 404.
+func (f *CircleCI) SetCreateTriggerResponse(projectID, pipelineDefinitionID string, resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.createTriggerResponses[projectID+"/"+pipelineDefinitionID] = resp
+}
+
 // AddFollowedProject registers a project returned by GET /api/v1.1/projects.
 // proj should be a map or struct with at least "slug", "username", and "reponame" fields.
 func (f *CircleCI) AddFollowedProject(proj any) {
@@ -1263,6 +1298,49 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 		return
 	}
 	render.JSON(w, r, map[string]any{"message": "Context restriction deleted."})
+}
+
+func (f *CircleCI) handleListPipelineDefinitions(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	f.mu.RLock()
+	items := f.pipelineDefinitions[projectID]
+	f.mu.RUnlock()
+
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": items})
+}
+
+func (f *CircleCI) handleListTriggers(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	pipelineDefinitionID := chi.URLParam(r, "pipelineDefinitionID")
+	key := projectID + "/" + pipelineDefinitionID
+	f.mu.RLock()
+	items := f.listTriggerResponses[key]
+	f.mu.RUnlock()
+
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": items})
+}
+
+func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	pipelineDefinitionID := chi.URLParam(r, "pipelineDefinitionID")
+	key := projectID + "/" + pipelineDefinitionID
+	f.mu.RLock()
+	resp, ok := f.createTriggerResponses[key]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
 }
 
 func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {

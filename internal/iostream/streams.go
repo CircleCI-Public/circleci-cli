@@ -146,6 +146,13 @@ func PromptSecret(ctx context.Context, header string) (string, error) {
 	return fromContext(ctx).PromptSecret(ctx, header)
 }
 
+// PromptSelect presents an interactive single-choice list to the user and
+// returns the index of the selected option. Returns (-1, nil) if the user
+// cancels with esc or ctrl+c.
+func PromptSelect(ctx context.Context, prompt string, options []string) (int, error) {
+	return fromContext(ctx).PromptSelect(ctx, prompt, options)
+}
+
 // PromptText presents a plain (non-secret) single-line text input via
 // bubbletea. header is the bold heading above the input; placeholder is
 // shown inside the empty field. Returns ("", nil) if the user cancels with
@@ -445,6 +452,26 @@ func (s Streams) Confirm(ctx context.Context, prompt string) bool {
 		return false
 	}
 	return anyModel.(ui.ConfirmModel).Confirmed()
+}
+
+// PromptSelect presents a bubbletea single-choice list prompt.
+// Returns the selected index, or -1 if the user cancels.
+func (s Streams) PromptSelect(ctx context.Context, prompt string, options []string) (int, error) {
+	p := tea.NewProgram(
+		ui.NewSelectModel(prompt, options),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
+		return -1, err
+	}
+	m := anyModel.(ui.SelectModel)
+	if m.Cancelled() {
+		return -1, nil
+	}
+	return m.Selected(), nil
 }
 
 // PromptSecret presents a masked text input via bubbletea to collect a secret
