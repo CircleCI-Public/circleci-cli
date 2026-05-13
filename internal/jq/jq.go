@@ -36,7 +36,7 @@ import (
 
 	"github.com/itchyny/gojq"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
+	"github.com/CircleCI-Public/circleci-cli/internal/jsoncolor"
 )
 
 // Options controls how Evaluate formats its output.

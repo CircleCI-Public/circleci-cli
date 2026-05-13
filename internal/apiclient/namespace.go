@@ -26,6 +26,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Namespace represents a CircleCI orb registry namespace.
@@ -37,87 +40,70 @@ type Namespace struct {
 // ErrNamespaceNotFound is returned by GetNamespace when the namespace does not exist.
 var ErrNamespaceNotFound = errors.New("namespace not found")
 
+// namespace is the response envelope for /api/v3/namespaces endpoints.
+type namespace struct {
+	ID         string `json:"id"`
+	Attributes struct {
+		Name string `json:"name"`
+	} `json:"attributes"`
+}
+
+func (e *namespace) toNamespace() *Namespace {
+	return &Namespace{ID: e.ID, Name: e.Attributes.Name}
+}
+
 // GetNamespace looks up a namespace by name and returns its ID and name.
 func (c *Client) GetNamespace(ctx context.Context, name string) (*Namespace, error) {
-	var data struct {
-		RegistryNamespace *struct {
-			ID string `json:"id"`
-		} `json:"registryNamespace"`
-	}
-	if err := c.graphQL(ctx,
-		`query GetNamespace($name: String!) { registryNamespace(name: $name) { id } }`,
-		map[string]any{"name": name}, &data); err != nil {
-		return nil, err
-	}
-	if data.RegistryNamespace == nil || data.RegistryNamespace.ID == "" {
+	var env v3Entity[namespace]
+	err := c.getV3(ctx, "/namespaces", &env,
+		queryParam("filter[name]", name),
+	)
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
 	}
-	return &Namespace{ID: data.RegistryNamespace.ID, Name: name}, nil
-}
-
-// CreateNamespace creates a namespace for the given organization ID.
-func (c *Client) CreateNamespace(ctx context.Context, name, orgID string) (*Namespace, error) {
-	var data struct {
-		CreateNamespace struct {
-			Namespace *struct {
-				ID string `json:"id"`
-			} `json:"namespace"`
-			Errors []gqlAppError `json:"errors"`
-		} `json:"createNamespace"`
-	}
-	if err := c.graphQL(ctx, `
-		mutation CreateNamespace($name: String!, $organizationId: UUID!) {
-			createNamespace(name: $name, organizationId: $organizationId) {
-				namespace { id }
-				errors { message type }
-			}
-		}`,
-		map[string]any{"name": name, "organizationId": orgID}, &data); err != nil {
-		return nil, err
-	}
-	if len(data.CreateNamespace.Errors) > 0 {
-		return nil, gqlAppErrorsToErr(data.CreateNamespace.Errors)
-	}
-	if data.CreateNamespace.Namespace == nil {
-		return nil, fmt.Errorf("namespace creation failed for unknown reasons")
-	}
-	return &Namespace{ID: data.CreateNamespace.Namespace.ID, Name: name}, nil
-}
-
-// RenameNamespace renames a namespace. The current name is resolved to an ID first.
-func (c *Client) RenameNamespace(ctx context.Context, name, newName string) (*Namespace, error) {
-	ns, err := c.GetNamespace(ctx, name)
 	if err != nil {
 		return nil, err
 	}
-	var data struct {
-		RenameNamespace struct {
-			Namespace *struct {
-				ID string `json:"id"`
-			} `json:"namespace"`
-			Errors []gqlAppError `json:"errors"`
-		} `json:"renameNamespace"`
-	}
-	if err := c.graphQL(ctx, `
-		mutation RenameNamespace($namespaceId: UUID!, $newName: String!) {
-			renameNamespace(namespaceId: $namespaceId, newName: $newName) {
-				namespace { id }
-				errors { message type }
-			}
-		}`,
-		map[string]any{"namespaceId": ns.ID, "newName": newName}, &data); err != nil {
+	return env.Data.toNamespace(), nil
+}
+
+type CreateNamespaceRequest struct {
+	Name  string `json:"name"`
+	OrgID string `json:"org_id"`
+}
+
+type RenameNamespaceRequest struct {
+	Name    string `json:"-"`    // current name, resolved to an ID
+	NewName string `json:"name"` // new name, sent in request body
+}
+
+// CreateNamespace creates a namespace for the given organization ID.
+func (c *Client) CreateNamespace(ctx context.Context, req CreateNamespaceRequest) (*Namespace, error) {
+	var env v3Entity[namespace]
+	err := c.postV3(ctx, "/namespaces", req, &env)
+	if err != nil {
 		return nil, err
 	}
-	if len(data.RenameNamespace.Errors) > 0 {
-		if gqlHasType(data.RenameNamespace.Errors, "NOT_FOUND") {
-			return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
-		}
-		return nil, gqlAppErrorsToErr(data.RenameNamespace.Errors)
+	return env.Data.toNamespace(), nil
+}
+
+// RenameNamespace renames a namespace. The current name is resolved to an ID first.
+func (c *Client) RenameNamespace(ctx context.Context, req RenameNamespaceRequest) (*Namespace, error) {
+	ns, err := c.GetNamespace(ctx, req.Name)
+	if err != nil {
+		return nil, err
 	}
-	if data.RenameNamespace.Namespace == nil {
-		return nil, fmt.Errorf("namespace rename failed for unknown reasons")
+	var env v3Entity[namespace]
+	err = c.postV3(ctx, "/namespaces/%s/rename", req, &env,
+		routeParams(ns.ID),
+	)
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, req.Name)
 	}
-	return &Namespace{ID: data.RenameNamespace.Namespace.ID, Name: newName}, nil
+	if err != nil {
+		return nil, err
+	}
+	return env.Data.toNamespace(), nil
 }
 
 // DeleteNamespace deletes a namespace and all its orbs.
@@ -127,52 +113,11 @@ func (c *Client) DeleteNamespace(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	var data struct {
-		DeleteNamespaceAndRelatedOrbs struct {
-			Deleted bool          `json:"deleted"`
-			Errors  []gqlAppError `json:"errors"`
-		} `json:"deleteNamespaceAndRelatedOrbs"`
+	err = c.deleteV3(ctx, "/namespaces/%s",
+		routeParams(ns.ID),
+	)
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
 	}
-	if err := c.graphQL(ctx, `
-		mutation DeleteNamespace($id: UUID!) {
-			deleteNamespaceAndRelatedOrbs(namespaceId: $id) {
-				deleted
-				errors { message type }
-			}
-		}`,
-		map[string]any{"id": ns.ID}, &data); err != nil {
-		return err
-	}
-	if len(data.DeleteNamespaceAndRelatedOrbs.Errors) > 0 {
-		if gqlHasType(data.DeleteNamespaceAndRelatedOrbs.Errors, "NOT_FOUND") {
-			return fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
-		}
-		return gqlAppErrorsToErr(data.DeleteNamespaceAndRelatedOrbs.Errors)
-	}
-	if !data.DeleteNamespaceAndRelatedOrbs.Deleted {
-		return fmt.Errorf("namespace deletion failed for unknown reasons")
-	}
-	return nil
-}
-
-type gqlAppError struct {
-	Message string `json:"message"`
-	Type    string `json:"type"`
-}
-
-func gqlAppErrorsToErr(errs []gqlAppError) *GQLError {
-	msgs := make([]string, len(errs))
-	for i, e := range errs {
-		msgs[i] = e.Message
-	}
-	return &GQLError{messages: msgs}
-}
-
-func gqlHasType(errs []gqlAppError, typ string) bool {
-	for _, e := range errs {
-		if e.Type == typ {
-			return true
-		}
-	}
-	return false
+	return err
 }

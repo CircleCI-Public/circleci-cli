@@ -30,13 +30,13 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/gitremote"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/mdtable"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
 func newInstanceCmd() *cobra.Command {

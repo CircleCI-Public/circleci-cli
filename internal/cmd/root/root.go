@@ -23,31 +23,36 @@
 package root
 
 import (
+	"os"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/njayp/ophis"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	cmdapi "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/api"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/artifacts"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/cmdauth"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/completion"
-	cmdcontext "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/context"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/deploy"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/envvar"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/job"
-	cmdlogs "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/logs"
-	cmdnamespace "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/namespace"
-	cmdopen "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/open"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/project"
-	cmdrun "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/run"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/runner"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/settings"
-	cmdversion "github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/version"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/workflow"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/certificate"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/completion"
+	cmdcontext "github.com/CircleCI-Public/circleci-cli/internal/cmd/context"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/deploy"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
+	cmdlogs "github.com/CircleCI-Public/circleci-cli/internal/cmd/logs"
+	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
+	cmdopen "github.com/CircleCI-Public/circleci-cli/internal/cmd/open"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
+	cmdrun "github.com/CircleCI-Public/circleci-cli/internal/cmd/run"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/runner"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/settings"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
+	cmdversion "github.com/CircleCI-Public/circleci-cli/internal/cmd/version"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/extension"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // NewRootCmd builds the root cobra command and wires all subcommands.
@@ -95,6 +100,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(artifacts.NewArtifactsCmd())
 	cmd.AddCommand(cmdapi.NewAPICmd())
 	cmd.AddCommand(cmdauth.NewAuthCmd())
+	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(cmdcontext.NewContextCmd())
 	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(cmdlogs.NewLogsCmd())
@@ -109,10 +115,28 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(project.NewProjectCmd())
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(settings.NewSettingsCmd())
+	cmd.AddCommand(signingconfig.NewSigningConfigCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
 
 	// Wire in MCP commands
 	cmd.AddCommand(ophis.Command(nil))
+
+	// Register extensions found in PATH. Built-in commands always win on name
+	// conflicts — extensions cannot shadow them.
+	builtins := map[string]bool{}
+	for _, sub := range cmd.Commands() {
+		builtins[sub.Name()] = true
+	}
+
+	path := os.Getenv("PATH")
+	if exts := extension.FindAll(path); len(exts) > 0 {
+		cmd.AddGroup(&cobra.Group{ID: "extension", Title: "Extensions"})
+		for _, name := range exts {
+			if !builtins[name] {
+				cmd.AddCommand(extension.NewCmd(name))
+			}
+		}
+	}
 
 	return cmd
 }

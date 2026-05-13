@@ -30,9 +30,9 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // NewNamespaceCmd returns the "circleci namespace" command group.
@@ -70,10 +70,6 @@ func apiErr(err error, name string) *clierrors.CLIError {
 			fmt.Sprintf("No namespace named %q exists.", name)).
 			WithSuggestions("Check the namespace name and try again").
 			WithExitCode(clierrors.ExitNotFound)
-	}
-	if gqlErr, ok := errors.AsType[*apiclient.GQLError](err); ok {
-		return clierrors.New("namespace.api_error", "Namespace operation failed", gqlErr.Error()).
-			WithExitCode(clierrors.ExitAPIError)
 	}
 	return cmdutil.APIErr(err, name, "namespace.api_error", "Namespace API request failed for %q.")
 }

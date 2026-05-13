@@ -1,0 +1,5 @@
+# iOS Certificates
+| ID        | Certificate Name | Type         |
+| --------- | ---------------- | ------------ |
+| cert-aaaa | Distribution.p12 | distribution |
+| cert-bbbb | Development.p12  | distribution |

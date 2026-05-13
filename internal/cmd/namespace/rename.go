@@ -28,9 +28,9 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newRenameCmd() *cobra.Command {
@@ -79,7 +79,7 @@ func newRenameCmd() *cobra.Command {
 }
 
 func runRename(ctx context.Context, client *apiclient.Client, name, newName string, jsonOut bool) error {
-	ns, err := client.RenameNamespace(ctx, name, newName)
+	ns, err := client.RenameNamespace(ctx, apiclient.RenameNamespaceRequest{Name: name, NewName: newName})
 	if err != nil {
 		return apiErr(err, name)
 	}

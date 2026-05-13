@@ -25,26 +25,41 @@ package acceptance_test
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 )
 
 const testToken = "test-token"
 
-var binaryPath string
+var (
+	binaryPath     string
+	testBinaryPath string
+	testBinaryDir  string
+)
 
 func TestMain(m *testing.M) {
-	path, cleanup, err := binary.BuildBinary()
+	var err error
+	var cleanup, cleanup2 func()
+	binaryPath, cleanup, err = binary.BuildBinary()
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "skipping acceptance tests: %v\n", err)
 		os.Exit(0)
 	}
-	_, _ = fmt.Fprintf(os.Stderr, "built circleci binary: %s\n", path)
+	_, _ = fmt.Fprintf(os.Stderr, "built circleci binary: %s\n", binaryPath)
 
-	binaryPath = path
+	testBinaryPath, cleanup2, err = binary.BuildBinaryOptions("circleci-testextension", filepath.Join("testdata", "circleci-testextension"))
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "skipping acceptance tests: %v\n", err)
+		os.Exit(0)
+	}
+	_, _ = fmt.Fprintf(os.Stderr, "built testapp binary: %s\n", testBinaryPath)
+	testBinaryDir = filepath.Dir(testBinaryPath)
+
 	code := m.Run()
 	cleanup()
+	cleanup2()
 
 	os.Exit(code)
 }

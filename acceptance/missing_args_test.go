@@ -28,8 +28,8 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
-	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
 
 // missingArgEnv returns a minimal env with a token set (token is not the

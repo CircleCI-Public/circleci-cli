@@ -26,7 +26,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/lipgloss/v2"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 var spinnerStyle = lipgloss.NewStyle().Foreground(theme.ColorAccent)

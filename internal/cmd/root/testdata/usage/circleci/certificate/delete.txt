@@ -1,0 +1,18 @@
+Usage:
+  circleci certificate delete <cert-id> [flags]
+
+Examples:
+# Delete a certificate (with confirmation)
+$ circleci certificate delete <cert-id>
+
+# Delete without confirmation
+$ circleci certificate delete <cert-id> --force
+
+
+Flags:
+  -f, --force   skip confirmation prompt
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

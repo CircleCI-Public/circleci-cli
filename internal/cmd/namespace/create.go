@@ -28,9 +28,9 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newCreateCmd() *cobra.Command {
@@ -84,7 +84,7 @@ func newCreateCmd() *cobra.Command {
 }
 
 func runCreate(ctx context.Context, client *apiclient.Client, name, orgID string, jsonOut bool) error {
-	ns, err := client.CreateNamespace(ctx, name, orgID)
+	ns, err := client.CreateNamespace(ctx, apiclient.CreateNamespaceRequest{Name: name, OrgID: orgID})
 	if err != nil {
 		return apiErr(err, name)
 	}

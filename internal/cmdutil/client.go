@@ -34,10 +34,10 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 type configPathKey struct{}

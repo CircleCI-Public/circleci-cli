@@ -28,7 +28,7 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Artifact is a file produced by a CircleCI job.

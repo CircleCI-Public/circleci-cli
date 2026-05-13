@@ -27,7 +27,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 // SelectModel is a single-choice picker rendered as a vertical list with a

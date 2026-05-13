@@ -29,7 +29,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
 // Spin is a progress indicator. Call Stop when the operation completes.
