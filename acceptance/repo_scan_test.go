@@ -23,7 +23,6 @@
 package acceptance_test
 
 import (
-	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
@@ -35,37 +34,16 @@ import (
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
 )
 
-func TestRepoScan_EmptyDir_PrintsFallback_ExitZero(t *testing.T) {
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"repo", "scan"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "No supported stack detected"),
-		"expected fallback message in stderr, got: %s", result.Stderr)
-}
-
-func TestRepoScan_JSONFlag_EmptyDir_PrintsJSON(t *testing.T) {
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"repo", "scan", "--json"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-
-	var parsed map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &parsed),
-		"stdout should be valid JSON, got: %s", result.Stdout)
-	assert.Equal(t, parsed["stack"], "unknown")
-}
-
+// TestRepoScan_DetectsGoModule is the only acceptance test for `repo scan`.
+// It exercises the parts that unit tests cannot:
+//
+//   - the binary actually builds and the `repo scan` command is reachable
+//   - env-builder runs for real against a real filesystem
+//   - Docker Hub is reachable for image-version resolution
+//
+// Empty detection, JSON output, flag registration, and help text are all
+// covered by unit tests in internal/cmd/repo and by the recursive help
+// snapshot test in internal/cmd/root (TestUsage).
 func TestRepoScan_DetectsGoModule(t *testing.T) {
 	dir := t.TempDir()
 	gomod := "module example.com/x\n\ngo 1.22\n"
@@ -85,20 +63,4 @@ func TestRepoScan_DetectsGoModule(t *testing.T) {
 	}
 	assert.Check(t, cmp.Contains(result.Stderr, "Detected go"),
 		"expected go detection in stderr, got: %s", result.Stderr)
-}
-
-func TestRepoScan_Help(t *testing.T) {
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"repo", "scan", "--help"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	for _, field := range []string{"stack", "image", "setup"} {
-		assert.Check(t, cmp.Contains(result.Stdout, field),
-			"--help should document JSON field %q; stdout: %s", field, result.Stdout)
-	}
 }
