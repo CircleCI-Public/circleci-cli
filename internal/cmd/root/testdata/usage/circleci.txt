@@ -7,6 +7,7 @@ Available Commands:
   auth           Manage CLI auth
   certificate    Manage iOS code signing certificates
   completion     Manage shell completions
+  config         Work with pipeline config
   context        Manage contexts
   deploy         Manage deploys
   envvar         Manage project environment variables
