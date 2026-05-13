@@ -20,36 +20,42 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package cmdconfig implements the "circleci config" command group, which
-// works with the pipeline configuration file (.circleci/config.yml).
-//
-// The package is named cmdconfig rather than config to avoid colliding with
-// internal/config (the CLI's own settings store).
 package cmdconfig
 
 import (
+	"errors"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewConfigCmd returns the "circleci config" command group.
-func NewConfigCmd() *cobra.Command {
+func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "config <command>",
-		Short: "Work with pipeline config",
+		Use:   "generate [path]",
+		Short: "Generate .circleci/config.yml from a repository scan",
 		Long: heredoc.Doc(`
-			Work with the pipeline configuration file at .circleci/config.yml.
+			Detect the language stack, container image, and setup commands for a
+			repository, then write a starter pipeline to <path>/.circleci/config.yml.
 
-			This group manages the pipeline YAML that CircleCI executes. For CLI
-			tool settings (API token, host, defaults), use 'circleci settings'.
+			If a config file already exists at that path, generate does not overwrite
+			it; it prints a confirmation and exits successfully. The .circleci/
+			directory is created if needed, and the file is written atomically.
 		`),
-		RunE:               cmdutil.GroupRunE,
-		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+		Example: heredoc.Doc(`
+			# Generate a config for the current directory
+			$ circleci config generate
+
+			# Generate a config for a specific project path
+			$ circleci config generate ./my-app
+
+			# Re-run is a no-op when a config already exists
+			$ circleci config generate
+			✓ Using existing config at .circleci/config.yml
+		`),
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return errors.New("not implemented")
+		},
 	}
-
-	cmd.AddCommand(newGenerateCmd())
-
 	return cmd
 }
