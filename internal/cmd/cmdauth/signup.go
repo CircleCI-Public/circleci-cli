@@ -40,18 +40,17 @@ import (
 )
 
 func newSignupCmd() *cobra.Command {
-	return &cobra.Command{
+	var noBrowser bool
+
+	cmd := &cobra.Command{
 		Use:   "signup",
 		Short: "Sign up for CircleCI via the browser",
 		Long: heredoc.Doc(`
 			Create a CircleCI account by opening the signup page in your browser.
 			After you complete signup and approve the CLI, an authorization code
 			is delivered back to a temporary loopback server on 127.0.0.1, then
-			exchanged for an access token via POST /oauth/token.
-
-			The token is saved to the system keyring (or to the YAML config when
-			--insecure-storage is set) and used automatically by all subsequent
-			CLI commands.
+			exchanged for an access token via POST /oauth/token. The resulting
+			token is used automatically by all subsequent CLI commands.
 
 			If a token is already configured, run 'circleci auth logout' first
 			(signup will not silently overwrite an existing token). If you
@@ -61,23 +60,26 @@ func newSignupCmd() *cobra.Command {
 			# Open the signup page in your browser
 			$ circleci auth signup
 
-			# Sign up against a non-default host
-			$ CIRCLECI_HOST=https://example.circleci.com circleci auth signup
+			# Print the authorize URL instead of opening a browser
+			$ circleci auth signup --no-browser
 
-			# Store the token in plain YAML instead of the system keyring
-			$ circleci auth signup --insecure-storage
+			# Authenticate against a non-default host
+			$ CIRCLECI_HOST=https://example.circleci.com circleci auth signup
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			configPath, _ := cmd.Flags().GetString("config")
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runSignup(ctx, configPath, secureStorage)
+			return runSignup(ctx, configPath, noBrowser, secureStorage)
 		},
 	}
+
+	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the authorize URL instead of opening a browser")
+	return cmd
 }
 
-func runSignup(ctx context.Context, configPath string, secureStorage bool) error {
+func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
 	cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
 	if err != nil {
 		return clierrors.New("config.load_failed",
@@ -109,7 +111,9 @@ func runSignup(ctx context.Context, configPath string, secureStorage bool) error
 	defer func() { _ = flow.Close() }()
 
 	iostream.ErrPrintf(ctx, "Open this URL in your browser to sign up:\n\n  %s\n\n", flow.AuthorizeURL)
-	_ = browser.OpenURL(flow.AuthorizeURL) // best-effort
+	if !noBrowser {
+		_ = browser.OpenURL(flow.AuthorizeURL) // best-effort
+	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, callbackTimeout())
 	defer cancel()

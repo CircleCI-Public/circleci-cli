@@ -5,12 +5,15 @@ Examples:
 # Open the signup page in your browser
 $ circleci auth signup
 
-# Sign up against a non-default host
+# Print the authorize URL instead of opening a browser
+$ circleci auth signup --no-browser
+
+# Authenticate against a non-default host
 $ CIRCLECI_HOST=https://example.circleci.com circleci auth signup
 
-# Store the token in plain YAML instead of the system keyring
-$ circleci auth signup --insecure-storage
 
+Flags:
+      --no-browser   Print the authorize URL instead of opening a browser
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

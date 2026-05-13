@@ -1,0 +1,5 @@
+error: Already authenticated — a token is already configured and signup will not overwrite it.
+
+Suggestions:
+  • Run 'circleci auth logout' to clear it, then re-run 'circleci auth signup'
+  • If you already have a CircleCI account, use 'circleci auth login'
