@@ -67,13 +67,20 @@ func (c *Client) GetNamespace(ctx context.Context, name string) (*Namespace, err
 	return env.toNamespace(), nil
 }
 
+type CreateNamespaceRequest struct {
+	Name  string `json:"name"`
+	OrgID string `json:"org_id"`
+}
+
+type RenameNamespaceRequest struct {
+	Name    string `json:"-"`    // current name, resolved to an ID
+	NewName string `json:"name"` // new name, sent in request body
+}
+
 // CreateNamespace creates a namespace for the given organization ID.
-func (c *Client) CreateNamespace(ctx context.Context, name, orgID string) (*Namespace, error) {
+func (c *Client) CreateNamespace(ctx context.Context, req CreateNamespaceRequest) (*Namespace, error) {
 	var env namespaceEnvelope
-	err := c.postV3(ctx, "/namespaces", map[string]any{
-		"name":            name,
-		"organization_id": orgID,
-	}, &env)
+	err := c.postV3(ctx, "/namespaces", req, &env)
 	if err != nil {
 		return nil, err
 	}
@@ -81,15 +88,15 @@ func (c *Client) CreateNamespace(ctx context.Context, name, orgID string) (*Name
 }
 
 // RenameNamespace renames a namespace. The current name is resolved to an ID first.
-func (c *Client) RenameNamespace(ctx context.Context, name, newName string) (*Namespace, error) {
-	ns, err := c.GetNamespace(ctx, name)
+func (c *Client) RenameNamespace(ctx context.Context, req RenameNamespaceRequest) (*Namespace, error) {
+	ns, err := c.GetNamespace(ctx, req.Name)
 	if err != nil {
 		return nil, err
 	}
 	var env namespaceEnvelope
-	err = c.postV3(ctx, "/namespaces/"+ns.ID+"/rename", map[string]any{"name": newName}, &env)
+	err = c.postV3(ctx, "/namespaces/"+ns.ID+"/rename", req, &env)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
-		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
+		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, req.Name)
 	}
 	if err != nil {
 		return nil, err

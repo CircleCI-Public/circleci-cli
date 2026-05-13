@@ -84,7 +84,7 @@ func newCreateCmd() *cobra.Command {
 }
 
 func runCreate(ctx context.Context, client *apiclient.Client, name, orgID string, jsonOut bool) error {
-	ns, err := client.CreateNamespace(ctx, name, orgID)
+	ns, err := client.CreateNamespace(ctx, apiclient.CreateNamespaceRequest{Name: name, OrgID: orgID})
 	if err != nil {
 		return apiErr(err, name)
 	}
