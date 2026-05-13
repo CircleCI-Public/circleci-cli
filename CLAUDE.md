@@ -154,6 +154,15 @@ Defined in `internal/errors/exitcodes.go`. Document new codes there before using
 
 ---
 
+## Commit messages
+
+Write plain imperative subject lines. Do **not** use conventional commit prefixes (`feat:`, `fix:`, `chore:`, etc.).
+
+Good: `Implement config validate/process/pack`
+Bad: `feat(config): implement config validate/process/pack`
+
+---
+
 ## Common commands
 
 ```sh
