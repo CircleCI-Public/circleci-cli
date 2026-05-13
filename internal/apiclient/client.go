@@ -171,6 +171,26 @@ func (c *Client) deleteRunner(ctx context.Context, route string, opts ...func(*h
 	return err
 }
 
+func (c *Client) getV3(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
+		httpcl.JSONDecoder(dst),
+	).With(opts)...))
+	return err
+}
+
+func (c *Client) postV3(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3"+route, baseOpts(
+		httpcl.Body(body),
+		httpcl.JSONDecoder(dst),
+	).With(opts)...))
+	return err
+}
+
+func (c *Client) deleteV3(ctx context.Context, route string, opts ...func(*httpcl.Request)) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3"+route, opts...))
+	return err
+}
+
 type baseOptions []func(*httpcl.Request)
 
 func baseOpts(opts ...func(*httpcl.Request)) baseOptions {
