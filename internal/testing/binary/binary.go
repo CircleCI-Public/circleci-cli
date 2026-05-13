@@ -52,18 +52,22 @@ const osWindows = "windows"
 // Call from TestMain; on error, the binary could not be built and tests
 // should be skipped rather than failed.
 func BuildBinary() (string, func(), error) {
+	return BuildBinaryOptions("circleci", filepath.Join("..", ""))
+}
+
+func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) {
 	dir, err := os.MkdirTemp("", "circleci-cli-test-*")
 	if err != nil {
 		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
 
 	}
-	binaryPath := filepath.Join(dir, "circleci")
+	binaryPath := filepath.Join(dir, binaryName)
 	if runtime.GOOS == osWindows {
 		binaryPath += ".exe"
 	}
 
 	// acceptance/ is one level below the module root.
-	repoRoot, err := filepath.Abs(filepath.Join("..", ""))
+	repoRoot, err := filepath.Abs(relativeDir)
 	if err != nil {
 		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
 	}

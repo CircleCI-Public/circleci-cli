@@ -23,6 +23,8 @@
 package root
 
 import (
+	"os"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/njayp/ophis"
 	"github.com/spf13/cobra"
@@ -49,6 +51,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -117,6 +120,23 @@ func NewRootCmd(version string) *cobra.Command {
 
 	// Wire in MCP commands
 	cmd.AddCommand(ophis.Command(nil))
+
+	// Register extensions found in PATH. Built-in commands always win on name
+	// conflicts — extensions cannot shadow them.
+	builtins := map[string]bool{}
+	for _, sub := range cmd.Commands() {
+		builtins[sub.Name()] = true
+	}
+
+	path := os.Getenv("PATH")
+	if exts := extension.FindAll(path); len(exts) > 0 {
+		cmd.AddGroup(&cobra.Group{ID: "extension", Title: "Extensions"})
+		for _, name := range exts {
+			if !builtins[name] {
+				cmd.AddCommand(extension.NewCmd(name))
+			}
+		}
+	}
 
 	return cmd
 }

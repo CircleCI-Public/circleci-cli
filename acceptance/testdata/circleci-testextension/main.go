@@ -20,35 +20,28 @@
 //
 // SPDX-License-Identifier: MIT
 
-package root_test
+package main
 
 import (
 	"fmt"
-	"path"
-	"testing"
-
-	"github.com/spf13/cobra"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
+	"os"
+	"strconv"
 )
 
-func TestUsage(t *testing.T) {
-	// Clear PATH so extension discovery produces a stable, empty set regardless
-	// of what extensions happen to be installed in the test environment.
-	t.Setenv("PATH", "")
-	cmd := root.NewRootCmd("1.2.3")
-	testSubCommandUsage(t, cmd.Name(), cmd)
-}
+func main() {
+	args := os.Args[1:]
 
-func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command) {
-	t.Helper()
-	t.Run(parent.Name(), func(t *testing.T) {
-		usageString := parent.UsageString()
-		assert.Check(t, golden.String(usageString, path.Join("usage", fmt.Sprintf("%s.txt", prefix))))
-		for _, cmd := range parent.Commands() {
-			testSubCommandUsage(t, path.Join(prefix, cmd.Name()), cmd)
+	fmt.Println("args", args)
+	fmt.Println("token", os.Getenv("CIRCLECI_TOKEN"))
+	fmt.Println("url", os.Getenv("CIRCLECI_HOST"))
+
+	if len(args) == 2 && args[0] == "exit" {
+		atoi, err := strconv.Atoi(args[1])
+		if err != nil {
+			fmt.Println("exit with default error", 1)
+			os.Exit(1)
 		}
-	})
+		fmt.Println("exit with error", atoi)
+		os.Exit(atoi)
+	}
 }
