@@ -28,10 +28,18 @@
 package cmdconfig
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // NewConfigCmd returns the "circleci config" command group.
@@ -50,6 +58,61 @@ func NewConfigCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newGenerateCmd())
+	cmd.AddCommand(newValidateCmd())
+	cmd.AddCommand(newProcessCmd())
+	cmd.AddCommand(newPackCmd())
 
 	return cmd
+}
+
+// readConfigInput reads config YAML from path, or from stdin when path is "-".
+func readConfigInput(ctx context.Context, path string) (string, error) {
+	if path == "-" {
+		b, err := io.ReadAll(iostream.Get(ctx).In)
+		if err != nil {
+			return "", clierrors.New("config.read_failed", "Could not read config",
+				fmt.Sprintf("Reading config from stdin: %s", err)).
+				WithExitCode(clierrors.ExitBadArguments)
+		}
+		return string(b), nil
+	}
+	b, err := os.ReadFile(path) //#nosec:G304 // path is a user-supplied --config flag value, not arbitrary external input
+	if err != nil {
+		if os.IsNotExist(err) {
+			return "", clierrors.New("config.not_found", "Config file not found",
+				fmt.Sprintf("No config file found at %q.", path)).
+				WithSuggestions(
+					"Check the path and try again",
+					"Run from the root of your project, or pass --config <path>",
+				).
+				WithExitCode(clierrors.ExitBadArguments)
+		}
+		return "", clierrors.New("config.read_failed", "Could not read config",
+			fmt.Sprintf("Reading %q: %s", path, err)).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return string(b), nil
+}
+
+// resolveOrgID returns the org UUID to use for compilation.
+// --org-id takes precedence. --org-slug triggers a direct org lookup.
+// If the lookup fails, a warning is printed and "" is returned
+// (private orb resolution will be skipped, but the compile call still proceeds).
+func resolveOrgID(ctx context.Context, client *apiclient.Client, orgSlug, orgID string) string {
+	if orgID != "" {
+		return orgID
+	}
+	if orgSlug == "" {
+		return ""
+	}
+	org, err := client.GetOrg(ctx, orgSlug)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "warning: could not resolve org %q: %s\n", orgSlug, err)
+		return ""
+	}
+	return org.ID
+}
+
+func configAPIErr(err error) *clierrors.CLIError {
+	return cmdutil.APIErr(err, "", "config.api_error", "Config API request failed")
 }

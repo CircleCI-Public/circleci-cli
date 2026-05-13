@@ -77,19 +77,6 @@ workflows:
               only: main
 `
 
-func writeConfig(t *testing.T, dir, content string) string {
-	t.Helper()
-	ciDir := filepath.Join(dir, ".circleci")
-	if err := os.MkdirAll(ciDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	path := filepath.Join(ciDir, "config.yml")
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
 func TestDeployInit(t *testing.T) {
 	dir := t.TempDir()
 	writeConfig(t, dir, rawConfig)

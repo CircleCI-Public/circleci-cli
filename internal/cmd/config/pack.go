@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package orb
+package cmdconfig
 
 import (
 	"fmt"
@@ -28,50 +28,49 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/pack"
 )
 
 func newPackCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "pack <path>",
-		Short: "Pack a multi-file orb directory into a single YAML",
+		Short: "Bundle split config files into a single YAML document",
 		Long: heredoc.Doc(`
-			Pack an orb source directory into a single YAML file.
+			Bundle a split CircleCI config directory into a single YAML document.
 
-			If the path is a directory, the '@orb.yml' (or 'orb.yml') file at the
-			root is merged with any 'commands/', 'jobs/', 'executors/', and 'examples/'
-			subdirectories. Each .yml file in those directories is added as a named
-			entry under the corresponding top-level key.
+			When a config is split across multiple files, pack merges them back
+			into the single-file format that CircleCI accepts. The directory
+			structure maps to YAML keys:
 
-			If the path is a single file it is parsed and written to stdout.
+			  .circleci/
+			    config.yml          → merged at the top level
+			    jobs/
+			      build.yml         → jobs.build
+			      test.yml          → jobs.test
 
-			The merged YAML is written to stdout.
+			Files whose names begin with "@" are merged at the current level
+			rather than nested under a key.
+
+			The merged YAML is printed to stdout.
 		`),
 		Example: heredoc.Doc(`
-			# Pack a single orb file
-			$ circleci orb pack orb.yml
+			# Pack the default config directory
+			$ circleci config pack .circleci
 
-			# Pack a multi-file orb directory
-			$ circleci orb pack ./src
+			# Pack and pipe to validate
+			$ circleci config pack .circleci | circleci config validate --config -
 
-			# Pack and save to a file
-			$ circleci orb pack ./src > orb.yml
-
-			# Pack and immediately validate
-			$ circleci orb pack ./src | circleci orb validate -
+			# Pack a custom directory
+			$ circleci config pack src/ci
 		`),
-		Args: cobra.MaximumNArgs(1),
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			if err := cmdutil.RequireArgs(args, "path"); err != nil {
-				return err
-			}
 			packed, err := pack.Pack(args[0])
 			if err != nil {
-				return clierrors.New("orb.pack_failed", "Orb pack failed",
+				return clierrors.New("config.pack_failed", "Config pack failed",
 					fmt.Sprintf("Could not pack %q: %s", args[0], err)).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
@@ -79,4 +78,6 @@ func newPackCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	return cmd
 }

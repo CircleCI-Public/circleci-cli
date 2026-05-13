@@ -1,0 +1,18 @@
+Usage:
+  circleci config pack <path> [flags]
+
+Examples:
+# Pack the default config directory
+$ circleci config pack .circleci
+
+# Pack and pipe to validate
+$ circleci config pack .circleci | circleci config validate --config -
+
+# Pack a custom directory
+$ circleci config pack src/ci
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
