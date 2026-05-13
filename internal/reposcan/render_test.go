@@ -29,7 +29,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
 )
@@ -47,7 +47,7 @@ func captureCtx() (context.Context, *bytes.Buffer) {
 func TestRender_PopulatedStack_PrintsStackAndImage(t *testing.T) {
 	ctx, errBuf := captureCtx()
 
-	r := &Result{
+	Render(ctx, &Result{
 		Stack:        "go",
 		Image:        "cimg/go",
 		ImageVersion: "1.22",
@@ -55,15 +55,9 @@ func TestRender_PopulatedStack_PrintsStackAndImage(t *testing.T) {
 			{Name: "install", Command: "go mod download"},
 			{Name: "test", Command: "go test ./..."},
 		},
-	}
+	})
 
-	Render(ctx, r)
-
-	out := errBuf.String()
-	assert.Check(t, cmp.Contains(out, "Detected go"), "out=%q", out)
-	assert.Check(t, cmp.Contains(out, "cimg/go:1.22"), "out=%q", out)
-	assert.Check(t, cmp.Contains(out, "go mod download"), "out=%q", out)
-	assert.Check(t, cmp.Contains(out, "go test ./..."), "out=%q", out)
+	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_EmptyDetection_PrintsFallback(t *testing.T) {
@@ -71,9 +65,7 @@ func TestRender_EmptyDetection_PrintsFallback(t *testing.T) {
 
 	Render(ctx, &Result{Stack: StackUnknown})
 
-	out := errBuf.String()
-	assert.Check(t, cmp.Contains(out, "No supported stack detected"), "out=%q", out)
-	assert.Check(t, !strings.Contains(out, "Detected"), "should not print Detected for unknown stack, out=%q", out)
+	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_EmptyString_PrintsFallback(t *testing.T) {
@@ -81,7 +73,7 @@ func TestRender_EmptyString_PrintsFallback(t *testing.T) {
 
 	Render(ctx, &Result{Stack: ""})
 
-	assert.Check(t, cmp.Contains(errBuf.String(), "No supported stack detected"))
+	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_NilResult_PrintsFallback(t *testing.T) {
@@ -89,7 +81,7 @@ func TestRender_NilResult_PrintsFallback(t *testing.T) {
 
 	Render(ctx, nil)
 
-	assert.Check(t, cmp.Contains(errBuf.String(), "No supported stack detected"))
+	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_NoSetupSteps_OmitsCommandLines(t *testing.T) {
@@ -101,10 +93,7 @@ func TestRender_NoSetupSteps_OmitsCommandLines(t *testing.T) {
 		ImageVersion: "3.2",
 	})
 
-	out := errBuf.String()
-	assert.Check(t, cmp.Contains(out, "Detected ruby"), "out=%q", out)
-	assert.Check(t, !strings.Contains(out, "install:"), "should not print install line when absent, out=%q", out)
-	assert.Check(t, !strings.Contains(out, "test:"), "should not print test line when absent, out=%q", out)
+	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_SystemSetupStep_IsRendered(t *testing.T) {
@@ -120,7 +109,5 @@ func TestRender_SystemSetupStep_IsRendered(t *testing.T) {
 		},
 	})
 
-	out := errBuf.String()
-	assert.Check(t, cmp.Contains(out, "libpq-dev"), "system step should render, out=%q", out)
-	assert.Check(t, cmp.Contains(out, "pip install"), "out=%q", out)
+	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
 }
