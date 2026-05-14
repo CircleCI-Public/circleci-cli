@@ -198,8 +198,6 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 }
 
 func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
-	ctx := t.Context()
-
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
 		"id":    "user-uuid-1234",
@@ -234,7 +232,7 @@ func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
 	}))
 
 	assert.Assert(t, t.Run("signup browser callback", func(t *testing.T) {
-		callbackAuthorizeURL(t, ctx, signupURL)
+		callbackAuthorizeURL(t, signupURL)
 	}))
 
 	assert.Assert(t, t.Run("continue from terminal", func(t *testing.T) {
@@ -321,7 +319,7 @@ func runSignupAndInterrupt(t *testing.T, env *testenv.TestEnv) (int, string) {
 	return 0, output.String()
 }
 
-func callbackAuthorizeURL(t *testing.T, ctx context.Context, authURL string) {
+func callbackAuthorizeURL(t *testing.T, authURL string) {
 	t.Helper()
 
 	parsed, err := url.Parse(authURL)
@@ -333,7 +331,7 @@ func callbackAuthorizeURL(t *testing.T, ctx context.Context, authURL string) {
 	assert.Assert(t, redirectURI != "", "redirect_uri param missing from authorize URL")
 
 	callbackURL := redirectURI + "?code=fake-auth-code&state=" + url.QueryEscape(state)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, callbackURL, nil)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, callbackURL, nil)
 	assert.NilError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)
