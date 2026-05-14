@@ -26,7 +26,7 @@ import (
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 )
 
 // SpinnerModel is a bubbletea model that displays an animated spinner with a

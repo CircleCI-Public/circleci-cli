@@ -27,7 +27,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
 // ErrNothingToCancel is returned by Cancel when the run exists but all

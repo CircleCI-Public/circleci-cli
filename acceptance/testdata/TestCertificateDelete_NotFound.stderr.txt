@@ -1,0 +1,5 @@
+error: No iOS certificate found for "cert-missing".
+
+Suggestions:
+  • Check the certificate ID and try again
+  • Run: circleci certificate list --org-id <org-uuid>

@@ -26,7 +26,7 @@ import (
 	"fmt"
 	"strings"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // RequireArgs returns a structured CLIError if args contains fewer elements
@@ -50,5 +50,13 @@ func RequireArgs(args []string, names ...string) error {
 	}
 	return clierrors.New("args.missing", "Missing required argument",
 		fmt.Sprintf("Required %s missing: %s", noun, strings.Join(missing, " "))).
+		WithExitCode(clierrors.ExitBadArguments)
+}
+
+// RequireFlag returns a structured CLIError reporting that a required flag was
+// not set. name is the long flag name without the leading dashes (e.g. "org-id").
+func RequireFlag(name string) error {
+	return clierrors.New("args.flag_missing", "Missing required flag",
+		"Required flag --"+name+" was not set.").
 		WithExitCode(clierrors.ExitBadArguments)
 }

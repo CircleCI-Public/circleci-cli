@@ -43,11 +43,11 @@ import (
 	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/closer"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jq"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jsoncolor"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli/internal/jq"
+	"github.com/CircleCI-Public/circleci-cli/internal/jsoncolor"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 type jqFilterKey struct{}
@@ -144,6 +144,13 @@ func ErrPrintln(ctx context.Context, a ...any) {
 // Returns ("", nil) if the user cancels.
 func PromptSecret(ctx context.Context, header string) (string, error) {
 	return fromContext(ctx).PromptSecret(ctx, header)
+}
+
+// PromptSelect presents an interactive single-choice list to the user and
+// returns the index of the selected option. Returns (-1, nil) if the user
+// cancels with esc or ctrl+c.
+func PromptSelect(ctx context.Context, prompt string, options []string) (int, error) {
+	return fromContext(ctx).PromptSelect(ctx, prompt, options)
 }
 
 // PromptText presents a plain (non-secret) single-line text input via
@@ -466,6 +473,26 @@ func (s Streams) Confirm(ctx context.Context, prompt string) bool {
 		return false
 	}
 	return anyModel.(ui.ConfirmModel).Confirmed()
+}
+
+// PromptSelect presents a bubbletea single-choice list prompt.
+// Returns the selected index, or -1 if the user cancels.
+func (s Streams) PromptSelect(ctx context.Context, prompt string, options []string) (int, error) {
+	p := tea.NewProgram(
+		ui.NewSelectModel(prompt, options),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
+		return -1, err
+	}
+	m := anyModel.(ui.SelectModel)
+	if m.Cancelled() {
+		return -1, nil
+	}
+	return m.Selected(), nil
 }
 
 // PromptSecret presents a masked text input via bubbletea to collect a secret

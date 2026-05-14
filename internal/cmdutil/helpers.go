@@ -25,12 +25,13 @@ package cmdutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/iostream"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // AddJSONFlag registers --json on cmd and binds it to out.
@@ -63,6 +64,19 @@ func GitDetectErr(err error, suggestions ...string) *clierrors.CLIError {
 	)
 	return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
 		WithSuggestions(all...).
+		WithExitCode(clierrors.ExitBadArguments)
+}
+
+// GroupRunE is the RunE for group (parent) commands that have no action of
+// their own. It shows help when invoked with no arguments and returns a
+// structured error for unknown subcommands.
+func GroupRunE(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
+	return clierrors.New("command.unknown", "Unknown command",
+		fmt.Sprintf("%q is not a %s command. Run '%s --help' for available commands.",
+			args[0], cmd.Name(), cmd.CommandPath())).
 		WithExitCode(clierrors.ExitBadArguments)
 }
 

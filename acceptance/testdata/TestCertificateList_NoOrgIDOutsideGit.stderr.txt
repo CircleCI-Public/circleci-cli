@@ -1,0 +1,5 @@
+error: could not read git remote: exit status 128: fatal: not a git repository (or any of the parent directories): .git
+
+Suggestions:
+  • Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote
+  • Or specify the organization: circleci certificate list --org-id <org-uuid>

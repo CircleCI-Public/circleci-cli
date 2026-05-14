@@ -33,7 +33,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/jq"
+	"github.com/CircleCI-Public/circleci-cli/internal/jq"
 )
 
 func TestEvaluate(t *testing.T) {

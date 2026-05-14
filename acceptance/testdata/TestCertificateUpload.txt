@@ -1,0 +1,1 @@
+✓ Uploaded Distribution.p12 (id: cert-00001)

@@ -1,0 +1,22 @@
+Usage:
+  circleci namespace get <name> [flags]
+
+Examples:
+# Get a namespace by name
+$ circleci namespace get myorg
+
+# Output as JSON
+$ circleci namespace get myorg --json
+
+# Extract just the namespace ID
+$ circleci namespace get myorg --json --jq '.id'
+
+
+Flags:
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

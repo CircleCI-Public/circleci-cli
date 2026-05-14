@@ -1,0 +1,4 @@
+error: No namespace named "nonexistent" exists.
+
+Suggestions:
+  • Check the namespace name and try again

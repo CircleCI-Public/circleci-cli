@@ -1,5 +1,61 @@
-# circleci-cli-v2
-Use CircleCI from the command line
+# circleci-cli
+
+This is CircleCI's command-line application.
+
+[Documentation](https://circleci-public.github.io/circleci-cli) |
+[Code of Conduct](./CODE_OF_CONDUCT.md) |
+[Contribution Guidelines](./CONTRIBUTING.md) |
+
+[![CircleCI](https://circleci.com/gh/CircleCI-Public/circleci-cli.svg?style=shield)](https://circleci.com/gh/CircleCI-Public/circleci-cli)
+[![GitHub release](https://img.shields.io/github/tag/CircleCI-Public/circleci-cli.svg?label=latest)](https://github.com/CircleCI-Public/circleci-cli/releases)
+[![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
+[![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
+
+## Installation
+
+CircleCI CLI is available on the following package managers:
+
+Homebrew:
+```
+brew install circleci
+```
+
+Snap:
+```shell
+sudo snap install circleci
+```
+
+Chocolatey:
+```shell
+choco install circleci-cli -y
+```
+
+## Setup
+
+### Login
+Run the following command to login to the CircleCI CLI:
+```shell
+circleci auth login
+```
+
+### Model Context Protocol (MCP)
+The CLI supports the MCP protocol. To enable it, run:
+
+Claude:
+```shell
+circleci mcp claude enable # Enable the MCP protocol
+claude mcp add-from-claude-desktop -s user # Add for current user
+```
+
+Cursor:
+```shell
+circleci mcp cursor enable
+```
+
+VS Code:
+```shell
+circleci mcp vscode enable
+```
 
 ## Development
 

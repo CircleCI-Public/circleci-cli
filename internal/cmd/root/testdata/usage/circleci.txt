@@ -2,24 +2,27 @@ Usage:
   circleci [command]
 
 Available Commands:
-  api         Make an authenticated request to the CircleCI API
-  artifacts   List or download run artifacts
-  auth        Manage CLI auth
-  completion  Manage shell completions
-  context     Manage contexts
-  deploy      Manage deploys
-  envvar      Manage project environment variables
-  info        Show project details
-  job         Manage jobs
-  logs        Fetch job logs
-  mcp         MCP server management
-  open        Open the current project in the browser
-  project     Manage CircleCI projects
-  run         Manage runs
-  runner      Manage self-hosted runners
-  settings    Manage CLI settings
-  version     Print version information
-  workflow    Manage workflows
+  api            Make an authenticated request to the CircleCI API
+  artifacts      List or download run artifacts
+  auth           Manage CLI auth
+  certificate    Manage iOS code signing certificates
+  completion     Manage shell completions
+  context        Manage contexts
+  deploy         Manage deploys
+  envvar         Manage project environment variables
+  info           Show project details
+  job            Manage jobs
+  logs           Fetch job logs
+  mcp            MCP server management
+  namespace      Manage orb namespaces
+  open           Open the current project in the browser
+  project        Manage CircleCI projects
+  run            Manage runs
+  runner         Manage self-hosted runners
+  settings       Manage CLI settings
+  signing-config Manage iOS signing configs
+  version        Print version information
+  workflow       Manage workflows
 
 Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

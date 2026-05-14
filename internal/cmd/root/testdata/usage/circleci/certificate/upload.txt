@@ -1,0 +1,25 @@
+Usage:
+  circleci certificate upload [flags]
+
+Examples:
+# Upload a certificate (org inferred from git remote, password prompted)
+$ circleci certificate upload --cert-file ./Certificates.p12
+
+# Read the password from stdin (no shell history exposure)
+$ echo "$P12_PASSWORD" | circleci certificate upload --cert-file ./Certificates.p12 --password -
+
+# Explicit org and capture the new cert id for scripting
+$ echo "$P12_PASSWORD" | circleci certificate upload --org-id <org-uuid> --cert-file ./Certificates.p12 --password - --json --jq -r '.id'
+
+
+Flags:
+      --cert-file string   Path to the .p12 certificate file
+      --jq string          Process values from the response using jq syntax
+      --json               Output as JSON
+      --org-id string      CircleCI organization UUID; defaults to the org of the current git project
+      --password string    Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal.
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

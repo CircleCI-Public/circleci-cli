@@ -52,18 +52,22 @@ const osWindows = "windows"
 // Call from TestMain; on error, the binary could not be built and tests
 // should be skipped rather than failed.
 func BuildBinary() (string, func(), error) {
+	return BuildBinaryOptions("circleci", filepath.Join("..", ""))
+}
+
+func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) {
 	dir, err := os.MkdirTemp("", "circleci-cli-test-*")
 	if err != nil {
 		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
 
 	}
-	binaryPath := filepath.Join(dir, "circleci")
+	binaryPath := filepath.Join(dir, binaryName)
 	if runtime.GOOS == osWindows {
 		binaryPath += ".exe"
 	}
 
 	// acceptance/ is one level below the module root.
-	repoRoot, err := filepath.Abs(filepath.Join("..", ""))
+	repoRoot, err := filepath.Abs(relativeDir)
 	if err != nil {
 		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
 	}
@@ -96,6 +100,9 @@ type RunOpts struct {
 	Env     []string
 	WorkDir string
 	TTY     bool
+	// Stdin, if non-nil, is connected to the CLI's stdin (non-TTY mode only).
+	// TTY mode always uses the expect pty.
+	Stdin io.Reader
 }
 
 // RunCLI executes the circleci binary with the given args, env, and working directory.
@@ -152,6 +159,9 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 	} else {
 		cmd.Stdout = io.MultiWriter(os.Stdout, &stdout)
 		cmd.Stderr = io.MultiWriter(os.Stderr, &stderr)
+		if opts.Stdin != nil {
+			cmd.Stdin = opts.Stdin
+		}
 
 		err := cmd.Run()
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {

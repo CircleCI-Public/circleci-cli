@@ -31,10 +31,13 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmd/root"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
 )
 
 func TestUsage(t *testing.T) {
+	// Clear PATH so extension discovery produces a stable, empty set regardless
+	// of what extensions happen to be installed in the test environment.
+	t.Setenv("PATH", "")
 	cmd := root.NewRootCmd("1.2.3")
 	testSubCommandUsage(t, cmd.Name(), cmd)
 }
