@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package telemetry
+package settings
 
 import (
 	"context"
@@ -33,40 +33,38 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-func newDisableCmd() *cobra.Command {
+func newTelemetryEnableCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "disable",
-		Short: "Opt out of telemetry",
+		Use:   "enable",
+		Short: "Opt in to telemetry",
 		Long: heredoc.Doc(`
-			Disable anonymous usage telemetry for the CircleCI CLI.
+			Enable anonymous usage telemetry for the CircleCI CLI.
 
-			This preference is saved to the CLI config file. You can re-enable
-			telemetry at any time with 'circleci telemetry enable'.
-
-			Alternatively, set CIRCLECI_NO_TELEMETRY, NO_ANALYTICS, or DO_NOT_TRACK
-			in your environment to disable telemetry without modifying the config file.
+			This preference is saved to the CLI config file. Environment variables
+			(CIRCLECI_NO_TELEMETRY, NO_ANALYTICS, DO_NOT_TRACK, CI) always take
+			precedence and will disable telemetry even when this setting is enabled.
 		`),
 		Example: heredoc.Doc(`
-			# Opt out of telemetry
-			$ circleci settings telemetry disable
+			# Opt in to telemetry
+			$ circleci settings telemetry enable
 
-			# Opt out using a custom config file path
-			$ circleci --config ~/.config/circleci/config.yml settings telemetry disable
+			# Opt in using a custom config file path
+			$ circleci --config ~/.config/circleci/config.yml settings telemetry enable
 
-			# Disable telemetry for a single session without changing the config
-			$ CIRCLECI_NO_TELEMETRY=1 circleci pipeline list
+			# Verify the stored preference after enabling
+			$ circleci settings list --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			configPath, _ := cmd.Flags().GetString("config")
-			return runDisable(ctx, configPath)
+			return runTelemetryEnable(ctx, configPath)
 		},
 	}
 	return cmd
 }
 
-func runDisable(ctx context.Context, configPath string) error {
+func runTelemetryEnable(ctx context.Context, configPath string) error {
 	resolvedPath := configPath
 	if resolvedPath == "" {
 		var err error
@@ -77,12 +75,16 @@ func runDisable(ctx context.Context, configPath string) error {
 		}
 	}
 
-	if err := config.SetTelemetryEnabled(ctx, false, resolvedPath); err != nil {
+	if err := config.SetTelemetryEnabled(ctx, true, resolvedPath); err != nil {
 		return clierrors.New("telemetry.save_failed", "Failed to save telemetry setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	iostream.ErrPrintf(ctx, "%s Telemetry disabled. Saved to %s\n", iostream.SymbolOK(ctx), resolvedPath)
+	iostream.ErrPrintf(ctx, "%s Telemetry enabled. Saved to %s\n", iostream.SymbolOK(ctx), resolvedPath)
+
+	for _, env := range config.ActiveTelemetryOverrides() {
+		iostream.ErrPrintf(ctx, "Note: %s is set — telemetry remains disabled for this session.\n", env)
+	}
 
 	return nil
 }

@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package telemetry
+package settings
 
 import (
 	"github.com/MakeNowJust/heredoc"
@@ -29,8 +29,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewTelemetryCmd returns the "circleci telemetry" command group.
-func NewTelemetryCmd() *cobra.Command {
+func newTelemetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "telemetry <command>",
 		Short: "Manage telemetry preferences",
@@ -51,8 +50,8 @@ func NewTelemetryCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newEnableCmd())
-	cmd.AddCommand(newDisableCmd())
+	cmd.AddCommand(newTelemetryEnableCmd())
+	cmd.AddCommand(newTelemetryDisableCmd())
 
 	return cmd
 }

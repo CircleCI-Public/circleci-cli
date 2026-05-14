@@ -26,7 +26,6 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmd/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
@@ -50,7 +49,7 @@ func NewSettingsCmd() *cobra.Command {
 
 	cmd.AddCommand(newSetCmd())
 	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(telemetry.NewTelemetryCmd())
+	cmd.AddCommand(newTelemetryCmd())
 
 	return cmd
 }
