@@ -139,13 +139,13 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 	})
 
 	assert.Assert(t, t.Run("wait for signup completion prompt", func(t *testing.T) {
-		out, err := console.ExpectString("After verifying your email")
+		out, err := console.ExpectString("Once you're signed in to CircleCI")
 		assert.NilError(t, err)
 
 		signupURL := regexp.MustCompile(`https?://\S+`).FindString(out)
 		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
 		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
-		_, err = console.ExpectString("press Enter here to continue with login")
+		_, err = console.ExpectString("press Enter here to continue with CLI authentication")
 		assert.NilError(t, err)
 		_, err = console.Send("\r")
 		assert.NilError(t, err)
@@ -225,7 +225,7 @@ func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
 
 	var signupURL string
 	assert.Assert(t, t.Run("read signup authorize url", func(t *testing.T) {
-		out, err := console.ExpectString("After verifying your email")
+		out, err := console.ExpectString("Once you're signed in to CircleCI")
 		assert.NilError(t, err)
 
 		signupURL = regexp.MustCompile(`https?://\S+`).FindString(out)
@@ -291,7 +291,7 @@ func runSignupAndInterrupt(t *testing.T, env *testenv.TestEnv) (int, string) {
 
 	assert.NilError(t, cmd.Start())
 
-	_, err = console.ExpectString("After verifying your email")
+	_, err = console.ExpectString("Once you're signed in to CircleCI")
 	assert.NilError(t, err)
 
 	assert.NilError(t, cmd.Process.Signal(os.Interrupt))

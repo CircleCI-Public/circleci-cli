@@ -113,7 +113,7 @@ func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage 
 	}
 
 	if iostream.IsInteractive(ctx) {
-		if _, err := iostream.PromptLine(ctx, "\nAfter verifying your email, press Enter here to continue with login..."); err != nil {
+		if _, err := iostream.PromptLine(ctx, "\nOnce you're signed in to CircleCI in the browser, press Enter here to continue with CLI authentication..."); err != nil {
 			_ = flow.Close()
 			if errors.Is(err, context.Canceled) {
 				return signupCancelledError()
