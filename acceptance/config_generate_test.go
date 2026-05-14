@@ -36,9 +36,7 @@ import (
 )
 
 // TestConfigGenerate_SkipsWhenExists exercises the idempotent re-run path
-// from a real binary. It is the only success-path acceptance test for
-// config generate; the detected-stack path is unit-tested with a fake
-// scanner because the production scanner hits Docker Hub.
+// from a real binary.
 func TestConfigGenerate_SkipsWhenExists(t *testing.T) {
 	dir := t.TempDir()
 	configDir := filepath.Join(dir, ".circleci")
@@ -82,4 +80,68 @@ func TestConfigGenerate_PathNotFound(t *testing.T) {
 
 	stderr := strings.ReplaceAll(result.Stderr, missing, "<MISSING_PATH>")
 	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigGenerate_WritesGeneratedYAML exercises the success-write path
+// end-to-end through the real binary. The scanner is stubbed via the
+// CIRCLECI_SCAN_FIXTURE env var so the test doesn't hit Docker Hub.
+func TestConfigGenerate_WritesGeneratedYAML(t *testing.T) {
+	dir := t.TempDir()
+
+	fixture := filepath.Join(t.TempDir(), "scan.json")
+	fixtureBody := `{
+		"stack": "node",
+		"image": "cimg/node",
+		"image_version": "20.10",
+		"setup": [
+			{"name": "install", "command": "npm ci"},
+			{"name": "test", "command": "npm test"}
+		]
+	}`
+	assert.NilError(t, os.WriteFile(fixture, []byte(fixtureBody), 0o644))
+
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_SCAN_FIXTURE"] = fixture
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "generate", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stdout, "")
+
+	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.NilError(t, readErr)
+	assert.Check(t, golden.Bytes(written, t.Name()+".yml.golden"))
+
+	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigGenerate_ScanFailure exercises the structured-error path for a
+// scanner failure end-to-end. The fixture file's "error" field forces the
+// stubbed scanner to return that message.
+func TestConfigGenerate_ScanFailure(t *testing.T) {
+	dir := t.TempDir()
+
+	fixture := filepath.Join(t.TempDir(), "scan.json")
+	assert.NilError(t, os.WriteFile(fixture, []byte(`{"error":"docker hub unreachable"}`), 0o644))
+
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_SCAN_FIXTURE"] = fixture
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "generate", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "expected ExitGeneralError, stderr: %s", result.Stderr)
+	assert.Equal(t, result.Stdout, "")
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	_, err := os.Stat(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.Assert(t, os.IsNotExist(err), "config.yml must not be written when scan fails")
 }

@@ -24,6 +24,8 @@ package cmdconfig
 
 import (
 	"context"
+	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -37,10 +39,39 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 
-// scan is the package-level seam for repository scanning. Tests swap it via
-// SetScanForTest in export_test.go.
+// scanFixtureEnv is an internal test hook: when set to a file path, the
+// scanner reads its result from that JSON file instead of calling envbuilder.
+// Acceptance tests use it to exercise the generate flow without hitting
+// Docker Hub. A fixture with a non-empty top-level "error" field produces a
+// scan failure.
+const scanFixtureEnv = "CIRCLECI_SCAN_FIXTURE"
+
+// scan is the package-level seam for repository scanning. In-process tests
+// swap it via SetScanForTest; out-of-process acceptance tests use
+// CIRCLECI_SCAN_FIXTURE because they can't reach into the binary.
 var scan = func(ctx context.Context, dir string) (*reposcan.Result, error) {
+	if path := os.Getenv(scanFixtureEnv); path != "" {
+		return loadScanFixture(path)
+	}
 	return reposcan.NewDefaultScanner().Scan(ctx, dir)
+}
+
+func loadScanFixture(path string) (*reposcan.Result, error) {
+	data, err := os.ReadFile(path) //#nosec:G304,G703 // test-only hook; path comes from CIRCLECI_SCAN_FIXTURE
+	if err != nil {
+		return nil, err
+	}
+	var probe struct {
+		Error string `json:"error"`
+	}
+	if err := json.Unmarshal(data, &probe); err == nil && probe.Error != "" {
+		return nil, stderrors.New(probe.Error)
+	}
+	var r reposcan.Result
+	if err := json.Unmarshal(data, &r); err != nil {
+		return nil, fmt.Errorf("decode scan fixture: %w", err)
+	}
+	return &r, nil
 }
 
 func newGenerateCmd() *cobra.Command {
@@ -87,7 +118,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return clierrors.New(
-			"config_generate.path_not_found",
+			"config.path_not_found",
 			"Path not found",
 			fmt.Sprintf("No directory exists at %q.", dir),
 		).WithSuggestions(
@@ -97,8 +128,6 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	}
 
 	// Skip-check before scan so a no-op re-run never makes a network call.
-	// configgen.Generate also performs this check for callers that bypass
-	// the CLI flow.
 	configPath := filepath.Join(dir, ".circleci", "config.yml")
 	if _, err := os.Stat(configPath); err == nil {
 		iostream.ErrPrintf(ctx, "%s Using existing config at %s\n",
@@ -109,7 +138,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	result, err := scan(ctx, dir)
 	if err != nil {
 		return clierrors.New(
-			"config_generate.scan_failed",
+			"config.scan_failed",
 			"Repository scan failed",
 			fmt.Sprintf("Could not detect the project stack: %s.", err),
 		).WithSuggestions(

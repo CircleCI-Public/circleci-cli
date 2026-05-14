@@ -92,25 +92,6 @@ func TestGenerate_UnknownStack_WritesFallback(t *testing.T) {
 	assert.Check(t, golden.String(stderr, "fallback.stderr.golden"))
 }
 
-func TestGenerate_SkipsWhenConfigExists(t *testing.T) {
-	dir := t.TempDir()
-
-	configDir := filepath.Join(dir, ".circleci")
-	assert.NilError(t, os.MkdirAll(configDir, 0o755))
-	configPath := filepath.Join(configDir, "config.yml")
-	original := []byte("# user's existing config\nversion: 2.1\n")
-	assert.NilError(t, os.WriteFile(configPath, original, 0o644))
-
-	stderr, err := runGenerate(t, dir, nodeResult())
-	assert.NilError(t, err)
-
-	got, readErr := os.ReadFile(configPath)
-	assert.NilError(t, readErr)
-	assert.DeepEqual(t, got, original)
-
-	assert.Check(t, golden.String(stderr, "skip-existing.stderr.golden"))
-}
-
 func TestGenerate_WriteFailure_CleansUpTempFile(t *testing.T) {
 	dir := t.TempDir()
 

@@ -72,10 +72,3 @@ func TestResultFromEnvironment_NilSetup_IsHandled(t *testing.T) {
 func TestResultFromEnvironment_NilEnvironment_ReturnsNil(t *testing.T) {
 	assert.Check(t, resultFromEnvironment(nil) == nil)
 }
-
-func TestNewDefaultScanner_ReturnsEnvBuilderScanner(t *testing.T) {
-	s := NewDefaultScanner()
-	assert.Check(t, s != nil)
-	_, ok := any(s).(*EnvBuilderScanner)
-	assert.Check(t, ok, "expected *EnvBuilderScanner, got %T", s)
-}

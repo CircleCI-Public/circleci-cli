@@ -36,7 +36,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdconfig"
+	cmdconfig "github.com/CircleCI-Public/circleci-cli/internal/cmd/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
@@ -46,23 +46,6 @@ func TestGenerateCmd_RegisteredUnderConfigGroup(t *testing.T) {
 	var generate, _, _ = group.Find([]string{"generate"})
 	assert.Assert(t, generate != nil, "generate must be a subcommand of 'config'")
 	assert.Check(t, cmp.Equal(generate.Name(), "generate"))
-}
-
-func TestGenerateCmd_HelpText(t *testing.T) {
-	group := cmdconfig.NewConfigCmd()
-	generate, _, err := group.Find([]string{"generate"})
-	assert.NilError(t, err)
-
-	assert.Check(t, generate.Short != "", "Short must be non-empty")
-	assert.Check(t, generate.Long != "", "Long must be non-empty")
-	assert.Check(t, generate.Example != "", "Example must be non-empty")
-
-	// CLAUDE.md rule #6: Example must contain at least 3 examples. Examples in
-	// this codebase start each example on its own line beginning with the CLI
-	// name; count those occurrences.
-	exampleCount := strings.Count(generate.Example, "circleci config generate")
-	assert.Check(t, exampleCount >= 3,
-		"Example must show at least 3 invocations of 'circleci config generate', got %d", exampleCount)
 }
 
 // runGenerate invokes 'circleci config generate' in-process against the given

@@ -29,7 +29,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdconfig"
+	cmdconfig "github.com/CircleCI-Public/circleci-cli/internal/cmd/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
