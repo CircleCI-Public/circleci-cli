@@ -20,55 +20,49 @@
 //
 // SPDX-License-Identifier: MIT
 
-package iostream
+package ui
 
 import (
-	"bytes"
-	"context"
-	"errors"
-	"io"
-	"testing"
-	"time"
+	tea "charm.land/bubbletea/v2"
 
-	"gotest.tools/v3/assert"
-	is "gotest.tools/v3/assert/cmp"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
-func TestPromptLineReturnsWhenContextCancelled(t *testing.T) {
-	reader, writer := io.Pipe()
-	t.Cleanup(func() { _ = writer.Close() })
-
-	ctx, cancel := context.WithCancel(context.Background())
-	streams := Streams{
-		In:  reader,
-		Err: io.Discard,
-	}
-
-	done := make(chan error, 1)
-	go func() {
-		_, err := streams.PromptLine(ctx, "Press Enter...")
-		done <- err
-	}()
-
-	cancel()
-
-	select {
-	case err := <-done:
-		assert.Check(t, errors.Is(err, context.Canceled), "got %v", err)
-	case <-time.After(time.Second):
-		t.Fatal("PromptLine did not return after context cancellation")
-	}
+// ContinueModel is a bubbletea model for a simple Enter-to-continue gate.
+// Esc / Ctrl+C cancel. Enter confirms.
+type ContinueModel struct {
+	message   string
+	cancelled bool
+	done      bool
 }
 
-func TestPromptLineReadsAndTrimsInput(t *testing.T) {
-	var stderr bytes.Buffer
-	streams := Streams{
-		In:  bytes.NewBufferString("  hello  \n"),
-		Err: &stderr,
-	}
+func NewContinueModel(message string) ContinueModel {
+	return ContinueModel{message: message}
+}
 
-	got, err := streams.PromptLine(context.Background(), "Prompt: ")
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(got, "hello"))
-	assert.Check(t, is.Equal(stderr.String(), "Prompt: "))
+func (m ContinueModel) Cancelled() bool { return m.cancelled }
+
+func (m ContinueModel) Init() tea.Cmd { return nil }
+
+func (m ContinueModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch keyMsg.String() {
+		case components.KeyCtrlC, components.KeyEsc:
+			m.cancelled = true
+			m.done = true
+			return m, tea.Quit
+		case components.KeyEnter:
+			m.done = true
+			return m, tea.Quit
+		}
+	}
+	return m, nil
+}
+
+func (m ContinueModel) View() tea.View {
+	if m.done {
+		return tea.NewView("")
+	}
+	return tea.NewView(theme.HelperStyle.Render(m.message))
 }

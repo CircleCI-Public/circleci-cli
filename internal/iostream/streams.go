@@ -27,6 +27,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -174,6 +175,12 @@ func PromptText(ctx context.Context, header, placeholder string) (string, error)
 		return "", nil
 	}
 	return m.Value(), nil
+}
+
+// PromptContinue presents a simple Enter-to-continue prompt via bubbletea.
+// Returns false if the user cancels with esc or ctrl+c.
+func PromptContinue(ctx context.Context, message string) (bool, error) {
+	return fromContext(ctx).PromptContinue(ctx, message)
 }
 
 func DebugContext(ctx context.Context, msg string, args ...any) {
@@ -417,47 +424,6 @@ func ReadSecret(ctx context.Context, value string) (string, error) {
 	return fromContext(ctx).ReadSecret(value)
 }
 
-// PromptLine writes prompt to Err and reads a single line from In.
-// The returned value has surrounding whitespace trimmed. Used for plain
-// (non-secret) interactive input where bubbletea's terminal UI is overkill.
-func (s Streams) PromptLine(ctx context.Context, prompt string) (string, error) {
-	_, _ = fmt.Fprint(s.Err, prompt)
-
-	type result struct {
-		value string
-		err   error
-	}
-	ch := make(chan result, 1)
-
-	go func() {
-		scanner := bufio.NewScanner(s.In)
-		if !scanner.Scan() {
-			if err := scanner.Err(); err != nil {
-				ch <- result{err: err}
-				return
-			}
-			ch <- result{err: fmt.Errorf("expected input but got EOF")}
-			return
-		}
-		ch <- result{value: strings.TrimSpace(scanner.Text())}
-	}()
-
-	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case res := <-ch:
-		if err := ctx.Err(); err != nil {
-			return "", err
-		}
-		return res.value, res.err
-	}
-}
-
-// PromptLine reads a single line of plain text input from the streams in context.
-func PromptLine(ctx context.Context, prompt string) (string, error) {
-	return fromContext(ctx).PromptLine(ctx, prompt)
-}
-
 // Confirm presents a y/N confirmation prompt via bubbletea.
 // Returns true only if the user presses y/Y. Returns false on n/N, esc,
 // ctrl+c, enter, or any program error — the safe answer is always No.
@@ -493,6 +459,25 @@ func (s Streams) PromptSelect(ctx context.Context, prompt string, options []stri
 		return -1, nil
 	}
 	return m.Selected(), nil
+}
+
+// PromptContinue presents a bubbletea Enter-to-continue prompt.
+// Returns false if the user cancels.
+func (s Streams) PromptContinue(ctx context.Context, message string) (bool, error) {
+	p := tea.NewProgram(
+		ui.NewContinueModel(message),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
+		if errors.Is(err, tea.ErrProgramKilled) || errors.Is(err, tea.ErrInterrupted) {
+			return false, nil
+		}
+		return false, err
+	}
+	return !anyModel.(ui.ContinueModel).Cancelled(), nil
 }
 
 // PromptSecret presents a masked text input via bubbletea to collect a secret

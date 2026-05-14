@@ -113,14 +113,16 @@ func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage 
 	}
 
 	if iostream.IsInteractive(ctx) {
-		if _, err := iostream.PromptLine(ctx, "\nOnce you're signed in to CircleCI in the browser, press Enter here to continue with CLI authentication..."); err != nil {
+		continued, err := iostream.PromptContinue(ctx, "\nOnce you're signed in to CircleCI in the browser, press Enter here to continue with CLI authentication...")
+		if err != nil {
 			_ = flow.Close()
-			if errors.Is(err, context.Canceled) {
-				return signupCancelledError()
-			}
 			return clierrors.New("auth.signup.prompt_failed",
 				"Could not read login prompt", err.Error()).
 				WithExitCode(clierrors.ExitGeneralError)
+		}
+		if !continued {
+			_ = flow.Close()
+			return signupCancelledError()
 		}
 	} else {
 		_ = flow.Close()

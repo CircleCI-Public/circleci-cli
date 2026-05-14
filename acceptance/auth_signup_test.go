@@ -287,26 +287,32 @@ func runSignupAndInterrupt(t *testing.T, env *testenv.TestEnv) (int, string) {
 	cmd.Stdout = console.Tty()
 	cmd.Stderr = console.Tty()
 
+	finish := func(exitCode int) (int, string) {
+		// go-expect holds the slave PTY open, so close it before draining the
+		// final output written during command shutdown.
+		_ = console.Tty().Close()
+		_, _ = console.ExpectEOF()
+		return exitCode, output.String()
+	}
+
 	assert.NilError(t, cmd.Start())
 
 	_, err = console.ExpectString("Once you're signed in to CircleCI")
 	assert.NilError(t, err)
 
-	assert.NilError(t, cmd.Process.Signal(os.Interrupt))
-	_, err = console.ExpectString("Signup cancelled")
-	assert.NilError(t, err)
-
 	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
+
+	assert.NilError(t, cmd.Process.Signal(os.Interrupt))
 
 	select {
 	case err := <-done:
 		var exitErr *exec.ExitError
 		switch {
 		case err == nil:
-			return 0, output.String()
+			return finish(0)
 		case errors.As(err, &exitErr):
-			return exitErr.ExitCode(), output.String()
+			return finish(exitErr.ExitCode())
 		default:
 			t.Fatalf("unexpected wait error: %v", err)
 		}
@@ -316,7 +322,7 @@ func runSignupAndInterrupt(t *testing.T, env *testenv.TestEnv) (int, string) {
 		t.Fatalf("signup did not exit within 3s of Ctrl+C")
 	}
 
-	return 0, output.String()
+	return finish(0)
 }
 
 func callbackAuthorizeURL(t *testing.T, authURL string) {
