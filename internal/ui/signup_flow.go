@@ -147,6 +147,8 @@ func NewSignupFlow(ctx context.Context, opts SignupFlowOptions) SignupFlowModel 
 		opts:  opts,
 		stage: signupStageStarting,
 		spin:  components.NewSpinner(opts.Color),
+		// Signup has no host-picker stage; the command resolves the host from
+		// config before constructing the model.
 		result: SignupResult{
 			Host: opts.Host,
 		},
