@@ -26,12 +26,12 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli-v2/internal/errors"
@@ -46,16 +46,14 @@ func newSignupCmd() *cobra.Command {
 		Use:   "signup",
 		Short: "Sign up for CircleCI via the browser",
 		Long: heredoc.Doc(`
-			Create a CircleCI account by opening the signup page in your browser.
-			After you complete signup and approve the CLI, an authorization code
-			is delivered back to a temporary loopback server on 127.0.0.1, then
-			exchanged for an access token via POST /oauth/token. The resulting
-			token is used automatically by all subsequent CLI commands.
+				Create a CircleCI account by opening the signup page in your browser.
+				After you complete signup, return to your terminal and press Enter
+				to authenticate the CLI with the regular browser login flow.
 
-			If a token is already configured, run 'circleci auth logout' first
-			(signup will not silently overwrite an existing token). If you
-			already have a CircleCI account, use 'circleci auth login' instead.
-		`),
+				If a token is already configured, run 'circleci auth logout' first
+				(signup will not silently overwrite an existing token). If you
+				already have a CircleCI account, use 'circleci auth login' instead.
+			`),
 		Example: heredoc.Doc(`
 			# Open the signup page in your browser
 			$ circleci auth signup
@@ -108,43 +106,69 @@ func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage 
 			WithSuggestions("Check that no other process is blocking loopback ports").
 			WithExitCode(clierrors.ExitGeneralError)
 	}
-	defer func() { _ = flow.Close() }()
 
 	iostream.ErrPrintf(ctx, "Open this URL in your browser to sign up:\n\n  %s\n\n", flow.AuthorizeURL)
 	if !noBrowser {
 		_ = browser.OpenURL(flow.AuthorizeURL) // best-effort
 	}
 
-	waitCtx, cancel := context.WithTimeout(ctx, callbackTimeout())
+	if iostream.IsInteractive(ctx) {
+		if _, err := iostream.PromptLine(ctx, "\nAfter verifying your email, press Enter here to continue with login..."); err != nil {
+			_ = flow.Close()
+			if errors.Is(err, context.Canceled) {
+				return signupCancelledError()
+			}
+			return clierrors.New("auth.signup.prompt_failed",
+				"Could not read login prompt", err.Error()).
+				WithExitCode(clierrors.ExitGeneralError)
+		}
+	} else {
+		_ = flow.Close()
+		iostream.ErrPrintf(ctx, "After you finish signing up, run 'circleci auth login' to authenticate the CLI.\n")
+		return nil
+	}
+
+	if finished, err := finishSignupCallbackIfAvailable(ctx, host, flow, secureStorage); err != nil {
+		_ = flow.Close()
+		return err
+	} else if finished {
+		_ = flow.Close()
+		return nil
+	}
+
+	// Signup is only a launch step in this fallback path; release its loopback
+	// server before starting the real login callback flow.
+	_ = flow.Close()
+	return runLoginBrowser(ctx, host, deviceID, !noBrowser, secureStorage)
+}
+
+func signupCancelledError() *clierrors.CLIError {
+	return clierrors.New("auth.signup.cancelled",
+		"Signup cancelled",
+		"Signup cancelled before signup completed.").
+		WithExitCode(clierrors.ExitCancelled)
+}
+
+func finishSignupCallbackIfAvailable(ctx context.Context, host string, flow *oauth.Flow, secureStorage bool) (bool, error) {
+	waitCtx, cancel := context.WithTimeout(ctx, time.Second)
 	defer cancel()
 
-	sp := iostream.Spinner(ctx, true, "Waiting for signup to complete")
 	res, err := flow.Wait(waitCtx)
-	sp.Stop()
+	if errors.Is(err, context.DeadlineExceeded) {
+		return false, nil
+	}
 	if err != nil {
-		if errors.Is(err, context.DeadlineExceeded) {
-			return clierrors.New("auth.signup.timeout",
-				"Signup timed out",
-				"Signup timed out — no browser callback received within "+callbackTimeout().String()+".").
-				WithSuggestions("Re-run 'circleci auth signup' and complete the browser flow promptly").
-				WithExitCode(clierrors.ExitTimeout)
-		}
-		return clierrors.New("auth.signup.callback_error",
+		return false, clierrors.New("auth.signup.callback_error",
 			"Signup failed", err.Error()).
 			WithExitCode(clierrors.ExitAuthError)
 	}
 
 	token, err := flow.Exchange(ctx, res.Code)
 	if err != nil {
-		return clierrors.New("auth.signup.token_exchange_failed",
+		return false, clierrors.New("auth.signup.token_exchange_failed",
 			"Failed to exchange authorization code for token", err.Error()).
 			WithExitCode(clierrors.ExitAuthError)
 	}
 
-	c := apiclient.New(host, token.AccessToken, nil)
-	if me, err := c.GetMe(ctx); err == nil && me.Login != "" {
-		iostream.ErrPrintf(ctx, "%s Signed up as %s\n", iostream.SymbolOK(ctx), me.Login)
-	}
-
-	return persistToken(ctx, host, token.AccessToken, secureStorage)
+	return true, persistLoginToken(ctx, host, token.AccessToken, secureStorage)
 }

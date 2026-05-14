@@ -23,32 +23,39 @@
 package acceptance_test
 
 import (
+	"bytes"
+	"context"
+	"errors"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/Netflix/go-expect"
+	cpty "github.com/creack/pty"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/skip"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli-v2/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/testing/fakes"
 )
 
-// TestAuthSignup_Timeout exercises the wait-for-callback path. The fake
-// server is started but never delivers a callback — the CLI should print
-// the signup URL (with signup=true and a loopback redirect_uri) and then
-// time out cleanly with ExitTimeout.
-func TestAuthSignup_Timeout(t *testing.T) {
+// TestAuthSignup_NonInteractivePrintsSignupURL verifies that non-interactive
+// signup prints the signup URL and tells the user to come back through login.
+func TestAuthSignup_NonInteractivePrintsSignupURL(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
 	env.CircleCIURL = fake.URL()
-	env.Extra["CIRCLECI_LOGIN_TIMEOUT"] = "200ms"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -57,7 +64,7 @@ func TestAuthSignup_Timeout(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 8, "stderr: %s", result.Stderr) // ExitTimeout
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	// Targeted URL semantics: lock down the params we care about while the
 	// rest of the URL (host, ports, PKCE values, state, device_id) is random.
@@ -92,11 +99,19 @@ func TestAuthSignup_AlreadyAuthenticated(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// TestAuthSignup_HappyPath drives the full signup flow against the fake
-// server, mirroring TestAuthLogin_Browser. The CLI prints the authorize
-// URL on a PTY; the test scrapes it, hits the loopback redirect_uri with a
-// fake code, and asserts the CLI exchanges the code, prints "Signed up as
-// …", and persists the token to YAML (--insecure-storage path).
+func TestAuthSignup_CtrlCAtVerificationPrompt(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	exitCode, output := runSignupAndInterrupt(t, env)
+	assert.Equal(t, exitCode, 6, "output: %s", output) // ExitCancelled
+	assert.Check(t, cmp.Contains(output, "Signup cancelled"))
+}
+
+// TestAuthSignup_HappyPath drives the fallback signup flow against the fake
+// server. The CLI opens signup first, waits for the user to return, then starts
+// the regular login OAuth flow and persists the login token.
 func TestAuthSignup_HappyPath(t *testing.T) {
 	ctx := t.Context()
 
@@ -123,16 +138,27 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
+	assert.Assert(t, t.Run("wait for signup completion prompt", func(t *testing.T) {
+		out, err := console.ExpectString("After verifying your email")
+		assert.NilError(t, err)
+
+		signupURL := regexp.MustCompile(`https?://\S+`).FindString(out)
+		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
+		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
+		_, err = console.ExpectString("press Enter here to continue with login")
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+	}))
+
 	var authURL string
-	assert.Assert(t, t.Run("read authorize url", func(t *testing.T) {
-		// "Waiting for signup to complete" is printed AFTER the URL,
-		// so the buffer at this point contains the URL.
-		out, err := console.ExpectString("Waiting for signup")
+	assert.Assert(t, t.Run("read login authorize url", func(t *testing.T) {
+		out, err := console.ExpectString("Waiting for browser authentication")
 		assert.NilError(t, err)
 
 		authURL = regexp.MustCompile(`https?://\S+`).FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
-		assert.Check(t, cmp.Contains(authURL, "signup=true"))
+		assert.Check(t, !strings.Contains(authURL, "signup=true"), "login URL must not include signup=true: %s", authURL)
 	}))
 
 	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
@@ -154,8 +180,8 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		assert.Equal(t, resp.StatusCode, http.StatusOK)
 	}))
 
-	assert.Assert(t, t.Run("signed up", func(t *testing.T) {
-		_, err := console.ExpectString("Signed up as newuser")
+	assert.Assert(t, t.Run("logged in", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as newuser")
 		assert.NilError(t, err)
 		_, err = console.ExpectString("Saved host to")
 		assert.NilError(t, err)
@@ -169,4 +195,149 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Contains(string(body), "test-signup-token"))
 	}))
+}
+
+func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
+	ctx := t.Context()
+
+	fake := fakes.NewCircleCI(t)
+	fake.SetMe(map[string]any{
+		"id":    "user-uuid-1234",
+		"name":  "New User",
+		"login": "newuser",
+	})
+	fake.SetOAuthTokenResponse(map[string]any{
+		"access_token": "test-signup-callback-token",
+		"token_type":   "Bearer",
+		"expires_in":   int64(7776000),
+	})
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+	env.Extra["CIRCLECI_LOGIN_TIMEOUT"] = "20s"
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"auth", "signup"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	var signupURL string
+	assert.Assert(t, t.Run("read signup authorize url", func(t *testing.T) {
+		out, err := console.ExpectString("After verifying your email")
+		assert.NilError(t, err)
+
+		signupURL = regexp.MustCompile(`https?://\S+`).FindString(out)
+		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
+		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
+	}))
+
+	assert.Assert(t, t.Run("signup browser callback", func(t *testing.T) {
+		callbackAuthorizeURL(t, ctx, signupURL)
+	}))
+
+	assert.Assert(t, t.Run("continue from terminal", func(t *testing.T) {
+		_, err := console.Send("\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("logged in without second consent", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as newuser")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Saved host to")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("token persisted to YAML", func(t *testing.T) {
+		cfgPath := filepath.Join(env.HomeDir, ".config", "circleci", "config.yml")
+		body, err := os.ReadFile(cfgPath)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Contains(string(body), "test-signup-callback-token"))
+	}))
+}
+
+func runSignupAndInterrupt(t *testing.T, env *testenv.TestEnv) (int, string) {
+	t.Helper()
+	skip.If(t, runtime.GOOS == "windows", "PTY-based interactive tests are not supported on Windows")
+
+	var output bytes.Buffer
+	console, err := expect.NewConsole(
+		expect.WithStdout(io.MultiWriter(os.Stdout, &output)),
+		expect.WithDefaultTimeout(5*time.Second),
+	)
+	assert.NilError(t, err)
+	t.Cleanup(func() {
+		_ = console.Tty().Close()
+		_, _ = console.ExpectEOF()
+		assert.Check(t, console.Close())
+	})
+
+	err = cpty.Setsize(console.Tty(), &cpty.Winsize{
+		Rows: 24,
+		Cols: 500,
+	})
+	assert.NilError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	t.Cleanup(cancel)
+
+	cmd := exec.CommandContext(ctx, binaryPath, "--insecure-storage", "--theme=dark", "auth", "signup") //#nosec:G204 // binaryPath is the test-built CLI binary
+	cmd.Dir = t.TempDir()
+	cmd.Env = env.Environ()
+	cmd.Stdin = console.Tty()
+	cmd.Stdout = console.Tty()
+	cmd.Stderr = console.Tty()
+
+	assert.NilError(t, cmd.Start())
+
+	_, err = console.ExpectString("After verifying your email")
+	assert.NilError(t, err)
+
+	assert.NilError(t, cmd.Process.Signal(os.Interrupt))
+	_, err = console.ExpectString("Signup cancelled")
+	assert.NilError(t, err)
+
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
+
+	select {
+	case err := <-done:
+		var exitErr *exec.ExitError
+		switch {
+		case err == nil:
+			return 0, output.String()
+		case errors.As(err, &exitErr):
+			return exitErr.ExitCode(), output.String()
+		default:
+			t.Fatalf("unexpected wait error: %v", err)
+		}
+	case <-time.After(3 * time.Second):
+		_ = cmd.Process.Kill()
+		<-done
+		t.Fatalf("signup did not exit within 3s of Ctrl+C")
+	}
+
+	return 0, output.String()
+}
+
+func callbackAuthorizeURL(t *testing.T, ctx context.Context, authURL string) {
+	t.Helper()
+
+	parsed, err := url.Parse(authURL)
+	assert.NilError(t, err)
+	q := parsed.Query()
+	state := q.Get("state")
+	redirectURI := q.Get("redirect_uri")
+	assert.Assert(t, state != "", "state param missing from authorize URL")
+	assert.Assert(t, redirectURI != "", "redirect_uri param missing from authorize URL")
+
+	callbackURL := redirectURI + "?code=fake-auth-code&state=" + url.QueryEscape(state)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, callbackURL, nil)
+	assert.NilError(t, err)
+
+	resp, err := http.DefaultClient.Do(req)
+	assert.NilError(t, err)
+	_ = resp.Body.Close()
+	assert.Equal(t, resp.StatusCode, http.StatusOK)
 }

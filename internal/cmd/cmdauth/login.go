@@ -31,6 +31,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli-v2/internal/apiclient"
@@ -114,6 +115,10 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	host := cfg.EffectiveHost()
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
+	return runLoginBrowser(ctx, host, deviceID, false, secureStorage)
+}
+
+func runLoginBrowser(ctx context.Context, host, deviceID string, openBrowser, secureStorage bool) error {
 	flow, err := oauth.Start(ctx, host, deviceID, runtime.GOOS)
 	if err != nil {
 		return clierrors.New("auth.login.listen_failed",
@@ -124,6 +129,9 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	defer func() { _ = flow.Close() }()
 
 	iostream.ErrPrintf(ctx, "Open this URL in your browser to continue:\n\n  %s\n\n", flow.AuthorizeURL)
+	if openBrowser {
+		_ = browser.OpenURL(flow.AuthorizeURL) // best-effort
+	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, callbackTimeout())
 	defer cancel()
@@ -151,12 +159,16 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 			WithExitCode(clierrors.ExitAuthError)
 	}
 
-	c := apiclient.New(host, token.AccessToken, nil)
+	return persistLoginToken(ctx, host, token.AccessToken, secureStorage)
+}
+
+func persistLoginToken(ctx context.Context, host, accessToken string, secureStorage bool) error {
+	c := apiclient.New(host, accessToken, nil)
 	if me, err := c.GetMe(ctx); err == nil && me.Login != "" {
 		iostream.ErrPrintf(ctx, "%s Logged in as %s\n", iostream.SymbolOK(ctx), me.Login)
 	}
 
-	return persistToken(ctx, host, token.AccessToken, secureStorage)
+	return persistToken(ctx, host, accessToken, secureStorage)
 }
 
 // runLoginInteractive runs the full multi-stage login TUI. It covers host
