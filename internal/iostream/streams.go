@@ -27,7 +27,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -175,12 +174,6 @@ func PromptText(ctx context.Context, header, placeholder string) (string, error)
 		return "", nil
 	}
 	return m.Value(), nil
-}
-
-// PromptContinue presents a simple Enter-to-continue prompt via bubbletea.
-// Returns false if the user cancels with esc or ctrl+c.
-func PromptContinue(ctx context.Context, message string) (bool, error) {
-	return fromContext(ctx).PromptContinue(ctx, message)
 }
 
 func DebugContext(ctx context.Context, msg string, args ...any) {
@@ -459,25 +452,6 @@ func (s Streams) PromptSelect(ctx context.Context, prompt string, options []stri
 		return -1, nil
 	}
 	return m.Selected(), nil
-}
-
-// PromptContinue presents a bubbletea Enter-to-continue prompt.
-// Returns false if the user cancels.
-func (s Streams) PromptContinue(ctx context.Context, message string) (bool, error) {
-	p := tea.NewProgram(
-		ui.NewContinueModel(message),
-		tea.WithContext(ctx),
-		tea.WithInput(s.In),
-		tea.WithOutput(s.Err),
-	)
-	anyModel, err := p.Run()
-	if err != nil {
-		if errors.Is(err, tea.ErrProgramKilled) || errors.Is(err, tea.ErrInterrupted) {
-			return false, nil
-		}
-		return false, err
-	}
-	return !anyModel.(ui.ContinueModel).Cancelled(), nil
 }
 
 // PromptSecret presents a masked text input via bubbletea to collect a secret

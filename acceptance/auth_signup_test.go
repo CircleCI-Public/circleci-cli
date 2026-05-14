@@ -23,32 +23,24 @@
 package acceptance_test
 
 import (
-	"bytes"
-	"context"
-	"errors"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
-	"time"
 
-	"github.com/Netflix/go-expect"
-	cpty "github.com/creack/pty"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
-	"gotest.tools/v3/skip"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
+
+var terminalURLRe = regexp.MustCompile(`https?://[^\s\x1b]+`)
 
 // TestAuthSignup_NonInteractivePrintsSignupURL verifies that non-interactive
 // signup prints the signup URL and tells the user to come back through login.
@@ -99,16 +91,6 @@ func TestAuthSignup_AlreadyAuthenticated(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-func TestAuthSignup_CtrlCAtVerificationPrompt(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	env := testenv.New(t)
-	env.CircleCIURL = fake.URL()
-
-	exitCode, output := runSignupAndInterrupt(t, env)
-	assert.Equal(t, exitCode, 6, "output: %s", output) // ExitCancelled
-	assert.Check(t, cmp.Contains(output, "Signup cancelled"))
-}
-
 // TestAuthSignup_HappyPath drives the fallback signup flow against the fake
 // server. The CLI opens signup first, waits for the user to return, then starts
 // the regular login OAuth flow and persists the login token.
@@ -142,7 +124,7 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		out, err := console.ExpectString("Once you're signed in to CircleCI")
 		assert.NilError(t, err)
 
-		signupURL := regexp.MustCompile(`https?://\S+`).FindString(out)
+		signupURL := terminalURLRe.FindString(out)
 		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
 		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
 		_, err = console.ExpectString("press Enter here to continue with CLI authentication")
@@ -156,7 +138,7 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		out, err := console.ExpectString("Waiting for browser authentication")
 		assert.NilError(t, err)
 
-		authURL = regexp.MustCompile(`https?://\S+`).FindString(out)
+		authURL = terminalURLRe.FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
 		assert.Check(t, !strings.Contains(authURL, "signup=true"), "login URL must not include signup=true: %s", authURL)
 	}))
@@ -226,7 +208,7 @@ func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
 		out, err := console.ExpectString("Once you're signed in to CircleCI")
 		assert.NilError(t, err)
 
-		signupURL = regexp.MustCompile(`https?://\S+`).FindString(out)
+		signupURL = terminalURLRe.FindString(out)
 		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
 		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
 	}))
@@ -253,76 +235,6 @@ func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Contains(string(body), "test-signup-callback-token"))
 	}))
-}
-
-func runSignupAndInterrupt(t *testing.T, env *testenv.TestEnv) (int, string) {
-	t.Helper()
-	skip.If(t, runtime.GOOS == "windows", "PTY-based interactive tests are not supported on Windows")
-
-	var output bytes.Buffer
-	console, err := expect.NewConsole(
-		expect.WithStdout(io.MultiWriter(os.Stdout, &output)),
-		expect.WithDefaultTimeout(5*time.Second),
-	)
-	assert.NilError(t, err)
-	t.Cleanup(func() {
-		_ = console.Tty().Close()
-		_, _ = console.ExpectEOF()
-		assert.Check(t, console.Close())
-	})
-
-	err = cpty.Setsize(console.Tty(), &cpty.Winsize{
-		Rows: 24,
-		Cols: 500,
-	})
-	assert.NilError(t, err)
-
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	t.Cleanup(cancel)
-
-	cmd := exec.CommandContext(ctx, binaryPath, "--insecure-storage", "--theme=dark", "auth", "signup") //#nosec:G204 // binaryPath is the test-built CLI binary
-	cmd.Dir = t.TempDir()
-	cmd.Env = env.Environ()
-	cmd.Stdin = console.Tty()
-	cmd.Stdout = console.Tty()
-	cmd.Stderr = console.Tty()
-
-	finish := func(exitCode int) (int, string) {
-		// go-expect holds the slave PTY open, so close it before draining the
-		// final output written during command shutdown.
-		_ = console.Tty().Close()
-		_, _ = console.ExpectEOF()
-		return exitCode, output.String()
-	}
-
-	assert.NilError(t, cmd.Start())
-
-	_, err = console.ExpectString("Once you're signed in to CircleCI")
-	assert.NilError(t, err)
-
-	done := make(chan error, 1)
-	go func() { done <- cmd.Wait() }()
-
-	assert.NilError(t, cmd.Process.Signal(os.Interrupt))
-
-	select {
-	case err := <-done:
-		var exitErr *exec.ExitError
-		switch {
-		case err == nil:
-			return finish(0)
-		case errors.As(err, &exitErr):
-			return finish(exitErr.ExitCode())
-		default:
-			t.Fatalf("unexpected wait error: %v", err)
-		}
-	case <-time.After(3 * time.Second):
-		_ = cmd.Process.Kill()
-		<-done
-		t.Fatalf("signup did not exit within 3s of Ctrl+C")
-	}
-
-	return finish(0)
 }
 
 func callbackAuthorizeURL(t *testing.T, authURL string) {

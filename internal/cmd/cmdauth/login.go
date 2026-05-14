@@ -31,7 +31,6 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
-	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -115,10 +114,10 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	host := cfg.EffectiveHost()
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
-	return runLoginBrowser(ctx, host, deviceID, false, secureStorage)
+	return runLoginBrowser(ctx, host, deviceID, secureStorage)
 }
 
-func runLoginBrowser(ctx context.Context, host, deviceID string, openBrowser, secureStorage bool) error {
+func runLoginBrowser(ctx context.Context, host, deviceID string, secureStorage bool) error {
 	flow, err := oauth.Start(ctx, host, deviceID, runtime.GOOS)
 	if err != nil {
 		return clierrors.New("auth.login.listen_failed",
@@ -129,9 +128,6 @@ func runLoginBrowser(ctx context.Context, host, deviceID string, openBrowser, se
 	defer func() { _ = flow.Close() }()
 
 	iostream.ErrPrintf(ctx, "Open this URL in your browser to continue:\n\n  %s\n\n", flow.AuthorizeURL)
-	if openBrowser {
-		_ = browser.OpenURL(flow.AuthorizeURL) // best-effort
-	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, callbackTimeout())
 	defer cancel()
