@@ -171,6 +171,10 @@ func runSignupInteractive(ctx context.Context, host, deviceID string, noBrowser,
 
 func signupFlowError(res ui.SignupResult) error {
 	switch res.Failure {
+	case ui.SignupFailureNone:
+		return clierrors.New("auth.signup.failed",
+			"Signup failed", res.Err.Error()).
+			WithExitCode(clierrors.ExitAuthError)
 	case ui.SignupFailureSignupListen:
 		return clierrors.New("auth.signup.listen_failed",
 			"Could not start local callback server", res.Err.Error()).

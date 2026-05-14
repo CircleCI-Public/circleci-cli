@@ -50,13 +50,21 @@ const (
 type SignupFailure int
 
 const (
+	// SignupFailureNone means the flow did not fail.
 	SignupFailureNone SignupFailure = iota
+	// SignupFailureSignupListen means the signup callback server could not start.
 	SignupFailureSignupListen
+	// SignupFailureSignupCallback means the signup callback returned an error.
 	SignupFailureSignupCallback
+	// SignupFailureSignupExchange means the signup authorization code could not be exchanged.
 	SignupFailureSignupExchange
+	// SignupFailureLoginListen means the fallback login callback server could not start.
 	SignupFailureLoginListen
+	// SignupFailureLoginCallback means the fallback login callback returned an error.
 	SignupFailureLoginCallback
+	// SignupFailureLoginExchange means the fallback login authorization code could not be exchanged.
 	SignupFailureLoginExchange
+	// SignupFailureUsername means the authenticated username lookup failed.
 	SignupFailureUsername
 )
 
