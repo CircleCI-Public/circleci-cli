@@ -38,7 +38,7 @@ func TestTelemetryEnable(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"telemetry", "enable"},
+		Args:    []string{"settings", "telemetry", "enable"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -63,7 +63,7 @@ func TestTelemetryDisable(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"telemetry", "disable"},
+		Args:    []string{"settings", "telemetry", "disable"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -88,7 +88,7 @@ func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"telemetry", "enable"},
+		Args:    []string{"settings", "telemetry", "enable"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -105,7 +105,7 @@ func TestTelemetryUnknownSubcommand(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"telemetry", "bogus"},
+		Args:    []string{"settings", "telemetry", "bogus"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -118,7 +118,7 @@ func TestTelemetryNoArgs(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"telemetry"},
+		Args:    []string{"settings", "telemetry"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

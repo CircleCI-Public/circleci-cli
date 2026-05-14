@@ -21,7 +21,6 @@ Available Commands:
   runner         Manage self-hosted runners
   settings       Manage CLI settings
   signing-config Manage iOS signing configs
-  telemetry      Manage telemetry preferences
   version        Print version information
   workflow       Manage workflows
 

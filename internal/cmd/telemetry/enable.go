@@ -46,10 +46,10 @@ func newEnableCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Opt in to telemetry
-			$ circleci telemetry enable
+			$ circleci settings telemetry enable
 
 			# Opt in using a custom config file path
-			$ circleci --config ~/.config/circleci/config.yml telemetry enable
+			$ circleci --config ~/.config/circleci/config.yml settings telemetry enable
 
 			# Verify the stored preference after enabling
 			$ circleci settings list --json

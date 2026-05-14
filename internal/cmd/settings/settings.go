@@ -25,6 +25,9 @@ package settings
 import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/telemetry"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
 // NewSettingsCmd returns the "circleci settings" command group.
@@ -37,13 +40,17 @@ func NewSettingsCmd() *cobra.Command {
 
 			Use 'circleci settings set token' to configure your personal API token.
 			Use 'circleci settings list' to view current settings.
+			Use 'circleci settings telemetry' to manage telemetry preferences.
 
 			For pipeline YAML operations, see 'circleci config'.
 		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
 	cmd.AddCommand(newSetCmd())
 	cmd.AddCommand(newListCmd())
+	cmd.AddCommand(telemetry.NewTelemetryCmd())
 
 	return cmd
 }

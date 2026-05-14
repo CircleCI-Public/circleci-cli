@@ -48,10 +48,10 @@ func newDisableCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Opt out of telemetry
-			$ circleci telemetry disable
+			$ circleci settings telemetry disable
 
 			# Opt out using a custom config file path
-			$ circleci --config ~/.config/circleci/config.yml telemetry disable
+			$ circleci --config ~/.config/circleci/config.yml settings telemetry disable
 
 			# Disable telemetry for a single session without changing the config
 			$ CIRCLECI_NO_TELEMETRY=1 circleci pipeline list
