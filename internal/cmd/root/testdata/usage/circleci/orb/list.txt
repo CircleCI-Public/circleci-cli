@@ -1,0 +1,33 @@
+Usage:
+  circleci orb list [<namespace>] [flags]
+
+Aliases:
+  list, ls
+
+Examples:
+# List certified orbs globally
+$ circleci orb list
+
+# List all orbs in a namespace
+$ circleci orb list myorg
+
+# Include uncertified orbs
+$ circleci orb list --uncertified
+
+# List orbs as JSON
+$ circleci orb list --json
+
+# List private orbs in a namespace
+$ circleci orb list myorg --private
+
+
+Flags:
+      --jq string     Process values from the response using jq syntax
+      --json          Output as JSON
+      --private       only list private orbs (requires namespace)
+      --uncertified   include uncertified orbs
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

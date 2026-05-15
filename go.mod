@@ -17,6 +17,7 @@ require (
 	github.com/gofrs/flock v0.13.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
+	github.com/hexops/gotextdiff v1.0.3
 	github.com/itchyny/gojq v0.12.19
 	github.com/njayp/ophis v1.1.4
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
