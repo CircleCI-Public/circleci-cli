@@ -122,6 +122,34 @@ func TestStart_FlowsAreUnique(t *testing.T) {
 	assert.Check(t, a.state != b.state, "state must be per-flow")
 }
 
+func TestStart_DoesNotIncludeSignupParam(t *testing.T) {
+	flow := startFlow(t, "https://example.com")
+	u, err := url.Parse(flow.AuthorizeURL)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(u.Query().Get("signup"), ""),
+		"Start must not send signup=true; that's reserved for StartSignup")
+}
+
+func TestStartSignup_IncludesSignupParam(t *testing.T) {
+	flow, err := StartSignup(context.Background(), "https://example.com", "test-device-id", "test-os")
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = flow.Close() })
+
+	u, err := url.Parse(flow.AuthorizeURL)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(u.Query().Get("signup"), "true"))
+
+	// Everything else should be identical to a regular Start flow.
+	q := u.Query()
+	assert.Check(t, is.Equal(q.Get("client_id"), ClientID))
+	assert.Check(t, is.Equal(q.Get("response_type"), "code"))
+	assert.Check(t, is.Equal(q.Get("code_challenge_method"), "S256"))
+	assert.Check(t, q.Get("code_challenge") != "")
+	assert.Check(t, q.Get("state") != "")
+	assert.Check(t, is.Equal(q.Get("device_id"), "test-device-id"))
+	assert.Check(t, is.Equal(q.Get("os"), "test-os"))
+}
+
 func TestFlow_Wait_Success(t *testing.T) {
 	flow := startFlow(t, "https://example.com")
 	u, _ := url.Parse(flow.AuthorizeURL)

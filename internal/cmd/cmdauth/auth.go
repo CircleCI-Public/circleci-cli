@@ -41,6 +41,7 @@ func NewAuthCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Manage authentication for the CLI.
 
+			Use 'circleci auth signup' to create a new CircleCI account via the browser.
 			Use 'circleci auth login' to authenticate via the browser-based OAuth flow.
 			Use 'circleci auth me' to get current user info.
 			Use 'circleci auth logout' to clear your stored credentials.
@@ -48,6 +49,7 @@ func NewAuthCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newLoginCmd())
+	cmd.AddCommand(newSignupCmd())
 	cmd.AddCommand(newMeCmd())
 	cmd.AddCommand(newLogoutCmd())
 	cmd.AddCommand(newDeviceIDCmd())

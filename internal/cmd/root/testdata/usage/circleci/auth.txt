@@ -6,6 +6,7 @@ Available Commands:
   login       Authenticate via the CircleCI OAuth flow
   logout      Remove stored credentials
   me          Get info about the current user
+  signup      Sign up for CircleCI via the browser
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

@@ -1,0 +1,5 @@
+Open this URL in your browser to sign up:
+
+  <authorize-url>
+
+After you finish signing up, run 'circleci auth login' to authenticate the CLI.
