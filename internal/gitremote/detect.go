@@ -68,6 +68,14 @@ func DetectNamespace() (string, error) {
 	return parts[1], nil
 }
 
+// InsideWorkTree reports whether the current working directory is inside a
+// git working tree. Use this when a command only needs to confirm it is in a
+// repository, without requiring a parseable CircleCI remote.
+func InsideWorkTree() bool {
+	out, err := gitOutput("rev-parse", "--is-inside-work-tree")
+	return err == nil && out == "true"
+}
+
 // Detect resolves the CircleCI project for the current working directory.
 //
 // Resolution priority:

@@ -24,6 +24,7 @@ package gitremote
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -217,4 +218,28 @@ func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
 	// And info.yml is still present — DetectFromRemote did not consume it.
 	_, statErr := os.Stat(filepath.Join(dir, projectref.FilePath))
 	assert.NilError(t, statErr)
+}
+
+func TestInsideWorkTree(t *testing.T) {
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	t.Run("inside git worktree", func(t *testing.T) {
+		dir := t.TempDir()
+		cmd := exec.Command("git", "init") //#nosec:G204 // fixed git invocation in a test temp dir
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		assert.NilError(t, err, string(out))
+
+		assert.NilError(t, os.Chdir(dir))
+		assert.Check(t, InsideWorkTree())
+	})
+
+	t.Run("outside git worktree", func(t *testing.T) {
+		dir := t.TempDir()
+
+		assert.NilError(t, os.Chdir(dir))
+		assert.Check(t, !InsideWorkTree())
+	})
 }
