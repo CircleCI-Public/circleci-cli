@@ -114,6 +114,10 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	host := cfg.EffectiveHost()
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
+	return runLoginBrowser(ctx, host, deviceID, secureStorage)
+}
+
+func runLoginBrowser(ctx context.Context, host, deviceID string, secureStorage bool) error {
 	flow, err := oauth.Start(ctx, host, deviceID, runtime.GOOS)
 	if err != nil {
 		return clierrors.New("auth.login.listen_failed",
@@ -151,12 +155,16 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 			WithExitCode(clierrors.ExitAuthError)
 	}
 
-	c := apiclient.New(host, token.AccessToken, nil)
+	return persistLoginToken(ctx, host, token.AccessToken, secureStorage)
+}
+
+func persistLoginToken(ctx context.Context, host, accessToken string, secureStorage bool) error {
+	c := apiclient.New(host, accessToken, nil)
 	if me, err := c.GetMe(ctx); err == nil && me.Login != "" {
 		iostream.ErrPrintf(ctx, "%s Logged in as %s\n", iostream.SymbolOK(ctx), me.Login)
 	}
 
-	return persistToken(ctx, host, token.AccessToken, secureStorage)
+	return persistToken(ctx, host, accessToken, secureStorage)
 }
 
 // runLoginInteractive runs the full multi-stage login TUI. It covers host

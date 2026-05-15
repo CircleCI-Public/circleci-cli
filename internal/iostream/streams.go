@@ -417,26 +417,6 @@ func ReadSecret(ctx context.Context, value string) (string, error) {
 	return fromContext(ctx).ReadSecret(value)
 }
 
-// PromptLine writes prompt to Err and reads a single line from In.
-// The returned value has surrounding whitespace trimmed. Used for plain
-// (non-secret) interactive input where bubbletea's terminal UI is overkill.
-func (s Streams) PromptLine(prompt string) (string, error) {
-	_, _ = fmt.Fprint(s.Err, prompt)
-	scanner := bufio.NewScanner(s.In)
-	if !scanner.Scan() {
-		if err := scanner.Err(); err != nil {
-			return "", err
-		}
-		return "", fmt.Errorf("expected input but got EOF")
-	}
-	return strings.TrimSpace(scanner.Text()), nil
-}
-
-// PromptLine reads a single line of plain text input from the streams in context.
-func PromptLine(ctx context.Context, prompt string) (string, error) {
-	return fromContext(ctx).PromptLine(prompt)
-}
-
 // Confirm presents a y/N confirmation prompt via bubbletea.
 // Returns true only if the user presses y/Y. Returns false on n/N, esc,
 // ctrl+c, enter, or any program error — the safe answer is always No.
