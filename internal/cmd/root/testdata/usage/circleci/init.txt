@@ -1,0 +1,18 @@
+Usage:
+  circleci init [flags]
+
+Examples:
+# Initialize CircleCI from the current repository
+$ circleci init
+
+# Preview the init flow help
+$ circleci init --help
+
+# Run init after creating a local git repository
+$ git init && circleci init
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
