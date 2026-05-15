@@ -133,6 +133,7 @@ func runSignupInteractive(ctx context.Context, host, deviceID string, noBrowser,
 		OSInfo:                runtime.GOOS,
 		NoBrowser:             noBrowser,
 		Color:                 iostream.ColorEnabled(ctx),
+		OpenURL:               browserOpener(),
 		SignupCallbackTimeout: time.Second,
 		LoginCallbackTimeout:  callbackTimeout(),
 		GetUsername: func(ctx context.Context, host, token string) (string, error) {

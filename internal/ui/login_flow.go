@@ -76,6 +76,7 @@ type LoginFlowOptions struct {
 	// GetUsername, if non-nil, is called after token exchange to display
 	// the authenticated user's login name.
 	GetUsername func(ctx context.Context, host, token string) (string, error)
+	OpenURL     func(string) error
 	Color       bool
 }
 
@@ -127,6 +128,10 @@ var loginMethodOptions = []string{"Login with a web browser", "Paste an authenti
 
 // NewLoginFlow returns a LoginFlowModel ready to pass to tea.NewProgram.
 func NewLoginFlow(ctx context.Context, opts LoginFlowOptions) LoginFlowModel {
+	if opts.OpenURL == nil {
+		opts.OpenURL = browser.OpenURL
+	}
+
 	ti := textinput.New()
 	ti.Placeholder = "https://example.circleci.com"
 	ti.SetWidth(50)
@@ -359,7 +364,7 @@ func (m LoginFlowModel) keyEnterPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd)
 		m.result.Cancelled = true
 		return m, tea.Quit
 	case components.KeyEnter:
-		_ = browser.OpenURL(m.flow.AuthorizeURL)
+		_ = m.opts.OpenURL(m.flow.AuthorizeURL)
 		m.stage = stageWaiting
 		return m, m.spin.Tick
 	}

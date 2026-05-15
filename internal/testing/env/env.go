@@ -59,6 +59,7 @@ func (e *TestEnv) Environ() []string {
 		"HOME=" + e.HomeDir,
 		"XDG_CONFIG_HOME=" + filepath.Join(e.HomeDir, ".config"),
 		"PATH=" + os.Getenv("PATH"),
+		"CIRCLECI_NO_BROWSER_OPEN=true",
 		"CIRCLECI_SPINNER_DISABLED=true",
 	}
 	if e.Token != "" {

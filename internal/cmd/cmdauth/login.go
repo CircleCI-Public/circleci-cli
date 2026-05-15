@@ -178,6 +178,7 @@ func runLoginInteractive(ctx context.Context, configPath string, secureStorage b
 		DeviceID: deviceID,
 		OSInfo:   runtime.GOOS,
 		Color:    iostream.ColorEnabled(ctx),
+		OpenURL:  browserOpener(),
 		GetUsername: func(ctx context.Context, host, token string) (string, error) {
 			me, err := apiclient.New(host, token, nil).GetMe(ctx)
 			if err != nil {

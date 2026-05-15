@@ -83,6 +83,7 @@ type SignupFlowOptions struct {
 	OSInfo                string
 	NoBrowser             bool
 	Color                 bool
+	OpenURL               func(string) error
 	SignupCallbackTimeout time.Duration
 	LoginCallbackTimeout  time.Duration
 	GetUsername           func(ctx context.Context, host, token string) (string, error)
@@ -136,6 +137,9 @@ type signupUsernameFetchedMsg struct {
 }
 
 func NewSignupFlow(ctx context.Context, opts SignupFlowOptions) SignupFlowModel {
+	if opts.OpenURL == nil {
+		opts.OpenURL = browser.OpenURL
+	}
 	if opts.SignupCallbackTimeout <= 0 {
 		opts.SignupCallbackTimeout = time.Second
 	}
@@ -388,7 +392,7 @@ func (m SignupFlowModel) cmdGetUsername(token string) tea.Cmd {
 
 func (m SignupFlowModel) cmdOpenURL(url string) tea.Cmd {
 	return func() tea.Msg {
-		_ = browser.OpenURL(url)
+		_ = m.opts.OpenURL(url)
 		return nil
 	}
 }
