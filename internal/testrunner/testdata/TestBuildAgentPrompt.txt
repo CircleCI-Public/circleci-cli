@@ -1,0 +1,22 @@
+Agent-ready prompt:
+
+Please help me fix my repository so its existing test suite passes in CircleCI's generated test environment.
+
+Detected project:
+- Stack: go
+- Image: cimg/go:1.22
+- Test command: go test ./...
+
+The test run failed. Use the command and output below to identify the likely code or test failure, then propose the smallest fix.
+
+Recent stdout:
+```
+line 2
+line 3
+```
+
+Recent stderr:
+```
+err 2
+err 3
+```
