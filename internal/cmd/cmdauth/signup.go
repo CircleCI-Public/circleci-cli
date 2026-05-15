@@ -71,7 +71,7 @@ func newSignupCmd() *cobra.Command {
 			ctx := iostream.FromCmd(cmd.Context(), cmd)
 			configPath, _ := cmd.Flags().GetString("config")
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runSignup(ctx, configPath, noBrowser, secureStorage)
+			return RunSignup(ctx, configPath, noBrowser, secureStorage)
 		},
 	}
 
@@ -79,7 +79,8 @@ func newSignupCmd() *cobra.Command {
 	return cmd
 }
 
-func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
+// RunSignup runs the browser signup flow and persists the resulting token.
+func RunSignup(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
 	cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
 	if err != nil {
 		return clierrors.New("config.load_failed",
