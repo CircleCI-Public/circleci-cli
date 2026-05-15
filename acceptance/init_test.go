@@ -35,9 +35,11 @@ import (
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
 
-func TestInit_HappyPath_WithFakeRunner(t *testing.T) {
+func TestInit_HappyPath_WithFakeCollaborators(t *testing.T) {
 	env := testenv.New(t)
 	env.Extra["CIRCLECI_INIT_FAKE_RUNNER"] = "pass"
+	env.Extra["CIRCLECI_INIT_FAKE_SIGNUP"] = "success"
+	env.Extra["CIRCLECI_INIT_FAKE_PROJECT_CREATOR"] = "success"
 	workDir := initGitRepo(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -51,12 +53,46 @@ func TestInit_HappyPath_WithFakeRunner(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "Git repository detected"), "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "circleci init will:"), "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "This will run in your selected repo"), "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stderr, "[1/3] Scanning repository"), "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stderr, "[2/3] Running tests in Docker"), "stderr: %s", result.Stderr)
+	assertInOrder(t, result.Stderr,
+		"[1/4] Scanning repository",
+		"[2/4] Running tests in Docker",
+		"[3/4] Generating config",
+		"[4/4] Sign up for CircleCI",
+		"Your first pipeline is running:",
+	)
 	assert.Check(t, strings.Contains(result.Stderr, "Tests passed"), "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stderr, "[3/3] Generating config"), "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stderr, "sign up for CircleCI"), "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stderr, "https://circleci.com/signup"), "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "https://app.circleci.com/pipelines/github/example/initfixture/1"), "stderr: %s", result.Stderr)
+	_, err := os.Stat(filepath.Join(workDir, ".circleci", "config.yml"))
+	assert.NilError(t, err)
+}
+
+func TestInit_ExistingConfigSkipsGeneration(t *testing.T) {
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_INIT_FAKE_RUNNER"] = "pass"
+	env.Extra["CIRCLECI_INIT_FAKE_CONFIGGEN"] = "fail"
+	env.Extra["CIRCLECI_INIT_FAKE_SIGNUP"] = "success"
+	env.Extra["CIRCLECI_INIT_FAKE_PROJECT_CREATOR"] = "success"
+	workDir := initGitRepo(t)
+
+	configDir := filepath.Join(workDir, ".circleci")
+	assert.NilError(t, os.MkdirAll(configDir, 0o755))
+	configPath := filepath.Join(configDir, "config.yml")
+	original := []byte("# existing config\nversion: 2.1\n")
+	assert.NilError(t, os.WriteFile(configPath, original, 0o644))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"init"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "Using existing config"), "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "[4/4] Sign up for CircleCI"), "stderr: %s", result.Stderr)
+	got, err := os.ReadFile(configPath)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, got, original)
 }
 
 func TestInit_TestsFail_PrintsAgentPrompt(t *testing.T) {
@@ -74,6 +110,7 @@ func TestInit_TestsFail_PrintsAgentPrompt(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 7, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "Agent-ready prompt"), "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "go test ./..."), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "[3/4] Generating config"), "stderr: %s", result.Stderr)
 }
 
 func TestInit_RunnerError_DockerMissing(t *testing.T) {
@@ -91,6 +128,63 @@ func TestInit_RunnerError_DockerMissing(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "Docker is required"), "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "Install and start Docker"), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "[3/4] Generating config"), "stderr: %s", result.Stderr)
+}
+
+func TestInit_ConfigGenerationFails(t *testing.T) {
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_INIT_FAKE_RUNNER"] = "pass"
+	env.Extra["CIRCLECI_INIT_FAKE_CONFIGGEN"] = "fail"
+	workDir := initGitRepo(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"init"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "fake config generation failed"), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "[4/4] Sign up for CircleCI"), "stderr: %s", result.Stderr)
+}
+
+func TestInit_SignupCancelled(t *testing.T) {
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_INIT_FAKE_RUNNER"] = "pass"
+	env.Extra["CIRCLECI_INIT_FAKE_SIGNUP"] = "cancel"
+	env.Extra["CIRCLECI_INIT_FAKE_PROJECT_CREATOR"] = "success"
+	workDir := initGitRepo(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"init"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "Signup cancelled"), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "Your first pipeline is running"), "stderr: %s", result.Stderr)
+}
+
+func TestInit_ProjectCreationFails(t *testing.T) {
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_INIT_FAKE_RUNNER"] = "pass"
+	env.Extra["CIRCLECI_INIT_FAKE_SIGNUP"] = "success"
+	env.Extra["CIRCLECI_INIT_FAKE_PROJECT_CREATOR"] = "fake project creation failed"
+	workDir := initGitRepo(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"init"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "fake project creation failed"), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "Your first pipeline is running"), "stderr: %s", result.Stderr)
 }
 
 func TestInit_NotInGitRepo_ExitsBadArgs(t *testing.T) {
@@ -131,5 +225,21 @@ func initGitRepo(t *testing.T) string {
 	cmd.Dir = workDir
 	out, err := cmd.CombinedOutput()
 	assert.NilError(t, err, string(out))
+
+	cmd = exec.Command("git", "remote", "add", "origin", "https://github.com/example/initfixture.git") //#nosec:G204 // fixed git invocation in a test temp dir
+	cmd.Dir = workDir
+	out, err = cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
 	return workDir
+}
+
+func assertInOrder(t *testing.T, haystack string, needles ...string) {
+	t.Helper()
+	last := -1
+	for _, needle := range needles {
+		idx := strings.Index(haystack, needle)
+		assert.Assert(t, idx >= 0, "missing %q in stderr:\n%s", needle, haystack)
+		assert.Assert(t, idx > last, "%q appeared out of order in stderr:\n%s", needle, haystack)
+		last = idx
+	}
 }
