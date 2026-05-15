@@ -33,6 +33,10 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
@@ -40,14 +44,19 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testrunner"
 )
 
-const signupURL = "https://circleci.com/signup"
-
 type scanner interface {
 	Scan(ctx context.Context, dir string) (*reposcan.Result, error)
 }
 
 // NewInitCmd returns the "circleci init" command.
-func NewInitCmd() *cobra.Command {
+func NewInitCmd(projectCreator ProjectCreator) *cobra.Command {
+	if projectCreator == nil {
+		projectCreator = NewStubProjectCreator()
+	}
+	if os.Getenv("CIRCLECI_INIT_FAKE_PROJECT_CREATOR") != "" {
+		projectCreator = fakeProjectCreator{}
+	}
+
 	return &cobra.Command{
 		Use:   "init",
 		Short: "Initialize CircleCI for the current repository",
@@ -95,10 +104,11 @@ func NewInitCmd() *cobra.Command {
 			iostream.ErrPrintf(ctx, "circleci init will:\n")
 			iostream.ErrPrintf(ctx, "  • Scan your repo for tests\n")
 			iostream.ErrPrintf(ctx, "  • Run the tests in a Docker container using CircleCI's test framework\n")
-			iostream.ErrPrintf(ctx, "  • Generate a config file that can run your tests with CircleCI\n\n")
+			iostream.ErrPrintf(ctx, "  • Generate a config file that can run your tests with CircleCI\n")
+			iostream.ErrPrintf(ctx, "  • Sign up for CircleCI to run your generated config\n\n")
 			iostream.ErrPrintf(ctx, "This will run in your selected repo: %s\n\n", repoName)
 
-			iostream.ErrPrintln(ctx, "[1/3] Scanning repository")
+			iostream.ErrPrintln(ctx, "[1/4] Scanning repository")
 			scan, err := newInitScanner().Scan(ctx, dir)
 			if err != nil {
 				return clierrors.New("init.scan_failed",
@@ -108,7 +118,7 @@ func NewInitCmd() *cobra.Command {
 			}
 			reposcan.Render(ctx, scan)
 
-			iostream.ErrPrintln(ctx, "[2/3] Running tests in Docker")
+			iostream.ErrPrintln(ctx, "[2/4] Running tests in Docker")
 			result := testrunner.Run(ctx, dir, scan, newInitRunner())
 			testrunner.Render(ctx, result)
 			switch result.Outcome {
@@ -133,9 +143,58 @@ func NewInitCmd() *cobra.Command {
 					WithExitCode(clierrors.ExitGeneralError)
 			}
 
-			iostream.ErrPrintln(ctx, "[3/3] Generating config (stub)")
-			iostream.ErrPrintf(ctx, "\nNext: sign up for CircleCI to run your generated config file.\n")
-			iostream.ErrPrintf(ctx, "  %s\n", signupURL)
+			iostream.ErrPrintln(ctx, "[3/4] Generating config")
+			if err := generateConfig(ctx, dir, scan); err != nil {
+				return clierrors.New("init.config_failed",
+					"Could not generate config",
+					err.Error()).
+					WithExitCode(clierrors.ExitGeneralError)
+			}
+
+			configPath, _ := cmd.Flags().GetString("config")
+			secureStorage := cmdutil.IsSecureStorage(cmd)
+			iostream.ErrPrintln(ctx, "[4/4] Sign up for CircleCI")
+			if err := runSignup(ctx, configPath, secureStorage); err != nil {
+				return clierrors.New("init.signup_failed",
+					"Signup failed",
+					err.Error()).
+					WithExitCode(clierrors.ExitGeneralError)
+			}
+
+			// Signup currently persists to the default path, so reload there to match.
+			cfg, err := config.LoadFrom(ctx, "", secureStorage)
+			if err != nil {
+				return clierrors.New("init.config_load_failed",
+					"Could not load authentication token",
+					err.Error()).
+					WithExitCode(clierrors.ExitGeneralError)
+			}
+			token := cfg.EffectiveToken()
+			if token == "" {
+				return clierrors.New("init.token_missing",
+					"Could not load authentication token",
+					"Signup completed without a token available to create the CircleCI project.").
+					WithExitCode(clierrors.ExitAuthError)
+			}
+
+			gitRemoteURL, err := gitremote.OriginURL()
+			if err != nil {
+				return clierrors.New("init.remote_failed",
+					"Could not read git remote",
+					err.Error()).
+					WithSuggestions("Add an origin remote to this repository, then rerun circleci init.").
+					WithExitCode(clierrors.ExitGeneralError)
+			}
+
+			pipelineURL, err := projectCreator.Create(ctx, token, gitRemoteURL)
+			if err != nil {
+				return clierrors.New("init.project_creation_failed",
+					"Could not create CircleCI project",
+					err.Error()).
+					WithExitCode(clierrors.ExitGeneralError)
+			}
+
+			iostream.ErrPrintf(ctx, "\n%s Your first pipeline is running:\n  %s\n", ok, pipelineURL)
 			return nil
 		},
 	}
@@ -173,6 +232,37 @@ func newInitRunner() testrunner.Runner {
 		return fakeRunner{buildErr: fmt.Errorf("%w: Docker is required", testrunner.ErrRunnerUnavailable)}
 	default:
 		return testrunner.NewDefaultRunner()
+	}
+}
+
+func generateConfig(ctx context.Context, dir string, scan *reposcan.Result) error {
+	configPath := filepath.Join(dir, ".circleci", "config.yml")
+	if _, err := os.Stat(configPath); err == nil {
+		iostream.ErrPrintf(ctx, "%s Using existing config at %s\n", iostream.SymbolOK(ctx), configPath)
+		return nil
+	}
+	if fake := os.Getenv("CIRCLECI_INIT_FAKE_CONFIGGEN"); fake != "" {
+		if fake == "fail" {
+			return errors.New("fake config generation failed")
+		}
+		return nil
+	}
+	return configgen.Generate(ctx, dir, scan)
+}
+
+func runSignup(ctx context.Context, configPath string, secureStorage bool) error {
+	switch fake := os.Getenv("CIRCLECI_INIT_FAKE_SIGNUP"); fake {
+	case "":
+		return cmdauth.RunSignup(ctx, configPath, false, secureStorage)
+	case "success":
+		return config.SetHostAndToken(ctx, config.DefaultHost, "fake-init-token", secureStorage)
+	case "cancel":
+		return clierrors.New("auth.signup.cancelled",
+			"Signup cancelled",
+			"Signup cancelled before signup completed.").
+			WithExitCode(clierrors.ExitCancelled)
+	default:
+		return errors.New(fake)
 	}
 }
 

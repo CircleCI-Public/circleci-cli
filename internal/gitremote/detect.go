@@ -76,6 +76,15 @@ func InsideWorkTree() bool {
 	return err == nil && out == "true"
 }
 
+// OriginURL returns the raw git remote URL for the origin remote.
+func OriginURL() (string, error) {
+	remoteURL, err := gitOutput("remote", "get-url", "origin")
+	if err != nil {
+		return "", fmt.Errorf("could not read git remote: %w", err)
+	}
+	return remoteURL, nil
+}
+
 // Detect resolves the CircleCI project for the current working directory.
 //
 // Resolution priority:
@@ -102,9 +111,9 @@ func Detect() (*ProjectInfo, error) {
 // — reading info.yml there would short-circuit the very write that link is
 // about to perform.
 func DetectFromRemote() (*ProjectInfo, error) {
-	remoteURL, err := gitOutput("remote", "get-url", "origin")
+	remoteURL, err := OriginURL()
 	if err != nil {
-		return nil, fmt.Errorf("could not read git remote: %w", err)
+		return nil, err
 	}
 
 	slug, err := slugFromRemote(remoteURL)

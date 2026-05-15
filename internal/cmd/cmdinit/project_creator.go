@@ -23,40 +23,38 @@
 package cmdinit
 
 import (
-	"bytes"
-	"strings"
-	"testing"
-
-	"gotest.tools/v3/assert"
+	"context"
+	"errors"
+	"os"
 )
 
-func TestNewInitCmd_HelpNamesAllFourSteps(t *testing.T) {
-	cmd := NewInitCmd(NewStubProjectCreator())
-	var out bytes.Buffer
-	cmd.SetOut(&out)
-	cmd.SetErr(&out)
-	cmd.SetArgs([]string{"--help"})
-
-	assert.NilError(t, cmd.Execute())
-	help := out.String()
-
-	assert.Check(t, strings.Contains(help, "Scan your repo for tests"))
-	assert.Check(t, strings.Contains(help, "Docker container"))
-	assert.Check(t, strings.Contains(help, "Generate a config file"))
-	assert.Check(t, strings.Contains(help, "Sign up for CircleCI"))
+// ProjectCreator creates the CircleCI project and returns the first pipeline URL.
+type ProjectCreator interface {
+	Create(ctx context.Context, token, gitRemoteURL string) (pipelineURL string, err error)
 }
 
-func TestNewInitCmd_Use(t *testing.T) {
-	cmd := NewInitCmd(NewStubProjectCreator())
+type stubProjectCreator struct{}
 
-	assert.Equal(t, cmd.Use, "init")
+// NewStubProjectCreator returns the temporary WEBXP-992 project creation stub.
+func NewStubProjectCreator() ProjectCreator {
+	return stubProjectCreator{}
 }
 
-func TestNewInitCmd_Registration(t *testing.T) {
-	cmd := NewInitCmd(NewStubProjectCreator())
+func (stubProjectCreator) Create(context.Context, string, string) (string, error) {
+	return "", errors.New("project creation is not yet wired (WEBXP-992)")
+}
 
-	assert.Assert(t, cmd.RunE != nil)
-	assert.Assert(t, cmd.Short != "")
-	assert.Assert(t, cmd.Long != "")
-	assert.Assert(t, cmd.Example != "")
+type fakeProjectCreator struct{}
+
+func (fakeProjectCreator) Create(context.Context, string, string) (string, error) {
+	switch env := fakeProjectCreatorEnv(); env {
+	case "", "success":
+		return "https://app.circleci.com/pipelines/github/example/initfixture/1", nil
+	default:
+		return "", errors.New(env)
+	}
+}
+
+func fakeProjectCreatorEnv() string {
+	return os.Getenv("CIRCLECI_INIT_FAKE_PROJECT_CREATOR")
 }

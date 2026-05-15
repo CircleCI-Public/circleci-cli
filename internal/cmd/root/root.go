@@ -112,7 +112,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(completion.NewCompletionCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())
-	cmd.AddCommand(cmdinit.NewInitCmd())
+	cmd.AddCommand(cmdinit.NewInitCmd(cmdinit.NewStubProjectCreator()))
 	cmd.AddCommand(project.NewGetCmd("info")) // Alias to project get
 	cmd.AddCommand(job.NewJobCmd())
 	cmd.AddCommand(cmdrun.NewRunCmd())
