@@ -1,0 +1,5 @@
+error: Could not detect the project stack: docker hub unreachable.
+
+Suggestions:
+  • Re-run with --debug to see scan details
+  • Try again; image resolution requires network access
