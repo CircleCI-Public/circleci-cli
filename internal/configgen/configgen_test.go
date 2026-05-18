@@ -42,8 +42,9 @@ import (
 )
 
 // runGenerate invokes Generate with a fresh context wired to a captured
-// stderr buffer. It returns the stderr (with dir normalized to "<DIR>" so
-// goldens are stable) and the function's error.
+// stderr buffer. It returns the stderr (with dir normalized to "<DIR>" and
+// any Windows path separators flipped to "/" so goldens are stable across
+// platforms) and the function's error.
 func runGenerate(t *testing.T, dir string, result *reposcan.Result) (stderr string, err error) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -53,7 +54,8 @@ func runGenerate(t *testing.T, dir string, result *reposcan.Result) (stderr stri
 		In:  strings.NewReader(""),
 	})
 	err = configgen.Generate(ctx, dir, result)
-	return strings.ReplaceAll(buf.String(), dir, "<DIR>"), err
+	s := strings.ReplaceAll(buf.String(), dir, "<DIR>")
+	return strings.ReplaceAll(s, `\`, `/`), err
 }
 
 func nodeResult() *reposcan.Result {

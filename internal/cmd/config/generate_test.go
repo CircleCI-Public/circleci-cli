@@ -29,6 +29,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -50,9 +51,10 @@ func TestGenerateCmd_RegisteredUnderConfigGroup(t *testing.T) {
 
 // runGenerate invokes 'circleci config generate' in-process against the given
 // project directory and returns the captured stderr (with dir replaced by the
-// placeholder "<DIR>" so golden files are stable across machines) plus the
-// error from RunE. Cobra's default error rendering is silenced because the
-// production root command does the same — errors are formatted by main.go.
+// placeholder "<DIR>" and any Windows path separators normalized to "/" so
+// golden files are stable across platforms) plus the error from RunE. Cobra's
+// default error rendering is silenced because the production root command
+// does the same — errors are formatted by main.go.
 func runGenerate(t *testing.T, dir string, extraArgs ...string) (stderr string, err error) {
 	t.Helper()
 	var buf bytes.Buffer
@@ -64,7 +66,8 @@ func runGenerate(t *testing.T, dir string, extraArgs ...string) (stderr string, 
 	args := append([]string{"generate", dir}, extraArgs...)
 	group.SetArgs(args)
 	err = group.Execute()
-	return strings.ReplaceAll(buf.String(), dir, "<DIR>"), err
+	s := strings.ReplaceAll(buf.String(), dir, "<DIR>")
+	return strings.ReplaceAll(s, `\`, `/`), err
 }
 
 func TestGenerateCmd_SkipsWhenConfigExists(t *testing.T) {
@@ -100,7 +103,10 @@ func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
 	// Format() output, so assert it directly.
 	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitBadArguments))
 
-	rendered := strings.ReplaceAll(cliErr.Format(), missing, "<MISSING_PATH>")
+	// The error message renders the path with %q, which escapes Windows
+	// backslashes (e.g. C:\\Users\\…). Match the quoted form so the
+	// substitution works on every platform.
+	rendered := strings.ReplaceAll(cliErr.Format(), strconv.Quote(missing), `"<MISSING_PATH>"`)
 	assert.Check(t, golden.String(rendered, "path-not-found.error.golden"))
 }
 

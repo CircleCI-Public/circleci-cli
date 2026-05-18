@@ -25,6 +25,7 @@ package acceptance_test
 import (
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -34,6 +35,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
+
+// normalizeStderr replaces dir with placeholder and flips any remaining
+// Windows backslashes to forward slashes so .stderr.txt goldens are stable
+// across platforms.
+func normalizeStderr(stderr, dir, placeholder string) string {
+	s := strings.ReplaceAll(stderr, dir, placeholder)
+	return strings.ReplaceAll(s, `\`, `/`)
+}
 
 // TestConfigGenerate_SkipsWhenExists exercises the idempotent re-run path
 // from a real binary.
@@ -56,7 +65,7 @@ func TestConfigGenerate_SkipsWhenExists(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Equal(t, result.Stdout, "")
 
-	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
+	stderr := normalizeStderr(result.Stderr, dir, "<DIR>")
 	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 
 	got, readErr := os.ReadFile(configPath)
@@ -78,7 +87,10 @@ func TestConfigGenerate_PathNotFound(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
 	assert.Equal(t, result.Stdout, "")
 
-	stderr := strings.ReplaceAll(result.Stderr, missing, "<MISSING_PATH>")
+	// The error message renders the path with %q, which escapes Windows
+	// backslashes (e.g. C:\\Users\\…). Match the quoted form so the
+	// substitution works on every platform.
+	stderr := strings.ReplaceAll(result.Stderr, strconv.Quote(missing), `"<MISSING_PATH>"`)
 	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 }
 
@@ -123,7 +135,7 @@ func TestConfigGenerate_WritesGeneratedYAML(t *testing.T) {
 	assert.Assert(t, strings.HasPrefix(string(written), generatedHeader),
 		"config.yml must start with the generated-by header; got: %q", string(written))
 
-	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
+	stderr := normalizeStderr(result.Stderr, dir, "<DIR>")
 	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 }
 
@@ -151,7 +163,8 @@ func TestConfigGenerate_DefaultPath(t *testing.T) {
 	assert.Assert(t, strings.HasPrefix(string(written), generatedHeader),
 		"config.yml must start with the generated-by header; got: %q", string(written))
 
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	stderr := strings.ReplaceAll(result.Stderr, `\`, `/`)
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 }
 
 // TestConfigGenerate_ScanFailure exercises the structured-error path for a
