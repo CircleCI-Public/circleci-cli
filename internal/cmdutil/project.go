@@ -20,41 +20,34 @@
 //
 // SPDX-License-Identifier: MIT
 
-package run
+package cmdutil
 
 import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
+	"context"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
-// NewRunCmd returns the "circleci run" command group.
-func NewRunCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "run <command>",
-		Short: "Manage runs",
-		Long: heredoc.Doc(`
-			Work with CircleCI runs.
-
-			Runs are the top-level unit of work in CircleCI — they contain
-			one or more workflows, each of which contains jobs.
-		`),
+// ResolveProjectID returns projectID as-is when non-empty. Otherwise it resolves
+// the project from the slug (--project flag or git remote) to recover its UUID.
+func ResolveProjectID(ctx context.Context, client *apiclient.Client, projectSlug, projectID string) (string, error) {
+	if projectID != "" {
+		return projectID, nil
 	}
-
-	cmd.AddCommand(newCancelCmd())
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newWatchCmd())
-
-	return cmd
-}
-
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
-		"run.not_found", "No run found for %q.",
-		"Check the run UUID or branch name and try again")
+	if projectSlug == "" {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return "", GitDetectErr(err, "Or specify the project with --project gh/org/repo or --project-id <uuid>")
+		}
+		projectSlug = info.Slug
+	}
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	if err != nil {
+		return "", APIErr(err, projectSlug, "project.not_found", "No project found for %q.",
+			"Run 'circleci project link' to bind this repository to a CircleCI project",
+			"Check the project slug and try again",
+			"Use 'circleci project list' to see followed projects")
+	}
+	return proj.ID, nil
 }

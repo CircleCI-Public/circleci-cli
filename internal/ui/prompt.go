@@ -76,6 +76,12 @@ func (m PromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case components.KeyEnter:
 			m.value = m.textInput.Value()
 			return m, tea.Quit
+		case components.KeyTab:
+			if m.textInput.Value() == "" && m.placeholder != "" {
+				m.textInput.SetValue(m.placeholder)
+				m.textInput.CursorEnd()
+			}
+			return m, nil
 		}
 	}
 
