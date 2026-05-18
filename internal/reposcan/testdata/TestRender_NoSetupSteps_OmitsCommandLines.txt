@@ -1,0 +1,1 @@
+✓ Detected ruby project (cimg/ruby:3.2)

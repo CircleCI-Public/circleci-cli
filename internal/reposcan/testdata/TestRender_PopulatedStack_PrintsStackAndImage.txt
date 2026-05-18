@@ -1,0 +1,3 @@
+✓ Detected go project (cimg/go:1.22)
+    install: go mod download
+    test: go test ./...
