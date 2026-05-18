@@ -102,10 +102,32 @@ type CircleCI struct {
 	oauthTokenResponse any // response body for POST /oauth/token
 	oauthTokenStatus   int // HTTP status for POST /oauth/token (0 → 200 OK)
 
+	// Orb state (v3).
+	orbPackages         map[string]map[string]any // id → package object
+	orbPackagesByName   map[string]string         // "ns/name" → id
+	orbVersions         map[string]map[string]any // id → version object
+	orbVersionsByRef    map[string]string         // "ns/name@version" → id
+	orbVersionsByOrbID  map[string][]string       // orbID → ordered version IDs
+	orbCategories       map[string]map[string]any // id → category object
+	orbCategoriesByName map[string]string         // name → id
+	orbValidateResponse *orbFakeValidateResponse  // override for validate/process responses
+	orbCreatedPackages  []map[string]any          // packages created via POST
+	orbCreatedVersions  []map[string]any          // versions created via POST
+	orbUnlistedPackages map[string]bool           // id → unlisted
+	orbCategoryMembers  map[string][]string       // packageID → []categoryID
+
 	// Namespace state (served via /graphql-unstable).
 	namespaces        map[string]any    // namespace id → {id, name}
 	namespacesByName  map[string]string // namespace name → id
 	deletedNamespaces map[string]bool   // namespace id → deleted
+}
+
+// orbFakeValidateResponse holds a preset validate/process response for testing.
+type orbFakeValidateResponse struct {
+	yaml       string
+	valid      bool
+	errors     []string
+	outputYAML string
 }
 
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
@@ -155,6 +177,15 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		iosBundles:                        map[string][]any{},
 		deletedIOSCerts:                   map[string]bool{},
 		deletedIOSBundles:                 map[string]bool{},
+		orbPackages:                       map[string]map[string]any{},
+		orbPackagesByName:                 map[string]string{},
+		orbVersions:                       map[string]map[string]any{},
+		orbVersionsByRef:                  map[string]string{},
+		orbVersionsByOrbID:                map[string][]string{},
+		orbCategories:                     map[string]map[string]any{},
+		orbCategoriesByName:               map[string]string{},
+		orbUnlistedPackages:               map[string]bool{},
+		orbCategoryMembers:                map[string][]string{},
 	}
 
 	r := newRouter()
@@ -218,6 +249,20 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v3/namespaces", f.handleRESTCreateNamespace)
 	r.Post("/api/v3/namespaces/{id}/rename", f.handleRESTRenameNamespace)
 	r.Delete("/api/v3/namespaces/{id}", f.handleRESTDeleteNamespace)
+	// Orb (v3) routes. Static paths must be registered before the {id} catch-all.
+	r.Get("/api/v3/orb/packages", f.handleOrbListPackages)
+	r.Post("/api/v3/orb/packages", f.handleOrbCreatePackage)
+	r.Post("/api/v3/orb/packages/validate", f.handleOrbValidate)
+	r.Post("/api/v3/orb/packages/process", f.handleOrbProcess)
+	r.Get("/api/v3/orb/packages/{id}", f.handleOrbGetPackage)
+	r.Post("/api/v3/orb/packages/{id}/set-listed", f.handleOrbSetListed)
+	r.Post("/api/v3/orb/packages/{id}/add-category", f.handleOrbAddCategory)
+	r.Post("/api/v3/orb/packages/{id}/remove-category", f.handleOrbRemoveCategory)
+	r.Get("/api/v3/orb/versions", f.handleOrbListVersions)
+	r.Post("/api/v3/orb/versions", f.handleOrbCreateVersion)
+	r.Get("/api/v3/orb/versions/{id}", f.handleOrbGetVersion)
+	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
+	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
 	// Wildcard routes for downloads and step output — populated via helpers before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
 	r.Get("/output/*", f.handleStepOutput)
@@ -1871,4 +1916,701 @@ func (f *CircleCI) handleDeleteIOSBundle(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// --- Orb helpers ---
+
+// AddOrbPackage registers an orb package in the fake server.
+func (f *CircleCI) AddOrbPackage(id, nsID, nsName, orbName string, isPrivate, isListed bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	fullName := nsName + "/" + orbName
+	pkg := map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"name":                       fullName,
+			"is_private":                 isPrivate,
+			"is_listed":                  isListed,
+			"created_at":                 "2026-01-01T00:00:00.000Z",
+			"last_30_days_build_count":   int64(0),
+			"last_30_days_project_count": int64(0),
+			"last_30_days_org_count":     int64(0),
+		},
+		"references": map[string]any{
+			"namespace": map[string]any{
+				"id":         nsID,
+				"attributes": map[string]any{"name": nsName},
+			},
+			"categories": []any{},
+		},
+	}
+	f.orbPackages[id] = pkg
+	f.orbPackagesByName[fullName] = id
+}
+
+// AddOrbVersion registers an orb version in the fake server.
+// createdAt can be empty (will default to a fixed timestamp).
+func (f *CircleCI) AddOrbVersion(id, orbID, orbName, version, source, createdAt string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	if createdAt == "" {
+		createdAt = "2026-01-15T10:30:00.000Z"
+	}
+	ver := map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"version":    version,
+			"source":     source,
+			"created_at": createdAt,
+		},
+		"references": map[string]any{
+			"orb": map[string]any{
+				"id":         orbID,
+				"attributes": map[string]any{"name": orbName},
+			},
+		},
+	}
+	f.orbVersions[id] = ver
+	ref := orbName + "@" + version
+	f.orbVersionsByRef[ref] = id
+	// Also register @volatile pointing to this version (last registered wins).
+	volatileRef := orbName + "@volatile"
+	f.orbVersionsByRef[volatileRef] = id
+	// Add to orb's version list (for list by orb_id)
+	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
+
+	// Update the package's latest_version reference
+	if pkg, ok := f.orbPackages[orbID]; ok {
+		if refs, ok := pkg["references"].(map[string]any); ok {
+			refs["latest_version"] = map[string]any{
+				"id": id,
+				"attributes": map[string]any{
+					"version":    version,
+					"created_at": createdAt,
+				},
+			}
+		}
+	}
+}
+
+// AddOrbCategory registers an orb category in the fake server.
+func (f *CircleCI) AddOrbCategory(id, name string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orbCategories[id] = map[string]any{
+		"id":         id,
+		"attributes": map[string]any{"name": name},
+	}
+	f.orbCategoriesByName[name] = id
+}
+
+// SetOrbValidationResponse configures the validate/process endpoints to return
+// the given result when the request YAML matches yaml. Pass "" for yaml to
+// match any request.
+func (f *CircleCI) SetOrbValidationResponse(yaml string, valid bool, errors []string, outputYAML string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orbValidateResponse = &orbFakeValidateResponse{
+		yaml:       yaml,
+		valid:      valid,
+		errors:     errors,
+		outputYAML: outputYAML,
+	}
+}
+
+// --- Orb handlers ---
+
+func orbPackageResponse(pkg map[string]any) map[string]any {
+	return map[string]any{"data": pkg}
+}
+
+func orbVersionResponse(ver map[string]any) map[string]any {
+	return map[string]any{"data": ver}
+}
+
+func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request) {
+	nsID := r.URL.Query().Get("namespace_id")
+	nameFilter := r.URL.Query().Get("filter[name]")
+	f.mu.RLock()
+	pkgs := f.orbPackages
+	unlisted := f.orbUnlistedPackages
+	catMembers := f.orbCategoryMembers
+	cats := f.orbCategories
+	f.mu.RUnlock()
+
+	var items []any
+	for _, pkg := range pkgs {
+		attrs, _ := pkg["attributes"].(map[string]any)
+		name, _ := attrs["name"].(string)
+
+		if nameFilter != "" && name != nameFilter {
+			continue
+		}
+		refs, _ := pkg["references"].(map[string]any)
+		ns, _ := refs["namespace"].(map[string]any)
+		nsIDVal, _ := ns["id"].(string)
+		if nsID != "" && nsIDVal != nsID {
+			continue
+		}
+		id, _ := pkg["id"].(string)
+		// Build categories list for this package.
+		catIDs := catMembers[id]
+		catList := make([]any, 0, len(catIDs))
+		for _, cid := range catIDs {
+			if c, ok := cats[cid]; ok {
+				catList = append(catList, c)
+			}
+		}
+		// Clone pkg with updated listed state and categories.
+		pkgCopy := cloneMap(pkg)
+		if attrsCopy, ok := pkgCopy["attributes"].(map[string]any); ok {
+			attrsCopy["is_listed"] = !unlisted[id]
+		}
+		if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
+			refsCopy["categories"] = catList
+		}
+		items = append(items, pkgCopy)
+	}
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{
+		"data": items,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Name        string `json:"name"`
+		NamespaceID string `json:"namespace_id"`
+		IsPrivate   bool   `json:"is_private"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.Lock()
+	// Check namespace exists
+	nsData, ok := f.namespaces[body.NamespaceID]
+	f.mu.Unlock()
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "namespace not found"})
+		return
+	}
+	nsName, _ := nsData.(map[string]any)["name"].(string)
+
+	id := uuid.New().String()
+	pkg := map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"name":                       body.Name,
+			"is_private":                 body.IsPrivate,
+			"is_listed":                  true,
+			"created_at":                 "2026-01-01T00:00:00.000Z",
+			"last_30_days_build_count":   int64(0),
+			"last_30_days_project_count": int64(0),
+			"last_30_days_org_count":     int64(0),
+		},
+		"references": map[string]any{
+			"namespace": map[string]any{
+				"id":         body.NamespaceID,
+				"attributes": map[string]any{"name": nsName},
+			},
+			"categories": []any{},
+		},
+	}
+	f.mu.Lock()
+	f.orbPackages[id] = pkg
+	f.orbPackagesByName[body.Name] = id
+	f.orbCreatedPackages = append(f.orbCreatedPackages, pkg)
+	f.mu.Unlock()
+
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, orbPackageResponse(pkg))
+}
+
+func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	pkg, ok := f.orbPackages[id]
+	catIDs := f.orbCategoryMembers[id]
+	cats := f.orbCategories
+	unlisted := f.orbUnlistedPackages[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	catList := make([]any, 0, len(catIDs))
+	for _, cid := range catIDs {
+		if c, ok := cats[cid]; ok {
+			catList = append(catList, c)
+		}
+	}
+	pkgCopy := cloneMap(pkg)
+	if attrsCopy, ok := pkgCopy["attributes"].(map[string]any); ok {
+		attrsCopy["is_listed"] = !unlisted
+	}
+	if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
+		refsCopy["categories"] = catList
+	}
+	render.JSON(w, r, orbPackageResponse(pkgCopy))
+}
+
+func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Listed bool `json:"listed"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.Lock()
+	pkg, ok := f.orbPackages[id]
+	if ok {
+		if !body.Listed {
+			f.orbUnlistedPackages[id] = true
+		} else {
+			delete(f.orbUnlistedPackages, id)
+		}
+	}
+	f.mu.Unlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, orbPackageResponse(pkg))
+}
+
+func (f *CircleCI) handleOrbAddCategory(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		CategoryID string `json:"category_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.Lock()
+	pkg, ok := f.orbPackages[id]
+	if ok {
+		// Avoid duplicates
+		found := false
+		for _, cid := range f.orbCategoryMembers[id] {
+			if cid == body.CategoryID {
+				found = true
+				break
+			}
+		}
+		if !found {
+			f.orbCategoryMembers[id] = append(f.orbCategoryMembers[id], body.CategoryID)
+		}
+	}
+	f.mu.Unlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, orbPackageResponse(pkg))
+}
+
+func (f *CircleCI) handleOrbRemoveCategory(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		CategoryID string `json:"category_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.Lock()
+	pkg, ok := f.orbPackages[id]
+	if ok {
+		var remaining []string
+		for _, cid := range f.orbCategoryMembers[id] {
+			if cid != body.CategoryID {
+				remaining = append(remaining, cid)
+			}
+		}
+		f.orbCategoryMembers[id] = remaining
+	}
+	f.mu.Unlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, orbPackageResponse(pkg))
+}
+
+func (f *CircleCI) handleOrbValidate(w http.ResponseWriter, r *http.Request) {
+	f.handleOrbValidateOrProcess(w, r)
+}
+
+func (f *CircleCI) handleOrbProcess(w http.ResponseWriter, r *http.Request) {
+	f.handleOrbValidateOrProcess(w, r)
+}
+
+func (f *CircleCI) handleOrbValidateOrProcess(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		YAML  string `json:"yaml"`
+		OrgID string `json:"org_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.RLock()
+	override := f.orbValidateResponse
+	f.mu.RUnlock()
+
+	valid := true
+	outputYAML := body.YAML
+	var errors []string
+
+	if override != nil && (override.yaml == "" || override.yaml == body.YAML) {
+		valid = override.valid
+		errors = override.errors
+		outputYAML = override.outputYAML
+	}
+
+	response := map[string]any{
+		"data": map[string]any{
+			"id": "00000000-0000-0000-0000-000000000000",
+			"attributes": map[string]any{
+				"valid":       valid,
+				"output_yaml": outputYAML,
+				"errors":      errors,
+			},
+		},
+	}
+	render.JSON(w, r, response)
+}
+
+func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request) {
+	// If filter[ref] is given, dispatch to ref-based lookup
+	if refFilter := r.URL.Query().Get("filter[ref]"); refFilter != "" {
+		f.handleOrbListVersionsByRefInternal(w, r, refFilter)
+		return
+	}
+
+	orbID := r.URL.Query().Get("filter[orb_id]")
+	channel := r.URL.Query().Get("filter[channel]")
+	pageSizeStr := r.URL.Query().Get("page[size]")
+
+	f.mu.RLock()
+	versionIDs := f.orbVersionsByOrbID[orbID]
+	allVersions := f.orbVersions
+	f.mu.RUnlock()
+
+	var items []any
+	pageSize := len(versionIDs)
+	if pageSizeStr != "" {
+		if n, err := fmt.Sscanf(pageSizeStr, "%d", &pageSize); n != 1 || err != nil {
+			pageSize = len(versionIDs)
+		}
+	}
+
+	count := 0
+	for _, id := range versionIDs {
+		if count >= pageSize {
+			break
+		}
+		ver, ok := allVersions[id]
+		if !ok {
+			continue
+		}
+		if channel != "" {
+			attrs, _ := ver["attributes"].(map[string]any)
+			version, _ := attrs["version"].(string)
+			isDev := len(version) > 4 && version[:4] == "dev:"
+			if channel == "stable" && isDev {
+				continue
+			}
+			if channel == "dev" && !isDev {
+				continue
+			}
+		}
+		items = append(items, ver)
+		count++
+	}
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{
+		"data": items,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		OrbID   string `json:"orb_id"`
+		YAML    string `json:"yaml"`
+		Version string `json:"version"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.RLock()
+	pkg, pkgOK := f.orbPackages[body.OrbID]
+	f.mu.RUnlock()
+
+	if !pkgOK {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "orb not found"})
+		return
+	}
+
+	attrs, _ := pkg["attributes"].(map[string]any)
+	orbName, _ := attrs["name"].(string)
+
+	id := uuid.New().String()
+	ver := map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"version":    body.Version,
+			"source":     body.YAML,
+			"created_at": "2026-01-15T10:30:00.000Z",
+		},
+		"references": map[string]any{
+			"orb": map[string]any{
+				"id":         body.OrbID,
+				"attributes": map[string]any{"name": orbName},
+			},
+		},
+	}
+
+	f.mu.Lock()
+	f.orbVersions[id] = ver
+	ref := orbName + "@" + body.Version
+	f.orbVersionsByRef[ref] = id
+	f.orbVersionsByRef[orbName+"@volatile"] = id
+	f.orbVersionsByOrbID[body.OrbID] = append([]string{id}, f.orbVersionsByOrbID[body.OrbID]...)
+	// Update package latest_version
+	if refs, ok := pkg["references"].(map[string]any); ok {
+		refs["latest_version"] = map[string]any{
+			"id": id,
+			"attributes": map[string]any{
+				"version":    body.Version,
+				"created_at": "2026-01-15T10:30:00.000Z",
+			},
+		}
+	}
+	f.orbCreatedVersions = append(f.orbCreatedVersions, ver)
+	f.mu.Unlock()
+
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, orbVersionResponse(ver))
+}
+
+func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	ver, ok := f.orbVersions[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, orbVersionResponse(ver))
+}
+
+func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Segment string `json:"segment"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.RLock()
+	ver, ok := f.orbVersions[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	refs, _ := ver["references"].(map[string]any)
+	orb, _ := refs["orb"].(map[string]any)
+	orbID, _ := orb["id"].(string)
+	orbName, _ := orb["attributes"].(map[string]any)["name"].(string)
+
+	// Find the latest stable version to increment from
+	f.mu.RLock()
+	versionIDs := f.orbVersionsByOrbID[orbID]
+	allVersions := f.orbVersions
+	f.mu.RUnlock()
+
+	latestStable := "0.0.0"
+	for _, vid := range versionIDs {
+		v, ok := allVersions[vid]
+		if !ok {
+			continue
+		}
+		attrs, _ := v["attributes"].(map[string]any)
+		ver2, _ := attrs["version"].(string)
+		if len(ver2) > 4 && ver2[:4] == "dev:" {
+			continue
+		}
+		latestStable = ver2
+		break
+	}
+
+	// Increment version
+	newVersion := incrementFakeVersion(latestStable, body.Segment)
+
+	attrs, _ := ver["attributes"].(map[string]any)
+	newID := uuid.New().String()
+	newVer := map[string]any{
+		"id": newID,
+		"attributes": map[string]any{
+			"version":    newVersion,
+			"source":     attrs["source"],
+			"created_at": "2026-01-15T10:30:00.000Z",
+		},
+		"references": map[string]any{
+			"orb": map[string]any{
+				"id":         orbID,
+				"attributes": map[string]any{"name": orbName},
+			},
+		},
+	}
+
+	f.mu.Lock()
+	f.orbVersions[newID] = newVer
+	f.orbVersionsByRef[orbName+"@"+newVersion] = newID
+	f.orbVersionsByRef[orbName+"@volatile"] = newID
+	f.orbVersionsByOrbID[orbID] = append([]string{newID}, f.orbVersionsByOrbID[orbID]...)
+	f.mu.Unlock()
+
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, orbVersionResponse(newVer))
+}
+
+func (f *CircleCI) handleOrbListCategories(w http.ResponseWriter, r *http.Request) {
+	nameFilter := r.URL.Query().Get("filter[name]")
+	f.mu.RLock()
+	cats := f.orbCategories
+	byName := f.orbCategoriesByName
+	f.mu.RUnlock()
+
+	var items []any
+	if nameFilter != "" {
+		if id, ok := byName[nameFilter]; ok {
+			if c, ok := cats[id]; ok {
+				items = append(items, c)
+			}
+		}
+	} else {
+		for _, c := range cats {
+			items = append(items, c)
+		}
+	}
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{
+		"data": items,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+// handleOrbListVersions handles GET /api/v3/orb/versions with filter[ref] support.
+// The existing handleOrbListVersions is extended to handle filter[ref].
+func (f *CircleCI) handleOrbListVersionsByRefInternal(w http.ResponseWriter, r *http.Request, refFilter string) {
+	f.mu.RLock()
+	verID, ok := f.orbVersionsByRef[refFilter]
+	allVersions := f.orbVersions
+	f.mu.RUnlock()
+
+	if !ok {
+		render.JSON(w, r, map[string]any{
+			"data": []any{},
+			"page": map[string]any{"next": nil, "prev": nil},
+		})
+		return
+	}
+	ver, ok := allVersions[verID]
+	if !ok {
+		render.JSON(w, r, map[string]any{
+			"data": []any{},
+			"page": map[string]any{"next": nil, "prev": nil},
+		})
+		return
+	}
+	render.JSON(w, r, map[string]any{
+		"data": []any{ver},
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+// cloneMap does a shallow clone of a map[string]any.
+func cloneMap(m map[string]any) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+// incrementFakeVersion increments a semver string.
+func incrementFakeVersion(version, segment string) string {
+	parts := strings.Split(version, ".")
+	if len(parts) != 3 {
+		return "0.0.1"
+	}
+	major := parseIntOrZero(parts[0])
+	minor := parseIntOrZero(parts[1])
+	patch := parseIntOrZero(parts[2])
+	switch segment {
+	case "major":
+		major++
+		minor = 0
+		patch = 0
+	case "minor":
+		minor++
+		patch = 0
+	default:
+		patch++
+	}
+	return fmt.Sprintf("%d.%d.%d", major, minor, patch)
+}
+
+func parseIntOrZero(s string) int {
+	var n int
+	_, _ = fmt.Sscanf(s, "%d", &n)
+	return n
 }

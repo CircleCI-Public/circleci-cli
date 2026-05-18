@@ -1,0 +1,1 @@
+✓ Orb "myorg/my-orb" has been unlisted from the registry.

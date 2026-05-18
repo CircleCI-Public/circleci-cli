@@ -1,0 +1,21 @@
+Usage:
+  circleci orb source <ns>/<orb>[@<version>] [flags]
+
+Examples:
+# Print source of the latest version
+$ circleci orb source myorg/my-orb
+
+# Print source of a specific version
+$ circleci orb source myorg/my-orb@1.2.3
+
+# Print source of a dev version
+$ circleci orb source myorg/my-orb@dev:my-branch
+
+# Save the source to a file
+$ circleci orb source myorg/my-orb@1.0.0 > orb.yml
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

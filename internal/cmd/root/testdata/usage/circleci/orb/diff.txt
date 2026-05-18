@@ -1,0 +1,18 @@
+Usage:
+  circleci orb diff <ns>/<orb> <v1> <v2> [flags]
+
+Examples:
+# Diff two semver versions
+$ circleci orb diff myorg/my-orb 1.0.0 1.1.0
+
+# Diff a semver and a dev version
+$ circleci orb diff myorg/my-orb 1.0.0 dev:my-branch
+
+# Diff two dev versions
+$ circleci orb diff myorg/my-orb dev:branch-a dev:branch-b
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

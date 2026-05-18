@@ -1,0 +1,18 @@
+Usage:
+  circleci orb add-to-category <ns>/<orb> <category> [flags]
+
+Examples:
+# Add an orb to the Testing category
+$ circleci orb add-to-category myorg/my-orb "Testing"
+
+# Add an orb to the Deployment category
+$ circleci orb add-to-category myorg/my-orb "Deployment"
+
+# List available categories first
+$ circleci orb list-categories
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

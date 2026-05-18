@@ -1,0 +1,23 @@
+Usage:
+  circleci orb create <namespace>/<orb> [flags]
+
+Examples:
+# Create a public orb
+$ circleci orb create myorg/my-orb
+
+# Create a private orb
+$ circleci orb create myorg/my-orb --private
+
+# Create and output as JSON
+$ circleci orb create myorg/my-orb --json
+
+
+Flags:
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+      --private     create as a private orb
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

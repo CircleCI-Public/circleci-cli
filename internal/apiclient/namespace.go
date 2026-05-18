@@ -56,7 +56,7 @@ func (e *namespace) toNamespace() *Namespace {
 func (c *Client) GetNamespace(ctx context.Context, name string) (*Namespace, error) {
 	var env v3Entity[namespace]
 	err := c.getV3(ctx, "/namespaces", &env,
-		queryParam("filter[name]", name),
+		filterParam("name", name),
 	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)

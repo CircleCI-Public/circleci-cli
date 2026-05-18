@@ -1,0 +1,7 @@
+commands:
+    run:
+        description: Run a command
+        steps:
+            - run: echo hello
+description: My orb
+version: 2.1

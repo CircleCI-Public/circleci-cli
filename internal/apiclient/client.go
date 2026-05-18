@@ -25,6 +25,7 @@ package apiclient
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"runtime"
 	"strings"
@@ -173,6 +174,37 @@ func (c *Client) deleteRunner(ctx context.Context, route string, opts ...func(*h
 
 type v3Entity[T any] struct {
 	Data T `json:"data"`
+}
+
+type v3List[T any] struct {
+	Data []T `json:"data"`
+	Page struct {
+		Next *string `json:"next"`
+		Prev *string `json:"prev"`
+	} `json:"page"`
+}
+
+// pageSize returns a request option that sets page[size].
+// A size of 0 is ignored (server default is used).
+//
+//nolint:unused // this will likely become used
+func pageSize(n int) func(*httpcl.Request) {
+	if n <= 0 {
+		return func(*httpcl.Request) {}
+	}
+	return queryParam("page[size]", fmt.Sprintf("%d", n))
+}
+
+// pageCursor returns a request option that sets page[cursor].
+// An empty cursor is ignored (first page).
+func pageCursor(cursor string) func(*httpcl.Request) {
+	return optionalQueryParam("page[cursor]", cursor)
+}
+
+// filterParam returns a request option that sets filter[key]=val.
+// An empty val is ignored.
+func filterParam(key, val string) func(*httpcl.Request) {
+	return optionalQueryParam("filter["+key+"]", val)
 }
 
 func (c *Client) getV3(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
