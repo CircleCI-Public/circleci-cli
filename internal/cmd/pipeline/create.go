@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package run
+package pipeline
 
 import (
 	"context"
@@ -87,7 +87,7 @@ func newCreateCmd() *cobra.Command {
 		`, "`", strings.Join(validConfigProviders, ", "), strings.Join(validCheckoutProviders, ", ")),
 		Example: heredoc.Doc(`
 			# Create a pipeline definition using GitHub App
-			$ circleci run create \
+			$ circleci pipeline create \
 			    --project gh/myorg/myrepo \
 			    --name "my-pipeline" \
 			    --config-provider github_app \
@@ -97,7 +97,7 @@ func newCreateCmd() *cobra.Command {
 			    --checkout-repo-id 123456789
 
 			# Create with a description and output as JSON
-			$ circleci run create \
+			$ circleci pipeline create \
 			    --name "release-pipeline" \
 			    --description "Runs on tagged releases" \
 			    --config-provider github_app \
@@ -108,7 +108,7 @@ func newCreateCmd() *cobra.Command {
 			    --json
 
 			# Create using a direct project UUID (skips project info lookup)
-			$ circleci run create \
+			$ circleci pipeline create \
 			    --project-id a1b2c3d4-... \
 			    --name "nightly" \
 			    --config-provider github_app \
@@ -248,8 +248,6 @@ func runCreate(
 	return nil
 }
 
-// resolveRequired returns val if non-empty. In interactive mode it prompts the
-// user for the value; in non-interactive mode it returns a structured error.
 func resolveRequired(ctx context.Context, val, prompt, placeholder, errMsg string) (string, error) {
 	if val != "" {
 		return val, nil
@@ -273,8 +271,6 @@ func resolveRequired(ctx context.Context, val, prompt, placeholder, errMsg strin
 	return v, nil
 }
 
-// resolveRequiredSelect returns val if non-empty. In interactive mode it shows
-// a picker; in non-interactive mode it returns a structured error.
 func resolveRequiredSelect(ctx context.Context, val, prompt string, options []string, errMsg string) (string, error) {
 	if val != "" {
 		return val, nil
@@ -303,8 +299,6 @@ type repoOption struct {
 	label string
 }
 
-// collectRepoOptions builds a deduplicated list of repo choices from the
-// config_source and checkout_source of existing pipeline definitions.
 func collectRepoOptions(defs []apiclient.PipelineDefinition) []repoOption {
 	seen := map[string]bool{}
 	var opts []repoOption
@@ -324,8 +318,6 @@ func collectRepoOptions(defs []apiclient.PipelineDefinition) []repoOption {
 	return opts
 }
 
-// pickFromRepoOptions presents a select over known repos plus "Enter manually..."
-// at the bottom. Falls back to a plain text prompt when opts is empty.
 func pickFromRepoOptions(ctx context.Context, opts []repoOption, prompt string) (string, error) {
 	if len(opts) == 0 {
 		return promptRepoID(ctx, prompt)
@@ -352,8 +344,6 @@ func pickFromRepoOptions(ctx context.Context, opts []repoOption, prompt string) 
 	return opts[idx].id, nil
 }
 
-// resolveRepoIDFromOptions returns val if already set. In non-interactive mode
-// it errors; in interactive mode it shows a picker built from opts.
 func resolveRepoIDFromOptions(ctx context.Context, opts []repoOption, val, prompt, errMsg string) (string, error) {
 	if val != "" {
 		return val, nil
@@ -369,8 +359,6 @@ func resolveRepoIDFromOptions(ctx context.Context, opts []repoOption, val, promp
 	return pickFromRepoOptions(ctx, opts, prompt)
 }
 
-// resolveCheckoutRepoID prompts for the checkout repo. When configRepoID is
-// known it is offered as a shortcut; "Other..." opens the full repo picker.
 func resolveCheckoutRepoID(ctx context.Context, opts []repoOption, val, configRepoID string) (string, error) {
 	if val != "" {
 		return val, nil
@@ -384,12 +372,10 @@ func resolveCheckoutRepoID(ctx context.Context, opts []repoOption, val, configRe
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	// No config repo shortcut available — fall back to the full picker.
 	if configRepoID == "" {
 		return pickFromRepoOptions(ctx, opts, "Checkout repo external ID")
 	}
 
-	// Find a display label for the config repo.
 	configLabel := configRepoID
 	for _, o := range opts {
 		if o.id == configRepoID {

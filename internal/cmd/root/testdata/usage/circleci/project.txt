@@ -2,7 +2,6 @@ Usage:
   circleci project [command]
 
 Available Commands:
-  definitions List pipeline definitions for a project
   envvar      Manage project environment variables
   follow      Follow a project
   get         Show project details

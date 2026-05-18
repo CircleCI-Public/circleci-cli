@@ -16,6 +16,7 @@ Available Commands:
   mcp            MCP server management
   namespace      Manage orb namespaces
   open           Open the current project in the browser
+  pipeline       Manage pipeline definitions
   project        Manage CircleCI projects
   run            Manage runs
   runner         Manage self-hosted runners

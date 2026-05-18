@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package project
+package pipeline
 
 import (
 	"context"
@@ -36,7 +36,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
-func newDefinitionsCmd() *cobra.Command {
+func newListCmd() *cobra.Command {
 	var (
 		projectSlug string
 		projectID   string
@@ -44,7 +44,7 @@ func newDefinitionsCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "definitions",
+		Use:   "list",
 		Short: "List pipeline definitions for a project",
 		Long: heredoc.Doc(`
 			List all pipeline definitions for a CircleCI project.
@@ -60,16 +60,16 @@ func newDefinitionsCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# List pipeline definitions for the current repository's project
-			$ circleci project definitions
+			$ circleci pipeline list
 
 			# List pipeline definitions for a specific project
-			$ circleci project definitions --project gh/myorg/myrepo
+			$ circleci pipeline list --project gh/myorg/myrepo
 
 			# Output as JSON for scripting
-			$ circleci project definitions --json
+			$ circleci pipeline list --json
 
 			# Filter by config provider
-			$ circleci project definitions --json --jq '.[] | select(.config_source.provider == "github_app")'
+			$ circleci pipeline list --json --jq '.[] | select(.config_source.provider == "github_app")'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,7 +78,7 @@ func newDefinitionsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runDefinitions(ctx, client, projectSlug, projectID, jsonOut)
+			return runList(ctx, client, projectSlug, projectID, jsonOut)
 		},
 	}
 
@@ -90,7 +90,7 @@ func newDefinitionsCmd() *cobra.Command {
 	return cmd
 }
 
-type definitionOutput struct {
+type listOutput struct {
 	ID             string                              `json:"id"`
 	Name           string                              `json:"name"`
 	Description    string                              `json:"description,omitempty"`
@@ -99,7 +99,7 @@ type definitionOutput struct {
 	CheckoutSource *apiclient.PipelineDefinitionSource `json:"checkout_source,omitempty"`
 }
 
-func runDefinitions(ctx context.Context, client *apiclient.Client, projectSlug, projectID string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, projectSlug, projectID string, jsonOut bool) error {
 	resolvedProjectID, err := cmdutil.ResolveProjectID(ctx, client, projectSlug, projectID)
 	if err != nil {
 		return err
@@ -114,9 +114,9 @@ func runDefinitions(ctx context.Context, client *apiclient.Client, projectSlug, 
 			"Visit: https://app.circleci.com/settings/project/circleci/<org>/<project>/configurations")
 	}
 
-	out := make([]definitionOutput, len(defs))
+	out := make([]listOutput, len(defs))
 	for i, d := range defs {
-		out[i] = definitionOutput{
+		out[i] = listOutput{
 			ID:             d.ID,
 			Name:           d.Name,
 			Description:    d.Description,

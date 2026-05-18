@@ -3,7 +3,6 @@ Usage:
 
 Available Commands:
   cancel      Cancel a run
-  create      Create a pipeline definition
   get         Get a run's status
   list        List recent runs for a project
   trigger     Trigger a new run

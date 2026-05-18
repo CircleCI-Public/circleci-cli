@@ -1,9 +1,9 @@
 Usage:
-  circleci run create [flags]
+  circleci pipeline create [flags]
 
 Examples:
 # Create a pipeline definition using GitHub App
-$ circleci run create \
+$ circleci pipeline create \
     --project gh/myorg/myrepo \
     --name "my-pipeline" \
     --config-provider github_app \
@@ -13,7 +13,7 @@ $ circleci run create \
     --checkout-repo-id 123456789
 
 # Create with a description and output as JSON
-$ circleci run create \
+$ circleci pipeline create \
     --name "release-pipeline" \
     --description "Runs on tagged releases" \
     --config-provider github_app \
@@ -24,7 +24,7 @@ $ circleci run create \
     --json
 
 # Create using a direct project UUID (skips project info lookup)
-$ circleci run create \
+$ circleci pipeline create \
     --project-id a1b2c3d4-... \
     --name "nightly" \
     --config-provider github_app \

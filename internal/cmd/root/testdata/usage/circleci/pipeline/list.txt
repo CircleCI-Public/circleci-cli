@@ -1,18 +1,18 @@
 Usage:
-  circleci project definitions [flags]
+  circleci pipeline list [flags]
 
 Examples:
 # List pipeline definitions for the current repository's project
-$ circleci project definitions
+$ circleci pipeline list
 
 # List pipeline definitions for a specific project
-$ circleci project definitions --project gh/myorg/myrepo
+$ circleci pipeline list --project gh/myorg/myrepo
 
 # Output as JSON for scripting
-$ circleci project definitions --json
+$ circleci pipeline list --json
 
 # Filter by config provider
-$ circleci project definitions --json --jq '.[] | select(.config_source.provider == "github_app")'
+$ circleci pipeline list --json --jq '.[] | select(.config_source.provider == "github_app")'
 
 
 Flags:

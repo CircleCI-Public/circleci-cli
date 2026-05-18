@@ -44,7 +44,6 @@ func NewRunCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newCancelCmd())
-	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newTriggerCmd())

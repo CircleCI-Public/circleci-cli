@@ -20,38 +20,34 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package project implements the "circleci project" command group.
-package project
+// Package pipeline implements the "circleci pipeline" command group.
+package pipeline
 
 import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewProjectCmd returns the "circleci project" parent command.
-func NewProjectCmd() *cobra.Command {
+// NewPipelineCmd returns the "circleci pipeline" command group.
+func NewPipelineCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project <command>",
-		Short: "Manage CircleCI projects",
+		Use:   "pipeline <command>",
+		Short: "Manage pipeline definitions",
 		Long: heredoc.Doc(`
-			List, follow, and manage settings for CircleCI projects.
+			Create and list pipeline definitions for a CircleCI project.
 
-			A project corresponds to a version-control repository connected
-			to CircleCI. Use 'circleci project list' to see all followed projects,
-			'circleci project follow' to start following a new project, and
-			'circleci project env' to manage environment variables.
-
-			To manage environment variables directly, use the top-level alias:
-			  circleci envvar list --project gh/org/repo
+			A pipeline definition specifies where CircleCI finds the config YAML
+			and which repository to use for code checkout. Attach triggers to a
+			definition with 'circleci project trigger create'.
 		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
+	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(NewGetCmd("get"))
-	cmd.AddCommand(newFollowCmd())
-	cmd.AddCommand(newLinkCmd())
-	cmd.AddCommand(newEnvCmd())
-	cmd.AddCommand(newTriggerCmd())
 
 	return cmd
 }
