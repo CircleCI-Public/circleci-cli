@@ -890,10 +890,10 @@ var defFixtures = []map[string]any{
 		},
 	},
 	{
-		"id":         "pdef-uuid-0002",
-		"name":       "nightly",
+		"id":          "pdef-uuid-0002",
+		"name":        "nightly",
 		"description": "Runs every night",
-		"created_at": "2024-02-01T00:00:00Z",
+		"created_at":  "2024-02-01T00:00:00Z",
 		"config_source": map[string]any{
 			"provider":  "github_app",
 			"file_path": ".circleci/nightly.yml",

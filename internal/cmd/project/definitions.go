@@ -25,6 +25,7 @@ package project
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -119,7 +120,7 @@ func runDefinitions(ctx context.Context, client *apiclient.Client, projectSlug, 
 			ID:             d.ID,
 			Name:           d.Name,
 			Description:    d.Description,
-			CreatedAt:      d.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:      d.CreatedAt.Format(time.RFC3339),
 			ConfigSource:   d.ConfigSource,
 			CheckoutSource: d.CheckoutSource,
 		}

@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -234,7 +235,7 @@ func runCreate(
 		ID:             resp.ID,
 		Name:           resp.Name,
 		Description:    resp.Description,
-		CreatedAt:      resp.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:      resp.CreatedAt.Format(time.RFC3339),
 		ConfigSource:   resp.ConfigSource,
 		CheckoutSource: resp.CheckoutSource,
 	}
