@@ -43,24 +43,25 @@ import (
 type CircleCI struct {
 	server *httptest.Server
 
-	mu                      sync.RWMutex
-	pipelines               map[string]any
-	projects                map[string][]any  // project slug → ordered list of pipelines
-	workflows               map[string][]any  // pipeline id → workflows
-	workflowDetails         map[string]any    // workflow id → workflow detail response
-	workflowJobs            map[string][]any  // workflow id → jobs
-	jobArtifacts            map[string][]any  // "slug/jobNumber" → artifacts
-	staticFiles             map[string]string // path → body content, for artifact downloads
-	jobs                    map[string]any    // "slug/jobNumber" → job detail response (v2)
-	jobsV1                  map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	stepOutputs             map[string]string // path → JSON log lines content
-	triggerResponses        map[string]any    // project slug → trigger response body
-	pipelineDefinitions     map[string][]any  // projectID → list of pipeline definition objects
-	createTriggerResponses  map[string]any    // "projectID/pipelineDefinitionID" → response body
-	listTriggerResponses    map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
-	rerunResponses          map[string]int    // workflow id → HTTP status to return
-	cancelResponses         map[string]int    // workflow id → HTTP status to return
-	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
+	mu                                sync.RWMutex
+	pipelines                         map[string]any
+	projects                          map[string][]any  // project slug → ordered list of pipelines
+	workflows                         map[string][]any  // pipeline id → workflows
+	workflowDetails                   map[string]any    // workflow id → workflow detail response
+	workflowJobs                      map[string][]any  // workflow id → jobs
+	jobArtifacts                      map[string][]any  // "slug/jobNumber" → artifacts
+	staticFiles                       map[string]string // path → body content, for artifact downloads
+	jobs                              map[string]any    // "slug/jobNumber" → job detail response (v2)
+	jobsV1                            map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
+	stepOutputs                       map[string]string // path → JSON log lines content
+	triggerResponses                  map[string]any    // project slug → trigger response body
+	pipelineDefinitions               map[string][]any  // projectID → list of pipeline definition objects
+	createPipelineDefinitionResponses map[string]any    // projectID → response body
+	createTriggerResponses            map[string]any    // "projectID/pipelineDefinitionID" → response body
+	listTriggerResponses              map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
+	rerunResponses                    map[string]int    // workflow id → HTTP status to return
+	cancelResponses                   map[string]int    // workflow id → HTTP status to return
+	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
 
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
@@ -111,48 +112,49 @@ type CircleCI struct {
 func NewCircleCI(t *testing.T) *CircleCI {
 	t.Helper()
 	f := &CircleCI{
-		pipelines:                  map[string]any{},
-		projects:                   map[string][]any{},
-		workflows:                  map[string][]any{},
-		workflowDetails:            map[string]any{},
-		workflowJobs:               map[string][]any{},
-		jobArtifacts:               map[string][]any{},
-		staticFiles:                map[string]string{},
-		jobs:                       map[string]any{},
-		jobsV1:                     map[string]any{},
-		stepOutputs:                map[string]string{},
-		triggerResponses:           map[string]any{},
-		pipelineDefinitions:        map[string][]any{},
-		createTriggerResponses:     map[string]any{},
-		listTriggerResponses:       map[string][]any{},
-		rerunResponses:             map[string]int{},
-		cancelResponses:            map[string]int{},
-		pipelineCancelResponses:    map[string]int{},
-		resourceClasses:            []any{},
-		runnerTokens:               map[string][]any{},
-		runnerInstances:            []any{},
-		deletedTokens:              map[string]bool{},
-		deletedRCs:                 map[string]bool{},
-		followedProjects:           []any{},
-		followedSlugs:              map[string]bool{},
-		envVars:                    map[string][]any{},
-		deletedEnvVars:             map[string]bool{},
-		contexts:                   map[string]any{},
-		contextsByOrg:              map[string][]any{},
-		contextEnvVars:             map[string][]any{},
-		contextRestrictions:        map[string][]any{},
-		deletedContexts:            map[string]bool{},
-		deletedContextVars:         map[string]bool{},
-		deletedContextRestrictions: map[string]bool{},
-		projectInfos:               map[string]any{},
-		deploys:                    map[string][]any{},
-		namespaces:                 map[string]any{},
-		namespacesByName:           map[string]string{},
-		deletedNamespaces:          map[string]bool{},
-		iosCerts:                   map[string][]any{},
-		iosBundles:                 map[string][]any{},
-		deletedIOSCerts:            map[string]bool{},
-		deletedIOSBundles:          map[string]bool{},
+		pipelines:                         map[string]any{},
+		projects:                          map[string][]any{},
+		workflows:                         map[string][]any{},
+		workflowDetails:                   map[string]any{},
+		workflowJobs:                      map[string][]any{},
+		jobArtifacts:                      map[string][]any{},
+		staticFiles:                       map[string]string{},
+		jobs:                              map[string]any{},
+		jobsV1:                            map[string]any{},
+		stepOutputs:                       map[string]string{},
+		triggerResponses:                  map[string]any{},
+		pipelineDefinitions:               map[string][]any{},
+		createPipelineDefinitionResponses: map[string]any{},
+		createTriggerResponses:            map[string]any{},
+		listTriggerResponses:              map[string][]any{},
+		rerunResponses:                    map[string]int{},
+		cancelResponses:                   map[string]int{},
+		pipelineCancelResponses:           map[string]int{},
+		resourceClasses:                   []any{},
+		runnerTokens:                      map[string][]any{},
+		runnerInstances:                   []any{},
+		deletedTokens:                     map[string]bool{},
+		deletedRCs:                        map[string]bool{},
+		followedProjects:                  []any{},
+		followedSlugs:                     map[string]bool{},
+		envVars:                           map[string][]any{},
+		deletedEnvVars:                    map[string]bool{},
+		contexts:                          map[string]any{},
+		contextsByOrg:                     map[string][]any{},
+		contextEnvVars:                    map[string][]any{},
+		contextRestrictions:               map[string][]any{},
+		deletedContexts:                   map[string]bool{},
+		deletedContextVars:                map[string]bool{},
+		deletedContextRestrictions:        map[string]bool{},
+		projectInfos:                      map[string]any{},
+		deploys:                           map[string][]any{},
+		namespaces:                        map[string]any{},
+		namespacesByName:                  map[string]string{},
+		deletedNamespaces:                 map[string]bool{},
+		iosCerts:                          map[string][]any{},
+		iosBundles:                        map[string][]any{},
+		deletedIOSCerts:                   map[string]bool{},
+		deletedIOSBundles:                 map[string]bool{},
 	}
 
 	r := newRouter()
@@ -190,6 +192,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
 	r.Get("/api/v2/projects/{projectID}/pipeline-definitions", f.handleListPipelineDefinitions)
+	r.Post("/api/v2/projects/{projectID}/pipeline-definitions", f.handleCreatePipelineDefinition)
 	r.Get("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleListTriggers)
 	r.Post("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleCreateTrigger)
 	// Deploy routes.
@@ -882,6 +885,15 @@ func (f *CircleCI) AddPipelineDefinition(projectID string, def any) {
 	f.pipelineDefinitions[projectID] = append(f.pipelineDefinitions[projectID], def)
 }
 
+// SetCreatePipelineDefinitionResponse registers the response body returned when
+// POST /api/v2/projects/{projectID}/pipeline-definitions is called.
+// Pass nil to simulate a 404.
+func (f *CircleCI) SetCreatePipelineDefinitionResponse(projectID string, resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.createPipelineDefinitionResponses[projectID] = resp
+}
+
 // AddTrigger registers a trigger returned by GET
 // /api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers.
 func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger any) {
@@ -1329,6 +1341,21 @@ func (f *CircleCI) handleListPipelineDefinitions(w http.ResponseWriter, r *http.
 		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items})
+}
+
+func (f *CircleCI) handleCreatePipelineDefinition(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	f.mu.RLock()
+	resp, ok := f.createPipelineDefinitionResponses[projectID]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
 }
 
 func (f *CircleCI) handleListTriggers(w http.ResponseWriter, r *http.Request) {

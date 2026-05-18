@@ -63,3 +63,54 @@ func (c *Client) ListPipelineDefinitions(ctx context.Context, projectID string) 
 	}
 	return resp.Items, nil
 }
+
+// CreatePipelineDefinitionInput contains all fields for creating a pipeline definition.
+type CreatePipelineDefinitionInput struct {
+	Name             string
+	Description      string
+	ConfigProvider   string
+	ConfigRepoID     string
+	ConfigFilePath   string
+	CheckoutProvider string
+	CheckoutRepoID   string
+}
+
+// CreatePipelineDefinition creates a new pipeline definition for a project.
+func (c *Client) CreatePipelineDefinition(ctx context.Context, projectID string, input CreatePipelineDefinitionInput) (*PipelineDefinition, error) {
+	configSource := map[string]any{
+		"provider":  input.ConfigProvider,
+		"file_path": input.ConfigFilePath,
+	}
+	if input.ConfigRepoID != "" {
+		configSource["repo"] = map[string]any{
+			"external_id": input.ConfigRepoID,
+		}
+	}
+
+	checkoutSource := map[string]any{
+		"provider": input.CheckoutProvider,
+	}
+	if input.CheckoutRepoID != "" {
+		checkoutSource["repo"] = map[string]any{
+			"external_id": input.CheckoutRepoID,
+		}
+	}
+
+	body := map[string]any{
+		"name":            input.Name,
+		"config_source":   configSource,
+		"checkout_source": checkoutSource,
+	}
+	if input.Description != "" {
+		body["description"] = input.Description
+	}
+
+	var resp PipelineDefinition
+	err := c.post(ctx, "/projects/%s/pipeline-definitions", body, &resp,
+		routeParams(projectID),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &resp, nil
+}
