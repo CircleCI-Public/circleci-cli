@@ -180,8 +180,16 @@ func runCreate(
 		return err
 	}
 
+	// Fetch existing pipeline definitions once for interactive repo selection.
+	// Errors are ignored — we fall back gracefully to manual entry.
+	var repoOpts []repoOption
+	if iostream.IsInteractive(ctx) {
+		defs, _ := client.ListPipelineDefinitions(ctx, resolvedProjectID)
+		repoOpts = collectRepoOptions(defs)
+	}
+
 	if repoConfigProviders[configProvider] {
-		configRepoID, err = resolveRepoID(ctx, client, configRepoID, resolvedProjectID, "Config repo external ID", "--config-repo-id is required for provider "+configProvider)
+		configRepoID, err = resolveRepoIDFromOptions(ctx, repoOpts, configRepoID, "Config repo external ID", "--config-repo-id is required for provider "+configProvider)
 		if err != nil {
 			return err
 		}
@@ -200,7 +208,7 @@ func runCreate(
 		return err
 	}
 
-	checkoutRepoID, err = resolveRequired(ctx, checkoutRepoID, "Checkout repo external ID", "e.g. 123456789", "--checkout-repo-id is required")
+	checkoutRepoID, err = resolveCheckoutRepoID(ctx, repoOpts, checkoutRepoID, configRepoID)
 	if err != nil {
 		return err
 	}
@@ -289,32 +297,16 @@ func resolveRequiredSelect(ctx context.Context, val, prompt string, options []st
 	return options[idx], nil
 }
 
-// resolveRepoID returns val if already set. In non-interactive mode it errors
-// when val is empty. In interactive mode it fetches existing pipeline definitions
-// for the project and offers their repo IDs as choices, with a fallback to
-// manual entry. ListPipelineDefinitions errors are ignored — the user just sees
-// the manual-entry prompt.
-func resolveRepoID(ctx context.Context, client *apiclient.Client, val, projectID, prompt, errMsg string) (string, error) {
-	if val != "" {
-		return val, nil
-	}
-	if !iostream.IsInteractive(ctx) {
-		return "", clierrors.New("args.missing_flag", "Missing required flag", errMsg).
-			WithSuggestions(
-				"Pass "+strings.Fields(errMsg)[0]+" <value>",
-				"Run with --help for flag descriptions",
-			).
-			WithExitCode(clierrors.ExitBadArguments)
-	}
+type repoOption struct {
+	id    string
+	label string
+}
 
-	type repoOption struct {
-		id    string
-		label string
-	}
-
-	var options []repoOption
-	defs, _ := client.ListPipelineDefinitions(ctx, projectID)
+// collectRepoOptions builds a deduplicated list of repo choices from the
+// config_source and checkout_source of existing pipeline definitions.
+func collectRepoOptions(defs []apiclient.PipelineDefinition) []repoOption {
 	seen := map[string]bool{}
+	var opts []repoOption
 	for _, d := range defs {
 		for _, src := range []*apiclient.PipelineDefinitionSource{d.ConfigSource, d.CheckoutSource} {
 			if src == nil || src.Repo == nil || src.Repo.ExternalID == "" || seen[src.Repo.ExternalID] {
@@ -325,20 +317,25 @@ func resolveRepoID(ctx context.Context, client *apiclient.Client, val, projectID
 			if src.Repo.FullName != "" {
 				label = fmt.Sprintf("%s (%s)", src.Repo.FullName, src.Repo.ExternalID)
 			}
-			options = append(options, repoOption{id: src.Repo.ExternalID, label: label})
+			opts = append(opts, repoOption{id: src.Repo.ExternalID, label: label})
 		}
 	}
+	return opts
+}
 
-	if len(options) == 0 {
+// pickFromRepoOptions presents a select over known repos plus "Enter manually..."
+// at the bottom. Falls back to a plain text prompt when opts is empty.
+func pickFromRepoOptions(ctx context.Context, opts []repoOption, prompt string) (string, error) {
+	if len(opts) == 0 {
 		return promptRepoID(ctx, prompt)
 	}
 
 	const enterManually = "Enter manually..."
-	labels := make([]string, len(options)+1)
-	for i, o := range options {
+	labels := make([]string, len(opts)+1)
+	for i, o := range opts {
 		labels[i] = o.label
 	}
-	labels[len(options)] = enterManually
+	labels[len(opts)] = enterManually
 
 	idx, err := iostream.PromptSelect(ctx, prompt, labels)
 	if err != nil {
@@ -351,7 +348,69 @@ func resolveRepoID(ctx context.Context, client *apiclient.Client, val, projectID
 	if labels[idx] == enterManually {
 		return promptRepoID(ctx, prompt)
 	}
-	return options[idx].id, nil
+	return opts[idx].id, nil
+}
+
+// resolveRepoIDFromOptions returns val if already set. In non-interactive mode
+// it errors; in interactive mode it shows a picker built from opts.
+func resolveRepoIDFromOptions(ctx context.Context, opts []repoOption, val, prompt, errMsg string) (string, error) {
+	if val != "" {
+		return val, nil
+	}
+	if !iostream.IsInteractive(ctx) {
+		return "", clierrors.New("args.missing_flag", "Missing required flag", errMsg).
+			WithSuggestions(
+				"Pass "+strings.Fields(errMsg)[0]+" <value>",
+				"Run with --help for flag descriptions",
+			).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return pickFromRepoOptions(ctx, opts, prompt)
+}
+
+// resolveCheckoutRepoID prompts for the checkout repo. When configRepoID is
+// known it is offered as a shortcut; "Other..." opens the full repo picker.
+func resolveCheckoutRepoID(ctx context.Context, opts []repoOption, val, configRepoID string) (string, error) {
+	if val != "" {
+		return val, nil
+	}
+	if !iostream.IsInteractive(ctx) {
+		return "", clierrors.New("args.missing_flag", "Missing required flag", "--checkout-repo-id is required").
+			WithSuggestions(
+				"Pass --checkout-repo-id <value>",
+				"Run with --help for flag descriptions",
+			).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	// No config repo shortcut available — fall back to the full picker.
+	if configRepoID == "" {
+		return pickFromRepoOptions(ctx, opts, "Checkout repo external ID")
+	}
+
+	// Find a display label for the config repo.
+	configLabel := configRepoID
+	for _, o := range opts {
+		if o.id == configRepoID {
+			configLabel = o.label
+			break
+		}
+	}
+
+	const other = "Other..."
+	idx, err := iostream.PromptSelect(ctx, "Checkout repo external ID", []string{configLabel, other})
+	if err != nil {
+		return "", err
+	}
+	switch idx {
+	case -1:
+		return "", clierrors.New("create.cancelled", "Aborted", "No repo selected.").
+			WithExitCode(clierrors.ExitCancelled)
+	case 0:
+		return configRepoID, nil
+	default:
+		return pickFromRepoOptions(ctx, opts, "Checkout repo external ID")
+	}
 }
 
 func promptRepoID(ctx context.Context, prompt string) (string, error) {
