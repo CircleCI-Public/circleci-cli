@@ -77,9 +77,9 @@ type orbCategoryRef struct {
 }
 
 type orbPackageReferences struct {
-	Namespace     orbNamespaceRef  `json:"namespace"`
-	LatestVersion *orbVersionRef   `json:"latest_version"`
-	Categories    []orbCategoryRef `json:"categories"`
+	Namespace  orbNamespaceRef  `json:"namespace"`
+	Versions   []orbVersionRef  `json:"orb/versions"`
+	Categories []orbCategoryRef `json:"orb/categories"`
 }
 
 // orbPackageWire is the detail response shape (GET /orb/packages/{id}).
@@ -91,7 +91,7 @@ type orbPackageWire struct {
 
 // orbPackageListWire is the shape returned by the list endpoint
 // (GET /orb/packages). The namespace reference contains only an id (no name);
-// latest_version is included; categories and usage stats are not.
+// usage stats are not included.
 type orbPackageListWire struct {
 	ID         string `json:"id"`
 	Attributes struct {
@@ -103,13 +103,14 @@ type orbPackageListWire struct {
 		Namespace struct {
 			ID string `json:"id"`
 		} `json:"namespace"`
-		LatestVersion *struct {
+		Versions []struct {
 			ID         string `json:"id"`
 			Attributes struct {
 				Version   string `json:"version"`
 				CreatedAt string `json:"created_at"`
 			} `json:"attributes"`
-		} `json:"latest_version"`
+		} `json:"orb/versions"`
+		Categories []orbCategoryRef `json:"orb/categories"`
 	} `json:"references"`
 }
 
@@ -121,9 +122,12 @@ func (w *orbPackageListWire) toOrbPackage() *OrbPackage {
 		IsPrivate:   w.Attributes.IsPrivate,
 		IsListed:    w.Attributes.IsListed,
 	}
-	if w.References.LatestVersion != nil {
-		pkg.LatestVersion = w.References.LatestVersion.Attributes.Version
-		pkg.LatestVersionAt = w.References.LatestVersion.Attributes.CreatedAt
+	if len(w.References.Versions) > 0 {
+		pkg.LatestVersion = w.References.Versions[0].Attributes.Version
+		pkg.LatestVersionAt = w.References.Versions[0].Attributes.CreatedAt
+	}
+	for _, c := range w.References.Categories {
+		pkg.Categories = append(pkg.Categories, OrbCategory{ID: c.ID, Name: c.Attributes.Name})
 	}
 	return pkg
 }
@@ -142,7 +146,7 @@ type orbVersionOrbRef struct {
 }
 
 type orbVersionReferences struct {
-	Orb orbVersionOrbRef `json:"orb"`
+	Package orbVersionOrbRef `json:"orb/package"`
 }
 
 type orbVersionWire struct {
@@ -224,9 +228,9 @@ func (w *orbPackageWire) toOrbPackage() *OrbPackage {
 		Last30DaysProjectCount: w.Attributes.Last30DaysProjectCount,
 		Last30DaysOrgCount:     w.Attributes.Last30DaysOrgCount,
 	}
-	if w.References.LatestVersion != nil {
-		pkg.LatestVersion = w.References.LatestVersion.Attributes.Version
-		pkg.LatestVersionAt = w.References.LatestVersion.Attributes.CreatedAt
+	if len(w.References.Versions) > 0 {
+		pkg.LatestVersion = w.References.Versions[0].Attributes.Version
+		pkg.LatestVersionAt = w.References.Versions[0].Attributes.CreatedAt
 	}
 	for _, c := range w.References.Categories {
 		pkg.Categories = append(pkg.Categories, OrbCategory{ID: c.ID, Name: c.Attributes.Name})
@@ -237,8 +241,8 @@ func (w *orbPackageWire) toOrbPackage() *OrbPackage {
 func (w *orbVersionWire) toOrbVersion() *OrbVersion {
 	return &OrbVersion{
 		ID:        w.ID,
-		OrbID:     w.References.Orb.ID,
-		OrbName:   w.References.Orb.Attributes.Name,
+		OrbID:     w.References.Package.ID,
+		OrbName:   w.References.Package.Attributes.Name,
 		Version:   w.Attributes.Version,
 		Source:    w.Attributes.Source,
 		CreatedAt: w.Attributes.CreatedAt,
