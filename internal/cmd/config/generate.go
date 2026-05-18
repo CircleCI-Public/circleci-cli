@@ -24,8 +24,6 @@ package cmdconfig
 
 import (
 	"context"
-	"encoding/json"
-	stderrors "errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -39,39 +37,11 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 
-// scanFixtureEnv is an internal test hook: when set to a file path, the
-// scanner reads its result from that JSON file instead of calling envbuilder.
-// Acceptance tests use it to exercise the generate flow without hitting
-// Docker Hub. A fixture with a non-empty top-level "error" field produces a
-// scan failure.
-const scanFixtureEnv = "CIRCLECI_SCAN_FIXTURE"
-
 // scan is the package-level seam for repository scanning. In-process tests
-// swap it via SetScanForTest; out-of-process acceptance tests use
-// CIRCLECI_SCAN_FIXTURE because they can't reach into the binary.
+// swap it via SetScanForTest; out-of-process acceptance tests build with
+// -tags testfixtures to enable the CIRCLECI_SCAN_FIXTURE env var hook.
 var scan = func(ctx context.Context, dir string) (*reposcan.Result, error) {
-	if path := os.Getenv(scanFixtureEnv); path != "" {
-		return loadScanFixture(path)
-	}
 	return reposcan.NewDefaultScanner().Scan(ctx, dir)
-}
-
-func loadScanFixture(path string) (*reposcan.Result, error) {
-	data, err := os.ReadFile(path) //#nosec:G304,G703 // test-only hook; path comes from CIRCLECI_SCAN_FIXTURE
-	if err != nil {
-		return nil, err
-	}
-	var probe struct {
-		Error string `json:"error"`
-	}
-	if err := json.Unmarshal(data, &probe); err == nil && probe.Error != "" {
-		return nil, stderrors.New(probe.Error)
-	}
-	var r reposcan.Result
-	if err := json.Unmarshal(data, &r); err != nil {
-		return nil, fmt.Errorf("decode scan fixture: %w", err)
-	}
-	return &r, nil
 }
 
 func newGenerateCmd() *cobra.Command {
