@@ -52,6 +52,7 @@ func NewProjectCmd() *cobra.Command {
 	cmd.AddCommand(newLinkCmd())
 	cmd.AddCommand(newEnvCmd())
 	cmd.AddCommand(newTriggerCmd())
+	cmd.AddCommand(newDefinitionsCmd())
 
 	return cmd
 }
