@@ -1,4 +1,6 @@
 error: No iOS signing config found for "cfg-missing".
+API: {"message":"not found"}
+
 
 Suggestions:
   • Check the signing config ID and try again

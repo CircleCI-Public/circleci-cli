@@ -472,7 +472,7 @@ func TestPipelineRun_WithDefinitionID(t *testing.T) {
 	_, env := setupPipelineRunFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
+		Binary: binaryPath,
 		Args: []string{
 			"pipeline", "run",
 			"--project", "gh/myorg/myrepo",

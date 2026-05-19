@@ -1,0 +1,37 @@
+Usage:
+  circleci pipeline run [flags]
+
+Examples:
+# Trigger a pipeline interactively — pick definition and branch from menus
+$ circleci pipeline run --project gh/myorg/myrepo
+
+# Trigger a specific definition on a branch non-interactively
+$ circleci pipeline run --project gh/myorg/myrepo \
+    --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 \
+    --branch main
+
+# Trigger on a tag with parameters
+$ circleci pipeline run --project gh/myorg/myrepo \
+    --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 \
+    --tag v1.2.3 \
+    --param deploy_env=staging
+
+# Output as JSON for scripting
+$ circleci pipeline run --project gh/myorg/myrepo \
+    --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 \
+    --branch main --json
+
+
+Flags:
+  -b, --branch string          Branch for config fetch and checkout (mutually exclusive with --tag)
+      --definition-id string   Pipeline definition UUID to run (prompted interactively if omitted)
+      --jq string              Process values from the response using jq syntax
+      --json                   Output as JSON
+      --param stringArray      Pipeline parameter as key=value (repeatable)
+      --project string         Project slug (e.g. gh/org/repo); defaults to git remote
+  -t, --tag string             Tag for config fetch and checkout (mutually exclusive with --branch)
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
