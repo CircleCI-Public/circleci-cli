@@ -55,6 +55,8 @@ type CircleCI struct {
 	jobsV1                            map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
 	stepOutputs                       map[string]string // path → JSON log lines content
 	triggerResponses                  map[string]any    // project slug → trigger response body
+	triggerPipelineRunResponses       map[string]any    // project slug → trigger run response body
+	triggerPipelineRunStatuses        map[string]int    // project slug → HTTP status (default 201)
 	pipelineDefinitions               map[string][]any  // projectID → list of pipeline definition objects
 	createPipelineDefinitionResponses map[string]any    // projectID → response body
 	createTriggerResponses            map[string]any    // "projectID/pipelineDefinitionID" → response body
@@ -145,6 +147,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		jobsV1:                            map[string]any{},
 		stepOutputs:                       map[string]string{},
 		triggerResponses:                  map[string]any{},
+		triggerPipelineRunResponses:       map[string]any{},
+		triggerPipelineRunStatuses:        map[string]int{},
 		pipelineDefinitions:               map[string][]any{},
 		createPipelineDefinitionResponses: map[string]any{},
 		createTriggerResponses:            map[string]any{},
@@ -201,6 +205,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJob)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
+	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline/run", f.handleTriggerPipelineRun)
 	r.Get("/api/v1.1/project/{vcs}/{org}/{repo}/{jobNumber}", f.handleGetJobV1)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
 	// project slug, so we match three separate path segments rather than {slug}.
@@ -364,6 +369,25 @@ func (f *CircleCI) SetTriggerResponse(slug string, resp any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.triggerResponses[slug] = resp
+}
+
+// SetTriggerPipelineRunResponse registers the response body returned when POST
+// /api/v2/project/<slug>/pipeline/run is called with a 201 status.
+// slug should be in "vcs/org/repo" form.
+func (f *CircleCI) SetTriggerPipelineRunResponse(slug string, resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.triggerPipelineRunResponses[slug] = resp
+	f.triggerPipelineRunStatuses[slug] = http.StatusCreated
+}
+
+// SetTriggerPipelineRunSkipped registers a "not triggered" response (200) for
+// POST /api/v2/project/<slug>/pipeline/run.
+func (f *CircleCI) SetTriggerPipelineRunSkipped(slug, message string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.triggerPipelineRunResponses[slug] = map[string]any{"message": message}
+	f.triggerPipelineRunStatuses[slug] = http.StatusOK
 }
 
 // AddJob registers a job detail response for GET /api/v2/project/<slug>/job/<number>.
@@ -552,6 +576,22 @@ func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
+}
+
+func (f *CircleCI) handleTriggerPipelineRun(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	f.mu.RLock()
+	resp, ok := f.triggerPipelineRunResponses[slug]
+	status := f.triggerPipelineRunStatuses[slug]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "project not found"})
+		return
+	}
+	render.Status(r, status)
 	render.JSON(w, r, resp)
 }
 

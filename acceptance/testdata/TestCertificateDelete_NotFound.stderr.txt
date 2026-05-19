@@ -1,4 +1,6 @@
 error: No iOS certificate found for "cert-missing".
+API: {"message":"not found"}
+
 
 Suggestions:
   • Check the certificate ID and try again

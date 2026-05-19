@@ -36,6 +36,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
+// keyDown is defined in login_test.go (same package).
+
 const (
 	pipelineProjectID = "proj-uuid-pipeline"
 	pipelineDefID     = "pdef-uuid-0001"
@@ -393,4 +395,316 @@ func TestPipelineList_ProjectNotFound(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+}
+
+// --- pipeline run ---
+
+const (
+	pipelineRunID     = "run-uuid-0001"
+	pipelineRunNumber = 42
+)
+
+func setupPipelineRunFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerPipelineRunResponse("gh/myorg/myrepo", map[string]any{
+		"id":         pipelineRunID,
+		"state":      "created",
+		"number":     pipelineRunNumber,
+		"created_at": "2024-06-01T00:00:00Z",
+	})
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	return fake, env
+}
+
+func TestPipelineRun(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+	assert.Check(t, strings.Contains(result.Stdout, "42"))
+}
+
+func TestPipelineRun_JSON(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["id"], pipelineRunID))
+	assert.Check(t, cmp.Equal(out["state"], "created"))
+	assert.Check(t, cmp.Equal(out["triggered"], true))
+}
+
+func TestPipelineRun_WithBranch(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo", "--branch", "feature/my-branch"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+}
+
+func TestPipelineRun_WithDefinitionID(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition-id", pipelineDefID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+}
+
+func TestPipelineRun_WithParams(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--param", "deploy_env=staging",
+			"--param", "run_tests=true",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+}
+
+func TestPipelineRun_MutuallyExclusiveBranchAndTag(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--branch", "main",
+			"--tag", "v1.0",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--branch"))
+	assert.Check(t, strings.Contains(result.Stderr, "--tag"))
+}
+
+func TestPipelineRun_Skipped(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerPipelineRunSkipped("gh/myorg/myrepo", "Ignoring pipeline due to CI skip in the commit")
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "not triggered"))
+	assert.Check(t, strings.Contains(result.Stdout, "CI skip"))
+}
+
+func TestPipelineRun_Skipped_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerPipelineRunSkipped("gh/myorg/myrepo", "Ignoring pipeline due to CI skip in the commit")
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["triggered"], false))
+	assert.Check(t, strings.Contains(out["message"].(string), "CI skip"))
+}
+
+func TestPipelineRun_ProjectNotFound(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/nonexistent"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+}
+
+func TestPipelineRun_InvalidParam(t *testing.T) {
+	_, env := setupPipelineRunFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo", "--param", "notakeyvalue"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+}
+
+// --- pipeline run interactive ---
+
+// setupPipelineRunInteractiveFake builds a fake with project info, pipeline
+// definitions, and a trigger run response — everything needed for the
+// interactive definition-selection prompt.
+func setupPipelineRunInteractiveFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectInfo("gh/myorg/myrepo", map[string]any{
+		"id":   pipelineProjectID,
+		"slug": "gh/myorg/myrepo",
+		"name": "myrepo",
+		"vcs_info": map[string]any{
+			"provider":       "GitHub",
+			"default_branch": "main",
+			"vcs_url":        "https://github.com/myorg/myrepo",
+		},
+	})
+	for _, d := range pipelineListFixtures {
+		fake.AddPipelineDefinition(pipelineProjectID, d)
+	}
+	fake.SetTriggerPipelineRunResponse("gh/myorg/myrepo", map[string]any{
+		"id":         pipelineRunID,
+		"state":      "created",
+		"number":     pipelineRunNumber,
+		"created_at": "2024-06-01T00:00:00Z",
+	})
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	return fake, env
+}
+
+func TestPipelineRun_Interactive_SelectFirst(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Step 1: select the first pipeline definition (main-pipeline).
+	_, err := console.ExpectString("Select a pipeline definition")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	// Step 2: accept the default branch (main).
+	_, err = console.ExpectString("Branch to run on")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Pipeline #42 triggered")
+	assert.NilError(t, err)
+}
+
+func TestPipelineRun_Interactive_SkipDefinition(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Step 1: navigate past both definitions to "None" (2 × down, Enter).
+	_, err := console.ExpectString("Select a pipeline definition")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + keyDown + "\r")
+	assert.NilError(t, err)
+
+	// Step 2: accept the default branch (main).
+	_, err = console.ExpectString("Branch to run on")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Pipeline #42 triggered")
+	assert.NilError(t, err)
+}
+
+func TestPipelineRun_Interactive_CustomBranch(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"pipeline", "run", "--project", "gh/myorg/myrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Step 1: select the first pipeline definition.
+	_, err := console.ExpectString("Select a pipeline definition")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	// Step 2: navigate to "Other..." and type a custom branch.
+	_, err = console.ExpectString("Branch to run on")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + "\r") // move to "Other..."
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Branch name")
+	assert.NilError(t, err)
+	_, err = console.Send("feature/my-branch\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Pipeline #42 triggered")
+	assert.NilError(t, err)
 }

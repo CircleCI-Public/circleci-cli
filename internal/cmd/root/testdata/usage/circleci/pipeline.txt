@@ -5,6 +5,7 @@ Usage:
 Available Commands:
   create      Create a pipeline definition
   list        List pipeline definitions for a project
+  run         Trigger a new pipeline run
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

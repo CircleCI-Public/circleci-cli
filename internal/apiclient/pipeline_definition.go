@@ -24,6 +24,9 @@ package apiclient
 
 import (
 	"context"
+	"fmt"
+	"net/http"
+	"strings"
 	"time"
 )
 
@@ -73,6 +76,93 @@ type CreatePipelineDefinitionInput struct {
 	ConfigFilePath   string
 	CheckoutProvider string
 	CheckoutRepoID   string
+}
+
+// TriggerPipelineRunInput contains the options for triggering a pipeline run.
+type TriggerPipelineRunInput struct {
+	DefinitionID   string
+	ConfigBranch   string
+	ConfigTag      string
+	CheckoutBranch string
+	CheckoutTag    string
+	Parameters     map[string]any
+}
+
+// TriggerPipelineRunResult holds the response from triggering a pipeline run.
+// When Triggered is false the pipeline was skipped (e.g. due to a CI skip
+// commit message) and Message describes why.
+type TriggerPipelineRunResult struct {
+	Triggered bool
+	ID        string
+	State     string
+	Number    int
+	CreatedAt time.Time
+	Message   string
+}
+
+// TriggerPipelineRun triggers a pipeline run via the recommended v2 endpoint.
+// projectSlug must be in "vcs/org/repo" form (e.g. "gh/myorg/myrepo").
+func (c *Client) TriggerPipelineRun(ctx context.Context, projectSlug string, input TriggerPipelineRunInput) (*TriggerPipelineRunResult, error) {
+	// The endpoint path is /project/{provider}/{organization}/{project}/pipeline/run.
+	// We split the slug into three separate route params so each segment is
+	// individually percent-encoded. Passing the full slug as one param would
+	// encode the slashes as %2F, producing a single path segment that the server
+	// cannot route — resulting in a 404.
+	parts := strings.SplitN(projectSlug, "/", 3)
+	if len(parts) != 3 {
+		return nil, fmt.Errorf("invalid project slug %q: expected provider/organization/project", projectSlug)
+	}
+
+	body := map[string]any{}
+	if input.DefinitionID != "" {
+		body["definition_id"] = input.DefinitionID
+	}
+
+	cfg := map[string]any{}
+	if input.ConfigBranch != "" {
+		cfg["branch"] = input.ConfigBranch
+	} else if input.ConfigTag != "" {
+		cfg["tag"] = input.ConfigTag
+	}
+	if len(cfg) > 0 {
+		body["config"] = cfg
+	}
+
+	checkout := map[string]any{}
+	if input.CheckoutBranch != "" {
+		checkout["branch"] = input.CheckoutBranch
+	} else if input.CheckoutTag != "" {
+		checkout["tag"] = input.CheckoutTag
+	}
+	if len(checkout) > 0 {
+		body["checkout"] = checkout
+	}
+
+	if len(input.Parameters) > 0 {
+		body["parameters"] = input.Parameters
+	}
+
+	var raw struct {
+		ID        string    `json:"id"`
+		State     string    `json:"state"`
+		Number    int       `json:"number"`
+		CreatedAt time.Time `json:"created_at"`
+		Message   string    `json:"message"`
+	}
+	status, err := c.postStatus(ctx, "/project/%s/%s/%s/pipeline/run", body, &raw,
+		routeParams(parts[0], parts[1], parts[2]),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &TriggerPipelineRunResult{
+		Triggered: status == http.StatusCreated,
+		ID:        raw.ID,
+		State:     raw.State,
+		Number:    raw.Number,
+		CreatedAt: raw.CreatedAt,
+		Message:   raw.Message,
+	}, nil
 }
 
 // CreatePipelineDefinition creates a new pipeline definition for a project.

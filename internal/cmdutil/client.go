@@ -113,8 +113,11 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 			WithExitCode(clierrors.ExitAuthError)
 	}
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
-		nf := clierrors.New(notFoundCode, "Not found",
-			fmt.Sprintf(notFoundMsg, subject)).
+		msg := fmt.Sprintf(notFoundMsg, subject)
+		if he, ok := errors.AsType[*httpcl.HTTPError](err); ok && len(he.Body) > 0 {
+			msg += "\nAPI: " + string(he.Body)
+		}
+		nf := clierrors.New(notFoundCode, "Not found", msg).
 			WithExitCode(clierrors.ExitNotFound)
 		if len(notFoundSuggestions) > 0 {
 			nf = nf.WithSuggestions(notFoundSuggestions...)

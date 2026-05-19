@@ -1,4 +1,6 @@
 error: No project found for "gh/myorg/nonexistent".
+API: {"message":"not found"}
+
 
 Suggestions:
   • Run 'circleci project link' to bind this repository to a CircleCI project
