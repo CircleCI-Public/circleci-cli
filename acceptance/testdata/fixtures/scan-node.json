@@ -1,9 +1,0 @@
-{
-  "stack": "node",
-  "image": "cimg/node",
-  "image_version": "20.10",
-  "setup": [
-    {"name": "install", "command": "npm ci"},
-    {"name": "test", "command": "npm test"}
-  ]
-}

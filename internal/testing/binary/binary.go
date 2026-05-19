@@ -50,14 +50,12 @@ const osWindows = "windows"
 
 // BuildBinary compiles the CLI binary once and returns its path.
 // Call from TestMain; on error, the binary could not be built and tests
-// should be skipped rather than failed. The binary is built with the
-// "testfixtures" build tag so acceptance tests can use env-var-based
-// stubbing hooks (e.g. CIRCLECI_SCAN_FIXTURE).
+// should be skipped rather than failed.
 func BuildBinary() (string, func(), error) {
-	return BuildBinaryOptions("circleci", filepath.Join("..", ""), "testfixtures")
+	return BuildBinaryOptions("circleci", filepath.Join("..", ""))
 }
 
-func BuildBinaryOptions(binaryName, relativeDir string, tags ...string) (string, func(), error) {
+func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) {
 	dir, err := os.MkdirTemp("", "circleci-cli-test-*")
 	if err != nil {
 		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
@@ -74,12 +72,7 @@ func BuildBinaryOptions(binaryName, relativeDir string, tags ...string) (string,
 		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
 	}
 
-	args := []string{"build", "-o", binaryPath}
-	if len(tags) > 0 {
-		args = append(args, "-tags", strings.Join(tags, ","))
-	}
-	args = append(args, ".")
-	cmd := exec.Command("go", args...) //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
+	cmd := exec.Command("go", "build", "-o", binaryPath, ".") //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
 	cmd.Dir = repoRoot
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr

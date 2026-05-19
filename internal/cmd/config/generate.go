@@ -38,8 +38,8 @@ import (
 )
 
 // scan is the package-level seam for repository scanning. In-process tests
-// swap it via SetScanForTest; out-of-process acceptance tests build with
-// -tags testfixtures to enable the CIRCLECI_SCAN_FIXTURE env var hook.
+// swap it via SetScanForTest. Acceptance tests drive the real scanner by
+// creating real on-disk inputs in a temp directory.
 var scan = func(ctx context.Context, dir string) (*reposcan.Result, error) {
 	return reposcan.NewDefaultScanner().Scan(ctx, dir)
 }
