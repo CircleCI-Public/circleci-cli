@@ -87,7 +87,7 @@ func TestGenerateCmd_SkipsWhenConfigExists(t *testing.T) {
 	assert.NilError(t, readErr)
 	assert.DeepEqual(t, got, original)
 
-	assert.Check(t, golden.String(stderr, "skip-existing.stderr.golden"))
+	assert.Check(t, golden.String(stderr, "skip-existing.stderr.txt"))
 }
 
 func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
@@ -107,7 +107,7 @@ func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
 	// backslashes (e.g. C:\\Users\\…). Match the quoted form so the
 	// substitution works on every platform.
 	rendered := strings.ReplaceAll(cliErr.Format(), strconv.Quote(missing), `"<MISSING_PATH>"`)
-	assert.Check(t, golden.String(rendered, "path-not-found.error.golden"))
+	assert.Check(t, golden.String(rendered, "path-not-found.error.txt"))
 }
 
 func TestGenerateCmd_RendersScanSummary(t *testing.T) {
@@ -129,7 +129,7 @@ func TestGenerateCmd_RendersScanSummary(t *testing.T) {
 
 	stderr, _ := runGenerate(t, dir)
 	assert.Check(t, cmp.Equal(scanned, dir), "scanner must be called with the target dir")
-	assert.Check(t, golden.String(stderr, "detected-node.stderr.golden"))
+	assert.Check(t, golden.String(stderr, "detected-node.stderr.txt"))
 }
 
 // Per-stack YAML output and atomic-write semantics are covered by the
@@ -149,5 +149,5 @@ func TestGenerateCmd_ScannerErrorIsStructured(t *testing.T) {
 	var cliErr *clierrors.CLIError
 	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T", err)
 	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitGeneralError))
-	assert.Check(t, golden.String(cliErr.Format(), "scan-failed.error.golden"))
+	assert.Check(t, golden.String(cliErr.Format(), "scan-failed.error.txt"))
 }

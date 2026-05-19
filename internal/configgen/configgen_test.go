@@ -78,8 +78,8 @@ func TestGenerate_DetectedStack_WritesYAML(t *testing.T) {
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
-	assert.Check(t, golden.Bytes(written, "detected-node.yml.golden"))
-	assert.Check(t, golden.String(stderr, "detected-node.stderr.golden"))
+	assert.Check(t, golden.Bytes(written, "detected-node.yml"))
+	assert.Check(t, golden.String(stderr, "detected-node.stderr.txt"))
 }
 
 func TestGenerate_UnknownStack_WritesFallback(t *testing.T) {
@@ -90,8 +90,8 @@ func TestGenerate_UnknownStack_WritesFallback(t *testing.T) {
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
-	assert.Check(t, golden.Bytes(written, "fallback.yml.golden"))
-	assert.Check(t, golden.String(stderr, "fallback.stderr.golden"))
+	assert.Check(t, golden.Bytes(written, "fallback.yml"))
+	assert.Check(t, golden.String(stderr, "fallback.stderr.txt"))
 }
 
 func TestGenerate_WriteFailure_CleansUpTempFile(t *testing.T) {
