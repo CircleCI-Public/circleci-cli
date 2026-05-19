@@ -131,6 +131,13 @@ func (c *Client) post(ctx context.Context, route string, body, dst any, opts ...
 	return err
 }
 
+func (c *Client) postStatus(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) (int, error) {
+	return c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2"+route, baseOpts(
+		httpcl.Body(body),
+		httpcl.JSONDecoder(dst),
+	).With(opts)...))
+}
+
 func (c *Client) postV1(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v1.1"+route, baseOpts(
 		httpcl.Body(body),

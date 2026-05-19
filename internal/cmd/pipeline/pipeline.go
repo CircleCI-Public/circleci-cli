@@ -48,6 +48,7 @@ func NewPipelineCmd() *cobra.Command {
 
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newListCmd())
+	cmd.AddCommand(newRunCmd())
 
 	return cmd
 }

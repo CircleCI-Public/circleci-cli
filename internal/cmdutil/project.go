@@ -29,6 +29,21 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
+// ResolveProjectSlug returns projectSlug as-is when non-empty. Otherwise it
+// detects the slug from the git remote. Unlike ResolveProjectID this does not
+// make an API call and does not return a UUID — use it for endpoints that
+// require a slug in the path (e.g. POST /project/{vcs}/{org}/{repo}/pipeline/run).
+func ResolveProjectSlug(projectSlug string) (string, error) {
+	if projectSlug != "" {
+		return projectSlug, nil
+	}
+	info, err := gitremote.Detect()
+	if err != nil {
+		return "", GitDetectErr(err, "Or specify the project with --project gh/org/repo")
+	}
+	return info.Slug, nil
+}
+
 // ResolveProjectID returns projectID as-is when non-empty. Otherwise it resolves
 // the project from the slug (--project flag or git remote) to recover its UUID.
 func ResolveProjectID(ctx context.Context, client *apiclient.Client, projectSlug, projectID string) (string, error) {
