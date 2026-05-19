@@ -2222,7 +2222,7 @@ func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
 func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var body struct {
-		Listed bool `json:"listed"`
+		Listed bool `json:"is_listed"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -2354,7 +2354,7 @@ func (f *CircleCI) handleOrbValidateOrProcess(w http.ResponseWriter, r *http.Req
 		"data": map[string]any{
 			"id": "00000000-0000-0000-0000-000000000000",
 			"attributes": map[string]any{
-				"valid":       valid,
+				"is_valid":    valid,
 				"output_yaml": outputYAML,
 				"errors":      errors,
 			},

@@ -164,7 +164,7 @@ type orbCategoryWire struct {
 type orbValidateWire struct {
 	ID         string `json:"id"`
 	Attributes struct {
-		Valid      bool     `json:"valid"`
+		Valid      bool     `json:"is_valid"`
 		OutputYAML string   `json:"output_yaml"`
 		Errors     []string `json:"errors"`
 	} `json:"attributes"`
@@ -460,7 +460,7 @@ type orbYAMLBody struct {
 }
 
 type orbSetListedBody struct {
-	Listed bool `json:"listed"`
+	Listed bool `json:"is_listed"`
 }
 
 type orbCategoryBody struct {
