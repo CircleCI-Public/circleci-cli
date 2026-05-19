@@ -78,8 +78,8 @@ type orbCategoryRef struct {
 
 type orbPackageReferences struct {
 	Namespace  namespaceRef     `json:"namespace"`
-	Versions   []orbVersionRef  `json:"orb/versions"`
-	Categories []orbCategoryRef `json:"orb/categories"`
+	Versions   []orbVersionRef  `json:"orb_versions"`
+	Categories []orbCategoryRef `json:"orb_categories"`
 }
 
 // orbPackageWire is the detail response shape (GET /orb/packages/{id}).
@@ -109,8 +109,8 @@ type orbPackageListWire struct {
 				Version   string `json:"version"`
 				CreatedAt string `json:"created_at"`
 			} `json:"attributes"`
-		} `json:"orb/versions"`
-		Categories []orbCategoryRef `json:"orb/categories"`
+		} `json:"orb_versions"`
+		Categories []orbCategoryRef `json:"orb_categories"`
 	} `json:"references"`
 }
 
@@ -146,7 +146,7 @@ type orbVersionOrbRef struct {
 }
 
 type orbVersionReferences struct {
-	Package orbVersionOrbRef `json:"orb/package"`
+	Package orbVersionOrbRef `json:"orb_package"`
 }
 
 type orbVersionWire struct {
