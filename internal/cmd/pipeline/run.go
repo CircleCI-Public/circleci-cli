@@ -34,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -123,6 +124,7 @@ type runOutput struct {
 	State     string `json:"state,omitempty"`
 	Number    int    `json:"number,omitempty"`
 	CreatedAt string `json:"created_at,omitempty"`
+	Branch    string `json:"branch,omitempty"`
 	Message   string `json:"message,omitempty"`
 }
 
@@ -138,6 +140,15 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 		return err
 	}
 
+	// Detect current git branch for interactive selection and non-interactive
+	// auto-use (mirrors the behaviour of `circleci run trigger`).
+	var currentGitBranch string
+	if branch == "" && tag == "" {
+		if info, err := gitremote.Detect(); err == nil {
+			currentGitBranch = info.Branch
+		}
+	}
+
 	// Fetch project info once; reused for both definition and branch prompts.
 	var projInfo *apiclient.ProjectInfo
 	if iostream.IsInteractive(ctx) {
@@ -149,7 +160,7 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 		return err
 	}
 
-	branch, err = resolveBranch(ctx, projInfo, branch, tag)
+	branch, err = resolveBranch(ctx, projInfo, currentGitBranch, branch, tag)
 	if err != nil {
 		return err
 	}
@@ -186,6 +197,7 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 		out.State = result.State
 		out.Number = result.Number
 		out.CreatedAt = result.CreatedAt.Format(time.RFC3339)
+		out.Branch = branch
 	}
 
 	if jsonOut {
@@ -197,7 +209,11 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 		return nil
 	}
 
-	iostream.Println(ctx, fmt.Sprintf("Pipeline #%d triggered  (id: %s, state: %s)", result.Number, result.ID, result.State))
+	msg := fmt.Sprintf("Pipeline #%d triggered  (id: %s, state: %s)", result.Number, result.ID, result.State)
+	if branch != "" {
+		msg += fmt.Sprintf(" on %s", branch)
+	}
+	iostream.Println(ctx, msg)
 	return nil
 }
 
@@ -239,23 +255,34 @@ func resolveDefinitionID(ctx context.Context, client *apiclient.Client, projInfo
 }
 
 // resolveBranch returns branch as-is if either branch or tag is already set.
-// In interactive mode it prompts the user to choose the project's default branch
-// or enter a custom one. In non-interactive mode it returns "" unchanged.
-func resolveBranch(ctx context.Context, projInfo *apiclient.ProjectInfo, branch, tag string) (string, error) {
+// In non-interactive mode it returns currentGitBranch (detected from the git
+// repo), mirroring `circleci run trigger` behaviour. In interactive mode it
+// shows a selection list: current git branch first, then the project's default
+// branch (if different), then "Other..." for free-text entry.
+func resolveBranch(ctx context.Context, projInfo *apiclient.ProjectInfo, currentGitBranch, branch, tag string) (string, error) {
 	if branch != "" || tag != "" {
 		return branch, nil
 	}
-	if !iostream.IsInteractive(ctx) || projInfo == nil {
-		return "", nil
+	if !iostream.IsInteractive(ctx) {
+		return currentGitBranch, nil
 	}
 
-	defaultBranch := "main"
-	if projInfo.VCSInfo != nil && projInfo.VCSInfo.DefaultBranch != "" {
+	var defaultBranch string
+	if projInfo != nil && projInfo.VCSInfo != nil {
 		defaultBranch = projInfo.VCSInfo.DefaultBranch
 	}
 
+	// Build deduplicated option list: current branch, then project default, then Other.
+	seen := map[string]bool{}
+	var options []string
+	for _, b := range []string{currentGitBranch, defaultBranch} {
+		if b != "" && !seen[b] {
+			seen[b] = true
+			options = append(options, b)
+		}
+	}
 	const otherOption = "Other..."
-	options := []string{defaultBranch, otherOption}
+	options = append(options, otherOption)
 
 	idx, err := iostream.PromptSelect(ctx, "Branch to run on", options)
 	if err != nil {
