@@ -266,6 +266,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/orb/versions", f.handleOrbListVersions)
 	r.Post("/api/v3/orb/versions", f.handleOrbCreateVersion)
 	r.Get("/api/v3/orb/versions/{id}", f.handleOrbGetVersion)
+	r.Get("/api/v3/orb/versions/{id}/source", f.handleOrbGetVersionSource)
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
 	// Wildcard routes for downloads and step output — populated via helpers before requests.
@@ -2065,7 +2066,21 @@ func orbPackageResponse(pkg map[string]any) map[string]any {
 }
 
 func orbVersionResponse(ver map[string]any) map[string]any {
-	return map[string]any{"data": ver}
+	// Return a shallow copy of ver with source stripped from attributes —
+	// source is only served via the dedicated /source endpoint.
+	attrs, _ := ver["attributes"].(map[string]any)
+	filteredAttrs := make(map[string]any, len(attrs))
+	for k, v := range attrs {
+		if k != "source" {
+			filteredAttrs[k] = v
+		}
+	}
+	filtered := make(map[string]any, len(ver))
+	for k, v := range ver {
+		filtered[k] = v
+	}
+	filtered["attributes"] = filteredAttrs
+	return map[string]any{"data": filtered}
 }
 
 func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request) {
@@ -2207,7 +2222,7 @@ func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
 func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var body struct {
-		Listed bool `json:"listed"`
+		Listed bool `json:"is_listed"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -2339,7 +2354,7 @@ func (f *CircleCI) handleOrbValidateOrProcess(w http.ResponseWriter, r *http.Req
 		"data": map[string]any{
 			"id": "00000000-0000-0000-0000-000000000000",
 			"attributes": map[string]any{
-				"valid":       valid,
+				"is_valid":    valid,
 				"output_yaml": outputYAML,
 				"errors":      errors,
 			},
@@ -2480,6 +2495,23 @@ func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, orbVersionResponse(ver))
+}
+
+func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	ver, ok := f.orbVersions[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		_, _ = w.Write([]byte("not found"))
+		return
+	}
+	attrs, _ := ver["attributes"].(map[string]any)
+	source, _ := attrs["source"].(string)
+	w.Header().Set("Content-Type", "text/plain")
+	_, _ = w.Write([]byte(source))
 }
 
 func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Request) {

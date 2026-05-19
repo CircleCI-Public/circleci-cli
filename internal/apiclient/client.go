@@ -221,6 +221,13 @@ func (c *Client) getV3(ctx context.Context, route string, dst any, opts ...func(
 	return err
 }
 
+func (c *Client) getV3Raw(ctx context.Context, route string, dst *string, opts ...func(*httpcl.Request)) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
+		httpcl.StringDecoder(dst),
+	).With(opts)...))
+	return err
+}
+
 func (c *Client) postV3(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3"+route, baseOpts(
 		httpcl.Body(body),

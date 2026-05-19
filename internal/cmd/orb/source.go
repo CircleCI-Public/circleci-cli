@@ -83,6 +83,11 @@ func runOrbSource(ctx context.Context, client *apiclient.Client, ref string) err
 		return orbAPIErr(err, ref)
 	}
 
-	iostream.Print(ctx, v.Source)
+	src, err := client.GetOrbSource(ctx, v.ID)
+	if err != nil {
+		return orbAPIErr(err, ref)
+	}
+
+	iostream.Print(ctx, src)
 	return nil
 }

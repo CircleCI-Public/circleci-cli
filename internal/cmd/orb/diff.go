@@ -83,14 +83,22 @@ func runOrbDiff(ctx context.Context, client *apiclient.Client, orbName, v1, v2 s
 	if err != nil {
 		return orbAPIErr(err, ref1)
 	}
-
 	ver2, err := client.GetOrbVersionByRef(ctx, ref2)
 	if err != nil {
 		return orbAPIErr(err, ref2)
 	}
 
-	edits := myers.ComputeEdits(span.URIFromPath(ref1), ver1.Source, ver2.Source)
-	unified := gotextdiff.ToUnified(ref1, ref2, ver1.Source, edits)
+	src1, err := client.GetOrbSource(ctx, ver1.ID)
+	if err != nil {
+		return orbAPIErr(err, ref1)
+	}
+	src2, err := client.GetOrbSource(ctx, ver2.ID)
+	if err != nil {
+		return orbAPIErr(err, ref2)
+	}
+
+	edits := myers.ComputeEdits(span.URIFromPath(ref1), src1, src2)
+	unified := gotextdiff.ToUnified(ref1, ref2, src1, edits)
 
 	if len(unified.Hunks) == 0 {
 		return nil

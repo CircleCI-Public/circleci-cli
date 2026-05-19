@@ -87,7 +87,7 @@ func runOrbProcess(ctx context.Context, client *apiclient.Client, path, orgID st
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	result, err := client.ProcessOrbYAML(ctx, yaml, orgID)
+	result, err := client.ValidateOrbYAML(ctx, yaml, orgID)
 	if err != nil {
 		return orbAPIErr(err, path)
 	}

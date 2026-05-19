@@ -134,7 +134,6 @@ func (w *orbPackageListWire) toOrbPackage() *OrbPackage {
 
 type orbVersionAttributes struct {
 	Version   string `json:"version"`
-	Source    string `json:"source"`
 	CreatedAt string `json:"created_at"`
 }
 
@@ -165,7 +164,7 @@ type orbCategoryWire struct {
 type orbValidateWire struct {
 	ID         string `json:"id"`
 	Attributes struct {
-		Valid      bool     `json:"valid"`
+		Valid      bool     `json:"is_valid"`
 		OutputYAML string   `json:"output_yaml"`
 		Errors     []string `json:"errors"`
 	} `json:"attributes"`
@@ -196,7 +195,6 @@ type OrbVersion struct {
 	OrbID     string
 	OrbName   string
 	Version   string
-	Source    string
 	CreatedAt string
 }
 
@@ -244,7 +242,6 @@ func (w *orbVersionWire) toOrbVersion() *OrbVersion {
 		OrbID:     w.References.Package.ID,
 		OrbName:   w.References.Package.Attributes.Name,
 		Version:   w.Attributes.Version,
-		Source:    w.Attributes.Source,
 		CreatedAt: w.Attributes.CreatedAt,
 	}
 }
@@ -352,20 +349,6 @@ func (c *Client) ValidateOrbYAML(ctx context.Context, yaml, orgID string) (*OrbV
 	}, nil
 }
 
-// ProcessOrbYAML validates and expands orb YAML. orgID is optional.
-func (c *Client) ProcessOrbYAML(ctx context.Context, yaml, orgID string) (*OrbValidation, error) {
-	var env v3Entity[orbValidateWire]
-	err := c.postV3(ctx, "/orb/packages/process", orbYAMLBody{YAML: yaml, OrgID: orgID}, &env)
-	if err != nil {
-		return nil, err
-	}
-	return &OrbValidation{
-		Valid:      env.Data.Attributes.Valid,
-		OutputYAML: env.Data.Attributes.OutputYAML,
-		Errors:     env.Data.Attributes.Errors,
-	}, nil
-}
-
 // SetOrbListed sets the listed status of an orb package.
 func (c *Client) SetOrbListed(ctx context.Context, orbID string, listed bool) error {
 	var env v3Entity[orbPackageWire]
@@ -457,13 +440,27 @@ func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion,
 	return env.Data.toOrbVersion(), nil
 }
 
+func (c *Client) GetOrbSource(ctx context.Context, id string) (string, error) {
+	body := ""
+	err := c.getV3Raw(ctx, "/orb/versions/%s/source", &body,
+		routeParams(id),
+	)
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return "", fmt.Errorf("%w: %q", ErrOrbVersionNotFound, id)
+	}
+	if err != nil {
+		return "", err
+	}
+	return body, nil
+}
+
 type orbYAMLBody struct {
 	YAML  string `json:"yaml"`
 	OrgID string `json:"org_id,omitempty"`
 }
 
 type orbSetListedBody struct {
-	Listed bool `json:"listed"`
+	Listed bool `json:"is_listed"`
 }
 
 type orbCategoryBody struct {
