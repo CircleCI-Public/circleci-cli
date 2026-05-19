@@ -25,6 +25,7 @@ package settings
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -49,7 +50,7 @@ func newListCmd() *cobra.Command {
 			The token value is masked for security. Settings are read from
 			$XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
 
-			JSON fields: token_set, host
+			JSON fields: token_set, host, telemetry_enabled
 		`),
 		Example: heredoc.Doc(`
 			# Show current settings
@@ -86,8 +87,9 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 
 	if jsonOut {
 		out := map[string]any{
-			"token_set": tokenSet,
-			"host":      cfg.EffectiveHost(),
+			"token_set":         tokenSet,
+			"host":              cfg.EffectiveHost(),
+			"telemetry_enabled": cfg.IsTelemetryEnabled(),
 		}
 		return iostream.PrintJSON(ctx, out)
 	}
@@ -99,6 +101,7 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 	table := mdtable.New("Name", "Value")
 	table.Row("host", cfg.EffectiveHost())
 	table.Row("token", maskToken(cfg.EffectiveToken()))
+	table.Row("telemetry_enabled", strconv.FormatBool(cfg.IsTelemetryEnabled()))
 	md.WriteString(table.Render() + "\n")
 	iostream.PrintMarkdown(ctx, md.String())
 	return nil

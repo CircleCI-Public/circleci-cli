@@ -29,27 +29,29 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewSettingsCmd returns the "circleci settings" command group.
-func NewSettingsCmd() *cobra.Command {
+func newTelemetryCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "settings <command>",
-		Short: "Manage CLI settings",
+		Use:   "telemetry <command>",
+		Short: "Manage telemetry preferences",
 		Long: heredoc.Doc(`
-			View and modify settings for the circleci CLI tool.
+			Opt in or out of anonymous usage telemetry.
 
-			Use 'circleci settings set token' to configure your personal API token.
-			Use 'circleci settings list' to view current settings.
-			Use 'circleci settings telemetry' to manage telemetry preferences.
+			Telemetry helps the CircleCI team understand how the CLI is used so we
+			can improve it. No credentials, pipeline definitions, or personally
+			identifiable information are ever collected.
 
-			For pipeline YAML operations, see 'circleci config'.
+			The following environment variables always override the stored preference:
+			  CIRCLECI_NO_TELEMETRY   disable telemetry when set to any value
+			  NO_ANALYTICS            disable telemetry when set to any value
+			  DO_NOT_TRACK            disable telemetry when set to any value
+			  CI                      disable telemetry automatically in CI environments
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newSetCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newTelemetryCmd())
+	cmd.AddCommand(newTelemetryEnableCmd())
+	cmd.AddCommand(newTelemetryDisableCmd())
 
 	return cmd
 }
