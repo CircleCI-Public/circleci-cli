@@ -432,7 +432,7 @@ func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion,
 	var env v3Entity[orbVersionWire]
 	err := c.getV3(ctx, "/orb/versions/%s", &env,
 		routeParams(id),
-		queryParam("include", "orb_package"),
+		queryParam("include", "source"),
 	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrOrbVersionNotFound, id)
