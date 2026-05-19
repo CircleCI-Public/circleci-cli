@@ -96,13 +96,14 @@ func TestConfigGenerate_PathNotFound(t *testing.T) {
 }
 
 // TestConfigGenerate_DotNetProject exercises the happy path end-to-end through
-// the real binary against a real on-disk project. A .csproj file with a pinned
-// TargetFramework drives chunk-cli/envbuilder's local-only .NET detection
-// path — no Docker Hub call — so the test is deterministic in CI.
+// the real binary against a real on-disk project. The skeleton .csproj fixture
+// under testdata/config-generate/dotnet drives chunk-cli/envbuilder's local-only
+// .NET detection path — no Docker Hub call — so the test is deterministic in
+// CI. We copy the fixture into a tempdir because the generator writes
+// .circleci/config.yml into the project dir.
 func TestConfigGenerate_DotNetProject(t *testing.T) {
 	dir := t.TempDir()
-	csproj := []byte(`<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>`)
-	assert.NilError(t, os.WriteFile(filepath.Join(dir, "Sample.csproj"), csproj, 0o644))
+	copyFixture(t, "testdata/config-generate/dotnet", dir)
 
 	env := testenv.New(t)
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -119,6 +120,31 @@ func TestConfigGenerate_DotNetProject(t *testing.T) {
 	assert.NilError(t, readErr)
 	assert.Assert(t, strings.HasPrefix(string(written), generatedHeader),
 		"config.yml must start with the generated-by header; got: %q", string(written))
+}
+
+// copyFixture mirrors the file tree at src into dst, preserving relative
+// paths. Used to stage a read-only fixture into a writable tempdir for tests
+// whose subject writes new files alongside the inputs.
+func copyFixture(t *testing.T, src, dst string) {
+	t.Helper()
+	assert.NilError(t, filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	}))
 }
 
 // TestConfigGenerate_DefaultPath exercises the no-arg invocation: with no path
