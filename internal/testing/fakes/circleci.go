@@ -1941,7 +1941,7 @@ func (f *CircleCI) AddOrbPackage(id, nsID, nsName, orbName string, isPrivate, is
 				"id":         nsID,
 				"attributes": map[string]any{"name": nsName},
 			},
-			"categories": []any{},
+			"orb/categories": []any{},
 		},
 	}
 	f.orbPackages[id] = pkg
@@ -1964,7 +1964,7 @@ func (f *CircleCI) AddOrbVersion(id, orbID, orbName, version, source, createdAt 
 			"created_at": createdAt,
 		},
 		"references": map[string]any{
-			"orb": map[string]any{
+			"orb/package": map[string]any{
 				"id":         orbID,
 				"attributes": map[string]any{"name": orbName},
 			},
@@ -1979,16 +1979,16 @@ func (f *CircleCI) AddOrbVersion(id, orbID, orbName, version, source, createdAt 
 	// Add to orb's version list (for list by orb_id)
 	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
 
-	// Update the package's latest_version reference
+	// Update the package's orb/versions reference
 	if pkg, ok := f.orbPackages[orbID]; ok {
 		if refs, ok := pkg["references"].(map[string]any); ok {
-			refs["latest_version"] = map[string]any{
+			refs["orb/versions"] = []any{map[string]any{
 				"id": id,
 				"attributes": map[string]any{
 					"version":    version,
 					"created_at": createdAt,
 				},
-			}
+			}}
 		}
 	}
 }
@@ -2067,7 +2067,7 @@ func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request)
 			attrsCopy["is_listed"] = !unlisted[id]
 		}
 		if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-			refsCopy["categories"] = catList
+			refsCopy["orb/categories"] = catList
 		}
 		items = append(items, pkgCopy)
 	}
@@ -2120,7 +2120,7 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 				"id":         body.NamespaceID,
 				"attributes": map[string]any{"name": nsName},
 			},
-			"categories": []any{},
+			"orb/categories": []any{},
 		},
 	}
 	f.mu.Lock()
@@ -2159,7 +2159,7 @@ func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
 		attrsCopy["is_listed"] = !unlisted
 	}
 	if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-		refsCopy["categories"] = catList
+		refsCopy["orb/categories"] = catList
 	}
 	render.JSON(w, r, orbPackageResponse(pkgCopy))
 }
@@ -2398,7 +2398,7 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 			"created_at": "2026-01-15T10:30:00.000Z",
 		},
 		"references": map[string]any{
-			"orb": map[string]any{
+			"orb/package": map[string]any{
 				"id":         body.OrbID,
 				"attributes": map[string]any{"name": orbName},
 			},
@@ -2411,15 +2411,15 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 	f.orbVersionsByRef[ref] = id
 	f.orbVersionsByRef[orbName+"@volatile"] = id
 	f.orbVersionsByOrbID[body.OrbID] = append([]string{id}, f.orbVersionsByOrbID[body.OrbID]...)
-	// Update package latest_version
+	// Update package orb/versions reference
 	if refs, ok := pkg["references"].(map[string]any); ok {
-		refs["latest_version"] = map[string]any{
+		refs["orb/versions"] = []any{map[string]any{
 			"id": id,
 			"attributes": map[string]any{
 				"version":    body.Version,
 				"created_at": "2026-01-15T10:30:00.000Z",
 			},
-		}
+		}}
 	}
 	f.orbCreatedVersions = append(f.orbCreatedVersions, ver)
 	f.mu.Unlock()
@@ -2464,7 +2464,7 @@ func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Reques
 	}
 
 	refs, _ := ver["references"].(map[string]any)
-	orb, _ := refs["orb"].(map[string]any)
+	orb, _ := refs["orb/package"].(map[string]any)
 	orbID, _ := orb["id"].(string)
 	orbName, _ := orb["attributes"].(map[string]any)["name"].(string)
 
@@ -2502,7 +2502,7 @@ func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Reques
 			"created_at": "2026-01-15T10:30:00.000Z",
 		},
 		"references": map[string]any{
-			"orb": map[string]any{
+			"orb/package": map[string]any{
 				"id":         orbID,
 				"attributes": map[string]any{"name": orbName},
 			},
