@@ -1,7 +1,18 @@
 commands:
-    run:
-        description: Run a command
+    zomg:
+        description: a command inside a folder in an orb
+        parameters:
+            tm:
+                description: Tell me something.
+                type: string
         steps:
-            - run: echo hello
-description: My orb
-version: 2.1
+            - run: echo "You don't say... << parameters.saywhat >>"
+description: A simple encapsulation of common tasks in Hugo
+executors:
+    default:
+        docker:
+            - image: cibuilds/hugo:<< parameters.image >>
+        parameters:
+            tag:
+                description: The tag to use on the image
+                type: string
