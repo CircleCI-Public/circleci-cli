@@ -163,9 +163,8 @@ type orbCategoryWire struct {
 }
 
 type orbValidateWire struct {
-	ID         string `json:"id"`
 	Attributes struct {
-		Valid      bool     `json:"valid"`
+		Valid      bool     `json:"is_valid"`
 		OutputYAML string   `json:"output_yaml"`
 		Errors     []string `json:"errors"`
 	} `json:"attributes"`
@@ -352,20 +351,6 @@ func (c *Client) ValidateOrbYAML(ctx context.Context, yaml, orgID string) (*OrbV
 	}, nil
 }
 
-// ProcessOrbYAML validates and expands orb YAML. orgID is optional.
-func (c *Client) ProcessOrbYAML(ctx context.Context, yaml, orgID string) (*OrbValidation, error) {
-	var env v3Entity[orbValidateWire]
-	err := c.postV3(ctx, "/orb/packages/process", orbYAMLBody{YAML: yaml, OrgID: orgID}, &env)
-	if err != nil {
-		return nil, err
-	}
-	return &OrbValidation{
-		Valid:      env.Data.Attributes.Valid,
-		OutputYAML: env.Data.Attributes.OutputYAML,
-		Errors:     env.Data.Attributes.Errors,
-	}, nil
-}
-
 // SetOrbListed sets the listed status of an orb package.
 func (c *Client) SetOrbListed(ctx context.Context, orbID string, listed bool) error {
 	var env v3Entity[orbPackageWire]
@@ -442,11 +427,12 @@ func (c *Client) GetOrbVersionByRef(ctx context.Context, ref string) (*OrbVersio
 	return env.Data[0].toOrbVersion(), nil
 }
 
-// GetOrbVersionByID gets a single orb version by UUID (includes source YAML).
+// GetOrbVersionByID gets a single orb version by UUID.
 func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion, error) {
 	var env v3Entity[orbVersionWire]
 	err := c.getV3(ctx, "/orb/versions/%s", &env,
 		routeParams(id),
+		queryParam("include", "orb_package"),
 	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrOrbVersionNotFound, id)
@@ -455,6 +441,21 @@ func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion,
 		return nil, err
 	}
 	return env.Data.toOrbVersion(), nil
+}
+
+// GetOrbVersionSource returns the raw YAML source of an orb version.
+func (c *Client) GetOrbVersionSource(ctx context.Context, id string) (string, error) {
+	var body string
+	err := c.getV3Text(ctx, "/orb/versions/%s/source", &body,
+		routeParams(id),
+	)
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return "", fmt.Errorf("%w: %q", ErrOrbVersionNotFound, id)
+	}
+	if err != nil {
+		return "", err
+	}
+	return body, nil
 }
 
 type orbYAMLBody struct {

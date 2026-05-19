@@ -112,7 +112,7 @@ type CircleCI struct {
 	orbVersionsByOrbID  map[string][]string       // orbID → ordered version IDs
 	orbCategories       map[string]map[string]any // id → category object
 	orbCategoriesByName map[string]string         // name → id
-	orbValidateResponse *orbFakeValidateResponse  // override for validate/process responses
+	orbValidateResponse *orbFakeValidateResponse  // override for validate responses
 	orbCreatedPackages  []map[string]any          // packages created via POST
 	orbCreatedVersions  []map[string]any          // versions created via POST
 	orbUnlistedPackages map[string]bool           // id → unlisted
@@ -124,7 +124,7 @@ type CircleCI struct {
 	deletedNamespaces map[string]bool   // namespace id → deleted
 }
 
-// orbFakeValidateResponse holds a preset validate/process response for testing.
+// orbFakeValidateResponse holds a preset validate response for testing.
 type orbFakeValidateResponse struct {
 	yaml       string
 	valid      bool
@@ -258,13 +258,13 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/orb/packages", f.handleOrbListPackages)
 	r.Post("/api/v3/orb/packages", f.handleOrbCreatePackage)
 	r.Post("/api/v3/orb/packages/validate", f.handleOrbValidate)
-	r.Post("/api/v3/orb/packages/process", f.handleOrbProcess)
 	r.Get("/api/v3/orb/packages/{id}", f.handleOrbGetPackage)
 	r.Post("/api/v3/orb/packages/{id}/set-listed", f.handleOrbSetListed)
 	r.Post("/api/v3/orb/packages/{id}/add-category", f.handleOrbAddCategory)
 	r.Post("/api/v3/orb/packages/{id}/remove-category", f.handleOrbRemoveCategory)
 	r.Get("/api/v3/orb/versions", f.handleOrbListVersions)
 	r.Post("/api/v3/orb/versions", f.handleOrbCreateVersion)
+	r.Get("/api/v3/orb/versions/{id}/source", f.handleOrbGetVersionSource)
 	r.Get("/api/v3/orb/versions/{id}", f.handleOrbGetVersion)
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
@@ -2044,7 +2044,7 @@ func (f *CircleCI) AddOrbCategory(id, name string) {
 	f.orbCategoriesByName[name] = id
 }
 
-// SetOrbValidationResponse configures the validate/process endpoints to return
+// SetOrbValidationResponse configures the validate endpoint to return
 // the given result when the request YAML matches yaml. Pass "" for yaml to
 // match any request.
 func (f *CircleCI) SetOrbValidationResponse(yaml string, valid bool, errors []string, outputYAML string) {
@@ -2303,14 +2303,6 @@ func (f *CircleCI) handleOrbRemoveCategory(w http.ResponseWriter, r *http.Reques
 }
 
 func (f *CircleCI) handleOrbValidate(w http.ResponseWriter, r *http.Request) {
-	f.handleOrbValidateOrProcess(w, r)
-}
-
-func (f *CircleCI) handleOrbProcess(w http.ResponseWriter, r *http.Request) {
-	f.handleOrbValidateOrProcess(w, r)
-}
-
-func (f *CircleCI) handleOrbValidateOrProcess(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		YAML  string `json:"yaml"`
 		OrgID string `json:"org_id"`
@@ -2337,9 +2329,8 @@ func (f *CircleCI) handleOrbValidateOrProcess(w http.ResponseWriter, r *http.Req
 
 	response := map[string]any{
 		"data": map[string]any{
-			"id": "00000000-0000-0000-0000-000000000000",
 			"attributes": map[string]any{
-				"valid":       valid,
+				"is_valid":    valid,
 				"output_yaml": outputYAML,
 				"errors":      errors,
 			},
@@ -2466,6 +2457,24 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, orbVersionResponse(ver))
+}
+
+func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	ver, ok := f.orbVersions[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	attrs, _ := ver["attributes"].(map[string]any)
+	source, _ := attrs["source"].(string)
+	w.Header().Set("Content-Type", "text/plain")
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write([]byte(source))
 }
 
 func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {

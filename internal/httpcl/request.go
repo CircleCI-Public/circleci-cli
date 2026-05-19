@@ -69,6 +69,20 @@ func JSONDecoder(v any) func(*Request) {
 	}
 }
 
+// TextDecoder reads a 2xx response body as a plain string into dst.
+func TextDecoder(dst *string) func(*Request) {
+	return func(r *Request) {
+		r.decoder = func(rd io.Reader) error {
+			b, err := io.ReadAll(rd)
+			if err != nil {
+				return err
+			}
+			*dst = string(b)
+			return nil
+		}
+	}
+}
+
 // Header sets a single request header.
 func Header(key, val string) func(*Request) {
 	return func(r *Request) { r.headers.Add(key, val) }
