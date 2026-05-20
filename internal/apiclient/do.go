@@ -34,7 +34,7 @@ import (
 // escape-hatch command and should not be used by typed command packages.
 //
 // path must be an absolute path including the API version prefix
-// (e.g. "/api/v2/project/..."). The Circle-Token header is added automatically;
+// (e.g. "/api/v2/project/..."). The Authorization: Bearer header is added automatically;
 // callers may supply additional headers via extraHeaders.
 //
 // Non-2xx status codes do NOT return an error — the caller is responsible for
@@ -44,7 +44,7 @@ func (c *Client) Do(ctx context.Context, method, path string, extraHeaders http.
 	if err != nil {
 		return 0, nil, fmt.Errorf("building request: %w", err)
 	}
-	req.Header.Set("Circle-Token", c.token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
 	for k, vals := range extraHeaders {
 		for _, v := range vals {
