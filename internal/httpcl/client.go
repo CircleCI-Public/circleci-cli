@@ -81,6 +81,7 @@ func New(cfg Config) *Client {
 
 	rc := retryablehttp.NewClient()
 	rc.RetryMax = 3
+	rc.ErrorHandler = retryablehttp.PassthroughErrorHandler
 	if cfg.DisableRetries {
 		rc.RetryMax = 0
 	}
