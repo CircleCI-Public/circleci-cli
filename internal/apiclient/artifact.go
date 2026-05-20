@@ -60,7 +60,7 @@ func (c *Client) DownloadArtifact(ctx context.Context, artifactURL string, dst i
 	if err != nil {
 		return fmt.Errorf("building request: %w", err)
 	}
-	req.Header.Set("Circle-Token", c.token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 
 	resp, err := c.raw.Do(req)
 	if err != nil {

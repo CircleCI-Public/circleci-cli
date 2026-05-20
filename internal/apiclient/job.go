@@ -123,14 +123,14 @@ func v1ProjectPath(projectSlug string, jobNumber int64) string {
 }
 
 // GetStepOutput fetches the log lines from a step action's output URL.
-// The output URL is typically a pre-authenticated storage URL; the Circle-Token
+// The output URL is typically a pre-authenticated storage URL; the Authorization
 // header is sent anyway for URLs that require it.
 func (c *Client) GetStepOutput(ctx context.Context, outputURL string) ([]LogLine, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, outputURL, nil)
 	if err != nil {
 		return nil, fmt.Errorf("building request: %w", err)
 	}
-	req.Header.Set("Circle-Token", c.token)
+	req.Header.Set("Authorization", "Bearer "+c.token)
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := c.raw.Do(req)

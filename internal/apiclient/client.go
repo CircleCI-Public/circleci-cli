@@ -62,8 +62,8 @@ func New(baseURL, token string, transport http.RoundTripper) *Client {
 	}
 
 	cfg := httpcl.Config{
-		AuthToken:  token,
-		AuthHeader: "Circle-Token",
+		AuthToken:  "Bearer " + token,
+		AuthHeader: "Authorization",
 		UserAgent:  "circleci-cli (" + runtime.GOOS + "; " + DeviceID + ")",
 		Transport:  transport,
 	}
