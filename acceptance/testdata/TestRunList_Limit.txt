@@ -1,5 +1,5 @@
 # Runs
-| #  | Branch | Revision | Run     | Created              | State   |
-| -- | ------ | -------- | ------- | -------------------- | ------- |
-| 10 | main   | abc1234  | `pid-1` | 2020-01-01 12:00 UTC | created |
-| 9  | main   | abc1234  | `pid-2` | 2020-01-01 12:00 UTC | created |
+| #  | Branch | Revision | ID    | Created              | Duration | State   |
+| -- | ------ | -------- | ----- | -------------------- | -------- | ------- |
+| 10 | main   | abc1234  | pid-1 | 2020-01-01 12:00 UTC | -        | created |
+| 9  | main   | abc1234  | pid-2 | 2020-01-01 12:00 UTC | -        | created |

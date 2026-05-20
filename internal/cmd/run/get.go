@@ -229,9 +229,12 @@ func buildOutput(r *apiclient.Pipeline, workflows []apiclient.PipelineWorkflowSu
 	if r.VCS != nil {
 		branch = r.VCS.Branch
 		revision = r.VCS.Revision
-		if len(revision) > 7 {
-			revision = revision[:7]
-		}
+	} else if tp := r.TriggerParameters; tp != nil && tp.Git != nil {
+		branch = tp.Git.Branch
+		revision = tp.Git.CheckoutSHA
+	}
+	if len(revision) > 7 {
+		revision = revision[:7]
 	}
 
 	errs := make([]errorOutput, len(r.Errors))

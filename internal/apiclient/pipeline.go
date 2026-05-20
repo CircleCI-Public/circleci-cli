@@ -32,15 +32,16 @@ import (
 
 // Pipeline represents a CircleCI pipeline.
 type Pipeline struct {
-	ID          string          `json:"id"`
-	State       string          `json:"state"`
-	Number      int64           `json:"number"`
-	CreatedAt   time.Time       `json:"created_at"`
-	UpdatedAt   time.Time       `json:"updated_at"`
-	ProjectSlug string          `json:"project_slug"`
-	Trigger     PipelineTrigger `json:"trigger"`
-	VCS         *PipelineVCS    `json:"vcs,omitempty"`
-	Errors      []PipelineError `json:"errors,omitempty"`
+	ID                string                     `json:"id"`
+	State             string                     `json:"state"`
+	Number            int64                      `json:"number"`
+	CreatedAt         time.Time                  `json:"created_at"`
+	UpdatedAt         time.Time                  `json:"updated_at"`
+	ProjectSlug       string                     `json:"project_slug"`
+	Trigger           PipelineTrigger            `json:"trigger"`
+	TriggerParameters *PipelineTriggerParameters `json:"trigger_parameters,omitempty"`
+	VCS               *PipelineVCS               `json:"vcs,omitempty"`
+	Errors            []PipelineError            `json:"errors,omitempty"`
 }
 
 // PipelineTrigger describes what triggered a pipeline.
@@ -48,6 +49,18 @@ type PipelineTrigger struct {
 	Type       string    `json:"type"`
 	ReceivedAt time.Time `json:"received_at"`
 	Actor      Actor     `json:"actor"`
+}
+
+// PipelineTriggerParameters holds git context for pipeline-definition-triggered runs.
+// It is absent on legacy VCS-triggered pipelines (which use the vcs field instead).
+type PipelineTriggerParameters struct {
+	Git *PipelineTriggerGit `json:"git,omitempty"`
+}
+
+// PipelineTriggerGit holds the git fields within trigger_parameters.
+type PipelineTriggerGit struct {
+	Branch      string `json:"branch"`
+	CheckoutSHA string `json:"checkout_sha"`
 }
 
 // Actor is a CircleCI user or token.
@@ -189,9 +202,11 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 
 // PipelineWorkflowSummary holds brief workflow status for a pipeline.
 type PipelineWorkflowSummary struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Status    string     `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
+	StoppedAt *time.Time `json:"stopped_at"`
 }
 
 // GetPipelineWorkflows returns the workflows for a pipeline.
