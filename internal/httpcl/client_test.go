@@ -24,8 +24,11 @@ package httpcl_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -51,18 +54,29 @@ func TestClient_Call(t *testing.T) {
 			"header":   r.Header.Get("X-Header"),
 		})
 	})
+	r.Get("/status/{status}", func(w http.ResponseWriter, r *http.Request) {
+		status, err := strconv.Atoi(chi.URLParam(r, "status"))
+		if err != nil {
+			render.Status(r, http.StatusBadRequest)
+			return
+		}
+
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{
+			"message": fmt.Sprintf("status %d", status),
+		})
+	})
 
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
 
 	c := httpcl.New(httpcl.Config{
-		BaseURL:        srv.URL,
-		DisableRetries: true,
+		BaseURL: srv.URL,
 	})
 
 	ctx := iostream.Testing(context.Background())
 
-	t.Run("check", func(t *testing.T) {
+	t.Run("parameters", func(t *testing.T) {
 		var body map[string]any
 		status, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/hello/%s/%d",
 			httpcl.RouteParams("abc", 123),
@@ -82,4 +96,52 @@ func TestClient_Call(t *testing.T) {
 			"query":    "q1=first&q1=second&q2=other",
 		}))
 	})
+
+	t.Run("errors", func(t *testing.T) {
+		tests := []struct {
+			status      int
+			expectError string
+			expectBody  string
+		}{
+			{
+				status:      http.StatusBadRequest,
+				expectError: "GET /status/400: 400 Bad Request",
+				expectBody:  `{"message":"status 400"}` + "\n",
+			},
+			{
+				status:      http.StatusNotFound,
+				expectError: "GET /status/404: 404 Not Found",
+				expectBody:  `{"message":"status 404"}` + "\n",
+			},
+			{
+				status:      http.StatusInternalServerError,
+				expectError: "GET /status/500: 500 Internal Server Error",
+				expectBody:  `{"message":"status 500"}` + "\n",
+			},
+			{
+				status:      http.StatusBadGateway,
+				expectError: "GET /status/502: 502 Bad Gateway",
+				expectBody:  `{"message":"status 502"}` + "\n",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(fmt.Sprintf("status %d", tt.status), func(t *testing.T) {
+				var body map[string]any
+				status, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/status/%d",
+					httpcl.RouteParams(tt.status),
+					httpcl.JSONDecoder(&body),
+				))
+				assert.Check(t, cmp.Error(err, tt.expectError))
+				assert.Check(t, cmp.Equal(status, tt.status))
+				assert.Check(t, cmp.Nil(body))
+				assert.Check(t, httpcl.HasStatusCode(err, tt.status))
+				httpError, ok := errors.AsType[*httpcl.HTTPError](err)
+				assert.Check(t, ok)
+				assert.Check(t, cmp.Equal(httpError.StatusCode, tt.status))
+				assert.Check(t, cmp.Equal(string(httpError.Body), tt.expectBody))
+			})
+		}
+	})
+
 }

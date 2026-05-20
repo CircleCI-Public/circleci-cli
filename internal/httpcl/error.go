@@ -42,8 +42,8 @@ func (e *HTTPError) Error() string {
 
 // HasStatusCode checks if err is an *HTTPError with any of the given status codes.
 func HasStatusCode(err error, codes ...int) bool {
-	var he *HTTPError
-	if !errors.As(err, &he) {
+	he, ok := errors.AsType[*HTTPError](err)
+	if !ok {
 		return false
 	}
 	for _, c := range codes {
