@@ -207,7 +207,7 @@ func printList(ctx context.Context, entries []runListEntry) {
 		if e.DurationSeconds > 0 {
 			dur = formatElapsed(time.Duration(e.DurationSeconds) * time.Second)
 		}
-		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, e.ID, e.CreatedAt, dur, e.State)
+		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, dur, e.State)
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }
