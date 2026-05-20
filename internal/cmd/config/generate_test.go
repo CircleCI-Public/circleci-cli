@@ -27,9 +27,6 @@ import (
 	"context"
 	stderrors "errors"
 	"io"
-	"os"
-	"path/filepath"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -70,72 +67,10 @@ func runGenerate(t *testing.T, dir string, extraArgs ...string) (stderr string, 
 	return strings.ReplaceAll(s, `\`, `/`), err
 }
 
-func TestGenerateCmd_SkipsWhenConfigExists(t *testing.T) {
-	dir := t.TempDir()
-
-	configDir := filepath.Join(dir, ".circleci")
-	assert.NilError(t, os.MkdirAll(configDir, 0o755))
-	configPath := filepath.Join(configDir, "config.yml")
-	original := []byte("# user's existing config\nversion: 2.1\n")
-	assert.NilError(t, os.WriteFile(configPath, original, 0o644))
-
-	stderr, err := runGenerate(t, dir)
-	assert.NilError(t, err)
-
-	// File must be untouched.
-	got, readErr := os.ReadFile(configPath)
-	assert.NilError(t, readErr)
-	assert.DeepEqual(t, got, original)
-
-	assert.Check(t, golden.String(stderr, "skip-existing.stderr.txt"))
-}
-
-func TestGenerateCmd_ErrorsWhenPathDoesNotExist(t *testing.T) {
-	dir := t.TempDir()
-	missing := filepath.Join(dir, "does-not-exist")
-
-	_, err := runGenerate(t, missing)
-	assert.Assert(t, err != nil, "expected error for non-existent path")
-
-	var cliErr *clierrors.CLIError
-	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T", err)
-	// ExitCode is load-bearing for the process exit code but not part of
-	// Format() output, so assert it directly.
-	assert.Check(t, cmp.Equal(cliErr.ExitCode, clierrors.ExitBadArguments))
-
-	// The error message renders the path with %q, which escapes Windows
-	// backslashes (e.g. C:\\Users\\…). Match the quoted form so the
-	// substitution works on every platform.
-	rendered := strings.ReplaceAll(cliErr.Format(), strconv.Quote(missing), `"<MISSING_PATH>"`)
-	assert.Check(t, golden.String(rendered, "path-not-found.error.txt"))
-}
-
-func TestGenerateCmd_RendersScanSummary(t *testing.T) {
-	dir := t.TempDir()
-
-	var scanned string
-	cmdconfig.SetScanForTest(t, func(_ context.Context, d string) (*reposcan.Result, error) {
-		scanned = d
-		return &reposcan.Result{
-			Stack:        "node",
-			Image:        "cimg/node",
-			ImageVersion: "20.10",
-			Setup: []reposcan.SetupStep{
-				{Name: "install", Command: "npm ci"},
-				{Name: "test", Command: "npm test"},
-			},
-		}, nil
-	})
-
-	stderr, _ := runGenerate(t, dir)
-	assert.Check(t, cmp.Equal(scanned, dir), "scanner must be called with the target dir")
-	assert.Check(t, golden.String(stderr, "detected-node.stderr.txt"))
-}
-
-// Per-stack YAML output and atomic-write semantics are covered by the
-// configgen package's tests. cmdconfig only verifies that the CLI flow
-// invokes the scanner correctly and surfaces scanner errors.
-
+// ScannerErrorIsStructured requires SetScanForTest to inject a failure —
+// there is no way to trigger a deterministic scanner error from acceptance
+// tests without network access. All other error paths (path-not-found,
+// skip-existing) are covered by acceptance tests only to avoid duplication.
 func TestGenerateCmd_ScannerErrorIsStructured(t *testing.T) {
 	dir := t.TempDir()
 

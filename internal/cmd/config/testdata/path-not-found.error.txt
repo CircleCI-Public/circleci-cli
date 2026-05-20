@@ -1,5 +1,0 @@
-error: No directory exists at "<MISSING_PATH>".
-
-Suggestions:
-  • Check the path you passed and try again
-  • Omit the argument to scan the current directory

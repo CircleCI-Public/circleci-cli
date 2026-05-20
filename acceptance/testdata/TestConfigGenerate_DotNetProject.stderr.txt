@@ -1,0 +1,4 @@
+✓ Detected dotnet project (mcr.microsoft.com/dotnet/sdk:8.0)
+    install: dotnet restore
+    test: dotnet test --filter "FullyQualifiedName!~BufferErroringWithInvalidSize&FullyQualifiedName!~MemoryTraceWriter&FullyQualifiedName!~Issue1619&FullyQualifiedName!~SerializeFormattedDateTimeNewZealandCulture"
+✓ Generated <DIR>/.circleci/config.yml

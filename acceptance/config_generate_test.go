@@ -116,6 +116,10 @@ func TestConfigGenerate_DotNetProject(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Equal(t, result.Stdout, "")
 
+	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
+	stderr = strings.ReplaceAll(stderr, `\`, `/`)
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
 	assert.Assert(t, strings.HasPrefix(string(written), generatedHeader),
@@ -164,6 +168,10 @@ func TestConfigGenerate_DefaultPath(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Equal(t, result.Stdout, "")
+
+	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
+	stderr = strings.ReplaceAll(stderr, `\`, `/`)
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
