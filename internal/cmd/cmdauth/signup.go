@@ -24,9 +24,7 @@ package cmdauth
 
 import (
 	"context"
-	"errors"
 	"runtime"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
@@ -37,7 +35,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli/internal/oauth"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
@@ -49,8 +46,8 @@ func newSignupCmd() *cobra.Command {
 		Short: "Sign up for CircleCI via the browser",
 		Long: heredoc.Doc(`
 				Create a CircleCI account by opening the signup page in your browser.
-				After you complete signup, return to your terminal and press Enter
-				to authenticate the CLI with the regular browser login flow.
+				This uses the same browser-based OAuth flow as 'circleci auth login'
+				but routes you to the signup page instead of the login page.
 
 				If a token is already configured, run 'circleci auth logout' first
 				(signup will not silently overwrite an existing token). If you
@@ -101,40 +98,22 @@ func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage 
 	host := cfg.EffectiveHost()
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
-	if iostream.IsInteractive(ctx) {
-		return runSignupInteractive(ctx, host, deviceID, noBrowser, secureStorage)
+	if !noBrowser && iostream.IsInteractive(ctx) {
+		return runSignupInteractive(ctx, configPath, secureStorage)
 	}
 
-	flow, err := oauth.StartSignup(ctx, host, deviceID, runtime.GOOS)
-	if err != nil {
-		return clierrors.New("auth.signup.listen_failed",
-			"Could not start local callback server", err.Error()).
-			WithSuggestions("Check that no other process is blocking loopback ports").
-			WithExitCode(clierrors.ExitGeneralError)
-	}
-	defer func() { _ = flow.Close() }()
-
-	iostream.ErrPrintf(ctx, "Open this URL in your browser to sign up:\n\n  %s\n\n", flow.AuthorizeURL)
-	iostream.ErrPrintf(ctx, "After you finish signing up, run 'circleci auth login' to authenticate the CLI.\n")
-	return nil
+	return runLoginBrowser(ctx, host, deviceID, true, secureStorage)
 }
 
-func signupCancelledError() *clierrors.CLIError {
-	return clierrors.New("auth.signup.cancelled",
-		"Signup cancelled",
-		"Signup cancelled before signup completed.").
-		WithExitCode(clierrors.ExitCancelled)
-}
+func runSignupInteractive(ctx context.Context, configPath string, secureStorage bool) error {
+	deviceID := config.EnsureDeviceID(ctx, configPath)
 
-func runSignupInteractive(ctx context.Context, host, deviceID string, noBrowser, secureStorage bool) error {
-	model := ui.NewSignupFlow(ctx, ui.SignupFlowOptions{
-		Host:                  host,
-		DeviceID:              deviceID,
-		OSInfo:                runtime.GOOS,
-		NoBrowser:             noBrowser,
-		Color:                 iostream.ColorEnabled(ctx),
-		SignupCallbackTimeout: time.Second,
-		LoginCallbackTimeout:  callbackTimeout(),
+	model := ui.NewLoginFlow(ctx, ui.LoginFlowOptions{
+		DeviceID:        deviceID,
+		OSInfo:          runtime.GOOS,
+		Signup:          true,
+		CallbackTimeout: callbackTimeout(),
+		Color:           iostream.ColorEnabled(ctx),
 		GetUsername: func(ctx context.Context, host, token string) (string, error) {
 			me, err := apiclient.New(host, token, nil).GetMe(ctx)
 			if err != nil {
@@ -155,66 +134,21 @@ func runSignupInteractive(ctx context.Context, host, deviceID string, noBrowser,
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	m := final.(ui.SignupFlowModel)
+	m := final.(ui.LoginFlowModel)
 	defer m.Close()
 	res := m.Result()
 
 	switch {
 	case res.Cancelled:
-		return signupCancelledError()
+		return clierrors.New("auth.signup.cancelled",
+			"Signup cancelled",
+			"Interrupted before authorization started.").
+			WithExitCode(clierrors.ExitCancelled)
 	case res.Err != nil:
-		return signupFlowError(res)
+		return clierrors.New("auth.signup.failed",
+			"Signup failed", res.Err.Error()).
+			WithExitCode(clierrors.ExitAuthError)
 	default:
 		return persistToken(ctx, res.Host, res.Token, secureStorage)
-	}
-}
-
-func signupFlowError(res ui.SignupResult) error {
-	switch res.Failure {
-	case ui.SignupFailureNone:
-		return clierrors.New("auth.signup.failed",
-			"Signup failed", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
-	case ui.SignupFailureSignupListen:
-		return clierrors.New("auth.signup.listen_failed",
-			"Could not start local callback server", res.Err.Error()).
-			WithSuggestions("Check that no other process is blocking loopback ports").
-			WithExitCode(clierrors.ExitGeneralError)
-	case ui.SignupFailureSignupCallback:
-		return clierrors.New("auth.signup.callback_error",
-			"Signup failed", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
-	case ui.SignupFailureSignupExchange:
-		return clierrors.New("auth.signup.token_exchange_failed",
-			"Failed to exchange authorization code for token", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
-	case ui.SignupFailureLoginListen:
-		return clierrors.New("auth.login.listen_failed",
-			"Could not start local callback server", res.Err.Error()).
-			WithSuggestions("Check that no other process is blocking loopback ports").
-			WithExitCode(clierrors.ExitGeneralError)
-	case ui.SignupFailureLoginCallback:
-		if errors.Is(res.Err, context.DeadlineExceeded) {
-			return clierrors.New("auth.login.timeout",
-				"Login timed out",
-				"Login timed out — no browser callback received within "+callbackTimeout().String()+".").
-				WithSuggestions("Re-run 'circleci auth login' and complete the browser flow promptly").
-				WithExitCode(clierrors.ExitTimeout)
-		}
-		return clierrors.New("auth.login.callback_error",
-			"Authorization failed", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
-	case ui.SignupFailureLoginExchange:
-		return clierrors.New("auth.login.token_exchange_failed",
-			"Failed to exchange authorization code for token", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
-	case ui.SignupFailureUsername:
-		return clierrors.New("auth.login.failed",
-			"Login failed", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
-	default:
-		return clierrors.New("auth.signup.failed",
-			"Signup failed", res.Err.Error()).
-			WithExitCode(clierrors.ExitAuthError)
 	}
 }
