@@ -28,7 +28,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -42,32 +41,51 @@ import (
 
 var terminalURLRe = regexp.MustCompile(`https?://[^\s\x1b]+`)
 
-// TestAuthSignup_NonInteractivePrintsSignupURL verifies that non-interactive
-// signup prints the signup URL and tells the user to come back through login.
-func TestAuthSignup_NonInteractivePrintsSignupURL(t *testing.T) {
+// TestAuthSignup_NonInteractive_PrintsSignupURL verifies that non-interactive
+// signup prints the authorize URL with signup=true, waits for a callback, and
+// persists the token — mirroring the login flow.
+func TestAuthSignup_NonInteractive_PrintsSignupURL(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
+	fake.SetMe(map[string]any{
+		"id":    "user-uuid-1234",
+		"name":  "New User",
+		"login": "newuser",
+	})
+	fake.SetOAuthTokenResponse(map[string]any{
+		"access_token": "test-signup-token",
+		"token_type":   "Bearer",
+		"expires_in":   int64(7776000),
+	})
+
 	env := testenv.New(t)
 	env.CircleCIURL = fake.URL()
+	env.Extra["CIRCLECI_LOGIN_TIMEOUT"] = "10s"
 
-	result := binary.RunCLI(t, binary.RunOpts{
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"auth", "signup", "--insecure-storage"},
+		Args:    []string{"auth", "signup", "--no-browser"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var authURL string
+	assert.Assert(t, t.Run("read signup authorize url", func(t *testing.T) {
+		out, err := console.ExpectString("Waiting for browser authentication")
+		assert.NilError(t, err)
 
-	// Targeted URL semantics: lock down the params we care about while the
-	// rest of the URL (host, ports, PKCE values, state, device_id) is random.
-	assert.Check(t, cmp.Contains(result.Stderr, "signup=true"))
-	assert.Check(t, strings.Contains(result.Stderr, "127.0.0.1%3A") ||
-		strings.Contains(result.Stderr, "127.0.0.1:"),
-		"authorize URL must include a loopback redirect_uri:\n%s", result.Stderr)
+		authURL = terminalURLRe.FindString(out)
+		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
+		assert.Check(t, cmp.Contains(authURL, "signup=true"))
+	}))
 
-	// Golden-compare the surrounding stderr after scrubbing the random URL.
-	scrubbed := regexp.MustCompile(`https?://\S+`).ReplaceAllString(result.Stderr, "<authorize-url>")
-	assert.Check(t, golden.String(scrubbed, t.Name()+".stderr.txt"))
+	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
+		callbackAuthorizeURL(t, authURL)
+	}))
+
+	assert.Assert(t, t.Run("logged in", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as newuser")
+		assert.NilError(t, err)
+	}))
 }
 
 // TestAuthSignup_AlreadyAuthenticated asserts that running `circleci auth
@@ -91,9 +109,9 @@ func TestAuthSignup_AlreadyAuthenticated(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// TestAuthSignup_HappyPath drives the fallback signup flow against the fake
-// server. The CLI opens signup first, waits for the user to return, then starts
-// the regular login OAuth flow and persists the login token.
+// TestAuthSignup_HappyPath drives the interactive signup flow against the fake
+// server. The CLI presents the same TUI as login (host selection, method
+// selection, browser OAuth) but with signup=true on the authorize URL.
 func TestAuthSignup_HappyPath(t *testing.T) {
 	ctx := t.Context()
 
@@ -120,27 +138,42 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Assert(t, t.Run("wait for signup completion prompt", func(t *testing.T) {
-		out, err := console.ExpectString("Once you're signed in to CircleCI")
+	assert.Assert(t, t.Run("select host", func(t *testing.T) {
+		_, err := console.ExpectString("Where do you use CircleCI")
 		assert.NilError(t, err)
+		// Move to "Other" and press Enter to type the fake URL.
+		_, err = console.Send("\x1b[B")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Other")
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+	}))
 
-		signupURL := terminalURLRe.FindString(out)
-		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
-		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
-		_, err = console.ExpectString("press Enter here to continue with CLI authentication")
+	assert.Assert(t, t.Run("enter custom host", func(t *testing.T) {
+		_, err := console.ExpectString("Base URL")
+		assert.NilError(t, err)
+		_, err = console.Send(fake.URL())
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("select browser method", func(t *testing.T) {
+		_, err := console.ExpectString("Login with a web browser")
 		assert.NilError(t, err)
 		_, err = console.Send("\r")
 		assert.NilError(t, err)
 	}))
 
 	var authURL string
-	assert.Assert(t, t.Run("read login authorize url", func(t *testing.T) {
-		out, err := console.ExpectString("Waiting for browser authentication")
+	assert.Assert(t, t.Run("read authorize url and open browser", func(t *testing.T) {
+		out, err := console.ExpectString("Press Enter to open in your browser")
 		assert.NilError(t, err)
 
 		authURL = terminalURLRe.FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
-		assert.Check(t, !strings.Contains(authURL, "signup=true"), "login URL must not include signup=true: %s", authURL)
+		assert.Check(t, cmp.Contains(authURL, "signup=true"))
 	}))
 
 	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
@@ -170,70 +203,10 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 	}))
 
 	assert.Assert(t, t.Run("token persisted to YAML", func(t *testing.T) {
-		// --insecure-storage is injected by RunCLIInteractive; token lands in
-		// the YAML config under HOME/.config/circleci/config.yml.
 		cfgPath := filepath.Join(env.HomeDir, ".config", "circleci", "config.yml")
 		body, err := os.ReadFile(cfgPath)
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Contains(string(body), "test-signup-token"))
-	}))
-}
-
-func TestAuthSignup_UsesSignupCallbackWhenAvailable(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id":    "user-uuid-1234",
-		"name":  "New User",
-		"login": "newuser",
-	})
-	fake.SetOAuthTokenResponse(map[string]any{
-		"access_token": "test-signup-callback-token",
-		"token_type":   "Bearer",
-		"expires_in":   int64(7776000),
-	})
-
-	env := testenv.New(t)
-	env.CircleCIURL = fake.URL()
-	env.Extra["CIRCLECI_LOGIN_TIMEOUT"] = "20s"
-
-	console := binary.RunCLIInteractive(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"auth", "signup"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	var signupURL string
-	assert.Assert(t, t.Run("read signup authorize url", func(t *testing.T) {
-		out, err := console.ExpectString("Once you're signed in to CircleCI")
-		assert.NilError(t, err)
-
-		signupURL = terminalURLRe.FindString(out)
-		assert.Assert(t, signupURL != "", "signup URL not found in output: %q", out)
-		assert.Check(t, cmp.Contains(signupURL, "signup=true"))
-	}))
-
-	assert.Assert(t, t.Run("signup browser callback", func(t *testing.T) {
-		callbackAuthorizeURL(t, signupURL)
-	}))
-
-	assert.Assert(t, t.Run("continue from terminal", func(t *testing.T) {
-		_, err := console.Send("\r")
-		assert.NilError(t, err)
-	}))
-
-	assert.Assert(t, t.Run("logged in without second consent", func(t *testing.T) {
-		_, err := console.ExpectString("Logged in as newuser")
-		assert.NilError(t, err)
-		_, err = console.ExpectString("Saved host to")
-		assert.NilError(t, err)
-	}))
-
-	assert.Assert(t, t.Run("token persisted to YAML", func(t *testing.T) {
-		cfgPath := filepath.Join(env.HomeDir, ".config", "circleci", "config.yml")
-		body, err := os.ReadFile(cfgPath)
-		assert.NilError(t, err)
-		assert.Check(t, cmp.Contains(string(body), "test-signup-callback-token"))
 	}))
 }
 

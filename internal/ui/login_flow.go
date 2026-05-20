@@ -26,6 +26,7 @@ import (
 	"context"
 	"net/url"
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
@@ -71,8 +72,10 @@ type LoginResult struct {
 
 // LoginFlowOptions configures a LoginFlowModel.
 type LoginFlowOptions struct {
-	DeviceID string
-	OSInfo   string
+	DeviceID        string
+	OSInfo          string
+	Signup          bool
+	CallbackTimeout time.Duration
 	// GetUsername, if non-nil, is called after token exchange to display
 	// the authenticated user's login name.
 	GetUsername func(ctx context.Context, host, token string) (string, error)
@@ -127,6 +130,10 @@ var loginMethodOptions = []string{"Login with a web browser", "Paste an authenti
 
 // NewLoginFlow returns a LoginFlowModel ready to pass to tea.NewProgram.
 func NewLoginFlow(ctx context.Context, opts LoginFlowOptions) LoginFlowModel {
+	if opts.CallbackTimeout <= 0 {
+		opts.CallbackTimeout = 5 * time.Minute
+	}
+
 	ti := textinput.New()
 	ti.Placeholder = "https://example.circleci.com"
 	ti.SetWidth(50)
@@ -420,16 +427,26 @@ func (m LoginFlowModel) onUsernameFetched(msg usernameFetchedMsg) (tea.Model, te
 
 func (m LoginFlowModel) cmdStartOAuth() tea.Cmd {
 	ctx, host, deviceID, osInfo := m.ctx, m.result.Host, m.opts.DeviceID, m.opts.OSInfo
+	signup := m.opts.Signup
 	return func() tea.Msg {
-		flow, err := oauth.Start(ctx, host, deviceID, osInfo)
+		var flow *oauth.Flow
+		var err error
+		if signup {
+			flow, err = oauth.StartSignup(ctx, host, deviceID, osInfo)
+		} else {
+			flow, err = oauth.Start(ctx, host, deviceID, osInfo)
+		}
 		return oauthStartedMsg{flow: flow, err: err}
 	}
 }
 
 func (m LoginFlowModel) cmdWaitCallback() tea.Cmd {
-	ctx, flow := m.ctx, m.flow
+	ctx, flow, timeout := m.ctx, m.flow, m.opts.CallbackTimeout
 	return func() tea.Msg {
-		res, err := flow.Wait(ctx)
+		waitCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
+		res, err := flow.Wait(waitCtx)
 		return oauthCallbackMsg{result: res, err: err}
 	}
 }

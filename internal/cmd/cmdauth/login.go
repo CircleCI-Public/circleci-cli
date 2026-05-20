@@ -114,11 +114,17 @@ func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage b
 	host := cfg.EffectiveHost()
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
-	return runLoginBrowser(ctx, host, deviceID, secureStorage)
+	return runLoginBrowser(ctx, host, deviceID, false, secureStorage)
 }
 
-func runLoginBrowser(ctx context.Context, host, deviceID string, secureStorage bool) error {
-	flow, err := oauth.Start(ctx, host, deviceID, runtime.GOOS)
+func runLoginBrowser(ctx context.Context, host, deviceID string, signup, secureStorage bool) error {
+	var flow *oauth.Flow
+	var err error
+	if signup {
+		flow, err = oauth.StartSignup(ctx, host, deviceID, runtime.GOOS)
+	} else {
+		flow, err = oauth.Start(ctx, host, deviceID, runtime.GOOS)
+	}
 	if err != nil {
 		return clierrors.New("auth.login.listen_failed",
 			"Could not start local callback server", err.Error()).
@@ -137,10 +143,14 @@ func runLoginBrowser(ctx context.Context, host, deviceID string, secureStorage b
 	sp.Stop()
 	if err != nil {
 		if errors.Is(err, context.DeadlineExceeded) {
+			cmd := "circleci auth login"
+			if signup {
+				cmd = "circleci auth signup"
+			}
 			return clierrors.New("auth.login.timeout",
 				"Login timed out",
 				"Login timed out — no browser callback received within "+callbackTimeout().String()+".").
-				WithSuggestions("Re-run 'circleci auth login' and complete the browser flow promptly").
+				WithSuggestions("Re-run '" + cmd + "' and complete the browser flow promptly").
 				WithExitCode(clierrors.ExitTimeout)
 		}
 		return clierrors.New("auth.login.callback_error",
@@ -175,9 +185,10 @@ func runLoginInteractive(ctx context.Context, configPath string, secureStorage b
 	deviceID := config.EnsureDeviceID(ctx, configPath)
 
 	model := ui.NewLoginFlow(ctx, ui.LoginFlowOptions{
-		DeviceID: deviceID,
-		OSInfo:   runtime.GOOS,
-		Color:    iostream.ColorEnabled(ctx),
+		DeviceID:        deviceID,
+		OSInfo:          runtime.GOOS,
+		CallbackTimeout: callbackTimeout(),
+		Color:           iostream.ColorEnabled(ctx),
 		GetUsername: func(ctx context.Context, host, token string) (string, error) {
 			me, err := apiclient.New(host, token, nil).GetMe(ctx)
 			if err != nil {
