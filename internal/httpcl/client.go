@@ -137,6 +137,7 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 			"http.response.status_code", status,
 			"duration", duration,
 			"url.full", u.String(),
+			"kind", "client",
 		)
 	}()
 
