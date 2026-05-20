@@ -28,6 +28,8 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/google/uuid"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
@@ -285,7 +287,7 @@ func (c *Client) ListOrbPackages(ctx context.Context, namespaceID string, uncert
 }
 
 // GetOrbPackageByID gets a single orb package by UUID.
-func (c *Client) GetOrbPackageByID(ctx context.Context, id string) (*OrbPackage, error) {
+func (c *Client) GetOrbPackageByID(ctx context.Context, id uuid.UUID) (*OrbPackage, error) {
 	var env v3Entity[orbPackageWire]
 	err := c.getV3(ctx, "/orb/packages/%s", &env,
 		routeParams(id),
