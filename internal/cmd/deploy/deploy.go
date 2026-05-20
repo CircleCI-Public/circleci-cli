@@ -44,6 +44,7 @@ func NewDeployCmd() *cobra.Command {
 
 	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newOpenCmd())
+	cmd.AddCommand(newInitCmd())
 
 	return cmd
 }

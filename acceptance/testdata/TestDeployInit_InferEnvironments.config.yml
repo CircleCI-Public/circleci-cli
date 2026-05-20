@@ -1,0 +1,25 @@
+version: 2.1
+jobs:
+  deploy-staging:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run: make deploy-staging
+      - run:
+          name: Log deploy marker
+          command: circleci run release log --component "myapp" --environment "staging"
+  deploy-production:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - checkout
+      - run: make deploy-prod
+      - run:
+          name: Log deploy marker
+          command: circleci run release log --component "myapp" --environment "production"
+workflows:
+  main:
+    jobs:
+      - deploy-staging
+      - deploy-production
