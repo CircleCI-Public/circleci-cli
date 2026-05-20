@@ -293,6 +293,33 @@ func TestRunGet_NoToken(t *testing.T) {
 
 // --- run list ---
 
+// fakeRunNoVCS returns a pipeline payload without a vcs field, using trigger_parameters instead.
+func fakeRunNoVCS(id string, number int, state, slug, branch, revision string) map[string]any {
+	r := fakeRun(id, number, state, slug, branch)
+	delete(r, "vcs")
+	r["trigger_parameters"] = map[string]any{
+		"git": map[string]any{
+			"branch":       branch,
+			"checkout_sha": revision,
+		},
+	}
+	return r
+}
+
+// fakeWorkflowWithDuration returns a workflow payload whose stopped_at is
+// pipelineStart + durationSeconds, matching fakeRun's created_at baseline.
+func fakeWorkflowWithDuration(id, name, status string, durationSeconds int) map[string]any {
+	start := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
+	stopped := start.Add(time.Duration(durationSeconds) * time.Second)
+	return map[string]any{
+		"id":         id,
+		"name":       name,
+		"status":     status,
+		"created_at": start.Format(time.RFC3339),
+		"stopped_at": stopped.Format(time.RFC3339),
+	}
+}
+
 func TestRunList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
@@ -300,6 +327,59 @@ func TestRunList(t *testing.T) {
 		fakeRun("pid-1", 10, "created", slug, "main"),
 		fakeRun("pid-2", 9, "errored", slug, "feature"),
 		fakeRun("pid-3", 8, "created", slug, "main"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunList_Duration(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	r1 := fakeRun("pid-1", 10, "created", slug, "main")
+	r2 := fakeRun("pid-2", 9, "errored", slug, "feature")
+	r3 := fakeRun("pid-3", 8, "created", slug, "main")
+	fake.AddProjectRuns(slug, r1, r2, r3)
+	// Also register individually so the workflow endpoint is served.
+	fake.AddRun("pid-1", r1)
+	fake.AddRun("pid-2", r2)
+	fake.AddRun("pid-3", r3)
+	fake.AddRunWorkflows("pid-1", fakeWorkflowWithDuration("wf-1", "build", "success", 125)) // 2m5s
+	fake.AddRunWorkflows("pid-2", fakeWorkflowWithDuration("wf-2", "build", "failed", 45))   // 45s
+	// pid-3 has no workflows → duration stays -
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunList_TriggerParams(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	fake.AddProjectRuns(slug,
+		fakeRunNoVCS("pid-1", 10, "created", slug, "main", "abc1234def5678"),
+		fakeRunNoVCS("pid-2", 9, "errored", slug, "feature", "deadbeef1234"),
 	)
 
 	env := testenv.New(t)

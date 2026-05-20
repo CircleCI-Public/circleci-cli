@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -39,7 +40,7 @@ func newGetCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:   "get <ns>/<orb>[@<version>]",
+		Use:   "get <ns>/<orb>[@<version>]/<orb-id>",
 		Short: "Get orb metadata and statistics",
 		Long: heredoc.Doc(`
 			Get metadata and statistics for an orb.
@@ -107,31 +108,34 @@ type orbInfoOutput struct {
 }
 
 func runOrbInfo(ctx context.Context, client *apiclient.Client, ref string, jsonOut bool) error {
-	// Separate name from version if @ present
-	name := ref
-	if idx := strings.Index(ref, "@"); idx >= 0 {
-		name = ref[:idx]
+	var err error
+	var pkg *apiclient.OrbPackage
+	if id, parseErr := uuid.Parse(ref); parseErr == nil {
+		pkg, err = client.GetOrbPackageByID(ctx, id)
+		if err != nil {
+			return orbAPIErr(err, ref)
+		}
+	} else {
+		// Separate name from version if @ present
+		name := ref
+		if idx := strings.Index(ref, "@"); idx >= 0 {
+			name = ref[:idx]
+		}
+
+		pkg, err = client.GetOrbPackageByName(ctx, name)
+		if err != nil {
+			return orbAPIErr(err, name)
+		}
 	}
 
-	pkg, err := client.GetOrbPackageByName(ctx, name)
-	if err != nil {
-		return orbAPIErr(err, name)
-	}
-
-	// Get categories via the detailed endpoint (GetOrbPackageByID includes categories)
-	detailed, err := client.GetOrbPackageByID(ctx, pkg.ID)
-	if err != nil {
-		return orbAPIErr(err, name)
-	}
-
-	cats := make([]orbCategoryOutput, 0, len(detailed.Categories))
-	for _, c := range detailed.Categories {
+	cats := make([]orbCategoryOutput, 0, len(pkg.Categories))
+	for _, c := range pkg.Categories {
 		cats = append(cats, orbCategoryOutput{ID: c.ID, Name: c.Name})
 	}
 
-	allVersions, err := client.ListOrbVersions(ctx, detailed.ID, "")
+	allVersions, err := client.ListOrbVersions(ctx, pkg.ID, "")
 	if err != nil {
-		return orbAPIErr(err, name)
+		return orbAPIErr(err, ref)
 	}
 	versions := make([]orbInfoVersionOutput, 0, len(allVersions))
 	for _, v := range allVersions {
@@ -144,32 +148,32 @@ func runOrbInfo(ctx context.Context, client *apiclient.Client, ref string, jsonO
 
 	if jsonOut {
 		out := orbInfoOutput{
-			ID:            detailed.ID,
-			Name:          detailed.Name,
-			Namespace:     detailed.Namespace,
-			IsPrivate:     detailed.IsPrivate,
-			IsListed:      detailed.IsListed,
-			CreatedAt:     detailed.CreatedAt,
-			LatestVersion: detailed.LatestVersion,
+			ID:            pkg.ID,
+			Name:          pkg.Name,
+			Namespace:     pkg.Namespace,
+			IsPrivate:     pkg.IsPrivate,
+			IsListed:      pkg.IsListed,
+			CreatedAt:     pkg.CreatedAt,
+			LatestVersion: pkg.LatestVersion,
 			Categories:    cats,
 			Versions:      versions,
 			Stats: orbInfoStats{
-				BuildCount:   detailed.Last30DaysBuildCount,
-				ProjectCount: detailed.Last30DaysProjectCount,
-				OrgCount:     detailed.Last30DaysOrgCount,
+				BuildCount:   pkg.Last30DaysBuildCount,
+				ProjectCount: pkg.Last30DaysProjectCount,
+				OrgCount:     pkg.Last30DaysOrgCount,
 			},
 		}
 		return iostream.PrintJSON(ctx, out)
 	}
 
 	md := "# Orb\n\n"
-	md += fmt.Sprintf("- **ID:** `%s`\n", detailed.ID)
-	md += fmt.Sprintf("- **Name:** %s\n", detailed.Name)
-	md += fmt.Sprintf("- **Namespace:** %s\n", detailed.Namespace)
-	md += fmt.Sprintf("- **Latest Version:** %s\n", detailed.LatestVersion)
-	md += fmt.Sprintf("- **Created:** %s\n", detailed.CreatedAt)
-	md += fmt.Sprintf("- **Private:** %s\n", fmtBool(detailed.IsPrivate))
-	md += fmt.Sprintf("- **Listed:** %s\n", fmtBool(detailed.IsListed))
+	md += fmt.Sprintf("- **ID:** `%s`\n", pkg.ID)
+	md += fmt.Sprintf("- **Name:** %s\n", pkg.Name)
+	md += fmt.Sprintf("- **Namespace:** %s\n", pkg.Namespace)
+	md += fmt.Sprintf("- **Latest Version:** %s\n", pkg.LatestVersion)
+	md += fmt.Sprintf("- **Created:** %s\n", pkg.CreatedAt)
+	md += fmt.Sprintf("- **Private:** %s\n", fmtBool(pkg.IsPrivate))
+	md += fmt.Sprintf("- **Listed:** %s\n", fmtBool(pkg.IsListed))
 
 	md += "\n## Categories\n\n"
 	if len(cats) == 0 {
@@ -190,9 +194,9 @@ func runOrbInfo(ctx context.Context, client *apiclient.Client, ref string, jsonO
 	}
 
 	md += "\n## Last 30 Days\n\n"
-	md += fmt.Sprintf("- **Builds:** %d\n", detailed.Last30DaysBuildCount)
-	md += fmt.Sprintf("- **Projects:** %d\n", detailed.Last30DaysProjectCount)
-	md += fmt.Sprintf("- **Orgs:** %d\n", detailed.Last30DaysOrgCount)
+	md += fmt.Sprintf("- **Builds:** %d\n", pkg.Last30DaysBuildCount)
+	md += fmt.Sprintf("- **Projects:** %d\n", pkg.Last30DaysProjectCount)
+	md += fmt.Sprintf("- **Orgs:** %d\n", pkg.Last30DaysOrgCount)
 
 	iostream.PrintMarkdown(ctx, md)
 	return nil

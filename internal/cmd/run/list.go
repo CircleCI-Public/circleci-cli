@@ -25,6 +25,8 @@ package run
 import (
 	"context"
 	"strconv"
+	"sync"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -56,7 +58,7 @@ func newListCmd() *cobra.Command {
 			to a single branch.
 
 			JSON fields: id, number, state, project_slug, branch, revision,
-			             created_at, trigger
+			             created_at, trigger, duration_seconds
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
@@ -95,14 +97,15 @@ func newListCmd() *cobra.Command {
 }
 
 type runListEntry struct {
-	ID          string `json:"id"`
-	Number      int64  `json:"number"`
-	State       string `json:"state"`
-	ProjectSlug string `json:"project_slug"`
-	Branch      string `json:"branch,omitempty"`
-	Revision    string `json:"revision,omitempty"`
-	CreatedAt   string `json:"created_at"`
-	Trigger     struct {
+	ID              string `json:"id"`
+	Number          int64  `json:"number"`
+	State           string `json:"state"`
+	ProjectSlug     string `json:"project_slug"`
+	Branch          string `json:"branch,omitempty"`
+	Revision        string `json:"revision,omitempty"`
+	CreatedAt       string `json:"created_at"`
+	DurationSeconds int64  `json:"duration_seconds,omitempty"`
+	Trigger         struct {
 		Type  string `json:"type"`
 		Actor string `json:"actor"`
 	} `json:"trigger"`
@@ -122,9 +125,24 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 		return apiErr(err, projectSlug)
 	}
 
+	// Fetch workflow summaries concurrently to compute durations.
+	wfSummaries := make([][]apiclient.PipelineWorkflowSummary, len(runs))
+	var wg sync.WaitGroup
+	for i, r := range runs {
+		wg.Add(1)
+		go func(idx int, id string) {
+			defer wg.Done()
+			wfs, err := client.GetPipelineWorkflows(ctx, id)
+			if err == nil {
+				wfSummaries[idx] = wfs
+			}
+		}(i, r.ID)
+	}
+	wg.Wait()
+
 	entries := make([]runListEntry, len(runs))
 	for i, r := range runs {
-		entries[i] = toListEntry(&r)
+		entries[i] = toListEntry(&r, wfSummaries[i])
 	}
 
 	if jsonOut {
@@ -140,7 +158,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 	return nil
 }
 
-func toListEntry(r *apiclient.Pipeline) runListEntry {
+func toListEntry(r *apiclient.Pipeline, wfs []apiclient.PipelineWorkflowSummary) runListEntry {
 	e := runListEntry{
 		ID:          r.ID,
 		Number:      r.Number,
@@ -153,17 +171,43 @@ func toListEntry(r *apiclient.Pipeline) runListEntry {
 	if r.VCS != nil {
 		e.Branch = r.VCS.Branch
 		e.Revision = r.VCS.Revision
-		if len(e.Revision) > 7 {
-			e.Revision = e.Revision[:7]
-		}
+	} else if tp := r.TriggerParameters; tp != nil && tp.Git != nil {
+		e.Branch = tp.Git.Branch
+		e.Revision = tp.Git.CheckoutSHA
+	}
+	if len(e.Revision) > 7 {
+		e.Revision = e.Revision[:7]
+	}
+	if d := workflowDuration(r.CreatedAt, wfs); d >= time.Second {
+		e.DurationSeconds = int64(d.Seconds())
 	}
 	return e
 }
 
+// workflowDuration returns the wall-clock time from pipelineStart to the
+// latest stopped_at across all workflows. Returns 0 if no workflow has
+// finished yet.
+func workflowDuration(pipelineStart time.Time, wfs []apiclient.PipelineWorkflowSummary) time.Duration {
+	var latest time.Time
+	for _, wf := range wfs {
+		if wf.StoppedAt != nil && wf.StoppedAt.After(latest) {
+			latest = *wf.StoppedAt
+		}
+	}
+	if latest.IsZero() {
+		return 0
+	}
+	return latest.Sub(pipelineStart)
+}
+
 func printList(ctx context.Context, entries []runListEntry) {
-	table := mdtable.New("#", "Branch", "Revision", "Run", "Created", "State")
+	table := mdtable.New("#", "Branch", "Revision", "ID", "Created", "Duration", "State")
 	for _, e := range entries {
-		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, e.State)
+		dur := "-"
+		if e.DurationSeconds > 0 {
+			dur = formatElapsed(time.Duration(e.DurationSeconds) * time.Second)
+		}
+		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, dur, e.State)
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }

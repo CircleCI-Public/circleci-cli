@@ -62,7 +62,7 @@ func NewAPICmd() *cobra.Command {
 			a different version prefix, include it explicitly:
 			  circleci api /api/v1.1/me
 
-			The Circle-Token header is added automatically from your stored token.
+			The Authorization: Bearer header is added automatically from your stored token.
 			Use -H to add extra headers and -f to set fields (query parameters for
 			GET/DELETE, JSON body fields for POST/PUT/PATCH).
 

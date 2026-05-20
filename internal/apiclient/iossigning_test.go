@@ -63,7 +63,7 @@ func recordRequest(t *testing.T, r *http.Request) *recorded {
 		Method: r.Method,
 		Path:   r.URL.Path,
 		Query:  r.URL.RawQuery,
-		Token:  r.Header.Get("Circle-Token"),
+		Token:  r.Header.Get("Authorization"),
 	}
 	if r.Body != nil {
 		raw, err := io.ReadAll(r.Body)
@@ -95,7 +95,7 @@ func TestUploadIOSCertificate_SendsCorrectRequest(t *testing.T) {
 	assert.Assert(t, got != nil)
 	assert.Equal(t, got.Method, http.MethodPost)
 	assert.Equal(t, got.Path, "/api/v2/certificates")
-	assert.Equal(t, got.Token, "test-token")
+	assert.Equal(t, got.Token, "Bearer test-token")
 	assert.Check(t, cmp.Equal(got.Body["org_id"], "org-uuid"))
 	assert.Check(t, cmp.Equal(got.Body["cert_file_name"], "MyCert.p12"))
 	assert.Check(t, cmp.Equal(got.Body["cert_blob"], "base64blob"))

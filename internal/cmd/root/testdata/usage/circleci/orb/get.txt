@@ -1,5 +1,5 @@
 Usage:
-  circleci orb get <ns>/<orb>[@<version>] [flags]
+  circleci orb get <ns>/<orb>[@<version>]/<orb-id> [flags]
 
 Examples:
 # Get info for an orb

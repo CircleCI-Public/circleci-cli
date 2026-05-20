@@ -23,25 +23,57 @@
 package fakes
 
 import (
+	"context"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // newRouter creates a chi router with recovery middleware.
 // All fake servers share this setup.
 func newRouter() *chi.Mux {
+	ctx := iostream.Testing(context.Background())
+
 	r := chi.NewRouter()
-	r.Use(middleware.Logger)
+	r.Use(structuredLogger(ctx))
 	r.Use(middleware.Recoverer)
-	// Force chi to route on the decoded r.URL.Path rather than r.URL.RawPath,
-	// so routes with literal slashes in path segments (e.g. vcs/org/repo) match correctly.
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			r.URL.RawPath = ""
-			next.ServeHTTP(w, r)
-		})
-	})
+	r.Use(decodeRawPath)
 	return r
+}
+
+// structuredLogger logs each request using iostream.DebugContext with the same
+// attributes as the httpcl client logger.
+func structuredLogger(ctx context.Context) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			start := time.Now()
+			ww := middleware.NewWrapResponseWriter(w, req.ProtoMajor)
+			next.ServeHTTP(ww, req)
+			status := ww.Status()
+			if status == 0 {
+				status = http.StatusOK
+			}
+			iostream.DebugContext(ctx, req.Method+" "+req.URL.Path,
+				"http.request.method", req.Method,
+				"http.response.status_code", status,
+				"duration", time.Since(start),
+				"url.full", req.URL.String(),
+				"kind", "server",
+			)
+		})
+	}
+}
+
+// decodeRawPath forces chi to route on the decoded r.URL.Path rather than
+// r.URL.RawPath, so routes with literal slashes in path segments
+// (e.g. vcs/org/repo) match correctly.
+func decodeRawPath(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.URL.RawPath = ""
+		next.ServeHTTP(w, r)
+	})
 }
