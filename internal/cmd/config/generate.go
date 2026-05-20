@@ -23,7 +23,6 @@
 package cmdconfig
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -36,13 +35,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
-
-// scan is the package-level seam for repository scanning. In-process tests
-// swap it via SetScanForTest. Acceptance tests drive the real scanner by
-// creating real on-disk inputs in a temp directory.
-var scan = func(ctx context.Context, dir string) (*reposcan.Result, error) {
-	return reposcan.NewDefaultScanner().Scan(ctx, dir)
-}
 
 func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
@@ -105,7 +97,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	result, err := scan(ctx, dir)
+	result, err := reposcan.NewDefaultScanner().Scan(ctx, dir)
 	if err != nil {
 		return clierrors.New(
 			"config.scan_failed",
