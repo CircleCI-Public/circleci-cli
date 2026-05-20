@@ -299,7 +299,7 @@ func fakeRunNoVCS(id string, number int, state, slug, branch, revision string) m
 	delete(r, "vcs")
 	r["trigger_parameters"] = map[string]any{
 		"git": map[string]any{
-			"branch":      branch,
+			"branch":       branch,
 			"checkout_sha": revision,
 		},
 	}
@@ -356,7 +356,7 @@ func TestRunList_Duration(t *testing.T) {
 	fake.AddRun("pid-2", r2)
 	fake.AddRun("pid-3", r3)
 	fake.AddRunWorkflows("pid-1", fakeWorkflowWithDuration("wf-1", "build", "success", 125)) // 2m5s
-	fake.AddRunWorkflows("pid-2", fakeWorkflowWithDuration("wf-2", "build", "failed", 45))  // 45s
+	fake.AddRunWorkflows("pid-2", fakeWorkflowWithDuration("wf-2", "build", "failed", 45))   // 45s
 	// pid-3 has no workflows → duration stays -
 
 	env := testenv.New(t)
