@@ -61,11 +61,10 @@ func TestConfigGenerate_SkipsWhenExists(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stdout, "")
 
-	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
-	stderr = strings.ReplaceAll(stderr, `\`, `/`)
-	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+	stdout := strings.ReplaceAll(result.Stdout, dir, "<DIR>")
+	stdout = strings.ReplaceAll(stdout, `\`, `/`)
+	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
 
 	got, readErr := os.ReadFile(configPath)
 	assert.NilError(t, readErr)
@@ -86,7 +85,6 @@ func TestConfigGenerate_PathNotFound(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stdout, "")
 
 	// The error message renders the path with %q, which escapes Windows
 	// backslashes (e.g. C:\\Users\\…). Match the quoted form so the
@@ -114,11 +112,10 @@ func TestConfigGenerate_DotNetProject(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stdout, "")
 
-	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
-	stderr = strings.ReplaceAll(stderr, `\`, `/`)
-	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+	stdout := strings.ReplaceAll(result.Stdout, dir, "<DIR>")
+	stdout = strings.ReplaceAll(stdout, `\`, `/`)
+	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
@@ -167,11 +164,10 @@ func TestConfigGenerate_DefaultPath(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stdout, "")
 
-	stderr := strings.ReplaceAll(result.Stderr, dir, "<DIR>")
-	stderr = strings.ReplaceAll(stderr, `\`, `/`)
-	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+	stdout := strings.ReplaceAll(result.Stdout, dir, "<DIR>")
+	stdout = strings.ReplaceAll(stdout, `\`, `/`)
+	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)

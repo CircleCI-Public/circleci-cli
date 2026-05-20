@@ -100,7 +100,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	// Skip-check before scan so a no-op re-run never makes a network call.
 	configPath := filepath.Join(dir, ".circleci", "config.yml")
 	if _, err := os.Stat(configPath); err == nil {
-		iostream.ErrPrintf(ctx, "%s Using existing config at %s\n",
+		iostream.Printf(ctx, "%s Using existing config at %s\n",
 			iostream.SymbolOK(ctx), configPath)
 		return nil
 	}

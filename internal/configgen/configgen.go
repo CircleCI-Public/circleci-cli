@@ -79,7 +79,7 @@ func Generate(ctx context.Context, dir string, result *reposcan.Result) error {
 		).WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	iostream.ErrPrintf(ctx, "%s Generated %s\n", iostream.SymbolOK(ctx), configPath)
+	iostream.Printf(ctx, "%s Generated %s\n", iostream.SymbolOK(ctx), configPath)
 	return nil
 }
 

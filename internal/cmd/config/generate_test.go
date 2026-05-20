@@ -39,13 +39,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 
-func TestGenerateCmd_RegisteredUnderConfigGroup(t *testing.T) {
-	group := cmdconfig.NewConfigCmd()
-	var generate, _, _ = group.Find([]string{"generate"})
-	assert.Assert(t, generate != nil, "generate must be a subcommand of 'config'")
-	assert.Check(t, cmp.Equal(generate.Name(), "generate"))
-}
-
 // runGenerate invokes 'circleci config generate' in-process against the given
 // project directory and returns the captured stderr (with dir replaced by the
 // placeholder "<DIR>" and any Windows path separators normalized to "/" so

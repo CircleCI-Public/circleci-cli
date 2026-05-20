@@ -33,16 +33,16 @@ import (
 // continue.
 func Render(ctx context.Context, r *Result) {
 	if r.IsEmpty() {
-		iostream.ErrPrintf(ctx, "%s No supported stack detected. You can still continue.\n",
+		iostream.Printf(ctx, "%s No supported stack detected. You can still continue.\n",
 			iostream.SymbolWarn(ctx))
 		return
 	}
 
-	iostream.ErrPrintf(ctx, "%s Detected %s project (%s)\n",
+	iostream.Printf(ctx, "%s Detected %s project (%s)\n",
 		iostream.SymbolOK(ctx), r.Stack, image(r))
 
 	for _, step := range r.Setup {
-		iostream.ErrPrintf(ctx, "    %s: %s\n", step.Name, step.Command)
+		iostream.Printf(ctx, "    %s: %s\n", step.Name, step.Command)
 	}
 }
 

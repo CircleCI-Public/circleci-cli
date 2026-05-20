@@ -42,15 +42,15 @@ import (
 )
 
 // runGenerate invokes Generate with a fresh context wired to a captured
-// stderr buffer. It returns the stderr (with dir normalized to "<DIR>" and
+// stdout buffer. It returns the stdout (with dir normalized to "<DIR>" and
 // any Windows path separators flipped to "/" so goldens are stable across
 // platforms) and the function's error.
-func runGenerate(t *testing.T, dir string, result *reposcan.Result) (stderr string, err error) {
+func runGenerate(t *testing.T, dir string, result *reposcan.Result) (stdout string, err error) {
 	t.Helper()
 	var buf bytes.Buffer
 	ctx := iostream.WithStreams(context.Background(), iostream.Streams{
-		Out: &bytes.Buffer{},
-		Err: &buf,
+		Out: &buf,
+		Err: &bytes.Buffer{},
 		In:  strings.NewReader(""),
 	})
 	err = configgen.Generate(ctx, dir, result)
@@ -73,25 +73,25 @@ func nodeResult() *reposcan.Result {
 func TestGenerate_DetectedStack_WritesYAML(t *testing.T) {
 	dir := t.TempDir()
 
-	stderr, err := runGenerate(t, dir, nodeResult())
+	stdout, err := runGenerate(t, dir, nodeResult())
 	assert.NilError(t, err)
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
 	assert.Check(t, golden.Bytes(written, "detected-node.yml"))
-	assert.Check(t, golden.String(stderr, "detected-node.stderr.txt"))
+	assert.Check(t, golden.String(stdout, "detected-node.txt"))
 }
 
 func TestGenerate_UnknownStack_WritesFallback(t *testing.T) {
 	dir := t.TempDir()
 
-	stderr, err := runGenerate(t, dir, &reposcan.Result{Stack: reposcan.StackUnknown})
+	stdout, err := runGenerate(t, dir, &reposcan.Result{Stack: reposcan.StackUnknown})
 	assert.NilError(t, err)
 
 	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, readErr)
 	assert.Check(t, golden.Bytes(written, "fallback.yml"))
-	assert.Check(t, golden.String(stderr, "fallback.stderr.txt"))
+	assert.Check(t, golden.String(stdout, "fallback.txt"))
 }
 
 func TestGenerate_WriteFailure_CleansUpTempFile(t *testing.T) {
