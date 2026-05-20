@@ -1,2 +1,0 @@
-⚠ No supported stack detected. You can still continue.
-✓ Generated <DIR>/.circleci/config.yml
