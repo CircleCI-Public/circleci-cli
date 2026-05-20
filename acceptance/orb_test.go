@@ -41,6 +41,9 @@ const testOrbID = "orb00001-0000-4000-8000-000000000001"
 const testOrbVersionID = "orbv0001-0000-4000-8000-000000000001"
 const testOrbCategoryID = "orbc0001-0000-4000-8000-000000000001"
 const testOrbNsID = "orbns001-0000-4000-8000-000000000001"
+
+// testOrbUUID is a valid UUID (all hex) used where uuid.Parse must succeed.
+const testOrbUUID = "a1b2c3d4-0000-4000-8000-000000000001"
 const testOrbName = "myorg/my-orb"
 const testOrbNsName = "myorg"
 const testOrbShortName = "my-orb"
@@ -395,6 +398,27 @@ func TestOrbInfo(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrbInfo_ByID(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	fake.AddOrbPackage(testOrbUUID, testOrbNsID, testOrbNsName, testOrbShortName, false, true)
+	fake.AddOrbVersion(testOrbVersionID, testOrbUUID, testOrbName, testOrbVersion, testOrbSource, "")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "get", testOrbUUID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out["id"], testOrbUUID))
+	assert.Check(t, cmp.Equal(out["name"], testOrbName))
+	assert.Check(t, cmp.Equal(out["namespace"], testOrbNsName))
 }
 
 func TestOrbInfo_JSON(t *testing.T) {
