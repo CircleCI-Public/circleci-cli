@@ -16,8 +16,7 @@
       "role": "gate",
       "fileExt": ".go",
       "timeout": 60,
-      "limit": 3,
-      "remote": true
+      "limit": 3
     },
     {
       "name": "format",
