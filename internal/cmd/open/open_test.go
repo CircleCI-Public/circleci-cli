@@ -21,36 +21,3 @@
 // SPDX-License-Identifier: MIT
 
 package open
-
-import (
-	"testing"
-
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/assert/cmp"
-)
-
-func TestProjectURL(t *testing.T) {
-	const appURL = "https://app.circleci.com"
-	t.Run("github project", func(t *testing.T) {
-		got, err := projectURL(appURL, "gh/bar/foo")
-		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/gh/bar/foo"))
-	})
-
-	t.Run("bitbucket project", func(t *testing.T) {
-		got, err := projectURL(appURL, "bb/myorg/myrepo")
-		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/bb/myorg/myrepo"))
-	})
-
-	t.Run("gitlab project", func(t *testing.T) {
-		got, err := projectURL(appURL, "gl/my-group/my-project")
-		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/gl/my-group/my-project"))
-	})
-
-	t.Run("invalid slug", func(t *testing.T) {
-		_, err := projectURL(appURL, "invalid")
-		assert.Check(t, err != nil, "expected error for invalid slug")
-	})
-}

@@ -20,36 +20,51 @@
 //
 // SPDX-License-Identifier: MIT
 
-package deploy
+package cmdutil
 
 import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
+	"fmt"
+	"net/url"
+	"strings"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
-// NewDeployCmd returns the "circleci deploy" command group.
-func NewDeployCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "deploy <command>",
-		Short: "Manage deploys",
-		Long: heredoc.Doc(`
-			Work with CircleCI Deploys.
-
-			View deployed components and their versions across environments.
-		`),
+// PipelinesURL returns the CircleCI pipelines page URL for the given project slug.
+func PipelinesURL(appURL, slug string) (string, error) {
+	parts := strings.SplitN(slug, "/", 3)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid slug: %q", slug)
 	}
-
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newOpenCmd())
-
-	return cmd
+	return fmt.Sprintf("%s/pipelines/%s/%s/%s",
+		appURL,
+		url.PathEscape(parts[0]),
+		url.PathEscape(parts[1]),
+		url.PathEscape(parts[2]),
+	), nil
 }
 
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
-		"deploy.not_found", "No deploys found for %q.",
-		"Check that CircleCI Deploys is configured for this project")
+// DeployURL returns the CircleCI deploys page URL for the given project.
+func DeployURL(appURL string, proj *apiclient.ProjectInfo) string {
+	return fmt.Sprintf("%s/deploys/%s/%s/projects/%s",
+		appURL,
+		url.PathEscape(VCSSlug(proj.VCSInfo.Provider)),
+		url.PathEscape(proj.OrganizationName),
+		url.PathEscape(proj.ID),
+	)
+}
+
+// VCSSlug maps API provider strings to the slug prefix used in CircleCI URLs
+// (e.g. "GitHub" → "gh").
+func VCSSlug(provider string) string {
+	switch strings.ToLower(provider) {
+	case "github":
+		return "gh"
+	case "bitbucket":
+		return "bb"
+	case "gitlab":
+		return "gl"
+	default:
+		return provider
+	}
 }

@@ -20,8 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package open implements the "circleci open" command.
-package open
+package deploy
 
 import (
 	"github.com/MakeNowJust/heredoc"
@@ -31,35 +30,59 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-// NewOpenCmd returns the "circleci open" command.
-func NewOpenCmd() *cobra.Command {
-	return &cobra.Command{
+func newOpenCmd() *cobra.Command {
+	var projectSlug string
+
+	cmd := &cobra.Command{
 		Use:   "open",
-		Short: "Open the current project in the browser",
+		Short: "Open the deploys page in the browser",
 		Long: heredoc.Doc(`
-			Open the CircleCI runs page for the current project in your
+			Open the CircleCI deploys page for the current project in your
 			default web browser.
 
-			The project is inferred from the current git repository's remote.
-			Supports GitHub, Bitbucket, and GitLab remotes.
+			The project is inferred from the current git repository's remote
+			unless overridden with --project. Supports GitHub, Bitbucket, and
+			GitLab remotes.
 		`),
 		Example: heredoc.Doc(`
-			# Open runs for the current repo
-			$ circleci open
-		`),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
+			# Open the deploys page for the current project
+			$ circleci deploy open
 
-			info, err := gitremote.Detect()
+			# Open the deploys page for a specific project
+			$ circleci deploy open --project gh/myorg/myrepo
+		`),
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+
+			slug := projectSlug
+			if slug == "" {
+				info, err := gitremote.Detect()
+				if err != nil {
+					return clierrors.New("git.detect_failed",
+						"Could not detect project from git remote", err.Error()).
+						WithSuggestions(
+							"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
+							"Or specify the project: circleci deploy open --project gh/org/repo",
+						).
+						WithExitCode(clierrors.ExitBadArguments)
+				}
+				slug = info.Slug
+			}
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
 			if err != nil {
-				return clierrors.New("git.detect_failed",
-					"Could not detect project from git remote", err.Error()).
-					WithSuggestions(
-						"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					).
-					WithExitCode(clierrors.ExitBadArguments)
+				return err
+			}
+
+			proj, err := client.GetProjectInfo(ctx, slug)
+			if err != nil {
+				return cmdutil.APIErr(err, slug,
+					"project.not_found", "No project found for %q.",
+					"Check the project slug and try again")
 			}
 
 			appURL, err := cmdutil.AppURL(ctx, cmd)
@@ -67,12 +90,11 @@ func NewOpenCmd() *cobra.Command {
 				return err
 			}
 
-			u, err := cmdutil.PipelinesURL(appURL, info.Slug)
-			if err != nil {
-				return err
-			}
-
-			return browser.OpenURL(u)
+			return browser.OpenURL(cmdutil.DeployURL(appURL, proj))
 		},
 	}
+
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+
+	return cmd
 }
