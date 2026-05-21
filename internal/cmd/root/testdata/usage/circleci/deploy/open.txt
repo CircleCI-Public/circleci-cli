@@ -1,0 +1,18 @@
+Usage:
+  circleci deploy open [flags]
+
+Examples:
+# Open the deploys page for the current project
+$ circleci deploy open
+
+# Open the deploys page for a specific project
+$ circleci deploy open --project gh/myorg/myrepo
+
+
+Flags:
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

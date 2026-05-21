@@ -3,6 +3,7 @@ Usage:
 
 Available Commands:
   list        List recent deploys
+  open        Open the deploys page in the browser
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
