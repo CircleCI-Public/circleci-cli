@@ -38,8 +38,8 @@ func NewSettingsCmd() *cobra.Command {
 			View and modify settings for the circleci CLI tool.
 
 			Use 'circleci settings set token' to configure your personal API token.
+			Use 'circleci settings set telemetry on/off' to manage telemetry preferences.
 			Use 'circleci settings list' to view current settings.
-			Use 'circleci settings telemetry' to manage telemetry preferences.
 
 			For pipeline YAML operations, see 'circleci config'.
 		`),
@@ -49,7 +49,6 @@ func NewSettingsCmd() *cobra.Command {
 
 	cmd.AddCommand(newSetCmd())
 	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newTelemetryCmd())
 
 	return cmd
 }

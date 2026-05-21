@@ -5,7 +5,6 @@ Usage:
 Available Commands:
   list        List current CLI settings
   set         Set a CLI setting
-  telemetry   Manage telemetry preferences
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

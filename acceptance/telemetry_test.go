@@ -38,7 +38,7 @@ func TestTelemetryEnable(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "telemetry", "enable"},
+		Args:    []string{"settings", "set", "telemetry", "on"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -53,8 +53,8 @@ func TestTelemetryEnable(t *testing.T) {
 		WorkDir: dir,
 	})
 	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
-	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry_enabled":true`),
-		"expected telemetry_enabled:true in settings list output, got: %q", verify.Stdout)
+	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":true`),
+		"expected telemetry:true in settings list output, got: %q", verify.Stdout)
 }
 
 func TestTelemetryDisable(t *testing.T) {
@@ -63,7 +63,7 @@ func TestTelemetryDisable(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "telemetry", "disable"},
+		Args:    []string{"settings", "set", "telemetry", "off"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -78,8 +78,8 @@ func TestTelemetryDisable(t *testing.T) {
 		WorkDir: dir,
 	})
 	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
-	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry_enabled":false`),
-		"expected telemetry_enabled:false in settings list output, got: %q", verify.Stdout)
+	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":false`),
+		"expected telemetry:false in settings list output, got: %q", verify.Stdout)
 }
 
 func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
@@ -88,7 +88,7 @@ func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "telemetry", "enable"},
+		Args:    []string{"settings", "set", "telemetry", "on"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -100,30 +100,15 @@ func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
 		"expected env var override notice in stderr, got: %q", result.Stderr)
 }
 
-func TestTelemetryUnknownSubcommand(t *testing.T) {
+func TestTelemetryInvalidValue(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "telemetry", "bogus"},
+		Args:    []string{"settings", "set", "telemetry", "bogus"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for unknown subcommand")
-}
-
-func TestTelemetryNoArgs(t *testing.T) {
-	env := testenv.New(t)
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"settings", "telemetry"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stdout, "enable"),
-		"expected help output listing subcommands in stdout, got: %q", result.Stdout)
+	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for invalid telemetry value")
 }

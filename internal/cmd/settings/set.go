@@ -24,6 +24,7 @@ package settings
 
 import (
 	"context"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -42,8 +43,9 @@ func newSetCmd() *cobra.Command {
 			Set a CLI setting by key.
 
 			Supported keys:
-			  token   Your CircleCI personal API token
-			  host    CircleCI server host (default: https://circleci.com)
+			  token      Your CircleCI personal API token
+			  host       CircleCI server host (default: https://circleci.com)
+			  telemetry  Enable or disable anonymous usage telemetry (on/off)
 
 			Pass "-" as the value to read it from stdin, keeping secrets out of
 			shell history and process listings.
@@ -58,8 +60,11 @@ func newSetCmd() *cobra.Command {
 			# Point to a self-hosted CircleCI server
 			$ circleci settings set host https://circleci.mycompany.com
 
-			# You can also supply the token via environment variable
-			$ CIRCLECI_TOKEN=mytoken123 circleci run get
+			# Enable telemetry
+			$ circleci settings set telemetry on
+
+			# Disable telemetry
+			$ circleci settings set telemetry off
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -85,9 +90,11 @@ func runSet(ctx context.Context, secureStorage bool, key, value string) (err err
 		err = config.SetToken(ctx, value, secureStorage)
 	case "host":
 		err = config.SetHost(ctx, value, secureStorage)
+	case "telemetry":
+		return runSetTelemetry(ctx, value)
 	default:
 		return clierrors.New("settings.unknown_key", "Unknown setting", "Unknown setting key: "+key).
-			WithSuggestions("Valid keys are: token, host").
+			WithSuggestions("Valid keys are: token, host, telemetry").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	if err != nil {
@@ -100,6 +107,36 @@ func runSet(ctx context.Context, secureStorage bool, key, value string) (err err
 		iostream.ErrPrintf(ctx, "%s Saved %s to keyring\n", iostream.SymbolOK(ctx), key)
 	} else {
 		iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.SymbolOK(ctx), key, path)
+	}
+	return nil
+}
+
+func runSetTelemetry(ctx context.Context, value string) error {
+	var enabled bool
+	switch strings.ToLower(value) {
+	case "on", "true", "yes", "1", "enabled":
+		enabled = true
+	case "off", "false", "no", "0", "disabled":
+		enabled = false
+	default:
+		return clierrors.New("settings.invalid_value", "Invalid telemetry value", "Invalid value for telemetry: "+value).
+			WithSuggestions("Valid values are: on, off").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	if err := config.SetTelemetry(ctx, enabled, ""); err != nil {
+		return clierrors.New("settings.save_failed", "Failed to save telemetry setting", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	path, _ := config.Path()
+	if enabled {
+		iostream.ErrPrintf(ctx, "%s Telemetry enabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
+		for _, env := range config.ActiveTelemetryOverrides() {
+			iostream.ErrPrintf(ctx, "Note: %s is set — telemetry remains disabled for this session.\n", env)
+		}
+	} else {
+		iostream.ErrPrintf(ctx, "%s Telemetry disabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
 	}
 	return nil
 }
