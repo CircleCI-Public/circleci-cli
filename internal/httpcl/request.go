@@ -23,7 +23,6 @@
 package httpcl
 
 import (
-	"bytes"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -74,12 +73,25 @@ func JSONDecoder(v any) func(*Request) {
 func StringDecoder(s *string) func(*Request) {
 	return func(r *Request) {
 		r.decoder = func(rd io.Reader) error {
-			var b bytes.Buffer
-			_, err := io.Copy(&b, rd)
+			b, err := io.ReadAll(rd)
 			if err != nil {
 				return err
 			}
-			*s = b.String()
+			*s = string(b)
+			return nil
+		}
+	}
+}
+
+// BytesDecoder decodes a 2xx response body as JSON into v.
+func BytesDecoder(resp *[]byte) func(*Request) {
+	return func(r *Request) {
+		r.decoder = func(rd io.Reader) error {
+			bs, err := io.ReadAll(rd)
+			if err != nil {
+				return err
+			}
+			*resp = bs
 			return nil
 		}
 	}

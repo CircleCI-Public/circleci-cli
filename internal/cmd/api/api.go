@@ -29,7 +29,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -40,6 +39,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -135,10 +135,14 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 		path = "/api/v2" + path
 	}
 
+	var respBody []byte
+	opts := []func(*httpcl.Request){
+		httpcl.Header("Accept", "application/json"),
+		httpcl.BytesDecoder(&respBody),
+	}
+
 	// For GET/DELETE: fields become query parameters.
 	// For writes: fields become a JSON body.
-	extraHeaders := make(http.Header)
-	var body io.Reader
 
 	switch method {
 	case http.MethodGet, http.MethodDelete:
@@ -163,8 +167,10 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 				return clierrors.New("api.marshal_failed", "Failed to encode fields", err.Error()).
 					WithExitCode(clierrors.ExitGeneralError)
 			}
-			body = bytes.NewReader(b)
-			extraHeaders.Set("Content-Type", "application/json")
+			opts = append(opts,
+				httpcl.Header("Content-Type", "application/json"),
+				httpcl.Body(b),
+			)
 		}
 	}
 
@@ -176,10 +182,12 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 				fmt.Sprintf("%q is not in \"Key: Value\" format.", h)).
 				WithExitCode(clierrors.ExitBadArguments)
 		}
-		extraHeaders.Add(strings.TrimSpace(k), strings.TrimSpace(v))
+		opts = append(opts,
+			httpcl.Header(strings.TrimSpace(k), strings.TrimSpace(v)),
+		)
 	}
 
-	status, respBody, err := client.Do(ctx, method, path, extraHeaders, body)
+	status, err := client.Do(ctx, method, path, opts...)
 	if err != nil {
 		return clierrors.New("api.request_failed", "Request failed", err.Error()).
 			WithExitCode(clierrors.ExitAPIError)
