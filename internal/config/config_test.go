@@ -57,8 +57,8 @@ func TestIsTelemetryEnabled(t *testing.T) {
 				t.Setenv(tc.envVar, "1")
 			}
 
-			cfg := &Config{state: state{TelemetryEnabled: tc.storedPreference}}
-			assert.Equal(t, cfg.IsTelemetryEnabled(), tc.want)
+			cfg := &Config{state: state{Telemetry: tc.storedPreference}}
+			assert.Equal(t, cfg.IsTelemetry(), tc.want)
 		})
 	}
 }

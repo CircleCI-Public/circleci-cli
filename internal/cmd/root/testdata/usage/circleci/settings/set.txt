@@ -11,8 +11,11 @@ $ echo "mytoken123" | circleci settings set token -
 # Point to a self-hosted CircleCI server
 $ circleci settings set host https://circleci.mycompany.com
 
-# You can also supply the token via environment variable
-$ CIRCLECI_TOKEN=mytoken123 circleci run get
+# Enable telemetry
+$ circleci settings set telemetry on
+
+# Disable telemetry
+$ circleci settings set telemetry off
 
 
 Global Flags:
