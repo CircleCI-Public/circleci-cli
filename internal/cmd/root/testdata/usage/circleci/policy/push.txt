@@ -1,0 +1,28 @@
+Usage:
+  circleci policy push <path> [flags]
+
+Examples:
+# Push policies in the ./policies directory
+$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+
+# Push without confirmation prompt
+$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --no-prompt
+
+# Push to a custom policy context
+$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --policy-context config
+
+# Output the diff as JSON
+$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --no-prompt --json
+
+
+Flags:
+      --jq string               Process values from the response using jq syntax
+      --json                    Output as JSON
+      --no-prompt               Skip confirmation prompt
+      --owner-id string         Organization UUID (required)
+      --policy-context string   Policy context (default "config")
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
