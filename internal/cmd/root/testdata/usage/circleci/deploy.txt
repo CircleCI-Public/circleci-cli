@@ -2,6 +2,7 @@ Usage:
   circleci deploy [command]
 
 Available Commands:
+  init        Instrument your config for deploy tracking
   list        List recent deploys
   open        Open the deploys page in the browser
 
