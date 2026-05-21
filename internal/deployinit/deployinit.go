@@ -77,7 +77,7 @@ func IsDeployJob(name string) bool {
 
 // Detect reads configPath and returns detected deploy jobs.
 func Detect(configPath string) (*DetectResult, error) {
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath) //nolint:gosec // configPath is supplied by the user via --pipeline-config flag
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func extractBranchFilters(doc *yaml.Node) map[string]string {
 }
 
 func jobFilterFromItem(item *yaml.Node) (name, branch string) {
-	switch item.Kind {
+	switch item.Kind { //nolint:exhaustive // DocumentNode/SequenceNode/AliasNode don't appear as workflow job items
 	case yaml.ScalarNode:
 		return item.Value, ""
 	case yaml.MappingNode:
@@ -187,7 +187,7 @@ func jobFilterFromItem(item *yaml.Node) (name, branch string) {
 		if onlyNode == nil {
 			return name, ""
 		}
-		switch onlyNode.Kind {
+		switch onlyNode.Kind { //nolint:exhaustive // only scalar and sequence appear in branch filters
 		case yaml.ScalarNode:
 			return name, onlyNode.Value
 		case yaml.SequenceNode:
@@ -233,7 +233,11 @@ type PatchInput struct {
 // Patch modifies configPath in-place, returning true if any changes were made.
 // It is idempotent: if the deploy step is already present it is not duplicated.
 func Patch(configPath string, input PatchInput, useOrb bool) (bool, error) {
-	data, err := os.ReadFile(configPath)
+	info, err := os.Stat(configPath) //nolint:gosec // configPath is supplied by the user via --pipeline-config flag
+	if err != nil {
+		return false, err
+	}
+	data, err := os.ReadFile(configPath) //nolint:gosec // same
 	if err != nil {
 		return false, err
 	}
@@ -285,7 +289,7 @@ func Patch(configPath string, input PatchInput, useOrb bool) (bool, error) {
 	if err := enc.Encode(&root); err != nil {
 		return false, err
 	}
-	if err := os.WriteFile(configPath, buf.Bytes(), 0o644); err != nil {
+	if err := os.WriteFile(configPath, buf.Bytes(), info.Mode()); err != nil { //nolint:gosec // configPath is user-supplied
 		return false, err
 	}
 	return true, nil
