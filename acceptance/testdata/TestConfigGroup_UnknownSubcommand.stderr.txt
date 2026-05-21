@@ -1,0 +1,1 @@
+error: "bogus" is not a config command. Run 'circleci config --help' for available commands.

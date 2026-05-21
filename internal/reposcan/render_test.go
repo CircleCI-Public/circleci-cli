@@ -35,17 +35,17 @@ import (
 )
 
 func captureCtx() (context.Context, *bytes.Buffer) {
-	var errBuf bytes.Buffer
+	var outBuf bytes.Buffer
 	ctx := iostream.WithStreams(context.Background(), iostream.Streams{
-		Out: &bytes.Buffer{},
-		Err: &errBuf,
+		Out: &outBuf,
+		Err: &bytes.Buffer{},
 		In:  strings.NewReader(""),
 	})
-	return ctx, &errBuf
+	return ctx, &outBuf
 }
 
 func TestRender_PopulatedStack_PrintsStackAndImage(t *testing.T) {
-	ctx, errBuf := captureCtx()
+	ctx, outBuf := captureCtx()
 
 	Render(ctx, &Result{
 		Stack:        "go",
@@ -57,35 +57,35 @@ func TestRender_PopulatedStack_PrintsStackAndImage(t *testing.T) {
 		},
 	})
 
-	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
+	assert.Check(t, golden.String(outBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_EmptyDetection_PrintsFallback(t *testing.T) {
-	ctx, errBuf := captureCtx()
+	ctx, outBuf := captureCtx()
 
 	Render(ctx, &Result{Stack: StackUnknown})
 
-	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
+	assert.Check(t, golden.String(outBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_EmptyString_PrintsFallback(t *testing.T) {
-	ctx, errBuf := captureCtx()
+	ctx, outBuf := captureCtx()
 
 	Render(ctx, &Result{Stack: ""})
 
-	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
+	assert.Check(t, golden.String(outBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_NilResult_PrintsFallback(t *testing.T) {
-	ctx, errBuf := captureCtx()
+	ctx, outBuf := captureCtx()
 
 	Render(ctx, nil)
 
-	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
+	assert.Check(t, golden.String(outBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_NoSetupSteps_OmitsCommandLines(t *testing.T) {
-	ctx, errBuf := captureCtx()
+	ctx, outBuf := captureCtx()
 
 	Render(ctx, &Result{
 		Stack:        "ruby",
@@ -93,11 +93,11 @@ func TestRender_NoSetupSteps_OmitsCommandLines(t *testing.T) {
 		ImageVersion: "3.2",
 	})
 
-	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
+	assert.Check(t, golden.String(outBuf.String(), t.Name()+".txt"))
 }
 
 func TestRender_SystemSetupStep_IsRendered(t *testing.T) {
-	ctx, errBuf := captureCtx()
+	ctx, outBuf := captureCtx()
 
 	Render(ctx, &Result{
 		Stack:        "python",
@@ -109,5 +109,5 @@ func TestRender_SystemSetupStep_IsRendered(t *testing.T) {
 		},
 	})
 
-	assert.Check(t, golden.String(errBuf.String(), t.Name()+".txt"))
+	assert.Check(t, golden.String(outBuf.String(), t.Name()+".txt"))
 }

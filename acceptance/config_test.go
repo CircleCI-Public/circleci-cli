@@ -20,35 +20,31 @@
 //
 // SPDX-License-Identifier: MIT
 
-package reposcan
+package acceptance_test
 
 import (
-	"context"
+	"testing"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
 
-// Render writes a human-readable summary of the scan Result to the streams in
-// ctx. On an empty result it prints a friendly fallback so the caller can
-// continue.
-func Render(ctx context.Context, r *Result) {
-	if r.IsEmpty() {
-		iostream.Printf(ctx, "%s No supported stack detected. You can still continue.\n",
-			iostream.SymbolWarn(ctx))
-		return
-	}
+// TestConfigGroup_UnknownSubcommand exercises the group's reaction to a
+// subcommand that doesn't exist. The contract — exit 2 plus a structured
+// "Unknown command" stderr — is provided by cmdutil.GroupRunE; this test
+// pins the user-visible shape from outside the binary.
+func TestConfigGroup_UnknownSubcommand(t *testing.T) {
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "bogus"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
 
-	iostream.Printf(ctx, "%s Detected %s project (%s)\n",
-		iostream.SymbolOK(ctx), r.Stack, image(r))
-
-	for _, step := range r.Setup {
-		iostream.Printf(ctx, "    %s: %s\n", step.Name, step.Command)
-	}
-}
-
-func image(r *Result) string {
-	if r.ImageVersion == "" {
-		return r.Image
-	}
-	return r.Image + ":" + r.ImageVersion
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }

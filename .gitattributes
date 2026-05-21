@@ -4,3 +4,4 @@
 **/testdata/**/*.txt text eol=lf
 **/testdata/**/*.html text eol=lf
 **/testdata/**/*.json text eol=lf
+**/testdata/**/*.yml text eol=lf

@@ -1,0 +1,169 @@
+// Copyright (c) 2026 Circle Internet Services, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package acceptance_test
+
+import (
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"testing"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+)
+
+// TestConfigGenerate_SkipsWhenExists exercises the idempotent re-run path
+// from a real binary: when a config already exists, the command prints a
+// confirmation and exits without overwriting it.
+func TestConfigGenerate_SkipsWhenExists(t *testing.T) {
+	dir := t.TempDir()
+	configDir := filepath.Join(dir, ".circleci")
+	assert.NilError(t, os.MkdirAll(configDir, 0o755))
+	configPath := filepath.Join(configDir, "config.yml")
+	original := []byte("# user's existing config\nversion: 2.1\n")
+	assert.NilError(t, os.WriteFile(configPath, original, 0o644))
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "generate", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	stdout := strings.ReplaceAll(result.Stdout, dir, "<DIR>")
+	stdout = strings.ReplaceAll(stdout, `\`, `/`)
+	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
+
+	got, readErr := os.ReadFile(configPath)
+	assert.NilError(t, readErr)
+	assert.DeepEqual(t, got, original)
+}
+
+// TestConfigGenerate_PathNotFound exercises the structured-error path for an
+// invalid project path argument.
+func TestConfigGenerate_PathNotFound(t *testing.T) {
+	missing := filepath.Join(t.TempDir(), "does-not-exist")
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "generate", missing},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
+
+	// The error message renders the path with %q, which escapes Windows
+	// backslashes (e.g. C:\\Users\\…). Match the quoted form so the
+	// substitution works on every platform.
+	stderr := strings.ReplaceAll(result.Stderr, strconv.Quote(missing), `"<MISSING_PATH>"`)
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigGenerate_DotNetProject exercises the happy path end-to-end through
+// the real binary against a real on-disk project. The skeleton .csproj fixture
+// under testdata/config-generate/dotnet drives chunk-cli/envbuilder's local-only
+// .NET detection path — no Docker Hub call — so the test is deterministic in
+// CI. We copy the fixture into a tempdir because the generator writes
+// .circleci/config.yml into the project dir.
+func TestConfigGenerate_DotNetProject(t *testing.T) {
+	dir := t.TempDir()
+	copyFixture(t, "testdata/config-generate/dotnet", dir)
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "generate", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	stdout := strings.ReplaceAll(result.Stdout, dir, "<DIR>")
+	stdout = strings.ReplaceAll(stdout, `\`, `/`)
+	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
+
+	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.NilError(t, readErr)
+	assert.Check(t, golden.Bytes(written, t.Name()+".yml"))
+}
+
+// copyFixture mirrors the file tree at src into dst, preserving relative
+// paths. Used to stage a read-only fixture into a writable tempdir for tests
+// whose subject writes new files alongside the inputs.
+func copyFixture(t *testing.T, src, dst string) {
+	t.Helper()
+	assert.NilError(t, filepath.Walk(src, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, path)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	}))
+}
+
+// TestConfigGenerate_DefaultPath exercises the no-arg invocation: with no path
+// argument the command scans the current working directory. An empty cwd
+// triggers envbuilder's "unknown" stack — which short-circuits the Docker Hub
+// version lookup — and configgen writes the cimg/base:stable fallback.
+func TestConfigGenerate_DefaultPath(t *testing.T) {
+	dir := t.TempDir()
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "generate"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	stdout := strings.ReplaceAll(result.Stdout, dir, "<DIR>")
+	stdout = strings.ReplaceAll(stdout, `\`, `/`)
+	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
+
+	written, readErr := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.NilError(t, readErr)
+	assert.Check(t, golden.Bytes(written, t.Name()+".yml"))
+}

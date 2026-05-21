@@ -20,35 +20,36 @@
 //
 // SPDX-License-Identifier: MIT
 
-package reposcan
+// Package cmdconfig implements the "circleci config" command group, which
+// works with the pipeline configuration file (.circleci/config.yml).
+//
+// The package is named cmdconfig rather than config to avoid colliding with
+// internal/config (the CLI's own settings store).
+package cmdconfig
 
 import (
-	"context"
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// Render writes a human-readable summary of the scan Result to the streams in
-// ctx. On an empty result it prints a friendly fallback so the caller can
-// continue.
-func Render(ctx context.Context, r *Result) {
-	if r.IsEmpty() {
-		iostream.Printf(ctx, "%s No supported stack detected. You can still continue.\n",
-			iostream.SymbolWarn(ctx))
-		return
+// NewConfigCmd returns the "circleci config" command group.
+func NewConfigCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "config <command>",
+		Short: "Work with pipeline config",
+		Long: heredoc.Doc(`
+			Work with the pipeline configuration file at .circleci/config.yml.
+
+			This group manages the pipeline YAML that CircleCI executes. For CLI
+			tool settings (API token, host, defaults), use 'circleci settings'.
+		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	iostream.Printf(ctx, "%s Detected %s project (%s)\n",
-		iostream.SymbolOK(ctx), r.Stack, image(r))
+	cmd.AddCommand(newGenerateCmd())
 
-	for _, step := range r.Setup {
-		iostream.Printf(ctx, "    %s: %s\n", step.Name, step.Command)
-	}
-}
-
-func image(r *Result) string {
-	if r.ImageVersion == "" {
-		return r.Image
-	}
-	return r.Image + ":" + r.ImageVersion
+	return cmd
 }
