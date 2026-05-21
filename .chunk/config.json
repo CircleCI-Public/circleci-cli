@@ -1,4 +1,5 @@
 {
+  "orgID": "f22b6566-597d-46d5-ba74-99ef5bb3d85c",
   "commands": [
     {
       "name": "test",
@@ -6,7 +7,8 @@
       "role": "gate",
       "fileExt": ".go",
       "timeout": 300,
-      "limit": 3
+      "limit": 3,
+      "remote": true
     },
     {
       "name": "lint",
@@ -24,5 +26,27 @@
       "limit": 3,
       "always": true
     }
-  ]
+  ],
+  "validation": {
+    "sidecarImage": "3e440dfc-2708-466d-8572-fd64aa411950"
+  },
+  "environment": {
+    "stack": "go",
+    "setup": [
+      {
+        "name": "system",
+        "command": "sudo apt-get update \u0026\u0026 sudo apt-get install -y git --no-install-recommends \u0026\u0026 sudo rm -rf /var/lib/apt/lists/*"
+      },
+      {
+        "name": "install",
+        "command": "go mod download"
+      },
+      {
+        "name": "test",
+        "command": "go test -p 1 ./..."
+      }
+    ],
+    "image": "cimg/go",
+    "image_version": "1.26.3"
+  }
 }
