@@ -62,9 +62,9 @@ func newListCmd() *cobra.Command {
 			$ circleci project list --json --jq '.[] | select(.username == "myorg")'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

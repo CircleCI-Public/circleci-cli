@@ -83,7 +83,7 @@ func NewVersionCmd(version string) *cobra.Command {
 			$ circleci version --json | jq -r .commit
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			info := readBuildInfo(version)
 
 			if jsonOut {

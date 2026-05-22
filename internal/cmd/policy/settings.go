@@ -80,8 +80,8 @@ func newSettingsGetCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -129,8 +129,8 @@ func newSettingsSetCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

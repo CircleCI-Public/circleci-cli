@@ -89,9 +89,9 @@ func NewAPICmd() *cobra.Command {
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
-			client, cliErr := cmdutil.LoadClient(ctx, cmd)
+			client, cliErr := cmdutil.LoadClient(ctx)
 			if cliErr != nil {
 				return cliErr
 			}

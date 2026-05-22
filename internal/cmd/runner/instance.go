@@ -88,8 +88,8 @@ func newInstanceListCmd() *cobra.Command {
 			$ circleci runner instance list --resource-class my-org/my-runner --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

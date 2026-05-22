@@ -24,6 +24,7 @@ package root
 
 import (
 	"os"
+	"runtime"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/njayp/ophis"
@@ -58,10 +59,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 )
 
 // NewRootCmd builds the root cobra command and wires all subcommands.
 func NewRootCmd(version string) *cobra.Command {
+	telem := &delegatingTelemetry{}
+
 	cmd := &cobra.Command{
 		Use:   "circleci",
 		Short: "The CircleCI CLI",
@@ -75,19 +79,6 @@ func NewRootCmd(version string) *cobra.Command {
 		`),
 		SilenceErrors: true, // main.go handles error printing
 		SilenceUsage:  true,
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			configPath, _ := cmd.Flags().GetString("config")
-			ctx = cmdutil.WithConfigPath(ctx, configPath)
-			apiclient.DeviceID = config.EnsureDeviceID(ctx, configPath)
-
-			jqFilter, _ := cmd.Flags().GetString("jq")
-			ctx = iostream.WithJQFilter(ctx, jqFilter)
-
-			cmd.SetContext(ctx)
-			return nil
-		},
 	}
 
 	cmd.Version = version
@@ -148,5 +139,69 @@ func NewRootCmd(version string) *cobra.Command {
 		}
 	}
 
+	initConfig := func(cmd *cobra.Command) error {
+		ctx := iostream.FromCmd(cmd.Context(), cmd)
+		secureStorage := cmdutil.IsSecureStorage(cmd)
+		configPath := cmdutil.ConfigPath(cmd)
+		config.EnsureDeviceID(ctx, configPath)
+
+		cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
+		if err != nil {
+			return err
+		}
+		apiclient.DeviceID = cfg.DeviceID().String()
+
+		ctx = cmdutil.WithConfig(ctx, cfg)
+
+		tc, err := telemetry.New(ctx, telemetry.Config{
+			Log:      cfg.IsTelemetry(),
+			Send:     cfg.IsTelemetry(),
+			WriteKey: telemetry.SegmentKey,
+			Endpoint: os.Getenv("CIRCLECI_TELEMETRY_ENDPOINT"),
+			User: telemetry.User{
+				InstanceID:   cfg.DeviceID(),
+				UserID:       cfg.UserID(),
+				IsSelfHosted: cfg.EffectiveHost() != "https://circleci.com",
+				OS:           runtime.GOOS,
+				Version:      version,
+			},
+		})
+		if err != nil {
+			return err
+		}
+		telem.Client = tc
+
+		jqFilter, _ := cmd.Flags().GetString("jq")
+		ctx = iostream.WithJQFilter(ctx, jqFilter)
+
+		cmd.SetContext(ctx)
+
+		return nil
+	}
+
+	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		return initConfig(cmd)
+	}
+	cmd.PersistentPostRunE = func(_ *cobra.Command, _ []string) error {
+		return telem.Close()
+	}
+
+	defaultHelp := cmd.HelpFunc()
+	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		err := initConfig(cmd)
+		if err == nil {
+			cmdutil.RecordTelemetryNow(cmd, telem.Client)
+			_ = telem.Close()
+		}
+
+		defaultHelp(cmd, args)
+	})
+
+	cmdutil.RecordTelemetryForSubcommands(cmd, telem)
+
 	return cmd
+}
+
+type delegatingTelemetry struct {
+	*telemetry.Client
 }

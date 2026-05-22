@@ -39,7 +39,7 @@ func setupAuthFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":         "user-uuid-1234",
+		"id":         "e4a72497-7c55-400d-a72d-dadc4b92255d",
 		"name":       "Test User",
 		"login":      "testuser",
 		"avatar_url": "https://example.com/avatar.png",
@@ -97,7 +97,7 @@ func TestAuthMe_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["login"], "testuser"))
 	assert.Check(t, cmp.Equal(out["name"], "Test User"))
-	assert.Check(t, cmp.Equal(out["id"], "user-uuid-1234"))
+	assert.Check(t, cmp.Equal(out["id"], "e4a72497-7c55-400d-a72d-dadc4b92255d"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }

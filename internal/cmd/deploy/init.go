@@ -74,7 +74,7 @@ func newInitCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			return runInit(ctx, configPath, component, defEnv)
 		},
 	}

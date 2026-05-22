@@ -20,19 +20,20 @@
 //
 // SPDX-License-Identifier: MIT
 
-package telemetry
+package cmdutil
 
 import (
-	"github.com/segmentio/analytics-go/v3"
+	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
 )
 
-type noopClient struct {
-}
+func ConfigPath(cmd *cobra.Command) string {
+	path, _ := cmd.Root().Flags().GetString("config")
+	if path != "" {
+		return path
+	}
 
-func (n noopClient) Close() error {
-	return nil
-}
-
-func (n noopClient) Enqueue(_ analytics.Message) error {
-	return nil
+	path, _ = config.Path()
+	return path
 }

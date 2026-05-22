@@ -114,7 +114,7 @@ func newUploadCmd() *cobra.Command {
 			if certPath == "" {
 				return cmdutil.RequireFlag("cert-file")
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			// Validate the file before any password handling so a mistyped
 			// --cert-file path doesn't waste an interactive prompt entry.
 			fileName, blob, err := iossigning.EncodeFile(certPath)
@@ -151,7 +151,7 @@ func newUploadCmd() *cobra.Command {
 				}
 				password = pwd
 			}
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -226,8 +226,8 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -308,7 +308,7 @@ func newDeleteCmd() *cobra.Command {
 			if err := cmdutil.RequireArgs(args, "cert-id"); err != nil {
 				return err
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			certID := args[0]
 
 			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
@@ -323,7 +323,7 @@ func newDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

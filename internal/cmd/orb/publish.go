@@ -76,8 +76,8 @@ func newPublishCmd() *cobra.Command {
 			if len(args) < 2 {
 				return cmdutil.GroupRunE(cmd, args)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -124,8 +124,8 @@ func newPublishPromoteCmd() *cobra.Command {
 					"Segment must be one of: major, minor, patch").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -168,8 +168,8 @@ func newPublishIncrementCmd() *cobra.Command {
 					"Segment must be one of: major, minor, patch").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

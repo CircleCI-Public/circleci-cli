@@ -40,18 +40,26 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
-type configPathKey struct{}
-
-// WithConfigPath returns a copy of ctx carrying the given config file path.
-// The path is read by LoadClient to locate the config file.
-func WithConfigPath(ctx context.Context, path string) context.Context {
-	return context.WithValue(ctx, configPathKey{}, path)
-}
-
 func IsSecureStorage(cmd *cobra.Command) bool {
-	insecureStorage, _ := cmd.Flags().GetBool("insecure-storage")
+	insecureStorage, _ := cmd.Root().Flags().GetBool("insecure-storage")
 	secureStorage := !insecureStorage
 	return secureStorage
+}
+
+type configKey struct{}
+
+// WithConfig returns a copy of ctx carrying the given config file path.
+// The path is read by LoadClient to locate the config file.
+func WithConfig(ctx context.Context, cfg *config.Config) context.Context {
+	return context.WithValue(ctx, configKey{}, cfg)
+}
+
+func GetConfig(ctx context.Context) *config.Config {
+	v := ctx.Value(configKey{})
+	if v == nil {
+		panic("no config")
+	}
+	return v.(*config.Config)
 }
 
 // LoadClient reads the CLI config, validates that a token is present, and
@@ -59,13 +67,9 @@ func IsSecureStorage(cmd *cobra.Command) bool {
 // CLIError ready to be returned directly from a RunE handler.
 //
 // Honors a --config path set by the root PersistentPreRunE via WithConfigPath.
-func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, error) {
-	configPath, _ := ctx.Value(configPathKey{}).(string)
-	cfg, err := config.LoadFrom(ctx, configPath, IsSecureStorage(cmd))
-	if err != nil {
-		return nil, clierrors.New("config.load_failed", "Failed to load config", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+func LoadClient(ctx context.Context) (*apiclient.Client, error) {
+	cfg := GetConfig(ctx)
+
 	token := cfg.EffectiveToken()
 	if token == "" {
 		return nil, clierrors.New("auth.token_missing", "Authentication required",
@@ -80,13 +84,8 @@ func LoadClient(ctx context.Context, cmd *cobra.Command) (*apiclient.Client, err
 	return apiclient.New(cfg.EffectiveHost(), token, nil), nil
 }
 
-func AppURL(ctx context.Context, cmd *cobra.Command) (string, error) {
-	configPath, _ := ctx.Value(configPathKey{}).(string)
-	cfg, err := config.LoadFrom(ctx, configPath, IsSecureStorage(cmd))
-	if err != nil {
-		return "", clierrors.New("config.load_failed", "Failed to load config", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+func AppURL(ctx context.Context) (string, error) {
+	cfg := GetConfig(ctx)
 	u, err := url.Parse(cfg.EffectiveHost())
 	if err != nil {
 		return "", err

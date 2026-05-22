@@ -70,7 +70,7 @@ func newGenerateCmd() *cobra.Command {
 }
 
 func runGenerate(cmd *cobra.Command, args []string) error {
-	ctx := iostream.FromCmd(cmd.Context(), cmd)
+	ctx := cmd.Context()
 
 	dir := "."
 	if len(args) == 1 {

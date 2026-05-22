@@ -29,11 +29,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
@@ -66,10 +66,10 @@ func newSignupCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			configPath, _ := cmd.Flags().GetString("config")
+			ctx := cmd.Context()
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runSignup(ctx, configPath, noBrowser, secureStorage)
+			configPath := cmdutil.ConfigPath(cmd)
+			return runSignup(ctx, noBrowser, secureStorage, configPath)
 		},
 	}
 
@@ -80,13 +80,8 @@ func newSignupCmd() *cobra.Command {
 // SignupIfNeeded is the idempotent variant of signup used by orchestrators
 // like `circleci onboard`. If a valid token already exists, it prints a
 // confirmation and returns nil. Otherwise it runs the standard signup flow.
-func SignupIfNeeded(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
-	cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
-	if err != nil {
-		return clierrors.New("config.load_failed",
-			"Failed to load config", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPath string) error {
+	cfg := cmdutil.GetConfig(ctx)
 
 	token := cfg.EffectiveToken()
 	if token == "" {
@@ -100,7 +95,7 @@ func SignupIfNeeded(ctx context.Context, configPath string, noBrowser, secureSto
 			  • Deploy visibility across your whole org, out of the box
 
 		`))
-		return runSignup(ctx, configPath, noBrowser, secureStorage)
+		return runSignup(ctx, noBrowser, secureStorage, configPath)
 	}
 
 	host := cfg.EffectiveHost()
@@ -120,13 +115,8 @@ func SignupIfNeeded(ctx context.Context, configPath string, noBrowser, secureSto
 	return nil
 }
 
-func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
-	cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
-	if err != nil {
-		return clierrors.New("config.load_failed",
-			"Failed to load config", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+func runSignup(ctx context.Context, noBrowser, secureStorage bool, configPath string) error {
+	cfg := cmdutil.GetConfig(ctx)
 
 	if cfg.EffectiveToken() != "" {
 		return clierrors.New("auth.signup.already_authenticated",
@@ -140,30 +130,31 @@ func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage 
 	}
 
 	host := cfg.EffectiveHost()
-	deviceID := config.EnsureDeviceID(ctx, configPath)
+	deviceID := cfg.DeviceID()
 
 	if !noBrowser && iostream.IsInteractive(ctx) {
-		return runSignupInteractive(ctx, configPath, secureStorage)
+		return runSignupInteractive(ctx, secureStorage, configPath)
 	}
 
-	return runLoginBrowser(ctx, host, deviceID, true, secureStorage)
+	return runLoginBrowser(ctx, host, deviceID.String(), true, secureStorage, configPath)
 }
 
-func runSignupInteractive(ctx context.Context, configPath string, secureStorage bool) error {
-	deviceID := config.EnsureDeviceID(ctx, configPath)
+func runSignupInteractive(ctx context.Context, secureStorage bool, configPath string) error {
+	cfg := cmdutil.GetConfig(ctx)
+	deviceID := cfg.DeviceID()
 
 	model := ui.NewLoginFlow(ctx, ui.LoginFlowOptions{
-		DeviceID:        deviceID,
+		DeviceID:        deviceID.String(),
 		OSInfo:          runtime.GOOS,
 		Signup:          true,
 		CallbackTimeout: callbackTimeout(),
 		Color:           iostream.ColorEnabled(ctx),
-		GetUsername: func(ctx context.Context, host, token string) (string, error) {
+		GetUser: func(ctx context.Context, host, token string) (uuid.UUID, string, error) {
 			me, err := apiclient.New(host, token, nil).GetMe(ctx)
 			if err != nil {
-				return "", err
+				return uuid.Nil, "", err
 			}
-			return me.Login, nil
+			return me.ID, me.Login, nil
 		},
 	})
 	p := tea.NewProgram(model,
@@ -193,6 +184,6 @@ func runSignupInteractive(ctx context.Context, configPath string, secureStorage 
 			"Signup failed", res.Err.Error()).
 			WithExitCode(clierrors.ExitAuthError)
 	default:
-		return persistToken(ctx, res.Host, res.Token, secureStorage)
+		return persistToken(ctx, res.Host, res.Token, res.UserID, secureStorage, configPath)
 	}
 }

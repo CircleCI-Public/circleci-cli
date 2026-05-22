@@ -76,7 +76,7 @@ func newArtifactsCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			err := cmdutil.RequireArgs(args, "job-number")
 			if err != nil {
@@ -90,7 +90,7 @@ func newArtifactsCmd() *cobra.Command {
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

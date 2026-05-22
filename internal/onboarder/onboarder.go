@@ -105,7 +105,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return err
 	}
 
-	if err := cmdauth.SignupIfNeeded(ctx, opts.ConfigPath, opts.NoBrowser, opts.SecureStorage); err != nil {
+	if err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath); err != nil {
 		return err
 	}
 

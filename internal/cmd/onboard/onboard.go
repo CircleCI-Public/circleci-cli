@@ -28,7 +28,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/onboarder"
 )
 
@@ -56,18 +55,18 @@ func NewOnboardCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			dir := "."
 			if len(args) == 1 {
 				dir = args[0]
 			}
 
-			configPath, _ := cmd.Flags().GetString("config")
+			configPath := cmdutil.ConfigPath(cmd)
 			return onboarder.Run(ctx, dir, onboarder.Options{
-				ConfigPath:    configPath,
 				NoBrowser:     noBrowser,
 				SecureStorage: cmdutil.IsSecureStorage(cmd),
+				ConfigPath:    configPath,
 			})
 		},
 	}

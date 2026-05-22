@@ -71,7 +71,7 @@ func newPackCmd() *cobra.Command {
 			if err := cmdutil.RequireArgs(args, "path"); err != nil {
 				return err
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			return runOrbPack(ctx, args[0])
 		},
 	}

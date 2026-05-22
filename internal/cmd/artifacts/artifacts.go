@@ -86,9 +86,9 @@ func NewArtifactsCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

@@ -78,14 +78,14 @@ func newLogsCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "job-number"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			var jobNumber int64
 			if _, err := fmt.Sscanf(args[0], "%d", &jobNumber); err != nil {
 				return clierrors.New("args.invalid_job_number", "Invalid job number",
 					fmt.Sprintf("%q is not a valid job number.", args[0])).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

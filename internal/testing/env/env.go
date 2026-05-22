@@ -38,6 +38,8 @@ type TestEnv struct {
 	CircleCIURL string
 	// Token is the CircleCI API token injected via environment variable.
 	Token string
+	// Telemetry enables telemetry collection.
+	Telemetry bool
 	// Extra holds additional environment variables.
 	Extra map[string]string
 }
@@ -57,9 +59,12 @@ func New(t *testing.T) *TestEnv {
 func (e *TestEnv) Environ() []string {
 	env := []string{
 		"HOME=" + e.HomeDir,
-		"XDG_CONFIG_HOME=" + filepath.Join(e.HomeDir, ".config"),
+		"XDG_CONFIG_HOME=" + e.ConfigDir(),
 		"PATH=" + os.Getenv("PATH"),
 		"CIRCLECI_SPINNER_DISABLED=true",
+	}
+	if !e.Telemetry {
+		env = append(env, "CIRCLECI_NO_TELEMETRY=true")
 	}
 	if e.Token != "" {
 		env = append(env, "CIRCLECI_TOKEN="+e.Token)
@@ -73,4 +78,8 @@ func (e *TestEnv) Environ() []string {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))
 	}
 	return env
+}
+
+func (e *TestEnv) ConfigDir() string {
+	return filepath.Join(e.HomeDir, ".config")
 }

@@ -85,7 +85,7 @@ func newOpenCmd() *cobra.Command {
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 
-			appURL, err := cmdutil.AppURL(ctx, cmd)
+			appURL, err := cmdutil.AppURL(ctx)
 			if err != nil {
 				return err
 			}

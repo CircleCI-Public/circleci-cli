@@ -33,7 +33,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
@@ -61,7 +60,7 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			secureStorage := cmdutil.IsSecureStorage(cmd)
 
@@ -75,11 +74,7 @@ func newListCmd() *cobra.Command {
 }
 
 func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
-	cfg, err := config.Load(ctx, secureStorage)
-	if err != nil {
-		return clierrors.New("settings.load_failed", "Failed to load settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+	cfg := cmdutil.GetConfig(ctx)
 
 	path, _ := config.Path()
 

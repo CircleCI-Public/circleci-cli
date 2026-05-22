@@ -77,13 +77,13 @@ func newConfigCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "resource-class"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			var tok string
 			if tokenValue != "" {
 				tok = tokenValue
 			} else {
-				client, err := cmdutil.LoadClient(ctx, cmd)
+				client, err := cmdutil.LoadClient(ctx)
 				if err != nil {
 					return err
 				}

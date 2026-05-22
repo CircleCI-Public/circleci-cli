@@ -34,6 +34,7 @@ import (
 
 func TestTelemetryEnable(t *testing.T) {
 	env := testenv.New(t)
+	env.Telemetry = true
 	dir := t.TempDir()
 
 	result := binary.RunCLI(t, binary.RunOpts{

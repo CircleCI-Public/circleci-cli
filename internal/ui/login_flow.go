@@ -32,6 +32,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/google/uuid"
 	"github.com/pkg/browser"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/oauth"
@@ -64,9 +65,10 @@ const (
 // LoginResult is the outcome of a completed LoginFlowModel run.
 type LoginResult struct {
 	Cancelled bool
-	Host      string // resolved base URL
-	Token     string // set when auth succeeds (either method)
-	Username  string // set when GetUsername is provided and succeeds
+	Host      string    // resolved base URL
+	Token     string    // set when auth succeeds (either method)
+	UserID    uuid.UUID // set when GetUser is provided and succeeds
+	Username  string    // set when GetUser is provided and succeeds
 	Err       error
 }
 
@@ -76,10 +78,10 @@ type LoginFlowOptions struct {
 	OSInfo          string
 	Signup          bool
 	CallbackTimeout time.Duration
-	// GetUsername, if non-nil, is called after token exchange to display
+	// GetUser, if non-nil, is called after token exchange to display
 	// the authenticated user's login name.
-	GetUsername func(ctx context.Context, host, token string) (string, error)
-	Color       bool
+	GetUser func(ctx context.Context, host, token string) (id uuid.UUID, username string, err error)
+	Color   bool
 }
 
 // LoginFlowModel is a multi-stage bubbletea model that walks the user through
@@ -122,6 +124,7 @@ type tokenExchangedMsg struct {
 	err   error
 }
 type usernameFetchedMsg struct {
+	userID   uuid.UUID
 	username string
 	err      error
 }
@@ -353,7 +356,7 @@ func (m LoginFlowModel) updateTokenInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, subCmd
 	}
 	m.result.Token = tok
-	if m.opts.GetUsername != nil {
+	if m.opts.GetUser != nil {
 		return m, m.cmdGetUsername(tok)
 	}
 	m.stage = stageDone
@@ -405,7 +408,7 @@ func (m LoginFlowModel) onTokenExchanged(msg tokenExchangedMsg) (tea.Model, tea.
 		return m, tea.Quit
 	}
 	m.result.Token = msg.token
-	if m.opts.GetUsername != nil {
+	if m.opts.GetUser != nil {
 		return m, m.cmdGetUsername(msg.token)
 	}
 	m.stage = stageDone
@@ -417,6 +420,7 @@ func (m LoginFlowModel) onUsernameFetched(msg usernameFetchedMsg) (tea.Model, te
 		m.result.Err = msg.err
 		m.result.Token = ""
 	} else {
+		m.result.UserID = msg.userID
 		m.result.Username = msg.username
 	}
 	m.stage = stageDone
@@ -463,10 +467,14 @@ func (m LoginFlowModel) cmdExchange(res *oauth.Result) tea.Cmd {
 }
 
 func (m LoginFlowModel) cmdGetUsername(token string) tea.Cmd {
-	ctx, host, fn := m.ctx, m.result.Host, m.opts.GetUsername
+	ctx, host, fn := m.ctx, m.result.Host, m.opts.GetUser
 	return func() tea.Msg {
-		username, err := fn(ctx, host, token)
-		return usernameFetchedMsg{username: username, err: err}
+		userID, username, err := fn(ctx, host, token)
+		return usernameFetchedMsg{
+			userID:   userID,
+			username: username,
+			err:      err,
+		}
 	}
 }
 
