@@ -20,8 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package open implements the "circleci open" command.
-package open
+package run
 
 import (
 	"github.com/MakeNowJust/heredoc"
@@ -33,11 +32,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
-// NewOpenCmd returns the "circleci open" command.
-func NewOpenCmd() *cobra.Command {
+func newOpenCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "open",
-		Short: "Open the current project in the browser",
+		Short: "Open the current project's runs page in the browser",
 		Long: heredoc.Doc(`
 			Open the CircleCI runs page for the current project in your
 			default web browser.
@@ -47,7 +45,13 @@ func NewOpenCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Open runs for the current repo
-			$ circleci open
+			$ circleci run open
+
+			# Open from a specific directory
+			$ circleci run open --config ~/.config/circleci/config.yml
+
+			# Open when your remote is on CircleCI server
+			$ circleci run open --host https://circleci.example.com
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
