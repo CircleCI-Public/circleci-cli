@@ -85,6 +85,11 @@ linters:
       - linters: [staticcheck]
         text: ST1000
 
+        # Unused parameters are fine in tests
+      - linters: [revive]
+        text: unused-parameter
+        path: _test\.go
+
         # we remove a few annoying things from our tests, because they
         # don't provide much beside complexity
       - path: _test\.go
