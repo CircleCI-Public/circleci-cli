@@ -20,46 +20,55 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package open implements the "circleci open" command.
-package open
+package runner
 
 import (
+	"strings"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-// NewOpenCmd returns the "circleci open" command.
-func NewOpenCmd() *cobra.Command {
-	return &cobra.Command{
+func newOpenCmd() *cobra.Command {
+	var orgSlug string
+
+	cmd := &cobra.Command{
 		Use:   "open",
-		Short: "Open the current project in the browser",
+		Short: "Open the runners inventory page in the browser",
 		Long: heredoc.Doc(`
-			Open the CircleCI runs page for the current project in your
+			Open the CircleCI runners inventory page for an organization in your
 			default web browser.
 
-			The project is inferred from the current git repository's remote.
-			Supports GitHub, Bitbucket, and GitLab remotes.
+			The organization is inferred from the current git repository's remote
+			unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
+			remotes.
 		`),
 		Example: heredoc.Doc(`
-			# Open runs for the current repo
-			$ circleci open
-		`),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := cmd.Context()
+			# Open runners for the org inferred from git remote
+			$ circleci runner open
 
-			info, err := gitremote.Detect()
-			if err != nil {
-				return clierrors.New("git.detect_failed",
-					"Could not detect project from git remote", err.Error()).
-					WithSuggestions(
-						"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					).
-					WithExitCode(clierrors.ExitBadArguments)
+			# Open runners for a specific organization
+			$ circleci runner open --org gh/myorg
+
+			# Open when your remote is on CircleCI server
+			$ circleci runner open --host https://circleci.example.com
+		`),
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+
+			slug := orgSlug
+			if slug == "" {
+				info, err := gitremote.Detect()
+				if err != nil {
+					return cmdutil.GitDetectErr(err, "Or specify the organization: circleci runner open --org gh/myorg")
+				}
+				slug = orgSlugFromProjectSlug(info.Slug)
 			}
 
 			appURL, err := cmdutil.AppURL(ctx, cmd)
@@ -67,7 +76,7 @@ func NewOpenCmd() *cobra.Command {
 				return err
 			}
 
-			u, err := cmdutil.PipelinesURL(appURL, info.Slug)
+			u, err := cmdutil.RunnersURL(appURL, slug)
 			if err != nil {
 				return err
 			}
@@ -75,4 +84,18 @@ func NewOpenCmd() *cobra.Command {
 			return browser.OpenURL(u)
 		},
 	}
+
+	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); defaults to git remote")
+
+	return cmd
+}
+
+// orgSlugFromProjectSlug extracts the vcs/org portion of a project slug.
+// "gh/myorg/myrepo" → "gh/myorg"
+func orgSlugFromProjectSlug(projectSlug string) string {
+	parts := strings.SplitN(projectSlug, "/", 3)
+	if len(parts) >= 2 {
+		return parts[0] + "/" + parts[1]
+	}
+	return projectSlug
 }

@@ -1,0 +1,21 @@
+Usage:
+  circleci runner open [flags]
+
+Examples:
+# Open runners for the org inferred from git remote
+$ circleci runner open
+
+# Open runners for a specific organization
+$ circleci runner open --org gh/myorg
+
+# Open when your remote is on CircleCI server
+$ circleci runner open --host https://circleci.example.com
+
+
+Flags:
+      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

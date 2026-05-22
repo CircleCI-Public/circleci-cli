@@ -1,9 +1,15 @@
 Usage:
-  circleci open [flags]
+  circleci run open [flags]
 
 Examples:
 # Open runs for the current repo
-$ circleci open
+$ circleci run open
+
+# Open from a specific directory
+$ circleci run open --config ~/.config/circleci/config.yml
+
+# Open when your remote is on CircleCI server
+$ circleci run open --host https://circleci.example.com
 
 
 Global Flags:

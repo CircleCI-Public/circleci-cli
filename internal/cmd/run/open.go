@@ -24,37 +24,59 @@ package run
 
 import (
 	"github.com/MakeNowJust/heredoc"
+	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
-// NewRunCmd returns the "circleci run" command group.
-func NewRunCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "run <command>",
-		Short: "Manage runs",
+func newOpenCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "open",
+		Short: "Open the current project's runs page in the browser",
 		Long: heredoc.Doc(`
-			Work with CircleCI runs.
+			Open the CircleCI runs page for the current project in your
+			default web browser.
 
-			Runs are the top-level unit of work in CircleCI — they contain
-			one or more workflows, each of which contains jobs.
+			The project is inferred from the current git repository's remote.
+			Supports GitHub, Bitbucket, and GitLab remotes.
 		`),
+		Example: heredoc.Doc(`
+			# Open runs for the current repo
+			$ circleci run open
+
+			# Open from a specific directory
+			$ circleci run open --config ~/.config/circleci/config.yml
+
+			# Open when your remote is on CircleCI server
+			$ circleci run open --host https://circleci.example.com
+		`),
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+
+			info, err := gitremote.Detect()
+			if err != nil {
+				return clierrors.New("git.detect_failed",
+					"Could not detect project from git remote", err.Error()).
+					WithSuggestions(
+						"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
+					).
+					WithExitCode(clierrors.ExitBadArguments)
+			}
+
+			appURL, err := cmdutil.AppURL(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			u, err := cmdutil.PipelinesURL(appURL, info.Slug)
+			if err != nil {
+				return err
+			}
+
+			return browser.OpenURL(u)
+		},
 	}
-
-	cmd.AddCommand(newCancelCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newWatchCmd())
-
-	return cmd
-}
-
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
-		"run.not_found", "No run found for %q.",
-		"Check the run UUID or branch name and try again")
 }

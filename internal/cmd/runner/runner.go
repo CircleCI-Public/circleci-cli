@@ -51,6 +51,7 @@ func NewRunnerCmd() *cobra.Command {
 	cmd.AddCommand(newResourceClassCmd())
 	cmd.AddCommand(newTokenCmd())
 	cmd.AddCommand(newInstanceCmd())
+	cmd.AddCommand(newOpenCmd())
 	cmd.AddCommand(newTasksCmd())
 
 	return cmd

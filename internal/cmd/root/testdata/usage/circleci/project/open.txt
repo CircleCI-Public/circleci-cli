@@ -1,0 +1,21 @@
+Usage:
+  circleci project open [flags]
+
+Examples:
+# Open the project page for the current repo
+$ circleci project open
+
+# Open the project page for a specific project
+$ circleci project open --project gh/myorg/myrepo
+
+# Open when your remote is on CircleCI server
+$ circleci project open --host https://circleci.example.com
+
+
+Flags:
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

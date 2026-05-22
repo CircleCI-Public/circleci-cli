@@ -10,6 +10,7 @@ Available Commands:
   cancel      Cancel a run
   get         Get a run's status
   list        List recent runs for a project
+  open        Open the current project's runs page in the browser
   trigger     Trigger a new run
   watch       Watch a run until it completes
 
