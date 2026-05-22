@@ -23,6 +23,8 @@
 package telemetry
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -35,7 +37,20 @@ type Client struct {
 	user   User
 }
 
+type Mode int
+
+const (
+	// ModeNOOP disables telemetry.
+	ModeNOOP Mode = iota
+	// ModeSend sends events to Segment.
+	ModeSend
+	// ModeLog logs events to stderr.
+	ModeLog
+)
+
 type Config struct {
+	Mode Mode
+
 	// WriteKey is the Segment write key, and if not provided, will disable telemtry.
 	WriteKey string
 	// Endpoint is the Segment endpoint, and is optional, defaulting to segment io.
@@ -79,17 +94,26 @@ func (u User) toContext() *analytics.Context {
 }
 
 // New creates a new segment client
-func New(cfg Config) (*Client, error) {
-	if cfg.WriteKey == "" {
-		return nil, nil
-	}
-
-	client, err := analytics.NewWithConfig(cfg.WriteKey, analytics.Config{
-		Endpoint:  cfg.Endpoint,
-		BatchSize: cfg.BatchSize,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to create segment client: %w", err)
+func New(ctx context.Context, cfg Config) (_ *Client, err error) {
+	var client analytics.Client
+	switch cfg.Mode {
+	case ModeNOOP:
+		client = &noopClient{}
+	case ModeSend:
+		if cfg.WriteKey == "" {
+			return nil, errors.New("write key is required")
+		}
+		client, err = analytics.NewWithConfig(cfg.WriteKey, analytics.Config{
+			Endpoint:  cfg.Endpoint,
+			BatchSize: cfg.BatchSize,
+		})
+		if err != nil {
+			return nil, fmt.Errorf("failed to create segment client: %w", err)
+		}
+	case ModeLog:
+		client = &loggingClient{
+			ctx: ctx,
+		}
 	}
 
 	if cfg.User.InstanceID == uuid.Nil {
@@ -107,10 +131,6 @@ func New(cfg Config) (*Client, error) {
 }
 
 func (c *Client) Identify() error {
-	if c == nil {
-		return nil
-	}
-
 	return c.client.Enqueue(analytics.Identify{
 		UserId:       c.user.UserID.String(),
 		Context:      c.user.toContext(),
@@ -128,18 +148,12 @@ var AnonymousID = uuid.MustParse("66f35d3e-40f6-4ade-909b-a6314990de53")
 
 // Track sends an analytics event.
 func (c *Client) Track(eventName string, props map[string]any) error {
-	// Allow a nil client so that it can be treated as non-critical, especially during tests.
-	if c == nil {
-		return nil
-	}
-
 	extras := analytics.NewProperties()
-
 	for key, val := range props {
 		extras.Set(key, val)
 	}
 
-	track := analytics.Track{
+	return c.client.Enqueue(analytics.Track{
 		Event:      eventName,
 		Timestamp:  time.Now(),
 		Properties: extras,
@@ -147,7 +161,5 @@ func (c *Client) Track(eventName string, props map[string]any) error {
 		UserId:       c.user.UserID.String(),
 		Context:      c.user.toContext(),
 		Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-	}
-
-	return c.client.Enqueue(track)
+	})
 }
