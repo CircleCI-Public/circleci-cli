@@ -44,6 +44,46 @@ func PipelinesURL(appURL, slug string) (string, error) {
 	), nil
 }
 
+// ProjectURL returns the CircleCI project page URL for the given project slug.
+func ProjectURL(appURL, slug string) (string, error) {
+	parts := strings.SplitN(slug, "/", 3)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("invalid slug: %q", slug)
+	}
+	return fmt.Sprintf("%s/projects/%s/%s/%s",
+		appURL,
+		url.PathEscape(parts[0]),
+		url.PathEscape(parts[1]),
+		url.PathEscape(parts[2]),
+	), nil
+}
+
+// ContextsURL returns the CircleCI contexts settings page URL for the given org slug.
+func ContextsURL(appURL, orgSlug string) (string, error) {
+	parts := strings.SplitN(orgSlug, "/", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid org slug: %q", orgSlug)
+	}
+	return fmt.Sprintf("%s/settings/organization/%s/%s/contexts",
+		appURL,
+		url.PathEscape(parts[0]),
+		url.PathEscape(parts[1]),
+	), nil
+}
+
+// RunnersURL returns the CircleCI runners inventory page URL for the given org slug.
+func RunnersURL(appURL, orgSlug string) (string, error) {
+	parts := strings.SplitN(orgSlug, "/", 2)
+	if len(parts) != 2 {
+		return "", fmt.Errorf("invalid org slug: %q", orgSlug)
+	}
+	return fmt.Sprintf("%s/runners/%s/%s/inventory",
+		appURL,
+		url.PathEscape(parts[0]),
+		url.PathEscape(parts[1]),
+	), nil
+}
+
 // DeployURL returns the CircleCI deploys page URL for the given project.
 func DeployURL(appURL string, proj *apiclient.ProjectInfo) string {
 	return fmt.Sprintf("%s/deploys/%s/%s/projects/%s",

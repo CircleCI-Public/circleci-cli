@@ -6,6 +6,7 @@ Available Commands:
   delete      Delete a context
   get         Get details of a context
   list        List contexts for an organization
+  open        Open the contexts settings page in the browser
   restriction Manage context restrictions
   secret      Manage context environment variables
 

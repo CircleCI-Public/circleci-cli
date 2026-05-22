@@ -49,6 +49,7 @@ func NewContextCmd() *cobra.Command {
 	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newDeleteCmd())
+	cmd.AddCommand(newOpenCmd())
 	cmd.AddCommand(newSecretCmd())
 	cmd.AddCommand(newRestrictionCmd())
 

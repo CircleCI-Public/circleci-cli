@@ -3,6 +3,7 @@ Usage:
 
 Available Commands:
   instance       Manage runner instances
+  open           Open the runners inventory page in the browser
   resource-class Manage runner resource classes
   task           Show task counts for a runner resource class
   token          Manage runner tokens
