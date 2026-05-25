@@ -73,11 +73,12 @@ type CircleCI struct {
 	deletedRCs      map[string]bool  // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects []any            // list of project objects for GET /api/v1.1/projects
-	followedSlugs    map[string]bool  // vcs+org+repo → true (for follow idempotency)
-	envVars          map[string][]any // project slug → env vars
-	deletedEnvVars   map[string]bool  // "slug/name" → deleted
-	projectInfos     map[string]any   // project slug → project info response
+	followedProjects  []any            // list of project objects for GET /api/v1.1/projects
+	followedSlugs     map[string]bool  // vcs+org+repo → true (for follow idempotency)
+	envVars           map[string][]any // project slug → env vars
+	deletedEnvVars    map[string]bool  // "slug/name" → deleted
+	projectInfos      map[string]any   // project slug → project info response
+	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
 
 	// Context state.
 	contexts                   map[string]any   // context id → context object
@@ -211,6 +212,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// project slug, so we match three separate path segments rather than {slug}.
 	r.Get("/api/v1.1/projects", f.handleListProjects)
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
+	r.Post("/api/v2/organization/{vcs}/{org}/project", f.handleCreateProject)
 	r.Get("/api/v2/me", f.handleGetMe)
 	r.Post("/oauth/token", f.handleOAuthToken)
 	// Context routes.
@@ -1006,6 +1008,15 @@ func (f *CircleCI) AddFollowedProject(proj any) {
 	f.followedProjects = append(f.followedProjects, proj)
 }
 
+// SetCreateProjectResponse registers the response body returned when
+// POST /api/v2/organization/{vcs}/{org}/project is called.
+// Pass nil to simulate a 422 error.
+func (f *CircleCI) SetCreateProjectResponse(resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.createProjectResp = resp
+}
+
 // AddEnvVar registers an env var for a project.
 // slug should be in "vcs/org/repo" form.
 func (f *CircleCI) AddEnvVar(slug, name, value string, createdAt *time.Time) {
@@ -1050,6 +1061,20 @@ func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	render.JSON(w, r, map[string]any{"following": true})
+}
+
+func (f *CircleCI) handleCreateProject(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	resp := f.createProjectResp
+	f.mu.RUnlock()
+
+	if resp == nil {
+		render.Status(r, http.StatusUnprocessableEntity)
+		render.JSON(w, r, map[string]any{"message": "project creation not configured"})
+		return
+	}
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
 }
 
 func (f *CircleCI) handleListEnvVars(w http.ResponseWriter, r *http.Request) {

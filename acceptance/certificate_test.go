@@ -29,6 +29,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -306,7 +307,9 @@ func TestCertificateList_NoOrgIDOutsideGit(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	// git's "not a git repo" wording varies by version; assert only on the parts we own.
+	assert.Check(t, cmp.Contains(result.Stderr, "could not read git remote"))
+	assert.Check(t, cmp.Contains(result.Stderr, "--org-id"))
 }
 
 // --- certificate delete ---
