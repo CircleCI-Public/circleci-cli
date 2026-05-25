@@ -2,6 +2,7 @@ Usage:
   circleci runner [command]
 
 Available Commands:
+  config         Generate a runner agent configuration file
   instance       Manage runner instances
   open           Open the runners inventory page in the browser
   resource-class Manage runner resource classes
