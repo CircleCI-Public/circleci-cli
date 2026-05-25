@@ -3,6 +3,7 @@ Usage:
 
 Available Commands:
   create      Create a new project
+  dlc         Manage Docker Layer Caching
   envvar      Manage project environment variables
   follow      Follow a project
   get         Show project details

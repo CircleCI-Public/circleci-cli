@@ -20,41 +20,36 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package project implements the "circleci project" command group.
-package project
+package apiclient
 
 import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
-// NewProjectCmd returns the "circleci project" parent command.
-func NewProjectCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "project <command>",
-		Short: "Manage CircleCI projects",
-		Long: heredoc.Doc(`
-			List, follow, and manage settings for CircleCI projects.
+// ErrDLCGone is returned by PurgeDLC when the endpoint responds 410 Gone,
+// indicating the feature has been retired or the CLI needs upgrading.
+var ErrDLCGone = errors.New("dlc: endpoint no longer available")
 
-			A project corresponds to a version-control repository connected
-			to CircleCI. Use 'circleci project list' to see all followed projects,
-			'circleci project follow' to start following a new project, and
-			'circleci project env' to manage environment variables.
-
-			To manage environment variables directly, use the top-level alias:
-			  circleci envvar list --project gh/org/repo
-		`),
+// PurgeDLC purges the Docker Layer Cache for the given project ID.
+func (c *Client) PurgeDLC(ctx context.Context, projectID string) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/projects/%s/dlc",
+		routeParams(projectID),
+	))
+	he, ok := errors.AsType[*httpcl.HTTPError](err)
+	switch {
+	case httpcl.HasStatusCode(err, http.StatusGone):
+		return fmt.Errorf("%w", ErrDLCGone)
+	case ok:
+		fmt.Printf("API returned %d: %s\n", he.StatusCode, string(he.Body))
+		return err
+	case err != nil:
+		return err
+	default:
+		return nil
 	}
-
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(NewGetCmd("get"))
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newFollowCmd())
-	cmd.AddCommand(newLinkCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newEnvCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newProjectDLCCmd())
-
-	return cmd
 }

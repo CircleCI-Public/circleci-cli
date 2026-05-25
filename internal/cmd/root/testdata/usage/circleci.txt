@@ -10,6 +10,7 @@ Available Commands:
   config         Work with pipeline config
   context        Manage contexts
   deploy         Manage deploys
+  dlc            Manage Docker Layer Caching
   envvar         Manage project environment variables
   info           Show project details
   job            Manage jobs

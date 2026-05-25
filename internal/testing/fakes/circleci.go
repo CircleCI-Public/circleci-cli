@@ -136,6 +136,9 @@ type CircleCI struct {
 	namespaces        map[string]any    // namespace id → {id, name}
 	namespacesByName  map[string]string // namespace name → id
 	deletedNamespaces map[string]bool   // namespace id → deleted
+
+	// DLC state.
+	dlcPurgeStatus map[string]int // projectID → HTTP status to return (default 204)
 }
 
 // orbFakeValidateResponse holds a preset validate/process response for testing.
@@ -211,6 +214,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		orbCategoriesByName:               map[string]string{},
 		orbUnlistedPackages:               map[string]bool{},
 		orbCategoryMembers:                map[string][]string{},
+		dlcPurgeStatus:                    map[string]int{},
 	}
 
 	r := newRouter()
@@ -304,6 +308,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/orb/versions/{id}/source", f.handleOrbGetVersionSource)
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
+	r.Delete("/api/v3/projects/{projectID}/dlc", f.handleDLCPurge)
 	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
 	// Raw step output/error routes for the private output API.
@@ -351,6 +356,25 @@ func (f *CircleCI) SetCancelResponse(workflowID string, status int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.cancelResponses[workflowID] = status
+}
+
+// SetDLCPurgeStatus sets the HTTP status returned for DELETE /private/output/project/{id}/dlc.
+// Default is 204 (success). Use 410 to simulate the gone/deprecated response.
+func (f *CircleCI) SetDLCPurgeStatus(projectID string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.dlcPurgeStatus[projectID] = status
+}
+
+func (f *CircleCI) handleDLCPurge(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "projectID")
+	f.mu.RLock()
+	status, ok := f.dlcPurgeStatus[projectID]
+	f.mu.RUnlock()
+	if !ok {
+		status = http.StatusNoContent
+	}
+	w.WriteHeader(status)
 }
 
 // AddRun registers a run response for GET /api/v2/pipeline/<id>.

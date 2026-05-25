@@ -20,41 +20,45 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package project implements the "circleci project" command group.
-package project
+// Package dlc implements the "circleci dlc" command group.
+package dlc
 
 import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewProjectCmd returns the "circleci project" parent command.
-func NewProjectCmd() *cobra.Command {
+// NewDLCCmd returns the "circleci dlc" parent command.
+func NewDLCCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project <command>",
-		Short: "Manage CircleCI projects",
+		Use:   "dlc <command>",
+		Short: "Manage Docker Layer Caching",
 		Long: heredoc.Doc(`
-			List, follow, and manage settings for CircleCI projects.
+			Manage Docker Layer Caching (DLC) for CircleCI projects.
 
-			A project corresponds to a version-control repository connected
-			to CircleCI. Use 'circleci project list' to see all followed projects,
-			'circleci project follow' to start following a new project, and
-			'circleci project env' to manage environment variables.
+			Docker Layer Caching allows CircleCI to cache individual Docker image
+			layers between pipeline runs. Use 'circleci dlc purge' to invalidate
+			the cache for a project and force a fresh image build on the next run.
 
-			To manage environment variables directly, use the top-level alias:
-			  circleci envvar list --project gh/org/repo
+			These commands are also available under 'circleci project dlc'.
 		`),
+		Example: heredoc.Doc(`
+			# Purge DLC for the current git repository's project
+			$ circleci dlc purge
+
+			# Purge DLC for a specific project
+			$ circleci dlc purge --project gh/myorg/myrepo
+
+			# Purge DLC and output result as JSON
+			$ circleci dlc purge --project gh/myorg/myrepo --json
+		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(NewGetCmd("get"))
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newFollowCmd())
-	cmd.AddCommand(newLinkCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newEnvCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newProjectDLCCmd())
+	cmd.AddCommand(NewPurgeCmd())
 
 	return cmd
 }
