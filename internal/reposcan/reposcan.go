@@ -55,3 +55,17 @@ func (r *Result) IsEmpty() bool {
 	}
 	return r.Stack == "" || r.Stack == StackUnknown
 }
+
+// SetupCommand returns the command for the named setup step, or an empty
+// string if the scan did not produce that step.
+func (r *Result) SetupCommand(name string) string {
+	if r == nil {
+		return ""
+	}
+	for _, step := range r.Setup {
+		if step.Name == name {
+			return step.Command
+		}
+	}
+	return ""
+}

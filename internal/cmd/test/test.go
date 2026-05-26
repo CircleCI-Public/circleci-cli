@@ -20,43 +20,31 @@
 //
 // SPDX-License-Identifier: MIT
 
-package reposcan
+// Package cmdtest implements the "circleci test" command group.
+package cmdtest
 
 import (
-	"testing"
+	"github.com/MakeNowJust/heredoc"
+	"github.com/spf13/cobra"
 
-	"gotest.tools/v3/assert"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-func TestResult_IsEmpty(t *testing.T) {
-	cases := []struct {
-		name   string
-		result *Result
-		want   bool
-	}{
-		{"nil result", nil, true},
-		{"empty stack", &Result{Stack: ""}, true},
-		{"unknown stack", &Result{Stack: StackUnknown}, true},
-		{"populated stack", &Result{Stack: "go"}, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.result.IsEmpty(), tc.want)
-		})
-	}
-}
-
-func TestResult_SetupCommand(t *testing.T) {
-	result := &Result{
-		Setup: []SetupStep{
-			{Name: "install", Command: "go mod download"},
-			{Name: "test", Command: "go test ./..."},
-		},
+// NewTestCmd returns the "circleci test" command group.
+func NewTestCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "test <command>",
+		Short: "Run project tests via CircleCI tooling",
+		Long: heredoc.Doc(`
+			Run project tests using the test command detected from the local
+			repository. This is used by onboarding flows to prove the detected
+			stack can run the project's existing test suite before signup.
+		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	assert.Equal(t, result.SetupCommand("test"), "go test ./...")
-	assert.Equal(t, result.SetupCommand("missing"), "")
+	cmd.AddCommand(newRunCmd())
 
-	var nilResult *Result
-	assert.Equal(t, nilResult.SetupCommand("test"), "")
+	return cmd
 }

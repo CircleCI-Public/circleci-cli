@@ -1,0 +1,19 @@
+✓ Detected dotnet project (mcr.microsoft.com/dotnet/sdk:8.0)
+    install: dotnet restore
+    test: dotnet test --framework net8.0 --filter "FullyQualifiedName!~BufferErroringWithInvalidSize&FullyQualifiedName!~MemoryTraceWriter&FullyQualifiedName!~Issue1619&FullyQualifiedName!~SerializeFormattedDateTimeNewZealandCulture"
+Running tests ...
+fake dotnet test --framework net8.0 --filter FullyQualifiedName!~BufferErroringWithInvalidSize&FullyQualifiedName!~MemoryTraceWriter&FullyQualifiedName!~Issue1619&FullyQualifiedName!~SerializeFormattedDateTimeNewZealandCulture
+
+My tests failed when running `circleci test run`.
+
+Project stack: dotnet
+Image: mcr.microsoft.com/dotnet/sdk:8.0
+Command run: dotnet test --framework net8.0 --filter "FullyQualifiedName!~BufferErroringWithInvalidSize&FullyQualifiedName!~MemoryTraceWriter&FullyQualifiedName!~Issue1619&FullyQualifiedName!~SerializeFormattedDateTimeNewZealandCulture"
+Exit code: 9
+
+Failing test output:
+fake dotnet test --framework net8.0 --filter FullyQualifiedName!~BufferErroringWithInvalidSize&FullyQualifiedName!~MemoryTraceWriter&FullyQualifiedName!~Issue1619&FullyQualifiedName!~SerializeFormattedDateTimeNewZealandCulture
+fake failure details
+
+Please diagnose the failure from the output above and propose a fix.
+Once fixed, I will re-run `circleci init`.

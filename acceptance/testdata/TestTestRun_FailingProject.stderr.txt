@@ -1,0 +1,6 @@
+fake failure details
+error: Test command exited with status 9.
+
+Suggestions:
+  • Paste the prompt above into your AI assistant
+  • Re-run circleci init once tests pass
