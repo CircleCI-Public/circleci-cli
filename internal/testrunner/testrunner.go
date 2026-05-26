@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"strings"
 	"sync"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
@@ -56,18 +57,20 @@ func Run(ctx context.Context, dir string, result *reposcan.Result) error {
 
 	iostream.Printf(ctx, "Running tests ...\n")
 
-	tail := &tailWriter{limit: outputTailLimit}
+	stdoutTail := &tailWriter{limit: outputTailLimit}
+	stderrTail := &tailWriter{limit: outputTailLimit}
 	cmd := exec.CommandContext(ctx, "sh", "-c", testCommand) //#nosec:G204 // env-builder returns shell snippets intentionally executed through the shell
 	cmd.Dir = dir
 	cmd.Stdin = iostream.In(ctx)
-	cmd.Stdout = io.MultiWriter(iostream.Out(ctx), tail)
-	cmd.Stderr = io.MultiWriter(iostream.Err(ctx), tail)
+	cmd.Stdout = io.MultiWriter(iostream.Out(ctx), stdoutTail)
+	cmd.Stderr = io.MultiWriter(iostream.Err(ctx), stderrTail)
 
 	if err := cmd.Run(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
-			iostream.Printf(ctx, "\n%s", RenderPrompt(result.Stack, image(result), testCommand, exitCode, tail.String()))
+			outputTail := combineOutput(stdoutTail.String(), stderrTail.String())
+			iostream.Printf(ctx, "\n%s", RenderPrompt(result.Stack, image(result), testCommand, exitCode, outputTail))
 			return clierrors.New(
 				"test.tests_failed",
 				"Tests failed",
@@ -99,6 +102,18 @@ func image(result *reposcan.Result) string {
 		return result.Image
 	}
 	return result.Image + ":" + result.ImageVersion
+}
+
+func combineOutput(stdout, stderr string) string {
+	stdout = strings.TrimRight(stdout, "\n")
+	stderr = strings.TrimRight(stderr, "\n")
+	if stdout == "" {
+		return stderr
+	}
+	if stderr == "" {
+		return stdout
+	}
+	return stdout + "\n" + stderr
 }
 
 type tailWriter struct {

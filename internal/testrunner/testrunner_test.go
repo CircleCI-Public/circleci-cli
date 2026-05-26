@@ -115,6 +115,12 @@ func TestRun_RunnerError_ReturnsStructuredError(t *testing.T) {
 	assertCLIError(t, err, "test.runner_error", clierrors.ExitGeneralError)
 }
 
+func TestCombineOutput_IsDeterministic(t *testing.T) {
+	assert.Equal(t, combineOutput("stdout\n", "stderr\n"), "stdout\nstderr")
+	assert.Equal(t, combineOutput("", "stderr\n"), "stderr")
+	assert.Equal(t, combineOutput("stdout\n", ""), "stdout")
+}
+
 func assertCLIError(t *testing.T, err error, code string, exitCode int) {
 	t.Helper()
 	var cliErr *clierrors.CLIError
