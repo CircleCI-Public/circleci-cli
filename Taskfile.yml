@@ -97,7 +97,7 @@ tasks:
           -ignore ".claude/**" \
           -ignore "test-reports/**" \
           -ignore "**/*.html" \
-          -ignore "**/testdata/**/*.yml" \
+          -ignore "acceptance/testdata/**" \
           {{.ARGS}}
 
   mod-tidy:

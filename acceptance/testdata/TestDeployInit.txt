@@ -1,0 +1,12 @@
+Scanning .circleci/config.yml...
+
+Found 2 deploy job(s):
+  deploy-staging                 runs on: develop
+  deploy-prod                    runs on: main
+
+Updating .circleci/config.yml...
+
+Done. Your next deploy will appear at:
+→ https://app.circleci.com/deploys
+
+Commit and push config.yml to activate.

@@ -1,0 +1,5 @@
+No deploy jobs found in .circleci/config.yml.
+
+Add a job with a name like deploy, release, publish, or ship,
+then run this command again.
+error: No jobs with deploy-like names were detected in the config.

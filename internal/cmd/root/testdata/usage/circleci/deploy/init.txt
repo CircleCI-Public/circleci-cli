@@ -1,0 +1,26 @@
+Usage:
+  circleci deploy init [flags]
+
+Examples:
+# Interactive setup in the current repo
+$ circleci deploy init
+
+# Skip the service-name prompt
+$ circleci deploy init --component api
+
+# Fully non-interactive (supply both answers as flags)
+$ circleci deploy init --component api --environment production
+
+# Use a non-default config location
+$ circleci deploy init --pipeline-config path/to/config.yml
+
+
+Flags:
+      --component string         Service/component name (skips prompt)
+      --environment string       Default environment for jobs whose target can't be inferred (skips prompt)
+      --pipeline-config string   Path to CircleCI pipeline config file (default ".circleci/config.yml")
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
