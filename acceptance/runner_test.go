@@ -25,6 +25,7 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"strings"
 	"testing"
 
@@ -646,6 +647,86 @@ func TestRunnerInstanceList_NoToken(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- runner config ---
+
+func TestRunnerConfig(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+}
+
+func TestRunnerConfig_Nickname(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--nickname", "prod-server-1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+}
+
+func TestRunnerConfig_ExistingToken(t *testing.T) {
+	// --token skips the API call entirely; no fake server needed.
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--token", "my-existing-token-value"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+}
+
+func TestRunnerConfig_OutputFile(t *testing.T) {
+	_, env := setupRunnerFake(t)
+	dir := t.TempDir()
+	outPath := dir + "/launch-agent-config.yaml"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--output", outPath},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, strings.TrimSpace(result.Stdout), "")
+
+	contents, err := os.ReadFile(outPath)
+	assert.NilError(t, err)
+	assert.Check(t, golden.String(string(contents), t.Name()+".yaml"))
+}
+
+func TestRunnerConfig_NoArgs(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 

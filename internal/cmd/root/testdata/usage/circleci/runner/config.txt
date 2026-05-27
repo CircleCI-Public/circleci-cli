@@ -1,0 +1,26 @@
+Usage:
+  circleci runner config <resource-class> [flags]
+
+Examples:
+# Create a new token and print config to stdout
+$ circleci runner config my-org/my-runner
+
+# Write config directly to a file
+$ circleci runner config my-org/my-runner --output launch-agent-config.yaml
+
+# Create a nicely-labeled token and write to a file
+$ circleci runner config my-org/my-runner --nickname "prod-server-1" --output /etc/circleci/launch-agent-config.yaml
+
+# Generate config from an existing token value (no API token creation)
+$ circleci runner config my-org/my-runner --token "$EXISTING_TOKEN_VALUE"
+
+
+Flags:
+      --nickname string   Nickname for the new token
+  -o, --output string     Write config to this file instead of stdout
+      --token string      Use an existing token value instead of creating a new one
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
