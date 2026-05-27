@@ -20,43 +20,23 @@
 //
 // SPDX-License-Identifier: MIT
 
-package reposcan
+package testrunner
 
 import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
 )
 
-func TestResult_IsEmpty(t *testing.T) {
-	cases := []struct {
-		name   string
-		result *Result
-		want   bool
-	}{
-		{"nil result", nil, true},
-		{"empty stack", &Result{Stack: ""}, true},
-		{"unknown stack", &Result{Stack: StackUnknown}, true},
-		{"populated stack", &Result{Stack: "go"}, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.result.IsEmpty(), tc.want)
-		})
-	}
+func TestRenderPrompt(t *testing.T) {
+	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "--- FAIL: TestBroken\n    nope\n")
+
+	assert.Check(t, golden.String(got, t.Name()+".txt"))
 }
 
-func TestResult_SetupCommand(t *testing.T) {
-	result := &Result{
-		Setup: []SetupStep{
-			{Name: "install", Command: "go mod download"},
-			{Name: "test", Command: "go test ./..."},
-		},
-	}
+func TestRenderPrompt_NoOutputCaptured(t *testing.T) {
+	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "")
 
-	assert.Equal(t, result.SetupCommand("test"), "go test ./...")
-	assert.Equal(t, result.SetupCommand("missing"), "")
-
-	var nilResult *Result
-	assert.Equal(t, nilResult.SetupCommand("test"), "")
+	assert.Check(t, golden.String(got, t.Name()+".txt"))
 }

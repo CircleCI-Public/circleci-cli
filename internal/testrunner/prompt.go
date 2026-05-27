@@ -20,43 +20,31 @@
 //
 // SPDX-License-Identifier: MIT
 
-package reposcan
+package testrunner
 
 import (
-	"testing"
-
-	"gotest.tools/v3/assert"
+	"fmt"
+	"strings"
 )
 
-func TestResult_IsEmpty(t *testing.T) {
-	cases := []struct {
-		name   string
-		result *Result
-		want   bool
-	}{
-		{"nil result", nil, true},
-		{"empty stack", &Result{Stack: ""}, true},
-		{"unknown stack", &Result{Stack: StackUnknown}, true},
-		{"populated stack", &Result{Stack: "go"}, false},
-	}
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
-			assert.Equal(t, tc.result.IsEmpty(), tc.want)
-		})
-	}
-}
+const agentPromptTemplate = `My tests failed when running ` + "`circleci test run`" + `.
 
-func TestResult_SetupCommand(t *testing.T) {
-	result := &Result{
-		Setup: []SetupStep{
-			{Name: "install", Command: "go mod download"},
-			{Name: "test", Command: "go test ./..."},
-		},
+Project stack: %s
+Image: %s
+Command run: %s
+Exit code: %d
+
+Failing test output:
+%s
+
+Please diagnose the failure from the output above and propose a fix.
+Once fixed, I will re-run ` + "`circleci test run`" + `.
+`
+
+// RenderPrompt returns the hardcoded POC prompt shown after local tests fail.
+func RenderPrompt(stack, image, command string, exitCode int, outputTail string) string {
+	if strings.TrimSpace(outputTail) == "" {
+		outputTail = "(no output captured)"
 	}
-
-	assert.Equal(t, result.SetupCommand("test"), "go test ./...")
-	assert.Equal(t, result.SetupCommand("missing"), "")
-
-	var nilResult *Result
-	assert.Equal(t, nilResult.SetupCommand("test"), "")
+	return fmt.Sprintf(agentPromptTemplate, stack, image, command, exitCode, strings.TrimRight(outputTail, "\n"))
 }

@@ -1,0 +1,15 @@
+Usage:
+  circleci test run [path] [flags]
+
+Examples:
+# Run tests for the current directory
+$ circleci test run
+
+# Run tests for a specific project path
+$ circleci test run ./my-app
+
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

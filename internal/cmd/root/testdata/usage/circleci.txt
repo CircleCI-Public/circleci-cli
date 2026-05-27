@@ -23,6 +23,7 @@ Available Commands:
   runner         Manage self-hosted runners
   settings       Manage CLI settings
   signing-config Manage iOS signing configs
+  test           Run project tests via CircleCI tooling
   version        Print version information
   workflow       Manage workflows
 

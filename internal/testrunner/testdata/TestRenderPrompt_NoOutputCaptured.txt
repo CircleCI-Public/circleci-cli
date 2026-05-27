@@ -1,0 +1,12 @@
+My tests failed when running `circleci test run`.
+
+Project stack: go
+Image: cimg/go:1.22
+Command run: go test ./...
+Exit code: 1
+
+Failing test output:
+(no output captured)
+
+Please diagnose the failure from the output above and propose a fix.
+Once fixed, I will re-run `circleci test run`.
