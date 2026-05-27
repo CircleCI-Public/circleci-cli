@@ -869,3 +869,130 @@ func TestProjectTriggerCreate_DirectProjectID(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, triggerID))
 }
+
+// --- project create ---
+
+func setupCreateProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake, env := setupProjectFake(t)
+	fake.SetCreateProjectResponse(map[string]any{
+		"id":                "proj-new-uuid",
+		"slug":              "gh/myorg/my-new-repo",
+		"name":              "my-new-repo",
+		"organization_name": "myorg",
+		"organization_slug": "gh/myorg",
+		"organization_id":   "org-uuid-5678",
+		"vcs_info": map[string]any{
+			"provider":       "GitHub",
+			"default_branch": "main",
+			"vcs_url":        "https://github.com/myorg/my-new-repo",
+		},
+	})
+	return fake, env
+}
+
+func TestProjectCreate(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestProjectCreate_Color(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestProjectCreate_JSON(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/myorg", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["id"], "proj-new-uuid"))
+	assert.Check(t, cmp.Equal(out["slug"], "gh/myorg/my-new-repo"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestProjectCreate_MissingOrg(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--org"))
+}
+
+func TestProjectCreate_InvalidOrg(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "notaslug"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "notaslug"))
+}
+
+func TestProjectCreate_APIError(t *testing.T) {
+	fake, env := setupProjectFake(t) // no SetCreateProjectResponse → fake returns 422
+	_ = fake
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 4, "stderr: %s", result.Stderr)
+	assert.Check(t, len(result.Stderr) > 0)
+}
+
+func TestProjectCreate_NoToken(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+}

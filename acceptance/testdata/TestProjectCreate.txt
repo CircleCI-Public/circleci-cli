@@ -1,0 +1,12 @@
+# Project Created
+- Name: my-new-repo
+- Slug: gh/myorg/my-new-repo
+- Project ID: `proj-new-uuid`
+- Organization: myorg
+- Organization ID: `org-uuid-5678`
+
+## VCS
+- Provider: GitHub
+- Default Branch: main
+- URL: https://github.com/myorg/my-new-repo
+

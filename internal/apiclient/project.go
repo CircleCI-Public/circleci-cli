@@ -129,3 +129,19 @@ func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*Proje
 	}
 	return &info, nil
 }
+
+// CreateProject creates a new project in the given organization.
+// vcs is the VCS provider (e.g. "github", "circleci").
+// org is the organization slug or UUID.
+// name is the project name.
+func (c *Client) CreateProject(ctx context.Context, vcs, org, name string) (*ProjectInfo, error) {
+	body := map[string]any{"name": name}
+	var proj ProjectInfo
+	err := c.post(ctx, "/organization/%s/%s/project", body, &proj,
+		routeParams(vcs, org),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &proj, nil
+}

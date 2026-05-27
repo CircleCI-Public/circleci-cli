@@ -1,0 +1,11 @@
+{
+  "id": "proj-new-uuid",
+  "slug": "gh/myorg/my-new-repo",
+  "name": "my-new-repo",
+  "organization_name": "myorg",
+  "organization_slug": "gh/myorg",
+  "organization_id": "org-uuid-5678",
+  "vcs_provider": "GitHub",
+  "vcs_default_branch": "main",
+  "vcs_url": "https://github.com/myorg/my-new-repo"
+}
