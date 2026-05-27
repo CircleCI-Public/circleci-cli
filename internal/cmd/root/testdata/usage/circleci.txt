@@ -16,6 +16,7 @@ Available Commands:
   logs           Fetch job logs
   mcp            MCP server management
   namespace      Manage orb namespaces
+  onboard        Guided onboarding: scan, test, generate config, sign up
   orb            Manage orbs in the CircleCI orb registry
   pipeline       Manage pipeline definitions
   policy         Manage security policies

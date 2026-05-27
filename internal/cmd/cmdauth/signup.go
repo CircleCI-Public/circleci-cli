@@ -24,6 +24,7 @@ package cmdauth
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 
 	tea "charm.land/bubbletea/v2"
@@ -74,6 +75,40 @@ func newSignupCmd() *cobra.Command {
 
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the authorize URL instead of opening a browser")
 	return cmd
+}
+
+// SignupIfNeeded is the idempotent variant of signup used by orchestrators
+// like `circleci onboard`. If a valid token already exists, it prints a
+// confirmation and returns nil. Otherwise it runs the standard signup flow.
+func SignupIfNeeded(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
+	cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
+	if err != nil {
+		return clierrors.New("config.load_failed",
+			"Failed to load config", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	token := cfg.EffectiveToken()
+	if token == "" {
+		iostream.Printf(ctx, "\nSign up to create your CircleCI account.\n\n")
+		return runSignup(ctx, configPath, noBrowser, secureStorage)
+	}
+
+	host := cfg.EffectiveHost()
+	me, err := apiclient.New(host, token, nil).GetMe(ctx)
+	if err != nil {
+		return clierrors.New(
+			"auth.signup.stale_token",
+			"Could not verify existing token",
+			fmt.Sprintf("A token is configured but the identity check failed: %s.", err),
+		).WithSuggestions(
+			"Run 'circleci auth logout', then re-run 'circleci onboard'",
+			"Check connectivity to the CircleCI host",
+		).WithExitCode(clierrors.ExitAuthError)
+	}
+
+	iostream.Printf(ctx, "%s Already signed in as %s\n", iostream.SymbolOK(ctx), me.Login)
+	return nil
 }
 
 func runSignup(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {

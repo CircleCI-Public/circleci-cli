@@ -20,67 +20,37 @@
 //
 // SPDX-License-Identifier: MIT
 
-package cmdconfig
+// Package onboarder orchestrates the local onboarding flow.
+package onboarder
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
-
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
+	"github.com/CircleCI-Public/circleci-cli/internal/testrunner"
 )
 
-func newGenerateCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "generate [path]",
-		Short: "Generate .circleci/config.yml from a repository scan",
-		Long: heredoc.Doc(`
-			Detect the language stack, container image, and setup commands for a
-			repository, then write a starter pipeline to <path>/.circleci/config.yml.
-
-			If no supported stack is detected, a minimal cimg/base:stable template
-			with a placeholder build step is written instead so you have something
-			to iterate on.
-
-			If a config file already exists at that path, generate does not overwrite
-			it; it prints a confirmation and exits successfully. The .circleci/
-			directory is created if needed, and the file is written atomically.
-		`),
-		Example: heredoc.Doc(`
-			# Generate a config for the current directory
-			$ circleci config generate
-
-			# Generate a config for a specific project path
-			$ circleci config generate ./my-app
-
-			# Re-run is a no-op when a config already exists
-			$ circleci config generate
-			✓ Using existing config at .circleci/config.yml
-		`),
-		Args: cobra.MaximumNArgs(1),
-		RunE: runGenerate,
-	}
-	return cmd
+// Options configures the onboarding flow.
+type Options struct {
+	ConfigPath    string
+	NoBrowser     bool
+	SecureStorage bool
 }
 
-func runGenerate(cmd *cobra.Command, args []string) error {
-	ctx := iostream.FromCmd(cmd.Context(), cmd)
-
-	dir := "."
-	if len(args) == 1 {
-		dir = args[0]
-	}
-
+// Run scans a repository, verifies its tests, generates a starter config when
+// needed, and ensures the CLI has an authenticated CircleCI session.
+func Run(ctx context.Context, dir string, opts Options) error {
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return clierrors.New(
-			"config.path_not_found",
+			"onboard.path_not_found",
 			"Path not found",
 			fmt.Sprintf("No directory exists at %q.", dir),
 		).WithSuggestions(
@@ -89,18 +59,21 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		).WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	// Skip-check before scan so a no-op re-run never makes a network call.
-	configPath := filepath.Join(dir, ".circleci", "config.yml")
-	if _, err := os.Stat(configPath); err == nil {
-		iostream.Printf(ctx, "%s Using existing config at %s\n",
-			iostream.SymbolOK(ctx), configPath)
-		return nil
+	if _, err := os.Stat(filepath.Join(dir, ".git")); err != nil {
+		return clierrors.New(
+			"onboard.not_a_git_repo",
+			"Not a git repository",
+			fmt.Sprintf("No git repository found at %q.", dir),
+		).WithSuggestions(
+			"Run 'git init' in the directory, then re-run 'circleci onboard'",
+			"cd to a directory containing a git repository and re-run",
+		).WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	result, err := reposcan.NewDefaultScanner().Scan(ctx, dir)
 	if err != nil {
 		return clierrors.New(
-			"config.scan_failed",
+			"onboard.scan_failed",
 			"Repository scan failed",
 			fmt.Sprintf("Could not detect the project stack: %s.", err),
 		).WithSuggestions(
@@ -112,5 +85,24 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 	if !result.IsEmpty() {
 		reposcan.Render(ctx, result)
 	}
-	return configgen.Generate(ctx, dir, result)
+
+	if err := testrunner.Run(ctx, dir, result); err != nil {
+		return err
+	}
+
+	configPath := filepath.Join(dir, ".circleci", "config.yml")
+	if _, err := os.Stat(configPath); err == nil {
+		iostream.Printf(ctx, "%s Using existing config at %s\n",
+			iostream.SymbolOK(ctx), configPath)
+	} else if err := configgen.Generate(ctx, dir, result); err != nil {
+		return err
+	}
+
+	if err := cmdauth.SignupIfNeeded(ctx, opts.ConfigPath, opts.NoBrowser, opts.SecureStorage); err != nil {
+		return err
+	}
+
+	iostream.Printf(ctx, "%s Onboarded\n", iostream.SymbolOK(ctx))
+	iostream.Printf(ctx, "Commit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+	return nil
 }

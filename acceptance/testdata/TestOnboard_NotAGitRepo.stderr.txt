@@ -1,0 +1,5 @@
+error: No git repository found at "<DIR>".
+
+Suggestions:
+  • Run 'git init' in the directory, then re-run 'circleci onboard'
+  • cd to a directory containing a git repository and re-run
