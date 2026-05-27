@@ -116,6 +116,41 @@ func TestTestRun_NoTestCommand(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestTestRun_NoArg(t *testing.T) {
+	dir := t.TempDir()
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"test", "run"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestTestRun_PathIsFile(t *testing.T) {
+	tempDir := t.TempDir()
+	filePath := filepath.Join(tempDir, "not-a-dir.txt")
+	assert.NilError(t, os.WriteFile(filePath, []byte("hello"), 0o644))
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"test", "run", filePath},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
+
+	stderr := strings.ReplaceAll(result.Stderr, strconv.Quote(filePath), `"<FILE_PATH>"`)
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
+}
+
 func TestTestRun_EnvBuilderEmitsTestStepContract(t *testing.T) {
 	dir := t.TempDir()
 	copyFixture(t, "testdata/test-run/dotnet", dir)

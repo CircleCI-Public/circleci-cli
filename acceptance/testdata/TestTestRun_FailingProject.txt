@@ -16,4 +16,4 @@ fake dotnet test --framework net8.0 --filter FullyQualifiedName!~BufferErroringW
 fake failure details
 
 Please diagnose the failure from the output above and propose a fix.
-Once fixed, I will re-run `circleci init`.
+Once fixed, I will re-run `circleci test run`.

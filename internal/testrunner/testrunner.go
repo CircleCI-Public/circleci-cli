@@ -77,7 +77,7 @@ func Run(ctx context.Context, dir string, result *reposcan.Result) error {
 				fmt.Sprintf("Test command exited with status %d.", exitCode),
 			).WithSuggestions(
 				"Paste the prompt above into your AI assistant",
-				"Re-run circleci init once tests pass",
+				"Re-run circleci test run once tests pass",
 			).WithExitCode(clierrors.ExitGeneralError)
 		}
 		return clierrors.New(
