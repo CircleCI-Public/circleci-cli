@@ -170,13 +170,15 @@ func runOrbPack(ctx context.Context, path string) error {
 		}
 	}
 
-	out, err := yaml.Marshal(base)
-	if err != nil {
+	var buf strings.Builder
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if err := enc.Encode(base); err != nil {
 		return clierrors.New("orb.pack_error", "Failed to render merged orb YAML",
 			err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	iostream.Print(ctx, string(out))
+	iostream.Print(ctx, buf.String())
 	return nil
 }
