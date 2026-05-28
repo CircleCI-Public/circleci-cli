@@ -41,3 +41,20 @@ func (c *Client) GetMe(ctx context.Context) (*Me, error) {
 
 	return &me, nil
 }
+
+// Collaboration represents an organization the authenticated user belongs to.
+type Collaboration struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Slug    string `json:"slug"` // e.g. "gh/myorg"
+	VCSType string `json:"vcs_type"`
+}
+
+// ListCollaborations returns the organizations the authenticated user belongs to.
+func (c *Client) ListCollaborations(ctx context.Context) ([]Collaboration, error) {
+	var collabs []Collaboration
+	if err := c.get(ctx, "/me/collaborations", &collabs); err != nil {
+		return nil, err
+	}
+	return collabs, nil
+}

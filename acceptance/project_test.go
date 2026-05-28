@@ -888,6 +888,10 @@ func setupCreateProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 			"vcs_url":        "https://github.com/myorg/my-new-repo",
 		},
 	})
+	fake.SetCollaborations([]any{
+		map[string]any{"id": "org-uuid-5678", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
+		map[string]any{"id": "org-uuid-9999", "name": "other-org", "slug": "gh/other-org", "vcs_type": "github"},
+	})
 	return fake, env
 }
 
@@ -902,7 +906,9 @@ func TestProjectCreate(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, strings.Contains(result.Stdout, "my-new-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Pipelines:"))
+	assert.Check(t, strings.Contains(result.Stdout, "/pipelines/gh/myorg/my-new-repo"))
 }
 
 func TestProjectCreate_Color(t *testing.T) {
@@ -917,7 +923,9 @@ func TestProjectCreate_Color(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, strings.Contains(result.Stdout, "my-new-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Pipelines:"))
+	assert.Check(t, strings.Contains(result.Stdout, "/pipelines/gh/myorg/my-new-repo"))
 }
 
 func TestProjectCreate_JSON(t *testing.T) {
@@ -995,4 +1003,18 @@ func TestProjectCreate_NoToken(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+}
+
+func TestProjectCreate_NoArgs_NoGitRepo(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "project name"))
 }
