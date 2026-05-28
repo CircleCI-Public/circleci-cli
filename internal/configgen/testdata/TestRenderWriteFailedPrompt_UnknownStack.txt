@@ -1,0 +1,13 @@
+Writing the generated `.circleci/config.yml` failed.
+
+Project stack: (could not detect)
+Image: (none — stack not detected)
+Target path: /repo/.circleci/config.yml
+Error: no space left on device
+
+Please help me diagnose and fix this. Common causes:
+  • Write permissions on the `.circleci/` directory or its parent
+  • Low disk space
+  • Read-only filesystem
+
+Once fixed, I will re-run the command to continue.

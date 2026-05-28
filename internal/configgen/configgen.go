@@ -65,10 +65,22 @@ func Generate(ctx context.Context, dir string, result *reposcan.Result) error {
 	}
 
 	if err := writeConfigAtomic(configPath, body); err != nil {
+		var stack, img string
+		if result != nil {
+			stack = result.Stack
+			img = result.Image
+			if result.ImageVersion != "" {
+				img = result.Image + ":" + result.ImageVersion
+			}
+		}
+		iostream.Printf(ctx, "\n%s", RenderWriteFailedPrompt(stack, img, configPath, err.Error()))
 		return clierrors.New(
 			"config.write_failed",
 			"Could not write config",
 			fmt.Sprintf("Failed to write %s: %s.", configPath, err),
+		).WithSuggestions(
+			"Paste the prompt above into your AI assistant to diagnose the filesystem error",
+			"Check write permissions and disk space on the target directory",
 		).WithExitCode(clierrors.ExitGeneralError)
 	}
 
