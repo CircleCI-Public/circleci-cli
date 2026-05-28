@@ -45,12 +45,17 @@ const outputTailLimit = 32 * 1024
 func Run(ctx context.Context, dir string, result *reposcan.Result) error {
 	testCommand := result.SetupCommand("test")
 	if testCommand == "" {
+		var stack string
+		if result != nil {
+			stack = result.Stack
+		}
+		iostream.Printf(ctx, "\n%s", RenderNoTestsPrompt(stack, image(result)))
 		return clierrors.New(
 			"test.no_test_command",
 			"No test command detected",
 			"Env-builder did not identify a test command for this project's stack.",
 		).WithSuggestions(
-			"Add a test target to your build configuration, such as a test script in package.json or a _test.go file",
+			"Paste the prompt above into your AI assistant to bootstrap a test suite",
 			"Re-run after adding tests",
 		).WithExitCode(clierrors.ExitGeneralError)
 	}

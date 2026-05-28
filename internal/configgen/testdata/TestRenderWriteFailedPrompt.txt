@@ -1,0 +1,13 @@
+Writing the generated `.circleci/config.yml` failed.
+
+Project stack: dotnet
+Image: mcr.microsoft.com/dotnet/sdk:10.0
+Target path: /repo/.circleci/config.yml
+Error: open /repo/.circleci/config.yml: permission denied
+
+Please help me diagnose and fix this. Common causes:
+  • Write permissions on the `.circleci/` directory or its parent
+  • Low disk space
+  • Read-only filesystem
+
+Once fixed, I will re-run the command to continue.

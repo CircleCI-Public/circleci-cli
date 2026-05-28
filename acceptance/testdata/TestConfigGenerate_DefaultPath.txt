@@ -1,2 +1,1 @@
-⚠ No supported stack detected. You can still continue.
 ✓ Generated .circleci/config.yml

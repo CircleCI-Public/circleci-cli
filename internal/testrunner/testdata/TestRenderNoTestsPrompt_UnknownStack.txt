@@ -1,4 +1,3 @@
-
 I'm using CircleCI's `circleci onboard` flow but no tests were detected in my project.
 
 Project stack: (could not detect)

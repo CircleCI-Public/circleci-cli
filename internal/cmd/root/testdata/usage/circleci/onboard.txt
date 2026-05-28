@@ -1,0 +1,21 @@
+Usage:
+  circleci onboard [path] [flags]
+
+Examples:
+# Onboard the current directory
+$ circleci onboard
+
+# Onboard a specific project path
+$ circleci onboard ./my-app
+
+# Print the signup URL instead of opening a browser
+$ circleci onboard --no-browser
+
+
+Flags:
+      --no-browser   Print the signup URL instead of opening a browser
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected

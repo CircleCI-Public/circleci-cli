@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package testrunner
+package configgen
 
 import (
 	"testing"
@@ -29,26 +29,19 @@ import (
 	"gotest.tools/v3/golden"
 )
 
-func TestRenderPrompt(t *testing.T) {
-	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "--- FAIL: TestBroken\n    nope\n")
+func TestRenderWriteFailedPrompt(t *testing.T) {
+	got := RenderWriteFailedPrompt(
+		"dotnet",
+		"mcr.microsoft.com/dotnet/sdk:10.0",
+		"/repo/.circleci/config.yml",
+		"open /repo/.circleci/config.yml: permission denied",
+	)
 
 	assert.Check(t, golden.String(got, t.Name()+".txt"))
 }
 
-func TestRenderPrompt_NoOutputCaptured(t *testing.T) {
-	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderNoTestsPrompt(t *testing.T) {
-	got := RenderNoTestsPrompt("go", "cimg/go:1.22")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderNoTestsPrompt_UnknownStack(t *testing.T) {
-	got := RenderNoTestsPrompt("unknown", "")
+func TestRenderWriteFailedPrompt_UnknownStack(t *testing.T) {
+	got := RenderWriteFailedPrompt("", "", "/repo/.circleci/config.yml", "no space left on device")
 
 	assert.Check(t, golden.String(got, t.Name()+".txt"))
 }

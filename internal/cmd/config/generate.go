@@ -109,5 +109,8 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 		).WithExitCode(clierrors.ExitGeneralError)
 	}
 
+	if !result.IsEmpty() {
+		reposcan.Render(ctx, result)
+	}
 	return configgen.Generate(ctx, dir, result)
 }

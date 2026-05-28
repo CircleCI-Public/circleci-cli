@@ -23,9 +23,16 @@
 package cmdauth
 
 import (
+	"bytes"
+	"context"
+	stderrors "errors"
 	"strings"
 	"testing"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 )
@@ -48,4 +55,45 @@ func TestNewSignupCmd_Metadata(t *testing.T) {
 	// Args == cobra.NoArgs — pass an unexpected positional arg and expect error.
 	err := cmd.Args(cmd, []string{"unexpected-positional"})
 	assert.Check(t, err != nil, "signup must reject positional args")
+}
+
+func TestSignupIfNeeded_AlreadyAuthenticated(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetMe(map[string]any{
+		"id":    "user-uuid-1234",
+		"name":  "Test User",
+		"login": "testuser",
+	})
+	t.Setenv("CIRCLECI_HOST", fake.URL())
+	t.Setenv("CIRCLECI_TOKEN", "test-token")
+
+	var stdout bytes.Buffer
+	ctx := testIOContext(&stdout)
+
+	err := SignupIfNeeded(ctx, "", true, false)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(stdout.String(), "✓ Already signed in as testuser"))
+}
+
+func TestSignupIfNeeded_StaleToken(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	t.Setenv("CIRCLECI_HOST", fake.URL())
+	t.Setenv("CIRCLECI_TOKEN", "stale-token")
+
+	var stdout bytes.Buffer
+	ctx := testIOContext(&stdout)
+
+	err := SignupIfNeeded(ctx, "", true, false)
+	var cliErr *clierrors.CLIError
+	assert.Assert(t, stderrors.As(err, &cliErr), "expected CLIError, got %T: %v", err, err)
+	assert.Check(t, is.Equal(cliErr.Code, "auth.signup.stale_token"))
+	assert.Check(t, is.Equal(cliErr.ExitCode, clierrors.ExitAuthError))
+}
+
+func testIOContext(stdout *bytes.Buffer) context.Context {
+	cmd := &cobra.Command{}
+	cmd.SetOut(stdout)
+	cmd.SetErr(&bytes.Buffer{})
+	cmd.SetIn(strings.NewReader(""))
+	return iostream.FromCmd(context.Background(), cmd)
 }

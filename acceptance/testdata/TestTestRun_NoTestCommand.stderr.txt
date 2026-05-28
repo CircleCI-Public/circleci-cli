@@ -1,5 +1,5 @@
 error: Env-builder did not identify a test command for this project's stack.
 
 Suggestions:
-  • Add a test target to your build configuration, such as a test script in package.json or a _test.go file
+  • Paste the prompt above into your AI assistant to bootstrap a test suite
   • Re-run after adding tests

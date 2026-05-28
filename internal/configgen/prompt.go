@@ -20,35 +20,36 @@
 //
 // SPDX-License-Identifier: MIT
 
-package testrunner
+package configgen
 
 import (
-	"testing"
-
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
+	"fmt"
+	"strings"
 )
 
-func TestRenderPrompt(t *testing.T) {
-	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "--- FAIL: TestBroken\n    nope\n")
+const writeFailedPromptTemplate = "Writing the generated `.circleci/config.yml` failed.\n" +
+	"\n" +
+	"Project stack: %s\n" +
+	"Image: %s\n" +
+	"Target path: %s\n" +
+	"Error: %s\n" +
+	"\n" +
+	"Please help me diagnose and fix this. Common causes:\n" +
+	"  • Write permissions on the `.circleci/` directory or its parent\n" +
+	"  • Low disk space\n" +
+	"  • Read-only filesystem\n" +
+	"\n" +
+	"Once fixed, I will re-run the command to continue.\n"
 
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderPrompt_NoOutputCaptured(t *testing.T) {
-	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderNoTestsPrompt(t *testing.T) {
-	got := RenderNoTestsPrompt("go", "cimg/go:1.22")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderNoTestsPrompt_UnknownStack(t *testing.T) {
-	got := RenderNoTestsPrompt("unknown", "")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
+// RenderWriteFailedPrompt returns the POC prompt shown when writing the
+// generated config to disk fails. The user is expected to paste this into an
+// AI assistant to diagnose the filesystem-level cause.
+func RenderWriteFailedPrompt(stack, image, targetPath, errMsg string) string {
+	if stack == "" || stack == "unknown" {
+		stack = "(could not detect)"
+	}
+	if image == "" || strings.Contains(image, "unknown") {
+		image = "(none — stack not detected)"
+	}
+	return fmt.Sprintf(writeFailedPromptTemplate, stack, image, targetPath, errMsg)
 }
