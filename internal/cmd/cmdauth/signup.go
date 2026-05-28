@@ -90,7 +90,16 @@ func SignupIfNeeded(ctx context.Context, configPath string, noBrowser, secureSto
 
 	token := cfg.EffectiveToken()
 	if token == "" {
-		iostream.Printf(ctx, "\nSign up to create your CircleCI account.\n\n")
+		iostream.Printf(ctx, "%s", heredoc.Doc(`
+
+			Sign up to create your CircleCI account. Unlock:
+			  • Run only tests changed in your PR, up to 4x faster
+			  • Parallelize your test suite across containers instantly
+			  • Connect Cursor, Claude, or Copilot to your pipelines
+			  • Insights: flag flaky tests and slow jobs after run 1
+			  • Deploy visibility across your whole org, out of the box
+
+		`))
 		return runSignup(ctx, configPath, noBrowser, secureStorage)
 	}
 
