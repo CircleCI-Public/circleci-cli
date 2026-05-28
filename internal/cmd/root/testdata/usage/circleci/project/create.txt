@@ -1,7 +1,10 @@
 Usage:
-  circleci project create <project-name> --org <vcs/org-slug> [flags]
+  circleci project create [project-name] --org <vcs/org-slug> [flags]
 
 Examples:
+# Create a project (prompted for name if run interactively)
+$ circleci project create --org gh/myorg
+
 # Create a GitHub-hosted project
 $ circleci project create my-new-repo --org gh/myorg
 
