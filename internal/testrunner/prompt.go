@@ -48,3 +48,29 @@ func RenderPrompt(stack, image, command string, exitCode int, outputTail string)
 	}
 	return fmt.Sprintf(agentPromptTemplate, stack, image, command, exitCode, strings.TrimRight(outputTail, "\n"))
 }
+
+const noTestsPromptTemplate = `I'm using CircleCI's ` + "`circleci onboard`" + ` flow but no tests were detected in my project.
+
+Project stack: %s
+Image: %s
+
+Please help me set up a basic test suite. Suggest:
+  • The recommended test framework for this stack
+  • The conventional file/folder structure for tests
+  • A starter test file I can use to verify the setup works
+
+Once I have tests, I will re-run ` + "`circleci onboard`" + ` to continue.
+`
+
+// RenderNoTestsPrompt returns the POC prompt shown when env-builder cannot
+// identify a test command for the project. The user is expected to paste this
+// into an AI assistant to bootstrap a test suite.
+func RenderNoTestsPrompt(stack, image string) string {
+	if stack == "" || stack == "unknown" {
+		stack = "(could not detect)"
+	}
+	if image == "" || strings.Contains(image, "unknown") {
+		image = "(none — stack not detected)"
+	}
+	return fmt.Sprintf(noTestsPromptTemplate, stack, image)
+}

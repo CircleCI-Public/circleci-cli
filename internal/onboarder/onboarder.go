@@ -29,12 +29,15 @@ import (
 	"os"
 	"path/filepath"
 
+	tea "charm.land/bubbletea/v2"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 	"github.com/CircleCI-Public/circleci-cli/internal/testrunner"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
 // Options configures the onboarding flow.
@@ -68,6 +71,10 @@ func Run(ctx context.Context, dir string, opts Options) error {
 			"Run 'git init' in the directory, then re-run 'circleci onboard'",
 			"cd to a directory containing a git repository and re-run",
 		).WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	if err := displayPreamble(ctx, dir); err != nil {
+		return err
 	}
 
 	result, err := reposcan.NewDefaultScanner().Scan(ctx, dir)
@@ -104,5 +111,49 @@ func Run(ctx context.Context, dir string, opts Options) error {
 
 	iostream.Printf(ctx, "%s Onboarded\n", iostream.SymbolOK(ctx))
 	iostream.Printf(ctx, "Commit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+	return nil
+}
+
+// displayPreamble shows a confirmation gate before any work begins. The prompt
+// is skipped in non-interactive sessions (no TTY, CI=true, or
+// CIRCLECI_NO_INTERACTIVE set), in which case the caller continues without
+// user input.
+func displayPreamble(ctx context.Context, dir string) error {
+	if !iostream.IsInteractive(ctx) {
+		return nil
+	}
+
+	model := ui.NewPreambleModel(
+		"circleci onboard will:",
+		dir,
+		[]string{
+			"Scan your repo for the language stack and tests",
+			"Run your tests locally",
+			"Generate a starter .circleci/config.yml",
+			"Sign you up for CircleCI",
+		},
+	)
+	p := tea.NewProgram(model,
+		tea.WithContext(ctx),
+		tea.WithInput(iostream.In(ctx)),
+		tea.WithOutput(iostream.Err(ctx)),
+	)
+	final, err := p.Run()
+	if err != nil {
+		return clierrors.New(
+			"onboard.preamble_failed",
+			"Preamble prompt failed",
+			err.Error(),
+		).WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	m := final.(ui.PreambleModel)
+	if !m.Proceed() {
+		return clierrors.New(
+			"onboard.cancelled",
+			"Onboarding cancelled",
+			"Cancelled before scan started.",
+		).WithExitCode(clierrors.ExitCancelled)
+	}
 	return nil
 }

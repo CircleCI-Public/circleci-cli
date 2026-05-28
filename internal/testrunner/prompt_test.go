@@ -40,3 +40,15 @@ func TestRenderPrompt_NoOutputCaptured(t *testing.T) {
 
 	assert.Check(t, golden.String(got, t.Name()+".txt"))
 }
+
+func TestRenderNoTestsPrompt(t *testing.T) {
+	got := RenderNoTestsPrompt("go", "cimg/go:1.22")
+
+	assert.Check(t, golden.String(got, t.Name()+".txt"))
+}
+
+func TestRenderNoTestsPrompt_UnknownStack(t *testing.T) {
+	got := RenderNoTestsPrompt("unknown", "")
+
+	assert.Check(t, golden.String(got, t.Name()+".txt"))
+}

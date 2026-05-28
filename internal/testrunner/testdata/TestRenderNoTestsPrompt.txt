@@ -1,8 +1,7 @@
-
 I'm using CircleCI's `circleci onboard` flow but no tests were detected in my project.
 
-Project stack: (could not detect)
-Image: (none — stack not detected)
+Project stack: go
+Image: cimg/go:1.22
 
 Please help me set up a basic test suite. Suggest:
   • The recommended test framework for this stack
