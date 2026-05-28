@@ -92,6 +92,12 @@ type CircleCI struct {
 	// Deploy state.
 	deploys map[string][]any // project id → deploys
 
+	// Policy state.
+	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
+	decisionLogs    map[string][]any             // "ownerID/ctx" → logs
+	decisionResults map[string]any               // "ownerID/ctx" → decision response
+	policySettings  map[string]bool              // "ownerID/ctx" → enabled
+
 	// iOS code signing state.
 	iosCerts          map[string][]any // org id → certificate objects
 	iosBundles        map[string][]any // org id → signing bundle objects
@@ -175,6 +181,10 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		deletedContextRestrictions:        map[string]bool{},
 		projectInfos:                      map[string]any{},
 		deploys:                           map[string][]any{},
+		policyBundles:                     make(map[string]map[string]string),
+		decisionLogs:                      make(map[string][]any),
+		decisionResults:                   make(map[string]any),
+		policySettings:                    make(map[string]bool),
 		namespaces:                        map[string]any{},
 		namespacesByName:                  map[string]string{},
 		deletedNamespaces:                 map[string]bool{},
@@ -233,6 +243,17 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/projects/{projectID}/pipeline-definitions", f.handleCreatePipelineDefinition)
 	r.Get("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleListTriggers)
 	r.Post("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleCreateTrigger)
+	// Policy routes.
+	r.Route("/api/v2/owner/{ownerID}/context/{policyCtx}", func(r chi.Router) {
+		r.Post("/policy-bundle", f.handleCreatePolicyBundle)
+		r.Get("/policy-bundle", f.handleFetchPolicyBundle)
+		r.Get("/policy-bundle/{name}", f.handleFetchPolicyBundleByName)
+		r.Get("/decision", f.handleGetDecisionLogs)
+		r.Post("/decision", f.handleMakeDecision)
+		r.Get("/decision/settings", f.handleGetPolicySettings)
+		r.Patch("/decision/settings", f.handleSetPolicySettings)
+		r.Get("/decision/{id}", f.handleGetDecisionLog)
+	})
 	// Deploy routes.
 	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListDeploys)
 	// iOS code signing routes.
@@ -2710,4 +2731,161 @@ func parseIntOrZero(s string) int {
 	var n int
 	_, _ = fmt.Sscanf(s, "%d", &n)
 	return n
+}
+
+// --- Policy helpers ---
+
+// AddPolicyBundle registers a policy bundle for the given owner and context.
+func (f *CircleCI) AddPolicyBundle(ownerID, policyCtx string, bundle map[string]string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := ownerID + "/" + policyCtx
+	f.policyBundles[key] = bundle
+}
+
+// AddDecisionLog appends a decision log entry for the given owner and context.
+func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := ownerID + "/" + policyCtx
+	f.decisionLogs[key] = append(f.decisionLogs[key], log)
+}
+
+// SetDecisionResult sets the response returned by MakeDecision for the given owner and context.
+func (f *CircleCI) SetDecisionResult(ownerID, policyCtx string, result any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := ownerID + "/" + policyCtx
+	f.decisionResults[key] = result
+}
+
+// SetPolicyEnabled sets the policy enforcement enabled flag for the given owner and context.
+func (f *CircleCI) SetPolicyEnabled(ownerID, policyCtx string, enabled bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := ownerID + "/" + policyCtx
+	f.policySettings[key] = enabled
+}
+
+// --- Policy handlers ---
+
+func (f *CircleCI) handleCreatePolicyBundle(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	isDry := r.URL.Query().Get("dry") == "true"
+
+	var body struct {
+		Policies map[string]string `json:"policies"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	f.mu.Lock()
+	key := ownerID + "/" + policyCtx
+	if !isDry {
+		f.policyBundles[key] = body.Policies
+	}
+	f.mu.Unlock()
+
+	render.JSON(w, r, map[string]any{"created": []string{}, "deleted": []string{}, "updated": []string{}})
+}
+
+func (f *CircleCI) handleFetchPolicyBundle(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	f.mu.RLock()
+	bundle := f.policyBundles[ownerID+"/"+policyCtx]
+	f.mu.RUnlock()
+	if bundle == nil {
+		bundle = map[string]string{}
+	}
+	render.JSON(w, r, bundle)
+}
+
+func (f *CircleCI) handleFetchPolicyBundleByName(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	name := chi.URLParam(r, "name")
+	f.mu.RLock()
+	bundle := f.policyBundles[ownerID+"/"+policyCtx]
+	f.mu.RUnlock()
+	if bundle == nil {
+		http.NotFound(w, r)
+		return
+	}
+	content, ok := bundle[name]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	render.JSON(w, r, map[string]string{name: content})
+}
+
+func (f *CircleCI) handleGetDecisionLogs(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	offsetStr := r.URL.Query().Get("offset")
+	offset := 0
+	if offsetStr != "" {
+		offset, _ = strconv.Atoi(offsetStr)
+	}
+	f.mu.RLock()
+	all := f.decisionLogs[ownerID+"/"+policyCtx]
+	f.mu.RUnlock()
+	if offset >= len(all) {
+		render.JSON(w, r, []any{})
+		return
+	}
+	render.JSON(w, r, all[offset:])
+}
+
+func (f *CircleCI) handleGetDecisionLog(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	all := f.decisionLogs[ownerID+"/"+policyCtx]
+	f.mu.RUnlock()
+	for _, l := range all {
+		if m, ok := l.(map[string]any); ok {
+			if m["id"] == id {
+				render.JSON(w, r, l)
+				return
+			}
+		}
+	}
+	http.NotFound(w, r)
+}
+
+func (f *CircleCI) handleMakeDecision(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	f.mu.RLock()
+	result := f.decisionResults[ownerID+"/"+policyCtx]
+	f.mu.RUnlock()
+	if result == nil {
+		result = map[string]any{"status": "PASS"}
+	}
+	render.JSON(w, r, result)
+}
+
+func (f *CircleCI) handleGetPolicySettings(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	f.mu.RLock()
+	enabled := f.policySettings[ownerID+"/"+policyCtx]
+	f.mu.RUnlock()
+	render.JSON(w, r, map[string]any{"enabled": enabled})
+}
+
+func (f *CircleCI) handleSetPolicySettings(w http.ResponseWriter, r *http.Request) {
+	ownerID := chi.URLParam(r, "ownerID")
+	policyCtx := chi.URLParam(r, "policyCtx")
+	var body struct {
+		Enabled bool `json:"enabled"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	f.mu.Lock()
+	f.policySettings[ownerID+"/"+policyCtx] = body.Enabled
+	f.mu.Unlock()
+	render.JSON(w, r, map[string]any{"enabled": body.Enabled})
 }

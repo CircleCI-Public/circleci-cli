@@ -154,6 +154,14 @@ func (c *Client) put(ctx context.Context, route string, body, dst any, opts ...f
 	return err
 }
 
+func (c *Client) patch(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPatch, "/api/v2"+route, baseOpts(
+		httpcl.Body(body),
+		httpcl.JSONDecoder(dst),
+	).With(opts)...))
+	return err
+}
+
 func (c *Client) deleteV2(ctx context.Context, route string, opts ...func(*httpcl.Request)) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2"+route, opts...))
 	return err

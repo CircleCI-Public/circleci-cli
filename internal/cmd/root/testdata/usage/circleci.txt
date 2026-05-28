@@ -18,6 +18,7 @@ Available Commands:
   namespace      Manage orb namespaces
   orb            Manage orbs in the CircleCI orb registry
   pipeline       Manage pipeline definitions
+  policy         Manage security policies
   project        Manage CircleCI projects
   run            Manage runs
   runner         Manage self-hosted runners
