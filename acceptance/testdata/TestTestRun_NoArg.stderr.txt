@@ -1,5 +1,0 @@
-error: Env-builder did not identify a test command for this project's stack.
-
-Suggestions:
-  • Paste the prompt above into your AI assistant to bootstrap a test suite
-  • Re-run after adding tests

@@ -26,131 +26,20 @@ import (
 	"context"
 	"os"
 	"path/filepath"
-	"runtime"
-	"strconv"
 	"strings"
 	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
-	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
 )
 
-func TestTestRun_PathNotFound(t *testing.T) {
-	missing := filepath.Join(t.TempDir(), "does-not-exist")
-
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"test", "run", missing},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
-
-	stderr := strings.ReplaceAll(result.Stderr, strconv.Quote(missing), `"<MISSING_PATH>"`)
-	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
-}
-
-func TestTestRun_PassingProject(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
-	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
-
-	env := testenv.New(t)
-	addFakeDotnet(t, env, false)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"test", "run", dir},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-
-	stdout := normalizeTestRunOutput(result.Stdout, dir)
-	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
-}
-
-func TestTestRun_FailingProject(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
-	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
-
-	env := testenv.New(t)
-	addFakeDotnet(t, env, true)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"test", "run", dir},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-
-	stdout := normalizeTestRunOutput(result.Stdout, dir)
-	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-}
-
-func TestTestRun_NoTestCommand(t *testing.T) {
-	dir := t.TempDir()
-
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"test", "run", dir},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-}
-
-func TestTestRun_NoArg(t *testing.T) {
-	dir := t.TempDir()
-
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"test", "run"},
-		Env:     env.Environ(),
-		WorkDir: dir,
-	})
-
-	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-}
-
-func TestTestRun_PathIsFile(t *testing.T) {
-	tempDir := t.TempDir()
-	filePath := filepath.Join(tempDir, "not-a-dir.txt")
-	assert.NilError(t, os.WriteFile(filePath, []byte("hello"), 0o644))
-
-	env := testenv.New(t)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"test", "run", filePath},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
-
-	stderr := strings.ReplaceAll(result.Stderr, strconv.Quote(filePath), `"<FILE_PATH>"`)
-	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
-}
-
+// TestTestRun_EnvBuilderEmitsTestStepContract pins the contract between our
+// onboard flow and chunk-cli's env-builder: for a .NET project, env-builder
+// must emit a setup step named "test" with a "dotnet test" command. If
+// env-builder ever renames the step or stops emitting it, the onboard test
+// runner silently does nothing — this test catches that regression at the
+// chunk-cli upgrade.
 func TestTestRun_EnvBuilderEmitsTestStepContract(t *testing.T) {
 	dir := t.TempDir()
 	copyFixture(t, "testdata/test-run/dotnet", dir)
@@ -163,6 +52,10 @@ func TestTestRun_EnvBuilderEmitsTestStepContract(t *testing.T) {
 	assert.Check(t, strings.HasPrefix(cmd, "dotnet test"), "expected dotnet test command, got: %s", cmd)
 }
 
+// addFakeDotnet shims a PATH-relative `dotnet` script so onboard acceptance
+// tests can exercise the .NET execution branch deterministically without a
+// real dotnet SDK. The script prints its args and either succeeds or fails
+// based on CIRCLECI_TEST_RUN_FAIL.
 func addFakeDotnet(t *testing.T, env *testenv.TestEnv, fail bool) {
 	t.Helper()
 	binDir := t.TempDir()
@@ -181,10 +74,4 @@ exit 0
 	if fail {
 		env.Extra["CIRCLECI_TEST_RUN_FAIL"] = "1"
 	}
-}
-
-func normalizeTestRunOutput(stdout, dir string) string {
-	stdout = strings.ReplaceAll(stdout, dir, "<DIR>")
-	stdout = strings.ReplaceAll(stdout, `\`, `/`)
-	return stdout
 }
