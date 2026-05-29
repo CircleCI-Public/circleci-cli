@@ -107,9 +107,10 @@ type CircleCI struct {
 	iosBundleCounter  int              // monotonic ID generator for created bundles
 
 	// Auth state.
-	me                 any // response for GET /api/v2/me
-	oauthTokenResponse any // response body for POST /oauth/token
-	oauthTokenStatus   int // HTTP status for POST /oauth/token (0 → 200 OK)
+	me                 any   // response for GET /api/v2/me
+	collaborations     []any // response for GET /api/v2/me/collaborations
+	oauthTokenResponse any   // response body for POST /oauth/token
+	oauthTokenStatus   int   // HTTP status for POST /oauth/token (0 → 200 OK)
 
 	// Orb state (v3).
 	orbPackages         map[string]map[string]any // id → package object
@@ -224,6 +225,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
 	r.Post("/api/v2/organization/{vcs}/{org}/project", f.handleCreateProject)
 	r.Get("/api/v2/me", f.handleGetMe)
+	r.Get("/api/v2/me/collaborations", f.handleGetCollaborations)
 	r.Post("/oauth/token", f.handleOAuthToken)
 	// Context routes.
 	r.Get("/api/v2/context", f.handleListContexts)
@@ -938,6 +940,24 @@ func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, me)
+}
+
+// SetCollaborations sets the response for GET /api/v2/me/collaborations.
+func (f *CircleCI) SetCollaborations(collabs []any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.collaborations = collabs
+}
+
+func (f *CircleCI) handleGetCollaborations(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	collabs := f.collaborations
+	f.mu.RUnlock()
+
+	if collabs == nil {
+		collabs = []any{}
+	}
+	render.JSON(w, r, collabs)
 }
 
 // SetOAuthTokenResponse sets the response body for POST /oauth/token.

@@ -33,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -43,7 +44,7 @@ func newCreateCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create <project-name> --org <vcs/org-slug>",
+		Use:   "create [project-name] --org <vcs/org-slug>",
 		Short: "Create a new project",
 		Long: heredoc.Doc(`
 			Create a new CircleCI project in the given organization.
@@ -52,10 +53,22 @@ func newCreateCmd() *cobra.Command {
 			circleci/9YytKzouJxzu4TjCRFqAoD). The org slug is found in the
 			CircleCI web app under Organization Settings > Organization slug.
 
+			The project name argument is optional in a terminal: if omitted, you
+			will be prompted for it and the current repository name is offered
+			as the default. In non-interactive mode the current repository name
+			is used automatically when no argument is given.
+
+			The --org flag is also optional in a terminal: if omitted, you will
+			be prompted to pick from the organizations your account belongs to.
+			In non-interactive mode it is required.
+
 			JSON fields: id, slug, name, organization_name, organization_slug,
 			             organization_id, vcs_provider, vcs_default_branch, vcs_url
 		`),
 		Example: heredoc.Doc(`
+			# Create a project (prompted for name if run interactively)
+			$ circleci project create --org gh/myorg
+
 			# Create a GitHub-hosted project
 			$ circleci project create my-new-repo --org gh/myorg
 
@@ -65,17 +78,68 @@ func newCreateCmd() *cobra.Command {
 			# Create a project and output as JSON for scripting
 			$ circleci project create my-new-repo --org gh/myorg --json
 		`),
-		Args: cobra.ExactArgs(1),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if orgSlug == "" {
-				return clierrors.New("args.missing_org", "Missing required flag",
-					"--org is required to specify the target organization.").
-					WithSuggestions(
-						"Pass --org <vcs/org-slug> (e.g. --org gh/myorg)",
-						"Find your org slug in CircleCI under Organization Settings > Organization slug",
-					).
-					WithExitCode(clierrors.ExitBadArguments)
+			ctx := iostream.FromCmd(cmd.Context(), cmd)
+
+			name := ""
+			if len(args) > 0 {
+				name = args[0]
 			}
+
+			if name == "" {
+				defaultName := repoNameFromGit()
+				if iostream.IsInteractive(ctx) {
+					val, err := iostream.PromptText(ctx, "Project name", defaultName)
+					if err != nil {
+						return clierrors.New("project.create_cancelled", "Cancelled",
+							"Prompt was cancelled.").
+							WithExitCode(clierrors.ExitCancelled)
+					}
+					if val == "" {
+						val = defaultName
+					}
+					if val == "" {
+						return clierrors.New("project.create_cancelled", "Cancelled",
+							"No project name entered.").
+							WithExitCode(clierrors.ExitCancelled)
+					}
+					name = val
+				} else {
+					if defaultName == "" {
+						return clierrors.New("args.missing_name", "Missing project name",
+							"Provide a project name as an argument.").
+							WithSuggestions(
+								"Pass a project name: circleci project create <name> --org <vcs/org-slug>",
+							).
+							WithExitCode(clierrors.ExitBadArguments)
+					}
+					name = defaultName
+				}
+			}
+
+			client, err := cmdutil.LoadClient(ctx, cmd)
+			if err != nil {
+				return err
+			}
+
+			if orgSlug == "" {
+				if !iostream.IsInteractive(ctx) {
+					return clierrors.New("args.missing_org", "Missing required flag",
+						"--org is required to specify the target organization.").
+						WithSuggestions(
+							"Pass --org <vcs/org-slug> (e.g. --org gh/myorg)",
+							"Find your org slug in CircleCI under Organization Settings > Organization slug",
+						).
+						WithExitCode(clierrors.ExitBadArguments)
+				}
+				selected, err := selectOrg(ctx, client)
+				if err != nil {
+					return err
+				}
+				orgSlug = selected
+			}
+
 			vcs, org, err := parseOrgSlug(orgSlug)
 			if err != nil {
 				return clierrors.New("args.invalid_org", "Invalid --org value",
@@ -83,12 +147,11 @@ func newCreateCmd() *cobra.Command {
 					WithSuggestions("Use the form vcs/org (e.g. gh/myorg or circleci/9YytKzouJxzu4TjCRFqAoD)").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			appURL, err := cmdutil.AppURL(ctx, cmd)
 			if err != nil {
 				return err
 			}
-			return runProjectCreate(ctx, client, vcs, org, args[0], jsonOut)
+			return runProjectCreate(ctx, client, vcs, org, name, appURL, jsonOut)
 		},
 	}
 
@@ -119,7 +182,7 @@ type createProjectOutput struct {
 	VCSURL           string `json:"vcs_url,omitempty"`
 }
 
-func runProjectCreate(ctx context.Context, client *apiclient.Client, vcs, org, name string, jsonOut bool) error {
+func runProjectCreate(ctx context.Context, client *apiclient.Client, vcs, org, name, appURL string, jsonOut bool) error {
 	proj, err := client.CreateProject(ctx, vcs, org, name)
 	if err != nil {
 		return cmdutil.APIErr(err, fmt.Sprintf("%s/%s/%s", vcs, org, name),
@@ -144,11 +207,57 @@ func runProjectCreate(ctx context.Context, client *apiclient.Client, vcs, org, n
 		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
-	printCreatedProject(ctx, out)
+	pipelinesURL, _ := cmdutil.PipelinesURL(appURL, out.Slug)
+	printCreatedProject(ctx, out, pipelinesURL)
 	return nil
 }
 
-func printCreatedProject(ctx context.Context, p createProjectOutput) {
+// selectOrg fetches the user's organizations and presents an interactive picker.
+func selectOrg(ctx context.Context, client *apiclient.Client) (string, error) {
+	collabs, err := client.ListCollaborations(ctx)
+	if err != nil {
+		return "", cmdutil.APIErr(err, "", "org.list_failed", "Could not fetch your organizations.",
+			"Check your API token and network connection",
+		)
+	}
+	if len(collabs) == 0 {
+		return "", clierrors.New("org.none_found", "No organizations found",
+			"Your account is not a member of any CircleCI organizations.").
+			WithExitCode(clierrors.ExitNotFound)
+	}
+
+	labels := make([]string, len(collabs))
+	for i, c := range collabs {
+		labels[i] = c.Slug
+		if c.Name != "" && c.Name != c.Slug {
+			labels[i] = fmt.Sprintf("%s (%s)", c.Slug, c.Name)
+		}
+	}
+
+	idx, err := iostream.PromptSelect(ctx, "Select an organization", labels)
+	if err != nil || idx < 0 {
+		return "", clierrors.New("project.create_cancelled", "Cancelled",
+			"No organization selected.").
+			WithExitCode(clierrors.ExitCancelled)
+	}
+	return collabs[idx].Slug, nil
+}
+
+// repoNameFromGit returns the repository name from the git remote, or "" if it
+// cannot be detected.
+func repoNameFromGit() string {
+	info, err := gitremote.Detect()
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(info.Slug, "/")
+	if len(parts) == 3 {
+		return parts[2]
+	}
+	return ""
+}
+
+func printCreatedProject(ctx context.Context, p createProjectOutput, pipelinesURL string) {
 	var md strings.Builder
 	md.WriteString("# Project Created\n")
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", p.Name)
@@ -165,6 +274,9 @@ func printCreatedProject(ctx context.Context, p createProjectOutput) {
 		if p.VCSURL != "" {
 			_, _ = fmt.Fprintf(&md, "- URL: %s\n", p.VCSURL)
 		}
+	}
+	if pipelinesURL != "" {
+		_, _ = fmt.Fprintf(&md, "\nPipelines: %s\n", pipelinesURL)
 	}
 	md.WriteString("\n")
 	iostream.PrintMarkdown(ctx, md.String())
