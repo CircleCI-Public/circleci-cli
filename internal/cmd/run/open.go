@@ -33,7 +33,10 @@ import (
 )
 
 func newOpenCmd() *cobra.Command {
-	return &cobra.Command{
+	var branch string
+	var currentBranch bool
+
+	cmd := &cobra.Command{
 		Use:   "open",
 		Short: "Open the current project's runs page in the browser",
 		Long: heredoc.Doc(`
@@ -42,18 +45,32 @@ func newOpenCmd() *cobra.Command {
 
 			The project is inferred from the current git repository's remote.
 			Supports GitHub, Bitbucket, and GitLab remotes.
+
+			Use --current-branch or --branch/-b to filter runs to a specific branch.
 		`),
 		Example: heredoc.Doc(`
 			# Open runs for the current repo
 			$ circleci run open
 
-			# Open from a specific directory
-			$ circleci run open --config ~/.config/circleci/config.yml
+			# Open runs filtered to the current git branch
+			$ circleci run open --current-branch
+
+			# Open runs filtered to a specific branch
+			$ circleci run open --branch my-feature
+
+			# Open runs filtered to a specific branch (short flag)
+			$ circleci run open -b main
 
 			# Open when your remote is on CircleCI server
 			$ circleci run open --host https://circleci.example.com
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			if branch != "" && currentBranch {
+				return clierrors.New("flag.conflict",
+					"--branch and --current-branch are mutually exclusive", "").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
+
 			ctx := cmd.Context()
 
 			info, err := gitremote.Detect()
@@ -71,7 +88,16 @@ func newOpenCmd() *cobra.Command {
 				return err
 			}
 
-			u, err := cmdutil.PipelinesURL(appURL, info.Slug)
+			if currentBranch {
+				branch = info.Branch
+			}
+
+			var u string
+			if branch != "" {
+				u, err = cmdutil.PipelinesURLForBranch(appURL, info.Slug, branch)
+			} else {
+				u, err = cmdutil.PipelinesURL(appURL, info.Slug)
+			}
 			if err != nil {
 				return err
 			}
@@ -79,4 +105,9 @@ func newOpenCmd() *cobra.Command {
 			return browser.OpenURL(u)
 		},
 	}
+
+	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter runs to a specific branch")
+	cmd.Flags().BoolVar(&currentBranch, "current-branch", false, "Filter runs to the current git branch")
+
+	return cmd
 }
