@@ -67,7 +67,9 @@ func newOpenCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if branch != "" && currentBranch {
 				return clierrors.New("flag.conflict",
-					"--branch and --current-branch are mutually exclusive", "").
+					"conflicting flags",
+					"--branch and --current-branch cannot be used together").
+					WithSuggestions("Use --current-branch to filter by your checked-out branch, or --branch <name> to specify one explicitly").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 
