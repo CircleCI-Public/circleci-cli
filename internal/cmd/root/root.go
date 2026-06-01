@@ -30,7 +30,6 @@ import (
 	"github.com/njayp/ophis"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/certificate"
@@ -141,6 +140,8 @@ func NewRootCmd(version string) *cobra.Command {
 
 	initConfig := func(cmd *cobra.Command) error {
 		ctx := iostream.FromCmd(cmd.Context(), cmd)
+		ctx = cmdutil.WithVersion(ctx, version)
+
 		secureStorage := cmdutil.IsSecureStorage(cmd)
 		configPath := cmdutil.ConfigPath(cmd)
 		config.EnsureDeviceID(ctx, configPath)
@@ -149,7 +150,6 @@ func NewRootCmd(version string) *cobra.Command {
 		if err != nil {
 			return err
 		}
-		apiclient.DeviceID = cfg.DeviceID().String()
 
 		ctx = cmdutil.WithConfig(ctx, cfg)
 

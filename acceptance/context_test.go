@@ -24,6 +24,9 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -31,9 +34,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const testOrgSlug = "gh/testorg"
@@ -375,6 +380,22 @@ func TestContextCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/context"},
+			Header: http.Header{
+				"Accept":          {"application/json"},
+				"Accept-Encoding": {"gzip"},
+				"Authorization":   {"Bearer test-token"},
+				"Content-Length":  {"74"},
+				"Content-Type":    {"application/json; charset=utf-8"},
+				"User-Agent":      {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev")},
+			},
+			Body: new(`{"name":"new-context","owner":{"slug":"gh/testorg","type":"organization"}}`),
+		}))
+	})
 }
 
 func TestContextCreate_JSON(t *testing.T) {
