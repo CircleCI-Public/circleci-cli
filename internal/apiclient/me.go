@@ -24,13 +24,10 @@ package apiclient
 
 import (
 	"context"
-	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
-
-// ErrUserNotFound is returned when the authenticated user cannot be resolved.
-var ErrUserNotFound = errors.New("user not found")
 
 type Me struct {
 	Name      string    `json:"name"`
@@ -54,7 +51,7 @@ func (c *Client) GetMe(ctx context.Context) (*Me, error) {
 		return nil, err
 	}
 	if len(result.Data) == 0 {
-		return nil, ErrUserNotFound
+		return nil, fmt.Errorf("unexpected empty response from GET /api/v3/users")
 	}
 	w := result.Data[0]
 	return &Me{
