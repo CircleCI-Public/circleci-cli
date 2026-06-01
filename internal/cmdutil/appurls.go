@@ -44,6 +44,15 @@ func PipelinesURL(appURL, slug string) (string, error) {
 	), nil
 }
 
+// PipelinesURLForBranch returns the CircleCI pipelines page URL filtered to a specific branch.
+func PipelinesURLForBranch(appURL, slug, branch string) (string, error) {
+	base, err := PipelinesURL(appURL, slug)
+	if err != nil {
+		return "", err
+	}
+	return base + "?branch=" + url.QueryEscape(branch), nil
+}
+
 // ProjectURL returns the CircleCI project page URL for the given project slug.
 func ProjectURL(appURL, slug string) (string, error) {
 	parts := strings.SplitN(slug, "/", 3)

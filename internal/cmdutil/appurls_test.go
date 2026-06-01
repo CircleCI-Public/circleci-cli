@@ -58,6 +58,25 @@ func TestPipelinesURL(t *testing.T) {
 	})
 }
 
+func TestPipelinesURLForBranch(t *testing.T) {
+	t.Run("adds branch query param", func(t *testing.T) {
+		got, err := PipelinesURLForBranch(testAppURL, "gh/bar/foo", "my-feature")
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/gh/bar/foo?branch=my-feature"))
+	})
+
+	t.Run("encodes branch with special characters", func(t *testing.T) {
+		got, err := PipelinesURLForBranch(testAppURL, "gh/bar/foo", "feat/my feature")
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/gh/bar/foo?branch=feat%2Fmy+feature"))
+	})
+
+	t.Run("invalid slug", func(t *testing.T) {
+		_, err := PipelinesURLForBranch(testAppURL, "invalid", "main")
+		assert.Check(t, err != nil, "expected error for invalid slug")
+	})
+}
+
 func TestDeployURL(t *testing.T) {
 	proj := &apiclient.ProjectInfo{
 		ID:               "7097f60c-74d1-4936-8d1a-268d4042a493",
