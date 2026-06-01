@@ -44,7 +44,26 @@ func TestConfig(t *testing.T) {
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
 
-			result, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+			result, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{}, false)
+			assert.NoError(t, err)
+			assert.Equal(t, true, result.Valid)
+			assert.Equal(t, "output", result.OutputYaml)
+			assert.Equal(t, "source", result.SourceYaml)
+		})
+
+		t.Run("next parameter handled correctly", func(t *testing.T) {
+			svr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				fmt.Fprintf(w, `{"valid":true,"source-yaml":"source","output-yaml":"output","errors":[]}`)
+			}))
+			defer svr.Close()
+			cfg := &settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient}
+			apiClient := &v2APIClient{rest.NewFromConfig(cfg.Host, cfg)}
+			collaboratorsClient, err := collaborators.NewCollaboratorsRestClient(*cfg)
+			assert.NoError(t, err)
+			compiler := New(apiClient, collaboratorsClient)
+
+			result, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{}, true)
 			assert.NoError(t, err)
 			assert.Equal(t, true, result.Valid)
 			assert.Equal(t, "output", result.OutputYaml)
@@ -63,7 +82,7 @@ func TestConfig(t *testing.T) {
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
 
-			_, err = compiler.ConfigQuery("testdata/nonexistent.yml", "1234", Parameters{}, Values{})
+			_, err = compiler.ConfigQuery("testdata/nonexistent.yml", "1234", Parameters{}, Values{}, false)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "Could not load config file at testdata/nonexistent.yml")
 		})
@@ -76,7 +95,7 @@ func TestConfig(t *testing.T) {
 		// 	defer svr.Close()
 		// 	compiler := New(&settings.Config{Host: svr.URL, HTTPClient: http.DefaultClient})
 
-		// 	_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+		// 	_, err := compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{}, false)
 		// 	assert.Error(t, err)
 		// 	assert.Contains(t, err.Error(), "this version of the CLI does not support your instance of server")
 		// })
@@ -92,7 +111,7 @@ func TestConfig(t *testing.T) {
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
 
-			_, err = compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{})
+			_, err = compiler.ConfigQuery("testdata/config.yml", "1234", Parameters{}, Values{}, false)
 			assert.Error(t, err)
 			assert.Contains(t, err.Error(), "config compilation request returned an error")
 		})
@@ -117,7 +136,7 @@ func TestConfig(t *testing.T) {
 			assert.NoError(t, err)
 			compiler := New(apiClient, collaboratorsClient)
 
-			resp, err := compiler.ConfigQuery("testdata/test.yml", "1234", Parameters{}, Values{})
+			resp, err := compiler.ConfigQuery("testdata/test.yml", "1234", Parameters{}, Values{}, false)
 			assert.NoError(t, err)
 			assert.Equal(t, true, resp.Valid)
 			assert.Equal(t, "output", resp.OutputYaml)

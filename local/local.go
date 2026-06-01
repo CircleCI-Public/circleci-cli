@@ -46,14 +46,15 @@ func Execute(flags *pflag.FlagSet, cfg *settings.Config, args []string) error {
 
 	//if no orgId provided use org slug
 	orgID, _ := flags.GetString("org-id")
+	next, _ := flags.GetBool("next")
 	if strings.TrimSpace(orgID) != "" {
-		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues(nil))
+		configResponse, err = compiler.ConfigQuery(configPath, orgID, nil, config.LocalPipelineValues(nil), next)
 		if err != nil {
 			return err
 		}
 	} else {
 		orgSlug, _ := flags.GetString("org-slug")
-		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues(nil))
+		configResponse, err = compiler.ConfigQuery(configPath, orgSlug, nil, config.LocalPipelineValues(nil), next)
 		if err != nil {
 			return err
 		}

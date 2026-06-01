@@ -77,6 +77,7 @@ type Options struct {
 	// Use PipelineValues instead.
 	PipelineParameters map[string]interface{} `json:"pipeline_parameters,omitempty"`
 	PipelineValues     map[string]interface{} `json:"pipeline_values,omitempty"`
+	Next               bool                   `json:"next,omitempty"`
 }
 
 // ConfigQuery - attempts to compile or validate a given config file with the
@@ -87,13 +88,14 @@ func (c *ConfigCompiler) ConfigQuery(
 	orgID string,
 	params Parameters,
 	values Values,
+	next bool,
 ) (*ConfigResponse, error) {
 	configString, err := loadYaml(configPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load yaml config from config path provider: %w", err)
 	}
 
-	return c.apiClient.CompileConfig(configString, orgID, params, values)
+	return c.apiClient.CompileConfig(configString, orgID, params, values, next)
 }
 
 func loadYaml(path string) (string, error) {

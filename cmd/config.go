@@ -23,6 +23,7 @@ import (
 var configPath string
 var ignoreDeprecatedImages bool // should we ignore deprecated images warning
 var verboseOutput bool          // Enable extra debugging output
+var next bool                   // Enable config next which previews upcoming potentially breaking config changes
 
 var configAnnotations = map[string]string{
 	"<path>": "The path to your config (use \"-\" for STDIN)",
@@ -77,6 +78,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				OrgSlug:                orgSlug,
 				IgnoreDeprecatedImages: ignoreDeprecatedImages,
 				VerboseOutput:          verboseOutput,
+				Next:                   next,
 			})
 			telemetryClient, ok := telemetry.FromContext(cmd.Context())
 			if ok {
@@ -91,6 +93,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 	validateCommand.Annotations["<path>"] = configAnnotations["<path>"]
 	validateCommand.PersistentFlags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "path to config file")
 	validateCommand.PersistentFlags().BoolVarP(&verboseOutput, "verbose", "v", false, "Enable verbose output")
+	validateCommand.PersistentFlags().BoolVarP(&next, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	validateCommand.PersistentFlags().BoolVar(&ignoreDeprecatedImages, "ignore-deprecated-images", false, "ignores the deprecated images error")
 
 	if err := validateCommand.PersistentFlags().MarkHidden("config"); err != nil {
@@ -124,6 +127,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 				OrgSlug:                orgSlug,
 				PipelineParamsFilePath: pipelineParamsFilePath,
 				VerboseOutput:          verboseOutput,
+				Next:                   next,
 			})
 			telemetryClient, ok := telemetry.FromContext(cmd.Context())
 			if ok {
@@ -143,6 +147,7 @@ func newConfigCommand(globalConfig *settings.Config) *cobra.Command {
 	processCommand.Flags().String("org-id", "", "organization id used when a config depends on private orbs belonging to that org")
 	processCommand.Flags().StringP("pipeline-parameters", "", "", "YAML/JSON map of pipeline parameters, accepts either YAML/JSON directly or file path (for example: my-params.yml)")
 	processCommand.PersistentFlags().BoolVar(&verboseOutput, "verbose", false, "adds verbose output to the command")
+	processCommand.PersistentFlags().BoolVarP(&next, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 
 	migrateCommand := &cobra.Command{
 		Use:   "migrate",
