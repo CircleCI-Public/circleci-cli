@@ -24,9 +24,13 @@ package apiclient
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 )
+
+// ErrUserNotFound is returned when the authenticated user cannot be resolved.
+var ErrUserNotFound = errors.New("user not found")
 
 type Me struct {
 	Name      string    `json:"name"`
@@ -36,12 +40,14 @@ type Me struct {
 }
 
 func (c *Client) GetMe(ctx context.Context) (*Me, error) {
-	var me Me
-	if err := c.get(ctx, "/me", &me); err != nil {
+	var result v3List[Me]
+	if err := c.getV3(ctx, "/users", &result, filterParam("user_id", "me")); err != nil {
 		return nil, err
 	}
-
-	return &me, nil
+	if len(result.Data) == 0 {
+		return nil, ErrUserNotFound
+	}
+	return &result.Data[0], nil
 }
 
 // Collaboration represents an organization the authenticated user belongs to.

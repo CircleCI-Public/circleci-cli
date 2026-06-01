@@ -112,7 +112,7 @@ type CircleCI struct {
 	iosBundleCounter  int              // monotonic ID generator for created bundles
 
 	// Auth state.
-	me                 any   // response for GET /api/v2/me
+	me                 any   // response for GET /api/v3/users?filter[user_id]=me
 	collaborations     []any // response for GET /api/v2/me/collaborations
 	oauthTokenResponse any   // response body for POST /oauth/token
 	oauthTokenStatus   int   // HTTP status for POST /oauth/token (0 → 200 OK)
@@ -232,7 +232,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v1.1/projects", f.handleListProjects)
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
 	r.Post("/api/v2/organization/{vcs}/{org}/project", f.handleCreateProject)
-	r.Get("/api/v2/me", f.handleGetMe)
+	r.Get("/api/v3/users", f.handleGetMe)
 	r.Get("/api/v2/me/collaborations", f.handleGetCollaborations)
 	r.Post("/oauth/token", f.handleOAuthToken)
 	// Context routes.
@@ -930,7 +930,7 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 
 // --- Auth helpers ---
 
-// SetMe sets the response body for GET /api/v2/me.
+// SetMe sets the response body for GET /api/v3/users?filter[user_id]=me.
 func (f *CircleCI) SetMe(me any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -947,7 +947,10 @@ func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "unauthorized"})
 		return
 	}
-	render.JSON(w, r, me)
+	render.JSON(w, r, map[string]any{
+		"data": []any{me},
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
 }
 
 // SetCollaborations sets the response for GET /api/v2/me/collaborations.
