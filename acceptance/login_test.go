@@ -69,9 +69,11 @@ func TestAuthLogin_Browser(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":    "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"name":  "Test User",
-		"login": "testuser",
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":  "Test User",
+			"login": "testuser",
+		},
 	})
 
 	env := testenv.New(t)
@@ -140,13 +142,15 @@ func TestAuthLogin_Browser(t *testing.T) {
 // TestAuthLogin_Token drives the interactive login TUI through the
 // personal-access-token flow: selects "Other", types the fake server URL,
 // picks "Paste an authentication token", types a token, and asserts the CLI
-// exits 0 having validated the token against /api/v2/me.
+// exits 0 having validated the token against /api/v3/users?filter[user_id]=me.
 func TestAuthLogin_Token(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":    "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"name":  "Test User",
-		"login": "testuser",
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":  "Test User",
+			"login": "testuser",
+		},
 	})
 
 	env := testenv.New(t)

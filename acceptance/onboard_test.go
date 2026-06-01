@@ -199,9 +199,11 @@ func onboardAuthenticatedEnv(t *testing.T, login string) *testenv.TestEnv {
 
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":    "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"name":  "Test User",
-		"login": login,
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":  "Test User",
+			"login": login,
+		},
 	})
 
 	env := testenv.New(t)

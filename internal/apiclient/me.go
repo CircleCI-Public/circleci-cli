@@ -24,6 +24,7 @@ package apiclient
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
 )
@@ -35,13 +36,30 @@ type Me struct {
 	AvatarURL string    `json:"avatar_url"`
 }
 
+type meWire struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		Name      string `json:"name"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url"`
+	} `json:"attributes"`
+}
+
 func (c *Client) GetMe(ctx context.Context) (*Me, error) {
-	var me Me
-	if err := c.get(ctx, "/me", &me); err != nil {
+	var result v3List[meWire]
+	if err := c.getV3(ctx, "/users", &result, filterParam("user_id", "me")); err != nil {
 		return nil, err
 	}
-
-	return &me, nil
+	if len(result.Data) == 0 {
+		return nil, fmt.Errorf("unexpected empty response from GET /api/v3/users")
+	}
+	w := result.Data[0]
+	return &Me{
+		ID:        w.ID,
+		Name:      w.Attributes.Name,
+		Login:     w.Attributes.Login,
+		AvatarURL: w.Attributes.AvatarURL,
+	}, nil
 }
 
 // Collaboration represents an organization the authenticated user belongs to.
