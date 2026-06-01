@@ -33,10 +33,10 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 
 type Me struct {
-	Name      string
-	Login     string
-	ID        uuid.UUID
-	AvatarURL string
+	Name      string    `json:"name"`
+	Login     string    `json:"login"`
+	ID        uuid.UUID `json:"id"`
+	AvatarURL string    `json:"avatar_url"`
 }
 
 type meWire struct {
