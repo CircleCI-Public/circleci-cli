@@ -155,12 +155,17 @@ func PromptSelect(ctx context.Context, prompt string, options []string) (int, er
 
 // PromptText presents a plain (non-secret) single-line text input via
 // bubbletea. header is the bold heading above the input; placeholder is
-// shown inside the empty field. Returns ("", nil) if the user cancels with
-// esc or ctrl+c.
-func PromptText(ctx context.Context, header, placeholder string) (string, error) {
+// shown inside the empty field; defaultVal (optional) is returned when the
+// user presses Enter with an empty field. Returns ("", nil) if the user
+// cancels with esc or ctrl+c.
+func PromptText(ctx context.Context, header, placeholder string, defaultVal ...string) (string, error) {
+	dv := ""
+	if len(defaultVal) > 0 {
+		dv = defaultVal[0]
+	}
 	s := fromContext(ctx)
 	p := tea.NewProgram(
-		ui.NewPromptModel(header, placeholder),
+		ui.NewPromptModel(header, placeholder, dv),
 		tea.WithContext(ctx),
 		tea.WithInput(s.In),
 		tea.WithOutput(s.Err),
