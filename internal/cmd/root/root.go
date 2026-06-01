@@ -24,10 +24,10 @@ package root
 
 import (
 	"os"
-	"runtime"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/njayp/ophis"
+	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
 
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
@@ -153,17 +153,22 @@ func NewRootCmd(version string) *cobra.Command {
 
 		ctx = cmdutil.WithConfig(ctx, cfg)
 
+		hostInfo, err := host.InfoWithContext(ctx)
+		if err != nil {
+			return err
+		}
+
 		tc, err := telemetry.New(ctx, telemetry.Config{
 			Log:      cfg.IsTelemetry(),
 			Send:     cfg.IsTelemetry(),
 			WriteKey: telemetry.SegmentKey,
 			Endpoint: os.Getenv("CIRCLECI_TELEMETRY_ENDPOINT"),
-			User: telemetry.User{
+			Metadata: telemetry.Meta{
+				IsSelfHosted: cfg.EffectiveHost() != "https://circleci.com",
+				Version:      version,
 				InstanceID:   cfg.DeviceID(),
 				UserID:       cfg.UserID(),
-				IsSelfHosted: cfg.EffectiveHost() != "https://circleci.com",
-				OS:           runtime.GOOS,
-				Version:      version,
+				HostInfo:     hostInfo,
 			},
 		})
 		if err != nil {

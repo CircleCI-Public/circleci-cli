@@ -31,6 +31,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/segmentio/analytics-go/v3"
+	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -84,11 +85,11 @@ func TestRecordTelemetry(t *testing.T) {
 								Version: "1.2.3",
 							},
 							Device: analytics.DeviceInfo{
-								Id:           instanceID,
-								Manufacturer: "CircleCI Ltd",
-								Name:         "circleci-cli",
+								Id:    instanceID,
+								Model: "x86_64",
+								Type:  "debian",
 							},
-							OS: analytics.OSInfo{Name: "linux"},
+							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
@@ -143,11 +144,11 @@ func TestRecordTelemetry(t *testing.T) {
 								Version: "1.2.3",
 							},
 							Device: analytics.DeviceInfo{
-								Id:           instanceID,
-								Manufacturer: "CircleCI Ltd",
-								Name:         "circleci-cli",
+								Id:    instanceID,
+								Model: "x86_64",
+								Type:  "debian",
 							},
-							OS: analytics.OSInfo{Name: "linux"},
+							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
@@ -194,11 +195,11 @@ func TestRecordTelemetry(t *testing.T) {
 								Version: "1.2.3",
 							},
 							Device: analytics.DeviceInfo{
-								Id:           instanceID,
-								Manufacturer: "CircleCI Ltd",
-								Name:         "circleci-cli",
+								Id:    instanceID,
+								Model: "x86_64",
+								Type:  "debian",
 							},
-							OS: analytics.OSInfo{Name: "linux"},
+							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
@@ -240,11 +241,11 @@ func TestRecordTelemetry(t *testing.T) {
 								Version: "1.2.3",
 							},
 							Device: analytics.DeviceInfo{
-								Id:           instanceID,
-								Manufacturer: "CircleCI Ltd",
-								Name:         "circleci-cli",
+								Id:    instanceID,
+								Model: "x86_64",
+								Type:  "debian",
 							},
-							OS: analytics.OSInfo{Name: "linux"},
+							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
@@ -306,11 +307,11 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 								Version: "1.2.3",
 							},
 							Device: analytics.DeviceInfo{
-								Id:           instanceID,
-								Manufacturer: "CircleCI Ltd",
-								Name:         "circleci-cli",
+								Id:    instanceID,
+								Model: "x86_64",
+								Type:  "debian",
 							},
-							OS: analytics.OSInfo{Name: "linux"},
+							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
@@ -368,11 +369,19 @@ func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
 		Log:      true,
 		WriteKey: goodAPIKey,
 		Endpoint: srv.URL,
-		User: telemetry.User{
-			InstanceID: uuid.MustParse(instanceID),
-			UserID:     uuid.MustParse(userID),
-			OS:         "linux",
-			Version:    "1.2.3",
+		Metadata: telemetry.Meta{
+			IsSelfHosted: false,
+			Version:      "1.2.3",
+			InstanceID:   uuid.MustParse(instanceID),
+			UserID:       uuid.MustParse(userID),
+			HostInfo: &host.InfoStat{
+				OS:              "linux",
+				Platform:        "ubuntu",
+				PlatformFamily:  "debian",
+				PlatformVersion: "24.04",
+				KernelVersion:   "7.0.3",
+				KernelArch:      "x86_64",
+			},
 		},
 	})
 	assert.NilError(t, err)

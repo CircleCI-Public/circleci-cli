@@ -30,6 +30,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/segmentio/analytics-go/v3"
+	"github.com/shirou/gopsutil/v4/host"
 )
 
 // SegmentKey is the Segment write key for CircleCI.
@@ -37,7 +38,7 @@ const SegmentKey = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
 
 type Client struct {
 	client analytics.Client
-	user   User
+	meta   Meta
 }
 
 type Config struct {
@@ -55,34 +56,37 @@ type Config struct {
 	// This is likely only useful for testing.
 	BatchSize int
 
-	// User is the user to associate with events.
-	User User
+	Metadata Meta
 }
 
-type User struct {
-	InstanceID uuid.UUID
-	// UserID is the user ID to associate with events.
-	UserID uuid.UUID
-
+type Meta struct {
 	IsSelfHosted bool
-	OS           string
 	Version      string
+
+	InstanceID uuid.UUID
+	UserID     uuid.UUID
+
+	// HostInfo is the host info to associate with events.
+	HostInfo *host.InfoStat
 }
 
-func (u User) toContext() *analytics.Context {
+func (m *Meta) toContext() *analytics.Context {
 	return &analytics.Context{
 		App: analytics.AppInfo{
 			Name:    "circleci-cli",
-			Version: u.Version,
+			Version: m.Version,
 		},
 		OS: analytics.OSInfo{
-			Name: u.OS,
+			Name:    m.HostInfo.OS,
+			Version: m.HostInfo.PlatformVersion,
 		},
 		Device: analytics.DeviceInfo{
-			Id:           u.InstanceID.String(),
-			Manufacturer: "CircleCI Ltd",
-			Name:         "circleci-cli",
+			Id:    m.InstanceID.String(),
+			Model: m.HostInfo.KernelArch,
+			Type:  m.HostInfo.PlatformFamily,
 		},
+		Extra: analytics.NewProperties().
+			Set("is_self_hosted", m.IsSelfHosted),
 	}
 }
 
@@ -110,20 +114,20 @@ func New(ctx context.Context, cfg Config) (_ *Client, err error) {
 		client.Add(c)
 	}
 
-	if cfg.User.UserID == uuid.Nil {
-		cfg.User.UserID = AnonymousID
+	if cfg.Metadata.UserID == uuid.Nil {
+		cfg.Metadata.UserID = AnonymousID
 	}
 
 	return &Client{
 		client: client,
-		user:   cfg.User,
+		meta:   cfg.Metadata,
 	}, nil
 }
 
 func (c *Client) Identify() error {
 	return c.client.Enqueue(analytics.Identify{
-		UserId:       c.user.UserID.String(),
-		Context:      c.user.toContext(),
+		UserId:       c.meta.UserID.String(),
+		Context:      c.meta.toContext(),
 		Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 	})
 }
@@ -148,8 +152,8 @@ func (c *Client) Track(eventName string, props map[string]any) error {
 		Timestamp:  time.Now(),
 		Properties: extras,
 
-		UserId:       c.user.UserID.String(),
-		Context:      c.user.toContext(),
+		UserId:       c.meta.UserID.String(),
+		Context:      c.meta.toContext(),
 		Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 	})
 }
