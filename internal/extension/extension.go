@@ -40,7 +40,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
@@ -118,7 +118,6 @@ func NewCmd(name string) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			root := cmd.Root()
-			ctx = iostream.FromCmd(ctx, cmd)
 
 			// With DisableFlagParsing, cobra never calls ParseFlags, so
 			// persistent flags on the root are unpopulated. We parse them
@@ -127,9 +126,7 @@ func NewCmd(name string) *cobra.Command {
 			rootArgs, extArgs := splitArgsAtCommand(name, os.Args[1:], root)
 			_ = root.ParseFlags(rootArgs)
 
-			configPath, _ := root.PersistentFlags().GetString("config")
-			insecureStorage, _ := root.PersistentFlags().GetBool("insecure-storage")
-			return Run(ctx, name, extArgs, configPath, !insecureStorage)
+			return Run(ctx, name, extArgs)
 		},
 	}
 }
@@ -212,14 +209,14 @@ func (e *ErrExited) Error() string {
 //
 // If no matching binary is found, ErrNotFound is returned and the caller
 // should show the original "unknown command" error instead.
-func Run(ctx context.Context, name string, args []string, configPath string, secureStorage bool) error {
+func Run(ctx context.Context, name string, args []string) error {
 	binary := "circleci-" + name
 	path, err := exec.LookPath(binary)
 	if err != nil {
 		return &ErrNotFound{Name: name}
 	}
 
-	env := buildEnv(ctx, configPath, secureStorage)
+	env := buildEnv(ctx)
 
 	cmd := exec.CommandContext(ctx, path, args...) //#nosec:G204,G702 // path comes from LookPath, args are user-supplied CLI args for the extension
 	cmd.Stdin = iostream.In(ctx)
@@ -243,13 +240,10 @@ func Run(ctx context.Context, name string, args []string, configPath string, sec
 // buildEnv constructs the environment for the extension process. It starts
 // from the current process environment and overlays CIRCLECI_* variables so
 // extensions can call the CircleCI API without reimplementing auth.
-func buildEnv(ctx context.Context, configPath string, secureStorage bool) []string {
+func buildEnv(ctx context.Context) []string {
 	env := os.Environ()
 
-	cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
-	if err != nil {
-		cfg = &config.Config{}
-	}
+	cfg := cmdutil.GetConfig(ctx)
 
 	type kv struct{ key, val string }
 	overlays := []kv{

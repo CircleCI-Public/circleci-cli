@@ -47,18 +47,7 @@ func RecordTelemetry(cmd *cobra.Command, telemetry tracker) {
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		runErr := currentRunE(cmd, args)
 
-		var flags []string
-		cmd.Flags().Visit(func(f *pflag.Flag) {
-			flags = append(flags, f.Name)
-		})
-		slices.Sort(flags)
-
-		_ = telemetry.Track("command_invocation",
-			map[string]any{
-				"command": cmd.CommandPath(),
-				"flags":   strings.Join(flags, ","),
-			},
-		)
+		RecordTelemetryNow(cmd, telemetry)
 
 		return runErr
 	}
@@ -87,4 +76,19 @@ func DisableTelemetryForSubcommands(cmd *cobra.Command) {
 
 func isTelemetryDisabled(cmd *cobra.Command) bool {
 	return cmd.Annotations["telemetry"] == "disabled"
+}
+
+func RecordTelemetryNow(cmd *cobra.Command, telemetry tracker) {
+	var flags []string
+	cmd.Flags().Visit(func(f *pflag.Flag) {
+		flags = append(flags, f.Name)
+	})
+	slices.Sort(flags)
+
+	_ = telemetry.Track("command_invocation",
+		map[string]any{
+			"command": cmd.CommandPath(),
+			"flags":   strings.Join(flags, ","),
+		},
+	)
 }

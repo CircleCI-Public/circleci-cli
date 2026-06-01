@@ -120,8 +120,8 @@ func newRestrictionCreateCmd() *cobra.Command {
 					fmt.Sprintf("%q is not a valid restriction type. Must be one of: project, expression, group.", restrictionType)).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -218,7 +218,7 @@ func newRestrictionDeleteCmd() *cobra.Command {
 					fmt.Sprintf("%q is not a valid UUID.", restrictionID)).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 				fmt.Sprintf("Delete restriction %s from context? This cannot be undone.", restrictionID),
 				clierrors.New("context.restriction_delete_aborted", "Deletion aborted",
@@ -230,7 +230,7 @@ func newRestrictionDeleteCmd() *cobra.Command {
 			); err != nil {
 				return err
 			}
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

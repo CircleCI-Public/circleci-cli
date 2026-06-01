@@ -31,7 +31,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newOpenCmd() *cobra.Command {
@@ -60,7 +59,7 @@ func newOpenCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			slug := orgSlug
 			if slug == "" {
@@ -71,7 +70,7 @@ func newOpenCmd() *cobra.Command {
 				slug = orgSlugFromProjectSlug(info.Slug)
 			}
 
-			appURL, err := cmdutil.AppURL(ctx, cmd)
+			appURL, err := cmdutil.AppURL(ctx)
 			if err != nil {
 				return err
 			}

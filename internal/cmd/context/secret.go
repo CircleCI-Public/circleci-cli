@@ -100,8 +100,8 @@ func newSecretListCmd() *cobra.Command {
 			if err := cmdutil.RequireArgs(args, "context-id"); err != nil {
 				return err
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -210,7 +210,7 @@ func newSecretSetCmd() *cobra.Command {
 			if name == "" {
 				return cmdutil.RequireArgs(nil, "name")
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			if value == "" {
 				if !iostream.IsInteractive(ctx) {
 					return clierrors.New("context.secret_value_required", "Secret value required",
@@ -229,7 +229,7 @@ func newSecretSetCmd() *cobra.Command {
 						WithExitCode(clierrors.ExitCancelled)
 				}
 			}
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -298,8 +298,8 @@ func newSecretDeleteCmd() *cobra.Command {
 			if name == "" {
 				return cmdutil.RequireArgs(nil, "name")
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

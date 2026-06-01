@@ -69,8 +69,8 @@ func newUnlistCmd() *cobra.Command {
 					"Expected 'true' (to unlist) or 'false' (to relist), got: "+args[1]).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

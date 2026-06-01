@@ -30,11 +30,12 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
-	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
 )
 
 func TestOnboard_PathInvalid(t *testing.T) {
@@ -198,7 +199,7 @@ func onboardAuthenticatedEnv(t *testing.T, login string) *testenv.TestEnv {
 
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":    "user-uuid-1234",
+		"id":    "e4a72497-7c55-400d-a72d-dadc4b92255d",
 		"name":  "Test User",
 		"login": login,
 	})

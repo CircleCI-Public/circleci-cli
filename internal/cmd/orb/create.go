@@ -76,8 +76,8 @@ func newCreateCmd() *cobra.Command {
 					"Expected <namespace>/<orb>, got: "+args[0]).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

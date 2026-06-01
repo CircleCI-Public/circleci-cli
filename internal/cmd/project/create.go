@@ -80,7 +80,7 @@ func newCreateCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			name := ""
 			if len(args) > 0 {
@@ -118,7 +118,7 @@ func newCreateCmd() *cobra.Command {
 				}
 			}
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -147,7 +147,7 @@ func newCreateCmd() *cobra.Command {
 					WithSuggestions("Use the form vcs/org (e.g. gh/myorg or circleci/9YytKzouJxzu4TjCRFqAoD)").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			appURL, err := cmdutil.AppURL(ctx, cmd)
+			appURL, err := cmdutil.AppURL(ctx)
 			if err != nil {
 				return err
 			}

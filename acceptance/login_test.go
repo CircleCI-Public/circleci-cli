@@ -69,7 +69,7 @@ func TestAuthLogin_Browser(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":    "user-uuid-1234",
+		"id":    "e4a72497-7c55-400d-a72d-dadc4b92255d",
 		"name":  "Test User",
 		"login": "testuser",
 	})
@@ -144,7 +144,7 @@ func TestAuthLogin_Browser(t *testing.T) {
 func TestAuthLogin_Token(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":    "user-uuid-1234",
+		"id":    "e4a72497-7c55-400d-a72d-dadc4b92255d",
 		"name":  "Test User",
 		"login": "testuser",
 	})

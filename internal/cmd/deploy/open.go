@@ -30,7 +30,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newOpenCmd() *cobra.Command {
@@ -56,7 +55,7 @@ func newOpenCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			slug := projectSlug
 			if slug == "" {
@@ -73,7 +72,7 @@ func newOpenCmd() *cobra.Command {
 				slug = info.Slug
 			}
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -85,7 +84,7 @@ func newOpenCmd() *cobra.Command {
 					"Check the project slug and try again")
 			}
 
-			appURL, err := cmdutil.AppURL(ctx, cmd)
+			appURL, err := cmdutil.AppURL(ctx)
 			if err != nil {
 				return err
 			}

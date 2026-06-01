@@ -29,7 +29,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -63,9 +62,9 @@ func newDeviceIDCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			configPath, _ := cmd.Flags().GetString("config")
-			id := runtime.GOOS + ":" + config.EnsureDeviceID(ctx, configPath)
+			ctx := cmd.Context()
+			cfg := cmdutil.GetConfig(ctx)
+			id := runtime.GOOS + ":" + cfg.DeviceID().String()
 
 			if jsonOut {
 				return iostream.PrintJSON(ctx, map[string]string{"device_id": id})

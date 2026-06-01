@@ -1,5 +1,5 @@
 # User
-- ID: `user-uuid-1234`
+- ID: `e4a72497-7c55-400d-a72d-dadc4b92255d`
 - Name: Test User
 - Login: testuser
 - Avatar URL: https://example.com/avatar.png

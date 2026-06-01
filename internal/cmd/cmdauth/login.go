@@ -31,11 +31,11 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/oauth"
@@ -87,10 +87,10 @@ func newLoginCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			configPath, _ := cmd.Flags().GetString("config")
+			ctx := cmd.Context()
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runLogin(ctx, configPath, noBrowser, secureStorage)
+			configPath := cmdutil.ConfigPath(cmd)
+			return runLogin(ctx, noBrowser, secureStorage, configPath)
 		},
 	}
 
@@ -98,26 +98,22 @@ func newLoginCmd() *cobra.Command {
 	return cmd
 }
 
-func runLogin(ctx context.Context, configPath string, noBrowser, secureStorage bool) error {
+func runLogin(ctx context.Context, noBrowser, secureStorage bool, configPath string) error {
 	// Interactive path: the full TUI (host selection → method → browser OAuth)
 	// is handled by LoginFlowModel.
 	if !noBrowser && iostream.IsInteractive(ctx) {
-		return runLoginInteractive(ctx, configPath, secureStorage)
+		return runLoginInteractive(ctx, secureStorage, configPath)
 	}
 
 	// Non-interactive / --no-browser: load host from config and print the URL.
-	cfg, err := config.LoadFrom(ctx, configPath, false)
-	if err != nil {
-		return clierrors.New("config.load_failed", "Failed to load config", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
-	}
+	cfg := cmdutil.GetConfig(ctx)
 	host := cfg.EffectiveHost()
-	deviceID := config.EnsureDeviceID(ctx, configPath)
+	deviceID := cfg.DeviceID()
 
-	return runLoginBrowser(ctx, host, deviceID, false, secureStorage)
+	return runLoginBrowser(ctx, host, deviceID.String(), false, secureStorage, configPath)
 }
 
-func runLoginBrowser(ctx context.Context, host, deviceID string, signup, secureStorage bool) error {
+func runLoginBrowser(ctx context.Context, host string, deviceID string, signup, secureStorage bool, configPath string) error {
 	var flow *oauth.Flow
 	var err error
 	if signup {
@@ -165,36 +161,38 @@ func runLoginBrowser(ctx context.Context, host, deviceID string, signup, secureS
 			WithExitCode(clierrors.ExitAuthError)
 	}
 
-	return persistLoginToken(ctx, host, token.AccessToken, secureStorage)
+	return persistLoginToken(ctx, host, token.AccessToken, secureStorage, configPath)
 }
 
-func persistLoginToken(ctx context.Context, host, accessToken string, secureStorage bool) error {
+func persistLoginToken(ctx context.Context, host, accessToken string, secureStorage bool, path string) error {
 	c := apiclient.New(host, accessToken, nil)
-	if me, err := c.GetMe(ctx); err == nil && me.Login != "" {
-		iostream.ErrPrintf(ctx, "%s Logged in as %s\n", iostream.SymbolOK(ctx), me.Login)
+	me, err := c.GetMe(ctx)
+	if err != nil {
+		return err
 	}
 
-	return persistToken(ctx, host, accessToken, secureStorage)
+	iostream.ErrPrintf(ctx, "%s Logged in as %s\n", iostream.SymbolOK(ctx), me.Login)
+	return persistToken(ctx, host, accessToken, me.ID, secureStorage, path)
 }
 
 // runLoginInteractive runs the full multi-stage login TUI. It covers host
 // selection, auth method selection, and the browser OAuth flow. If the user
 // picks "Paste a token", it falls through to the token input TUI using the
 // host they selected.
-func runLoginInteractive(ctx context.Context, configPath string, secureStorage bool) error {
-	deviceID := config.EnsureDeviceID(ctx, configPath)
+func runLoginInteractive(ctx context.Context, secureStorage bool, configPath string) error {
+	cfg := cmdutil.GetConfig(ctx)
 
 	model := ui.NewLoginFlow(ctx, ui.LoginFlowOptions{
-		DeviceID:        deviceID,
+		DeviceID:        cfg.DeviceID().String(),
 		OSInfo:          runtime.GOOS,
 		CallbackTimeout: callbackTimeout(),
 		Color:           iostream.ColorEnabled(ctx),
-		GetUsername: func(ctx context.Context, host, token string) (string, error) {
+		GetUser: func(ctx context.Context, host, token string) (id uuid.UUID, username string, err error) {
 			me, err := apiclient.New(host, token, nil).GetMe(ctx)
 			if err != nil {
-				return "", err
+				return uuid.Nil, "", err
 			}
-			return me.Login, nil
+			return me.ID, me.Login, nil
 		},
 	})
 	p := tea.NewProgram(model,
@@ -224,6 +222,6 @@ func runLoginInteractive(ctx context.Context, configPath string, secureStorage b
 			"Login failed", res.Err.Error()).
 			WithExitCode(clierrors.ExitAuthError)
 	default:
-		return persistToken(ctx, res.Host, res.Token, secureStorage)
+		return persistToken(ctx, res.Host, res.Token, res.UserID, secureStorage, configPath)
 	}
 }

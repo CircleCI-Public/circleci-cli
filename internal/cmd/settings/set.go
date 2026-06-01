@@ -68,7 +68,7 @@ func newSetCmd() *cobra.Command {
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			if cliErr := cmdutil.RequireArgs(args, "key", "value"); cliErr != nil {
 				return cliErr
 			}
@@ -78,20 +78,21 @@ func newSetCmd() *cobra.Command {
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runSet(ctx, secureStorage, args[0], value)
+			configPath := cmdutil.ConfigPath(cmd)
+			return runSet(ctx, secureStorage, configPath, args[0], value)
 		},
 	}
 	return cmd
 }
 
-func runSet(ctx context.Context, secureStorage bool, key, value string) (err error) {
+func runSet(ctx context.Context, secureStorage bool, path, key, value string) (err error) {
 	switch key {
 	case "token":
 		err = config.SetToken(ctx, value, secureStorage)
 	case "host":
 		err = config.SetHost(ctx, value, secureStorage)
 	case "telemetry":
-		return runSetTelemetry(ctx, value)
+		return runSetTelemetry(ctx, path, value)
 	default:
 		return clierrors.New("settings.unknown_key", "Unknown setting", "Unknown setting key: "+key).
 			WithSuggestions("Valid keys are: token, host, telemetry").
@@ -102,7 +103,6 @@ func runSet(ctx context.Context, secureStorage bool, key, value string) (err err
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	path, _ := config.Path()
 	if key == "token" && secureStorage {
 		iostream.ErrPrintf(ctx, "%s Saved %s to keyring\n", iostream.SymbolOK(ctx), key)
 	} else {
@@ -111,7 +111,7 @@ func runSet(ctx context.Context, secureStorage bool, key, value string) (err err
 	return nil
 }
 
-func runSetTelemetry(ctx context.Context, value string) error {
+func runSetTelemetry(ctx context.Context, path, value string) error {
 	var enabled bool
 	switch strings.ToLower(value) {
 	case "on", "true", "yes", "1", "enabled":
@@ -129,7 +129,6 @@ func runSetTelemetry(ctx context.Context, value string) error {
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	path, _ := config.Path()
 	if enabled {
 		iostream.ErrPrintf(ctx, "%s Telemetry enabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
 		for _, env := range config.ActiveTelemetryOverrides() {

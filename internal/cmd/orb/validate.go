@@ -68,8 +68,8 @@ func newValidateCmd() *cobra.Command {
 			if err := cmdutil.RequireArgs(args, "path"); err != nil {
 				return err
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

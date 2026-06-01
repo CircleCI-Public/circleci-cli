@@ -26,8 +26,10 @@ import (
 	"context"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
@@ -54,6 +56,8 @@ func NewAuthCmd() *cobra.Command {
 	cmd.AddCommand(newLogoutCmd())
 	cmd.AddCommand(newDeviceIDCmd())
 
+	cmdutil.DisableTelemetryForSubcommands(cmd)
+
 	return cmd
 }
 
@@ -62,12 +66,11 @@ func NewAuthCmd() *cobra.Command {
 // or the YAML config when --insecure-storage is set) and prints a
 // "Saved token to <path>" status line on stderr. Shared by `auth login`
 // (after OAuth token exchange) and `auth token` (after the TUI prompt).
-func persistToken(ctx context.Context, host, token string, secureStorage bool) error {
-	if err := config.SetHostAndToken(ctx, host, token, secureStorage); err != nil {
+func persistToken(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool, path string) error {
+	if err := config.SetLogin(ctx, host, token, userID, secureStorage); err != nil {
 		return clierrors.New("auth.save_failed", "Failed to save token", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
-	path, _ := config.Path()
 	securePath := path
 	if secureStorage {
 		securePath = "keyring"

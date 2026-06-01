@@ -50,10 +50,11 @@ type Config struct {
 }
 
 type state struct {
-	Token     string `yaml:"token,omitempty"`
-	Host      string `yaml:"host,omitempty"`
-	DeviceID  string `yaml:"device_id,omitempty"`
-	Telemetry *bool  `yaml:"telemetry,omitempty"`
+	Token     string     `yaml:"token,omitempty"`
+	Host      string     `yaml:"host,omitempty"`
+	DeviceID  *uuid.UUID `yaml:"device_id,omitempty"`
+	UserID    *uuid.UUID `yaml:"user_id,omitempty"`
+	Telemetry *bool      `yaml:"telemetry,omitempty"`
 }
 
 // DefaultHost is the CircleCI API host used when none is configured.
@@ -73,12 +74,6 @@ func ActiveTelemetryOverrides() []string {
 		}
 	}
 	return active
-}
-
-// Load reads the config file from the default path, returning an empty Config
-// if the file does not exist.
-func Load(ctx context.Context, secureStorage bool) (*Config, error) {
-	return LoadFrom(ctx, "", secureStorage)
 }
 
 // LoadFrom reads the config file from the given path. If path is empty the
@@ -149,10 +144,11 @@ func lockPath(path string) string {
 	return path + ".lock"
 }
 
-func SetHostAndToken(ctx context.Context, host, token string, secureStorage bool) error {
+func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool) error {
 	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Host = host
 		cfg.state.Token = token
+		cfg.state.UserID = &userID
 		return nil
 	})
 }
@@ -195,24 +191,38 @@ func (c *Config) IsTelemetry() bool {
 	return true
 }
 
+func (c *Config) UserID() uuid.UUID {
+	if c.state.UserID == nil {
+		return uuid.Nil
+	}
+	return *c.state.UserID
+}
+
 // EnsureDeviceID returns the device_id stored in the config file at path,
 // generating and persisting a new UUID if none exists yet. path follows the
 // same convention as LoadFrom (empty → XDG default). If the config file
 // cannot be written, an ephemeral UUID is returned so the caller always gets
 // a non-empty value.
-func EnsureDeviceID(ctx context.Context, path string) string {
-	var id string
+func EnsureDeviceID(ctx context.Context, path string) uuid.UUID {
+	var id uuid.UUID
 	err := saveTo(ctx, path, false, func(cfg *Config) error {
-		if cfg.state.DeviceID == "" {
-			cfg.state.DeviceID = uuid.New().String()
+		if cfg.state.DeviceID == nil || *cfg.state.DeviceID == uuid.Nil {
+			cfg.state.DeviceID = new(uuid.New())
 		}
-		id = cfg.state.DeviceID
+		id = *cfg.state.DeviceID
 		return nil
 	})
-	if err != nil || id == "" {
-		return uuid.New().String()
+	if err != nil || id == uuid.Nil {
+		return uuid.New()
 	}
 	return id
+}
+
+func (c *Config) DeviceID() uuid.UUID {
+	if c.state.DeviceID == nil {
+		return uuid.Nil
+	}
+	return *c.state.DeviceID
 }
 
 // saveTo writes cfg to the given path, creating parent directories as needed.

@@ -364,7 +364,8 @@ func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
 	t.Cleanup(srv.Close)
 
 	client, err := telemetry.New(ctx, telemetry.Config{
-		Mode:     telemetry.ModeSend,
+		Send:     true,
+		Log:      true,
 		WriteKey: goodAPIKey,
 		Endpoint: srv.URL,
 		User: telemetry.User{

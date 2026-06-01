@@ -20,45 +20,34 @@
 //
 // SPDX-License-Identifier: MIT
 
-package cmdauth
+package telemetry
 
 import (
-	"context"
+	"errors"
 
-	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/segmentio/analytics-go/v3"
 )
 
-func newLogoutCmd() *cobra.Command {
-	var jsonOut bool
-
-	cmd := &cobra.Command{
-		Use:   "logout",
-		Short: "Remove stored credentials",
-		Args:  cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runLogout(ctx, secureStorage)
-		},
-	}
-
-	cmdutil.AddJSONFlag(cmd, &jsonOut)
-	cmdutil.AddJQFlag(cmd)
-	return cmd
+type multiClient struct {
+	delegates []analytics.Client
 }
 
-func runLogout(ctx context.Context, secureStorage bool) error {
-	err := config.SetToken(ctx, "", secureStorage)
-	if err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
-			WithExitCode(clierrors.ExitGeneralError)
+func (mc *multiClient) Close() error {
+	errs := make([]error, 0, len(mc.delegates))
+	for _, d := range mc.delegates {
+		errs = append(errs, d.Close())
 	}
+	return errors.Join(errs...)
+}
 
-	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.SymbolOK(ctx), "token")
-	return nil
+func (mc *multiClient) Enqueue(m analytics.Message) error {
+	errs := make([]error, 0, len(mc.delegates))
+	for _, d := range mc.delegates {
+		errs = append(errs, d.Enqueue(m))
+	}
+	return errors.Join(errs...)
+}
+
+func (mc *multiClient) Add(client analytics.Client) {
+	mc.delegates = append(mc.delegates, client)
 }

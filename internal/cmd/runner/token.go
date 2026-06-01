@@ -95,8 +95,8 @@ func newTokenListCmd() *cobra.Command {
 			$ circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -213,8 +213,8 @@ func newTokenCreateCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "resource-class"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -299,8 +299,8 @@ func newTokenDeleteCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "token-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

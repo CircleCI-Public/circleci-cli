@@ -83,8 +83,8 @@ func newLinkCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			return runProjectLink(ctx, cmd, projectSlug, force)
+			ctx := cmd.Context()
+			return runProjectLink(ctx, projectSlug, force)
 		},
 	}
 
@@ -94,7 +94,7 @@ func newLinkCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectLink(ctx context.Context, cmd *cobra.Command, projectSlug string, force bool) error {
+func runProjectLink(ctx context.Context, projectSlug string, force bool) error {
 	cwd, err := os.Getwd()
 	if err != nil {
 		return clierrors.New("project.link.cwd_failed", "Could not determine working directory", err.Error()).
@@ -124,7 +124,7 @@ func runProjectLink(ctx context.Context, cmd *cobra.Command, projectSlug string,
 	// Step 2: load the API client. If the user has no token at all we cannot
 	// verify the slug — LoadClient returns a structured "log in" error in that
 	// case, which we propagate directly.
-	client, err := cmdutil.LoadClient(ctx, cmd)
+	client, err := cmdutil.LoadClient(ctx)
 	if err != nil {
 		return err
 	}

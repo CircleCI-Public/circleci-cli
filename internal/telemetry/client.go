@@ -32,24 +32,19 @@ import (
 	"github.com/segmentio/analytics-go/v3"
 )
 
+// SegmentKey is the Segment write key for CircleCI.
+const SegmentKey = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
+
 type Client struct {
 	client analytics.Client
 	user   User
 }
 
-type Mode int
-
-const (
-	// ModeNOOP disables telemetry.
-	ModeNOOP Mode = iota
-	// ModeSend sends events to Segment.
-	ModeSend
-	// ModeLog logs events to stderr.
-	ModeLog
-)
-
 type Config struct {
-	Mode Mode
+	// Send enables sending events to Segment.
+	Send bool
+	// Log enables logging events to stderr.
+	Log bool
 
 	// WriteKey is the Segment write key, and if not provided, will disable telemtry.
 	WriteKey string
@@ -65,8 +60,6 @@ type Config struct {
 }
 
 type User struct {
-	// InstanceID allows manually specifying the client instance ID. Not meant to bs used in production, but
-	// useful for deterministic tests.
 	InstanceID uuid.UUID
 	// UserID is the user ID to associate with events.
 	UserID uuid.UUID
@@ -95,29 +88,26 @@ func (u User) toContext() *analytics.Context {
 
 // New creates a new segment client
 func New(ctx context.Context, cfg Config) (_ *Client, err error) {
-	var client analytics.Client
-	switch cfg.Mode {
-	case ModeNOOP:
-		client = &noopClient{}
-	case ModeSend:
+	client := &multiClient{}
+
+	if cfg.Log {
+		client.Add(&loggingClient{
+			ctx: ctx,
+		})
+	}
+
+	if cfg.Send {
 		if cfg.WriteKey == "" {
 			return nil, errors.New("write key is required")
 		}
-		client, err = analytics.NewWithConfig(cfg.WriteKey, analytics.Config{
+		c, err := analytics.NewWithConfig(cfg.WriteKey, analytics.Config{
 			Endpoint:  cfg.Endpoint,
 			BatchSize: cfg.BatchSize,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("failed to create segment client: %w", err)
 		}
-	case ModeLog:
-		client = &loggingClient{
-			ctx: ctx,
-		}
-	}
-
-	if cfg.User.InstanceID == uuid.Nil {
-		cfg.User.InstanceID = uuid.New()
+		client.Add(c)
 	}
 
 	if cfg.User.UserID == uuid.Nil {

@@ -155,7 +155,7 @@ func newCreateCmd() *cobra.Command {
 			if len(profilePath) == 0 {
 				return cmdutil.RequireFlag("profile")
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			profiles := make([]apiclient.IOSProvisioningProfile, len(profilePath))
 			for i, p := range profilePath {
@@ -167,7 +167,7 @@ func newCreateCmd() *cobra.Command {
 				profiles[i] = apiclient.IOSProvisioningProfile{FileName: fileName, Blob: blob}
 			}
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -244,8 +244,8 @@ func newListCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -330,7 +330,7 @@ func newDeleteCmd() *cobra.Command {
 			if err := cmdutil.RequireArgs(args, "signing-config-id"); err != nil {
 				return err
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			id := args[0]
 
 			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
@@ -345,7 +345,7 @@ func newDeleteCmd() *cobra.Command {
 				return err
 			}
 
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

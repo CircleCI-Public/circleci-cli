@@ -87,8 +87,8 @@ func newResourceClassListCmd() *cobra.Command {
 			$ circleci runner resource-class list --namespace my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -185,8 +185,8 @@ func newResourceClassCreateCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
@@ -259,8 +259,8 @@ func newResourceClassDeleteCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}

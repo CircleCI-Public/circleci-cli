@@ -34,6 +34,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -166,7 +167,8 @@ func newInstallCmd() *cobra.Command {
 			$ source <(circleci completion bash)
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return installCompletion(iostream.FromCmd(cmd.Context(), cmd))
+			ctx := cmd.Context()
+			return installCompletion(ctx)
 		},
 	}
 }
@@ -190,7 +192,7 @@ func newUninstallCmd() *cobra.Command {
 			$ grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			home := os.Getenv("HOME")
 			if home == "" {
 				return fmt.Errorf("HOME not set")
@@ -235,25 +237,29 @@ func newUninstallCmd() *cobra.Command {
 }
 
 func newBashCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "bash",
 		Short:  "Generate bash completion script",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			return cmd.Root().GenBashCompletion(iostream.Out(ctx))
 		},
 	}
+	cmdutil.DisableTelemetry(cmd)
+	return cmd
 }
 
 func newZshCmd() *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:    "zsh",
 		Short:  "Generate zsh completion script",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 			return cmd.Root().GenZshCompletion(iostream.Out(ctx))
 		},
 	}
+	cmdutil.DisableTelemetry(cmd)
+	return cmd
 }

@@ -50,7 +50,8 @@ func TestClient_Track_with_user_id(t *testing.T) {
 	userID := uuid.New()
 	instanceID := uuid.New()
 	ac, err := telemetry.New(ctx, telemetry.Config{
-		Mode:     telemetry.ModeSend,
+		Send:     true,
+		Log:      true,
 		Endpoint: srv.URL,
 		WriteKey: goodWriteKey,
 		User: telemetry.User{
@@ -136,7 +137,8 @@ func TestClient_Track_without_userid(t *testing.T) {
 
 	instanceID := uuid.New()
 	ac, err := telemetry.New(ctx, telemetry.Config{
-		Mode:     telemetry.ModeSend,
+		Send:     true,
+		Log:      true,
 		Endpoint: srv.URL,
 		WriteKey: goodWriteKey,
 		User: telemetry.User{

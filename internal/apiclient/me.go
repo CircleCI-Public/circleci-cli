@@ -24,13 +24,15 @@ package apiclient
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Me struct {
-	Name      string `json:"name"`
-	Login     string `json:"login"`
-	ID        string `json:"id"`
-	AvatarURL string `json:"avatar_url"`
+	Name      string    `json:"name"`
+	Login     string    `json:"login"`
+	ID        uuid.UUID `json:"id"`
+	AvatarURL string    `json:"avatar_url"`
 }
 
 func (c *Client) GetMe(ctx context.Context) (*Me, error) {

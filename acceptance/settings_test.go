@@ -23,20 +23,31 @@
 package acceptance_test
 
 import (
+	"context"
 	"encoding/json"
+	"net/http/httptest"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/segmentio/analytics-go/v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
 func TestSettingsListJSON_Defaults(t *testing.T) {
 	env := testenv.New(t)
+	env.Telemetry = true
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -56,6 +67,7 @@ func TestSettingsListJSON_Defaults(t *testing.T) {
 
 func TestSettingsListJSON_WithToken(t *testing.T) {
 	env := testenv.New(t)
+	env.Telemetry = true
 	env.Token = "testtoken123"
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -74,6 +86,7 @@ func TestSettingsListJSON_WithToken(t *testing.T) {
 
 func TestSettingsListJSON_WithCustomHost(t *testing.T) {
 	env := testenv.New(t)
+	env.Telemetry = true
 	dir := t.TempDir()
 
 	set := binary.RunCLI(t, binary.RunOpts{
@@ -117,7 +130,16 @@ func TestSettingsListJSON_TelemetryEnvVarOverride(t *testing.T) {
 }
 
 func TestSettingsList_TextOutput(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
 	env := testenv.New(t)
+	env.Telemetry = true
+
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -135,4 +157,40 @@ func TestSettingsList_TextOutput(t *testing.T) {
 		}
 	}
 	assert.Check(t, golden.String(strings.Join(stable, "\n"), t.Name()+".txt"))
+
+	t.Run("telemetry", func(t *testing.T) {
+		cfg, err := config.LoadFrom(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+		assert.NilError(t, err)
+
+		batches := fs.Batches()
+		now := time.Now()
+		assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
+			{
+				SentAt: now,
+				Messages: []analytics.Track{
+					{
+						Type:      "track",
+						MessageId: "ignored",
+						Timestamp: now,
+						UserId:    telemetry.AnonymousID.String(),
+						Event:     "command_invocation",
+						Properties: analytics.Properties{
+							"command": "circleci settings list",
+							"flags":   "debug,insecure-storage,theme",
+						},
+						Context: &analytics.Context{
+							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
+							Device: analytics.DeviceInfo{
+								Id:           cfg.DeviceID().String(),
+								Manufacturer: "CircleCI Ltd",
+								Name:         "circleci-cli",
+							},
+							OS: analytics.OSInfo{Name: runtime.GOOS},
+						},
+						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
+					},
+				},
+			},
+		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
 }

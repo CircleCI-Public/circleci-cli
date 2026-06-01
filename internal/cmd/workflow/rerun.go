@@ -63,8 +63,8 @@ func newRerunCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "workflow-id"); cliErr != nil {
 				return cliErr
 			}
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
-			client, err := cmdutil.LoadClient(ctx, cmd)
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
