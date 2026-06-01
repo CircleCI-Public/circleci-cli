@@ -45,18 +45,10 @@ type Client struct {
 	raw *http.Client
 }
 
-// DeviceID is set once at startup (in PersistentPreRunE, after --config is
-// parsed) and embedded in the User-Agent header as:
-//
-//	circleci-cli (<os>; <device-id>)
-//
-// The device ID is a stable per-machine UUID persisted in the config file.
-var DeviceID string
-
 // New creates a Client. baseURL should be the CircleCI host, e.g. "https://circleci.com".
 // An http.RoundTripper can be injected for testing. Set CIRCLECI_DEBUG=1 to log
 // all HTTP requests and response status codes to stderr.
-func New(baseURL, token string, transport http.RoundTripper) *Client {
+func New(baseURL, token, version string, transport http.RoundTripper) *Client {
 	if transport == nil {
 		transport = http.DefaultTransport
 	}
@@ -64,7 +56,7 @@ func New(baseURL, token string, transport http.RoundTripper) *Client {
 	cfg := httpcl.Config{
 		AuthToken:  "Bearer " + token,
 		AuthHeader: "Authorization",
-		UserAgent:  "circleci-cli (" + runtime.GOOS + "; " + DeviceID + ")",
+		UserAgent:  UserAgent(runtime.GOOS, runtime.GOARCH, version),
 		Transport:  transport,
 	}
 
@@ -85,6 +77,10 @@ func New(baseURL, token string, transport http.RoundTripper) *Client {
 		baseURL: baseURL,
 		raw:     &http.Client{Timeout: 30 * time.Second, Transport: rawTransport},
 	}
+}
+
+func UserAgent(goos, goarch, version string) string {
+	return fmt.Sprintf("circleci-cli (%s/%s; %s)", goos, goarch, version)
 }
 
 // runnerBaseURL derives the runner API base URL from the main API base URL.

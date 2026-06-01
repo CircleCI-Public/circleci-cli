@@ -37,10 +37,15 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder/chirecorder"
 )
 
 // CircleCI is a fake CircleCI API server.
 type CircleCI struct {
+	*httprecorder.RequestRecorder
+
 	server *httptest.Server
 
 	mu                                sync.RWMutex
@@ -144,6 +149,8 @@ type orbFakeValidateResponse struct {
 func NewCircleCI(t *testing.T) *CircleCI {
 	t.Helper()
 	f := &CircleCI{
+		RequestRecorder: httprecorder.New(),
+
 		pipelines:                         map[string]any{},
 		projects:                          map[string][]any{},
 		workflows:                         map[string][]any{},
@@ -205,6 +212,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	}
 
 	r := newRouter()
+	r.Use(chirecorder.Middleware(f.RequestRecorder))
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Get("/api/v2/pipeline/{id}/workflow", f.handleGetPipelineWorkflows)

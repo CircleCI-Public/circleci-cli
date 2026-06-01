@@ -40,6 +40,20 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
+type versionKey struct{}
+
+func WithVersion(ctx context.Context, version string) context.Context {
+	return context.WithValue(ctx, versionKey{}, version)
+}
+
+func GetVersion(ctx context.Context) string {
+	v := ctx.Value(versionKey{})
+	if v == nil {
+		panic("no version")
+	}
+	return v.(string)
+}
+
 func IsSecureStorage(cmd *cobra.Command) bool {
 	insecureStorage, _ := cmd.Root().Flags().GetBool("insecure-storage")
 	secureStorage := !insecureStorage
@@ -81,7 +95,8 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 			WithRef("https://app.circleci.com/settings/user/tokens").
 			WithExitCode(clierrors.ExitAuthError)
 	}
-	return apiclient.New(cfg.EffectiveHost(), token, nil), nil
+	version := GetVersion(ctx)
+	return apiclient.New(cfg.EffectiveHost(), token, version, nil), nil
 }
 
 func AppURL(ctx context.Context) (string, error) {
