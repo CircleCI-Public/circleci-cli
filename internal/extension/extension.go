@@ -40,10 +40,13 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
 
 // FindAll scans PATH for executables named "circleci-<name>" and returns the
@@ -126,7 +129,10 @@ func NewCmd(name string) *cobra.Command {
 			rootArgs, extArgs := splitArgsAtCommand(name, os.Args[1:], root)
 			_ = root.ParseFlags(rootArgs)
 
-			return Run(ctx, name, extArgs)
+			// Some extensions do not need a CCI account, load the client and suppress
+			// any errors; extensions are expected to handle any missing vars.
+			client, _ := cmdutil.LoadClient(ctx)
+			return Run(ctx, client, name, extArgs)
 		},
 	}
 }
@@ -209,14 +215,14 @@ func (e *ErrExited) Error() string {
 //
 // If no matching binary is found, ErrNotFound is returned and the caller
 // should show the original "unknown command" error instead.
-func Run(ctx context.Context, name string, args []string) error {
+func Run(ctx context.Context, client *apiclient.Client, name string, args []string) error {
 	binary := "circleci-" + name
 	path, err := exec.LookPath(binary)
 	if err != nil {
 		return &ErrNotFound{Name: name}
 	}
 
-	env := buildEnv(ctx)
+	env := buildEnv(ctx, client)
 
 	cmd := exec.CommandContext(ctx, path, args...) //#nosec:G204,G702 // path comes from LookPath, args are user-supplied CLI args for the extension
 	cmd.Stdin = iostream.In(ctx)
@@ -240,7 +246,7 @@ func Run(ctx context.Context, name string, args []string) error {
 // buildEnv constructs the environment for the extension process. It starts
 // from the current process environment and overlays CIRCLECI_* variables so
 // extensions can call the CircleCI API without reimplementing auth.
-func buildEnv(ctx context.Context) []string {
+func buildEnv(ctx context.Context, client *apiclient.Client) []string {
 	env := os.Environ()
 
 	cfg := cmdutil.GetConfig(ctx)
@@ -249,6 +255,7 @@ func buildEnv(ctx context.Context) []string {
 	overlays := []kv{
 		{"CIRCLECI_TOKEN", cfg.EffectiveToken()},
 		{"CIRCLECI_HOST", cfg.EffectiveHost()},
+		{"CIRCLECI_TELEMETRY_ENABLED", fmt.Sprintf("%t", cfg.IsTelemetry())},
 	}
 
 	// Best-effort: inject project metadata from git remote. Failures are
@@ -264,6 +271,10 @@ func buildEnv(ctx context.Context) []string {
 		}
 		if info.Branch != "" {
 			overlays = append(overlays, kv{"CIRCLECI_BRANCH", info.Branch})
+		}
+
+		if id := resolveProjectID(ctx, client, cfg, info.Slug); id != "" {
+			overlays = append(overlays, kv{"CIRCLECI_PROJECT_ID", id})
 		}
 	}
 
@@ -285,6 +296,29 @@ func buildEnv(ctx context.Context) []string {
 		}
 	}
 	return env
+}
+
+// resolveProjectID returns the CircleCI project UUID for the current checkout,
+// preferring the locally recorded value in .circleci/info.yml and falling back
+// to an API lookup keyed by slug. Returns "" if no project ID can be determined.
+func resolveProjectID(ctx context.Context, client *apiclient.Client, cfg *config.Config, slug string) string {
+	if cwd, err := os.Getwd(); err == nil {
+		if ref, err := projectref.Read(cwd); err == nil && ref.Project.ID != "" {
+			return ref.Project.ID
+		}
+	}
+
+	token := cfg.EffectiveToken()
+	if token == "" || slug == "" || client == nil {
+		return ""
+	}
+
+	info, err := client.GetProjectInfo(ctx, slug)
+	if err != nil {
+		return ""
+	}
+
+	return info.ID
 }
 
 func vcsLong(short string) string {
