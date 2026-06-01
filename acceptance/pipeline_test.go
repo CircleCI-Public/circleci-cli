@@ -309,6 +309,37 @@ func TestPipelineCreate_ProjectNotFound(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 }
 
+func TestPipelineCreate_Interactive_DefaultConfigPath(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project", "gh/myorg/myrepo",
+			"--name", "my-pipeline",
+			"--config-provider", "github_app",
+			"--config-repo-id", pipelineRepoID,
+			// Skip --config-file to trigger prompt
+			"--checkout-provider", "github_app",
+			"--checkout-repo-id", pipelineRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Step 1: verify the default config file path is shown in the footer and accept it.
+	_, err := console.ExpectString("Config file path")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("(default: .circleci/config.yml · enter to confirm, esc to cancel)")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Pipeline definition created")
+	assert.NilError(t, err)
+}
+
 // --- pipeline list ---
 
 func TestPipelineList(t *testing.T) {

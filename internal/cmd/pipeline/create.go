@@ -168,7 +168,7 @@ func runCreate(
 		return err
 	}
 
-	name, err = resolveRequired(ctx, name, "Pipeline definition name", "e.g. my-pipeline", "--name is required")
+	name, err = resolveRequired(ctx, name, "Pipeline definition name", "e.g. my-pipeline", "", "--name is required")
 	if err != nil {
 		return err
 	}
@@ -196,7 +196,7 @@ func runCreate(
 		}
 	}
 
-	configFile, err = resolveRequired(ctx, configFile, "Config file path", ".circleci/config.yml", "--config-file is required")
+	configFile, err = resolveRequired(ctx, configFile, "Config file path", ".circleci/config.yml", ".circleci/config.yml", "--config-file is required")
 	if err != nil {
 		return err
 	}
@@ -248,7 +248,7 @@ func runCreate(
 	return nil
 }
 
-func resolveRequired(ctx context.Context, val, prompt, placeholder, errMsg string) (string, error) {
+func resolveRequired(ctx context.Context, val, prompt, placeholder, defaultVal, errMsg string) (string, error) {
 	if val != "" {
 		return val, nil
 	}
@@ -260,7 +260,7 @@ func resolveRequired(ctx context.Context, val, prompt, placeholder, errMsg strin
 			).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
-	v, err := iostream.PromptText(ctx, prompt, placeholder)
+	v, err := iostream.PromptText(ctx, prompt, placeholder, defaultVal)
 	if err != nil {
 		return "", err
 	}

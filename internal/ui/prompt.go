@@ -37,13 +37,15 @@ type PromptModel struct {
 	textInput   textinput.Model
 	header      string
 	placeholder string
+	defaultVal  string
 	quitting    bool
 	value       string
 }
 
-// NewPromptModel creates a PromptModel with the given header and an optional
-// placeholder shown inside the empty input field.
-func NewPromptModel(header, placeholder string) PromptModel {
+// NewPromptModel creates a PromptModel with the given header, an optional
+// placeholder shown inside the empty input field, and an optional default
+// value accepted when the user presses Enter with an empty field.
+func NewPromptModel(header, placeholder, defaultVal string) PromptModel {
 	ti := textinput.New()
 	ti.SetVirtualCursor(false)
 	if placeholder != "" {
@@ -52,7 +54,7 @@ func NewPromptModel(header, placeholder string) PromptModel {
 	}
 	ti.Focus()
 
-	return PromptModel{textInput: ti, header: header, placeholder: placeholder}
+	return PromptModel{textInput: ti, header: header, placeholder: placeholder, defaultVal: defaultVal}
 }
 
 // Quitting reports whether the user pressed Esc or Ctrl+C without confirming.
@@ -75,6 +77,9 @@ func (m PromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case components.KeyEnter:
 			m.value = m.textInput.Value()
+			if m.value == "" {
+				m.value = m.defaultVal
+			}
 			return m, tea.Quit
 		}
 	}
@@ -106,5 +111,8 @@ func (m PromptModel) View() tea.View {
 
 func (m PromptModel) headerView() string { return theme.TitleStyle.Render(m.header) }
 func (m PromptModel) footerView() string {
+	if m.defaultVal != "" {
+		return theme.HelperStyle.Render("(default: " + m.defaultVal + " · enter to confirm, esc to cancel)")
+	}
 	return theme.HelperStyle.Render("(enter to confirm, esc to cancel)")
 }
