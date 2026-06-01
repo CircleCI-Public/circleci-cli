@@ -930,7 +930,8 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 
 // --- Auth helpers ---
 
-// SetMe sets the response body for GET /api/v3/users?filter[user_id]=me.
+// SetMe sets the data element for GET /api/v3/users?filter[user_id]=me.
+// Pass a DataEntity-shaped map: {"id": "...", "attributes": {"name": "...", "login": "...", "avatar_url": "..."}}.
 func (f *CircleCI) SetMe(me any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()

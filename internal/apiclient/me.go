@@ -33,21 +33,36 @@ import (
 var ErrUserNotFound = errors.New("user not found")
 
 type Me struct {
-	Name      string    `json:"name"`
-	Login     string    `json:"login"`
-	ID        uuid.UUID `json:"id"`
-	AvatarURL string    `json:"avatar_url"`
+	Name      string
+	Login     string
+	ID        uuid.UUID
+	AvatarURL string
+}
+
+type meWire struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		Name      string `json:"name"`
+		Login     string `json:"login"`
+		AvatarURL string `json:"avatar_url"`
+	} `json:"attributes"`
 }
 
 func (c *Client) GetMe(ctx context.Context) (*Me, error) {
-	var result v3List[Me]
+	var result v3List[meWire]
 	if err := c.getV3(ctx, "/users", &result, filterParam("user_id", "me")); err != nil {
 		return nil, err
 	}
 	if len(result.Data) == 0 {
 		return nil, ErrUserNotFound
 	}
-	return &result.Data[0], nil
+	w := result.Data[0]
+	return &Me{
+		ID:        w.ID,
+		Name:      w.Attributes.Name,
+		Login:     w.Attributes.Login,
+		AvatarURL: w.Attributes.AvatarURL,
+	}, nil
 }
 
 // Collaboration represents an organization the authenticated user belongs to.

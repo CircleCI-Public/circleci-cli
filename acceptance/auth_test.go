@@ -39,10 +39,12 @@ func setupAuthFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
-		"id":         "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"name":       "Test User",
-		"login":      "testuser",
-		"avatar_url": "https://example.com/avatar.png",
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":       "Test User",
+			"login":      "testuser",
+			"avatar_url": "https://example.com/avatar.png",
+		},
 	})
 	env := testenv.New(t)
 	env.Token = testToken
