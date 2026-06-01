@@ -27,12 +27,12 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/segmentio/analytics-go/v3"
+	"github.com/shirou/gopsutil/v4/host"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -178,6 +178,9 @@ func TestSettingsList_TextOutput(t *testing.T) {
 		cfg, err := config.LoadFrom(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
 		assert.NilError(t, err)
 
+		hostInfo, err := host.Info()
+		assert.NilError(t, err)
+
 		batches := fs.Batches()
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
@@ -197,11 +200,11 @@ func TestSettingsList_TextOutput(t *testing.T) {
 						Context: &analytics.Context{
 							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
 							Device: analytics.DeviceInfo{
-								Id:           cfg.DeviceID().String(),
-								Manufacturer: "CircleCI Ltd",
-								Name:         "circleci-cli",
+								Id:    cfg.DeviceID().String(),
+								Model: hostInfo.KernelArch,
+								Type:  hostInfo.PlatformFamily,
 							},
-							OS: analytics.OSInfo{Name: runtime.GOOS},
+							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},

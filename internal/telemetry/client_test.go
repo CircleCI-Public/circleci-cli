@@ -30,6 +30,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/segmentio/analytics-go/v3"
+	"github.com/shirou/gopsutil/v4/host"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
@@ -54,11 +55,23 @@ func TestClient_Track_with_user_id(t *testing.T) {
 		Log:      true,
 		Endpoint: srv.URL,
 		WriteKey: goodWriteKey,
-		User: telemetry.User{
+		Metadata: telemetry.Meta{
 			InstanceID: instanceID,
 			UserID:     userID,
-			OS:         "darwin",
 			Version:    "1.2.3",
+
+			HostInfo: &host.InfoStat{
+				Hostname:             "unused",
+				OS:                   "darwin",
+				Platform:             "darwin",
+				PlatformFamily:       "Standalone Workstation",
+				PlatformVersion:      "26.4.1",
+				KernelVersion:        "unused",
+				KernelArch:           "arm64",
+				VirtualizationSystem: "unused",
+				VirtualizationRole:   "unused",
+				HostID:               "unused",
+			},
 		},
 	})
 	assert.NilError(t, err)
@@ -90,12 +103,13 @@ func TestClient_Track_with_user_id(t *testing.T) {
 					Context: &analytics.Context{
 						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
 						Device: analytics.DeviceInfo{
-							Id:           instanceID.String(),
-							Manufacturer: "CircleCI Ltd",
-							Name:         "circleci-cli",
+							Id:    instanceID.String(),
+							Type:  "Standalone Workstation",
+							Model: "arm64",
 						},
 						OS: analytics.OSInfo{
-							Name: "darwin",
+							Name:    "darwin",
+							Version: "26.4.1",
 						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
@@ -113,12 +127,13 @@ func TestClient_Track_with_user_id(t *testing.T) {
 					Context: &analytics.Context{
 						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
 						Device: analytics.DeviceInfo{
-							Id:           instanceID.String(),
-							Manufacturer: "CircleCI Ltd",
-							Name:         "circleci-cli",
+							Id:    instanceID.String(),
+							Type:  "Standalone Workstation",
+							Model: "arm64",
 						},
 						OS: analytics.OSInfo{
-							Name: "darwin",
+							Name:    "darwin",
+							Version: "26.4.1",
 						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
@@ -141,10 +156,22 @@ func TestClient_Track_without_userid(t *testing.T) {
 		Log:      true,
 		Endpoint: srv.URL,
 		WriteKey: goodWriteKey,
-		User: telemetry.User{
+		Metadata: telemetry.Meta{
 			InstanceID: instanceID,
-			OS:         "darwin",
 			Version:    "1.2.3",
+
+			HostInfo: &host.InfoStat{
+				Hostname:             "unused",
+				OS:                   "linux",
+				Platform:             "ubuntu",
+				PlatformFamily:       "debian",
+				PlatformVersion:      "1.2.3",
+				KernelVersion:        "unused",
+				KernelArch:           "x86_64",
+				VirtualizationSystem: "unused",
+				VirtualizationRole:   "unused",
+				HostID:               "unused",
+			},
 		},
 	})
 	assert.NilError(t, err)
@@ -176,11 +203,14 @@ func TestClient_Track_without_userid(t *testing.T) {
 					Context: &analytics.Context{
 						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
 						Device: analytics.DeviceInfo{
-							Id:           instanceID.String(),
-							Manufacturer: "CircleCI Ltd",
-							Name:         "circleci-cli",
+							Id:    instanceID.String(),
+							Type:  "debian",
+							Model: "x86_64",
 						},
-						OS: analytics.OSInfo{Name: "darwin"},
+						OS: analytics.OSInfo{
+							Name:    "linux",
+							Version: "1.2.3",
+						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 				},
@@ -197,11 +227,14 @@ func TestClient_Track_without_userid(t *testing.T) {
 					Context: &analytics.Context{
 						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
 						Device: analytics.DeviceInfo{
-							Id:           instanceID.String(),
-							Manufacturer: "CircleCI Ltd",
-							Name:         "circleci-cli",
+							Id:    instanceID.String(),
+							Type:  "debian",
+							Model: "x86_64",
 						},
-						OS: analytics.OSInfo{Name: "darwin"},
+						OS: analytics.OSInfo{
+							Name:    "linux",
+							Version: "1.2.3",
+						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 				},
