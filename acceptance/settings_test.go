@@ -46,8 +46,14 @@ import (
 )
 
 func TestSettingsListJSON_Defaults(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
 	env := testenv.New(t)
 	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -66,8 +72,14 @@ func TestSettingsListJSON_Defaults(t *testing.T) {
 }
 
 func TestSettingsListJSON_WithToken(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
 	env := testenv.New(t)
 	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	env.Token = "testtoken123"
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -85,8 +97,14 @@ func TestSettingsListJSON_WithToken(t *testing.T) {
 }
 
 func TestSettingsListJSON_WithCustomHost(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
 	env := testenv.New(t)
 	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	dir := t.TempDir()
 
 	set := binary.RunCLI(t, binary.RunOpts{
@@ -134,11 +152,9 @@ func TestSettingsList_TextOutput(t *testing.T) {
 
 	env := testenv.New(t)
 	env.Telemetry = true
-
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-
 	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
 
 	result := binary.RunCLI(t, binary.RunOpts{

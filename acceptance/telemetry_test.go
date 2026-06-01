@@ -23,18 +23,29 @@
 package acceptance_test
 
 import (
+	"context"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
 func TestTelemetryEnable(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
 	env := testenv.New(t)
 	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	dir := t.TempDir()
 
 	result := binary.RunCLI(t, binary.RunOpts{
