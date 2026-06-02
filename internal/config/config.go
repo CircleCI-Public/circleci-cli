@@ -76,9 +76,27 @@ func ActiveTelemetryOverrides() []string {
 	return active
 }
 
-// LoadFrom reads the config file from the given path. If path is empty the
+// Load reads the config file from the given path. If path is empty the
 // default XDG path is used. Returns an empty Config if the file does not exist.
-func LoadFrom(ctx context.Context, path string, secureStorage bool) (*Config, error) {
+func Load(ctx context.Context, path string, secureStorage bool) (*Config, error) {
+	cfg, err := load(ctx, path, secureStorage)
+	if err != nil {
+		return nil, err
+	}
+
+	if cfg.DeviceID() == uuid.Nil {
+		deviceID, err := ensureDeviceID(ctx, path)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg.state.DeviceID = &deviceID
+	}
+
+	return cfg, nil
+}
+
+func load(ctx context.Context, path string, secureStorage bool) (*Config, error) {
 	resolved, err := resolvePath(path)
 	if err != nil {
 		return nil, err
@@ -168,7 +186,7 @@ func SetHost(ctx context.Context, host string, secureStorage bool) error {
 }
 
 // SetTelemetry persists the telemetry opt-in/opt-out preference.
-// path follows the same convention as LoadFrom (empty → XDG default).
+// path follows the same convention as Load (empty → XDG default).
 func SetTelemetry(ctx context.Context, enabled bool, path string) error {
 	return saveTo(ctx, path, false, func(cfg *Config) error {
 		cfg.state.Telemetry = &enabled
@@ -198,24 +216,19 @@ func (c *Config) UserID() uuid.UUID {
 	return *c.state.UserID
 }
 
-// EnsureDeviceID returns the device_id stored in the config file at path,
-// generating and persisting a new UUID if none exists yet. path follows the
-// same convention as LoadFrom (empty → XDG default). If the config file
-// cannot be written, an ephemeral UUID is returned so the caller always gets
-// a non-empty value.
-func EnsureDeviceID(ctx context.Context, path string) uuid.UUID {
-	var id uuid.UUID
-	err := saveTo(ctx, path, false, func(cfg *Config) error {
+func ensureDeviceID(ctx context.Context, path string) (id uuid.UUID, err error) {
+	err = saveTo(ctx, path, false, func(cfg *Config) error {
 		if cfg.state.DeviceID == nil || *cfg.state.DeviceID == uuid.Nil {
 			cfg.state.DeviceID = new(uuid.New())
 		}
 		id = *cfg.state.DeviceID
 		return nil
 	})
-	if err != nil || id == uuid.Nil {
-		return uuid.New()
+	if err != nil {
+		return uuid.Nil, err
 	}
-	return id
+
+	return id, nil
 }
 
 func (c *Config) DeviceID() uuid.UUID {

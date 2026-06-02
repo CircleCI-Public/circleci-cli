@@ -175,7 +175,7 @@ func TestSettingsList_TextOutput(t *testing.T) {
 	assert.Check(t, golden.String(strings.Join(stable, "\n"), t.Name()+".txt"))
 
 	t.Run("telemetry", func(t *testing.T) {
-		cfg, err := config.LoadFrom(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+		cfg, err := config.Load(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
 		assert.NilError(t, err)
 
 		hostInfo, err := host.Info()

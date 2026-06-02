@@ -144,9 +144,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 		secureStorage := cmdutil.IsSecureStorage(cmd)
 		configPath := cmdutil.ConfigPath(cmd)
-		config.EnsureDeviceID(ctx, configPath)
-
-		cfg, err := config.LoadFrom(ctx, configPath, secureStorage)
+		cfg, err := config.Load(ctx, configPath, secureStorage)
 		if err != nil {
 			return err
 		}
