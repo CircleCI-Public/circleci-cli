@@ -24,7 +24,6 @@ package apiclient
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"net/http"
 
@@ -56,24 +55,8 @@ func (c *Client) GetJobArtifacts(ctx context.Context, projectSlug string, jobNum
 // DownloadArtifact fetches an artifact URL (authenticated) and writes its
 // contents to dst. The URL is a full absolute URL, not a base-relative path.
 func (c *Client) DownloadArtifact(ctx context.Context, artifactURL string, dst io.Writer) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, artifactURL, nil)
-	if err != nil {
-		return fmt.Errorf("building request: %w", err)
-	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-
-	resp, err := c.raw.Do(req)
-	if err != nil {
-		return fmt.Errorf("downloading artifact: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode >= 400 {
-		return &httpcl.HTTPError{Method: http.MethodGet, Route: artifactURL, StatusCode: resp.StatusCode}
-	}
-
-	if _, err := io.Copy(dst, resp.Body); err != nil {
-		return fmt.Errorf("writing artifact: %w", err)
-	}
-	return nil
+	_, err := c.raw.Call(ctx, httpcl.NewRequest(http.MethodGet, artifactURL,
+		httpcl.CopyDecoder(dst),
+	))
+	return err
 }

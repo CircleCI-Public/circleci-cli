@@ -83,6 +83,15 @@ func StringDecoder(s *string) func(*Request) {
 	}
 }
 
+func CopyDecoder(w io.Writer) func(*Request) {
+	return func(r *Request) {
+		r.decoder = func(rd io.Reader) error {
+			_, err := io.Copy(w, rd)
+			return err
+		}
+	}
+}
+
 // BytesDecoder decodes a 2xx response body as JSON into v.
 func BytesDecoder(resp *[]byte) func(*Request) {
 	return func(r *Request) {

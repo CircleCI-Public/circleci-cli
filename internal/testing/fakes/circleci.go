@@ -58,7 +58,8 @@ type CircleCI struct {
 	staticFiles                       map[string]string // path → body content, for artifact downloads
 	jobs                              map[string]any    // "slug/jobNumber" → job detail response (v2)
 	jobsV1                            map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	stepOutputs                       map[string]string // path → JSON log lines content
+	rawStepOutputs                    map[string]string // "slug/number/taskIndex/stepID" → plain text output
+	rawStepErrors                     map[string]string // "slug/number/taskIndex/stepID" → plain text error
 	triggerResponses                  map[string]any    // project slug → trigger response body
 	triggerPipelineRunResponses       map[string]any    // project slug → trigger run response body
 	triggerPipelineRunStatuses        map[string]int    // project slug → HTTP status (default 201)
@@ -160,7 +161,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		staticFiles:                       map[string]string{},
 		jobs:                              map[string]any{},
 		jobsV1:                            map[string]any{},
-		stepOutputs:                       map[string]string{},
+		rawStepOutputs:                    map[string]string{},
+		rawStepErrors:                     map[string]string{},
 		triggerResponses:                  map[string]any{},
 		triggerPipelineRunResponses:       map[string]any{},
 		triggerPipelineRunStatuses:        map[string]int{},
@@ -302,9 +304,11 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/orb/versions/{id}/source", f.handleOrbGetVersionSource)
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
-	// Wildcard routes for downloads and step output — populated via helpers before requests.
+	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
-	r.Get("/output/*", f.handleStepOutput)
+	// Raw step output/error routes for the private output API.
+	r.Get("/api/private/output/raw/{vcs}/{org}/{repo}/{number}/output/{taskIndex}/{stepID}", f.handleRawStepOutput)
+	r.Get("/api/private/output/raw/{vcs}/{org}/{repo}/{number}/error/{taskIndex}/{stepID}", f.handleRawStepError)
 	// GraphQL endpoint — dispatches by operation within the request body.
 	r.Post("/graphql-unstable", f.handleGraphQL)
 
@@ -433,13 +437,23 @@ func (f *CircleCI) AddJob(slug string, jobNumber int64, job any) {
 	f.jobs[key] = job
 }
 
-// AddStepOutput registers JSON log-line content served at the given path,
-// e.g. "/output/job/99/step/0". The path must match the output_url set on the
-// fake job's step actions (relative to the fake server URL).
-func (f *CircleCI) AddStepOutput(path, content string) {
+// AddStepOutput registers plain-text output content for a step action, served
+// at GET /api/private/output/raw/{slug}/{number}/output/{taskIndex}/{stepID}.
+// taskIndex is action.Index and stepID is action.Step from the job response.
+func (f *CircleCI) AddStepOutput(slug string, jobNumber int64, taskIndex, stepID int, content string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.stepOutputs[path] = content
+	key := fmt.Sprintf("%s/%d/%d/%d", slug, jobNumber, taskIndex, stepID)
+	f.rawStepOutputs[key] = content
+}
+
+// AddStepError registers plain-text error content for a step action, served
+// at GET /api/private/output/raw/{slug}/{number}/error/{taskIndex}/{stepID}.
+func (f *CircleCI) AddStepError(slug string, jobNumber int64, taskIndex, stepID int, content string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	key := fmt.Sprintf("%s/%d/%d/%d", slug, jobNumber, taskIndex, stepID)
+	f.rawStepErrors[key] = content
 }
 
 // AddStaticFile registers a path that serves static content for artifact
@@ -688,17 +702,21 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 	render.JSON(w, r, map[string]any{"message": "Accepted."})
 }
 
-func (f *CircleCI) handleStepOutput(w http.ResponseWriter, r *http.Request) {
-	path := r.URL.Path
+func (f *CircleCI) handleRawStepOutput(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	key := fmt.Sprintf("%s/%s/%s/%s", slug, chi.URLParam(r, "number"), chi.URLParam(r, "taskIndex"), chi.URLParam(r, "stepID"))
 	f.mu.RLock()
-	content, ok := f.stepOutputs[path]
+	content := f.rawStepOutputs[key]
 	f.mu.RUnlock()
+	render.PlainText(w, r, content)
+}
 
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
+func (f *CircleCI) handleRawStepError(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	key := fmt.Sprintf("%s/%s/%s/%s", slug, chi.URLParam(r, "number"), chi.URLParam(r, "taskIndex"), chi.URLParam(r, "stepID"))
+	f.mu.RLock()
+	content := f.rawStepErrors[key]
+	f.mu.RUnlock()
 	render.PlainText(w, r, content)
 }
 

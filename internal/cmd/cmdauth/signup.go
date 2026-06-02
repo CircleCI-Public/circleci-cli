@@ -98,9 +98,12 @@ func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPa
 		return runSignup(ctx, noBrowser, secureStorage, configPath)
 	}
 
-	host := cfg.EffectiveHost()
-	version := cmdutil.GetVersion(ctx)
-	me, err := apiclient.New(host, token, version, nil).GetMe(ctx)
+	client := apiclient.New(apiclient.Config{
+		BaseURL: cfg.EffectiveHost(),
+		Token:   token,
+		Version: cmdutil.GetVersion(ctx),
+	})
+	me, err := client.GetMe(ctx)
 	if err != nil {
 		return clierrors.New(
 			"auth.signup.stale_token",
@@ -143,7 +146,6 @@ func runSignup(ctx context.Context, noBrowser, secureStorage bool, configPath st
 func runSignupInteractive(ctx context.Context, secureStorage bool, configPath string) error {
 	cfg := cmdutil.GetConfig(ctx)
 	deviceID := cfg.DeviceID()
-	version := cmdutil.GetVersion(ctx)
 
 	model := ui.NewLoginFlow(ctx, ui.LoginFlowOptions{
 		DeviceID:        deviceID.String(),
@@ -152,7 +154,12 @@ func runSignupInteractive(ctx context.Context, secureStorage bool, configPath st
 		CallbackTimeout: callbackTimeout(),
 		Color:           iostream.ColorEnabled(ctx),
 		GetUser: func(ctx context.Context, host, token string) (uuid.UUID, string, error) {
-			me, err := apiclient.New(host, token, version, nil).GetMe(ctx)
+			client := apiclient.New(apiclient.Config{
+				BaseURL: host,
+				Token:   token,
+				Version: cmdutil.GetVersion(ctx),
+			})
+			me, err := client.GetMe(ctx)
 			if err != nil {
 				return uuid.Nil, "", err
 			}

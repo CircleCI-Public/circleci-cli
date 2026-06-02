@@ -53,7 +53,11 @@ func newClientWithMux(t *testing.T) (*apiclient.Client, *http.ServeMux, *httptes
 	mux := http.NewServeMux()
 	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
-	return apiclient.New(srv.URL, "test-token", "1.2.3", nil), mux, srv
+	return apiclient.New(apiclient.Config{
+		BaseURL: srv.URL,
+		Token:   "test-token",
+		Version: "1.2.3",
+	}), mux, srv
 }
 
 // recordRequest reads + decodes the body and returns a *recorded.

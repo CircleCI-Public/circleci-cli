@@ -56,7 +56,12 @@ func TestClient_get(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	t.Run("Make a request", func(t *testing.T) {
-		c := apiclient.New(srv.URL, "the-token", "1.2.3", nil)
+		c := apiclient.New(apiclient.Config{
+			BaseURL: srv.URL,
+			Token:   "the-token",
+			Version: "1.2.3",
+			Agent:   "the-agent",
+		})
 		status, err := c.Do(ctx, http.MethodPost, "/hello",
 			httpcl.Body(map[string]any{"hi": "there"}),
 		)
@@ -74,7 +79,7 @@ func TestClient_get(t *testing.T) {
 				"Authorization":   {"Bearer the-token"},
 				"Content-Length":  {"14"},
 				"Content-Type":    {"application/json; charset=utf-8"},
-				"User-Agent":      {fmt.Sprintf("circleci-cli (%s/%s; 1.2.3)", runtime.GOOS, runtime.GOARCH)},
+				"User-Agent":      {fmt.Sprintf("circleci-cli (%s/%s; 1.2.3; the-agent)", runtime.GOOS, runtime.GOARCH)},
 			},
 			Body: new(`{"hi":"there"}`),
 		}))

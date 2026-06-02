@@ -54,6 +54,20 @@ func GetVersion(ctx context.Context) string {
 	return v.(string)
 }
 
+type agentNameKey struct{}
+
+func WithAgentName(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, agentNameKey{}, name)
+}
+
+func GetAgentName(ctx context.Context) string {
+	v := ctx.Value(agentNameKey{})
+	if v == nil {
+		panic("no agent name")
+	}
+	return v.(string)
+}
+
 func IsSecureStorage(cmd *cobra.Command) bool {
 	insecureStorage, _ := cmd.Root().Flags().GetBool("insecure-storage")
 	secureStorage := !insecureStorage
@@ -95,8 +109,12 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 			WithRef("https://app.circleci.com/settings/user/tokens").
 			WithExitCode(clierrors.ExitAuthError)
 	}
-	version := GetVersion(ctx)
-	return apiclient.New(cfg.EffectiveHost(), token, version, nil), nil
+	return apiclient.New(apiclient.Config{
+		BaseURL: cfg.EffectiveHost(),
+		Token:   token,
+		Version: GetVersion(ctx),
+		Agent:   GetAgentName(ctx),
+	}), nil
 }
 
 func AppURL(ctx context.Context) (string, error) {
