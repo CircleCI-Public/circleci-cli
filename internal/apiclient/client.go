@@ -29,57 +29,60 @@ import (
 	"net/http"
 	"runtime"
 	"strings"
-	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Client is an authenticated CircleCI API client.
 type Client struct {
-	main    *httpcl.Client // circleci.com/api/v1.1, /api/v2
-	runner  *httpcl.Client // runner.circleci.com/api/v3
-	token   string
-	baseURL string // e.g. "https://circleci.com"
-	// raw is used only for requests to arbitrary full URLs (artifact downloads,
-	// step output, and the api escape-hatch command).
-	raw *http.Client
+	main   *httpcl.Client // circleci.com/api/v1.1, /api/v2
+	runner *httpcl.Client // runner.circleci.com/api/v3
+	raw    *httpcl.Client
+	token  string
+}
+
+type Config struct {
+	BaseURL string
+	Token   string
+	Version string
+	Agent   string
+
+	Transport http.RoundTripper
 }
 
 // New creates a Client. baseURL should be the CircleCI host, e.g. "https://circleci.com".
 // An http.RoundTripper can be injected for testing. Set CIRCLECI_DEBUG=1 to log
 // all HTTP requests and response status codes to stderr.
-func New(baseURL, token, version string, transport http.RoundTripper) *Client {
-	if transport == nil {
-		transport = http.DefaultTransport
+func New(cfg Config) *Client {
+	if cfg.Transport == nil {
+		cfg.Transport = http.DefaultTransport
 	}
 
-	cfg := httpcl.Config{
-		AuthToken:  "Bearer " + token,
+	baseCfg := httpcl.Config{
+		AuthToken:  "Bearer " + cfg.Token,
 		AuthHeader: "Authorization",
-		UserAgent:  UserAgent(runtime.GOOS, runtime.GOARCH, version),
-		Transport:  transport,
+		UserAgent:  UserAgent(runtime.GOOS, runtime.GOARCH, cfg.Version, cfg.Agent),
+		Transport:  cfg.Transport,
 	}
 
-	mainCfg := cfg
-	mainCfg.BaseURL = baseURL
+	mainCfg := baseCfg
+	mainCfg.BaseURL = cfg.BaseURL
 
-	runnerCfg := cfg
-	runnerCfg.BaseURL = runnerBaseURL(baseURL)
+	runnerCfg := baseCfg
+	runnerCfg.BaseURL = runnerBaseURL(cfg.BaseURL)
 
-	rawTransport := transport
-	if rawTransport == nil {
-		rawTransport = http.DefaultTransport
-	}
 	return &Client{
-		main:    httpcl.New(mainCfg),
-		runner:  httpcl.New(runnerCfg),
-		token:   token,
-		baseURL: baseURL,
-		raw:     &http.Client{Timeout: 30 * time.Second, Transport: rawTransport},
+		main:   httpcl.New(mainCfg),
+		runner: httpcl.New(runnerCfg),
+		raw:    httpcl.New(baseCfg),
+		token:  cfg.Token,
 	}
 }
 
-func UserAgent(goos, goarch, version string) string {
+func UserAgent(goos, goarch, version, agent string) string {
+	if agent != "" {
+		return fmt.Sprintf("circleci-cli (%s/%s; %s; %s)", goos, goarch, version, agent)
+	}
 	return fmt.Sprintf("circleci-cli (%s/%s; %s)", goos, goarch, version)
 }
 

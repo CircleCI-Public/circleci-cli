@@ -46,33 +46,14 @@ const (
 	testLogsWorkflowID = "bbbbbbbb-0000-0000-0000-000000000002"
 )
 
-func logLine(msg string) map[string]any {
-	return map[string]any{
-		"type":    "out",
-		"time":    time.Now().UTC().Format(time.RFC3339Nano),
-		"message": msg,
-	}
-}
-
-func mustMarshal(v any) string {
-	b, err := json.Marshal(v)
-	if err != nil {
-		panic(err)
-	}
-	return string(b)
-}
-
 // setupLogsFake builds a fake server with one failed pipeline → workflow → job
 // with two steps. Step 0 succeeds; step 1 fails.
 func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	step0Path := "/output/job/99/step/0"
-	step1Path := "/output/job/99/step/1"
-
-	fake.AddStepOutput(step0Path, mustMarshal([]map[string]any{logLine("Setting up...\n")}))
-	fake.AddStepOutput(step1Path, mustMarshal([]map[string]any{logLine("FAIL: TestFoo\n")}))
+	fake.AddStepOutput(testSlug, testLogsJobNumber, 0, 0, "Setting up...\n")
+	fake.AddStepOutput(testSlug, testLogsJobNumber, 1, 1, "FAIL: TestFoo\n")
 
 	now := time.Now().UTC().Format(time.RFC3339)
 	fake.AddJob(testSlug, testLogsJobNumber, map[string]any{
@@ -87,12 +68,12 @@ func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 				"actions": []map[string]any{
 					{
 						"index":      0,
+						"step":       0,
 						"name":       "Spin up environment",
 						"status":     "success",
 						"exit_code":  0,
 						"start_time": now,
 						"end_time":   now,
-						"output_url": fake.URL() + step0Path,
 					},
 				},
 			},
@@ -101,12 +82,12 @@ func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 				"actions": []map[string]any{
 					{
 						"index":      1,
+						"step":       1,
 						"name":       "Run tests",
 						"status":     "failed",
 						"exit_code":  1,
 						"start_time": now,
 						"end_time":   now,
-						"output_url": fake.URL() + step1Path,
 					},
 				},
 			},
@@ -314,8 +295,7 @@ func TestLogs_ConflictingArgs(t *testing.T) {
 func TestJobLogs_V1Fallback(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
-	step0Path := "/output/v1fallback/step/0"
-	fake.AddStepOutput(step0Path, mustMarshal([]map[string]any{logLine("v1 output\n")}))
+	fake.AddStepOutput(testSlug, testLogsJobNumber, 0, 0, "v1 output\n")
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
@@ -329,8 +309,7 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 		"steps":      []any{},
 	})
 
-	// v1.1 job has steps with output URLs.
-	// The fake key uses the full provider name (github not gh).
+	// v1.1 job has steps. The fake key uses the full provider name (github not gh).
 	const v1Slug = "github/testorg/testrepo"
 	fake.AddJobV1(v1Slug, testLogsJobNumber, map[string]any{
 		"build_num": testLogsJobNumber,
@@ -341,12 +320,12 @@ func TestJobLogs_V1Fallback(t *testing.T) {
 				"actions": []map[string]any{
 					{
 						"index":      0,
+						"step":       0,
 						"name":       "Run tests",
 						"status":     "failed",
 						"exit_code":  1,
 						"start_time": now,
 						"end_time":   now,
-						"output_url": fake.URL() + step0Path,
 					},
 				},
 			},

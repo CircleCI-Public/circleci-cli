@@ -27,6 +27,8 @@ import (
 	"context"
 	"fmt"
 
+	"golang.org/x/sync/errgroup"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/bulkhead"
 )
@@ -65,7 +67,7 @@ func ForJob(ctx context.Context, client *apiclient.Client, projectSlug string, j
 
 	results := make([]StepLog, len(toFetch))
 	err = bulkhead.Do(ctx, maxStepParallelism, toFetch, func(step apiclient.JobStep, i int) error {
-		sl, err := fetchStep(ctx, client, step)
+		sl, err := fetchStep(ctx, client, step, projectSlug, jobNumber)
 		if err != nil {
 			return fmt.Errorf("fetching output for step %q: %w", step.Name, err)
 		}
@@ -159,7 +161,7 @@ func (e *ErrNoneFound) Error() string {
 const taskUnavailable = "Error: Task information unavailable"
 
 // fetchStep builds a StepLog from a job step by fetching all of its action outputs.
-func fetchStep(ctx context.Context, client *apiclient.Client, step apiclient.JobStep) (StepLog, error) {
+func fetchStep(ctx context.Context, client *apiclient.Client, step apiclient.JobStep, projectSlug string, jobNumber int64) (StepLog, error) {
 	if step.Name == taskUnavailable {
 		return StepLog{
 			Name:   step.Name,
@@ -175,16 +177,25 @@ func fetchStep(ctx context.Context, client *apiclient.Client, step apiclient.Job
 			sl.Status = "failed"
 			sl.ExitCode = action.ExitCode
 		}
-		if action.OutputURL == "" {
-			continue
-		}
-		lines, err := client.GetStepOutput(ctx, action.OutputURL)
+
+		var output, outputError []byte
+
+		g, ctx := errgroup.WithContext(ctx)
+		g.Go(func() (err error) {
+			output, err = client.GetStepOutput(ctx, projectSlug, jobNumber, action.Index, action.Step)
+			return err
+		})
+		g.Go(func() (err error) {
+			outputError, err = client.GetStepError(ctx, projectSlug, jobNumber, action.Index, action.Step)
+			return err
+		})
+		err := g.Wait()
 		if err != nil {
 			return StepLog{}, err
 		}
-		for _, l := range lines {
-			sl.Output += l.Message
-		}
+
+		sl.Output = string(output)
+		sl.Output += string(outputError)
 	}
 	return sl, nil
 }

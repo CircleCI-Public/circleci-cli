@@ -152,6 +152,9 @@ func NewRootCmd(version string) *cobra.Command {
 
 		ctx = cmdutil.WithConfig(ctx, cfg)
 
+		agentName := agent.Detect()
+		ctx = cmdutil.WithAgentName(ctx, agentName)
+
 		hostInfo, err := host.InfoWithContext(ctx)
 		if err != nil {
 			return err
@@ -168,7 +171,7 @@ func NewRootCmd(version string) *cobra.Command {
 				UserID:     cfg.UserID(),
 				HostInfo:   hostInfo,
 				Extra: map[string]any{
-					"agent":          agent.Detect(),
+					"agent":          agentName,
 					"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
 					"is_tty":         iostream.IsTerminal(ctx),
 				},

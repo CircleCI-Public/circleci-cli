@@ -24,9 +24,7 @@ package apiclient
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -54,12 +52,12 @@ type JobStep struct {
 // StepAction is a single action within a step, carrying the output URL.
 type StepAction struct {
 	Index     int        `json:"index"`
+	Step      int        `json:"step"`
 	Name      string     `json:"name"`
 	Status    string     `json:"status"`
 	ExitCode  *int       `json:"exit_code"`
 	StartedAt time.Time  `json:"start_time"`
 	StoppedAt *time.Time `json:"end_time"`
-	OutputURL string     `json:"output_url"`
 }
 
 // LogLine is a single line of output from a step action.
@@ -123,38 +121,29 @@ func v1ProjectPath(projectSlug string, jobNumber int64) string {
 }
 
 // GetStepOutput fetches the log lines from a step action's output URL.
-// The output URL is typically a pre-authenticated storage URL; the Authorization
-// header is sent anyway for URLs that require it.
-func (c *Client) GetStepOutput(ctx context.Context, outputURL string) ([]LogLine, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, outputURL, nil)
+func (c *Client) GetStepOutput(ctx context.Context, slug string, number int64, taskIndex, stepID int) ([]byte, error) {
+	var output []byte
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/private/output/raw/%s/%d/output/%d/%d",
+		httpcl.RouteParams(slug, number, taskIndex, stepID),
+		httpcl.BytesDecoder(&output),
+	))
 	if err != nil {
-		return nil, fmt.Errorf("building request: %w", err)
+		return nil, err
 	}
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Accept", "application/json")
 
-	resp, err := c.raw.Do(req)
+	return output, nil
+}
+
+// GetStepError fetches the error lines from a step action's error URL.
+func (c *Client) GetStepError(ctx context.Context, slug string, number int64, taskIndex, stepID int) ([]byte, error) {
+	var output []byte
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/private/output/raw/%s/%d/error/%d/%d",
+		httpcl.RouteParams(slug, number, taskIndex, stepID),
+		httpcl.BytesDecoder(&output),
+	))
 	if err != nil {
-		return nil, fmt.Errorf("fetching step output: %w", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode >= 400 {
-		return nil, &httpcl.HTTPError{Method: http.MethodGet, Route: outputURL, StatusCode: resp.StatusCode}
+		return nil, err
 	}
 
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading step output: %w", err)
-	}
-
-	if len(body) == 0 {
-		return nil, nil
-	}
-
-	var lines []LogLine
-	if err := json.Unmarshal(body, &lines); err != nil {
-		return nil, fmt.Errorf("decoding step output: %w", err)
-	}
-	return lines, nil
+	return output, nil
 }

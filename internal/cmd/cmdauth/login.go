@@ -165,8 +165,11 @@ func runLoginBrowser(ctx context.Context, host string, deviceID string, signup, 
 }
 
 func persistLoginToken(ctx context.Context, host, accessToken string, secureStorage bool, path string) error {
-	version := cmdutil.GetVersion(ctx)
-	c := apiclient.New(host, accessToken, version, nil)
+	c := apiclient.New(apiclient.Config{
+		BaseURL: host,
+		Token:   accessToken,
+		Version: cmdutil.GetVersion(ctx),
+	})
 	me, err := c.GetMe(ctx)
 	if err != nil {
 		return err
@@ -189,8 +192,12 @@ func runLoginInteractive(ctx context.Context, secureStorage bool, configPath str
 		CallbackTimeout: callbackTimeout(),
 		Color:           iostream.ColorEnabled(ctx),
 		GetUser: func(ctx context.Context, host, token string) (id uuid.UUID, username string, err error) {
-			version := cmdutil.GetVersion(ctx)
-			me, err := apiclient.New(host, token, version, nil).GetMe(ctx)
+			client := apiclient.New(apiclient.Config{
+				BaseURL: host,
+				Token:   token,
+				Version: cmdutil.GetVersion(ctx),
+			})
+			me, err := client.GetMe(ctx)
 			if err != nil {
 				return uuid.Nil, "", err
 			}

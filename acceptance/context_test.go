@@ -370,6 +370,9 @@ func TestContextCreate(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
+	env.Extra = map[string]string{
+		"AI_AGENT": "chunk",
+	}
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -391,7 +394,7 @@ func TestContextCreate(t *testing.T) {
 				"Authorization":   {"Bearer test-token"},
 				"Content-Length":  {"74"},
 				"Content-Type":    {"application/json; charset=utf-8"},
-				"User-Agent":      {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev")},
+				"User-Agent":      {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "chunk")},
 			},
 			Body: new(`{"name":"new-context","owner":{"slug":"gh/testorg","type":"organization"}}`),
 		}))
