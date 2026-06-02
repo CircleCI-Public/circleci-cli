@@ -33,6 +33,7 @@ type ProcessConfigOpts struct {
 	PipelineParamsFilePath string
 
 	VerboseOutput bool
+	Next          bool
 }
 
 func (c *ConfigCompiler) getOrgID(
@@ -98,6 +99,7 @@ func (c *ConfigCompiler) ProcessConfig(opts ProcessConfigOpts) (response *Config
 		orgID,
 		params,
 		values,
+		opts.Next,
 	)
 	if err != nil {
 		return nil, err
@@ -118,6 +120,7 @@ type ValidateConfigOpts struct {
 
 	IgnoreDeprecatedImages bool
 	VerboseOutput          bool
+	Next                   bool
 }
 
 // The <path> arg is actually optional, in order to support compatibility with the --path flag.
@@ -142,6 +145,7 @@ func (c *ConfigCompiler) ValidateConfig(opts ValidateConfigOpts) error {
 		orgID,
 		nil,
 		values,
+		opts.Next,
 	)
 	if err != nil {
 		return err

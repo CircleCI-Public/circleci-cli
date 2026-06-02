@@ -15,7 +15,7 @@ const compilePath = "compile-config-with-defaults"
 type apiClientVersion string
 
 type APIClient interface {
-	CompileConfig(configContent string, orgID string, params Parameters, values Values) (*ConfigResponse, error)
+	CompileConfig(configContent string, orgID string, params Parameters, values Values, next bool) (*ConfigResponse, error)
 }
 
 func newAPIClient(config *settings.Config) (APIClient, error) {

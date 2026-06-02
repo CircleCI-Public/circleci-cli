@@ -22,13 +22,14 @@ func configErrorsAsError(configErrors []ConfigError) error {
 	return errors.New(message)
 }
 
-func (client *v2APIClient) CompileConfig(configContent string, orgID string, params Parameters, values Values) (*ConfigResponse, error) {
+func (client *v2APIClient) CompileConfig(configContent string, orgID string, params Parameters, values Values, next bool) (*ConfigResponse, error) {
 	compileRequest := CompileConfigRequest{
 		ConfigYaml: configContent,
 		Options: Options{
 			OwnerID:            orgID,
 			PipelineValues:     values,
 			PipelineParameters: params,
+			Next:               next,
 		},
 	}
 

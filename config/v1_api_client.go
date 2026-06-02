@@ -80,7 +80,7 @@ func PrepareForGraphQL(kvMap Values) []KeyVal {
 	return kvs
 }
 
-func (client *v1APIClient) CompileConfig(configContent string, orgID string, params Parameters, values Values) (*ConfigResponse, error) {
+func (client *v1APIClient) CompileConfig(configContent string, orgID string, params Parameters, values Values, next bool) (*ConfigResponse, error) {
 	var response BuildConfigResponse
 	// GraphQL isn't forwards-compatible, so we are unusually selective here about
 	// passing only non-empty fields on to the API, to minimize user impact if the
@@ -93,8 +93,8 @@ func (client *v1APIClient) CompileConfig(configContent string, orgID string, par
 		fieldAddendums += ", pipelineParametersJson: $pipelineParametersJson"
 	}
 	query := fmt.Sprintf(
-		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String) {
-			buildConfig(configYaml: $config, pipelineValues: $pipelineValues%s) {
+		`query ValidateConfig ($config: String!, $pipelineParametersJson: String, $pipelineValues: [StringKeyVal!], $orgSlug: String, $next: Boolean!) {
+			buildConfig(configYaml: $config, pipelineValues: $pipelineValues, next: $next%s) {
 				valid,
 				errors { message },
 				sourceYaml,
@@ -107,6 +107,7 @@ func (client *v1APIClient) CompileConfig(configContent string, orgID string, par
 	request := graphql.NewRequest(query)
 	request.SetToken(client.gql.Token)
 	request.Var("config", configContent)
+	request.Var("next", next)
 
 	if values != nil {
 		request.Var("pipelineValues", PrepareForGraphQL(values))
