@@ -370,10 +370,9 @@ func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
 		WriteKey: goodAPIKey,
 		Endpoint: srv.URL,
 		Metadata: telemetry.Meta{
-			IsSelfHosted: false,
-			Version:      "1.2.3",
-			InstanceID:   uuid.MustParse(instanceID),
-			UserID:       uuid.MustParse(userID),
+			Version:    "1.2.3",
+			InstanceID: uuid.MustParse(instanceID),
+			UserID:     uuid.MustParse(userID),
 			HostInfo: &host.InfoStat{
 				OS:              "linux",
 				Platform:        "ubuntu",

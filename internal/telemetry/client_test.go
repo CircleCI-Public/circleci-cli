@@ -59,7 +59,10 @@ func TestClient_Track_with_user_id(t *testing.T) {
 			InstanceID: instanceID,
 			UserID:     userID,
 			Version:    "1.2.3",
-
+			Extra: map[string]any{
+				"extra_a": "extra_value_a",
+				"extra_b": "extra_value_b",
+			},
 			HostInfo: &host.InfoStat{
 				Hostname:             "unused",
 				OS:                   "darwin",
@@ -111,6 +114,10 @@ func TestClient_Track_with_user_id(t *testing.T) {
 							Name:    "darwin",
 							Version: "26.4.1",
 						},
+						Traits: map[string]any{
+							"extra_a": "extra_value_a",
+							"extra_b": "extra_value_b",
+						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 				},
@@ -134,6 +141,10 @@ func TestClient_Track_with_user_id(t *testing.T) {
 						OS: analytics.OSInfo{
 							Name:    "darwin",
 							Version: "26.4.1",
+						},
+						Traits: map[string]any{
+							"extra_a": "extra_value_a",
+							"extra_b": "extra_value_b",
 						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
@@ -159,7 +170,10 @@ func TestClient_Track_without_userid(t *testing.T) {
 		Metadata: telemetry.Meta{
 			InstanceID: instanceID,
 			Version:    "1.2.3",
-
+			Extra: map[string]any{
+				"extra_1": "extra_value_1",
+				"extra_2": "extra_value_2",
+			},
 			HostInfo: &host.InfoStat{
 				Hostname:             "unused",
 				OS:                   "linux",
@@ -211,6 +225,10 @@ func TestClient_Track_without_userid(t *testing.T) {
 							Name:    "linux",
 							Version: "1.2.3",
 						},
+						Traits: map[string]any{
+							"extra_1": "extra_value_1",
+							"extra_2": "extra_value_2",
+						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 				},
@@ -234,6 +252,10 @@ func TestClient_Track_without_userid(t *testing.T) {
 						OS: analytics.OSInfo{
 							Name:    "linux",
 							Version: "1.2.3",
+						},
+						Traits: map[string]any{
+							"extra_1": "extra_value_1",
+							"extra_2": "extra_value_2",
 						},
 					},
 					Integrations: analytics.NewIntegrations().Enable("Amplitude"),

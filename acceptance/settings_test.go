@@ -175,7 +175,7 @@ func TestSettingsList_TextOutput(t *testing.T) {
 	assert.Check(t, golden.String(strings.Join(stable, "\n"), t.Name()+".txt"))
 
 	t.Run("telemetry", func(t *testing.T) {
-		cfg, err := config.LoadFrom(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+		cfg, err := config.Load(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
 		assert.NilError(t, err)
 
 		hostInfo, err := host.Info()
@@ -205,6 +205,11 @@ func TestSettingsList_TextOutput(t *testing.T) {
 								Type:  hostInfo.PlatformFamily,
 							},
 							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
+							Traits: map[string]any{
+								"agent":          "",
+								"is_self_hosted": false,
+								"is_tty":         false,
+							},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
@@ -212,4 +217,158 @@ func TestSettingsList_TextOutput(t *testing.T) {
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
+}
+
+func TestSettingsList_TextOutput_Color(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	env := testenv.New(t)
+	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["AI_AGENT"] = "chunk"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("telemetry", func(t *testing.T) {
+		cfg, err := config.Load(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+		assert.NilError(t, err)
+
+		hostInfo, err := host.Info()
+		assert.NilError(t, err)
+
+		batches := fs.Batches()
+		now := time.Now()
+		assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
+			{
+				SentAt: now,
+				Messages: []analytics.Track{
+					{
+						Type:      "track",
+						MessageId: "ignored",
+						Timestamp: now,
+						UserId:    telemetry.AnonymousID.String(),
+						Event:     "command_invocation",
+						Properties: analytics.Properties{
+							"command": "circleci settings list",
+							"flags":   "insecure-storage,theme",
+						},
+						Context: &analytics.Context{
+							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
+							Device: analytics.DeviceInfo{
+								Id:    cfg.DeviceID().String(),
+								Model: hostInfo.KernelArch,
+								Type:  hostInfo.PlatformFamily,
+							},
+							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
+							Traits: map[string]any{
+								"agent":          "chunk",
+								"is_self_hosted": false,
+								"is_tty":         true,
+							},
+						},
+						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
+					},
+				},
+			},
+		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
+}
+
+func TestTelemetryEnable(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	env := testenv.New(t)
+	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	dir := t.TempDir()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "telemetry", "on"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "Telemetry enabled"),
+		"expected 'Telemetry enabled' in stderr, got: %q", result.Stderr)
+
+	verify := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
+	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":true`),
+		"expected telemetry:true in settings list output, got: %q", verify.Stdout)
+}
+
+func TestTelemetryDisable(t *testing.T) {
+	env := testenv.New(t)
+	dir := t.TempDir()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "telemetry", "off"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "Telemetry disabled"),
+		"expected 'Telemetry disabled' in stderr, got: %q", result.Stderr)
+
+	verify := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
+	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":false`),
+		"expected telemetry:false in settings list output, got: %q", verify.Stdout)
+}
+
+func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
+	env := testenv.New(t)
+	env.Extra["CIRCLECI_NO_TELEMETRY"] = "1"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "telemetry", "on"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "Telemetry enabled"),
+		"expected 'Telemetry enabled' in stderr, got: %q", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "CIRCLECI_NO_TELEMETRY"),
+		"expected env var override notice in stderr, got: %q", result.Stderr)
+}
+
+func TestTelemetryInvalidValue(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "telemetry", "bogus"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for invalid telemetry value")
 }

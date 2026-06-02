@@ -24,8 +24,8 @@ package oauth
 
 import (
 	_ "embed"
+	"html/template"
 	"io"
-	"text/template"
 )
 
 var (
