@@ -53,7 +53,7 @@ func TestExtension(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-// TestExtensionTokenFromConfig verifies that CIRCLECI_TOKEN is injected from
+// TestExtensionTokenFromConfig verifies that CIRCLE_TOKEN is injected from
 // the CLI config file when the token is not already present in the environment.
 // This is distinct from TestExtensionEnvInjection, which only exercises the
 // env-passthrough path in buildEnv.

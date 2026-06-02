@@ -29,9 +29,10 @@ import (
 	"strings"
 	"testing"
 
+	"gotest.tools/v3/assert"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
-	"gotest.tools/v3/assert"
 )
 
 // TestTestRun_EnvBuilderEmitsTestStepContract pins the contract between our
@@ -55,14 +56,14 @@ func TestTestRun_EnvBuilderEmitsTestStepContract(t *testing.T) {
 // addFakeDotnet shims a PATH-relative `dotnet` script so onboard acceptance
 // tests can exercise the .NET execution branch deterministically without a
 // real dotnet SDK. The script prints its args and either succeeds or fails
-// based on CIRCLECI_TEST_RUN_FAIL.
+// based on CIRCLE_TEST_RUN_FAIL.
 func addFakeDotnet(t *testing.T, env *testenv.TestEnv, fail bool) {
 	t.Helper()
 	binDir := t.TempDir()
 	script := filepath.Join(binDir, "dotnet")
 	body := `#!/bin/sh
 printf 'fake dotnet %s\n' "$*"
-if [ "${CIRCLECI_TEST_RUN_FAIL:-}" = "1" ]; then
+if [ "${CIRCLE_TEST_RUN_FAIL:-}" = "1" ]; then
   printf 'fake failure details\n' >&2
   exit 9
 fi
@@ -72,6 +73,6 @@ exit 0
 
 	env.Extra["PATH"] = binDir + string(os.PathListSeparator) + os.Getenv("PATH")
 	if fail {
-		env.Extra["CIRCLECI_TEST_RUN_FAIL"] = "1"
+		env.Extra["CIRCLE_TEST_RUN_FAIL"] = "1"
 	}
 }

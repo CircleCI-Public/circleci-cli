@@ -9,7 +9,7 @@ $ circleci auth login
 $ circleci auth login --no-browser
 
 # Authenticate against a non-default host
-$ CIRCLECI_HOST=https://example.circleci.com circleci auth login
+$ CIRCLE_HOST=https://example.circleci.com circleci auth login
 
 
 Flags:

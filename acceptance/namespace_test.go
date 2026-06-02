@@ -279,7 +279,7 @@ func TestNamespaceDelete_NonInteractive_RequiresForce(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
-	env.Extra["CIRCLECI_NO_INTERACTIVE"] = "true"
+	env.Extra["CIRCLE_NO_INTERACTIVE"] = "true"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,

@@ -62,7 +62,7 @@ const DefaultHost = "https://circleci.com"
 
 // noTelemetryEnvVars is the set of environment variables that disable telemetry
 // regardless of the stored config preference.
-var noTelemetryEnvVars = []string{"CIRCLECI_NO_TELEMETRY", "NO_ANALYTICS", "DO_NOT_TRACK", "CI"}
+var noTelemetryEnvVars = []string{"CIRCLE_NO_TELEMETRY", "NO_ANALYTICS", "DO_NOT_TRACK", "CI"}
 
 // ActiveTelemetryOverrides returns the names of environment variables that are
 // currently set and override the stored telemetry preference.
@@ -321,9 +321,9 @@ func Path() (string, error) {
 }
 
 // EffectiveHost returns the host, checked in priority order:
-// CIRCLECI_HOST env var → config file value → DefaultHost.
+// CIRCLE_HOST env var → config file value → DefaultHost.
 func (c *Config) EffectiveHost() string {
-	if h := os.Getenv("CIRCLECI_HOST"); h != "" {
+	if h := os.Getenv("CIRCLE_HOST"); h != "" {
 		return h
 	}
 	if c.state.Host != "" {
@@ -333,12 +333,12 @@ func (c *Config) EffectiveHost() string {
 }
 
 // EffectiveToken returns the token from the config, falling back to the
-// CIRCLECI_TOKEN environment variable (with CIRCLECI_CLI_TOKEN as a legacy alias).
+// CIRCLE_TOKEN environment variable (with CIRCLE_CLI_TOKEN as a legacy alias).
 func (c *Config) EffectiveToken() string {
-	if t := os.Getenv("CIRCLECI_TOKEN"); t != "" {
+	if t := os.Getenv("CIRCLE_TOKEN"); t != "" {
 		return t
 	}
-	if t := os.Getenv("CIRCLECI_CLI_TOKEN"); t != "" {
+	if t := os.Getenv("CIRCLE_CLI_TOKEN"); t != "" {
 		return t
 	}
 	return c.state.Token
@@ -358,7 +358,7 @@ func (c *Config) loadToken(ctx context.Context) error {
 	case err != nil:
 		// Keyring unavailable (no secret service, D-Bus not running, etc.).
 		// Treat as "no stored token" — the user can still authenticate via
-		// CIRCLECI_TOKEN env var or by passing --insecure-storage.
+		// CIRCLE_TOKEN env var or by passing --insecure-storage.
 		return nil
 	}
 

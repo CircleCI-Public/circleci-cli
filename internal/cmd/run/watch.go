@@ -42,11 +42,11 @@ import (
 )
 
 // defaultSHAWaitDuration is the maximum time to wait for a run matching a
-// given SHA to appear. CIRCLECI_SHA_WAIT_MS overrides this for testing.
+// given SHA to appear. CIRCLE_SHA_WAIT_MS overrides this for testing.
 const defaultSHAWaitDuration = 2 * time.Minute
 
 func shaWaitDuration() time.Duration {
-	if ms := os.Getenv("CIRCLECI_SHA_WAIT_MS"); ms != "" {
+	if ms := os.Getenv("CIRCLE_SHA_WAIT_MS"); ms != "" {
 		if n, err := strconv.Atoi(ms); err == nil {
 			return time.Duration(n) * time.Millisecond
 		}

@@ -57,13 +57,13 @@ func WithJQFilter(ctx context.Context, jqFilter string) context.Context {
 }
 
 // colorDisabled returns true when any of the standard "no color" signals are present.
-// Checked: NO_COLOR (no-color.org), CIRCLECI_NO_COLOR, TERM=dumb.
+// Checked: NO_COLOR (no-color.org), CIRCLE_NO_COLOR, TERM=dumb.
 // Does NOT check TTY — call IsTerminal() for that.
 func colorDisabled() bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return true
 	}
-	if os.Getenv("CIRCLECI_NO_COLOR") != "" {
+	if os.Getenv("CIRCLE_NO_COLOR") != "" {
 		return true
 	}
 	if os.Getenv("TERM") == "dumb" {
@@ -320,14 +320,14 @@ func (s Streams) IsTerminal() bool {
 }
 
 // ColorEnabled reports whether color and Unicode symbols should be used.
-// False when: not a TTY, NO_COLOR set, CIRCLECI_NO_COLOR set, or TERM=dumb.
+// False when: not a TTY, NO_COLOR set, CIRCLE_NO_COLOR set, or TERM=dumb.
 func (s Streams) ColorEnabled() bool {
 	return s.IsTerminal() && !colorDisabled()
 }
 
 // IsInteractive reports whether the session can support interactive prompts.
 // False when: not a TTY, CI=true (running in a CI environment),
-// or CIRCLECI_NO_INTERACTIVE is set.
+// or CIRCLE_NO_INTERACTIVE is set.
 func (s Streams) IsInteractive() bool {
 	if !s.IsTerminal() {
 		return false
@@ -335,7 +335,7 @@ func (s Streams) IsInteractive() bool {
 	if os.Getenv("CI") != "" {
 		return false
 	}
-	if os.Getenv("CIRCLECI_NO_INTERACTIVE") != "" {
+	if os.Getenv("CIRCLE_NO_INTERACTIVE") != "" {
 		return false
 	}
 	return true

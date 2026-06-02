@@ -116,7 +116,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 
 // displayPreamble shows a confirmation gate before any work begins. The prompt
 // is skipped in non-interactive sessions (no TTY, CI=true, or
-// CIRCLECI_NO_INTERACTIVE set), in which case the caller continues without
+// CIRCLE_NO_INTERACTIVE set), in which case the caller continues without
 // user input.
 func displayPreamble(ctx context.Context, dir string) error {
 	if !iostream.IsInteractive(ctx) {
