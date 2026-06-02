@@ -1,0 +1,3 @@
+host: https://circleci.com
+device_id: cef63ec3-7a14-41ea-85c1-4e174a432fdb
+telemetry: false

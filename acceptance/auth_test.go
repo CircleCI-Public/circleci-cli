@@ -24,6 +24,8 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -139,13 +141,35 @@ func TestAuthMe_NoToken(t *testing.T) {
 func TestAuthLogout(t *testing.T) {
 	_, env := setupAuthFake(t)
 
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"auth", "logout"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
+	cfgPath := filepath.Join(env.HomeDir, ".config", "circleci", "config.yml")
+
+	t.Run("config", func(t *testing.T) {
+		err := os.MkdirAll(filepath.Dir(cfgPath), 0700)
+		assert.NilError(t, err)
+
+		err = os.WriteFile(cfgPath, []byte(`host: https://circleci.com
+device_id: cef63ec3-7a14-41ea-85c1-4e174a432fdb
+user_id: 09b83eae-ecb5-43c7-8186-e0f7869ada95
+telemetry: false
+`), 0600)
+		assert.NilError(t, err)
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	t.Run("logout", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"auth", "logout"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+
+	t.Run("deleted", func(t *testing.T) {
+		body, err := os.ReadFile(cfgPath)
+		assert.NilError(t, err)
+		assert.Check(t, golden.String(string(body), t.Name()+".config.yml"))
+	})
 }

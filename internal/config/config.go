@@ -171,6 +171,14 @@ func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureS
 	})
 }
 
+func SetLogout(ctx context.Context, secureStorage bool) error {
+	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+		cfg.state.Token = ""
+		cfg.state.UserID = nil
+		return nil
+	})
+}
+
 func SetToken(ctx context.Context, token string, secureStorage bool) error {
 	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Token = token
