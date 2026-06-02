@@ -42,20 +42,31 @@ func NewGetCmd(use string) *cobra.Command {
 		jsonOut     bool
 	)
 
+	// When invoked as the top-level `info` alias, prepend a note pointing at
+	// the canonical `project get` command.
+	short := "Show project details"
+	aliasNote := ""
+	if use == "info" {
+		short = "Show project details (alias for 'project get')"
+		aliasNote = "This command is an alias for 'circleci project get'.\n\n"
+	}
+
+	long := heredoc.Docf(`
+		Display detailed information about a CircleCI project, including
+		its UUID, organization ID, and VCS configuration.
+
+		%sThe project is inferred from the current git repository's remote
+		unless overridden with --project. The slug must be in the form
+		vcs/org/repo (e.g. gh/myorg/myrepo).
+
+		JSON fields: id, slug, name, organization_name, organization_slug,
+		             organization_id, vcs_provider, vcs_default_branch, vcs_url
+	`, aliasNote)
+
 	cmd := &cobra.Command{
 		Use:   use,
-		Short: "Show project details",
-		Long: heredoc.Doc(`
-			Display detailed information about a CircleCI project, including
-			its UUID, organization ID, and VCS configuration.
-
-			The project is inferred from the current git repository's remote
-			unless overridden with --project. The slug must be in the form
-			vcs/org/repo (e.g. gh/myorg/myrepo).
-
-			JSON fields: id, slug, name, organization_name, organization_slug,
-			             organization_id, vcs_provider, vcs_default_branch, vcs_url
-		`),
+		Short: short,
+		Long:  long,
 		Example: heredoc.Doc(`
 			# Show details for the current git repository's project
 			$ circleci project get

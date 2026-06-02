@@ -12,7 +12,7 @@ Available Commands:
   deploy         Manage deploys
   dlc            Manage Docker Layer Caching
   envvar         Manage project environment variables
-  info           Show project details
+  info           Show project details (alias for 'project get')
   job            Manage jobs
   logs           Fetch job logs
   mcp            MCP server management
