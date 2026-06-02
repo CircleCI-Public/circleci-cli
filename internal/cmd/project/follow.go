@@ -25,7 +25,6 @@ package project
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -88,7 +87,7 @@ func runProjectFollow(ctx context.Context, client *apiclient.Client, projectSlug
 		projectSlug = info.Slug
 	}
 
-	vcsType, org, repo, err := parseSlug(projectSlug)
+	vcsType, org, repo, err := cmdutil.ParseSlug(projectSlug)
 	if err != nil {
 		return clierrors.New("args.invalid_slug", "Invalid project slug",
 			fmt.Sprintf("%q is not a valid project slug.", projectSlug)).
@@ -102,13 +101,4 @@ func runProjectFollow(ctx context.Context, client *apiclient.Client, projectSlug
 
 	iostream.Printf(ctx, "%s Now following %s\n", iostream.SymbolOK(ctx), projectSlug)
 	return nil
-}
-
-// parseSlug splits "gh/org/repo" → ("gh", "org", "repo").
-func parseSlug(slug string) (vcs, org, repo string, err error) {
-	parts := strings.SplitN(slug, "/", 3)
-	if len(parts) != 3 || parts[0] == "" || parts[1] == "" || parts[2] == "" {
-		return "", "", "", fmt.Errorf("invalid slug")
-	}
-	return parts[0], parts[1], parts[2], nil
 }
