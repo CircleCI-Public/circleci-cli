@@ -2102,7 +2102,6 @@ func (f *CircleCI) AddOrbPackage(id, nsID, nsName, orbName string, isPrivate, is
 				"id":         nsID,
 				"attributes": map[string]any{"name": nsName},
 			},
-			"orb_categories": []any{},
 		},
 	}
 	f.orbPackages[id] = pkg
@@ -2242,7 +2241,9 @@ func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request)
 			attrsCopy["is_listed"] = !unlisted[id]
 		}
 		if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-			refsCopy["orb_categories"] = catList
+			if len(catList) > 0 {
+				refsCopy["orb_categories"] = catList
+			}
 		}
 		items = append(items, pkgCopy)
 	}
@@ -2257,9 +2258,17 @@ func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request)
 
 func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Name        string `json:"name"`
-		NamespaceID string `json:"namespace_id"`
-		IsPrivate   bool   `json:"is_private"`
+		Data struct {
+			Attributes struct {
+				Name      string `json:"name"`
+				IsPrivate bool   `json:"is_private"`
+			} `json:"attributes"`
+			References struct {
+				Namespace struct {
+					ID string `json:"id"`
+				} `json:"namespace"`
+			} `json:"references"`
+		} `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -2267,9 +2276,9 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	nsID := body.Data.References.Namespace.ID
 	f.mu.Lock()
-	// Check namespace exists
-	nsData, ok := f.namespaces[body.NamespaceID]
+	nsData, ok := f.namespaces[nsID]
 	f.mu.Unlock()
 	if !ok {
 		render.Status(r, http.StatusNotFound)
@@ -2282,8 +2291,8 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 	pkg := map[string]any{
 		"id": id,
 		"attributes": map[string]any{
-			"name":                       body.Name,
-			"is_private":                 body.IsPrivate,
+			"name":                       body.Data.Attributes.Name,
+			"is_private":                 body.Data.Attributes.IsPrivate,
 			"is_listed":                  true,
 			"created_at":                 "2026-01-01T00:00:00.000Z",
 			"last_30_days_build_count":   int64(0),
@@ -2292,15 +2301,14 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 		},
 		"references": map[string]any{
 			"namespace": map[string]any{
-				"id":         body.NamespaceID,
+				"id":         nsID,
 				"attributes": map[string]any{"name": nsName},
 			},
-			"orb_categories": []any{},
 		},
 	}
 	f.mu.Lock()
 	f.orbPackages[id] = pkg
-	f.orbPackagesByName[body.Name] = id
+	f.orbPackagesByName[body.Data.Attributes.Name] = id
 	f.orbCreatedPackages = append(f.orbCreatedPackages, pkg)
 	f.mu.Unlock()
 
@@ -2334,7 +2342,9 @@ func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
 		attrsCopy["is_listed"] = !unlisted
 	}
 	if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-		refsCopy["orb_categories"] = catList
+		if len(catList) > 0 {
+			refsCopy["orb_categories"] = catList
+		}
 	}
 	render.JSON(w, r, orbPackageResponse(pkgCopy))
 }
@@ -2541,9 +2551,13 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 
 func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		OrbID   string `json:"orb_id"`
-		YAML    string `json:"yaml"`
-		Version string `json:"version"`
+		Data struct {
+			Attributes struct {
+				OrbID   string `json:"orb_id"`
+				YAML    string `json:"yaml"`
+				Version string `json:"version"`
+			} `json:"attributes"`
+		} `json:"data"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -2551,8 +2565,9 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	orbID := body.Data.Attributes.OrbID
 	f.mu.RLock()
-	pkg, pkgOK := f.orbPackages[body.OrbID]
+	pkg, pkgOK := f.orbPackages[orbID]
 	f.mu.RUnlock()
 
 	if !pkgOK {
@@ -2563,18 +2578,19 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 
 	attrs, _ := pkg["attributes"].(map[string]any)
 	orbName, _ := attrs["name"].(string)
+	version := body.Data.Attributes.Version
 
 	id := uuid.New().String()
 	ver := map[string]any{
 		"id": id,
 		"attributes": map[string]any{
-			"version":    body.Version,
-			"source":     body.YAML,
+			"version":    version,
+			"source":     body.Data.Attributes.YAML,
 			"created_at": "2026-01-15T10:30:00.000Z",
 		},
 		"references": map[string]any{
 			"orb_package": map[string]any{
-				"id":         body.OrbID,
+				"id":         orbID,
 				"attributes": map[string]any{"name": orbName},
 			},
 		},
@@ -2582,16 +2598,15 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 
 	f.mu.Lock()
 	f.orbVersions[id] = ver
-	ref := orbName + "@" + body.Version
+	ref := orbName + "@" + version
 	f.orbVersionsByRef[ref] = id
 	f.orbVersionsByRef[orbName+"@volatile"] = id
-	f.orbVersionsByOrbID[body.OrbID] = append([]string{id}, f.orbVersionsByOrbID[body.OrbID]...)
-	// Update package orb/versions reference
+	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
 	if refs, ok := pkg["references"].(map[string]any); ok {
 		refs["orb_versions"] = []any{map[string]any{
 			"id": id,
 			"attributes": map[string]any{
-				"version":    body.Version,
+				"version":    version,
 				"created_at": "2026-01-15T10:30:00.000Z",
 			},
 		}}

@@ -326,8 +326,25 @@ type CreateOrbPackageRequest struct {
 
 // CreateOrbPackage creates a new orb package.
 func (c *Client) CreateOrbPackage(ctx context.Context, req CreateOrbPackageRequest) (*OrbPackage, error) {
+	wire := struct {
+		Data struct {
+			Attributes struct {
+				Name      string `json:"name"`
+				IsPrivate bool   `json:"is_private"`
+			} `json:"attributes"`
+			References struct {
+				Namespace struct {
+					ID string `json:"id"`
+				} `json:"namespace"`
+			} `json:"references"`
+		} `json:"data"`
+	}{}
+	wire.Data.Attributes.Name = req.Name
+	wire.Data.Attributes.IsPrivate = req.IsPrivate
+	wire.Data.References.Namespace.ID = req.NamespaceID
+
 	var env v3Entity[orbPackageWire]
-	err := c.postV3(ctx, "/orb/packages", req, &env)
+	err := c.postV3(ctx, "/orb/packages", wire, &env)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: namespace %q", ErrOrbNotFound, req.NamespaceID)
 	}
@@ -482,8 +499,15 @@ type PublishOrbVersionRequest struct {
 
 // PublishOrbVersion publishes a new orb version.
 func (c *Client) PublishOrbVersion(ctx context.Context, req PublishOrbVersionRequest) (*OrbVersion, error) {
+	wire := struct {
+		Data struct {
+			Attributes PublishOrbVersionRequest `json:"attributes"`
+		} `json:"data"`
+	}{}
+	wire.Data.Attributes = req
+
 	var env v3Entity[orbVersionWire]
-	err := c.postV3(ctx, "/orb/versions", req, &env)
+	err := c.postV3(ctx, "/orb/versions", wire, &env)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: orb %q", ErrOrbNotFound, req.OrbID)
 	}
