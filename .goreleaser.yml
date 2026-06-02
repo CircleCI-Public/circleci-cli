@@ -37,15 +37,15 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}}
-#    hooks: # TODO: Enable macOS signing
-#      post:
-#        - cmd: '{{ if eq .Os "darwin" -}}go tool -modfile tools/go.mod quill sign-and-notarize "{{ .Path }}"{{- else -}}true{{- end }}'
-#          env:
-#            - QUILL_SIGN_P12={{ .Env.APPLE_SIGN_P12 }}
-#            - QUILL_SIGN_PASSWORD={{ .Env.APPLE_SIGN_PASSWORD }}
-#            - QUILL_NOTARY_KEY={{ .Env.APPLE_NOTARY_KEY }}
-#            - QUILL_NOTARY_KEY_ID={{ .Env.APPLE_NOTARY_KEY_ID }}
-#            - QUILL_NOTARY_ISSUER={{ .Env.APPLE_NOTARY_ISSUER }}
+    hooks:
+      post:
+        - cmd: '{{ if eq .Os "darwin" -}}go tool -modfile tools/go.mod quill sign-and-notarize "{{ .Path }}"{{- else -}}true{{- end }}'
+          env:
+            - QUILL_SIGN_P12={{ .Env.QUILL_SIGN_P12 }}
+            # Unsure if we need this - QUILL_SIGN_PASSWORD={{ .Env.APPLE_SIGN_PASSWORD }}
+            - QUILL_NOTARY_KEY={{ .Env.QUILL_NOTARY_KEY }}
+            - QUILL_NOTARY_KEY_ID={{ .Env.QUILL_NOTARY_KEY_ID }}
+            - QUILL_NOTARY_ISSUER={{ .Env.QUILL_NOTARY_ISSUER }}
 
 nfpms:
   - license: MIT

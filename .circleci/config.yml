@@ -228,3 +228,4 @@ workflows:
             - ok-to-deploy
           context:
             - devex-release
+            - macos-codesigning
