@@ -60,8 +60,9 @@ type Config struct {
 }
 
 type Meta struct {
-	IsSelfHosted bool
-	Version      string
+	Extra map[string]any
+
+	Version string
 
 	InstanceID uuid.UUID
 	UserID     uuid.UUID
@@ -85,8 +86,7 @@ func (m *Meta) toContext() *analytics.Context {
 			Model: m.HostInfo.KernelArch,
 			Type:  m.HostInfo.PlatformFamily,
 		},
-		Extra: analytics.NewProperties().
-			Set("is_self_hosted", m.IsSelfHosted),
+		Traits: m.Extra,
 	}
 }
 
@@ -142,15 +142,15 @@ var AnonymousID = uuid.MustParse("66f35d3e-40f6-4ade-909b-a6314990de53")
 
 // Track sends an analytics event.
 func (c *Client) Track(eventName string, props map[string]any) error {
-	extras := analytics.NewProperties()
+	p := analytics.NewProperties()
 	for key, val := range props {
-		extras.Set(key, val)
+		p.Set(key, val)
 	}
 
 	return c.client.Enqueue(analytics.Track{
 		Event:      eventName,
 		Timestamp:  time.Now(),
-		Properties: extras,
+		Properties: p,
 
 		UserId:       c.meta.UserID.String(),
 		Context:      c.meta.toContext(),

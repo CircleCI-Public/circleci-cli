@@ -30,6 +30,7 @@ import (
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/agent"
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/certificate"
@@ -162,11 +163,15 @@ func NewRootCmd(version string) *cobra.Command {
 			WriteKey: telemetry.SegmentKey,
 			Endpoint: os.Getenv("CIRCLECI_TELEMETRY_ENDPOINT"),
 			Metadata: telemetry.Meta{
-				IsSelfHosted: cfg.EffectiveHost() != "https://circleci.com",
-				Version:      version,
-				InstanceID:   cfg.DeviceID(),
-				UserID:       cfg.UserID(),
-				HostInfo:     hostInfo,
+				Version:    version,
+				InstanceID: cfg.DeviceID(),
+				UserID:     cfg.UserID(),
+				HostInfo:   hostInfo,
+				Extra: map[string]any{
+					"agent":          agent.Detect(),
+					"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
+					"is_tty":         iostream.IsTerminal(ctx),
+				},
 			},
 		})
 		if err != nil {
