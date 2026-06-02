@@ -104,7 +104,7 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 			"No CircleCI API token found.").
 			WithSuggestions(
 				"Run: circleci settings set token <your-token>",
-				"Or set the CIRCLECI_TOKEN environment variable",
+				"Or set the CIRCLE_TOKEN environment variable",
 			).
 			WithRef("https://app.circleci.com/settings/user/tokens").
 			WithExitCode(clierrors.ExitAuthError)

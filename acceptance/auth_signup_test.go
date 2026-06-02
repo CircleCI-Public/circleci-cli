@@ -61,7 +61,7 @@ func TestAuthSignup_NonInteractive_PrintsSignupURL(t *testing.T) {
 
 	env := testenv.New(t)
 	env.CircleCIURL = fake.URL()
-	env.Extra["CIRCLECI_LOGIN_TIMEOUT"] = "10s"
+	env.Extra["CIRCLE_LOGIN_TIMEOUT"] = "10s"
 
 	console := binary.RunCLIInteractive(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -133,7 +133,7 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 
 	env := testenv.New(t)
 	env.CircleCIURL = fake.URL()
-	env.Extra["CIRCLECI_LOGIN_TIMEOUT"] = "20s"
+	env.Extra["CIRCLE_LOGIN_TIMEOUT"] = "20s"
 
 	console := binary.RunCLIInteractive(t, binary.RunOpts{
 		Binary:  binaryPath,

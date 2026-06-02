@@ -53,7 +53,7 @@ func TestSettingsListJSON_Defaults(t *testing.T) {
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -79,7 +79,7 @@ func TestSettingsListJSON_WithToken(t *testing.T) {
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	env.Token = "testtoken123"
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -104,7 +104,7 @@ func TestSettingsListJSON_WithCustomHost(t *testing.T) {
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	dir := t.TempDir()
 
 	set := binary.RunCLI(t, binary.RunOpts{
@@ -131,7 +131,7 @@ func TestSettingsListJSON_WithCustomHost(t *testing.T) {
 
 func TestSettingsListJSON_TelemetryEnvVarOverride(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["CIRCLECI_NO_TELEMETRY"] = "1"
+	env.Extra["CIRCLE_NO_TELEMETRY"] = "1"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -155,7 +155,7 @@ func TestSettingsList_TextOutput(t *testing.T) {
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -227,7 +227,7 @@ func TestSettingsList_TextOutput_Color(t *testing.T) {
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	env.Extra["AI_AGENT"] = "chunk"
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -293,7 +293,7 @@ func TestTelemetryEnable(t *testing.T) {
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)
 	t.Cleanup(fsSrv.Close)
-	env.Extra["CIRCLECI_TELEMETRY_ENDPOINT"] = fsSrv.URL
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
 	dir := t.TempDir()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -344,7 +344,7 @@ func TestTelemetryDisable(t *testing.T) {
 
 func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
 	env := testenv.New(t)
-	env.Extra["CIRCLECI_NO_TELEMETRY"] = "1"
+	env.Extra["CIRCLE_NO_TELEMETRY"] = "1"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -356,7 +356,7 @@ func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "Telemetry enabled"),
 		"expected 'Telemetry enabled' in stderr, got: %q", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stderr, "CIRCLECI_NO_TELEMETRY"),
+	assert.Check(t, strings.Contains(result.Stderr, "CIRCLE_NO_TELEMETRY"),
 		"expected env var override notice in stderr, got: %q", result.Stderr)
 }
 

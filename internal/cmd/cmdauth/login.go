@@ -48,10 +48,10 @@ import (
 const defaultCallbackTimeout = 5 * time.Minute
 
 // callbackTimeout returns the timeout for the OAuth callback wait. Tests may
-// override the default by setting CIRCLECI_LOGIN_TIMEOUT to a duration string
+// override the default by setting CIRCLE_LOGIN_TIMEOUT to a duration string
 // parseable by time.ParseDuration (e.g. "100ms", "30s").
 func callbackTimeout() time.Duration {
-	if v := os.Getenv("CIRCLECI_LOGIN_TIMEOUT"); v != "" {
+	if v := os.Getenv("CIRCLE_LOGIN_TIMEOUT"); v != "" {
 		if d, err := time.ParseDuration(v); err == nil && d > 0 {
 			return d
 		}
@@ -83,7 +83,7 @@ func newLoginCmd() *cobra.Command {
 			$ circleci auth login --no-browser
 
 			# Authenticate against a non-default host
-			$ CIRCLECI_HOST=https://example.circleci.com circleci auth login
+			$ CIRCLE_HOST=https://example.circleci.com circleci auth login
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

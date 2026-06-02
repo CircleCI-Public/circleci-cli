@@ -24,7 +24,7 @@
 //
 // Any executable named "circleci-<name>" found in PATH is treated as an
 // extension and can be invoked transparently as "circleci <name>". The
-// extension receives CIRCLECI_TOKEN, CIRCLECI_HOST, and best-effort project
+// extension receives CIRCLE_TOKEN, CIRCLE_HOST, and best-effort project
 // metadata via environment variables so it can call the CircleCI API without
 // reimplementing authentication.
 package extension
@@ -244,7 +244,7 @@ func Run(ctx context.Context, client *apiclient.Client, name string, args []stri
 }
 
 // buildEnv constructs the environment for the extension process. It starts
-// from the current process environment and overlays CIRCLECI_* variables so
+// from the current process environment and overlays CIRCLE_* variables so
 // extensions can call the CircleCI API without reimplementing auth.
 func buildEnv(ctx context.Context, client *apiclient.Client) []string {
 	env := os.Environ()
@@ -253,9 +253,9 @@ func buildEnv(ctx context.Context, client *apiclient.Client) []string {
 
 	type kv struct{ key, val string }
 	overlays := []kv{
-		{"CIRCLECI_TOKEN", cfg.EffectiveToken()},
-		{"CIRCLECI_HOST", cfg.EffectiveHost()},
-		{"CIRCLECI_TELEMETRY_ENABLED", fmt.Sprintf("%t", cfg.IsTelemetry())},
+		{"CIRCLE_TOKEN", cfg.EffectiveToken()},
+		{"CIRCLE_HOST", cfg.EffectiveHost()},
+		{"CIRCLE_TELEMETRY_ENABLED", fmt.Sprintf("%t", cfg.IsTelemetry())},
 	}
 
 	// Best-effort: inject project metadata from git remote. Failures are
@@ -264,17 +264,17 @@ func buildEnv(ctx context.Context, client *apiclient.Client) []string {
 		parts := strings.SplitN(info.Slug, "/", 3)
 		if len(parts) == 3 {
 			overlays = append(overlays,
-				kv{"CIRCLECI_VCS_TYPE", vcsLong(parts[0])},
-				kv{"CIRCLECI_PROJECT_USERNAME", parts[1]},
-				kv{"CIRCLECI_PROJECT_REPONAME", parts[2]},
+				kv{"CIRCLE_VCS_TYPE", vcsLong(parts[0])},
+				kv{"CIRCLE_PROJECT_USERNAME", parts[1]},
+				kv{"CIRCLE_PROJECT_REPONAME", parts[2]},
 			)
 		}
 		if info.Branch != "" {
-			overlays = append(overlays, kv{"CIRCLECI_BRANCH", info.Branch})
+			overlays = append(overlays, kv{"CIRCLE_BRANCH", info.Branch})
 		}
 
 		if id := resolveProjectID(ctx, client, cfg, info.Slug); id != "" {
-			overlays = append(overlays, kv{"CIRCLECI_PROJECT_ID", id})
+			overlays = append(overlays, kv{"CIRCLE_PROJECT_ID", id})
 		}
 	}
 

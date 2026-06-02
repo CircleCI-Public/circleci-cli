@@ -88,5 +88,5 @@ func (sp *Spin) Stop() {
 
 // spinnerDisabled reports whether animation should be suppressed even in a TTY.
 func spinnerDisabled() bool {
-	return os.Getenv("CIRCLECI_SPINNER_DISABLED") != ""
+	return os.Getenv("CIRCLE_SPINNER_DISABLED") != ""
 }

@@ -43,7 +43,7 @@ Examples are "by far the most-read section of help text." Use `github.com/MakeNo
 for all multi-line strings. No blank `Long` descriptions.
 
 **7. Telemetry must be disclosed, opt-out, and auto-disabled in CI.**
-On first run, print a one-time notice. Respect `CIRCLECI_NO_TELEMETRY`, `NO_ANALYTICS`,
+On first run, print a one-time notice. Respect `CIRCLE_NO_TELEMETRY`, `NO_ANALYTICS`,
 `DO_NOT_TRACK`. When `CI=true` is set, skip the notice and disable telemetry automatically.
 
 ---
@@ -119,18 +119,18 @@ in production code.
 
 ## Environment variables
 
-All documented at `circleci help environment`. Variables use `CIRCLECI_` prefix:
+All documented at `circleci help environment`. Variables use `CIRCLE_` prefix:
 
 | Variable | Purpose |
 |---|---|
-| `CIRCLECI_TOKEN` | API token (also: `CIRCLECI_CLI_TOKEN` legacy alias) |
-| `CIRCLECI_HOST` | CircleCI server host (default: `https://circleci.com`) |
-| `CIRCLECI_NO_INTERACTIVE` | Suppress all prompts |
-| `CIRCLECI_NO_COLOR` | Disable ANSI color |
-| `CIRCLECI_SPINNER_DISABLED` | Replace animated spinner with plain text |
-| `CIRCLECI_NO_UPDATE_NOTIFIER` | Suppress version update messages |
-| `CIRCLECI_DEBUG` | Log HTTP requests to stderr |
-| `CIRCLECI_NO_TELEMETRY` | Disable telemetry |
+| `CIRCLE_TOKEN` | API token (also: `CIRCLE_CLI_TOKEN` legacy alias) |
+| `CIRCLE_HOST` | CircleCI server host (default: `https://circleci.com`) |
+| `CIRCLE_NO_INTERACTIVE` | Suppress all prompts |
+| `CIRCLE_NO_COLOR` | Disable ANSI color |
+| `CIRCLE_SPINNER_DISABLED` | Replace animated spinner with plain text |
+| `CIRCLE_NO_UPDATE_NOTIFIER` | Suppress version update messages |
+| `CIRCLE_DEBUG` | Log HTTP requests to stderr |
+| `CIRCLE_NO_TELEMETRY` | Disable telemetry |
 | `CI` | When set, implies NO_INTERACTIVE + disables spinner + update notifications |
 | `NO_COLOR` | no-color.org standard — always respected |
 

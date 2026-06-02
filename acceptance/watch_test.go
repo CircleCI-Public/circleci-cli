@@ -224,7 +224,7 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	// Shorten the 2-minute SHA wait window so the test is fast.
-	env.Extra["CIRCLECI_SHA_WAIT_MS"] = "50"
+	env.Extra["CIRCLE_SHA_WAIT_MS"] = "50"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,

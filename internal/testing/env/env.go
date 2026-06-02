@@ -61,18 +61,18 @@ func (e *TestEnv) Environ() []string {
 		"HOME=" + e.HomeDir,
 		"XDG_CONFIG_HOME=" + e.ConfigDir(),
 		"PATH=" + os.Getenv("PATH"),
-		"CIRCLECI_SPINNER_DISABLED=true",
+		"CIRCLE_SPINNER_DISABLED=true",
 	}
 	if !e.Telemetry {
-		env = append(env, "CIRCLECI_NO_TELEMETRY=true")
+		env = append(env, "CIRCLE_NO_TELEMETRY=true")
 	}
 	if e.Token != "" {
-		env = append(env, "CIRCLECI_TOKEN="+e.Token)
+		env = append(env, "CIRCLE_TOKEN="+e.Token)
 	}
 	if e.CircleCIURL != "" {
 		// The fake server URL is injected via a dedicated env var that
 		// the API client reads in test builds.
-		env = append(env, "CIRCLECI_HOST="+e.CircleCIURL)
+		env = append(env, "CIRCLE_HOST="+e.CircleCIURL)
 	}
 	for k, v := range e.Extra {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))

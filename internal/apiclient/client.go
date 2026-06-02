@@ -51,7 +51,7 @@ type Config struct {
 }
 
 // New creates a Client. baseURL should be the CircleCI host, e.g. "https://circleci.com".
-// An http.RoundTripper can be injected for testing. Set CIRCLECI_DEBUG=1 to log
+// An http.RoundTripper can be injected for testing. Set CIRCLE_DEBUG=1 to log
 // all HTTP requests and response status codes to stderr.
 func New(cfg Config) *Client {
 	if cfg.Transport == nil {

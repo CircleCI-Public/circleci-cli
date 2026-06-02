@@ -164,7 +164,7 @@ func NewRootCmd(version string) *cobra.Command {
 			Log:      cfg.IsTelemetry(),
 			Send:     cfg.IsTelemetry(),
 			WriteKey: telemetry.SegmentKey,
-			Endpoint: os.Getenv("CIRCLECI_TELEMETRY_ENDPOINT"),
+			Endpoint: os.Getenv("CIRCLE_TELEMETRY_ENDPOINT"),
 			Metadata: telemetry.Meta{
 				Version:    version,
 				InstanceID: cfg.DeviceID(),

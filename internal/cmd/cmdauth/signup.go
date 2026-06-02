@@ -62,7 +62,7 @@ func newSignupCmd() *cobra.Command {
 			$ circleci auth signup --no-browser
 
 			# Authenticate against a non-default host
-			$ CIRCLECI_HOST=https://example.circleci.com circleci auth signup
+			$ CIRCLE_HOST=https://example.circleci.com circleci auth signup
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
