@@ -163,6 +163,22 @@ type orbCategoryWire struct {
 	} `json:"attributes"`
 }
 
+type createOrbPackageWire struct {
+	Attributes struct {
+		Name      string `json:"name"`
+		IsPrivate bool   `json:"is_private"`
+	} `json:"attributes"`
+	References struct {
+		Namespace struct {
+			ID string `json:"id"`
+		} `json:"namespace"`
+	} `json:"references"`
+}
+
+type publishOrbVersionWire struct {
+	Attributes PublishOrbVersionRequest `json:"attributes"`
+}
+
 type orbValidateWire struct {
 	ID         string `json:"id"`
 	Attributes struct {
@@ -326,19 +342,7 @@ type CreateOrbPackageRequest struct {
 
 // CreateOrbPackage creates a new orb package.
 func (c *Client) CreateOrbPackage(ctx context.Context, req CreateOrbPackageRequest) (*OrbPackage, error) {
-	wire := struct {
-		Data struct {
-			Attributes struct {
-				Name      string `json:"name"`
-				IsPrivate bool   `json:"is_private"`
-			} `json:"attributes"`
-			References struct {
-				Namespace struct {
-					ID string `json:"id"`
-				} `json:"namespace"`
-			} `json:"references"`
-		} `json:"data"`
-	}{}
+	var wire v3Entity[createOrbPackageWire]
 	wire.Data.Attributes.Name = req.Name
 	wire.Data.Attributes.IsPrivate = req.IsPrivate
 	wire.Data.References.Namespace.ID = req.NamespaceID
@@ -499,11 +503,7 @@ type PublishOrbVersionRequest struct {
 
 // PublishOrbVersion publishes a new orb version.
 func (c *Client) PublishOrbVersion(ctx context.Context, req PublishOrbVersionRequest) (*OrbVersion, error) {
-	wire := struct {
-		Data struct {
-			Attributes PublishOrbVersionRequest `json:"attributes"`
-		} `json:"data"`
-	}{}
+	var wire v3Entity[publishOrbVersionWire]
 	wire.Data.Attributes = req
 
 	var env v3Entity[orbVersionWire]
