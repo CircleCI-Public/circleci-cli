@@ -193,6 +193,8 @@ jobs:
           checksum: *checksum
           steps:
             - run: task ci:release
+      - store_artifacts:
+          path: dist
 
   ok-to-deploy:
     type: no-op
