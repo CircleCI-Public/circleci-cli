@@ -60,8 +60,7 @@ nfpms:
       - rpm
 
 chocolateys:
-  - name: circleci-cli
-    package_source_url: https://github.com/CircleCI-Public/circleci-cli
+  - package_source_url: https://github.com/CircleCI-Public/circleci-cli
     owners: CircleCI
     title: CircleCI CLI
     authors: CircleCI
@@ -81,6 +80,36 @@ chocolateys:
       manage Orbs.
     api_key: "{{ .Env.CHOCO_API_KEY }}"
     skip_publish: true # TODO: Remove this once we're ready to release
+
+winget:
+  - publisher: CircleCI
+    short_description: "CircleCI command line tool."
+    description: |
+      Command line tool for performing tasks related to a CircleCI project. Enables
+      you to run local builds, debug your continuous integration config files, and
+      manage Orbs.
+    license: "MIT"
+    publisher_url: "https://circleci.com"
+    publisher_support_url: "https://github.com/CircleCI-Public/circleci-cli/issues/new"
+    package_identifier: CircleCI.cli
+    url_template: "https://github.com/CircleCI-Public/circleci-cli/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    homepage: "https://circleci.com"
+    copyright: "Circle Internet Services, Inc."
+    # TODO: Remove this once we're ready to release'
+    skip_upload: true
+    release_notes: "{{.Changelog}}"
+    repository:
+      owner: CircleCI-Public
+      name: winget-pkgs
+      branch: "circleci-cli-{{.Version}}"
+      # token: "{{ .Env.GITHUB_PERSONAL_AUTH_TOKEN }}"
+      pull_request:
+        # TODO: Remove this once we're ready to release'
+        enabled: false
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
 
 snapcrafts:
   - id: circleci
