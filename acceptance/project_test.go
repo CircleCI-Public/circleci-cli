@@ -548,57 +548,6 @@ func TestProjectGet_NotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --- info (top-level alias for project get) ---
-
-func TestInfo(t *testing.T) {
-	_, env := setupProjectFake(t)
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"info", "--project", "gh/myorg/alpha"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
-func TestInfo_JSON(t *testing.T) {
-	_, env := setupProjectFake(t)
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"info", "--project", "gh/myorg/alpha", "--json"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-
-	var out map[string]any
-	err := json.Unmarshal([]byte(result.Stdout), &out)
-	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(out["id"], "proj-uuid-1234"))
-	assert.Check(t, cmp.Equal(out["organization_id"], "org-uuid-5678"))
-
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
-}
-
-func TestInfo_NotFound(t *testing.T) {
-	_, env := setupProjectFake(t)
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"info", "--project", "gh/myorg/nonexistent"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-}
-
 // --- project trigger create ---
 
 const (

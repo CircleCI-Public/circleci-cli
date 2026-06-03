@@ -47,7 +47,7 @@ func NewProjectCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(NewGetCmd("get"))
+	cmd.AddCommand(NewGetCmd())
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newFollowCmd())
 	cmd.AddCommand(newLinkCmd())
