@@ -139,6 +139,13 @@ type CircleCI struct {
 
 	// DLC state.
 	dlcPurgeStatus map[string]int // projectID → HTTP status to return (default 204)
+	// Config compile state.
+	compileValid      bool
+	compileOutputYAML string
+	compileErrors     []string
+
+	// Org state.
+	orgs map[string]map[string]any
 }
 
 // orbFakeValidateResponse holds a preset validate/process response for testing.
@@ -215,6 +222,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		orbUnlistedPackages:               map[string]bool{},
 		orbCategoryMembers:                map[string][]string{},
 		dlcPurgeStatus:                    map[string]int{},
+		compileValid:                      true,
+		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
+		orgs:                              map[string]map[string]any{},
 	}
 
 	r := newRouter()
@@ -279,6 +289,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/signing-configs", f.handleCreateIOSBundle)
 	r.Get("/api/v2/signing-configs", f.handleListIOSBundles)
 	r.Delete("/api/v2/signing-configs/{id}", f.handleDeleteIOSBundle)
+	// Config compile + org routes.
+	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
+	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
 	// Runner (v3) routes. GET /runner dispatches on query param:
 	// ?namespace=  → resource classes, ?resource-class= → instances.
 	r.Get("/api/v3/runner", f.handleRunnerList)
@@ -2977,4 +2990,60 @@ func (f *CircleCI) handleSetPolicySettings(w http.ResponseWriter, r *http.Reques
 	f.policySettings[ownerID+"/"+policyCtx] = body.Enabled
 	f.mu.Unlock()
 	render.JSON(w, r, map[string]any{"enabled": body.Enabled})
+}
+
+// --- Config compile + org helpers ---
+
+// SetCompileResponse configures what the fake returns for POST /compile-config-with-defaults.
+// Pass valid=false and one or more error messages to simulate a compilation failure.
+func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.compileValid = valid
+	f.compileOutputYAML = outputYAML
+	f.compileErrors = errors
+}
+
+// AddOrg registers an org returned by GET /api/v2/organization/{slug}.
+func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orgs[slug] = map[string]any{
+		"id":       id,
+		"name":     name,
+		"slug":     slug,
+		"vcs_type": vcsType,
+	}
+}
+
+func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	valid := f.compileValid
+	outputYAML := f.compileOutputYAML
+	errs := f.compileErrors
+	f.mu.RUnlock()
+
+	apiErrors := make([]map[string]any, len(errs))
+	for i, e := range errs {
+		apiErrors[i] = map[string]any{"message": e}
+	}
+
+	render.JSON(w, r, map[string]any{
+		"valid":       valid,
+		"source-yaml": outputYAML,
+		"output-yaml": outputYAML,
+		"errors":      apiErrors,
+	})
+}
+
+func (f *CircleCI) handleGetOrg(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org")
+	f.mu.RLock()
+	org, ok := f.orgs[slug]
+	f.mu.RUnlock()
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	render.JSON(w, r, org)
 }

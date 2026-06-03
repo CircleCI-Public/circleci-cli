@@ -1,0 +1,3 @@
+  • unknown key 'foo'
+  • job 'build' is missing required fields
+error: Config file ".circleci/config.yml" contains compilation errors.

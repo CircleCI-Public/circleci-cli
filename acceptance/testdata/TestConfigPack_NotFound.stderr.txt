@@ -1,0 +1,1 @@
+error: Could not pack "nonexistent": accessing "nonexistent": no such file or directory

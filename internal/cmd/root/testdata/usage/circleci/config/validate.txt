@@ -1,0 +1,26 @@
+Usage:
+  circleci config validate [flags]
+
+Examples:
+# Validate the default config file
+$ circleci config validate
+
+# Validate a specific file
+$ circleci config validate --config path/to/config.yml
+
+# Validate with private orb resolution for your org
+$ circleci config validate --org-slug gh/myorg
+
+# Validate and output as JSON
+$ circleci config validate --json
+
+
+Flags:
+  -c, --config string     Path to config file (use "-" for stdin) (default ".circleci/config.yml")
+      --json              Output as JSON
+      --org-id string     Organization UUID for private orb resolution
+  -o, --org-slug string   Organization slug for private orb resolution (e.g. gh/myorg)
+
+Global Flags:
+      --debug   enable debug logging
+  -q, --quiet   suppress informational output; data on stdout is unaffected

@@ -4,6 +4,9 @@ Usage:
 
 Available Commands:
   generate    Generate .circleci/config.yml from a repository scan
+  pack        Bundle split config files into a single YAML document
+  process     Compile and expand a pipeline config file
+  validate    Validate a pipeline config file
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

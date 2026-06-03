@@ -1,0 +1,5 @@
+error: No config file found at "nonexistent.yml".
+
+Suggestions:
+  • Check the path and try again
+  • Run from the root of your project, or pass --config <path>

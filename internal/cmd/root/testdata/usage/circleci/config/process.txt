@@ -1,0 +1,26 @@
+Usage:
+  circleci config process <path> [flags]
+
+Examples:
+# Process the default config
+$ circleci config process .circleci/config.yml
+
+# Process with pipeline parameters
+$ circleci config process .circleci/config.yml --pipeline-parameters 'env: staging'
+
+# Process with private orb resolution
+$ circleci config process .circleci/config.yml --org-slug gh/myorg
+
+# Read from stdin
+$ cat .circleci/config.yml | circleci config process -
+
+
+Flags:
+      --org-id string                Organization UUID for private orb resolution
+  -o, --org-slug string              Organization slug for private orb resolution (e.g. gh/myorg)
+      --pipeline-parameters string   Pipeline parameters as a YAML map or path to a YAML file
+
+Global Flags:
+  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
+      --debug           enable debug logging
+  -q, --quiet           suppress informational output; data on stdout is unaffected
