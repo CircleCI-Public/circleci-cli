@@ -181,3 +181,13 @@ tasks:
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - git push origin '{{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --clean
+
+  ci:build:
+    desc: Build a release
+    vars:
+      VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-pre'
+    cmds:
+      - git config --global user.email $GH_EMAIL
+      - git config --global user.name $GH_NAME
+      - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
+      - go tool -modfile tools/go.mod goreleaser build --clean
