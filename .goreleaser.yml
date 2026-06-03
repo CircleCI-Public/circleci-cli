@@ -89,15 +89,29 @@ winget:
       you to run local builds, debug your continuous integration config files, and
       manage Orbs.
     license: "MIT"
-    publisher_url: "https://circleci.com"
+    licence_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
+    tags:
+      - circle-ci
+      - circleci
+      - cli
+      - command-line-tool
+      - continuous-delivery
+      - continuous-integration
+      - developer-tools
+      - devops
+      - golang
+      - graphql
+      - tool
+    publisher_url: "https://github.com/CircleCI-Public"
     publisher_support_url: "https://github.com/CircleCI-Public/circleci-cli/issues/new"
-    package_identifier: CircleCI.cli
+    package_identifier: CircleCI.CLI
     url_template: "https://github.com/CircleCI-Public/circleci-cli/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://circleci.com"
     copyright: "Circle Internet Services, Inc."
     # TODO: Remove this once we're ready to release'
     skip_upload: true
     release_notes: "{{.Changelog}}"
+    release_notes_url: "https://github.com/CircleCI-Public/circleci-cli/releases/tag/{{ .Tag }}"
     repository:
       owner: CircleCI-Public
       name: winget-pkgs
