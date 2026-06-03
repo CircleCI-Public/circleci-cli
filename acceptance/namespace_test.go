@@ -25,15 +25,20 @@ package acceptance_test
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"net/url"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const testNamespaceID = "ns0000001-0000-4000-8000-000000000001"
@@ -124,6 +129,18 @@ func TestNamespaceCreate(t *testing.T) {
 	// ID is server-generated random UUID; check message shape rather than golden file.
 	assert.Check(t, cmp.Contains(result.Stdout, fmt.Sprintf(`Created namespace "%s"`, testNamespaceName)))
 	assert.Check(t, cmp.Contains(result.Stdout, "world-readable"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/namespaces"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"name":"myorg","org_id":"00000000-0000-0000-0000-000000000001"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestNamespaceCreate_JSON(t *testing.T) {
@@ -187,6 +204,18 @@ func TestNamespaceRename(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/namespaces/" + testNamespaceID + "/rename"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"name":"newname"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestNamespaceRename_JSON(t *testing.T) {
@@ -251,6 +280,18 @@ func TestNamespaceDelete_Force(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v3/namespaces/" + testNamespaceID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestNamespaceDelete_DryRun(t *testing.T) {

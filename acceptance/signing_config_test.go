@@ -23,13 +23,19 @@
 package acceptance_test
 
 import (
+	"net/http"
+	"net/url"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 // --- signing-config create ---
@@ -57,6 +63,18 @@ func TestSigningConfigCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/signing-configs"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"cert_id":"cert-abc","name":"production-signing","org_id":"11111111-1111-1111-1111-111111111111","provisioning_profiles":[{"file_name":"MyApp.mobileprovision","blob":"ZmFrZS1wcm9maWxlLWJ5dGVz"}]}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestSigningConfigCreate_JSON(t *testing.T) {
@@ -251,6 +269,18 @@ func TestSigningConfigDelete(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, fake.DeletedIOSBundle("cfg-zzzz"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v2/signing-configs/cfg-zzzz"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestSigningConfigDelete_NotFound(t *testing.T) {

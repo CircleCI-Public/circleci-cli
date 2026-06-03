@@ -24,16 +24,22 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const testOwnerID = "462d67f8-b232-4da4-a7de-0c86dd667d3f"
@@ -70,6 +76,24 @@ func TestPolicyPush(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "created") || strings.Contains(result.Stdout, "updated") || strings.Contains(result.Stdout, "deleted"))
+
+	t.Run("check request", func(t *testing.T) {
+		body, err := json.Marshal(map[string]any{
+			"policies": map[string]string{
+				filepath.Join(dir, "my_policy.rego"): "package main\n",
+			},
+		})
+		assert.NilError(t, err)
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/owner/" + testOwnerID + "/context/" + testPolicyCtx + "/policy-bundle"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(string(body)),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPolicyPush_DryRun(t *testing.T) {
@@ -259,6 +283,18 @@ func TestPolicyDecide(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "PASS"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/owner/" + testOwnerID + "/context/" + testPolicyCtx + "/decision"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"input":"version: 2.1\n"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPolicyDecide_Strict(t *testing.T) {
@@ -346,6 +382,18 @@ func TestPolicySettingsSet(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "enabled"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPatch,
+			URL:    url.URL{Path: "/api/v2/owner/" + testOwnerID + "/context/" + testPolicyCtx + "/decision/settings"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"enabled":true}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPolicySettingsSet_JSON(t *testing.T) {

@@ -389,15 +389,11 @@ func TestContextCreate(t *testing.T) {
 			Method: http.MethodPost,
 			URL:    url.URL{Path: "/api/v2/context"},
 			Header: http.Header{
-				"Accept":          {"application/json"},
-				"Accept-Encoding": {"gzip"},
-				"Authorization":   {"Bearer test-token"},
-				"Content-Length":  {"74"},
-				"Content-Type":    {"application/json; charset=utf-8"},
-				"User-Agent":      {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "chunk")},
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "chunk")},
 			},
 			Body: new(`{"name":"new-context","owner":{"slug":"gh/testorg","type":"organization"}}`),
-		}))
+		}, ignoreCommonHeaders))
 	})
 }
 
@@ -470,6 +466,18 @@ func TestContextDelete(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v2/context/" + testContextID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestContextDelete_RequiresForce(t *testing.T) {
@@ -680,6 +688,18 @@ func TestContextSecretSet(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPut,
+			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/environment-variable/MY_VAR"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"value":"s3cr3t"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestContextSecretSet_MissingName(t *testing.T) {
@@ -776,6 +796,18 @@ func TestContextSecretDelete(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/environment-variable/MY_VAR"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestContextSecretDelete_RequiresForce(t *testing.T) {
@@ -869,6 +901,18 @@ func TestContextRestrictionCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/restrictions"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"restriction_type":"project","restriction_value":"p0000001-0000-4000-8000-000000000001"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestContextRestrictionCreate_Color(t *testing.T) {
@@ -1013,6 +1057,18 @@ func TestContextRestrictionDelete(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/restrictions/" + testRestrictionID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestContextRestrictionDelete_Color(t *testing.T) {

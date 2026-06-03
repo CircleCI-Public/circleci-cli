@@ -24,6 +24,9 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -31,9 +34,11 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 // keyDown is defined in login_test.go (same package).
@@ -123,7 +128,7 @@ var pipelineListFixtures = []map[string]any{
 // --- pipeline create ---
 
 func TestPipelineCreate(t *testing.T) {
-	_, env := setupPipelineFake(t)
+	fake, env := setupPipelineFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
@@ -143,6 +148,18 @@ func TestPipelineCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, pipelineDefID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/projects/" + pipelineProjectID + "/pipeline-definitions"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"checkout_source":{"provider":"github_app","repo":{"external_id":"987654321"}},"config_source":{"file_path":".circleci/config.yml","provider":"github_app","repo":{"external_id":"987654321"}},"name":"my-pipeline"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPipelineCreate_JSON(t *testing.T) {
@@ -451,7 +468,7 @@ func setupPipelineRunFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 }
 
 func TestPipelineRun(t *testing.T) {
-	_, env := setupPipelineRunFake(t)
+	fake, env := setupPipelineRunFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -463,6 +480,18 @@ func TestPipelineRun(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
 	assert.Check(t, strings.Contains(result.Stdout, "42"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPipelineRun_JSON(t *testing.T) {
@@ -486,7 +515,7 @@ func TestPipelineRun_JSON(t *testing.T) {
 }
 
 func TestPipelineRun_WithBranch(t *testing.T) {
-	_, env := setupPipelineRunFake(t)
+	fake, env := setupPipelineRunFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -497,10 +526,22 @@ func TestPipelineRun_WithBranch(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"checkout":{"branch":"feature/my-branch"},"config":{"branch":"feature/my-branch"}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPipelineRun_WithDefinitionID(t *testing.T) {
-	_, env := setupPipelineRunFake(t)
+	fake, env := setupPipelineRunFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
@@ -515,10 +556,22 @@ func TestPipelineRun_WithDefinitionID(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"definition_id":"` + pipelineDefID + `"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPipelineRun_WithParams(t *testing.T) {
-	_, env := setupPipelineRunFake(t)
+	fake, env := setupPipelineRunFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
@@ -534,6 +587,18 @@ func TestPipelineRun_WithParams(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, pipelineRunID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"parameters":{"deploy_env":"staging","run_tests":"true"}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPipelineRun_MutuallyExclusiveBranchAndTag(t *testing.T) {
@@ -573,6 +638,18 @@ func TestPipelineRun_Skipped(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "not triggered"))
 	assert.Check(t, strings.Contains(result.Stdout, "CI skip"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestPipelineRun_Skipped_JSON(t *testing.T) {

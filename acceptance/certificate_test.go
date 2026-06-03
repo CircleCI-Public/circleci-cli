@@ -24,17 +24,22 @@ package acceptance_test
 
 import (
 	"bytes"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 // Shared by certificate_test.go and signing_config_test.go.
@@ -107,6 +112,18 @@ func TestCertificateUpload(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/certificates"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"cert_blob":"ZmFrZS1wMTItYnl0ZXM=","cert_file_name":"Distribution.p12","cert_password":"hunter2","org_id":"11111111-1111-1111-1111-111111111111"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestCertificateUpload_JSON(t *testing.T) {
@@ -329,6 +346,18 @@ func TestCertificateDelete(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, fake.DeletedIOSCert("cert-zzzz"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v2/certificates/cert-zzzz"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestCertificateDelete_NotFound(t *testing.T) {
