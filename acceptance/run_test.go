@@ -24,6 +24,9 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,9 +35,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const (
@@ -566,6 +571,18 @@ func TestRunTrigger(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/" + slug + "/pipeline"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"branch":"main"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestRunTrigger_Color(t *testing.T) {
@@ -705,6 +722,18 @@ func TestRunCancel(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/workflow/" + wfID + "/cancel"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new("{}"),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestRunCancel_RequiresForce(t *testing.T) {

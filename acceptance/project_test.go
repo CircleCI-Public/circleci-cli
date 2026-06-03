@@ -24,6 +24,9 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -32,9 +35,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
@@ -196,7 +201,7 @@ func TestProjectList_NoToken(t *testing.T) {
 // --- project follow ---
 
 func TestProjectFollow(t *testing.T) {
-	_, env := setupProjectFake(t)
+	fake, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -207,6 +212,18 @@ func TestProjectFollow(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v1.1/project/gh/myorg/newrepo/follow"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestProjectFollow_Color(t *testing.T) {
@@ -366,7 +383,7 @@ func TestProjectEnvList_Color(t *testing.T) {
 // --- env set ---
 
 func TestEnvSet(t *testing.T) {
-	_, env := setupProjectFake(t)
+	fake, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -377,6 +394,18 @@ func TestEnvSet(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/alpha/envvar"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"name":"NEW_VAR","value":"newvalue"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestEnvSet_Color(t *testing.T) {
@@ -427,7 +456,7 @@ func TestEnvSet_Overwrite_Color(t *testing.T) {
 // --- env delete ---
 
 func TestEnvDelete(t *testing.T) {
-	_, env := setupProjectFake(t)
+	fake, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -438,6 +467,18 @@ func TestEnvDelete(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/alpha/envvar/DATABASE_URL"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestEnvDelete_Color(t *testing.T) {
@@ -664,7 +705,7 @@ func TestProjectTriggerList_MissingPipelineDefinitionID(t *testing.T) {
 // --- project trigger create ---
 
 func TestProjectTriggerCreate(t *testing.T) {
-	_, env := setupTriggerFake(t)
+	fake, env := setupTriggerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
@@ -680,6 +721,18 @@ func TestProjectTriggerCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, triggerID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/projects/" + triggerProjectID + "/pipeline-definitions/" + triggerPipelineDefID + "/triggers"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"event_source":{"provider":"github_app","repo":{"external_id":"987654321"}}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestProjectTriggerCreate_JSON(t *testing.T) {
@@ -845,7 +898,7 @@ func setupCreateProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 }
 
 func TestProjectCreate(t *testing.T) {
-	_, env := setupCreateProjectFake(t)
+	fake, env := setupCreateProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -858,6 +911,18 @@ func TestProjectCreate(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "my-new-repo"))
 	assert.Check(t, strings.Contains(result.Stdout, "Pipelines:"))
 	assert.Check(t, strings.Contains(result.Stdout, "/pipelines/gh/myorg/my-new-repo"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/organization/gh/myorg/project"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"name":"my-new-repo"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestProjectCreate_Color(t *testing.T) {

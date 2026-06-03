@@ -25,7 +25,9 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"os"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -33,9 +35,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 func fakeRC(id, slug, desc string) map[string]any {
@@ -186,7 +190,7 @@ func TestRunnerResourceClassList_NoToken(t *testing.T) {
 // --- resource-class create ---
 
 func TestRunnerResourceClassCreate(t *testing.T) {
-	_, env := setupRunnerFake(t)
+	fake, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -197,6 +201,18 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/runner/resource"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"description":"New runner","resource_class":"my-org/new-runner"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestRunnerResourceClassCreate_Color(t *testing.T) {
@@ -267,7 +283,7 @@ func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 }
 
 func TestRunnerResourceClassDelete_Force(t *testing.T) {
-	_, env := setupRunnerFake(t)
+	fake, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -278,6 +294,18 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v3/runner/resource/my-org/linux-runner"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
@@ -398,7 +426,7 @@ func TestRunnerTokenList_Empty(t *testing.T) {
 // --- token create ---
 
 func TestRunnerTokenCreate(t *testing.T) {
-	_, env := setupRunnerFake(t)
+	fake, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -409,6 +437,18 @@ func TestRunnerTokenCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/runner/token"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"nickname":"my-server","resource_class":"my-org/linux-runner"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestRunnerTokenCreate_Color(t *testing.T) {
@@ -465,7 +505,7 @@ func TestRunnerTokenCreate_JSON_Color(t *testing.T) {
 // --- token delete ---
 
 func TestRunnerTokenDelete(t *testing.T) {
-	_, env := setupRunnerFake(t)
+	fake, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -476,6 +516,18 @@ func TestRunnerTokenDelete(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v3/runner/token/tok-id-1"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestRunnerTokenDelete_Color(t *testing.T) {

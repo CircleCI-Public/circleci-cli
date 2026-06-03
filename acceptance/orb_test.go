@@ -24,17 +24,22 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const testOrbID = "orb00001-0000-4000-8000-000000000001"
@@ -173,7 +178,7 @@ func TestOrbListCategories_JSON(t *testing.T) {
 // --- orb create ---
 
 func TestOrbCreate(t *testing.T) {
-	_, env := setupOrbFake(t)
+	fake, env := setupOrbFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -185,6 +190,18 @@ func TestOrbCreate(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "Created orb"))
 	assert.Check(t, cmp.Contains(result.Stdout, testOrbName))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/packages"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"name":"myorg/my-orb","is_private":false},"references":{"namespace":{"id":"orbns001-0000-4000-8000-000000000001"}}}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestOrbCreate_JSON(t *testing.T) {
@@ -305,6 +322,18 @@ func TestOrbPublish(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/versions"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"orb_id":"orb00001-0000-4000-8000-000000000001","yaml":"version: 2.1\ndescription: My test orb\n","version":"1.0.0"}}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestOrbPublishPromote(t *testing.T) {
@@ -322,6 +351,18 @@ func TestOrbPublishPromote(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/versions/" + testOrbVersionID + "/promote"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"segment":"patch"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestOrbPublishIncrement(t *testing.T) {
@@ -343,6 +384,18 @@ func TestOrbPublishIncrement(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/versions"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"orb_id":"orb00001-0000-4000-8000-000000000001","yaml":"version: 2.1\ndescription: My test orb\n","version":"1.0.1"}}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 // --- orb source ---
@@ -458,6 +511,18 @@ func TestOrbUnlist(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/set-listed"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"is_listed":false}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestOrbRelist(t *testing.T) {
@@ -474,6 +539,18 @@ func TestOrbRelist(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/set-listed"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"is_listed":true}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 // --- orb diff ---
@@ -515,6 +592,18 @@ func TestOrbAddToCategory(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/add-category"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"category_id":"orbc0001-0000-4000-8000-000000000001"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestOrbRemoveFromCategory(t *testing.T) {
@@ -532,6 +621,18 @@ func TestOrbRemoveFromCategory(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/remove-category"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"category_id":"orbc0001-0000-4000-8000-000000000001"}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 // --- orb pack ---

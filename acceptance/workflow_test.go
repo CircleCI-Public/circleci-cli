@@ -25,6 +25,8 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -33,9 +35,11 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const (
@@ -548,7 +552,7 @@ func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
 // --- workflow rerun ---
 
 func TestWorkflowRerun(t *testing.T) {
-	_, env := setupWorkflowFake(t)
+	fake, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -559,6 +563,18 @@ func TestWorkflowRerun(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/workflow/" + testWorkflowDetailID + "/rerun"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"from_failed":false}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestWorkflowRerun_Color(t *testing.T) {
@@ -577,7 +593,7 @@ func TestWorkflowRerun_Color(t *testing.T) {
 }
 
 func TestWorkflowRerun_FromFailed(t *testing.T) {
-	_, env := setupWorkflowFake(t)
+	fake, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -588,6 +604,18 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/workflow/" + testWorkflowDetailID + "/rerun"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"from_failed":true}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestWorkflowRerun_FromFailed_Color(t *testing.T) {
@@ -638,7 +666,7 @@ func TestWorkflowRerun_NotFound(t *testing.T) {
 // --- workflow cancel ---
 
 func TestWorkflowCancel(t *testing.T) {
-	_, env := setupWorkflowFake(t)
+	fake, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -649,6 +677,18 @@ func TestWorkflowCancel(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/workflow/" + testWorkflowDetailID + "/cancel"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestWorkflowCancel_Color(t *testing.T) {

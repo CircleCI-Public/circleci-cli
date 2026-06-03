@@ -29,9 +29,21 @@ import (
 	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 const testToken = "test-token"
+
+// ignoreCommonHeaders excludes headers that are set uniformly by the API client
+// (and therefore uninteresting to a per-command mutation assertion) so that
+// request comparisons can focus on Method, URL, Authorization, User-Agent, and
+// the request body.
+var ignoreCommonHeaders = httprecorder.IgnoreHeaders(
+	"Accept",
+	"Accept-Encoding",
+	"Content-Length",
+	"Content-Type",
+)
 
 var (
 	binaryPath     string

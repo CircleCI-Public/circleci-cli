@@ -25,14 +25,19 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
 func setupDLCFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
@@ -56,7 +61,7 @@ func setupDLCFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 // --- dlc purge ---
 
 func TestDLCPurge(t *testing.T) {
-	_, env := setupDLCFake(t)
+	fake, env := setupDLCFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -67,6 +72,18 @@ func TestDLCPurge(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "purged"), "stdout: %s", result.Stdout)
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v3/projects/proj-dlc-uuid/dlc"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
 }
 
 func TestDLCPurge_JSON(t *testing.T) {
