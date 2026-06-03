@@ -166,6 +166,11 @@ jobs:
 
   deploy:
     executor: linux_machine
+    parameters:
+      publish_steps:
+        type: steps
+        default:
+          - run: task ci:release
     steps:
       - setup
       - run:
@@ -191,8 +196,7 @@ jobs:
             choco help
       - go/with-cache:
           checksum: *checksum
-          steps:
-            - run: task ci:release
+          steps: << parameters.publish_steps >>
       - store_artifacts:
           path: dist
 
@@ -212,6 +216,14 @@ workflows:
                 - linux
                 - macos
                 - windows
+
+      - deploy:
+          name: dry-run
+          publish_steps:
+            - run: task ci:release
+          filters:
+            branches:
+              ignore: next
 
       - ok-to-deploy:
           requires:

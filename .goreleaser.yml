@@ -37,15 +37,6 @@ builds:
       - arm64
     ldflags:
       - -s -w -X main.version={{.Version}}
-    hooks:
-      post:
-        - cmd: '{{ if eq .Os "darwin" -}}go tool -modfile tools/go.mod quill sign-and-notarize "{{ .Path }}"{{- else -}}true{{- end }}'
-          env:
-            - QUILL_SIGN_P12={{ .Env.QUILL_SIGN_P12 }}
-            # Unsure if we need this - QUILL_SIGN_PASSWORD={{ .Env.APPLE_SIGN_PASSWORD }}
-            - QUILL_NOTARY_KEY={{ .Env.QUILL_NOTARY_KEY }}
-            - QUILL_NOTARY_KEY_ID={{ .Env.QUILL_NOTARY_KEY_ID }}
-            - QUILL_NOTARY_ISSUER={{ .Env.QUILL_NOTARY_ISSUER }}
 
 nfpms:
   - license: MIT
@@ -58,6 +49,16 @@ nfpms:
     formats:
       - deb
       - rpm
+
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "QUILL_SIGN_P12" }}'
+      sign:
+        certificate: '{{ envOrDefault "QUILL_SIGN_P12" ""}}'
+      notarize:
+        issuer_id: '{{ envOrDefault "QUILL_NOTARY_ISSUER" ""}}'
+        key_id: '{{ envOrDefault "QUILL_NOTARY_KEY_ID" ""}}'
+        key: '{{ envOrDefault "QUILL_NOTARY_KEY" ""}}'
 
 chocolateys:
   - package_source_url: https://github.com/CircleCI-Public/circleci-cli
@@ -89,7 +90,7 @@ winget:
       you to run local builds, debug your continuous integration config files, and
       manage Orbs.
     license: "MIT"
-    licence_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
+    license_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
     tags:
       - circle-ci
       - circleci
