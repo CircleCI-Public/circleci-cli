@@ -1,28 +1,4 @@
-Usage:
-  circleci run watch [<run-number-or-id>] [flags]
-
-Examples:
-# Watch the latest run on the current branch
-$ circleci run watch
-
-# Push and watch in one step
-$ git push && circleci run watch --sha $(git rev-parse HEAD)
-
-# Watch a specific run number
-$ circleci run watch 75
-
-# Watch by UUID (e.g. from 'run list --json')
-$ circleci run watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd
-
-# Watch a run on a different branch
-$ circleci run watch --branch main
-
-# Watch with a longer timeout
-$ circleci run watch --timeout 60m
-
-# Exit as soon as any job fails
-$ circleci run watch --failfast
-
+Usage:  circleci run watch [<run-number-or-id>] [flags]
 
 Flags:
   -b, --branch string      Branch to watch (defaults to current branch)
@@ -30,8 +6,4 @@ Flags:
       --project string     Project slug (e.g. gh/org/repo); defaults to git remote
       --sha string         Watch run for this commit SHA; polls up to 2m if not yet created
       --timeout duration   Maximum time to wait for run completion (default 30m0s)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

@@ -1,0 +1,47 @@
+# CircleCI CLI
+
+Compile a CircleCI pipeline config file and print the fully expanded YAML.
+
+Orb references are inlined, matrix jobs are expanded, and pipeline
+parameter expressions are resolved. The output is the config that
+CircleCI would actually execute.
+
+Pass a file path or "-" to read from stdin.
+
+## Usage
+
+`circleci config process <path> [flags]`
+
+## Flags
+
+| Flag                           | Description                                                  |
+| ------------------------------ | ------------------------------------------------------------ |
+| `--org-id string`              | Organization UUID for private orb resolution                 |
+| `-o, --org-slug string`        | Organization slug for private orb resolution (e.g. gh/myorg) |
+| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file     |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Process the default config: 
+  `circleci config process .circleci/config.yml`
+- Process with pipeline parameters: 
+  `circleci config process .circleci/config.yml --pipeline-parameters 'env: staging'`
+- Process with private orb resolution: 
+  `circleci config process .circleci/config.yml --org-slug gh/myorg`
+- Read from stdin: 
+  `cat .circleci/config.yml | circleci config process -`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

@@ -1,0 +1,41 @@
+# CircleCI CLI
+
+Detect the language stack, container image, and setup commands for a
+repository, then write a starter pipeline to <path>/.circleci/config.yml.
+
+If no supported stack is detected, a minimal cimg/base:stable template
+with a placeholder build step is written instead so you have something
+to iterate on.
+
+If a config file already exists at that path, generate does not overwrite
+it; it prints a confirmation and exits successfully. The .circleci/
+directory is created if needed, and the file is written atomically.
+
+## Usage
+
+`circleci config generate [path]`
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Generate a config for the current directory: 
+  `circleci config generate`
+- Generate a config for a specific project path: 
+  `circleci config generate ./my-app`
+- Re-run is a no-op when a config already exists: 
+  `circleci config generate`
+- ✓ Using existing config at .circleci/config.yml
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

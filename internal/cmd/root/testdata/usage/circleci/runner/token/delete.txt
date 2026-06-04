@@ -1,22 +1,5 @@
-Usage:
-  circleci runner token delete <token-id> [flags]
-
-Examples:
-# Delete a token by ID (with confirmation prompt)
-$ circleci runner token delete abc12345-0000-0000-0000-000000000000
-
-# Delete without confirmation
-$ circleci runner token delete abc12345-0000-0000-0000-000000000000 --force
-
-# Delete in a script using JSON output
-$ ID=$(circleci runner token list --resource-class my-org/my-runner --json --jq '.[0].id')
-$ circleci runner token delete "$ID" --force
-
+Usage:  circleci runner token delete <token-id> [flags]
 
 Flags:
   -f, --force   skip confirmation prompt
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

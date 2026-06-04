@@ -1,30 +1,9 @@
-Usage:
-  circleci project trigger list [flags]
-
-Examples:
-# List triggers for the current repository's project
-$ circleci project trigger list \
-    --pipeline-definition-id a1b2c3d4-...
-
-# List triggers for a specific project
-$ circleci project trigger list \
-    --project gh/myorg/myrepo \
-    --pipeline-definition-id a1b2c3d4-...
-
-# Output as JSON for scripting
-$ circleci project trigger list \
-    --pipeline-definition-id a1b2c3d4-... \
-    --json
-
+Usage:  circleci project trigger list [flags]
 
 Flags:
-      --jq string                       Process values from the response using jq syntax
-      --json                            Output as JSON
-      --pipeline-definition-id string   Pipeline definition ID (required)
-      --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
-      --project-id string               Project UUID (overrides --project)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string                       Process values from the response using jq syntax
+  --json                            Output as JSON
+  --pipeline-definition-id string   Pipeline definition ID (required)
+  --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
+  --project-id string               Project UUID (overrides --project)
+  

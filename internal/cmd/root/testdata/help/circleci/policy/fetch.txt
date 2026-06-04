@@ -1,0 +1,45 @@
+# CircleCI CLI
+
+Download the remote policy bundle for the given owner and context.
+Pass a policy name to fetch a single policy.
+
+Output is always JSON (the bundle is structured data).
+
+JSON fields: policies (map of name → Rego source)
+
+## Usage
+
+`circleci policy fetch [policy-name] [flags]`
+
+## Flags
+
+| Flag                      | Description                                      |
+| ------------------------- | ------------------------------------------------ |
+| `--jq string`             | Process values from the response using jq syntax |
+| `--json`                  | Output as JSON                                   |
+| `--owner-id string`       | Organization UUID (required)                     |
+| `--policy-context string` | Policy context (default "config")                |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Fetch the full policy bundle: 
+  `circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+- Fetch a single policy by name: 
+  `circleci policy fetch my-policy --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+- Output as JSON with jq filtering: 
+  `circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq 'keys'`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

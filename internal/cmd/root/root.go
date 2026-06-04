@@ -25,7 +25,6 @@ package root
 import (
 	"os"
 
-	"github.com/MakeNowJust/heredoc"
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
@@ -68,16 +67,9 @@ func NewRootCmd(version string) *cobra.Command {
 	telem := &delegatingTelemetry{}
 
 	cmd := &cobra.Command{
-		Use:   "circleci",
-		Short: "The CircleCI CLI",
-		Long: heredoc.Doc(`
-			Work with CircleCI from the command line.
-
-			Run 'circleci help <command>' for usage of a specific command.
-
-			Docs:    https://circleci.com/docs/local-cli/
-			Support: https://github.com/CircleCI-Public/circleci-cli/issues
-		`),
+		Use:           "circleci",
+		Short:         "The CircleCI CLI",
+		Long:          `Work with CircleCI from the command line.`,
 		SilenceErrors: true, // main.go handles error printing
 		SilenceUsage:  true,
 	}
@@ -95,24 +87,24 @@ func NewRootCmd(version string) *cobra.Command {
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
 
 	cmd.AddCommand(artifacts.NewArtifactsCmd())
+	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(cmdapi.NewAPICmd())
 	cmd.AddCommand(cmdauth.NewAuthCmd())
-	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(cmdconfig.NewConfigCmd())
 	cmd.AddCommand(cmdcontext.NewContextCmd())
-	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(cmddlc.NewDLCCmd())
 	cmd.AddCommand(cmdlogs.NewLogsCmd())
 	cmd.AddCommand(cmdnamespace.NewNamespaceCmd())
 	cmd.AddCommand(cmdonboard.NewOnboardCmd())
 	cmd.AddCommand(cmdorb.NewOrbCmd())
+	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
+	cmd.AddCommand(cmdrun.NewRunCmd())
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(completion.NewCompletionCmd())
+	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())
 	cmd.AddCommand(job.NewJobCmd())
 	cmd.AddCommand(pipeline.NewPipelineCmd())
-	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
-	cmd.AddCommand(cmdrun.NewRunCmd())
 	cmd.AddCommand(project.NewProjectCmd())
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(settings.NewSettingsCmd())
@@ -140,12 +132,13 @@ func NewRootCmd(version string) *cobra.Command {
 		}
 	}
 
-	initConfig := func(cmd *cobra.Command) error {
-		ctx := iostream.FromCmd(cmd.Context(), cmd)
+	initConfig := func(cmd *cobra.Command, maxWidth *int) error {
+		ctx := iostream.FromCmd(cmd.Context(), cmd, maxWidth)
 		ctx = cmdutil.WithVersion(ctx, version)
 
 		secureStorage := cmdutil.IsSecureStorage(cmd)
 		configPath := cmdutil.ConfigPath(cmd)
+
 		cfg, err := config.Load(ctx, configPath, secureStorage)
 		if err != nil {
 			return err
@@ -192,21 +185,30 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		return initConfig(cmd)
+		return initConfig(cmd, nil)
 	}
 	cmd.PersistentPostRunE = func(_ *cobra.Command, _ []string) error {
-		return telem.Close()
+		_ = telem.Close()
+		return nil
 	}
 
-	defaultHelp := cmd.HelpFunc()
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		err := initConfig(cmd)
+		err := initConfig(cmd, new(0))
 		if err == nil {
 			cmdutil.RecordTelemetryNow(cmd, telem.Client)
 			_ = telem.Close()
 		}
 
-		defaultHelp(cmd, args)
+		rootHelp(cmd, args)
+	})
+
+	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		err := initConfig(cmd, new(0))
+		if err == nil {
+			_ = telem.Close()
+		}
+
+		return rootUsage(cmd)
 	})
 
 	cmdutil.RecordTelemetryForSubcommands(cmd, telem)

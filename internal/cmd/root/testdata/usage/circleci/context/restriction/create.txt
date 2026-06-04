@@ -1,28 +1,9 @@
-Usage:
-  circleci context restriction create <context-id|context-name> [flags]
-
-Examples:
-# Restrict context to a specific project
-$ circleci context restriction create ctx-uuid --type project --value proj-uuid
-
-# Restrict context to a specific group
-$ circleci context restriction create ctx-uuid --type group --value group-uuid
-
-# Restrict context using a pipeline expression
-$ circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'
-
-# Capture the restriction ID
-$ circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'
-
+Usage:  circleci context restriction create <context-id|context-name> [flags]
 
 Flags:
-      --jq string      Process values from the response using jq syntax
-      --json           Output as JSON
-      --org string     Organization slug (e.g. gh/myorg); used when resolving name to ID
-      --type string    Restriction type: project, expression, or group
-      --value string   Value of the restriction
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string      Process values from the response using jq syntax
+  --json           Output as JSON
+  --org string     Organization slug (e.g. gh/myorg); used when resolving name to ID
+  --type string    Restriction type: project, expression, or group
+  --value string   Value of the restriction
+  

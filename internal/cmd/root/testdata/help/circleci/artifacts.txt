@@ -1,0 +1,57 @@
+# CircleCI CLI
+
+List or download artifacts produced by a CircleCI run or job.
+
+With no arguments, the run is inferred from the current git
+repository's remote and checked-out branch. Pass a run UUID to
+target a specific run. Use --job to scope to a single job number.
+
+When listing at run level, each artifact is shown with the job
+name and number it came from.
+
+JSON fields: job_name, job_number, path, url, node_index
+
+## Usage
+
+`circleci artifacts [<run-id>] [flags]`
+
+## Flags
+
+| Flag                    | Description                                                              |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `-b, --branch string`   | Branch for run inference (default: current branch)                       |
+| `-d, --download string` | Download artifacts into this directory                                   |
+| `-j, --job int`         | Scope to a single job number                                             |
+| `--jq string`           | Process values from the response using jq syntax                         |
+| `--json`                | Output as JSON                                                           |
+| `--project string`      | Project slug (e.g. gh/org/repo); used with --job, defaults to git remote |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- List all artifacts for the latest run on the current branch: 
+  `circleci artifacts`
+- List artifacts for a specific run: 
+  `circleci artifacts 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- List artifacts for a specific job number: 
+  `circleci artifacts --job 123`
+- Download all artifacts from the latest run into ./artifacts: 
+  `circleci artifacts --download ./artifacts`
+- Download artifacts for a specific branch: 
+  `circleci artifacts --branch main --download ./artifacts`
+- Output as JSON for scripting: 
+  `circleci artifacts --json`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

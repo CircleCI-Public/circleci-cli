@@ -1,0 +1,47 @@
+# CircleCI CLI
+
+List, set, and delete environment variables for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project.
+
+Environment variable values are masked in list output (shown as "xxxx").
+The full value is never retrievable after it has been set.
+
+Also available as: circleci project envvar <command>
+
+## Usage
+
+`circleci envvar <command>`
+
+## Available Commands
+
+| Command  | Description                           |
+| -------- | ------------------------------------- |
+| `delete` | Delete a project environment variable |
+| `list`   | List project environment variables    |
+| `set`    | Set a project environment variable    |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- List all environment variables for the current project: 
+  `circleci envvar list`
+- Set an environment variable: 
+  `circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo`
+- Delete an environment variable: 
+  `circleci envvar delete MY_SECRET`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

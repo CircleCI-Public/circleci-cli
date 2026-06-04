@@ -1,23 +1,7 @@
-Usage:
-  circleci context create <name> [flags]
-
-Examples:
-# Create a context for the org inferred from git remote
-$ circleci context create my-context
-
-# Create a context for a specific organization
-$ circleci context create my-context --org gh/myorg
-
-# Create and capture the ID
-$ circleci context create my-context --org gh/myorg --json --jq '.id'
-
+Usage:  circleci context create <name> [flags]
 
 Flags:
-      --jq string    Process values from the response using jq syntax
-      --json         Output as JSON
-      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string    Process values from the response using jq syntax
+  --json         Output as JSON
+  --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+  

@@ -1,0 +1,45 @@
+# CircleCI CLI
+
+Create a CircleCI orb namespace for an organization.
+
+Each organization may claim one namespace. Namespace names must
+be globally unique across CircleCI. All orbs published in a
+namespace are world-readable.
+
+JSON fields: id, name
+
+## Usage
+
+`circleci namespace create <name> --org-id <uuid> [flags]`
+
+## Flags
+
+| Flag              | Description                                             |
+| ----------------- | ------------------------------------------------------- |
+| `--jq string`     | Process values from the response using jq syntax        |
+| `--json`          | Output as JSON                                          |
+| `--org-id string` | organization UUID to claim the namespace for (required) |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Create a namespace for an organization: 
+  `circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001`
+- Create a namespace and output JSON: 
+  `circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json`
+- Capture just the namespace ID: 
+  `circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json --jq '.id'`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

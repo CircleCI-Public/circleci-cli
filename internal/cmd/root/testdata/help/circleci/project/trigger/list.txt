@@ -1,0 +1,57 @@
+# CircleCI CLI
+
+List all triggers attached to a pipeline definition.
+
+The project is resolved from --project-id if provided; otherwise the
+project slug (--project or git remote) is used to look up the project UUID.
+
+--pipeline-definition-id is required. In a terminal it will be prompted
+interactively if omitted; in non-interactive mode (CI, agents) it must
+be passed as a flag.
+
+JSON fields: id, created_at, event_name, event_preset, config_ref,
+             checkout_ref, disabled, event_source.provider,
+             event_source.repo.external_id, event_source.repo.full_name
+
+## Usage
+
+`circleci project trigger list [flags]`
+
+## Flags
+
+| Flag                              | Description                                             |
+| --------------------------------- | ------------------------------------------------------- |
+| `--jq string`                     | Process values from the response using jq syntax        |
+| `--json`                          | Output as JSON                                          |
+| `--pipeline-definition-id string` | Pipeline definition ID (required)                       |
+| `--project string`                | Project slug (e.g. gh/org/repo); defaults to git remote |
+| `--project-id string`             | Project UUID (overrides --project)                      |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- List triggers for the current repository's project: 
+  `circleci project trigger list \`
+- --pipeline-definition-id a1b2c3d4-...
+- List triggers for a specific project: 
+  `circleci project trigger list \`
+- --project gh/myorg/myrepo \
+- --pipeline-definition-id a1b2c3d4-...
+- Output as JSON for scripting: 
+  `circleci project trigger list \`
+- --pipeline-definition-id a1b2c3d4-... \
+- --json
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

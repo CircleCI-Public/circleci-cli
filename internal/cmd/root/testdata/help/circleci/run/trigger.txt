@@ -1,0 +1,51 @@
+# CircleCI CLI
+
+Trigger a new run for a CircleCI project.
+
+The project and branch are inferred from the current git repository
+unless overridden with --project or --branch.
+
+Pass run parameters with --parameter. Values are parsed as
+booleans (true/false), integers, or strings.
+
+JSON fields: id, number, state, created_at
+
+## Usage
+
+`circleci run trigger [flags]`
+
+## Flags
+
+| Flag                      | Description                                             |
+| ------------------------- | ------------------------------------------------------- |
+| `-b, --branch string`     | Branch to trigger (defaults to current branch)          |
+| `--jq string`             | Process values from the response using jq syntax        |
+| `--json`                  | Output as JSON                                          |
+| `--parameter stringArray` | Run parameter as key=value (repeatable)                 |
+| `--project string`        | Project slug (e.g. gh/org/repo); defaults to git remote |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Trigger a run on the current branch: 
+  `circleci run trigger`
+- Trigger on a specific branch: 
+  `circleci run trigger --branch main`
+- Trigger with run parameters: 
+  `circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true`
+- Output the triggered run as JSON: 
+  `circleci run trigger --json`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

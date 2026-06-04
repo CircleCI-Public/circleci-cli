@@ -1,21 +1,5 @@
-Usage:
-  circleci workflow cancel <workflow-id> [flags]
-
-Examples:
-# Cancel a running workflow (with confirmation)
-$ circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b
-
-# Cancel without confirmation
-$ circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force
-
-# Find a running workflow ID from the latest run and cancel it
-$ circleci run get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
-
+Usage:  circleci workflow cancel <workflow-id> [flags]
 
 Flags:
   -f, --force   skip confirmation prompt
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

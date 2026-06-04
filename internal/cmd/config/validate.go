@@ -70,7 +70,8 @@ func newValidateCmd() *cobra.Command {
 			$ circleci config validate --json
 		`),
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
+
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err

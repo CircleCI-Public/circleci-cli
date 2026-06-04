@@ -1,25 +1,4 @@
-Usage:
-  circleci run list [flags]
-
-Aliases:
-  list, ls
-
-Examples:
-# List recent runs for the current project
-$ circleci run list
-
-# Filter to a specific branch
-$ circleci run list --branch main
-
-# List runs for an explicit project
-$ circleci run list --project gh/org/repo
-
-# Show more results
-$ circleci run list --limit 25
-
-# Output as JSON for scripting
-$ circleci run list --json
-
+Usage:  circleci run list [flags]
 
 Flags:
   -b, --branch string    Filter by branch
@@ -27,8 +6,4 @@ Flags:
       --json             Output as JSON
       --limit int        Maximum number of runs to show [default: 10] (default 10)
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

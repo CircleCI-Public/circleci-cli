@@ -1,31 +1,12 @@
-Usage:
-  circleci policy decide [flags]
-
-Examples:
-# Evaluate a config against remote policies
-$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml
-
-# Exit non-zero on hard failures
-$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --strict
-
-# Pass metadata alongside the decision
-$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --meta '{"project_id":"abc"}'
-
-# Output decision as JSON
-$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --json
-
+Usage:  circleci policy decide [flags]
 
 Flags:
-      --input string            Path to input file (e.g. .circleci/config.yml) (required)
-      --jq string               Process values from the response using jq syntax
-      --json                    Output as JSON
-      --meta string             Decision metadata as a JSON string
-      --metafile string         Path to decision metadata file (YAML or JSON)
-      --owner-id string         Organization UUID (required)
-      --policy-context string   Policy context (default "config")
-      --strict                  Exit non-zero for HARD_FAIL or ERROR decisions
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --input string            Path to input file (e.g. .circleci/config.yml) (required)
+  --jq string               Process values from the response using jq syntax
+  --json                    Output as JSON
+  --meta string             Decision metadata as a JSON string
+  --metafile string         Path to decision metadata file (YAML or JSON)
+  --owner-id string         Organization UUID (required)
+  --policy-context string   Policy context (default "config")
+  --strict                  Exit non-zero for HARD_FAIL or ERROR decisions
+  

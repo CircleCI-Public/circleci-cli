@@ -1,21 +1,5 @@
-Usage:
-  circleci auth id [flags]
-
-Examples:
-# Print the device ID
-$ circleci auth id
-
-# Output as JSON
-$ circleci auth id --json
-
-# Use in a script
-$ DEVICE=$(circleci auth id)
-
+Usage:  circleci auth id [flags]
 
 Flags:
-      --json   Output as JSON
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --json   Output as JSON
+  

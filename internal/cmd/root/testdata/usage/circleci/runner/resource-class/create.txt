@@ -1,23 +1,7 @@
-Usage:
-  circleci runner resource-class create <namespace>/<name> [flags]
-
-Examples:
-# Create a resource class
-$ circleci runner resource-class create my-org/my-runner
-
-# Create with a description
-$ circleci runner resource-class create my-org/my-runner --description "Linux amd64 runner"
-
-# Output as JSON
-$ circleci runner resource-class create my-org/my-runner --json
-
+Usage:  circleci runner resource-class create <namespace>/<name> [flags]
 
 Flags:
-      --description string   Human-readable description of the resource class
-      --jq string            Process values from the response using jq syntax
-      --json                 Output as JSON
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --description string   Human-readable description of the resource class
+  --jq string            Process values from the response using jq syntax
+  --json                 Output as JSON
+  

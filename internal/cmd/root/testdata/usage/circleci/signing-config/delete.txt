@@ -1,18 +1,5 @@
-Usage:
-  circleci signing-config delete <signing-config-id> [flags]
-
-Examples:
-# Delete a signing config (with confirmation)
-$ circleci signing-config delete <signing-config-id>
-
-# Delete without confirmation
-$ circleci signing-config delete <signing-config-id> --force
-
+Usage:  circleci signing-config delete <signing-config-id> [flags]
 
 Flags:
   -f, --force   skip confirmation prompt
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

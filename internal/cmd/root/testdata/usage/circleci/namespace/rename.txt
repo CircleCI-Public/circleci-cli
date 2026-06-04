@@ -1,22 +1,6 @@
-Usage:
-  circleci namespace rename <name> <new-name> [flags]
-
-Examples:
-# Rename a namespace
-$ circleci namespace rename oldname newname
-
-# Rename and output the result as JSON
-$ circleci namespace rename oldname newname --json
-
-# Confirm the new ID after rename
-$ circleci namespace rename oldname newname --json --jq '.id'
-
+Usage:  circleci namespace rename <name> <new-name> [flags]
 
 Flags:
-      --jq string   Process values from the response using jq syntax
-      --json        Output as JSON
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string   Process values from the response using jq syntax
+  --json        Output as JSON
+  

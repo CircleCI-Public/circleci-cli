@@ -1,21 +1,5 @@
-Usage:
-  circleci project envvar set <name> <value> [flags]
-
-Examples:
-# Set an env var for the current project
-$ circleci envvar set MY_SECRET s3cr3t
-
-# Set an env var for a specific project
-$ circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo
-
-# Read a value from a file
-$ circleci envvar set MY_SECRET "$(cat secret.txt)"
-
+Usage:  circleci project envvar set <name> <value> [flags]
 
 Flags:
-      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  

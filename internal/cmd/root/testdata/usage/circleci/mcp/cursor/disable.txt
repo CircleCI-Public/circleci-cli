@@ -1,12 +1,7 @@
-Usage:
-  circleci mcp cursor disable [flags]
+Usage:  circleci mcp cursor disable [flags]
 
 Flags:
-      --config-path string   Path to Cursor config file
-      --server-name string   Name of the MCP server to remove (default: derived from executable name)
-      --workspace            Remove from workspace settings (.cursor/mcp.json) instead of user settings
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --config-path string   Path to Cursor config file
+  --server-name string   Name of the MCP server to remove (default: derived from executable name)
+  --workspace            Remove from workspace settings (.cursor/mcp.json) instead of user settings
+  

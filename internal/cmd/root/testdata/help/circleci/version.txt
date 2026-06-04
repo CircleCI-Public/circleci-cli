@@ -1,0 +1,42 @@
+# CircleCI CLI
+
+Print the version and commit hash this binary was built from.
+
+JSON fields:
+  version   release tag (e.g. "v1.2.3") or "dev" for unreleased builds
+  commit    full git commit hash
+  modified  true if the binary was built from a dirty working tree
+
+## Usage
+
+`circleci version [flags]`
+
+## Flags
+
+| Flag     | Description                                        |
+| -------- | -------------------------------------------------- |
+| `--json` | output as JSON (fields: version, commit, modified) |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Print version and commit hash: 
+  `circleci version`
+- Print as JSON: 
+  `circleci version --json`
+- Extract just the commit hash: 
+  `circleci version --json | jq -r .commit`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

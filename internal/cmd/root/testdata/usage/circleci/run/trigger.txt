@@ -1,19 +1,4 @@
-Usage:
-  circleci run trigger [flags]
-
-Examples:
-# Trigger a run on the current branch
-$ circleci run trigger
-
-# Trigger on a specific branch
-$ circleci run trigger --branch main
-
-# Trigger with run parameters
-$ circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true
-
-# Output the triggered run as JSON
-$ circleci run trigger --json
-
+Usage:  circleci run trigger [flags]
 
 Flags:
   -b, --branch string           Branch to trigger (defaults to current branch)
@@ -21,8 +6,4 @@ Flags:
       --json                    Output as JSON
       --parameter stringArray   Run parameter as key=value (repeatable)
       --project string          Project slug (e.g. gh/org/repo); defaults to git remote
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

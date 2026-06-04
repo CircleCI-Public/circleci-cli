@@ -1,18 +1,1 @@
-Usage:
-  circleci completion install [flags]
-
-Examples:
-# Install completion (detects shell from $SHELL)
-$ circleci completion install
-
-# Then reload your shell
-$ source ~/.zshrc
-
-# To install manually instead, source the output directly
-$ source <(circleci completion bash)
-
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+Usage:  circleci completion install

@@ -1,18 +1,1 @@
-Usage:
-  circleci completion uninstall [flags]
-
-Examples:
-# Remove completion
-$ circleci completion uninstall
-
-# Then reload your shell
-$ source ~/.zshrc
-
-# Check whether completion is currently installed
-$ grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null
-
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+Usage:  circleci completion uninstall

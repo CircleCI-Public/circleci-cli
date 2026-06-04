@@ -1,20 +1,7 @@
-Usage:
-  circleci context restriction delete <context-id|context-name> [flags]
-
-Examples:
-# Delete a restriction (with confirmation)
-$ circleci context restriction delete ctx-uuid --restriction-id r-uuid
-
-# Delete without confirmation
-$ circleci context restriction delete ctx-uuid --restriction-id r-uuid --force
-
+Usage:  circleci context restriction delete <context-id|context-name> [flags]
 
 Flags:
   -f, --force                   Skip confirmation prompt
       --org string              Organization slug (e.g. gh/myorg); used when resolving name to ID
       --restriction-id string   UUID of the restriction to delete
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  
