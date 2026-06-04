@@ -24,6 +24,8 @@ package apiclient
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 // ResourceClass is a CircleCI runner resource class.
@@ -61,14 +63,31 @@ type RunnerTaskCounts struct {
 	Running   int `json:"running_runner_tasks"`
 }
 
-// ListResourceClasses returns resource classes, optionally filtered by namespace.
-// Uses the runner API at runner.circleci.com (or the configured server host).
-func (c *Client) ListResourceClasses(ctx context.Context, namespace string) ([]ResourceClass, error) {
+// ListResourceClassesByOrg returns the resource classes for an organization,
+// identified by its UUID. Uses the runner API at runner.circleci.com (or the
+// configured server host).
+func (c *Client) ListResourceClassesByOrg(ctx context.Context, orgID uuid.UUID) ([]ResourceClass, error) {
+	var resp struct {
+		Items []ResourceClass `json:"items"`
+	}
+	err := c.getV3(ctx, "/runner/resource", &resp,
+		queryParam("org-id", orgID.String()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Items, nil
+}
+
+// ListResourceClassesByNamespace returns the resource classes for a namespace
+// (organization name). Uses the runner API at runner.circleci.com (or the
+// configured server host).
+func (c *Client) ListResourceClassesByNamespace(ctx context.Context, namespace string) ([]ResourceClass, error) {
 	var resp struct {
 		Items []ResourceClass `json:"items"`
 	}
 	err := c.getV3(ctx, "/runner", &resp,
-		optionalQueryParam("namespace", namespace),
+		queryParam("namespace", namespace),
 	)
 	if err != nil {
 		return nil, err
@@ -154,8 +173,23 @@ func (c *Client) GetRunnerTaskCounts(ctx context.Context, resourceClass string) 
 	}, nil
 }
 
-// ListRunnerInstances returns live runner instances.
-// Exactly one of resourceClass or namespace must be non-empty.
+// ListRunnerInstancesByOrg returns the live runner instances for an
+// organization, identified by its UUID.
+func (c *Client) ListRunnerInstancesByOrg(ctx context.Context, orgID uuid.UUID) ([]RunnerInstance, error) {
+	var resp struct {
+		Items []RunnerInstance `json:"items"`
+	}
+	err := c.getV3(ctx, "/runner", &resp,
+		queryParam("org-id", orgID.String()),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Items, nil
+}
+
+// ListRunnerInstances returns live runner instances filtered by resource class
+// and/or namespace. Either filter may be empty.
 func (c *Client) ListRunnerInstances(ctx context.Context, resourceClass, namespace string) ([]RunnerInstance, error) {
 	var resp struct {
 		Items []RunnerInstance `json:"items"`

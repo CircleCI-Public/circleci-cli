@@ -33,7 +33,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
@@ -123,12 +122,9 @@ type contextRestrictionEntry struct {
 func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug string, jsonOut bool) error {
 	contextID, err := uuid.Parse(contextName)
 	if err != nil {
-		if orgSlug == "" {
-			info, err := gitremote.Detect()
-			if err != nil {
-				return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context get --org gh/myorg")
-			}
-			orgSlug = orgFromSlug(info.Slug)
+		orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context get")
+		if err != nil {
+			return err
 		}
 		id, err := resolveContextID(ctx, client, contextName, orgSlug)
 		if err != nil {

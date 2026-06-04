@@ -23,14 +23,11 @@
 package runner
 
 import (
-	"strings"
-
 	"github.com/MakeNowJust/heredoc"
 	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
 func newOpenCmd() *cobra.Command {
@@ -61,13 +58,9 @@ func newOpenCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			slug := orgSlug
-			if slug == "" {
-				info, err := gitremote.Detect()
-				if err != nil {
-					return cmdutil.GitDetectErr(err, "Or specify the organization: circleci runner open --org gh/myorg")
-				}
-				slug = orgSlugFromProjectSlug(info.Slug)
+			slug, err := cmdutil.ResolveOrgSlug(orgSlug, "circleci runner open")
+			if err != nil {
+				return err
 			}
 
 			appURL, err := cmdutil.AppURL(ctx)
@@ -87,14 +80,4 @@ func newOpenCmd() *cobra.Command {
 	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); defaults to git remote")
 
 	return cmd
-}
-
-// orgSlugFromProjectSlug extracts the vcs/org portion of a project slug.
-// "gh/myorg/myrepo" → "gh/myorg"
-func orgSlugFromProjectSlug(projectSlug string) string {
-	parts := strings.SplitN(projectSlug, "/", 3)
-	if len(parts) >= 2 {
-		return parts[0] + "/" + parts[1]
-	}
-	return projectSlug
 }

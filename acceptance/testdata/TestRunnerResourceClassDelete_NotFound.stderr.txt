@@ -1,0 +1,6 @@
+error: No runner resource found for "my-org/nonexistent".
+API: {"message":"not found"}
+
+
+Suggestions:
+  • List available resource classes with: circleci runner resource-class list

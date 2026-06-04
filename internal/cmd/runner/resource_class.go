@@ -29,12 +29,12 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
@@ -62,6 +62,7 @@ func newResourceClassCmd() *cobra.Command {
 // --- resource-class list ---
 
 func newResourceClassListCmd() *cobra.Command {
+	var org string
 	var namespace string
 	var jsonOut bool
 
@@ -72,19 +73,24 @@ func newResourceClassListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List CircleCI runner resource classes.
 
-			Optionally filter by namespace (organization name).
+			The organization is inferred from the current git repository's remote
+			unless overridden with --org, which accepts an org slug (e.g. gh/myorg)
+			or an org UUID. Optionally filter further by namespace.
 
 			JSON fields: id, resource_class, description
 		`),
 		Example: heredoc.Doc(`
-			# List all resource classes you have access to
+			# List resource classes for the org inferred from the git remote
 			$ circleci runner resource-class list
 
-			# List resource classes for a specific namespace
-			$ circleci runner resource-class list --namespace my-org
+			# List resource classes for a specific organization (slug)
+			$ circleci runner resource-class list --org gh/my-org
+
+			# List resource classes for a specific organization (UUID)
+			$ circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c
 
 			# Output as JSON
-			$ circleci runner resource-class list --namespace my-org --json
+			$ circleci runner resource-class list --org gh/my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -92,10 +98,11 @@ func newResourceClassListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runResourceClassList(ctx, client, namespace, jsonOut)
+			return runResourceClassList(ctx, client, org, namespace, jsonOut)
 		},
 	}
 
+	cmd.Flags().StringVar(&org, "org", "", "Organization slug (e.g. gh/myorg) or UUID; defaults to git remote")
 	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -108,24 +115,31 @@ type resourceClassOutput struct {
 	Description   string `json:"description"`
 }
 
-func runResourceClassList(ctx context.Context, client *apiclient.Client, namespace string, jsonOut bool) error {
-	if namespace == "" {
-		ns, err := gitremote.DetectNamespace()
+func runResourceClassList(ctx context.Context, client *apiclient.Client, org, namespace string, jsonOut bool) error {
+	// List by org UUID when --org (slug or UUID) is given or can be inferred
+	// from the git remote. When only a namespace filter is supplied, keep the
+	// legacy namespace-based listing and skip org resolution.
+	var (
+		classes []apiclient.ResourceClass
+		subject = namespace
+		err     error
+	)
+	if org != "" || namespace == "" {
+		var orgID uuid.UUID
+		orgID, err = cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner resource-class list")
 		if err != nil {
-			return clierrors.New("runner.namespace_required", "Namespace required",
-				"Could not detect organization namespace from git remote.").
-				WithSuggestions("Specify your organization: circleci runner resource-class list --namespace <your-org>").
-				WithExitCode(clierrors.ExitBadArguments)
+			return err
 		}
-		namespace = ns
+		subject = orgID.String()
+		classes, err = client.ListResourceClassesByOrg(ctx, orgID)
+	} else {
+		classes, err = client.ListResourceClassesByNamespace(ctx, namespace)
 	}
-
-	classes, err := client.ListResourceClasses(ctx, namespace)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return runnerNotEnabledErr()
 		}
-		return apiErr(err, namespace)
+		return apiErr(err, subject)
 	}
 
 	out := make([]resourceClassOutput, len(classes))

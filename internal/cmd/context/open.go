@@ -28,7 +28,6 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
 func newOpenCmd() *cobra.Command {
@@ -59,13 +58,9 @@ func newOpenCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 
-			slug := orgSlug
-			if slug == "" {
-				info, err := gitremote.Detect()
-				if err != nil {
-					return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context open --org gh/myorg")
-				}
-				slug = orgFromSlug(info.Slug)
+			slug, err := cmdutil.ResolveOrgSlug(orgSlug, "circleci context open")
+			if err != nil {
+				return err
 			}
 
 			appURL, err := cmdutil.AppURL(ctx)

@@ -129,7 +129,7 @@ func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass s
 				WithSuggestions("Specify a resource class: circleci runner token list --resource-class <namespace/name>").
 				WithExitCode(clierrors.ExitBadArguments)
 		}
-		classes, apiErr2 := client.ListResourceClasses(ctx, namespace)
+		classes, apiErr2 := client.ListResourceClassesByNamespace(ctx, namespace)
 		if apiErr2 != nil {
 			if httpcl.HasStatusCode(apiErr2, http.StatusNotFound) {
 				return runnerNotEnabledErr()

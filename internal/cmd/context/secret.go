@@ -34,7 +34,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
@@ -106,7 +105,7 @@ func newSecretListCmd() *cobra.Command {
 				return err
 			}
 			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
-				"circleci context secret list --org gh/myorg")
+				"circleci context secret list")
 			if err != nil {
 				return err
 			}
@@ -234,7 +233,7 @@ func newSecretSetCmd() *cobra.Command {
 				return err
 			}
 			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
-				"circleci context secret set --org gh/myorg")
+				"circleci context secret set")
 			if err != nil {
 				return err
 			}
@@ -304,7 +303,7 @@ func newSecretDeleteCmd() *cobra.Command {
 				return err
 			}
 			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
-				"circleci context secret delete --org gh/myorg")
+				"circleci context secret delete")
 			if err != nil {
 				return err
 			}
@@ -348,17 +347,15 @@ func secretAPIErr(err error, subject string) *clierrors.CLIError {
 
 // resolveContextArg resolves a context UUID or name to a UUID string.
 // If arg is a valid UUID it is returned as-is. Otherwise it looks up by name,
-// requiring orgSlug or a detectable git remote.
-func resolveContextArg(ctx context.Context, client *apiclient.Client, arg, orgSlug, hint string) (string, error) {
+// requiring orgSlug or a detectable git remote. cmdName is used in the
+// git-detection error suggestion (e.g. "circleci context secret list").
+func resolveContextArg(ctx context.Context, client *apiclient.Client, arg, orgSlug, cmdName string) (string, error) {
 	if _, err := uuid.Parse(arg); err == nil {
 		return arg, nil
 	}
-	if orgSlug == "" {
-		info, err := gitremote.Detect()
-		if err != nil {
-			return "", cmdutil.GitDetectErr(err, "Or specify the organization: "+hint)
-		}
-		orgSlug = orgFromSlug(info.Slug)
+	orgSlug, err := cmdutil.ResolveOrgSlug(orgSlug, cmdName)
+	if err != nil {
+		return "", err
 	}
 	id, err := resolveContextID(ctx, client, arg, orgSlug)
 	if err != nil {
