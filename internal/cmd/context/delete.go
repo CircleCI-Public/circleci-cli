@@ -33,7 +33,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -94,12 +93,9 @@ func runDelete(ctx context.Context, client *apiclient.Client, contextName, orgSl
 	displayName := contextName
 	contextID, err := uuid.Parse(contextName)
 	if err != nil {
-		if orgSlug == "" {
-			info, err := gitremote.Detect()
-			if err != nil {
-				return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context delete --org gh/myorg")
-			}
-			orgSlug = orgFromSlug(info.Slug)
+		orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context delete")
+		if err != nil {
+			return err
 		}
 		id, err := resolveContextID(ctx, client, contextName, orgSlug)
 		if err != nil {

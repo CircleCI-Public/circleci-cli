@@ -42,6 +42,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
 
+const testRunnerOrgID = "f22b6566-597d-46d5-ba74-99ef5bb3d85c"
+
 func fakeRC(id, slug, desc string) map[string]any {
 	return map[string]any{
 		"id":             id,
@@ -118,8 +120,9 @@ func TestRunnerResourceClassList_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassList_Namespace(t *testing.T) {
@@ -132,8 +135,9 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassList_JSON(t *testing.T) {
@@ -183,7 +187,40 @@ func TestRunnerResourceClassList_NoToken(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 3))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassList_Org(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddOrg(testRunnerOrgID, "gh/my-org", "My Org", "github")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--org", "gh/my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassList_OrgID(t *testing.T) {
+	// A bare UUID is used directly; no org lookup is performed.
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -226,8 +263,9 @@ func TestRunnerResourceClassCreate_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassCreate_JSON(t *testing.T) {
@@ -278,7 +316,8 @@ func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
+	assert.Check(t, cmp.Equal(result.ExitCode, 6))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -292,7 +331,8 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	t.Run("check request", func(t *testing.T) {
@@ -321,7 +361,9 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- token list ---
@@ -336,8 +378,9 @@ func TestRunnerTokenList(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenList_Color(t *testing.T) {
@@ -351,8 +394,9 @@ func TestRunnerTokenList_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenList_JSON(t *testing.T) {
@@ -419,8 +463,9 @@ func TestRunnerTokenList_Empty(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- token create ---
@@ -435,8 +480,9 @@ func TestRunnerTokenCreate(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
@@ -462,8 +508,9 @@ func TestRunnerTokenCreate_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenCreate_JSON(t *testing.T) {
@@ -514,8 +561,9 @@ func TestRunnerTokenDelete(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
@@ -541,8 +589,9 @@ func TestRunnerTokenDelete_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
@@ -556,7 +605,8 @@ func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr) // ExitCancelled
+	assert.Check(t, cmp.Equal(result.ExitCode, 6))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -573,7 +623,9 @@ func TestRunnerTokenDelete_NotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // --- instance list ---
@@ -588,8 +640,9 @@ func TestRunnerInstanceList(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerInstanceList_Color(t *testing.T) {
@@ -603,8 +656,9 @@ func TestRunnerInstanceList_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerInstanceList_ResourceClass(t *testing.T) {
@@ -617,8 +671,9 @@ func TestRunnerInstanceList_ResourceClass(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerInstanceList_ResourceClass_Color(t *testing.T) {
@@ -632,8 +687,9 @@ func TestRunnerInstanceList_ResourceClass_Color(t *testing.T) {
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerInstanceList_JSON(t *testing.T) {
@@ -684,8 +740,41 @@ func TestRunnerInstanceList_Empty(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerInstanceList_Org(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddOrg(testRunnerOrgID, "gh/my-org", "My Org", "github")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "--org", "gh/my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerInstanceList_OrgID(t *testing.T) {
+	// A bare UUID is used directly; no org lookup is performed.
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerInstanceList_NoToken(t *testing.T) {
@@ -698,7 +787,8 @@ func TestRunnerInstanceList_NoToken(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 3))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -714,8 +804,10 @@ func TestRunnerConfig(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
 }
 
 func TestRunnerConfig_Nickname(t *testing.T) {
@@ -728,8 +820,9 @@ func TestRunnerConfig_Nickname(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerConfig_ExistingToken(t *testing.T) {
@@ -744,8 +837,9 @@ func TestRunnerConfig_ExistingToken(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerConfig_OutputFile(t *testing.T) {
@@ -760,8 +854,9 @@ func TestRunnerConfig_OutputFile(t *testing.T) {
 		WorkDir: dir,
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, strings.TrimSpace(result.Stdout), "")
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	contents, err := os.ReadFile(outPath)
 	assert.NilError(t, err)
@@ -778,7 +873,8 @@ func TestRunnerConfig_NoArgs(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 

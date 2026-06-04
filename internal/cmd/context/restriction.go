@@ -33,7 +33,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -127,12 +126,9 @@ func newRestrictionCreateCmd() *cobra.Command {
 			}
 			contextID, err := uuid.Parse(args[0])
 			if err != nil {
-				if orgSlug == "" {
-					info, err := gitremote.Detect()
-					if err != nil {
-						return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context restriction create --org gh/myorg")
-					}
-					orgSlug = orgFromSlug(info.Slug)
+				orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context restriction create")
+				if err != nil {
+					return err
 				}
 				id, err := resolveContextID(ctx, client, args[0], orgSlug)
 				if err != nil {
@@ -236,12 +232,9 @@ func newRestrictionDeleteCmd() *cobra.Command {
 			}
 			contextID, err := uuid.Parse(args[0])
 			if err != nil {
-				if orgSlug == "" {
-					info, err := gitremote.Detect()
-					if err != nil {
-						return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context restriction delete --org gh/myorg")
-					}
-					orgSlug = orgFromSlug(info.Slug)
+				orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context restriction delete")
+				if err != nil {
+					return err
 				}
 				id, err := resolveContextID(ctx, client, args[0], orgSlug)
 				if err != nil {

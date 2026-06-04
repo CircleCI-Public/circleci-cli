@@ -292,9 +292,12 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Config compile + org routes.
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
 	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
-	// Runner (v3) routes. GET /runner dispatches on query param:
-	// ?namespace=  → resource classes, ?resource-class= → instances.
+	// Runner (v3) routes. GET /runner lists instances (scoped by ?org-id= and/or
+	// ?resource-class=); GET /runner/resource lists resource classes (scoped by
+	// ?org-id= and/or ?namespace=). GET /runner also still accepts ?namespace=
+	// for the legacy dispatch path.
 	r.Get("/api/v3/runner", f.handleRunnerList)
+	r.Get("/api/v3/runner/resource", f.handleListResourceClasses)
 	r.Post("/api/v3/runner/resource", f.handleCreateResourceClass)
 	r.Delete("/api/v3/runner/resource/{namespace}/{name}", f.handleDeleteResourceClass)
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
@@ -783,9 +786,14 @@ func (f *CircleCI) AddRunnerInstance(instance any) {
 // --- Runner handlers ---
 
 // handleRunnerList dispatches GET /api/v3/runner based on query params:
-// ?namespace=  → list resource classes; ?resource-class= → instances.
+// ?resource-class= or ?org-id= → instances; ?namespace= → resource classes
+// (legacy path retained for backwards compatibility).
 func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
 	if rc := r.URL.Query().Get("resource-class"); rc != "" {
+		f.handleListRunnerInstances(w, r)
+		return
+	}
+	if orgID := r.URL.Query().Get("org-id"); orgID != "" {
 		f.handleListRunnerInstances(w, r)
 		return
 	}
@@ -794,7 +802,7 @@ func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Status(r, http.StatusBadRequest)
-	render.JSON(w, r, map[string]any{"message": "must specify exactly one of resource-class or namespace"})
+	render.JSON(w, r, map[string]any{"message": "must specify one of org-id, resource-class, or namespace"})
 }
 
 func (f *CircleCI) handleListResourceClasses(w http.ResponseWriter, r *http.Request) {

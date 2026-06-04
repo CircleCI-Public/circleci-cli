@@ -5,20 +5,24 @@ Aliases:
   list, ls
 
 Examples:
-# List all connected runner instances
+# List connected instances for the org inferred from the git remote
 $ circleci runner instance list
+
+# List instances for a specific organization (slug or UUID)
+$ circleci runner instance list --org gh/my-org
 
 # List instances for a specific resource class
 $ circleci runner instance list --resource-class my-org/my-runner
 
 # Output as JSON
-$ circleci runner instance list --resource-class my-org/my-runner --json
+$ circleci runner instance list --org gh/my-org --json
 
 
 Flags:
       --jq string               Process values from the response using jq syntax
       --json                    Output as JSON
-      --namespace string        Filter by namespace (organization); defaults to git remote
+      --namespace string        Filter by namespace (organization)
+      --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
       --resource-class string   Filter by resource class (namespace/name)
 
 Global Flags:

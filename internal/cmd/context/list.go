@@ -24,7 +24,6 @@ package context
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -33,7 +32,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
@@ -100,12 +98,9 @@ type contextListEntry struct {
 }
 
 func runList(ctx context.Context, client *apiclient.Client, orgSlug string, name string, jsonOut bool) error {
-	if orgSlug == "" {
-		info, err := gitremote.Detect()
-		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context list --org gh/myorg")
-		}
-		orgSlug = orgFromSlug(info.Slug)
+	orgSlug, err := cmdutil.ResolveOrgSlug(orgSlug, "circleci context list")
+	if err != nil {
+		return err
 	}
 
 	contexts, err := client.ListContexts(ctx, orgSlug, name)
@@ -137,14 +132,4 @@ func runList(ctx context.Context, client *apiclient.Client, orgSlug string, name
 	}
 	iostream.PrintMarkdown(ctx, "# Contexts\n"+tbl.Render())
 	return nil
-}
-
-// orgFromSlug extracts the org portion of a project slug.
-// "gh/myorg/myrepo" → "gh/myorg"
-func orgFromSlug(projectSlug string) string {
-	parts := strings.SplitN(projectSlug, "/", 3)
-	if len(parts) >= 2 {
-		return parts[0] + "/" + parts[1]
-	}
-	return projectSlug
 }

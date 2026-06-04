@@ -32,7 +32,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -92,12 +91,9 @@ type contextCreateOutput struct {
 }
 
 func runCreate(ctx context.Context, client *apiclient.Client, name, orgSlug string, jsonOut bool) error {
-	if orgSlug == "" {
-		info, err := gitremote.Detect()
-		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify the organization: circleci context create --org gh/myorg")
-		}
-		orgSlug = orgFromSlug(info.Slug)
+	orgSlug, err := cmdutil.ResolveOrgSlug(orgSlug, "circleci context create")
+	if err != nil {
+		return err
 	}
 
 	ctxt, err := client.CreateContext(ctx, name, orgSlug)

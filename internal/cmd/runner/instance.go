@@ -28,12 +28,11 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
@@ -56,6 +55,7 @@ func newInstanceCmd() *cobra.Command {
 }
 
 func newInstanceListCmd() *cobra.Command {
+	var org string
 	var resourceClass string
 	var namespace string
 	var jsonOut bool
@@ -67,7 +67,10 @@ func newInstanceListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List CircleCI runner instances currently connected to your organization.
 
-			Optionally filter by resource class to see only instances of a specific type.
+			The organization is inferred from the current git repository's remote
+			unless overridden with --org, which accepts an org slug (e.g. gh/myorg)
+			or an org UUID. Optionally filter by resource class to see only
+			instances of a specific type.
 
 			The STATUS column is derived from last_connected_at:
 			  online   — connected within the last 2 minutes
@@ -78,14 +81,17 @@ func newInstanceListCmd() *cobra.Command {
 			             first_connected, last_connected, last_used
 		`),
 		Example: heredoc.Doc(`
-			# List all connected runner instances
+			# List connected instances for the org inferred from the git remote
 			$ circleci runner instance list
+
+			# List instances for a specific organization (slug or UUID)
+			$ circleci runner instance list --org gh/my-org
 
 			# List instances for a specific resource class
 			$ circleci runner instance list --resource-class my-org/my-runner
 
 			# Output as JSON
-			$ circleci runner instance list --resource-class my-org/my-runner --json
+			$ circleci runner instance list --org gh/my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -93,12 +99,13 @@ func newInstanceListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runInstanceList(ctx, client, resourceClass, namespace, jsonOut)
+			return runInstanceList(ctx, client, org, resourceClass, namespace, jsonOut)
 		},
 	}
 
+	cmd.Flags().StringVar(&org, "org", "", "Organization slug (e.g. gh/myorg) or UUID; defaults to git remote")
 	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
-	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization); defaults to git remote")
+	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 	return cmd
@@ -146,28 +153,32 @@ func instanceStatus(lastConnectedAt string) string {
 	}
 }
 
-func runInstanceList(ctx context.Context, client *apiclient.Client, resourceClass, namespace string, jsonOut bool) error {
-	if resourceClass == "" && namespace == "" {
-		ns, err := gitremote.DetectNamespace()
+func runInstanceList(ctx context.Context, client *apiclient.Client, org, resourceClass, namespace string, jsonOut bool) error {
+	// List by org UUID when --org (slug or UUID) is given or can be inferred
+	// from the git remote. When only a resource-class or namespace filter is
+	// supplied, keep the legacy filter-based listing and skip org resolution.
+	var (
+		instances []apiclient.RunnerInstance
+		subject   = resourceClass
+		err       error
+	)
+	if org != "" || (resourceClass == "" && namespace == "") {
+		var orgID uuid.UUID
+		orgID, err = cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner instance list")
 		if err != nil {
-			return clierrors.New("runner.namespace_required", "Namespace required",
-				"Could not detect organization namespace from git remote.").
-				WithSuggestions(
-					"Specify a namespace: circleci runner instance list --namespace <your-org>",
-					"Or filter by resource class: circleci runner instance list --resource-class <namespace/name>",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return err
 		}
-		namespace = ns
+		subject = orgID.String()
+		instances, err = client.ListRunnerInstancesByOrg(ctx, orgID)
+	} else {
+		instances, err = client.ListRunnerInstances(ctx, resourceClass, namespace)
 	}
-
-	instances, err := client.ListRunnerInstances(ctx, resourceClass, namespace)
 	if err != nil {
 		// 404 on instance list means no agents are connected, not that runner is unavailable.
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			instances = nil
 		} else {
-			return apiErr(err, resourceClass)
+			return apiErr(err, subject)
 		}
 	}
 
