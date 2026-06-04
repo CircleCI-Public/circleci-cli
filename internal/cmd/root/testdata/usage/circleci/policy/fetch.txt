@@ -1,24 +1,8 @@
-Usage:
-  circleci policy fetch [policy-name] [flags]
-
-Examples:
-# Fetch the full policy bundle
-$ circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
-
-# Fetch a single policy by name
-$ circleci policy fetch my-policy --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
-
-# Output as JSON with jq filtering
-$ circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq 'keys'
-
+Usage:  circleci policy fetch [policy-name] [flags]
 
 Flags:
-      --jq string               Process values from the response using jq syntax
-      --json                    Output as JSON
-      --owner-id string         Organization UUID (required)
-      --policy-context string   Policy context (default "config")
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string               Process values from the response using jq syntax
+  --json                    Output as JSON
+  --owner-id string         Organization UUID (required)
+  --policy-context string   Policy context (default "config")
+  

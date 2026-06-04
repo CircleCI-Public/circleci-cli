@@ -1,39 +1,14 @@
-Usage:
-  circleci project trigger create [flags]
-
-Examples:
-# Create a GitHub App trigger (provider defaults to github_app)
-$ circleci project trigger create \
-    --pipeline-definition-id a1b2c3d4-... \
-    --repo-id 123456789
-
-# Create a trigger for a GitHub Server installation
-$ circleci project trigger create \
-    --provider github_server \
-    --pipeline-definition-id a1b2c3d4-... \
-    --repo-id 123456789
-
-# Create a trigger with event filtering and output as JSON
-$ circleci project trigger create \
-    --pipeline-definition-id a1b2c3d4-... \
-    --repo-id 123456789 \
-    --event-preset all-pushes \
-    --json
-
+Usage:  circleci project trigger create [flags]
 
 Flags:
-      --checkout-ref string             Git ref for checking out code (only needed when checkout repo differs from event source repo)
-      --config-ref string               Git ref for fetching config (only needed when config repo differs from event source repo)
-      --event-preset string             Event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues)
-      --jq string                       Process values from the response using jq syntax
-      --json                            Output as JSON
-      --pipeline-definition-id string   Pipeline definition ID (required)
-      --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
-      --project-id string               Project UUID (overrides --project)
-      --provider string                 Event source provider (one of: github_app, github_server, github_oauth, webhook, schedule) (default "github_app")
-      --repo-id string                  Repository external ID (required for github_app, github_server, github_oauth)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --checkout-ref string             Git ref for checking out code (only needed when checkout repo differs from event source repo)
+  --config-ref string               Git ref for fetching config (only needed when config repo differs from event source repo)
+  --event-preset string             Event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues)
+  --jq string                       Process values from the response using jq syntax
+  --json                            Output as JSON
+  --pipeline-definition-id string   Pipeline definition ID (required)
+  --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
+  --project-id string               Project UUID (overrides --project)
+  --provider string                 Event source provider (one of: github_app, github_server, github_oauth, webhook, schedule) (default "github_app")
+  --repo-id string                  Repository external ID (required for github_app, github_server, github_oauth)
+  

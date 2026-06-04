@@ -1,25 +1,6 @@
-Usage:
-  circleci namespace delete <name> [flags]
-
-Examples:
-# Delete a namespace (with confirmation prompt)
-$ circleci namespace delete myorg
-
-# Preview what would be deleted without deleting
-$ circleci namespace delete myorg --dry-run
-
-# Delete without a confirmation prompt
-$ circleci namespace delete myorg --force
-
-# Delete in a CI environment (non-interactive; --force required)
-$ circleci namespace delete myorg -f
-
+Usage:  circleci namespace delete <name> [flags]
 
 Flags:
   -n, --dry-run   print what would be deleted without deleting
   -f, --force     skip confirmation prompt
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

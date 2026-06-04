@@ -1,27 +1,8 @@
-Usage:
-  circleci job logs <job-number> [flags]
-
-Examples:
-# Fetch logs for job number 123
-$ circleci job logs 123
-
-# Filter to a specific step
-$ circleci job logs 123 --step "Run tests"
-
-# Specify the project explicitly
-$ circleci job logs 123 --project gh/myorg/myrepo
-
-# Output as JSON
-$ circleci job logs 123 --json
-
+Usage:  circleci job logs <job-number> [flags]
 
 Flags:
-      --jq string        Process values from the response using jq syntax
-      --json             Output as JSON
-      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
-      --step string      Filter output to a single step by name
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string        Process values from the response using jq syntax
+  --json             Output as JSON
+  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  --step string      Filter output to a single step by name
+  

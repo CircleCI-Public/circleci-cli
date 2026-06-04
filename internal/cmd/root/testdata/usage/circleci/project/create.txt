@@ -1,25 +1,6 @@
-Usage:
-  circleci project create [project-name] --org <vcs/org-slug> [flags]
-
-Examples:
-# Create a project (prompted for name if run interactively)
-$ circleci project create --org gh/myorg
-
-# Create a GitHub-hosted project
-$ circleci project create my-new-repo --org gh/myorg
-
-# Create a CircleCI-native project (standalone pipelines)
-$ circleci project create new-service --org circleci/9YytKzouJxzu4TjCRFqAoD
-
-# Create a project and output as JSON for scripting
-$ circleci project create my-new-repo --org gh/myorg --json
-
+Usage:  circleci project create [project-name] --org <vcs/org-slug> [flags]
 
 Flags:
-      --json         Output as JSON
-      --org string   organization slug (e.g. gh/myorg)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --json         Output as JSON
+  --org string   organization slug (e.g. gh/myorg)
+  

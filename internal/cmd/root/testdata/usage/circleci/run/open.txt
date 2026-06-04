@@ -1,28 +1,6 @@
-Usage:
-  circleci run open [flags]
-
-Examples:
-# Open runs for the current repo
-$ circleci run open
-
-# Open runs filtered to the current git branch
-$ circleci run open --current-branch
-
-# Open runs filtered to a specific branch
-$ circleci run open --branch my-feature
-
-# Open runs filtered to a specific branch (short flag)
-$ circleci run open -b main
-
-# Open when your remote is on CircleCI server
-$ circleci run open --host https://circleci.example.com
-
+Usage:  circleci run open [flags]
 
 Flags:
   -b, --branch string    Filter runs to a specific branch
       --current-branch   Filter runs to the current git branch
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

@@ -174,6 +174,13 @@ func newSecretSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <context-id|context-name>",
 		Short: "Set an environment variable in a context",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				A context can be specified in the form:
+				- "context-name"
+				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+			`),
+		},
 		Long: heredoc.Doc(`
 			Add or update an environment variable in a CircleCI context.
 

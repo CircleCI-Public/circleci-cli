@@ -1,23 +1,7 @@
-Usage:
-  circleci runner token create <resource-class> [flags]
-
-Examples:
-# Create a token for a resource class
-$ circleci runner token create my-org/my-runner
-
-# Create a token with a nickname
-$ circleci runner token create my-org/my-runner --nickname "prod-server-1"
-
-# Output as JSON (includes the token value)
-$ circleci runner token create my-org/my-runner --json
-
+Usage:  circleci runner token create <resource-class> [flags]
 
 Flags:
-      --jq string         Process values from the response using jq syntax
-      --json              Output as JSON
-      --nickname string   Human-readable nickname for the token
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string         Process values from the response using jq syntax
+  --json              Output as JSON
+  --nickname string   Human-readable nickname for the token
+  

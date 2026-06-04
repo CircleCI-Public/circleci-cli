@@ -1,23 +1,7 @@
-Usage:
-  circleci namespace create <name> --org-id <uuid> [flags]
-
-Examples:
-# Create a namespace for an organization
-$ circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001
-
-# Create a namespace and output JSON
-$ circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json
-
-# Capture just the namespace ID
-$ circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json --jq '.id'
-
+Usage:  circleci namespace create <name> --org-id <uuid> [flags]
 
 Flags:
-      --jq string       Process values from the response using jq syntax
-      --json            Output as JSON
-      --org-id string   organization UUID to claim the namespace for (required)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string       Process values from the response using jq syntax
+  --json            Output as JSON
+  --org-id string   organization UUID to claim the namespace for (required)
+  

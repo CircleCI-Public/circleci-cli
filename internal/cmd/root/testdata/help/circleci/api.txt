@@ -1,0 +1,57 @@
+# CircleCI CLI
+
+Make an authenticated HTTP request to the REST APIs and print
+the raw response body.
+
+<path> is relative to /api/v2 (e.g. /project/gh/org/repo). To target
+a different version prefix, include it explicitly:
+  circleci api /api/v1.1/me
+
+The Authorization: Bearer header is added automatically from your stored token.
+Use -H to add extra headers and -f to set fields (query parameters for
+GET/DELETE, JSON body fields for POST/PUT/PATCH).
+
+Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
+
+## Usage
+
+`circleci api <path> [flags]`
+
+## Flags
+
+| Flag                       | Description                                                                       |
+| -------------------------- | --------------------------------------------------------------------------------- |
+| `-f, --field stringArray`  | Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH) |
+| `-H, --header stringArray` | Add a request header: "Key: Value"                                                |
+| `--jq string`              | Process values from the response using jq syntax                                  |
+| `-X, --method string`      | HTTP method (default: GET, or POST when -f is used)                               |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Get your user profile: 
+  `circleci api /me`
+- Get a project: 
+  `circleci api /project/gh/myorg/myrepo`
+- List pipelines for a project (pretty-printed): 
+  `circleci api /project/gh/myorg/myrepo/pipeline --json`
+- Trigger a pipeline on a branch: 
+  `circleci api -X POST /project/gh/myorg/myrepo/pipeline -f branch=main`
+- Add a custom header: 
+  `circleci api -H "Accept: application/json" /me`
+- Access the v1.1 API: 
+  `circleci api /api/v1.1/me`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

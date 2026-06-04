@@ -1,27 +1,8 @@
-Usage:
-  circleci run get [<run-id-or-number>] [flags]
-
-Examples:
-# Get the latest run for the current branch
-$ circleci run get
-
-# Get a run by number
-$ circleci run get 75
-
-# Get a run by UUID
-$ circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b
-
-# Output as JSON for scripting
-$ circleci run get --json
-
+Usage:  circleci run get [<run-id-or-number>] [flags]
 
 Flags:
   -b, --branch string    Branch name (defaults to current branch)
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --project string   Project slug (e.g. gh/org/repo); used when looking up by number
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

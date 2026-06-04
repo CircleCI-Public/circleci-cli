@@ -1,10 +1,5 @@
-Usage:
-  circleci mcp tools [flags]
+Usage:  circleci mcp tools [flags]
 
 Flags:
-      --log-level string   Log level (debug, info, warn, error)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --log-level string   Log level (debug, info, warn, error)
+  

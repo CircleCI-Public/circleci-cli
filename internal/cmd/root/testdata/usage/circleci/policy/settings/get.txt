@@ -1,24 +1,8 @@
-Usage:
-  circleci policy settings get [flags]
-
-Examples:
-# Get policy enforcement settings
-$ circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
-
-# Output as JSON
-$ circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json
-
-# Use with jq to extract the enabled field
-$ circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq '.enabled'
-
+Usage:  circleci policy settings get [flags]
 
 Flags:
-      --jq string               Process values from the response using jq syntax
-      --json                    Output as JSON
-      --owner-id string         Organization UUID (required)
-      --policy-context string   Policy context (default "config")
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string               Process values from the response using jq syntax
+  --json                    Output as JSON
+  --owner-id string         Organization UUID (required)
+  --policy-context string   Policy context (default "config")
+  

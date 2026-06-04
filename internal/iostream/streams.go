@@ -31,6 +31,7 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"regexp"
 	"runtime"
 	"strings"
 
@@ -49,6 +50,15 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
+
+var indentRE = regexp.MustCompile(`(?m)^`)
+
+func Indent(s, indent string) string {
+	if len(strings.TrimSpace(s)) == 0 {
+		return s
+	}
+	return indentRE.ReplaceAllLiteralString(s, indent)
+}
 
 type jqFilterKey struct{}
 
@@ -120,6 +130,10 @@ func SymbolFail(ctx context.Context) string {
 	return fromContext(ctx).SymbolSuccess(theme.IconFail)
 }
 
+func Title(ctx context.Context, strs ...string) string {
+	return fromContext(ctx).Title(strs...)
+}
+
 func Print(ctx context.Context, v string) {
 	fromContext(ctx).Print(v)
 }
@@ -130,6 +144,10 @@ func Printf(ctx context.Context, format string, a ...any) {
 
 func Println(ctx context.Context, a ...any) {
 	fromContext(ctx).Println(a...)
+}
+
+func ErrPrint(ctx context.Context, s string) {
+	fromContext(ctx).ErrPrint(s)
 }
 
 func ErrPrintf(ctx context.Context, format string, a ...any) {
@@ -229,7 +247,7 @@ func Testing(ctx context.Context) context.Context {
 	stdin := os.Stdin
 	stdout := os.Stdout
 	stderr := os.Stderr
-	width, dark := terminalProperties("dark", stdin, stdout)
+	width, dark := terminalProperties("dark", stdin, stdout, nil)
 
 	return WithStreams(ctx, Streams{
 		Out:       stdout,
@@ -246,7 +264,7 @@ func Testing(ctx context.Context) context.Context {
 
 // FromCmd extracts Streams from a cobra.Command's Out/Err/In and reads the
 // --quiet persistent flag if registered on the root command.
-func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
+func FromCmd(ctx context.Context, cmd *cobra.Command, maxWidth *int) context.Context {
 	lvl := log.InfoLevel
 	verbose, _ := cmd.Flags().GetBool("debug")
 	if verbose {
@@ -258,7 +276,7 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 	stdin := cmd.InOrStdin()
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
-	width, dark := terminalProperties(theme, stdin, stdout)
+	width, dark := terminalProperties(theme, stdin, stdout, maxWidth)
 
 	return WithStreams(ctx, Streams{
 		Out:       stdout,
@@ -273,7 +291,7 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 	})
 }
 
-func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, dark bool) {
+func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int) (width int, dark bool) {
 	dark = true
 	switch theme {
 	case "auto":
@@ -305,6 +323,9 @@ func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, d
 		}
 	}
 	if width > 140 {
+		if maxWidth != nil {
+			return *maxWidth, dark
+		}
 		width = 140
 	}
 
@@ -365,6 +386,14 @@ func (s Streams) SymbolError(strs ...string) string {
 	return theme.WarningStyle.Render(strs...)
 }
 
+func (s Streams) Title(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
+	}
+
+	return theme.TitleStyle.Render(strs...)
+}
+
 // Print writes a string to Out with no newline appended.
 func (s Streams) Print(v string) {
 	_, _ = fmt.Fprint(s.Out, v)
@@ -378,6 +407,14 @@ func (s Streams) Printf(format string, a ...any) {
 // Println writes a line to Out.
 func (s Streams) Println(a ...any) {
 	_, _ = fmt.Fprintln(s.Out, a...)
+}
+
+// ErrPrint writes a string to Err. No-op when Quiet is true.
+func (s Streams) ErrPrint(str string) {
+	if s.Quiet {
+		return
+	}
+	_, _ = fmt.Fprint(s.Err, str)
 }
 
 // ErrPrintf writes a formatted string to Err. No-op when Quiet is true.

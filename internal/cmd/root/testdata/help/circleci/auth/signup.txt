@@ -1,0 +1,43 @@
+# CircleCI CLI
+
+Create a CircleCI account by opening the signup page in your browser.
+This uses the same browser-based OAuth flow as 'circleci auth login'
+but routes you to the signup page instead of the login page.
+
+If a token is already configured, run 'circleci auth logout' first
+(signup will not silently overwrite an existing token). If you
+already have a CircleCI account, use 'circleci auth login' instead.
+
+## Usage
+
+`circleci auth signup [flags]`
+
+## Flags
+
+| Flag           | Description                                          |
+| -------------- | ---------------------------------------------------- |
+| `--no-browser` | Print the authorize URL instead of opening a browser |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Open the signup page in your browser: 
+  `circleci auth signup`
+- Print the authorize URL instead of opening a browser: 
+  `circleci auth signup --no-browser`
+- Authenticate against a non-default host: 
+  `CIRCLE_HOST=https://example.circleci.com circleci auth signup`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

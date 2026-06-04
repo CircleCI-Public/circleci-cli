@@ -1,33 +1,10 @@
-Usage:
-  circleci signing-config create [flags]
-
-Examples:
-# Create a signing config (org inferred from git remote)
-$ circleci signing-config create \
-    --name production-signing \
-    --cert-id <cert-id> \
-    --profile ./MyApp.mobileprovision
-
-# Multiple profiles
-$ circleci signing-config create \
-    --name multi-target-signing \
-    --cert-id <cert-id> \
-    --profile ./MyApp.mobileprovision \
-    --profile ./MyAppExtension.mobileprovision
-
-# Explicit org and capture the id for scripting
-$ circleci signing-config create --org-id <org-uuid> --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'
-
+Usage:  circleci signing-config create [flags]
 
 Flags:
-      --cert-id string        ID of an uploaded certificate (see: circleci certificate list)
-      --jq string             Process values from the response using jq syntax
-      --json                  Output as JSON
-      --name string           Name for the signing config (referenced in pipeline config)
-      --org-id string         CircleCI organization UUID; defaults to the org of the current git project
-      --profile stringArray   Path to a provisioning profile file (repeatable)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --cert-id string        ID of an uploaded certificate (see: circleci certificate list)
+  --jq string             Process values from the response using jq syntax
+  --json                  Output as JSON
+  --name string           Name for the signing config (referenced in pipeline config)
+  --org-id string         CircleCI organization UUID; defaults to the org of the current git project
+  --profile stringArray   Path to a provisioning profile file (repeatable)
+  

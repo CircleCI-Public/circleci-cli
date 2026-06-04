@@ -1,5 +1,4 @@
-Usage:
-  circleci mcp vscode enable [flags]
+Usage:  circleci mcp vscode enable [flags]
 
 Flags:
       --config-path string   Path to VSCode config file
@@ -7,8 +6,4 @@ Flags:
       --log-level string     Log level (debug, info, warn, error)
       --server-name string   Name for the MCP server (default: derived from executable name)
       --workspace            Add to workspace settings (.vscode/mcp.json) instead of user settings
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  

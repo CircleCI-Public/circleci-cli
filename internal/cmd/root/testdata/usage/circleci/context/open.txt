@@ -1,21 +1,5 @@
-Usage:
-  circleci context open [flags]
-
-Examples:
-# Open contexts for the org inferred from git remote
-$ circleci context open
-
-# Open contexts for a specific organization
-$ circleci context open --org gh/myorg
-
-# Open when your remote is on CircleCI server
-$ circleci context open --host https://circleci.example.com
-
+Usage:  circleci context open [flags]
 
 Flags:
-      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+  

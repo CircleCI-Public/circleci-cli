@@ -1,21 +1,5 @@
-Usage:
-  circleci orb process <path> [flags]
-
-Examples:
-# Process an orb file and print expanded YAML
-$ circleci orb process orb.yml
-
-# Process from stdin
-$ cat orb.yml | circleci orb process -
-
-# Process with a specific org for private deps
-$ circleci orb process orb.yml --org-id 00000000-0000-0000-0000-000000000001
-
+Usage:  circleci orb process <path> [flags]
 
 Flags:
-      --org-id string   organization UUID for private orb dependencies
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --org-id string   organization UUID for private orb dependencies
+  

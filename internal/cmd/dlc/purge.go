@@ -75,7 +75,7 @@ func NewPurgeCmd() *cobra.Command {
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd)
+			ctx := cmd.Context()
 
 			if projectSlug == "" {
 				info, err := gitremote.Detect()

@@ -1,0 +1,43 @@
+# CircleCI CLI
+
+Follow a CircleCI project to enable builds and receive status updates.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project. The slug must be in the form
+vcs/org/repo (e.g. gh/myorg/myrepo).
+
+Following a project that is already followed is a no-op.
+
+## Usage
+
+`circleci project follow [flags]`
+
+## Flags
+
+| Flag               | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Follow the project for the current git repository: 
+  `circleci project follow`
+- Follow a specific project: 
+  `circleci project follow --project gh/myorg/myrepo`
+- Follow a Bitbucket project: 
+  `circleci project follow --project bb/myorg/myrepo`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

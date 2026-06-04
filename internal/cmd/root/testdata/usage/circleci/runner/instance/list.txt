@@ -1,31 +1,9 @@
-Usage:
-  circleci runner instance list [flags]
-
-Aliases:
-  list, ls
-
-Examples:
-# List connected instances for the org inferred from the git remote
-$ circleci runner instance list
-
-# List instances for a specific organization (slug or UUID)
-$ circleci runner instance list --org gh/my-org
-
-# List instances for a specific resource class
-$ circleci runner instance list --resource-class my-org/my-runner
-
-# Output as JSON
-$ circleci runner instance list --org gh/my-org --json
-
+Usage:  circleci runner instance list [flags]
 
 Flags:
-      --jq string               Process values from the response using jq syntax
-      --json                    Output as JSON
-      --namespace string        Filter by namespace (organization)
-      --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
-      --resource-class string   Filter by resource class (namespace/name)
-
-Global Flags:
-  -c, --config string   path to config file (default: ~/.config/circleci/config.yml)
-      --debug           enable debug logging
-  -q, --quiet           suppress informational output; data on stdout is unaffected
+  --jq string               Process values from the response using jq syntax
+  --json                    Output as JSON
+  --namespace string        Filter by namespace (organization)
+  --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+  --resource-class string   Filter by resource class (namespace/name)
+  

@@ -1,0 +1,88 @@
+# CircleCI CLI
+
+Create a new pipeline definition for a CircleCI project.
+
+A pipeline definition specifies where CircleCI finds the config YAML
+(`--config-file`) and which repository to use for code checkout.
+Once created, you can attach triggers to it with `circleci project trigger create`.
+
+The project is resolved from --project-id if provided; otherwise the
+project slug (--project or git remote) is used to look up the project UUID.
+
+All required flags must be provided in non-interactive mode (CI, agents).
+In a terminal, missing values are prompted interactively.
+
+Valid --config-provider values: github_app, github_server, circleci
+Valid --checkout-provider values: github_app, github_server
+
+JSON fields: id, name, description, created_at,
+             config_source.provider, config_source.file_path,
+             config_source.repo.external_id, config_source.repo.full_name,
+             checkout_source.provider,
+             checkout_source.repo.external_id, checkout_source.repo.full_name
+
+## Usage
+
+`circleci pipeline create [flags]`
+
+## Flags
+
+| Flag                         | Description                                                             |
+| ---------------------------- | ----------------------------------------------------------------------- |
+| `--checkout-provider string` | Checkout source provider (one of: github_app, github_server)            |
+| `--checkout-repo-id string`  | Checkout source repo external ID                                        |
+| `--config-file string`       | Config file path (e.g. .circleci/config.yml)                            |
+| `--config-provider string`   | Config source provider (one of: github_app, github_server, circleci)    |
+| `--config-repo-id string`    | Config source repo external ID (required for github_app, github_server) |
+| `--description string`       | Pipeline definition description                                         |
+| `--jq string`                | Process values from the response using jq syntax                        |
+| `--json`                     | Output as JSON                                                          |
+| `--name string`              | Pipeline definition name (required)                                     |
+| `--project string`           | Project slug (e.g. gh/org/repo); defaults to git remote                 |
+| `--project-id string`        | Project UUID (overrides --project)                                      |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Create a pipeline definition using GitHub App: 
+  `circleci pipeline create \`
+- --project gh/myorg/myrepo \
+- --name "my-pipeline" \
+- --config-provider github_app \
+- --config-repo-id 123456789 \
+- --config-file .circleci/config.yml \
+- --checkout-provider github_app \
+- --checkout-repo-id 123456789
+- Create with a description and output as JSON: 
+  `circleci pipeline create \`
+- --name "release-pipeline" \
+- --description "Runs on tagged releases" \
+- --config-provider github_app \
+- --config-repo-id 123456789 \
+- --config-file .circleci/release.yml \
+- --checkout-provider github_app \
+- --checkout-repo-id 123456789 \
+- --json
+- Create using a direct project UUID (skips project info lookup): 
+  `circleci pipeline create \`
+- --project-id a1b2c3d4-... \
+- --name "nightly" \
+- --config-provider github_app \
+- --config-repo-id 123456789 \
+- --config-file .circleci/nightly.yml \
+- --checkout-provider github_app \
+- --checkout-repo-id 123456789
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

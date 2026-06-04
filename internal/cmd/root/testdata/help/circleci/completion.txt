@@ -1,0 +1,37 @@
+# CircleCI CLI
+
+Manage shell tab-completion for circleci.
+
+Run 'circleci completion install' to add completion to your shell
+profile automatically. Supported shells: bash, zsh.
+
+To install manually, add one of the following to your shell profile:
+
+  bash:  source <(circleci completion bash)
+  zsh:   source <(circleci completion zsh)
+
+## Usage
+
+`circleci completion <command>`
+
+## Available Commands
+
+| Command     | Description                                      |
+| ----------- | ------------------------------------------------ |
+| `install`   | Install shell completion into your shell profile |
+| `uninstall` | Remove shell completion from your shell profile  |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+
