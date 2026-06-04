@@ -64,7 +64,7 @@ func newLoginCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "login",
-		Short: "Authenticate via the CircleCI OAuth flow",
+		Short: "Log in to a CircleCI account",
 		Long: heredoc.Doc(`
 			Log in to CircleCI by opening the OAuth authorization page in your
 			browser. After you approve the request, an authorization code is

@@ -37,7 +37,7 @@ func NewPolicyCmd() *cobra.Command {
 		Use:   "policy <command>",
 		Short: "Manage security policies",
 		Long: heredoc.Doc(`
-			Manage CircleCI security policies.
+			Manage security policies.
 
 			Policies are written in Rego and evaluated against pipeline configs
 			to enforce organizational security rules. Use these commands to push,

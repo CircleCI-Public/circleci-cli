@@ -40,7 +40,7 @@ func newMeCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "me",
-		Short: "Get info about the current user",
+		Short: "Display active account information",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

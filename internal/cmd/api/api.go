@@ -53,9 +53,9 @@ func NewAPICmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "api <path>",
-		Short: "Make an authenticated request to the CircleCI API",
+		Short: "Make an API call",
 		Long: heredoc.Doc(`
-			Make an authenticated HTTP request to the CircleCI REST API and print
+			Make an authenticated HTTP request to the REST APIs and print
 			the raw response body.
 
 			<path> is relative to /api/v2 (e.g. /project/gh/org/repo). To target

@@ -2,26 +2,26 @@ Usage:
   circleci [command]
 
 Available Commands:
-  api            Make an authenticated request to the CircleCI API
+  api            Make an API call
   artifacts      List or download run artifacts
-  auth           Manage CLI auth
+  auth           Authenticate with CircleCI
   certificate    Manage iOS code signing certificates
   completion     Manage shell completions
   config         Work with pipeline config
   context        Manage contexts
   deploy         Manage deploys
-  dlc            Manage Docker Layer Caching
+  dlc            Manage docker layer caching
   envvar         Manage project environment variables
   job            Manage jobs
   logs           Fetch job logs
   mcp            MCP server management
   namespace      Manage orb namespaces
   onboard        Guided onboarding: scan, test, generate config, sign up
-  orb            Manage orbs in the CircleCI orb registry
+  orb            Manage orbs
   pipeline       Manage pipeline definitions
   policy         Manage security policies
-  project        Manage CircleCI projects
-  run            Manage runs
+  project        Manage projects
+  run            Manage CI runs
   runner         Manage self-hosted runners
   settings       Manage CLI settings
   signing-config Manage iOS signing configs

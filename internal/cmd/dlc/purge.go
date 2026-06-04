@@ -47,9 +47,9 @@ func NewPurgeCmd() *cobra.Command {
 		Use:   "purge --project <slug>",
 		Short: "Purge the Docker Layer Cache for a project",
 		Long: heredoc.Doc(`
-			Purge the Docker Layer Cache (DLC) for a CircleCI project.
+			Purge the docker layer cache (DLC) for a project.
 
-			Docker Layer Caching stores individual Docker image layers between
+			Docker layer caching stores individual Docker image layers between
 			pipeline runs to speed up builds. Purging the cache forces CircleCI
 			to rebuild all layers from scratch on the next run, which is useful
 			when a cached layer contains stale or corrupt data.
