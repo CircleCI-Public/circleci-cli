@@ -72,7 +72,7 @@ func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) 
 		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", binaryPath, ".") //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
+	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/circleci") //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
 	cmd.Dir = repoRoot
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
