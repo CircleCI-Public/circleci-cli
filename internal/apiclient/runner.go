@@ -67,7 +67,7 @@ func (c *Client) ListResourceClasses(ctx context.Context, namespace string) ([]R
 	var resp struct {
 		Items []ResourceClass `json:"items"`
 	}
-	err := c.getRunner(ctx, "/runner", &resp,
+	err := c.getV3(ctx, "/runner", &resp,
 		optionalQueryParam("namespace", namespace),
 	)
 	if err != nil {
@@ -83,7 +83,7 @@ func (c *Client) CreateResourceClass(ctx context.Context, resourceClass, descrip
 		"description":    description,
 	}
 	var rc ResourceClass
-	err := c.postRunner(ctx, "/runner/resource", body, &rc)
+	err := c.postV3(ctx, "/runner/resource", body, &rc)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (c *Client) CreateResourceClass(ctx context.Context, resourceClass, descrip
 
 // DeleteResourceClass deletes a runner resource class by its namespace/name slug.
 func (c *Client) DeleteResourceClass(ctx context.Context, resourceClass string) error {
-	return c.deleteRunner(ctx, "/runner/resource/%s",
+	return c.deleteV3(ctx, "/runner/resource/%s",
 		routeParams(resourceClass),
 	)
 }
@@ -102,7 +102,7 @@ func (c *Client) ListRunnerTokens(ctx context.Context, resourceClass string) ([]
 	var resp struct {
 		Items []RunnerToken `json:"items"`
 	}
-	err := c.getRunner(ctx, "/runner/token", &resp, queryParam("resource-class", resourceClass))
+	err := c.getV3(ctx, "/runner/token", &resp, queryParam("resource-class", resourceClass))
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *Client) CreateRunnerToken(ctx context.Context, resourceClass, nickname 
 		"nickname":       nickname,
 	}
 	var tok RunnerToken
-	err := c.postRunner(ctx, "/runner/token", body, &tok)
+	err := c.postV3(ctx, "/runner/token", body, &tok)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +126,7 @@ func (c *Client) CreateRunnerToken(ctx context.Context, resourceClass, nickname 
 
 // DeleteRunnerToken deletes a runner token by its ID.
 func (c *Client) DeleteRunnerToken(ctx context.Context, tokenID string) error {
-	return c.deleteRunner(ctx, "/runner/token/%s",
+	return c.deleteV3(ctx, "/runner/token/%s",
 		routeParams(tokenID),
 	)
 }
@@ -140,11 +140,11 @@ func (c *Client) GetRunnerTaskCounts(ctx context.Context, resourceClass string) 
 	var running struct {
 		Count int `json:"running_runner_tasks"`
 	}
-	err := c.getRunner(ctx, "/runner/tasks", &unclaimed, qp)
+	err := c.getV3(ctx, "/runner/tasks", &unclaimed, qp)
 	if err != nil {
 		return nil, err
 	}
-	err = c.getRunner(ctx, "/runner/tasks/running", &running, qp)
+	err = c.getV3(ctx, "/runner/tasks/running", &running, qp)
 	if err != nil {
 		return nil, err
 	}
@@ -160,7 +160,7 @@ func (c *Client) ListRunnerInstances(ctx context.Context, resourceClass, namespa
 	var resp struct {
 		Items []RunnerInstance `json:"items"`
 	}
-	err := c.getRunner(ctx, "/runner", &resp,
+	err := c.getV3(ctx, "/runner", &resp,
 		optionalQueryParam("resource-class", resourceClass),
 		optionalQueryParam("namespace", namespace),
 	)
