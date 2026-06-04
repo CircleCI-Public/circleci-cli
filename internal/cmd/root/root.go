@@ -193,19 +193,30 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		err := initConfig(cmd, new(0))
-		if err == nil {
+		if telem.Client == nil {
+			// --help flag path: pre/post run hooks don't fire, so own the full lifecycle here.
+			if err := initConfig(cmd, new(0)); err == nil {
+				cmdutil.RecordTelemetryNow(cmd, telem.Client)
+				_ = telem.Close()
+			}
+		} else {
+			// `help` subcommand path: PersistentPreRunE already initialized, PersistentPostRunE will close.
 			cmdutil.RecordTelemetryNow(cmd, telem.Client)
-			_ = telem.Close()
 		}
 
 		rootHelp(cmd, args)
 	})
 
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		err := initConfig(cmd, new(0))
-		if err == nil {
-			_ = telem.Close()
+		if telem.Client == nil {
+			// --help flag path: pre/post run hooks don't fire, so own the full lifecycle here.
+			if err := initConfig(cmd, new(0)); err == nil {
+				cmdutil.RecordTelemetryNow(cmd, telem.Client)
+				_ = telem.Close()
+			}
+		} else {
+			// `help` subcommand path: PersistentPreRunE already initialized, PersistentPostRunE will close.
+			cmdutil.RecordTelemetryNow(cmd, telem.Client)
 		}
 
 		return rootUsage(cmd)
