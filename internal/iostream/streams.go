@@ -234,28 +234,28 @@ func Spinner(ctx context.Context, active bool, msg string) *Spin {
 // Streams bundles the I/O channels passed through every command.
 // All output must go through Streams — never write to os.Stdout directly.
 type Streams struct {
-	Out       io.Writer // structured output (data results)
-	Err       io.Writer // status messages, errors, progress
-	In        io.Reader // user input for interactive prompts
-	Quiet     bool      // when true, ErrPrintf/ErrPrintln produce no output
-	slog      *slog.Logger
-	width     int
-	hasDarkBg bool
+	Out   io.Writer // structured output (data results)
+	Err   io.Writer // status messages, errors, progress
+	In    io.Reader // user input for interactive prompts
+	Quiet bool      // when true, ErrPrintf/ErrPrintln produce no output
+	slog  *slog.Logger
+	width int
+	style string
 }
 
 func Testing(ctx context.Context) context.Context {
 	stdin := os.Stdin
 	stdout := os.Stdout
 	stderr := os.Stderr
-	width, dark := terminalProperties("dark", stdin, stdout, nil)
+	width, style := terminalProperties(styles.DarkStyle, stdin, stdout, nil)
 
 	return WithStreams(ctx, Streams{
-		Out:       stdout,
-		Err:       stderr,
-		In:        stdin,
-		Quiet:     false,
-		hasDarkBg: dark,
-		width:     width,
+		Out:   stdout,
+		Err:   stderr,
+		In:    stdin,
+		Quiet: false,
+		style: style,
+		width: width,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: log.DebugLevel,
 		})),
@@ -276,23 +276,22 @@ func FromCmd(ctx context.Context, cmd *cobra.Command, maxWidth *int) context.Con
 	stdin := cmd.InOrStdin()
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
-	width, dark := terminalProperties(theme, stdin, stdout, maxWidth)
+	width, style := terminalProperties(theme, stdin, stdout, maxWidth)
 
 	return WithStreams(ctx, Streams{
-		Out:       stdout,
-		Err:       stderr,
-		In:        stdin,
-		Quiet:     quiet,
-		hasDarkBg: dark,
-		width:     width,
+		Out:   stdout,
+		Err:   stderr,
+		In:    stdin,
+		Quiet: quiet,
+		style: style,
+		width: width,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: lvl,
 		})),
 	})
 }
 
-func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int) (width int, dark bool) {
-	dark = true
+func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int) (width int, style string) {
 	switch theme {
 	case "auto":
 		// This lipgloss function doesn't seem to work on Windows
@@ -310,10 +309,18 @@ func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int
 			break
 		}
 
-		dark = lipgloss.HasDarkBackground(stdIn, stdOut)
-	case "dark":
-	case "light":
-		dark = false
+		if lipgloss.HasDarkBackground(stdIn, stdOut) {
+			style = styles.DarkStyle
+		} else {
+			style = styles.LightStyle
+		}
+	default:
+		_, ok := styles.DefaultStyles[theme]
+		if ok {
+			style = theme
+		} else {
+			style = styles.AsciiStyle
+		}
 	}
 
 	width = 120
@@ -324,12 +331,12 @@ func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int
 	}
 	if width > 140 {
 		if maxWidth != nil {
-			return *maxWidth, dark
+			return *maxWidth, style
 		}
 		width = 140
 	}
 
-	return width, dark
+	return width, style
 }
 
 // IsTerminal reports whether Out is a terminal (i.e. a human is watching).
@@ -596,9 +603,9 @@ func (s Streams) PrintMarkdown(md string) {
 }
 
 func (s Streams) styleConfig() ansi.StyleConfig {
-	style := styles.DarkStyleConfig
-	if !s.hasDarkBg {
-		style = styles.LightStyleConfig
+	styleConfig, ok := styles.DefaultStyles[s.style]
+	if !ok {
+		return styles.ASCIIStyleConfig
 	}
-	return style
+	return *styleConfig
 }
