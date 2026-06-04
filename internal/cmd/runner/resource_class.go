@@ -45,7 +45,7 @@ func newResourceClassCmd() *cobra.Command {
 		Use:   "resource-class <command>",
 		Short: "Manage runner resource classes",
 		Long: heredoc.Doc(`
-			Manage CircleCI runner resource classes.
+			Manage runner resource classes.
 
 			Resource classes define the type of runner available to your jobs.
 			Each resource class belongs to a namespace (usually your organization).

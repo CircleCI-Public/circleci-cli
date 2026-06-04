@@ -44,7 +44,7 @@ func newTokenCmd() *cobra.Command {
 		Use:   "token <command>",
 		Short: "Manage runner tokens",
 		Long: heredoc.Doc(`
-			Manage CircleCI runner authentication tokens.
+			Manage runner authentication tokens.
 
 			Tokens are used by runner agents to authenticate with CircleCI.
 			Each token is associated with a specific resource class.

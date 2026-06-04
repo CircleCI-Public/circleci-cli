@@ -38,7 +38,7 @@ func newLogoutCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "logout",
-		Short: "Remove stored credentials",
+		Short: "Log out of a CircleCI account",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()

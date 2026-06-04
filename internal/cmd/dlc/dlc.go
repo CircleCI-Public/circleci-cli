@@ -34,11 +34,11 @@ import (
 func NewDLCCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dlc <command>",
-		Short: "Manage Docker Layer Caching",
+		Short: "Manage docker layer caching",
 		Long: heredoc.Doc(`
-			Manage Docker Layer Caching (DLC) for CircleCI projects.
+			Manage docker layer caching (DLC) for projects.
 
-			Docker Layer Caching allows CircleCI to cache individual Docker image
+			Docker layer caching allows CircleCI to cache individual Docker image
 			layers between pipeline runs. Use 'circleci dlc purge' to invalidate
 			the cache for a project and force a fresh image build on the next run.
 

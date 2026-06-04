@@ -34,7 +34,7 @@ import (
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <command>",
-		Short: "Manage runs",
+		Short: "Manage CI runs",
 		Long: heredoc.Doc(`
 			Work with CircleCI runs.
 

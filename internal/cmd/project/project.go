@@ -32,7 +32,7 @@ import (
 func NewProjectCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "project <command>",
-		Short: "Manage CircleCI projects",
+		Short: "Manage projects",
 		Long: heredoc.Doc(`
 			List, follow, and manage settings for CircleCI projects.
 

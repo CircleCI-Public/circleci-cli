@@ -44,7 +44,7 @@ func newSignupCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "signup",
-		Short: "Sign up for CircleCI via the browser",
+		Short: "Sign-up for a new CircleCI account",
 		Long: heredoc.Doc(`
 				Create a CircleCI account by opening the signup page in your browser.
 				This uses the same browser-based OAuth flow as 'circleci auth login'

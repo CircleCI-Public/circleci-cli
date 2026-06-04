@@ -3,10 +3,10 @@ Usage:
 
 Available Commands:
   id          Show the device ID for this CLI installation
-  login       Authenticate via the CircleCI OAuth flow
-  logout      Remove stored credentials
-  me          Get info about the current user
-  signup      Sign up for CircleCI via the browser
+  login       Log in to a CircleCI account
+  logout      Log out of a CircleCI account
+  me          Display active account information
+  signup      Sign-up for a new CircleCI account
 
 Global Flags:
   -c, --config string   path to config file (default: ~/.config/circleci/config.yml)

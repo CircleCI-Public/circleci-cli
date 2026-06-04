@@ -37,7 +37,7 @@ func NewRunnerCmd() *cobra.Command {
 		Use:   "runner <command>",
 		Short: "Manage self-hosted runners",
 		Long: heredoc.Doc(`
-			Manage CircleCI self-hosted runner resources.
+			Manage self-hosted runner resources.
 
 			Self-hosted runners let you run CircleCI jobs on your own infrastructure.
 			Use these commands to manage resource classes, authentication tokens, and
