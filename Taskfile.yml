@@ -38,7 +38,7 @@ tasks:
         sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
       VERSION: '1.0.0-dev+{{.COMMIT}}{{.DIRTY}}'
     cmds:
-      - go build -ldflags="-X main.version={{.VERSION}}" -o "{{.DEST}}" .
+      - go build -ldflags="-X main.version={{.VERSION}}" -o "{{.DEST}}" ./cmd/circleci
 
   test:
     desc: Run unit tests

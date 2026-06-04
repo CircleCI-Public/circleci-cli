@@ -65,7 +65,9 @@ agents/06-arguments-and-flags.md ← flag naming, short forms, env vars
 ## Package structure
 
 ```
-main.go                   Entry point. Cobra bootstrap + top-level error handling.
+cmd/circleci/main.go      Entry point. Cobra bootstrap + top-level error handling.
+                          (Lives under cmd/circleci/ so `go install .../cmd/circleci`
+                          produces a binary named `circleci`, not `circleci-cli`.)
 
 internal/
 ├── cmd/                  One package per top-level command (group or alias). Thin Cobra

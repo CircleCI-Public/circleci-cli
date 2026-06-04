@@ -26,6 +26,7 @@ project_name: circleci-cli
 
 builds:
   - binary: circleci
+    main: ./cmd/circleci
     env:
       - CGO_ENABLED=0
     goos:
