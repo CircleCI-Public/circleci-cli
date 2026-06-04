@@ -465,7 +465,7 @@ func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion,
 
 func (c *Client) GetOrbSource(ctx context.Context, id string) (string, error) {
 	body := ""
-	err := c.getV3Raw(ctx, "/orb/versions/%s/source", &body,
+	err := c.getV3String(ctx, "/orb/versions/%s/source", &body,
 		routeParams(id),
 	)
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {

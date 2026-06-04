@@ -28,17 +28,15 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
-	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Client is an authenticated CircleCI API client.
 type Client struct {
-	main   *httpcl.Client // circleci.com/api/v1.1, /api/v2
-	runner *httpcl.Client // runner.circleci.com/api/v3
-	raw    *httpcl.Client
-	token  string
+	main  *httpcl.Client // circleci.com/api/v1.1, /api/v2
+	raw   *httpcl.Client
+	token string
 }
 
 type Config struct {
@@ -68,14 +66,10 @@ func New(cfg Config) *Client {
 	mainCfg := baseCfg
 	mainCfg.BaseURL = cfg.BaseURL
 
-	runnerCfg := baseCfg
-	runnerCfg.BaseURL = runnerBaseURL(cfg.BaseURL)
-
 	return &Client{
-		main:   httpcl.New(mainCfg),
-		runner: httpcl.New(runnerCfg),
-		raw:    httpcl.New(baseCfg),
-		token:  cfg.Token,
+		main:  httpcl.New(mainCfg),
+		raw:   httpcl.New(baseCfg),
+		token: cfg.Token,
 	}
 }
 
@@ -84,16 +78,6 @@ func UserAgent(goos, goarch, version, agent string) string {
 		return fmt.Sprintf("circleci-cli (%s/%s; %s; %s)", goos, goarch, version, agent)
 	}
 	return fmt.Sprintf("circleci-cli (%s/%s; %s)", goos, goarch, version)
-}
-
-// runnerBaseURL derives the runner API base URL from the main API base URL.
-// For circleci.com cloud the runner API is at runner.circleci.com.
-// For self-hosted server the runner API is co-located at the same host.
-func runnerBaseURL(baseURL string) string {
-	if strings.Contains(baseURL, "circleci.com") {
-		return "https://runner.circleci.com"
-	}
-	return baseURL
 }
 
 func queryParam(key, val string) func(*httpcl.Request) {
@@ -166,26 +150,6 @@ func (c *Client) deleteV2(ctx context.Context, route string, opts ...func(*httpc
 	return err
 }
 
-func (c *Client) getRunner(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.runner.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) postRunner(ctx context.Context, path string, body, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.runner.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3"+path, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) deleteRunner(ctx context.Context, route string, opts ...func(*httpcl.Request)) error {
-	_, err := c.runner.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3"+route, opts...))
-	return err
-}
-
 type v3Entity[T any] struct {
 	Data T `json:"data"`
 }
@@ -228,7 +192,7 @@ func (c *Client) getV3(ctx context.Context, route string, dst any, opts ...func(
 	return err
 }
 
-func (c *Client) getV3Raw(ctx context.Context, route string, dst *string, opts ...func(*httpcl.Request)) error {
+func (c *Client) getV3String(ctx context.Context, route string, dst *string, opts ...func(*httpcl.Request)) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
 		httpcl.StringDecoder(dst),
 	).With(opts)...))
