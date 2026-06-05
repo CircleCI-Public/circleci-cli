@@ -1,0 +1,6 @@
+Usage:  circleci job get <job-id> [flags]
+
+Flags:
+  --jq string   Process values from the response using jq syntax
+  --json        Output as JSON
+  

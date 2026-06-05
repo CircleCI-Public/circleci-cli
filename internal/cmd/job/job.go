@@ -39,6 +39,7 @@ func NewJobCmd() *cobra.Command {
 		`),
 	}
 
+	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newArtifactsCmd())
 	cmd.AddCommand(newLogsCmd())
 
