@@ -62,7 +62,7 @@ func newGetCmd() *cobra.Command {
 
 			JSON fields: id, status, branch, revision, created_at,
 			             errors[].type/message,
-			             workflows[].id/name/status/duration/jobs[].id/name/status/type
+			             workflows[].id/name/status/duration/jobs[].id/name/status
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
@@ -206,7 +206,6 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSumma
 				ID:     j.ID,
 				Name:   j.Name,
 				Status: j.Status,
-				Type:   j.Type,
 			})
 		}
 		var dur string

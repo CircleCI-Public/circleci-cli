@@ -127,7 +127,6 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 			ID:     j.ID,
 			Name:   j.Name,
 			Status: j.Status,
-			Type:   j.Type,
 		})
 	}
 
