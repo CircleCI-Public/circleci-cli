@@ -120,6 +120,162 @@ func v1ProjectPath(projectSlug string, jobNumber int64) string {
 	return fmt.Sprintf("/project/%s/%s/%d", vcs, rest, jobNumber)
 }
 
+// --- V3 wire types ---
+
+type jobAttributesWire struct {
+	Name               string                  `json:"name"`
+	Type               string                  `json:"type"`
+	Phase              string                  `json:"phase"`
+	Outcome            string                  `json:"outcome"`
+	StartedAt          time.Time               `json:"started_at"`
+	EndedAt            *time.Time              `json:"ended_at"`
+	ParallelExecutions []parallelExecutionWire `json:"parallel_executions"`
+}
+
+type parallelExecutionWire struct {
+	Steps []jobStepWire `json:"steps"`
+}
+
+type jobStepWire struct {
+	Name      string     `json:"name"`
+	Type      string     `json:"type"`
+	Num       int        `json:"num"`
+	Phase     string     `json:"phase"`
+	Outcome   string     `json:"outcome"`
+	ExitCode  *int       `json:"exit_code,omitempty"`
+	StartedAt time.Time  `json:"started_at"`
+	EndedAt   *time.Time `json:"ended_at"`
+}
+
+type jobReferencesWire struct {
+	Project struct {
+		ID string `json:"id"`
+	} `json:"project"`
+	Pipeline struct {
+		ID string `json:"id"`
+	} `json:"pipeline"`
+	Workflow struct {
+		ID string `json:"id"`
+	} `json:"workflow"`
+	User struct {
+		ID string `json:"id"`
+	} `json:"user"`
+}
+
+type jobWire struct {
+	ID         string            `json:"id"`
+	Attributes jobAttributesWire `json:"attributes"`
+	References jobReferencesWire `json:"references"`
+}
+
+// --- V3 domain types ---
+
+// JobV3 holds job detail from the V3 API.
+type JobV3 struct {
+	ID         string           `json:"id"`
+	Name       string           `json:"name"`
+	Type       string           `json:"type"`
+	Status     string           `json:"status"`
+	StartedAt  time.Time        `json:"started_at"`
+	StoppedAt  *time.Time       `json:"stopped_at,omitempty"`
+	Executions []JobV3Execution `json:"executions"`
+	ProjectID  string           `json:"project_id"`
+	PipelineID string           `json:"pipeline_id"`
+	WorkflowID string           `json:"workflow_id"`
+}
+
+// JobV3Execution groups the steps that ran on a single executor.
+type JobV3Execution struct {
+	Index int         `json:"index"`
+	Steps []JobV3Step `json:"steps"`
+}
+
+// JobV3Step is a single step within a V3 job response.
+type JobV3Step struct {
+	Name      string     `json:"name"`
+	Type      string     `json:"type"`
+	Num       int        `json:"num"`
+	Status    string     `json:"status"`
+	ExitCode  *int       `json:"exit_code,omitempty"`
+	StartedAt time.Time  `json:"started_at"`
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+	Duration  float64    `json:"duration_seconds"`
+}
+
+// GetJobV3 fetches job detail from the V3 API by UUID.
+func (c *Client) GetJobV3(ctx context.Context, id string) (*JobV3, error) {
+	var env v3Entity[jobWire]
+	if err := c.getV3(ctx, "/jobs/%s", &env, routeParams(id)); err != nil {
+		return nil, err
+	}
+	return env.Data.toJobV3(), nil
+}
+
+func (w jobWire) toJobV3() *JobV3 {
+	a := w.Attributes
+	j := &JobV3{
+		ID:         w.ID,
+		Name:       a.Name,
+		Type:       a.Type,
+		Status:     phaseOutcomeStatus(a.Phase, a.Outcome),
+		StartedAt:  a.StartedAt,
+		StoppedAt:  a.EndedAt,
+		ProjectID:  w.References.Project.ID,
+		PipelineID: w.References.Pipeline.ID,
+		WorkflowID: w.References.Workflow.ID,
+	}
+	for i, pe := range a.ParallelExecutions {
+		exec := JobV3Execution{Index: i}
+		for _, s := range pe.Steps {
+			step := JobV3Step{
+				Name:      s.Name,
+				Type:      s.Type,
+				Num:       s.Num,
+				Status:    phaseOutcomeStatus(s.Phase, s.Outcome),
+				ExitCode:  s.ExitCode,
+				StartedAt: s.StartedAt,
+				StoppedAt: s.EndedAt,
+			}
+			if s.EndedAt != nil {
+				step.Duration = s.EndedAt.Sub(s.StartedAt).Seconds()
+			}
+			exec.Steps = append(exec.Steps, step)
+		}
+		j.Executions = append(j.Executions, exec)
+	}
+	return j
+}
+
+// phaseOutcomeStatus maps V3 phase+outcome to a status string compatible
+// with V2 conventions.
+func phaseOutcomeStatus(phase, outcome string) string {
+	switch phase {
+	case "queued":
+		return "queued"
+	case "not_run":
+		return "not_run"
+	case "running":
+		return "running"
+	case "ended":
+		switch outcome {
+		case "succeeded":
+			return "success"
+		case "failed":
+			return "failed"
+		case "canceled":
+			return "canceled"
+		case "infrastructure_fail":
+			return "infrastructure_fail"
+		case "timedout":
+			return "timedout"
+		default:
+			return outcome
+		}
+	default:
+		return phase
+	}
+}
+
 // GetStepOutput fetches the log lines from a step action's output URL.
 func (c *Client) GetStepOutput(ctx context.Context, slug string, number int64, taskIndex, stepID int) ([]byte, error) {
 	var output []byte

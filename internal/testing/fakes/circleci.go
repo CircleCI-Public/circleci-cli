@@ -71,6 +71,9 @@ type CircleCI struct {
 	cancelResponses                   map[string]int    // workflow id → HTTP status to return
 	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
 
+	// Job (v3) state.
+	jobsV3 map[string]any // job UUID → V3 response body
+
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
 	runnerTokens    map[string][]any // resource class → tokens
@@ -183,6 +186,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		rerunResponses:                    map[string]int{},
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
+		jobsV3:                            map[string]any{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
 		runnerInstances:                   []any{},
@@ -292,6 +296,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Config compile + org routes.
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
 	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
+	// Job (v3) routes.
+	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
 	// Runner (v3) routes. GET /runner lists instances (scoped by ?org-id= and/or
 	// ?resource-class=); GET /runner/resource lists resource classes (scoped by
 	// ?org-id= and/or ?namespace=). GET /runner also still accepts ?namespace=
@@ -439,6 +445,13 @@ func (f *CircleCI) AddJobV1(slug string, jobNumber int64, job any) {
 	defer f.mu.Unlock()
 	key := fmt.Sprintf("%s/%d", slug, jobNumber)
 	f.jobsV1[key] = job
+}
+
+// AddJobV3 registers a V3 job detail response for GET /api/v3/jobs/<id>.
+func (f *CircleCI) AddJobV3(id string, job any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobsV3[id] = job
 }
 
 // SetTriggerResponse registers the response body returned when POST
@@ -688,6 +701,20 @@ func (f *CircleCI) handleGetJob(w http.ResponseWriter, r *http.Request) {
 	key := slug + "/" + chi.URLParam(r, "jobNumber")
 	f.mu.RLock()
 	job, ok := f.jobs[key]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, job)
+}
+
+func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	job, ok := f.jobsV3[id]
 	f.mu.RUnlock()
 
 	if !ok {
