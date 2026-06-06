@@ -115,9 +115,9 @@ func TestRunGet_ByID(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID,
-		fakeJob("job-uuid-1", "run-tests", 101, watchSlug),
-		fakeJob("job-uuid-2", "deploy", 102, watchSlug),
+	fake.AddWorkflowJobsV3(wfID,
+		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
+		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
 	)
 
 	env := testenv.New(t)
@@ -141,9 +141,9 @@ func TestRunGet_ByID_Color(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID,
-		fakeJob("job-uuid-1", "run-tests", 101, watchSlug),
-		fakeJob("job-uuid-2", "deploy", 102, watchSlug),
+	fake.AddWorkflowJobsV3(wfID,
+		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
+		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
 	)
 
 	env := testenv.New(t)
@@ -168,7 +168,7 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -204,7 +204,7 @@ func TestRunGet_ByID_JQ(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -227,7 +227,7 @@ func TestRunGet_ByID_JSON_Color(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken

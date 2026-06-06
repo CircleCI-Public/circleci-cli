@@ -74,7 +74,8 @@ func (c *Client) CancelWorkflow(ctx context.Context, id string) error {
 	)
 }
 
-// WorkflowJob is a job belonging to a workflow.
+// WorkflowJob is a job belonging to a workflow (V2 API).
+// Used by artifacts and logs which need JobNumber and ProjectSlug.
 type WorkflowJob struct {
 	ID          string    `json:"id"`
 	Name        string    `json:"name"`
@@ -86,7 +87,7 @@ type WorkflowJob struct {
 	StoppedAt   time.Time `json:"stopped_at"`
 }
 
-// GetWorkflowJobs returns all jobs belonging to a workflow.
+// GetWorkflowJobs returns all jobs belonging to a workflow via V2.
 func (c *Client) GetWorkflowJobs(ctx context.Context, workflowID string) ([]WorkflowJob, error) {
 	var resp struct {
 		Items []WorkflowJob `json:"items"`
@@ -98,4 +99,72 @@ func (c *Client) GetWorkflowJobs(ctx context.Context, workflowID string) ([]Work
 		return nil, err
 	}
 	return resp.Items, nil
+}
+
+// --- V3 workflow jobs ---
+
+type workflowJobAttributesWire struct {
+	Name           string     `json:"name"`
+	Phase          string     `json:"phase"`
+	Outcome        string     `json:"outcome,omitempty"`
+	CurrentOutcome string     `json:"current_outcome,omitempty"`
+	StartedAt      *time.Time `json:"started_at,omitempty"`
+	EndedAt        *time.Time `json:"ended_at,omitempty"`
+}
+
+type workflowJobReferencesWire struct {
+	Workflow struct {
+		ID string `json:"id"`
+	} `json:"workflow"`
+	Project struct {
+		ID string `json:"id"`
+	} `json:"project"`
+}
+
+type workflowJobWire struct {
+	ID         string                    `json:"id"`
+	Attributes workflowJobAttributesWire `json:"attributes"`
+	References workflowJobReferencesWire `json:"references"`
+}
+
+// WorkflowJobV3 is a job belonging to a workflow from the V3 API.
+type WorkflowJobV3 struct {
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Status    string     `json:"status"`
+	ProjectID string     `json:"project_id"`
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	EndedAt   *time.Time `json:"ended_at,omitempty"`
+}
+
+func (w workflowJobWire) toDomain() WorkflowJobV3 {
+	a := w.Attributes
+	outcome := a.Outcome
+	if outcome == "" {
+		outcome = a.CurrentOutcome
+	}
+	return WorkflowJobV3{
+		ID:        w.ID,
+		Name:      a.Name,
+		Status:    phaseOutcomeStatus(a.Phase, outcome),
+		ProjectID: w.References.Project.ID,
+		StartedAt: a.StartedAt,
+		EndedAt:   a.EndedAt,
+	}
+}
+
+// GetWorkflowJobsV3 returns all jobs for a workflow via the V3 API.
+func (c *Client) GetWorkflowJobsV3(ctx context.Context, workflowID string) ([]WorkflowJobV3, error) {
+	var resp v3List[workflowJobWire]
+	err := c.getV3(ctx, "/jobs", &resp,
+		filterParam("workflow_id", workflowID),
+	)
+	if err != nil {
+		return nil, err
+	}
+	jobs := make([]WorkflowJobV3, len(resp.Data))
+	for i, w := range resp.Data {
+		jobs[i] = w.toDomain()
+	}
+	return jobs, nil
 }

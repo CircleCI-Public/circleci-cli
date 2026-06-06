@@ -372,9 +372,9 @@ func fetchWatchState(ctx context.Context, client *apiclient.Client, runID string
 	if err != nil {
 		return runGetOutput{}, err
 	}
-	wfJobs := make([][]apiclient.WorkflowJob, len(workflows))
+	wfJobs := make([][]apiclient.WorkflowJobV3, len(workflows))
 	for i, wf := range workflows {
-		jobs, err := client.GetWorkflowJobs(ctx, wf.ID)
+		jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
 		if err != nil {
 			return runGetOutput{}, err
 		}

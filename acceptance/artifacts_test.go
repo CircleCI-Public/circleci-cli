@@ -69,6 +69,24 @@ func fakeJob(id, name string, jobNumber int64, slug string) map[string]any {
 	}
 }
 
+func fakeJobV3(id, name, workflowID, projectID string) map[string]any {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"name":       name,
+			"phase":      "ended",
+			"outcome":    "succeeded",
+			"started_at": now,
+			"ended_at":   now,
+		},
+		"references": map[string]any{
+			"workflow": map[string]any{"id": workflowID},
+			"project":  map[string]any{"id": projectID},
+		},
+	}
+}
+
 func fakeArtifact(path, url string) map[string]any {
 	return map[string]any{
 		"path":       path,

@@ -62,7 +62,7 @@ func newGetCmd() *cobra.Command {
 
 			JSON fields: id, status, branch, revision, created_at,
 			             errors[].type/message,
-			             workflows[].id/name/status/duration/jobs[].id/name/status/type
+			             workflows[].id/name/status/duration/jobs[].id/name/status
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
@@ -120,7 +120,6 @@ type jobOutput struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
-	Type   string `json:"type"`
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
@@ -178,9 +177,9 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		return apiErr(err, r.ID)
 	}
 
-	wfJobs := make([][]apiclient.WorkflowJob, len(workflows))
+	wfJobs := make([][]apiclient.WorkflowJobV3, len(workflows))
 	for i, wf := range workflows {
-		jobs, err := client.GetWorkflowJobs(ctx, wf.ID)
+		jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
 		if err != nil {
 			return apiErr(err, wf.ID)
 		}
@@ -197,7 +196,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	return nil
 }
 
-func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJob) runGetOutput {
+func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
 	wflows := make([]workflowOutput, len(workflows))
 	for i, w := range workflows {
 		jobs := make([]jobOutput, 0, len(wfJobs[i]))
@@ -206,7 +205,6 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSumma
 				ID:     j.ID,
 				Name:   j.Name,
 				Status: j.Status,
-				Type:   j.Type,
 			})
 		}
 		var dur string
