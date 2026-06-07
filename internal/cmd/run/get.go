@@ -61,6 +61,7 @@ func newGetCmd() *cobra.Command {
 			Pass a run UUID to look up a specific run.
 
 			JSON fields: id, status, branch, revision, created_at,
+			             errors[].type/message,
 			             workflows[].id/name/status/jobs[].name/status/type
 		`),
 		Example: heredoc.Doc(`
@@ -98,7 +99,13 @@ type runGetOutput struct {
 	Branch    string           `json:"branch,omitempty"`
 	Revision  string           `json:"revision,omitempty"`
 	CreatedAt string           `json:"created_at"`
+	Errors    []errorOutput    `json:"errors,omitempty"`
 	Workflows []workflowOutput `json:"workflows"`
+}
+
+type errorOutput struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
 }
 
 type workflowOutput struct {
@@ -212,12 +219,18 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSumma
 		revision = revision[:7]
 	}
 
+	errs := make([]errorOutput, len(r.Errors))
+	for i, e := range r.Errors {
+		errs[i] = errorOutput{Type: e.Type, Message: e.Message}
+	}
+
 	return runGetOutput{
 		ID:        r.ID,
 		Status:    deriveStatus(r.Status, wflows),
 		Branch:    r.Branch,
 		Revision:  revision,
 		CreatedAt: r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		Errors:    errs,
 		Workflows: wflows,
 	}
 }
@@ -269,6 +282,13 @@ func printRun(ctx context.Context, r runGetOutput) {
 	}
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", r.Status)
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", r.CreatedAt)
+
+	if len(r.Errors) > 0 {
+		md.WriteString("\n## Errors\n")
+		for _, e := range r.Errors {
+			_, _ = fmt.Fprintf(&md, "- **%s**: %s\n", e.Type, e.Message)
+		}
+	}
 	md.WriteString("\n")
 
 	if len(r.Workflows) > 0 {

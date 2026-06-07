@@ -245,6 +245,63 @@ func TestRunGet_ByID_JSON_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunGet_WithErrors(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+
+	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
+	run["attributes"].(map[string]any)["errors"] = []map[string]any{
+		{"type": "config", "message": "Could not find config file"},
+	}
+	fake.AddRunV3(runID, runTestProjectID, run)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunGet_WithErrors_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+
+	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
+	run["attributes"].(map[string]any)["errors"] = []map[string]any{
+		{"type": "config", "message": "Could not find config file"},
+	}
+	fake.AddRunV3(runID, runTestProjectID, run)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--json", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	errs := out["errors"].([]any)
+	assert.Check(t, cmp.Len(errs, 1))
+	assert.Check(t, cmp.Equal(errs[0].(map[string]any)["type"], "config"))
+	assert.Check(t, cmp.Equal(errs[0].(map[string]any)["message"], "Could not find config file"))
+}
+
 func TestRunGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 

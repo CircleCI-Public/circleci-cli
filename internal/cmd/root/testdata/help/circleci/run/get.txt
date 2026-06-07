@@ -8,6 +8,7 @@ the current git repository's remote and checked-out branch.
 Pass a run UUID to look up a specific run.
 
 JSON fields: id, status, branch, revision, created_at,
+             errors[].type/message,
              workflows[].id/name/status/jobs[].name/status/type
 
 ## Usage

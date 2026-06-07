@@ -32,10 +32,16 @@ import (
 // --- V3 wire types ---
 
 type runAttributesWire struct {
-	Phase          string      `json:"phase"`
-	CurrentOutcome string      `json:"current_outcome"`
-	CreatedAt      time.Time   `json:"created_at"`
-	VCS            *runVCSWire `json:"vcs,omitempty"`
+	Phase          string         `json:"phase"`
+	CurrentOutcome string         `json:"current_outcome"`
+	CreatedAt      time.Time      `json:"created_at"`
+	VCS            *runVCSWire    `json:"vcs,omitempty"`
+	Errors         []runErrorWire `json:"errors,omitempty"`
+}
+
+type runErrorWire struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
 }
 
 type runVCSWire struct {
@@ -60,14 +66,21 @@ type runWire struct {
 
 // --- V3 domain types ---
 
+// RunError holds a config or setup error from the V3 API.
+type RunError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
+}
+
 // RunV3 holds run detail from the V3 API.
 type RunV3 struct {
-	ID        string    `json:"id"`
-	Status    string    `json:"status"`
-	Branch    string    `json:"branch,omitempty"`
-	Revision  string    `json:"revision,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	ProjectID string    `json:"project_id"`
+	ID        string     `json:"id"`
+	Status    string     `json:"status"`
+	Branch    string     `json:"branch,omitempty"`
+	Revision  string     `json:"revision,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	ProjectID string     `json:"project_id"`
+	Errors    []RunError `json:"errors,omitempty"`
 }
 
 func (w runWire) toRunV3() *RunV3 {
@@ -81,6 +94,9 @@ func (w runWire) toRunV3() *RunV3 {
 	if a.VCS != nil {
 		r.Branch = a.VCS.Branch
 		r.Revision = a.VCS.Revision
+	}
+	for _, e := range a.Errors {
+		r.Errors = append(r.Errors, RunError(e))
 	}
 	return r
 }
