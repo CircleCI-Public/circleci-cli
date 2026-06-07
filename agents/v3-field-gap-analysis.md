@@ -635,23 +635,46 @@ subsequent V3 calls. This can be cached per session.
 
 ---
 
-## Impact of dropping numbers — what it simplifies
+## Wins from dropping slugs and numbers
 
-- **Eliminated:** number-lookup blocker (`GET /v3/runs/by-number/...`) — not needed
-- **Eliminated:** `number` field on run responses — not needed
-- **Eliminated:** `job_number` field on job responses — cli#1383 drops it from display
-- **Eliminated:** `pipeline_number` on workflow responses — not needed
-- **Simplified:** trigger response — just returns UUID, no number allocation
-- **Simplified:** "latest on branch" — search/filter by branch, no number-based convenience
+Dropping project slugs and pipeline/job/trigger numbers isn't just "not needed" —
+it actively removes complexity, fragility, and entire categories of bugs.
+
+### Slug removal wins
+
+| What's gone | Why it's a win |
+|-------------|----------------|
+| `ProjectSlug` on every V2 response | Slugs are VCS-provider-coupled (`gh/org/repo`), break on renames, and embed an implicit provider assumption. V3 uses project UUIDs — stable, VCS-agnostic, one canonical identifier. |
+| Slug construction from git remote | V2 required inferring `gh/org/repo` from `git remote` — fragile for forks, mirrors, SSH vs HTTPS, renamed repos. V3 resolves project by UUID via a one-time lookup from slug, then everything is UUID-addressed. |
+| Dual slug formats | V2 had both `gh/org/repo` and `github/org/repo` floating around. Gone. |
+| Slug in step output URLs | The private output API baked `{slug}/{number}` into the path. V3 step output (`/v3/jobs/:id/stdout`) uses job UUID — no slug needed. |
+
+### Number removal wins
+
+| What's gone | Why it's a win |
+|-------------|----------------|
+| `GetPipelineByNumber` lookup | Every number-based command needed a pre-flight API call to resolve number → UUID. That's a whole extra round-trip per invocation, and the endpoint doesn't exist in V3. Gone. |
+| Number allocation on trigger | V2 trigger had to allocate a project-scoped sequence number atomically — contention point at scale. V3 trigger returns a UUID; no sequence coordination. |
+| `run_number` / `job_number` / `trigger_number` fields | Three separate number namespaces, each project-scoped, each requiring sequence generators. None needed — UUIDs are globally unique without coordination. |
+| Number-based URL construction | Web URLs like `/pipelines/{slug}/{number}` coupled the CLI to the web app's routing scheme. UUID-based URLs are self-contained. |
+| "Latest by number" ordering hack | V2 used `MAX(number)` as a proxy for "most recent" — wrong when pipelines are re-triggered or backfilled. V3 search with `created_at` ordering is correct by definition. |
+| `job_number` in display columns | `workflow get` and `run get` showed job numbers that users couldn't act on (no `circleci job` commands accepted numbers). Noise removed from output. |
+
+### Slug + number removal combined
+
+The V2 step output path `/api/private/output/raw/{slug}/{number}/output/{taskIndex}/{stepID}`
+required **both** a slug and a job number — meaning every log fetch needed two
+resolved identifiers from two different namespaces. V3 step output needs one: the job UUID.
+That's the single biggest simplification for the `logs` command path.
 
 ## What changed vs original analysis
 
 Fields **dropped from CLI output** rather than added to V3 (pragmatic approach):
-- `project_slug` — no slug in V3 responses, dropped from display
+- `project_slug` — no slug in V3 responses, no longer displayed. Project identified by UUID internally; users don't need to see it.
 - `trigger.type` / `trigger.actor` — trigger section dropped entirely
 - `duration` — dropped from `run list` (was computed from workflow `stopped_at`)
 - `job.type` — V3 doesn't return `type` (build/approval), approval jobs no longer distinguished
-- `job_number` — dropped from display in all commands
+- `job_number` — dropped from display in all commands (users couldn't use them anyway)
 
 Fields **delivered differently** than proposed:
 - `branch`/`revision` nested under `attributes.vcs` not flat on attributes
