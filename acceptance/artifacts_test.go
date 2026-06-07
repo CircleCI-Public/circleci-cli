@@ -45,10 +45,14 @@ const (
 )
 
 func fakeWorkflow(id, name string) map[string]any {
+	created := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
+	stopped := created.Add(2*time.Minute + 34*time.Second)
 	return map[string]any{
-		"id":     id,
-		"name":   name,
-		"status": "success",
+		"id":         id,
+		"name":       name,
+		"status":     "success",
+		"created_at": created.Format(time.RFC3339),
+		"stopped_at": stopped.Format(time.RFC3339),
 	}
 }
 

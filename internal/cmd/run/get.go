@@ -102,10 +102,11 @@ type runGetOutput struct {
 }
 
 type workflowOutput struct {
-	ID     string      `json:"id"`
-	Name   string      `json:"name"`
-	Status string      `json:"status"`
-	Jobs   []jobOutput `json:"jobs"`
+	ID       string      `json:"id"`
+	Name     string      `json:"name"`
+	Status   string      `json:"status"`
+	Duration string      `json:"duration,omitempty"`
+	Jobs     []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
@@ -199,7 +200,11 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSumma
 				Type:   j.Type,
 			})
 		}
-		wflows[i] = workflowOutput{ID: w.ID, Name: w.Name, Status: w.Status, Jobs: jobs}
+		var dur string
+		if w.StoppedAt != nil {
+			dur = formatElapsed(w.StoppedAt.Sub(w.CreatedAt))
+		}
+		wflows[i] = workflowOutput{ID: w.ID, Name: w.Name, Status: w.Status, Duration: dur, Jobs: jobs}
 	}
 
 	revision := r.Revision
@@ -271,6 +276,9 @@ func printRun(ctx context.Context, r runGetOutput) {
 		for _, w := range r.Workflows {
 			_, _ = fmt.Fprintf(&md, "### %s\n", w.Name)
 			_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
+			if w.Duration != "" {
+				_, _ = fmt.Fprintf(&md, "- Duration: %s\n", w.Duration)
+			}
 			_, _ = fmt.Fprintf(&md, "- Jobs:\n")
 			for _, j := range w.Jobs {
 				_, _ = fmt.Fprintf(&md, "  - %-36s  %s\n", j.Name, j.Status)

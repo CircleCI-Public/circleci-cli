@@ -419,7 +419,11 @@ func watchFingerprint(state runGetOutput) string {
 func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Duration) int {
 	lines := 0
 	for _, wf := range state.Workflows {
-		iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		if wf.Duration != "" {
+			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wf.Status, wf.Duration)
+		} else {
+			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		}
 		lines++
 		for _, j := range wf.Jobs {
 			iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
@@ -433,7 +437,11 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 
 func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 	for _, wf := range state.Workflows {
-		iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		if wf.Duration != "" {
+			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wf.Status, wf.Duration)
+		} else {
+			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		}
 		for _, j := range wf.Jobs {
 			iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
 		}

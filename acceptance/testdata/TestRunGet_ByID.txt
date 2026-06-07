@@ -8,6 +8,7 @@
 ## Workflows
 ### build
 - Status: success
+- Duration: 2m34s
 - Jobs:
   - run-tests                             success
   - deploy                                success
