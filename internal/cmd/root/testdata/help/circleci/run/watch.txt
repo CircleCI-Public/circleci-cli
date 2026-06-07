@@ -9,7 +9,7 @@ Exit code reflects the result:
   8 = timed out before run completed
 
 Without arguments, watches the latest run for the current branch.
-Pass a run number or UUID to watch a specific run.
+Pass a run UUID to watch a specific run.
 
 With --sha, searches the run list for a run matching that
 commit. If not yet found, polls for up to 2 minutes — useful when run
@@ -20,7 +20,7 @@ without waiting for the remaining workflows to finish.
 
 ## Usage
 
-`circleci run watch [<run-number-or-id>] [flags]`
+`circleci run watch [<run-id>] [flags]`
 
 ## Flags
 
@@ -46,8 +46,6 @@ without waiting for the remaining workflows to finish.
   `circleci run watch`
 - Push and watch in one step: 
   `git push && circleci run watch --sha $(git rev-parse HEAD)`
-- Watch a specific run number: 
-  `circleci run watch 75`
 - Watch by UUID (e.g. from 'run list --json'): 
   `circleci run watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd`
 - Watch a run on a different branch: 

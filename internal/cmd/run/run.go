@@ -23,6 +23,8 @@
 package run
 
 import (
+	"strings"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
@@ -57,4 +59,10 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"run.not_found", "No run found for %q.",
 		"Check the run UUID or branch name and try again")
+}
+
+// looksLikeNumber returns true if s is a plain positive integer (run number),
+// as opposed to a UUID (which contains hyphens).
+func looksLikeNumber(s string) bool {
+	return !strings.Contains(s, "-") && len(s) > 0
 }

@@ -5,26 +5,23 @@ Display the status of a CircleCI run and its workflows.
 When called without arguments, the project and branch are inferred from
 the current git repository's remote and checked-out branch.
 
-Pass a run number (e.g. 75) or UUID to look up a specific run.
-When using a number, the project is inferred from the git remote unless
-overridden with --project.
+Pass a run UUID to look up a specific run.
 
-JSON fields: id, number, status, project_slug, branch, revision,
-             created_at, updated_at, trigger,
-             workflows[].id/name/status/jobs[].number/name/status/type
+JSON fields: id, status, branch, revision, created_at,
+             workflows[].id/name/status/jobs[].name/status/type
 
 ## Usage
 
-`circleci run get [<run-id-or-number>] [flags]`
+`circleci run get [<run-id>] [flags]`
 
 ## Flags
 
-| Flag                  | Description                                                     |
-| --------------------- | --------------------------------------------------------------- |
-| `-b, --branch string` | Branch name (defaults to current branch)                        |
-| `--jq string`         | Process values from the response using jq syntax                |
-| `--json`              | Output as JSON                                                  |
-| `--project string`    | Project slug (e.g. gh/org/repo); used when looking up by number |
+| Flag                  | Description                                                 |
+| --------------------- | ----------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to current branch)                    |
+| `--jq string`         | Process values from the response using jq syntax            |
+| `--json`              | Output as JSON                                              |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
 
 ## Inherited Flags
 
@@ -38,8 +35,6 @@ JSON fields: id, number, status, project_slug, branch, revision,
 
 - Get the latest run for the current branch: 
   `circleci run get`
-- Get a run by number: 
-  `circleci run get 75`
 - Get a run by UUID: 
   `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
 - Output as JSON for scripting: 

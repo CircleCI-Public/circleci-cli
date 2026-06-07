@@ -25,8 +25,8 @@ package run
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -50,7 +50,7 @@ func newGetCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "get [<run-id-or-number>]",
+		Use:   "get [<run-id>]",
 		Short: "Get a run's status",
 		Long: heredoc.Doc(`
 			Display the status of a CircleCI run and its workflows.
@@ -58,20 +58,14 @@ func newGetCmd() *cobra.Command {
 			When called without arguments, the project and branch are inferred from
 			the current git repository's remote and checked-out branch.
 
-			Pass a run number (e.g. 75) or UUID to look up a specific run.
-			When using a number, the project is inferred from the git remote unless
-			overridden with --project.
+			Pass a run UUID to look up a specific run.
 
-			JSON fields: id, number, status, project_slug, branch, revision,
-			             created_at, updated_at, trigger,
-			             workflows[].id/name/status/jobs[].number/name/status/type
+			JSON fields: id, status, branch, revision, created_at,
+			             workflows[].id/name/status/jobs[].name/status/type
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
 			$ circleci run get
-
-			# Get a run by number
-			$ circleci run get 75
 
 			# Get a run by UUID
 			$ circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b
@@ -90,7 +84,7 @@ func newGetCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used when looking up by number")
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used for latest-run lookup")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch name (defaults to current branch)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -98,29 +92,13 @@ func newGetCmd() *cobra.Command {
 	return cmd
 }
 
-// runGetOutput is the JSON shape returned by this command.
 type runGetOutput struct {
-	ID          string           `json:"id"`
-	Number      int64            `json:"number"`
-	Status      string           `json:"status"`
-	ProjectSlug string           `json:"project_slug"`
-	Branch      string           `json:"branch,omitempty"`
-	Revision    string           `json:"revision,omitempty"`
-	CreatedAt   string           `json:"created_at"`
-	UpdatedAt   string           `json:"updated_at"`
-	Trigger     triggerOutput    `json:"trigger"`
-	Errors      []errorOutput    `json:"errors,omitempty"`
-	Workflows   []workflowOutput `json:"workflows"`
-}
-
-type errorOutput struct {
-	Type    string `json:"type"`
-	Message string `json:"message"`
-}
-
-type triggerOutput struct {
-	Type  string `json:"type"`
-	Actor string `json:"actor"`
+	ID        string           `json:"id"`
+	Status    string           `json:"status"`
+	Branch    string           `json:"branch,omitempty"`
+	Revision  string           `json:"revision,omitempty"`
+	CreatedAt string           `json:"created_at"`
+	Workflows []workflowOutput `json:"workflows"`
 }
 
 type workflowOutput struct {
@@ -131,7 +109,6 @@ type workflowOutput struct {
 }
 
 type jobOutput struct {
-	Number int64  `json:"number,omitempty"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
 	Type   string `json:"type"`
@@ -139,38 +116,22 @@ type jobOutput struct {
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
 	var (
+		r   *apiclient.RunV3
 		err error
-		r   *apiclient.Pipeline
 	)
 
 	if len(args) == 1 {
-		arg := args[0]
-		if looksLikeNumber(arg) {
-			// Run number: need a project slug to resolve it.
-			number, _ := strconv.ParseInt(arg, 10, 64)
-			if projectSlug == "" {
-				info, err := gitremote.Detect()
-				if err != nil {
-					return cmdutil.GitDetectErr(err, "Or specify the project: circleci run get "+arg+" --project gh/org/repo")
-				}
-				projectSlug = info.Slug
-			}
-			r, err = client.GetPipelineByNumber(ctx, projectSlug, number)
-			if err != nil {
-				return apiErr(err, fmt.Sprintf("%s #%s", projectSlug, arg))
-			}
-		} else {
-			// UUID
-			r, err = client.GetPipeline(ctx, arg)
-			if err != nil {
-				return apiErr(err, arg)
-			}
+		r, err = client.GetRunV3(ctx, args[0])
+		if err != nil {
+			return apiErr(err, args[0])
 		}
 	} else {
-		// No arg: infer from git context.
 		info, err := gitremote.Detect()
 		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or provide a run number or UUID: circleci run get <number>")
+			return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci run get <uuid>")
+		}
+		if projectSlug == "" {
+			projectSlug = info.Slug
 		}
 
 		effectiveBranch := branch
@@ -178,14 +139,31 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 			effectiveBranch = info.Branch
 		}
 
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest run for %s on branch %s", info.Slug, effectiveBranch))
-		r, err = client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
-		sp.Stop()
+		proj, err := client.GetProjectInfo(ctx, projectSlug)
 		if err != nil {
-			return apiErr(err, fmt.Sprintf("%s@%s", info.Slug, effectiveBranch))
+			return apiErr(err, projectSlug)
 		}
+
+		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest run for %s on branch %s", projectSlug, effectiveBranch))
+		now := time.Now().UTC()
+		runs, searchErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+			ProjectIDs: []string{proj.ID},
+			From:       now.AddDate(0, 0, -90),
+			To:         now,
+			Filter:     apiclient.BuildRunFilter(effectiveBranch, ""),
+			Limit:      1,
+		})
+		sp.Stop()
+		if searchErr != nil {
+			return apiErr(searchErr, fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+		}
+		if len(runs) == 0 {
+			return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+		}
+		r = &runs[0]
 	}
 
+	// Fetch workflows via V2 using the run ID (which is the pipeline ID).
 	workflows, err := client.GetPipelineWorkflows(ctx, r.ID)
 	if err != nil {
 		return apiErr(err, r.ID)
@@ -210,13 +188,12 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	return nil
 }
 
-func buildOutput(r *apiclient.Pipeline, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJob) runGetOutput {
+func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJob) runGetOutput {
 	wflows := make([]workflowOutput, len(workflows))
 	for i, w := range workflows {
 		jobs := make([]jobOutput, 0, len(wfJobs[i]))
 		for _, j := range wfJobs[i] {
 			jobs = append(jobs, jobOutput{
-				Number: j.JobNumber,
 				Name:   j.Name,
 				Status: j.Status,
 				Type:   j.Type,
@@ -225,50 +202,26 @@ func buildOutput(r *apiclient.Pipeline, workflows []apiclient.PipelineWorkflowSu
 		wflows[i] = workflowOutput{ID: w.ID, Name: w.Name, Status: w.Status, Jobs: jobs}
 	}
 
-	var branch, revision string
-	if r.VCS != nil {
-		branch = r.VCS.Branch
-		revision = r.VCS.Revision
-	} else if tp := r.TriggerParameters; tp != nil && tp.Git != nil {
-		branch = tp.Git.Branch
-		revision = tp.Git.CheckoutSHA
-	}
+	revision := r.Revision
 	if len(revision) > 7 {
 		revision = revision[:7]
 	}
 
-	errs := make([]errorOutput, len(r.Errors))
-	for i, e := range r.Errors {
-		errs[i] = errorOutput{Type: e.Type, Message: e.Message}
-	}
-
 	return runGetOutput{
-		ID:          r.ID,
-		Number:      r.Number,
-		Status:      deriveStatus(r.State, wflows),
-		ProjectSlug: r.ProjectSlug,
-		Branch:      branch,
-		Revision:    revision,
-		CreatedAt:   r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
-		UpdatedAt:   r.UpdatedAt.Format("2006-01-02 15:04:05 UTC"),
-		Trigger:     triggerOutput{Type: r.Trigger.Type, Actor: r.Trigger.Actor.Login},
-		Errors:      errs,
-		Workflows:   wflows,
+		ID:        r.ID,
+		Status:    deriveStatus(r.Status, wflows),
+		Branch:    r.Branch,
+		Revision:  revision,
+		CreatedAt: r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		Workflows: wflows,
 	}
 }
 
 // deriveStatus computes a meaningful overall status from workflow statuses.
-// The run-level state from the API reflects creation/setup lifecycle
-// (almost always "created") and is not useful as an execution status.
-func deriveStatus(runState string, workflows []workflowOutput) string {
-	// A run-level error (e.g. config error) takes priority.
-	if runState == "errored" {
-		return "errored"
-	}
+func deriveStatus(runStatus string, workflows []workflowOutput) string {
 	if len(workflows) == 0 {
-		return runState
+		return runStatus
 	}
-	// Walk workflows in priority order: failure > running > on_hold > canceled > success.
 	for _, wf := range workflows {
 		switch wf.Status {
 		case "failed", "error", "failing":
@@ -295,13 +248,7 @@ func deriveStatus(runState string, workflows []workflowOutput) string {
 			return statusSuccess
 		}
 	}
-	return runState
-}
-
-// looksLikeNumber returns true if s is a plain positive integer (run number),
-// as opposed to a UUID (which contains hyphens).
-func looksLikeNumber(s string) bool {
-	return !strings.Contains(s, "-") && len(s) > 0
+	return runStatus
 }
 
 func printRun(ctx context.Context, r runGetOutput) {
@@ -309,8 +256,6 @@ func printRun(ctx context.Context, r runGetOutput) {
 	md.WriteString("# Run\n")
 
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", r.ID)
-	_, _ = fmt.Fprintf(&md, "- Number: %d\n", r.Number)
-	_, _ = fmt.Fprintf(&md, "- Project: %s\n", r.ProjectSlug)
 	if r.Branch != "" {
 		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", r.Branch)
 	}
@@ -318,21 +263,8 @@ func printRun(ctx context.Context, r runGetOutput) {
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", r.Revision)
 	}
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", r.Status)
+	_, _ = fmt.Fprintf(&md, "- Created: %s\n", r.CreatedAt)
 	md.WriteString("\n")
-
-	md.WriteString("## Trigger\n")
-	_, _ = fmt.Fprintf(&md, "- Created At: %s\n", r.CreatedAt)
-	_, _ = fmt.Fprintf(&md, "- By: %s\n", r.Trigger.Actor)
-	_, _ = fmt.Fprintf(&md, "- Type: %s\n", r.Trigger.Type)
-	md.WriteString("\n")
-
-	if len(r.Errors) > 0 {
-		md.WriteString("## Errors\n")
-		for _, e := range r.Errors {
-			_, _ = fmt.Fprintf(&md, "- [%s] %s\n", e.Type, e.Message)
-		}
-		md.WriteString("\n")
-	}
 
 	if len(r.Workflows) > 0 {
 		md.WriteString("## Workflows\n")
@@ -341,11 +273,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 			_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
 			_, _ = fmt.Fprintf(&md, "- Jobs:\n")
 			for _, j := range w.Jobs {
-				if j.Type == "approval" {
-					_, _ = fmt.Fprintf(&md, "  - %-36s  %s\n", j.Name, j.Status)
-				} else {
-					_, _ = fmt.Fprintf(&md, "  - %-36s  %s  #%d\n", j.Name, j.Status, j.Number)
-				}
+				_, _ = fmt.Fprintf(&md, "  - %-36s  %s\n", j.Name, j.Status)
 			}
 		}
 		md.WriteString("\n")

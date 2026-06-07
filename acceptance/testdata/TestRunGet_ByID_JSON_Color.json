@@ -1,16 +1,9 @@
 [1;37m{[m
   [1;34m"id"[m[1;37m:[m [32m"5034460f-c7c4-4c43-9457-de07e2029e7b"[m[1;37m,[m
-  [1;34m"number"[m[1;37m:[m 42[1;37m,[m
   [1;34m"status"[m[1;37m:[m [32m"success"[m[1;37m,[m
-  [1;34m"project_slug"[m[1;37m:[m [32m"gh/testorg/testrepo"[m[1;37m,[m
   [1;34m"branch"[m[1;37m:[m [32m"main"[m[1;37m,[m
   [1;34m"revision"[m[1;37m:[m [32m"abc1234"[m[1;37m,[m
   [1;34m"created_at"[m[1;37m:[m [32m"2020-01-01 12:00:00 UTC"[m[1;37m,[m
-  [1;34m"updated_at"[m[1;37m:[m [32m"2020-01-01 12:00:00 UTC"[m[1;37m,[m
-  [1;34m"trigger"[m[1;37m:[m [1;37m{[m
-    [1;34m"type"[m[1;37m:[m [32m"webhook"[m[1;37m,[m
-    [1;34m"actor"[m[1;37m:[m [32m"testuser"[m
-  [1;37m}[m[1;37m,[m
   [1;34m"workflows"[m[1;37m:[m [1;37m[[m
     [1;37m{[m
       [1;34m"id"[m[1;37m:[m [32m"wf-uuid-001"[m[1;37m,[m
@@ -18,7 +11,6 @@
       [1;34m"status"[m[1;37m:[m [32m"success"[m[1;37m,[m
       [1;34m"jobs"[m[1;37m:[m [1;37m[[m
         [1;37m{[m
-          [1;34m"number"[m[1;37m:[m 101[1;37m,[m
           [1;34m"name"[m[1;37m:[m [32m"run-tests"[m[1;37m,[m
           [1;34m"status"[m[1;37m:[m [32m"success"[m[1;37m,[m
           [1;34m"type"[m[1;37m:[m [32m"build"[m

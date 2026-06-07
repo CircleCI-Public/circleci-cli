@@ -1,4 +1,4 @@
-Usage:  circleci run watch [<run-number-or-id>] [flags]
+Usage:  circleci run watch [<run-id>] [flags]
 
 Flags:
   -b, --branch string      Branch to watch (defaults to current branch)
