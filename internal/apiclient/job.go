@@ -204,7 +204,6 @@ type JobV3Step struct {
 	Command   string     `json:"command,omitempty"`
 	StartedAt time.Time  `json:"started_at"`
 	StoppedAt *time.Time `json:"stopped_at,omitempty"`
-	Duration  float64    `json:"duration_seconds"`
 }
 
 // GetJobV3 fetches job detail from the V3 API by UUID.
@@ -241,9 +240,6 @@ func (w jobWire) toJobV3() *JobV3 {
 				StartedAt: s.StartedAt,
 				StoppedAt: s.EndedAt,
 				Command:   s.Command,
-			}
-			if s.EndedAt != nil {
-				step.Duration = s.EndedAt.Sub(s.StartedAt).Seconds()
 			}
 			exec.Steps = append(exec.Steps, step)
 		}

@@ -1,0 +1,7 @@
+Usage:  circleci job output list <job-id> [flags]
+
+Flags:
+  --execution int   Parallel execution index to list output from
+  --jq string       Process values from the response using jq syntax
+  --json            Output as JSON
+  
