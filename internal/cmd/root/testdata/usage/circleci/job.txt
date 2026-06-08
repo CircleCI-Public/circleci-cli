@@ -1,6 +1,6 @@
 Usage:  circleci job <command>
 
 Available commands:
-  artifacts
+  artifact
   get
   output

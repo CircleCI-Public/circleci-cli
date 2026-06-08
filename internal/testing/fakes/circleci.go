@@ -53,6 +53,7 @@ type CircleCI struct {
 	projects                          map[string][]any  // project slug → ordered list of pipelines
 	workflowJobs                      map[string][]any  // workflow id → jobs
 	jobArtifacts                      map[string][]any  // "slug/jobNumber" → artifacts
+	jobArtifactsV3                    map[string][]any  // job UUID → V3 artifact data items
 	staticFiles                       map[string]string // path → body content, for artifact downloads
 	jobs                              map[string]any    // "slug/jobNumber" → job detail response (v2)
 	jobsV1                            map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
@@ -178,6 +179,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		projects:                          map[string][]any{},
 		workflowJobs:                      map[string][]any{},
 		jobArtifacts:                      map[string][]any{},
+		jobArtifactsV3:                    map[string][]any{},
 		staticFiles:                       map[string]string{},
 		jobs:                              map[string]any{},
 		jobsV1:                            map[string]any{},
@@ -311,6 +313,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
+	r.Get("/api/v3/jobs/{id}/artifacts", f.handleGetJobArtifactsV3)
 	r.Get("/api/v3/jobs/{id}/stdout", f.handleGetJobStdout)
 	r.Get("/api/v3/jobs/{id}/stderr", f.handleGetJobStderr)
 	// Workflow (v3) routes.
@@ -449,6 +452,14 @@ func (f *CircleCI) AddJobArtifacts(slug string, jobNumber int64, artifactItems .
 	defer f.mu.Unlock()
 	key := fmt.Sprintf("%s/%d", slug, jobNumber)
 	f.jobArtifacts[key] = artifactItems
+}
+
+// AddJobArtifactsV3 registers V3 artifact data items for a job UUID.
+// Each item should be a V3 data entity with "attributes" containing path, url, execution.
+func (f *CircleCI) AddJobArtifactsV3(jobID string, items ...any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobArtifactsV3[jobID] = items
 }
 
 // AddJobV1 registers a v1.1 job detail response. Use this alongside AddJob
@@ -648,6 +659,18 @@ func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request)
 		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
+}
+
+func (f *CircleCI) handleGetJobArtifactsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	items := f.jobArtifactsV3[id]
+	f.mu.RUnlock()
+
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{"data": items})
 }
 
 func (f *CircleCI) handleListProjectPipelines(w http.ResponseWriter, r *http.Request) {

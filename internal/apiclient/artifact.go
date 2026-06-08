@@ -52,6 +52,40 @@ func (c *Client) GetJobArtifacts(ctx context.Context, projectSlug string, jobNum
 	return resp.Items, nil
 }
 
+// --- V3 wire types ---
+
+type artifactAttributesWire struct {
+	Path      string `json:"path"`
+	URL       string `json:"url"`
+	Execution int    `json:"execution"`
+}
+
+type artifactWire struct {
+	ID         string                 `json:"id"`
+	Attributes artifactAttributesWire `json:"attributes"`
+}
+
+// GetJobArtifactsV3 returns the artifacts for a job identified by UUID,
+// using the V3 API.
+func (c *Client) GetJobArtifactsV3(ctx context.Context, jobID string) ([]Artifact, error) {
+	var resp v3List[artifactWire]
+	err := c.getV3(ctx, "/jobs/%s/artifacts", &resp,
+		routeParams(jobID),
+	)
+	if err != nil {
+		return nil, err
+	}
+	artifacts := make([]Artifact, len(resp.Data))
+	for i, w := range resp.Data {
+		artifacts[i] = Artifact{
+			Path:      w.Attributes.Path,
+			URL:       w.Attributes.URL,
+			NodeIndex: w.Attributes.Execution,
+		}
+	}
+	return artifacts, nil
+}
+
 // DownloadArtifact fetches an artifact URL (authenticated) and writes its
 // contents to dst. The URL is a full absolute URL, not a base-relative path.
 func (c *Client) DownloadArtifact(ctx context.Context, artifactURL string, dst io.Writer) error {

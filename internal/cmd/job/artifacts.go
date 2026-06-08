@@ -23,71 +23,51 @@
 package job
 
 import (
-	"context"
 	"fmt"
-	"net/http"
-	"strconv"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
-	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-func newArtifactsCmd() *cobra.Command {
+func newArtifactCmd() *cobra.Command {
 	var (
-		projectSlug string
 		downloadDir string
 		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "artifacts <job-number>",
+		Use:   "artifact <job-id>",
 		Short: "List or download artifacts for a job",
 		Long: heredoc.Doc(`
-			List or download artifacts produced by a specific job number.
+			List or download artifacts produced by a specific job.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project.
+			Pass the job UUID to list its artifacts. Use --download to save
+			them to a local directory.
 
-			To list artifacts across a whole run, use 'circleci artifacts'.
-
-			JSON fields: job_name, job_number, path, url, node_index
+			JSON fields: path, url, node_index
 		`),
 		Example: heredoc.Doc(`
-			# List artifacts for job number 123
-			$ circleci job artifacts 123
+			# List artifacts for a job
+			$ circleci job artifact 5034460f-c7c4-4c43-9457-de07e2029e7b
 
-			# Download artifacts for job 123 into ./artifacts
-			$ circleci job artifacts 123 --download ./artifacts
-
-			# Specify the project explicitly
-			$ circleci job artifacts 123 --project gh/myorg/myrepo
+			# Download artifacts into ./artifacts
+			$ circleci job artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --download ./artifacts
 
 			# Output as JSON
-			$ circleci job artifacts 123 --json
+			$ circleci job artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
-			err := cmdutil.RequireArgs(args, "job-number")
+			err := cmdutil.RequireArgs(args, "job-id")
 			if err != nil {
 				return err
-			}
-
-			jobNumber, err := strconv.ParseInt(args[0], 10, 64)
-			if err != nil {
-				return clierrors.New("args.invalid_job_number", "Invalid job number",
-					fmt.Sprintf("%q is not a valid job number.", args[0])).
-					WithExitCode(clierrors.ExitBadArguments)
 			}
 
 			client, err := cmdutil.LoadClient(ctx)
@@ -95,62 +75,40 @@ func newArtifactsCmd() *cobra.Command {
 				return err
 			}
 
-			return runJobArtifacts(ctx, client, jobNumber, projectSlug, downloadDir, jsonOut)
+			jobID := args[0]
+			entries, err := artifacts.ForJob(ctx, client, jobID)
+			if err != nil {
+				return cmdutil.APIErr(err, jobID, "artifacts.not_found", "No resource found for %q.")
+			}
+
+			if len(entries) == 0 {
+				iostream.ErrPrintln(ctx, "No artifacts found.")
+				return nil
+			}
+
+			if downloadDir != "" {
+				sp := iostream.Spinner(ctx, true, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
+				dlErr := artifacts.Download(ctx, client, entries, downloadDir)
+				sp.Stop()
+				if dlErr != nil {
+					return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
+						WithExitCode(clierrors.ExitGeneralError)
+				}
+				iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.SymbolOK(ctx), len(entries))
+			}
+
+			if jsonOut {
+				return iostream.PrintJSON(ctx, entries)
+			}
+
+			iostream.PrintMarkdown(ctx, artifacts.FormatMarkdown(entries))
+			return nil
 		},
 	}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVarP(&downloadDir, "download", "d", "", "Download artifacts into this directory")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
-}
-
-func runJobArtifacts(ctx context.Context, client *apiclient.Client, jobNumber int64, projectSlug, downloadDir string, jsonOut bool) error {
-	if projectSlug == "" {
-		info, err := gitremote.Detect()
-		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify the project: circleci job artifacts <number> --project gh/org/repo")
-		}
-		projectSlug = info.Slug
-	}
-	entries, err := artifacts.ForJob(ctx, client, projectSlug, jobNumber)
-	if err != nil {
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return clierrors.New("artifacts.not_found", "Job not found",
-				fmt.Sprintf("No job #%d found in project %q.", jobNumber, projectSlug)).
-				WithExitCode(clierrors.ExitNotFound)
-		}
-		return clierrors.New("api.error", "CircleCI API error", err.Error()).
-			WithExitCode(clierrors.ExitAPIError)
-	}
-
-	if len(entries) == 0 {
-		iostream.ErrPrintln(ctx, "No artifacts found.")
-		return nil
-	}
-
-	if downloadDir != "" {
-		sp := iostream.Spinner(ctx, true, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
-		dlErr := artifacts.Download(ctx, client, entries, downloadDir)
-		sp.Stop()
-		if dlErr != nil {
-			return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
-				WithExitCode(clierrors.ExitGeneralError)
-		}
-		iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.SymbolOK(ctx), len(entries))
-	}
-
-	if jsonOut {
-		return iostream.PrintJSON(ctx, entries)
-	}
-
-	var md strings.Builder
-	md.WriteString("# Artifacts")
-	for _, e := range entries {
-		_, _ = fmt.Fprintf(&md, "- %s\n", e.Path)
-	}
-	iostream.PrintMarkdown(ctx, md.String())
-	return nil
 }

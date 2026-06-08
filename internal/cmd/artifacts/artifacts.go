@@ -24,197 +24,96 @@
 package artifacts
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
-// NewArtifactsCmd returns the top-level "circleci artifacts" command.
-func NewArtifactsCmd() *cobra.Command {
+// NewArtifactCmd returns the top-level "circleci artifact" command.
+func NewArtifactCmd() *cobra.Command {
 	var (
-		jobNumber   int64
-		projectSlug string
-		branch      string
 		downloadDir string
 		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "artifacts [<run-id>]",
-		Short: "List or download run artifacts",
+		Use:   "artifact <job-id>",
+		Short: "List or download job artifacts",
 		Long: heredoc.Doc(`
-			List or download artifacts produced by a CircleCI run or job.
+			List or download artifacts produced by a CircleCI job.
 
-			With no arguments, the run is inferred from the current git
-			repository's remote and checked-out branch. Pass a run UUID to
-			target a specific run. Use --job to scope to a single job number.
+			Pass the job UUID to list its artifacts. Use --download to save
+			them to a local directory.
 
-			When listing at run level, each artifact is shown with the job
-			name and number it came from.
-
-			JSON fields: job_name, job_number, path, url, node_index
+			JSON fields: path, url, node_index
 		`),
 		Example: heredoc.Doc(`
-			# List all artifacts for the latest run on the current branch
-			$ circleci artifacts
+			# List artifacts for a job
+			$ circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b
 
-			# List artifacts for a specific run
-			$ circleci artifacts 5034460f-c7c4-4c43-9457-de07e2029e7b
-
-			# List artifacts for a specific job number
-			$ circleci artifacts --job 123
-
-			# Download all artifacts from the latest run into ./artifacts
-			$ circleci artifacts --download ./artifacts
-
-			# Download artifacts for a specific branch
-			$ circleci artifacts --branch main --download ./artifacts
+			# Download all artifacts into ./artifacts
+			$ circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --download ./artifacts
 
 			# Output as JSON for scripting
-			$ circleci artifacts --json
+			$ circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			err := cmdutil.RequireArgs(args, "job-id")
+			if err != nil {
+				return err
+			}
 
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
 
-			return run(ctx, client, args, jobNumber, projectSlug, branch, downloadDir, jsonOut)
+			jobID := args[0]
+			entries, err := artifacts.ForJob(ctx, client, jobID)
+			if err != nil {
+				return cmdutil.APIErr(err, jobID, "artifacts.not_found", "No resource found for %q.")
+			}
+
+			if len(entries) == 0 {
+				if !jsonOut {
+					iostream.ErrPrintln(ctx, "No artifacts found.")
+					return nil
+				}
+				entries = []artifacts.Entry{}
+			}
+
+			if downloadDir != "" {
+				sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
+				dlErr := artifacts.Download(ctx, client, entries, downloadDir)
+				sp.Stop()
+				if dlErr != nil {
+					return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
+						WithExitCode(clierrors.ExitGeneralError)
+				}
+				iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.SymbolOK(ctx), len(entries))
+			}
+
+			if jsonOut {
+				return iostream.PrintJSON(ctx, entries)
+			}
+
+			iostream.PrintMarkdown(ctx, artifacts.FormatMarkdown(entries))
+			return nil
 		},
 	}
 
-	cmd.Flags().Int64VarP(&jobNumber, "job", "j", 0, "Scope to a single job number")
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used with --job, defaults to git remote")
-	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch for run inference (default: current branch)")
 	cmd.Flags().StringVarP(&downloadDir, "download", "d", "", "Download artifacts into this directory")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
-}
-
-func run(ctx context.Context, client *apiclient.Client, args []string, jobNumber int64, projectSlug, branch, downloadDir string, jsonOut bool) error {
-	var (
-		err     error
-		entries []artifacts.Entry
-	)
-
-	switch {
-	case jobNumber != 0:
-		// --job flag: fetch artifacts for a single job
-		if projectSlug == "" {
-			info, err := gitremote.Detect()
-			if err != nil {
-				return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci artifacts <id>")
-			}
-			projectSlug = info.Slug
-		}
-		entries, err = artifacts.ForJob(ctx, client, projectSlug, jobNumber)
-		if err != nil {
-			return apiErr(err, fmt.Sprintf("job #%d", jobNumber))
-		}
-
-	case len(args) == 1:
-		// Explicit run UUID
-		runID := args[0]
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching artifacts for run %s", runID))
-		entries, err = artifacts.ForPipeline(ctx, client, runID)
-		sp.Stop()
-		if err != nil {
-			return apiErr(err, runID)
-		}
-
-	default:
-		// Infer run from git context
-		info, err := gitremote.Detect()
-		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci artifacts <id>")
-		}
-		effectiveBranch := branch
-		if effectiveBranch == "" {
-			effectiveBranch = info.Branch
-		}
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest run for %s on branch %s", info.Slug, effectiveBranch))
-		r, err := client.GetLatestPipeline(ctx, info.Slug, effectiveBranch)
-		sp.Stop()
-		if err != nil {
-			return apiErr(err, fmt.Sprintf("%s@%s", info.Slug, effectiveBranch))
-		}
-		entries, err = artifacts.ForPipeline(ctx, client, r.ID)
-		if err != nil {
-			return apiErr(err, r.ID)
-		}
-	}
-
-	if len(entries) == 0 {
-		if !jsonOut {
-			iostream.ErrPrintln(ctx, "No artifacts found.")
-			return nil
-		}
-		entries = []artifacts.Entry{}
-	}
-
-	if downloadDir != "" {
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
-		dlErr := artifacts.Download(ctx, client, entries, downloadDir)
-		sp.Stop()
-		if dlErr != nil {
-			return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
-				WithExitCode(clierrors.ExitGeneralError)
-		}
-		iostream.ErrPrintf(ctx, "%s Downloaded %d artifact(s)\n", iostream.SymbolOK(ctx), len(entries))
-	}
-
-	if jsonOut {
-		return iostream.PrintJSON(ctx, entries)
-	}
-
-	printArtifacts(ctx, entries)
-	return nil
-}
-
-func printArtifacts(ctx context.Context, entries []artifacts.Entry) {
-	// Print a flat table. Show job columns only when there's more than one job.
-	multiJob := false
-	first := entries[0].JobNumber
-	for _, e := range entries[1:] {
-		if e.JobNumber != first {
-			multiJob = true
-			break
-		}
-	}
-
-	md := ""
-	if multiJob {
-		table := mdtable.New("Job", "Job #", "Path")
-		for _, e := range entries {
-			table.Row(e.JobName, fmt.Sprintf("%d", e.JobNumber), e.Path)
-		}
-		md = table.Render()
-	} else {
-		var sb strings.Builder
-		for _, e := range entries {
-			_, _ = fmt.Fprintf(&sb, "- %s\n", e.Path)
-		}
-		md = sb.String()
-	}
-	iostream.PrintMarkdown(ctx, "# Artifacts\n"+md)
-}
-
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject, "artifacts.not_found", "No resource found for %q.")
 }

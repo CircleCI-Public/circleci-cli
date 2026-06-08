@@ -37,13 +37,7 @@ import (
 // noopClient satisfies artifacts.Client; DownloadArtifact writes fixed content.
 type noopClient struct{}
 
-func (noopClient) GetRunWorkflowsV3(_ context.Context, _ string) ([]apiclient.WorkflowV3, error) {
-	return nil, nil
-}
-func (noopClient) GetWorkflowJobs(_ context.Context, _ string) ([]apiclient.WorkflowJob, error) {
-	return nil, nil
-}
-func (noopClient) GetJobArtifacts(_ context.Context, _ string, _ int64) ([]apiclient.Artifact, error) {
+func (noopClient) GetJobArtifactsV3(_ context.Context, _ string) ([]apiclient.Artifact, error) {
 	return nil, nil
 }
 func (noopClient) DownloadArtifact(_ context.Context, _ string, dst io.Writer) error {

@@ -27,8 +27,8 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -38,69 +38,27 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
-const (
-	testPipelineID = "aaaaaaaa-0000-0000-0000-000000000001"
-	testWorkflowID = "bbbbbbbb-0000-0000-0000-000000000001"
-	testSlug       = "gh/testorg/testrepo"
-)
+const testArtifactJobID = "cccccccc-0000-0000-0000-000000000001"
 
-func fakeJob(id, name string, jobNumber int64, slug string) map[string]any {
+func fakeArtifactV3(path, url string, execution int) map[string]any {
 	return map[string]any{
-		"id":           id,
-		"name":         name,
-		"job_number":   jobNumber,
-		"status":       "success",
-		"type":         "build",
-		"project_slug": slug,
-		"started_at":   time.Now().UTC().Format(time.RFC3339),
-		"stopped_at":   time.Now().UTC().Format(time.RFC3339),
-	}
-}
-
-func fakeJobV3(id, name, workflowID, projectID string) map[string]any {
-	now := time.Now().UTC().Format(time.RFC3339)
-	return map[string]any{
-		"id": id,
+		"id": uuid.NewString(),
 		"attributes": map[string]any{
-			"name":       name,
-			"phase":      "ended",
-			"outcome":    "succeeded",
-			"type":       "build",
-			"started_at": now,
-			"ended_at":   now,
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": workflowID},
-			"project":  map[string]any{"id": projectID},
+			"path":      path,
+			"url":       url,
+			"execution": execution,
 		},
 	}
 }
 
-func fakeArtifact(path, url string) map[string]any {
-	return map[string]any{
-		"path":       path,
-		"url":        url,
-		"node_index": 0,
-	}
-}
-
-// setupArtifactFake builds a fake server with one pipeline → one workflow →
-// one job → two artifacts.
+// setupArtifactFake builds a fake server with one job → two V3 artifacts.
 func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddRun(testPipelineID,
-		fakeRun(testPipelineID, 7, "created", testSlug, "main"))
-	fake.AddProjectRuns(testSlug,
-		fakeRun(testPipelineID, 7, "created", testSlug, "main"))
-	fake.AddRunWorkflowsV3(testPipelineID,
-		fakeWorkflowV3(testWorkflowID, "build", testPipelineID, "proj-artifacts", "ended", "succeeded"))
-	fake.AddWorkflowJobs(testWorkflowID,
-		fakeJob("job-uuid-1", "build", 42, testSlug))
-	fake.AddJobArtifacts(testSlug, 42,
-		fakeArtifact("coverage/index.html", fake.URL()+"/artifacts/coverage/index.html"),
-		fakeArtifact("test-results.xml", fake.URL()+"/artifacts/test-results.xml"),
+	fake.AddJobArtifactsV3(testArtifactJobID,
+		fakeArtifactV3("coverage/index.html", fake.URL()+"/artifacts/coverage/index.html", 0),
+		fakeArtifactV3("test-results.xml", fake.URL()+"/artifacts/test-results.xml", 0),
 	)
 
 	env := testenv.New(t)
@@ -110,12 +68,12 @@ func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	return fake, env
 }
 
-func TestArtifacts_ByPipelineID(t *testing.T) {
+func TestArtifact_ByJobID(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", testPipelineID},
+		Args:    []string{"artifact", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -124,12 +82,12 @@ func TestArtifacts_ByPipelineID(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestArtifacts_ByPipelineID_Color(t *testing.T) {
+func TestArtifact_ByJobID_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", testPipelineID},
+		Args:    []string{"artifact", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -139,12 +97,37 @@ func TestArtifacts_ByPipelineID_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
+func TestArtifact_MultiExecution(t *testing.T) {
+	const jobID = "cccccccc-0000-0000-0000-000000000002"
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobArtifactsV3(jobID,
+		fakeArtifactV3("test-0.xml", fake.URL()+"/a/test-0.xml", 0),
+		fakeArtifactV3("test-1.xml", fake.URL()+"/a/test-1.xml", 1),
+		fakeArtifactV3("test-3.xml", fake.URL()+"/a/test-3.xml", 3),
+		fakeArtifactV3("coverage.html", fake.URL()+"/a/coverage.html", 0),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"artifact", jobID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestArtifact_ByJobID_JSON(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", "--json", testPipelineID},
+		Args:    []string{"artifact", "--json", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -155,19 +138,18 @@ func TestArtifacts_ByPipelineID_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
-	assert.Check(t, cmp.Equal(out[0]["job_name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["path"], "coverage/index.html"))
 	assert.Check(t, cmp.Equal(out[1]["path"], "test-results.xml"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestArtifacts_ByPipelineID_JSON_Color(t *testing.T) {
+func TestArtifact_ByJobID_JSON_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", "--json", testPipelineID},
+		Args:    []string{"artifact", "--json", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -177,12 +159,12 @@ func TestArtifacts_ByPipelineID_JSON_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestArtifacts_ByJobNumber(t *testing.T) {
+func TestJobArtifact_ByJobID(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", "--job", "42", "--project", testSlug},
+		Args:    []string{"job", "artifact", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -191,12 +173,12 @@ func TestArtifacts_ByJobNumber(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestArtifacts_ByJobNumber_Color(t *testing.T) {
+func TestJobArtifact_ByJobID_Color(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", "--job", "42", "--project", testSlug},
+		Args:    []string{"job", "artifact", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -206,48 +188,16 @@ func TestArtifacts_ByJobNumber_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestJobArtifacts_ByJobNumber(t *testing.T) {
-	_, env := setupArtifactFake(t)
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"job", "artifacts", "42", "--project", testSlug},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
-func TestJobArtifacts_ByJobNumber_Color(t *testing.T) {
-	_, env := setupArtifactFake(t)
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"job", "artifacts", "42", "--project", testSlug},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-		TTY:     true,
-	})
-
-	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
-func TestArtifacts_Download(t *testing.T) {
+func TestArtifact_Download(t *testing.T) {
 	fake, env := setupArtifactFake(t)
 
-	// Serve fake artifact content from the fake server.
-	// We add a simple static handler via the underlying httptest server.
-	// Since our fake uses gin, we register the route on the fake directly.
 	fake.AddStaticFile("/artifacts/coverage/index.html", "<html>coverage</html>")
 	fake.AddStaticFile("/artifacts/test-results.xml", "<xml/>")
 
 	downloadDir := t.TempDir()
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", testPipelineID, "--download", downloadDir},
+		Args:    []string{"artifact", testArtifactJobID, "--download", downloadDir},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -262,12 +212,45 @@ func TestArtifacts_Download(t *testing.T) {
 	assert.NilError(t, err)
 }
 
-func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
+func TestArtifact_Download_MultiExecution(t *testing.T) {
+	const jobID = "cccccccc-0000-0000-0000-000000000003"
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobArtifactsV3(jobID,
+		fakeArtifactV3("results.xml", fake.URL()+"/artifacts/exec0/results.xml", 0),
+		fakeArtifactV3("results.xml", fake.URL()+"/artifacts/exec1/results.xml", 1),
+	)
+	fake.AddStaticFile("/artifacts/exec0/results.xml", "<xml>exec0</xml>")
+	fake.AddStaticFile("/artifacts/exec1/results.xml", "<xml>exec1</xml>")
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	downloadDir := t.TempDir()
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"artifact", jobID, "--download", downloadDir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	data, err := os.ReadFile(filepath.Join(downloadDir, "exec-0000", "results.xml"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Contains(string(data), "exec0"))
+
+	data, err = os.ReadFile(filepath.Join(downloadDir, "exec-0001", "results.xml"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Contains(string(data), "exec1"))
+}
+
+func TestArtifact_ByJobID_Quiet(t *testing.T) {
 	_, env := setupArtifactFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", "--quiet", testPipelineID},
+		Args:    []string{"artifact", "--quiet", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -277,12 +260,12 @@ func TestArtifacts_ByPipelineID_Quiet(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestArtifacts_NoToken(t *testing.T) {
+func TestArtifact_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifacts", testPipelineID},
+		Args:    []string{"artifact", testArtifactJobID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
