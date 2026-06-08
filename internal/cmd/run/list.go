@@ -24,8 +24,6 @@ package run
 
 import (
 	"context"
-	"strconv"
-	"sync"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -57,8 +55,7 @@ func newListCmd() *cobra.Command {
 			unless overridden with --project. Use --branch to filter results
 			to a single branch.
 
-			JSON fields: id, number, state, project_slug, branch, revision,
-			             created_at, trigger, duration_seconds
+			JSON fields: id, status, branch, revision, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
@@ -97,18 +94,11 @@ func newListCmd() *cobra.Command {
 }
 
 type runListEntry struct {
-	ID              string `json:"id"`
-	Number          int64  `json:"number"`
-	State           string `json:"state"`
-	ProjectSlug     string `json:"project_slug"`
-	Branch          string `json:"branch,omitempty"`
-	Revision        string `json:"revision,omitempty"`
-	CreatedAt       string `json:"created_at"`
-	DurationSeconds int64  `json:"duration_seconds,omitempty"`
-	Trigger         struct {
-		Type  string `json:"type"`
-		Actor string `json:"actor"`
-	} `json:"trigger"`
+	ID        string `json:"id"`
+	Status    string `json:"status"`
+	Branch    string `json:"branch,omitempty"`
+	Revision  string `json:"revision,omitempty"`
+	CreatedAt string `json:"created_at"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
@@ -120,29 +110,26 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 		projectSlug = info.Slug
 	}
 
-	runs, err := client.ListPipelines(ctx, projectSlug, branch, limit)
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
 
-	// Fetch workflow summaries concurrently to compute durations.
-	wfSummaries := make([][]apiclient.PipelineWorkflowSummary, len(runs))
-	var wg sync.WaitGroup
-	for i, r := range runs {
-		wg.Add(1)
-		go func(idx int, id string) {
-			defer wg.Done()
-			wfs, err := client.GetPipelineWorkflows(ctx, id)
-			if err == nil {
-				wfSummaries[idx] = wfs
-			}
-		}(i, r.ID)
+	now := time.Now().UTC()
+	runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+		ProjectIDs: []string{proj.ID},
+		From:       now.AddDate(0, 0, -90),
+		To:         now,
+		Filter:     apiclient.BuildRunFilter(branch, ""),
+		Limit:      limit,
+	})
+	if err != nil {
+		return apiErr(err, projectSlug)
 	}
-	wg.Wait()
 
 	entries := make([]runListEntry, len(runs))
 	for i, r := range runs {
-		entries[i] = toListEntry(&r, wfSummaries[i])
+		entries[i] = toListEntry(&r)
 	}
 
 	if jsonOut {
@@ -158,56 +145,24 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 	return nil
 }
 
-func toListEntry(r *apiclient.Pipeline, wfs []apiclient.PipelineWorkflowSummary) runListEntry {
-	e := runListEntry{
-		ID:          r.ID,
-		Number:      r.Number,
-		State:       r.State,
-		ProjectSlug: r.ProjectSlug,
-		CreatedAt:   r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+func toListEntry(r *apiclient.RunV3) runListEntry {
+	rev := r.Revision
+	if len(rev) > 7 {
+		rev = rev[:7]
 	}
-	e.Trigger.Type = r.Trigger.Type
-	e.Trigger.Actor = r.Trigger.Actor.Login
-	if r.VCS != nil {
-		e.Branch = r.VCS.Branch
-		e.Revision = r.VCS.Revision
-	} else if tp := r.TriggerParameters; tp != nil && tp.Git != nil {
-		e.Branch = tp.Git.Branch
-		e.Revision = tp.Git.CheckoutSHA
+	return runListEntry{
+		ID:        r.ID,
+		Status:    r.Status,
+		Branch:    r.Branch,
+		Revision:  rev,
+		CreatedAt: r.CreatedAt.Format("2006-01-02 15:04 UTC"),
 	}
-	if len(e.Revision) > 7 {
-		e.Revision = e.Revision[:7]
-	}
-	if d := workflowDuration(r.CreatedAt, wfs); d >= time.Second {
-		e.DurationSeconds = int64(d.Seconds())
-	}
-	return e
-}
-
-// workflowDuration returns the wall-clock time from pipelineStart to the
-// latest stopped_at across all workflows. Returns 0 if no workflow has
-// finished yet.
-func workflowDuration(pipelineStart time.Time, wfs []apiclient.PipelineWorkflowSummary) time.Duration {
-	var latest time.Time
-	for _, wf := range wfs {
-		if wf.StoppedAt != nil && wf.StoppedAt.After(latest) {
-			latest = *wf.StoppedAt
-		}
-	}
-	if latest.IsZero() {
-		return 0
-	}
-	return latest.Sub(pipelineStart)
 }
 
 func printList(ctx context.Context, entries []runListEntry) {
-	table := mdtable.New("#", "Branch", "Revision", "ID", "Created", "Duration", "State")
+	table := mdtable.New("Branch", "Revision", "ID", "Created", "Status")
 	for _, e := range entries {
-		dur := "-"
-		if e.DurationSeconds > 0 {
-			dur = formatElapsed(time.Duration(e.DurationSeconds) * time.Second)
-		}
-		table.Row(strconv.Itoa(int(e.Number)), e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, dur, e.State)
+		table.Row(e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, e.Status)
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }

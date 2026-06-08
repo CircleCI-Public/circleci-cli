@@ -64,7 +64,7 @@ func newWatchCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "watch [<run-number-or-id>]",
+		Use:   "watch [<run-id>]",
 		Short: "Watch a run until it completes",
 		Long: heredoc.Doc(`
 			Monitor a CircleCI run and block until it reaches a terminal state.
@@ -76,7 +76,7 @@ func newWatchCmd() *cobra.Command {
 			  8 = timed out before run completed
 
 			Without arguments, watches the latest run for the current branch.
-			Pass a run number or UUID to watch a specific run.
+			Pass a run UUID to watch a specific run.
 
 			With --sha, searches the run list for a run matching that
 			commit. If not yet found, polls for up to 2 minutes — useful when run
@@ -91,9 +91,6 @@ func newWatchCmd() *cobra.Command {
 
 			# Push and watch in one step
 			$ git push && circleci run watch --sha $(git rev-parse HEAD)
-
-			# Watch a specific run number
-			$ circleci run watch 75
 
 			# Watch by UUID (e.g. from 'run list --json')
 			$ circleci run watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd
@@ -128,11 +125,8 @@ func newWatchCmd() *cobra.Command {
 }
 
 func runWatch(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch, sha string, timeout time.Duration, failFast bool) error {
-	// If the argument looks like a UUID, we can resolve the run directly
-	// without needing a project slug or branch from git.
 	isUUID := len(args) == 1 && strings.Contains(args[0], "-")
 
-	// Resolve project and branch from git if not fully specified.
 	needsGit := !isUUID && (projectSlug == "" || (branch == "" && sha == "" && len(args) == 0))
 	if needsGit {
 		info, err := gitremote.Detect()
@@ -147,22 +141,26 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		}
 	}
 
-	// Find the run to watch.
-	var r *apiclient.Pipeline
+	var r *apiclient.RunV3
 	var err error
 
 	switch {
 	case isUUID:
-		r, err = client.GetPipeline(ctx, args[0])
+		r, err = client.GetRunV3(ctx, args[0])
 		if err != nil {
 			return apiErr(err, args[0])
 		}
 
 	case len(args) == 1:
+		// Number lookup via V2, then resolve to V3.
 		number, _ := strconv.ParseInt(args[0], 10, 64)
-		r, err = client.GetPipelineByNumber(ctx, projectSlug, number)
+		p, pErr := client.GetPipelineByNumber(ctx, projectSlug, number)
+		if pErr != nil {
+			return apiErr(pErr, fmt.Sprintf("%s #%s", projectSlug, args[0]))
+		}
+		r, err = client.GetRunV3(ctx, p.ID)
 		if err != nil {
-			return apiErr(err, fmt.Sprintf("%s #%s", projectSlug, args[0]))
+			return apiErr(err, p.ID)
 		}
 
 	case sha != "":
@@ -172,43 +170,72 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		}
 
 	default:
-		r, err = client.GetLatestPipeline(ctx, projectSlug, branch)
-		if err != nil {
-			return apiErr(err, fmt.Sprintf("%s@%s", projectSlug, branch))
+		proj, pErr := client.GetProjectInfo(ctx, projectSlug)
+		if pErr != nil {
+			return apiErr(pErr, projectSlug)
 		}
+		now := time.Now().UTC()
+		runs, sErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+			ProjectIDs: []string{proj.ID},
+			From:       now.AddDate(0, 0, -90),
+			To:         now,
+			Filter:     apiclient.BuildRunFilter(branch, ""),
+			Limit:      1,
+		})
+		if sErr != nil {
+			return apiErr(sErr, fmt.Sprintf("%s@%s", projectSlug, branch))
+		}
+		if len(runs) == 0 {
+			return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, branch))
+		}
+		r = &runs[0]
 	}
 
-	branch = r.ProjectSlug // use slug from the found run
-	if r.VCS != nil && r.VCS.Branch != "" {
-		branch = r.VCS.Branch
+	displayBranch := r.Branch
+	if displayBranch == "" {
+		displayBranch = branch
 	}
 
-	iostream.ErrPrintf(ctx, "Watching run #%d (%s @ %s)\n\n", r.Number, r.ProjectSlug, branch)
+	iostream.ErrPrintf(ctx, "Watching run %s (%s)\n\n", r.ID, displayBranch)
 
-	return watchUntilDone(ctx, client, r.ID, r.Number, timeout, failFast)
+	return watchUntilDone(ctx, client, r.ID, timeout, failFast)
 }
 
-// waitForRunBySHA searches for a run matching the given commit SHA,
+// waitForRunBySHA searches for a run matching the given commit SHA via V3 search,
 // polling every 5 seconds for up to shaWaitDuration() if not immediately found.
-func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.Pipeline, error) {
+func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.RunV3, error) {
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	if err != nil {
+		return nil, apiErr(err, projectSlug)
+	}
+
 	waitDur := shaWaitDuration()
 	deadline := time.Now().Add(waitDur)
 	interval := 5 * time.Second
 	printed := false
 
+	filter := fmt.Sprintf("pipeline.git.revision == %q", sha)
+	if branch != "" {
+		filter += fmt.Sprintf(" and pipeline.git.branch == %q", branch)
+	}
+
 	for {
-		runs, err := client.ListPipelines(ctx, projectSlug, branch, 10)
-		if err != nil {
-			if errors.Is(err, context.Canceled) {
+		now := time.Now().UTC()
+		runs, searchErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+			ProjectIDs: []string{proj.ID},
+			From:       now.AddDate(0, 0, -1),
+			To:         now,
+			Filter:     filter,
+			Limit:      1,
+		})
+		if searchErr != nil {
+			if errors.Is(searchErr, context.Canceled) {
 				return nil, watchInterrupted()
 			}
-			return nil, apiErr(err, projectSlug)
+			return nil, apiErr(searchErr, projectSlug)
 		}
-		for i := range runs {
-			r := &runs[i]
-			if r.VCS != nil && strings.HasPrefix(r.VCS.Revision, sha) {
-				return r, nil
-			}
+		if len(runs) > 0 {
+			return &runs[0], nil
 		}
 
 		if time.Now().After(deadline) {
@@ -232,9 +259,8 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 }
 
 // watchUntilDone polls the given run until all workflows reach a terminal
-// state or the timeout elapses. With failFast, it returns as soon as any
-// job is observed to have failed.
-func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string, runNumber int64, timeout time.Duration, failFast bool) error {
+// state or the timeout elapses.
+func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string, timeout time.Duration, failFast bool) error {
 	deadline := time.Now().Add(timeout)
 	start := time.Now()
 	tty := iostream.IsTerminal(ctx)
@@ -261,7 +287,6 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 		changed := fingerprint != prevFingerprint
 
 		if tty {
-			// Erase previous table, redraw with updated elapsed.
 			if prevLines > 0 {
 				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
 			}
@@ -273,12 +298,11 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 
 		if allWorkflowsDone(state.Workflows) {
 			if tty && prevLines > 0 {
-				// Final redraw without the elapsed ticker line.
 				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
 				printWatchTableFinal(ctx, state)
 				iostream.ErrPrintf(ctx, "\n")
 			}
-			return watchFinalResult(ctx, state, runNumber, elapsed)
+			return watchFinalResult(ctx, state, runID, elapsed)
 		}
 
 		if failFast && hasFailedJob(state) {
@@ -287,13 +311,13 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 				printWatchTableFinal(ctx, state)
 				iostream.ErrPrintf(ctx, "\n")
 			}
-			return watchFailFastResult(ctx, state, runNumber, elapsed)
+			return watchFailFastResult(ctx, state, runID, elapsed)
 		}
 
 		if time.Now().After(deadline) {
 			iostream.ErrPrintf(ctx, "\n")
 			return clierrors.New("run.timeout", "Watch timed out",
-				fmt.Sprintf("Run #%d did not complete within %s.", runNumber, timeout)).
+				fmt.Sprintf("Run %s did not complete within %s.", runID, timeout)).
 				WithExitCode(clierrors.ExitTimeout)
 		}
 
@@ -303,16 +327,12 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 			}
 			return watchInterrupted()
 		}
-		// Ramp from 5s to 30s over the first few polls.
 		if pollInterval < 30*time.Second {
 			pollInterval += 5 * time.Second
 		}
 	}
 }
 
-// hasFailedJob reports whether any job in any workflow has reached a failed
-// status. Used by --failfast to bail out without waiting for the rest of the
-// run.
 func hasFailedJob(state runGetOutput) bool {
 	for _, wf := range state.Workflows {
 		for _, j := range wf.Jobs {
@@ -324,8 +344,6 @@ func hasFailedJob(state runGetOutput) bool {
 	return false
 }
 
-// sleepOrCancel waits for d to elapse, returning nil. If ctx is cancelled
-// first (e.g. user pressed Ctrl-C), it returns ctx.Err() immediately.
 func sleepOrCancel(ctx context.Context, d time.Duration) error {
 	t := time.NewTimer(d)
 	defer t.Stop()
@@ -337,8 +355,6 @@ func sleepOrCancel(ctx context.Context, d time.Duration) error {
 	}
 }
 
-// watchInterrupted is the structured error returned when the user cancels
-// the watch (Ctrl-C) before the run reaches a terminal state.
 func watchInterrupted() *clierrors.CLIError {
 	return clierrors.New("run.interrupted", "Watch interrupted",
 		"Stopped watching before the run completed. The run is still active in CircleCI.").
@@ -348,7 +364,7 @@ func watchInterrupted() *clierrors.CLIError {
 // fetchWatchState retrieves the current run state including all workflows
 // and their jobs, reusing buildOutput from get.go.
 func fetchWatchState(ctx context.Context, client *apiclient.Client, runID string) (runGetOutput, error) {
-	r, err := client.GetPipeline(ctx, runID)
+	r, err := client.GetRunV3(ctx, runID)
 	if err != nil {
 		return runGetOutput{}, err
 	}
@@ -367,8 +383,6 @@ func fetchWatchState(ctx context.Context, client *apiclient.Client, runID string
 	return buildOutput(r, workflows, wfJobs), nil
 }
 
-// allWorkflowsDone returns true when every workflow is in a terminal state.
-// Returns false when there are no workflows yet (run still starting up).
 func allWorkflowsDone(workflows []workflowOutput) bool {
 	if len(workflows) == 0 {
 		return false
@@ -385,8 +399,6 @@ func allWorkflowsDone(workflows []workflowOutput) bool {
 	return true
 }
 
-// watchFingerprint returns a string that changes whenever workflow or job
-// statuses change, used to detect updates for non-TTY output.
 func watchFingerprint(state runGetOutput) string {
 	var b strings.Builder
 	for _, wf := range state.Workflows {
@@ -404,19 +416,17 @@ func watchFingerprint(state runGetOutput) string {
 	return b.String()
 }
 
-// printWatchTable renders the workflow/job table to Err and returns the line count
-// written (used for TTY cursor rewind).
 func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Duration) int {
 	lines := 0
 	for _, wf := range state.Workflows {
-		iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		if wf.Duration != "" {
+			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wf.Status, wf.Duration)
+		} else {
+			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		}
 		lines++
 		for _, j := range wf.Jobs {
-			if j.Number > 0 {
-				iostream.ErrPrintf(ctx, "    %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
-			} else {
-				iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
-			}
+			iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
 			lines++
 		}
 	}
@@ -425,21 +435,19 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 	return lines
 }
 
-// printWatchTableFinal renders the final workflow/job table without the elapsed line.
 func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 	for _, wf := range state.Workflows {
-		iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		if wf.Duration != "" {
+			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wf.Status, wf.Duration)
+		} else {
+			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+		}
 		for _, j := range wf.Jobs {
-			if j.Number > 0 {
-				iostream.ErrPrintf(ctx, "    %-30s  %-12s  #%d\n", j.Name, j.Status, j.Number)
-			} else {
-				iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
-			}
+			iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
 		}
 	}
 }
 
-// printWatchLine emits a single-line status update for non-TTY output.
 func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Duration) {
 	parts := make([]string, 0, len(state.Workflows))
 	for _, wf := range state.Workflows {
@@ -448,19 +456,16 @@ func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Durati
 	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
 }
 
-// watchFailFastResult prints the early-exit message for --failfast and
-// returns a structured failure error listing the failing job(s).
-func watchFailFastResult(ctx context.Context, state runGetOutput, number int64, elapsed time.Duration) error {
+func watchFailFastResult(ctx context.Context, state runGetOutput, runID string, elapsed time.Duration) error {
 	names := failedJobNames(state)
-	iostream.ErrPrintf(ctx, "%s Run #%d has failing job(s): %s — exiting (%s)\n",
-		iostream.SymbolFail(ctx), number, strings.Join(names, ", "), formatElapsed(elapsed))
+	iostream.ErrPrintf(ctx, "%s Run %s has failing job(s): %s — exiting (%s)\n",
+		iostream.SymbolFail(ctx), runID, strings.Join(names, ", "), formatElapsed(elapsed))
 	return clierrors.New("run.failed", "Run failed",
-		fmt.Sprintf("Run #%d has %d failing job(s); exiting due to --failfast.", number, len(names))).
+		fmt.Sprintf("Run %s has %d failing job(s); exiting due to --failfast.", runID, len(names))).
 		WithSuggestions(failedJobLogSuggestions(state)...).
 		WithExitCode(clierrors.ExitGeneralError)
 }
 
-// failedJobNames returns the names of all failed jobs across all workflows.
 func failedJobNames(state runGetOutput) []string {
 	var names []string
 	for _, wf := range state.Workflows {
@@ -473,47 +478,35 @@ func failedJobNames(state runGetOutput) []string {
 	return names
 }
 
-// watchFinalResult prints the outcome and returns an appropriate error (or nil).
-func watchFinalResult(ctx context.Context, state runGetOutput, number int64, elapsed time.Duration) error {
+func watchFinalResult(ctx context.Context, state runGetOutput, runID string, elapsed time.Duration) error {
 	switch state.Status {
 	case "success":
-		iostream.ErrPrintf(ctx, "%s Run #%d succeeded (%s)\n",
-			iostream.SymbolOK(ctx), number, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "%s Run %s succeeded (%s)\n",
+			iostream.SymbolOK(ctx), runID, formatElapsed(elapsed))
 		return nil
 	case "canceled":
-		iostream.ErrPrintf(ctx, "Run #%d was cancelled (%s)\n", number, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "Run %s was cancelled (%s)\n", runID, formatElapsed(elapsed))
 		return clierrors.New("run.cancelled", "Run cancelled",
-			fmt.Sprintf("Run #%d was cancelled.", number)).
+			fmt.Sprintf("Run %s was cancelled.", runID)).
 			WithExitCode(clierrors.ExitCancelled)
 	default:
-		iostream.ErrPrintf(ctx, "%s Run #%d failed (%s)\n",
-			iostream.SymbolFail(ctx), number, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "%s Run %s failed (%s)\n",
+			iostream.SymbolFail(ctx), runID, formatElapsed(elapsed))
 		return clierrors.New("run.failed", "Run failed",
-			fmt.Sprintf("Run #%d failed.", number)).
+			fmt.Sprintf("Run %s failed.", runID)).
 			WithSuggestions(failedJobLogSuggestions(state)...).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 }
 
-// failedJobLogSuggestions returns commands the user can run to view logs for
-// the failed jobs in the run. Caps individual job suggestions so the
-// suggestion list stays readable when many jobs fail.
 func failedJobLogSuggestions(state runGetOutput) []string {
-	const maxJobs = 3
 	var suggestions []string
 	for _, wf := range state.Workflows {
 		for _, j := range wf.Jobs {
-			if j.Status != "failed" || j.Number <= 0 {
-				continue
-			}
-			if len(suggestions) >= maxJobs {
+			if j.Status == "failed" {
 				suggestions = append(suggestions,
-					"More jobs failed; see all with: circleci run get")
-				return append(suggestions,
-					"Or fetch logs for the latest failed job: circleci logs --last-failed")
+					fmt.Sprintf("View logs for failed job %q: circleci job get <job-id>", j.Name))
 			}
-			suggestions = append(suggestions,
-				fmt.Sprintf("View logs for failed job %q: circleci logs %d", j.Name, j.Number))
 		}
 	}
 	suggestions = append(suggestions,

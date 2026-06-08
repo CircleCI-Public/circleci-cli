@@ -43,11 +43,36 @@ import (
 )
 
 const (
-	getRunID = "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	testWfID = "wf-uuid-001"
+	getRunID         = "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	testWfID         = "wf-uuid-001"
+	runTestProjectID = "proj-uuid-001"
 )
 
-// fakeRun returns a minimal run payload for the fake server.
+var v3TimeFormat = time.RFC3339
+
+// fakeRunV3 returns a V3 run payload for the fake server.
+func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[string]any {
+	createdAt := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
+	return map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"phase":           phase,
+			"current_outcome": outcome,
+			"created_at":      createdAt.Format(v3TimeFormat),
+			"vcs": map[string]any{
+				"branch":   branch,
+				"revision": revision,
+			},
+		},
+		"references": map[string]any{
+			"project": map[string]any{"id": projectID},
+			"user":    map[string]any{"id": "user-uuid-001"},
+		},
+	}
+}
+
+// fakeRun returns a V2 pipeline payload — still needed for workflows/jobs
+// and commands that haven't migrated to V3 yet (cancel, trigger).
 func fakeRun(id string, number int, state, slug, branch string) map[string]any {
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
 	return map[string]any{
@@ -72,11 +97,23 @@ func fakeRun(id string, number int, state, slug, branch string) map[string]any {
 	}
 }
 
+func addProjectInfo(fake *fakes.CircleCI, slug, projectID string) {
+	fake.AddProjectInfo(slug, map[string]any{
+		"id":                projectID,
+		"slug":              slug,
+		"name":              "testrepo",
+		"organization_name": "testorg",
+		"organization_slug": "gh/testorg",
+	})
+}
+
+// --- run get (V3) ---
+
 func TestRunGet_ByID(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
 	wfID := testWfID
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID,
 		fakeJob("job-uuid-1", "run-tests", 101, watchSlug),
@@ -102,7 +139,7 @@ func TestRunGet_ByID_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
 	wfID := testWfID
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID,
 		fakeJob("job-uuid-1", "run-tests", 101, watchSlug),
@@ -125,64 +162,11 @@ func TestRunGet_ByID_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestRunGet_ByNumber(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	runID := getRunID
-	wfID := "wf-uuid-002"
-	slug := watchSlug
-	r := fakeRun(runID, 42, "created", slug, "main")
-	fake.AddRun(runID, r)
-	fake.AddProjectRuns(slug, r)
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, slug))
-
-	env := testenv.New(t)
-	env.Token = testToken
-	env.CircleCIURL = fake.URL()
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"run", "get", "42", "--project", slug},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
-func TestRunGet_ByNumber_Color(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	runID := getRunID
-	wfID := "wf-uuid-002"
-	slug := watchSlug
-	r := fakeRun(runID, 42, "created", slug, "main")
-	fake.AddRun(runID, r)
-	fake.AddProjectRuns(slug, r)
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
-	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, slug))
-
-	env := testenv.New(t)
-	env.Token = testToken
-	env.CircleCIURL = fake.URL()
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"run", "get", "42", "--project", slug},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-		TTY:     true,
-	})
-
-	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
 func TestRunGet_ByID_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
 	wfID := testWfID
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
 
@@ -204,14 +188,12 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["id"], runID))
 	assert.Check(t, cmp.Equal(out["status"], "success"))
-	assert.Check(t, cmp.Equal(out["project_slug"], watchSlug))
 
 	wfs := out["workflows"].([]any)
 	assert.Check(t, cmp.Len(wfs, 1))
 	jobs := wfs[0].(map[string]any)["jobs"].([]any)
 	assert.Check(t, cmp.Len(jobs, 1))
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["name"], "run-tests"))
-	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["number"], float64(101)))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
@@ -220,7 +202,7 @@ func TestRunGet_ByID_JQ(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
 	wfID := testWfID
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
 
@@ -243,7 +225,7 @@ func TestRunGet_ByID_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
 	wfID := testWfID
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
 	fake.AddWorkflowJobs(wfID, fakeJob("job-uuid-1", "run-tests", 101, watchSlug))
 
@@ -261,6 +243,63 @@ func TestRunGet_ByID_JSON_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestRunGet_WithErrors(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+
+	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
+	run["attributes"].(map[string]any)["errors"] = []map[string]any{
+		{"type": "config", "message": "Could not find config file"},
+	}
+	fake.AddRunV3(runID, runTestProjectID, run)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunGet_WithErrors_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+
+	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
+	run["attributes"].(map[string]any)["errors"] = []map[string]any{
+		{"type": "config", "message": "Could not find config file"},
+	}
+	fake.AddRunV3(runID, runTestProjectID, run)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--json", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	errs := out["errors"].([]any)
+	assert.Check(t, cmp.Len(errs, 1))
+	assert.Check(t, cmp.Equal(errs[0].(map[string]any)["type"], "config"))
+	assert.Check(t, cmp.Equal(errs[0].(map[string]any)["message"], "Could not find config file"))
 }
 
 func TestRunGet_NotFound(t *testing.T) {
@@ -296,96 +335,15 @@ func TestRunGet_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --- run list ---
-
-// fakeRunNoVCS returns a pipeline payload without a vcs field, using trigger_parameters instead.
-func fakeRunNoVCS(id string, number int, state, slug, branch, revision string) map[string]any {
-	r := fakeRun(id, number, state, slug, branch)
-	delete(r, "vcs")
-	r["trigger_parameters"] = map[string]any{
-		"git": map[string]any{
-			"branch":       branch,
-			"checkout_sha": revision,
-		},
-	}
-	return r
-}
-
-// fakeWorkflowWithDuration returns a workflow payload whose stopped_at is
-// pipelineStart + durationSeconds, matching fakeRun's created_at baseline.
-func fakeWorkflowWithDuration(id, name, status string, durationSeconds int) map[string]any {
-	start := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	stopped := start.Add(time.Duration(durationSeconds) * time.Second)
-	return map[string]any{
-		"id":         id,
-		"name":       name,
-		"status":     status,
-		"created_at": start.Format(time.RFC3339),
-		"stopped_at": stopped.Format(time.RFC3339),
-	}
-}
+// --- run list (V3 search) ---
 
 func TestRunList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRun("pid-1", 10, "created", slug, "main"),
-		fakeRun("pid-2", 9, "errored", slug, "feature"),
-		fakeRun("pid-3", 8, "created", slug, "main"),
-	)
-
-	env := testenv.New(t)
-	env.Token = testToken
-	env.CircleCIURL = fake.URL()
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"run", "list", "--project", slug},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
-func TestRunList_Duration(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	slug := watchSlug
-	r1 := fakeRun("pid-1", 10, "created", slug, "main")
-	r2 := fakeRun("pid-2", 9, "errored", slug, "feature")
-	r3 := fakeRun("pid-3", 8, "created", slug, "main")
-	fake.AddProjectRuns(slug, r1, r2, r3)
-	// Also register individually so the workflow endpoint is served.
-	fake.AddRun("pid-1", r1)
-	fake.AddRun("pid-2", r2)
-	fake.AddRun("pid-3", r3)
-	fake.AddRunWorkflows("pid-1", fakeWorkflowWithDuration("wf-1", "build", "success", 125)) // 2m5s
-	fake.AddRunWorkflows("pid-2", fakeWorkflowWithDuration("wf-2", "build", "failed", 45))   // 45s
-	// pid-3 has no workflows → duration stays -
-
-	env := testenv.New(t)
-	env.Token = testToken
-	env.CircleCIURL = fake.URL()
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"run", "list", "--project", slug},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-}
-
-func TestRunList_TriggerParams(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRunNoVCS("pid-1", 10, "created", slug, "main", "abc1234def5678"),
-		fakeRunNoVCS("pid-2", 9, "errored", slug, "feature", "deadbeef1234"),
-	)
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -405,11 +363,10 @@ func TestRunList_TriggerParams(t *testing.T) {
 func TestRunList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRun("pid-1", 10, "created", slug, "main"),
-		fakeRun("pid-2", 9, "errored", slug, "feature"),
-		fakeRun("pid-3", 8, "created", slug, "main"),
-	)
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -430,11 +387,10 @@ func TestRunList_Color(t *testing.T) {
 func TestRunList_Limit(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRun("pid-1", 10, "created", slug, "main"),
-		fakeRun("pid-2", 9, "created", slug, "main"),
-		fakeRun("pid-3", 8, "created", slug, "main"),
-	)
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
+	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -454,11 +410,10 @@ func TestRunList_Limit(t *testing.T) {
 func TestRunList_Limit_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRun("pid-1", 10, "created", slug, "main"),
-		fakeRun("pid-2", 9, "created", slug, "main"),
-		fakeRun("pid-3", 8, "created", slug, "main"),
-	)
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
+	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -479,10 +434,9 @@ func TestRunList_Limit_Color(t *testing.T) {
 func TestRunList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRun("pid-1", 10, "created", slug, "main"),
-		fakeRun("pid-2", 9, "errored", slug, "feature"),
-	)
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -502,8 +456,8 @@ func TestRunList_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
 	assert.Check(t, cmp.Equal(out[0]["id"], "pid-1"))
-	assert.Check(t, cmp.Equal(out[0]["state"], "created"))
-	assert.Check(t, cmp.Equal(out[1]["state"], "errored"))
+	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+	assert.Check(t, cmp.Equal(out[1]["status"], "failed"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
@@ -511,10 +465,9 @@ func TestRunList_JSON(t *testing.T) {
 func TestRunList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	fake.AddProjectRuns(slug,
-		fakeRun("pid-1", 10, "created", slug, "main"),
-		fakeRun("pid-2", 9, "errored", slug, "feature"),
-	)
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -546,7 +499,7 @@ func TestRunList_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --- run trigger ---
+// --- run trigger (still V2) ---
 
 func TestRunTrigger(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
@@ -699,7 +652,7 @@ func TestRunTrigger_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --- run cancel ---
+// --- run cancel (still V2 for pipeline lookup) ---
 
 func TestRunCancel(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
@@ -737,7 +690,6 @@ func TestRunCancel(t *testing.T) {
 }
 
 func TestRunCancel_RequiresForce(t *testing.T) {
-	// In non-interactive mode (no TTY), --force is required.
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
 	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))

@@ -1,5 +1,0 @@
-# Runs
-| #  | Branch  | Revision | ID      | Created              | Duration | State   |
-| -- | ------- | -------- | ------- | -------------------- | -------- | ------- |
-| 10 | main    | abc1234  | `pid-1` | 2020-01-01 12:00 UTC | -        | created |
-| 9  | feature | deadbee  | `pid-2` | 2020-01-01 12:00 UTC | -        | errored |

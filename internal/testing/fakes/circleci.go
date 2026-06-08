@@ -74,6 +74,10 @@ type CircleCI struct {
 	// Job (v3) state.
 	jobsV3 map[string]any // job UUID → V3 response body
 
+	// Run (v3) state.
+	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
+	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
+
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
 	runnerTokens    map[string][]any // resource class → tokens
@@ -187,6 +191,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]any{},
+		runsV3:                            map[string]any{},
+		runsV3ByProject:                   map[string][]any{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
 		runnerInstances:                   []any{},
@@ -298,6 +304,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
+	// Run (v3) routes.
+	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
+	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
 	// Runner (v3) routes. GET /runner lists instances (scoped by ?org-id= and/or
 	// ?resource-class=); GET /runner/resource lists resource classes (scoped by
 	// ?org-id= and/or ?namespace=). GET /runner also still accepts ?namespace=
@@ -599,10 +608,11 @@ func (f *CircleCI) handleGetPipelineWorkflows(w http.ResponseWriter, r *http.Req
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	_, pipelineExists := f.pipelines[id]
+	_, runV3Exists := f.runsV3[id]
 	workflows := f.workflows[id]
 	f.mu.RUnlock()
 
-	if !pipelineExists {
+	if !pipelineExists && !runV3Exists {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
@@ -723,6 +733,61 @@ func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, job)
+}
+
+// AddRunV3 registers a V3 run response and associates it with a project.
+// The run must have an "id" and "references.project.id" field.
+func (f *CircleCI) AddRunV3(id, projectID string, run any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runsV3[id] = run
+	f.runsV3ByProject[projectID] = append(f.runsV3ByProject[projectID], run)
+}
+
+func (f *CircleCI) handleGetRunV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	run, ok := f.runsV3[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": run})
+}
+
+func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Scope struct {
+			ProjectIDs []string `json:"project_ids"`
+		} `json:"scope"`
+		Page struct {
+			Limit int `json:"limit"`
+		} `json:"page"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "bad request"})
+		return
+	}
+
+	f.mu.RLock()
+	var results []any
+	for _, pid := range body.Scope.ProjectIDs {
+		results = append(results, f.runsV3ByProject[pid]...)
+	}
+	f.mu.RUnlock()
+
+	if body.Page.Limit > 0 && len(results) > body.Page.Limit {
+		results = results[:body.Page.Limit]
+	}
+
+	render.JSON(w, r, map[string]any{
+		"data": results,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
 }
 
 func (f *CircleCI) handleGetWorkflowDetail(w http.ResponseWriter, r *http.Request) {
