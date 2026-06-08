@@ -85,8 +85,8 @@ commands:
       - run:
           name: Install go-task
           command: |
-            go install github.com/go-task/task/v3/cmd/task@latest
-            echo 'export PATH="$HOME/go/bin:$PATH"' >> "$BASH_ENV"
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
 
   store_results:
     steps:
