@@ -120,7 +120,7 @@ type jobOutput struct {
 	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
-	Type   string `json:"type"`
+	Type   string `json:"type,omitempty"`
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
@@ -178,9 +178,9 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		return apiErr(err, r.ID)
 	}
 
-	wfJobs := make([][]apiclient.WorkflowJob, len(workflows))
+	wfJobs := make([][]apiclient.WorkflowJobV3, len(workflows))
 	for i, wf := range workflows {
-		jobs, err := client.GetWorkflowJobs(ctx, wf.ID)
+		jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
 		if err != nil {
 			return apiErr(err, wf.ID)
 		}
@@ -197,7 +197,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	return nil
 }
 
-func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJob) runGetOutput {
+func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
 	wflows := make([]workflowOutput, len(workflows))
 	for i, w := range workflows {
 		jobs := make([]jobOutput, 0, len(wfJobs[i]))
@@ -303,7 +303,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 			}
 			_, _ = fmt.Fprintf(&md, "- Jobs:\n")
 			for _, j := range w.Jobs {
-				_, _ = fmt.Fprintf(&md, "  - %-36s  %-10s  %s\n", j.Name, j.Status, j.ID)
+				_, _ = fmt.Fprintf(&md, "  - %-36s  %-10s  %-10s  %s\n", j.Name, j.Status, j.Type, j.ID)
 			}
 		}
 		md.WriteString("\n")

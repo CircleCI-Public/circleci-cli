@@ -66,9 +66,9 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 	fake.AddRun(runID, v2Run)
 	fake.AddProjectRuns(watchSlug, v2Run)
 	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": wfStatus})
-	fake.AddWorkflowJobs(wfID,
-		fakeJob("job-1", "lint", 100, watchSlug),
-		fakeJob("job-2", "test", 101, watchSlug),
+	fake.AddWorkflowJobsV3(wfID,
+		fakeJobV3("job-1", "lint", wfID, watchProjectID),
+		fakeJobV3("job-2", "test", wfID, watchProjectID),
 	)
 
 	env := testenv.New(t)
@@ -122,7 +122,7 @@ func TestRunWatch_Latest(t *testing.T) {
 	addProjectInfo(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "success"})
-	fake.AddWorkflowJobs(wfID, fakeJob("job-1", "test", 100, watchSlug))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -162,8 +162,9 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	runID := "watch-pid-failedjob"
 	wfID := "watch-wf-failedjob"
 
-	failedJob := fakeJob("job-1", "integration-test", 156057, watchSlug)
-	failedJob["status"] = "failed"
+	failedJob := fakeJobV3("job-1", "integration-test", wfID, watchProjectID)
+	failedJob["attributes"].(map[string]any)["phase"] = "ended"
+	failedJob["attributes"].(map[string]any)["outcome"] = "failed"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
@@ -171,9 +172,9 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	fake.AddRun(runID, fakeRun(runID, 75, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 75, "created", watchSlug, "main"))
 	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "failed"})
-	fake.AddWorkflowJobs(wfID,
+	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
-		fakeJob("job-2", "lint", 156058, watchSlug),
+		fakeJobV3("job-2", "lint", wfID, watchProjectID),
 	)
 
 	env := testenv.New(t)
@@ -189,6 +190,7 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, `"integration-test"`), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci job get <job-id>"), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
 }
 
@@ -254,8 +256,9 @@ func TestRunWatch_FailFast(t *testing.T) {
 	runID := "watch-pid-failfast"
 	wfID := "watch-wf-failfast"
 
-	failedJob := fakeJob("job-1", "integration-test", 200, watchSlug)
-	failedJob["status"] = "failed"
+	failedJob := fakeJobV3("job-1", "integration-test", wfID, watchProjectID)
+	failedJob["attributes"].(map[string]any)["phase"] = "ended"
+	failedJob["attributes"].(map[string]any)["outcome"] = "failed"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
@@ -263,9 +266,9 @@ func TestRunWatch_FailFast(t *testing.T) {
 	fake.AddRun(runID, fakeRun(runID, 79, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 79, "created", watchSlug, "main"))
 	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "running"})
-	fake.AddWorkflowJobs(wfID,
+	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
-		fakeJob("job-2", "lint", 201, watchSlug),
+		fakeJobV3("job-2", "lint", wfID, watchProjectID),
 	)
 
 	env := testenv.New(t)
@@ -296,7 +299,7 @@ func TestRunWatch_Timeout(t *testing.T) {
 	fake.AddRun(runID, fakeRun(runID, 77, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 77, "created", watchSlug, "main"))
 	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "running"})
-	fake.AddWorkflowJobs(wfID, fakeJob("job-1", "test", 100, watchSlug))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -326,7 +329,7 @@ func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 	fake.AddRun(runID, fakeRun(runID, 78, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 78, "created", watchSlug, "main"))
 	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "running"})
-	fake.AddWorkflowJobs(wfID, fakeJob("job-1", "test", 100, watchSlug))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken

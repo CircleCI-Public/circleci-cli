@@ -72,7 +72,8 @@ type CircleCI struct {
 	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3 map[string]any // job UUID → V3 response body
+	jobsV3         map[string]any   // job UUID → V3 response body
+	workflowJobsV3 map[string][]any // workflow id → V3 job list items
 
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
@@ -191,6 +192,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]any{},
+		workflowJobsV3:                    map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
 		resourceClasses:                   []any{},
@@ -303,6 +305,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
 	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
 	// Job (v3) routes.
+	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
@@ -435,6 +438,13 @@ func (f *CircleCI) AddWorkflowJobs(workflowID string, jobs ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowJobs[workflowID] = jobs
+}
+
+// AddWorkflowJobsV3 registers V3 job list items for a workflow.
+func (f *CircleCI) AddWorkflowJobsV3(workflowID string, jobs ...any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowJobsV3[workflowID] = jobs
 }
 
 // AddJobArtifacts registers artifact responses for a job.
@@ -733,6 +743,28 @@ func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, job)
+}
+
+func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Request) {
+	workflowID := r.URL.Query().Get("filter[workflow_id]")
+	if workflowID == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"type":   "validation_error",
+			"title":  "Missing Required Filter",
+			"detail": "Query parameter 'filter[workflow_id]' is required.",
+		}})
+		return
+	}
+
+	f.mu.RLock()
+	jobs := f.workflowJobsV3[workflowID]
+	f.mu.RUnlock()
+
+	if jobs == nil {
+		jobs = []any{}
+	}
+	render.JSON(w, r, map[string]any{"data": jobs})
 }
 
 // AddRunV3 registers a V3 run response and associates it with a project.

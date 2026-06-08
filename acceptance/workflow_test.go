@@ -62,15 +62,17 @@ func fakeWorkflowDetail(id, name, status, pipelineID, slug string) map[string]an
 	}
 }
 
+const wfProjectID = "3936b1ba-3289-44a2-96d8-d0b4fe366795"
+
 func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
 	fake.AddWorkflowDetail(testWorkflowDetailID,
 		fakeWorkflowDetail(testWorkflowDetailID, "build", "failed", testPipelineForWF, testSlug))
-	fake.AddWorkflowJobs(testWorkflowDetailID,
-		fakeJob("job-uuid-201", "run-tests", 201, testSlug),
-		fakeJob("job-uuid-202", "deploy", 202, testSlug),
+	fake.AddWorkflowJobsV3(testWorkflowDetailID,
+		fakeJobV3("job-uuid-201", "run-tests", testWorkflowDetailID, wfProjectID),
+		fakeJobV3("job-uuid-202", "deploy", testWorkflowDetailID, wfProjectID),
 	)
 	fake.SetRerunResponse(testWorkflowDetailID, http.StatusAccepted)
 	fake.SetCancelResponse(testWorkflowDetailID, http.StatusAccepted)
@@ -134,7 +136,7 @@ func TestWorkflowGet_JSON(t *testing.T) {
 	jobs := out["jobs"].([]any)
 	assert.Check(t, cmp.Len(jobs, 2))
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["name"], "run-tests"))
-	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["number"], float64(201)))
+	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["status"], "success"))
 }
 
 func TestWorkflowGet_JQ(t *testing.T) {

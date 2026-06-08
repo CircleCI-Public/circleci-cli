@@ -48,7 +48,8 @@ func newGetCmd() *cobra.Command {
 			Workflow IDs are shown in the output of 'circleci run get'.
 
 			JSON fields: id, name, status, run_id, run_number,
-			             project_slug, created_at, stopped_at, jobs
+			             project_name, created_at, stopped_at,
+			             jobs[].id/name/status/type
 		`),
 		Example: heredoc.Doc(`
 			# Get workflow details
@@ -85,17 +86,17 @@ type workflowGetOutput struct {
 	Status      string      `json:"status"`
 	RunID       string      `json:"run_id"`
 	RunNumber   int64       `json:"run_number"`
-	ProjectSlug string      `json:"project_slug"`
+	ProjectName string      `json:"project_name"`
 	CreatedAt   string      `json:"created_at"`
 	StoppedAt   string      `json:"stopped_at,omitempty"`
 	Jobs        []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
-	Number int64  `json:"number,omitempty"`
+	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
-	Type   string `json:"type"`
+	Type   string `json:"type,omitempty"`
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
@@ -104,7 +105,7 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 		return apiErr(err, id)
 	}
 
-	jobs, err := client.GetWorkflowJobs(ctx, id)
+	jobs, err := client.GetWorkflowJobsV3(ctx, id)
 	if err != nil {
 		return apiErr(err, id)
 	}
@@ -115,7 +116,7 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 		Status:      wf.Status,
 		RunID:       wf.PipelineID,
 		RunNumber:   wf.PipelineNumber,
-		ProjectSlug: wf.ProjectSlug,
+		ProjectName: projectNameFromSlug(wf.ProjectSlug),
 		CreatedAt:   wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 	}
 	if wf.StoppedAt != nil {
@@ -123,7 +124,7 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 	}
 	for _, j := range jobs {
 		out.Jobs = append(out.Jobs, jobOutput{
-			Number: j.JobNumber,
+			ID:     j.ID,
 			Name:   j.Name,
 			Status: j.Status,
 			Type:   j.Type,
@@ -147,7 +148,7 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 	_, _ = fmt.Fprintf(&md, "- Run:\n")
 	_, _ = fmt.Fprintf(&md, "  - Number: #%d\n", w.RunNumber)
 	_, _ = fmt.Fprintf(&md, "  - ID: `%s`\n", w.RunID)
-	_, _ = fmt.Fprintf(&md, "- Project: %s\n", w.ProjectSlug)
+	_, _ = fmt.Fprintf(&md, "- Project: %s\n", w.ProjectName)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
 	if w.StoppedAt != "" {
@@ -156,15 +157,19 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 
 	if len(w.Jobs) > 0 {
 		_, _ = fmt.Fprintf(&md, "\n## Jobs\n")
-		table := mdtable.New("Name", "Status", "Number")
+		table := mdtable.New("Name", "Status", "Type", "ID")
 		for _, j := range w.Jobs {
-			if j.Type == "approval" {
-				table.Row(j.Name, j.Status, "")
-			} else {
-				table.Row(j.Name, j.Status, fmt.Sprintf("%d", j.Number))
-			}
+			table.Row(j.Name, j.Status, j.Type, j.ID)
 		}
 		md.WriteString(table.Render())
 	}
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+func projectNameFromSlug(slug string) string {
+	parts := strings.Split(slug, "/")
+	if len(parts) > 0 {
+		return parts[len(parts)-1]
+	}
+	return slug
 }
