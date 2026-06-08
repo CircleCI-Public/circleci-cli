@@ -314,6 +314,10 @@ func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, s
 		} else {
 			style = styles.LightStyle
 		}
+	case ansiStyle:
+		// Not a glamour built-in: a custom style using only the standard 16
+		// ANSI colors so it adapts to the user's terminal palette.
+		style = ansiStyle
 	default:
 		_, ok := styles.DefaultStyles[theme]
 		if ok {
@@ -601,6 +605,9 @@ func (s Streams) PrintMarkdown(md string) {
 }
 
 func (s Streams) styleConfig() ansi.StyleConfig {
+	if s.style == ansiStyle {
+		return ansiStyleConfig
+	}
 	styleConfig, ok := styles.DefaultStyles[s.style]
 	if !ok {
 		return styles.ASCIIStyleConfig
