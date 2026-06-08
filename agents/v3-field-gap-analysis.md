@@ -9,6 +9,8 @@ numbers are dropped entirely.
 Key PRs closing gaps:
 - **circleci-cli#1384** — migrates `run get/list/watch` to V3 runs API (GET + search)
 - **circleci-cli#1383** — wires V3 jobs endpoint (`GET /v3/jobs?filter[workflow_id]`) into run/workflow commands
+- **circleci-cli#1387** — fetches workflows via V3 (`GET /v3/workflows?filter[run_id]`) replacing V2 `GetPipelineWorkflows`
+- **circleci-cli#1382** — adds `circleci job get` using V3 API with step-level detail
 - **public-api-service#1010** — adds V3 step output endpoints (`GET /v3/jobs/:id/stdout`, `/stderr`)
 
 All response shapes follow the V3 design rules:
@@ -109,7 +111,7 @@ display status. The run `phase`/`outcome` should reflect execution status:
 > Returns `RunV3` domain type with `ID`, `Status` (mapped from phase/outcome),
 > `Branch`, `Revision`, `CreatedAt`, `ProjectID`, `Errors[]`.
 > Trigger section (type/actor) dropped from display. Number dropped.
-> `run watch` uses V3 for the run, still V2 for workflows (pending section 5).
+> `run watch` now fully V3 — workflows fetched via `GetRunWorkflowsV3` (cli#1387).
 
 Full version of the list item — same fields plus additional detail.
 
@@ -178,9 +180,9 @@ workflow statuses to compute run status. Both `run list` and `run get` now
 show meaningful status (success/failed/running) instead of the broken
 "created" from v2.
 
-**Performance:** `run watch` still fetches workflows + jobs each poll for
-the detailed display, but terminal detection now uses the run-level
-phase/outcome rather than checking all workflow statuses.
+**Performance:** `run watch` fetches workflows (V3) + jobs (V3) each poll for
+the detailed display. Terminal detection uses the run-level phase/outcome.
+The entire watch loop is now V3 end-to-end.
 
 ---
 
@@ -255,11 +257,17 @@ Request body shape (as implemented):
 
 ---
 
-## 5. GET /v3/workflows?filter[run_id]={id} — List workflows for a run (MISSING)
+## 5. GET /v3/workflows?filter[run_id]={id} — List workflows for a run — DONE (cli#1387)
 
 **Used by:** `run get`, `run watch`, `run list` (duration calc), `run cancel`, `workflow list`
 
-This is the single most blocking gap — 5 of 11 CLI commands need it.
+> **Status:** CLI now calls `GetRunWorkflowsV3` which hits
+> `GET /v3/workflows?filter[run_id]=<id>`. Returns `WorkflowV3` with
+> `ID`, `Name`, `Status` (mapped from phase/outcome via `phaseOutcomeStatus`),
+> `CreatedAt`, `EndedAt`, `RunID`, `ProjectID`. Replaces V2
+> `GetPipelineWorkflows` in `run get`, `run watch`, and `workflow list`
+> (single-run path). This was the single most blocking gap — 5 commands
+> needed it.
 
 ### Query params
 
@@ -297,15 +305,17 @@ This is the single most blocking gap — 5 of 11 CLI commands need it.
 
 ### Fields needed per workflow
 
-| Envelope path | Type | CLI usage |
-|---------------|------|-----------|
-| `data[].id` | UUID | display, pass to cancel/rerun/get-jobs |
-| `data[].attributes.name` | string | display |
-| `data[].attributes.phase` | string | `deriveStatus()`, `allWorkflowsDone()`, `watchFingerprint()` |
-| `data[].attributes.outcome` | string (nullable) | `deriveStatus()`, display |
-| `data[].attributes.created_at` | timestamp | available, not currently displayed in summary |
-| `data[].attributes.ended_at` | timestamp (nullable) | `workflowDuration()` — computes run wall-clock time |
-| `data[].references.run` | `RefEntity` | back-reference to parent run |
+| Envelope path | Type | CLI usage | V3 status |
+|---------------|------|-----------|-----------|
+| `data[].id` | UUID | display, pass to cancel/rerun/get-jobs | **delivered** |
+| `data[].attributes.name` | string | display | **delivered** |
+| `data[].attributes.phase` | string | `allWorkflowsDone()`, `watchFingerprint()` | **delivered** — mapped to status client-side |
+| `data[].attributes.outcome` | string (nullable) | display | **delivered** |
+| `data[].attributes.created_at` | timestamp | available, not currently displayed in summary | **delivered** |
+| `data[].attributes.ended_at` | timestamp (nullable) | `workflowDuration()` — computes run wall-clock time | **delivered** |
+| `data[].references.run` | `RefEntity` | back-reference to parent run | **delivered** |
+| `data[].references.project` | `RefEntity` | project context | **delivered** |
+| `data[].references.user` | `RefEntity` | who triggered | **delivered** — id only |
 
 ### CLI mapping
 
@@ -454,7 +464,7 @@ checking.
 | `data[].attributes.name` | string | display in all three commands | **delivered** |
 | `data[].attributes.phase` | string | `hasFailedJob()`, `failedJobNames()`, `watchFingerprint()` | **delivered** — mapped to status client-side |
 | `data[].attributes.outcome` / `current_outcome` | string (nullable) | display, failure detection | **delivered** |
-| `data[].attributes.type` | string | `approval` jobs rendered differently | **not delivered** — dropped from V3 response |
+| `data[].attributes.type` | string | `approval` jobs rendered differently | **delivered** — `type` now in wire type (build/approval) |
 | `data[].attributes.started_at` | timestamp | in struct, not displayed in list | **delivered** |
 | `data[].attributes.ended_at` | timestamp (nullable) | in struct, not displayed in list | **delivered** |
 | `data[].references.workflow` | `RefEntity` | back-reference to parent workflow | **delivered** |
@@ -481,41 +491,18 @@ Post-numbers, post-v3:
 
 ---
 
-## 10. GET /v3/jobs/{id} — Get a single job (EXISTS)
+## 10. GET /v3/jobs/{id} — Get a single job — DONE (cli#1382)
 
-**Used by:** `logs` command (step output fetch), proposed `job get` (step summary)
+**Used by:** `job get` (step summary), `logs` (step output fetch)
 
-### Proposed `job get` command
+> **Status:** `circleci job get <uuid>` is implemented. Calls `GetJobV3`
+> which hits `GET /v3/jobs/{id}`. Returns `JobV3` with step-level detail
+> via `parallel_executions[].steps[]` — each step has `name`, `type`, `num`,
+> `phase`, `outcome`, `exit_code`, `started_at`, `ended_at`. Duration
+> computed client-side. Also returns `type` (build/approval) at the job level,
+> and references to `project`, `pipeline`, `workflow`, `user`.
 
-Currently there's no middle ground between a one-line job entry in `workflow get`
-and the full log firehose of `logs`. A `circleci job get <uuid>` command would
-show step-level summary without output — fast, single request.
-
-Proposed display:
-
-```
-# Job
-
-- ID: ccb1c2d3-e4f5-6789-abcd-ef0123456789
-- Name: test-linux
-- Phase: ended
-- Outcome: failed
-- Started: 2026-06-05 09:20:12 UTC
-- Duration: 1m14s
-
-## Steps
-
-  Name                          Phase    Outcome     Duration   Exit
-  ────────────────────────────  ───────  ──────────  ─────────  ────
-  Spin up environment           ended    succeeded   8s          0
-  Checkout code                 ended    succeeded   2s          0
-  Restore cache                 ended    succeeded   4s          0
-  Install dependencies          ended    succeeded   22s         0
-  Run tests                     ended    failed      38s         1
-  Save cache                    -        -           -           -
-```
-
-### V3 response shape
+### V3 response shape (actual, from wire types)
 
 ```json
 {
@@ -523,56 +510,72 @@ Proposed display:
     "id": "ccb1c2d3-e4f5-6789-abcd-ef0123456789",
     "attributes": {
       "name": "test-linux",
+      "type": "build",
       "phase": "ended",
       "outcome": "failed",
       "started_at": "2026-06-05T09:20:12.000Z",
       "ended_at": "2026-06-05T09:21:26.000Z",
-      "steps": [
+      "parallel_executions": [
         {
-          "name": "Spin up environment",
-          "phase": "ended",
-          "outcome": "succeeded",
-          "started_at": "2026-06-05T09:20:12.000Z",
-          "ended_at": "2026-06-05T09:20:20.000Z",
-          "exit_code": 0
-        },
-        {
-          "name": "Run tests",
-          "phase": "ended",
-          "outcome": "failed",
-          "started_at": "2026-06-05T09:20:48.000Z",
-          "ended_at": "2026-06-05T09:21:26.000Z",
-          "exit_code": 1
+          "steps": [
+            {
+              "name": "Spin up environment",
+              "type": "builtin",
+              "num": 0,
+              "phase": "ended",
+              "outcome": "succeeded",
+              "exit_code": 0,
+              "started_at": "2026-06-05T09:20:12.000Z",
+              "ended_at": "2026-06-05T09:20:20.000Z"
+            },
+            {
+              "name": "Run tests",
+              "type": "run",
+              "num": 4,
+              "phase": "ended",
+              "outcome": "failed",
+              "exit_code": 1,
+              "started_at": "2026-06-05T09:20:48.000Z",
+              "ended_at": "2026-06-05T09:21:26.000Z"
+            }
+          ]
         }
       ]
     },
     "references": {
+      "project": {"id": "770e8400-e29b-41d4-a716-446655440002"},
+      "pipeline": {"id": "951bcd16-a7bb-49f3-b6a7-8ac3a49c4587"},
       "workflow": {"id": "aab1c2d3-e4f5-6789-abcd-ef0123456789"},
-      "project": {"id": "770e8400-e29b-41d4-a716-446655440002"}
+      "user": {"id": "660e8400-e29b-41d4-a716-446655440001"}
     }
   }
 }
 ```
 
-### Fields needed
+### Fields
 
 | Envelope path | Type | Usage | V3 status |
 |---------------|------|-------|-----------|
-| `data.id` | UUID | identity | exists |
-| `data.attributes.name` | string | display | unknown |
-| `data.attributes.phase` | string | display | unknown |
-| `data.attributes.outcome` | string (nullable) | display | unknown |
-| `data.attributes.started_at` | timestamp | display, duration calc | unknown |
-| `data.attributes.ended_at` | timestamp (nullable) | display, duration calc | unknown |
-| `data.attributes.steps[]` | array | step summary and log fetching | unknown |
-| `data.attributes.steps[].name` | string | step header display | unknown |
-| `data.attributes.steps[].phase` | string | display | unknown |
-| `data.attributes.steps[].outcome` | string (nullable) | display (failed indicator) | unknown |
-| `data.attributes.steps[].started_at` | timestamp | duration calc | unknown |
-| `data.attributes.steps[].ended_at` | timestamp (nullable) | duration calc | unknown |
-| `data.attributes.steps[].exit_code` | int (nullable) | display | unknown |
-| `data.references.workflow` | `RefEntity` | back-reference | unknown |
-| `data.references.project` | `RefEntity` | needed for step output URL construction | unknown |
+| `data.id` | UUID | identity | **delivered** |
+| `data.attributes.name` | string | display | **delivered** |
+| `data.attributes.type` | string | build vs approval | **delivered** |
+| `data.attributes.phase` | string | display | **delivered** — mapped via `phaseOutcomeStatus()` |
+| `data.attributes.outcome` | string (nullable) | display | **delivered** |
+| `data.attributes.started_at` | timestamp | display, duration calc | **delivered** |
+| `data.attributes.ended_at` | timestamp (nullable) | display, duration calc | **delivered** |
+| `data.attributes.parallel_executions[]` | array | groups steps by executor index | **delivered** |
+| `data.attributes.parallel_executions[].steps[].name` | string | step header display | **delivered** |
+| `data.attributes.parallel_executions[].steps[].type` | string | step type (run/builtin) | **delivered** |
+| `data.attributes.parallel_executions[].steps[].num` | int | step number for output fetch | **delivered** |
+| `data.attributes.parallel_executions[].steps[].phase` | string | display | **delivered** |
+| `data.attributes.parallel_executions[].steps[].outcome` | string (nullable) | failed indicator | **delivered** |
+| `data.attributes.parallel_executions[].steps[].exit_code` | int (nullable) | display | **delivered** |
+| `data.attributes.parallel_executions[].steps[].started_at` | timestamp | duration calc | **delivered** |
+| `data.attributes.parallel_executions[].steps[].ended_at` | timestamp (nullable) | duration calc | **delivered** |
+| `data.references.workflow` | `RefEntity` | back-reference | **delivered** |
+| `data.references.project` | `RefEntity` | project context | **delivered** |
+| `data.references.pipeline` | `RefEntity` | run back-reference | **delivered** |
+| `data.references.user` | `RefEntity` | who triggered | **delivered** |
 
 ### Step output (logs) — IN PROGRESS (p-a-s#1010)
 
@@ -614,10 +617,11 @@ subsequent V3 calls. This can be cached per session.
 |----------|--------|-----|-------------------|
 | `GET /v3/runs/{id}` | **DONE** | cli#1384 | run get, run watch |
 | `POST /v3/runs/search` | **DONE** | cli#1384 | run list, run get (latest), run watch (latest) |
+| `GET /v3/workflows?filter[run_id]={id}` | **DONE** | cli#1387 | run get, run watch, run cancel, workflow list (5) |
 | `GET /v3/jobs?filter[workflow_id]={id}` | **DONE** | cli#1383 | run get, run watch, workflow get |
+| `GET /v3/jobs/{id}` | **DONE** | cli#1382 | job get |
 | `GET /v3/jobs/:id/stdout` | **IN PROGRESS** | p-a-s#1010 | logs |
 | `GET /v3/jobs/:id/stderr` | **IN PROGRESS** | p-a-s#1010 | logs |
-| `GET /v3/workflows?filter[run_id]={id}` | **MISSING** | — | run get, run watch, run list, run cancel, workflow list (5) |
 | `POST /v3/runs` | **MISSING** | — | run trigger (1) |
 | `POST /v3/workflows/{id}/rerun` | **MISSING** | — | workflow rerun (1) |
 
@@ -625,11 +629,10 @@ subsequent V3 calls. This can be cached per session.
 
 | CLI command | V2 dependency | Why |
 |-------------|--------------|-----|
-| `run cancel` | `GetPipelineByNumber`, `CancelWorkflow` | no V3 run cancel, still uses number lookup |
 | `run trigger` | `TriggerPipeline` | no `POST /v3/runs` |
+| `run cancel` | `CancelWorkflow` | V3 cancel exists but CLI not wired yet |
 | `workflow cancel` | `CancelWorkflow` | V3 cancel exists but CLI not wired yet |
 | `workflow rerun` | `RerunWorkflow` | no V3 rerun endpoint |
-| `workflow list` | `GetPipelineWorkflows` | no V3 workflow list |
 | `logs` | `GetJob`, `GetStepOutput`, `GetStepError` | needs V3 step output (p-a-s#1010) + CLI wiring |
 | `artifacts` | `GetWorkflowJobs` (V2) | needs `JobNumber` and `ProjectSlug` for artifact URLs |
 
@@ -673,7 +676,6 @@ Fields **dropped from CLI output** rather than added to V3 (pragmatic approach):
 - `project_slug` — no slug in V3 responses, no longer displayed. Project identified by UUID internally; users don't need to see it.
 - `trigger.type` / `trigger.actor` — trigger section dropped entirely
 - `duration` — dropped from `run list` (was computed from workflow `stopped_at`)
-- `job.type` — V3 doesn't return `type` (build/approval), approval jobs no longer distinguished
 - `job_number` — dropped from display in all commands (users couldn't use them anyway)
 
 Fields **delivered differently** than proposed:
