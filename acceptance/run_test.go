@@ -46,6 +46,11 @@ const (
 	getRunID         = "5034460f-c7c4-4c43-9457-de07e2029e7b"
 	testWfID         = "wf-uuid-001"
 	runTestProjectID = "proj-uuid-001"
+
+	// Shared across multiple test files.
+	testPipelineID = "aaaaaaaa-0000-0000-0000-000000000001"
+	testWorkflowID = "bbbbbbbb-0000-0000-0000-000000000001"
+	testSlug       = "gh/testorg/testrepo"
 )
 
 var v3TimeFormat = time.RFC3339
@@ -114,6 +119,25 @@ func fakeRun(id string, number int, state, slug, branch string) map[string]any {
 			"target_repository_url": "https://github.com/testorg/testrepo",
 			"revision":              "abc1234def5678",
 			"branch":                branch,
+		},
+	}
+}
+
+func fakeJobV3(id, name, workflowID, projectID string) map[string]any {
+	now := time.Now().UTC().Format(time.RFC3339)
+	return map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"name":       name,
+			"phase":      "ended",
+			"outcome":    "succeeded",
+			"type":       "build",
+			"started_at": now,
+			"ended_at":   now,
+		},
+		"references": map[string]any{
+			"workflow": map[string]any{"id": workflowID},
+			"project":  map[string]any{"id": projectID},
 		},
 	}
 }

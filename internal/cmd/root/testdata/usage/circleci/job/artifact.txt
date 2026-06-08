@@ -1,8 +1,7 @@
-Usage:  circleci job artifacts <job-number> [flags]
+Usage:  circleci job artifact <job-id> [flags]
 
 Flags:
   -d, --download string   Download artifacts into this directory
       --jq string         Process values from the response using jq syntax
       --json              Output as JSON
-      --project string    Project slug (e.g. gh/org/repo); defaults to git remote
   
