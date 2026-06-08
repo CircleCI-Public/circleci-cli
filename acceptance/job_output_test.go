@@ -150,3 +150,75 @@ func TestJobOutputGet_NotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
+
+// output list
+
+func TestJobOutputList(t *testing.T) {
+	fake, env := setupJobGetFake(t)
+	// Step 103 has a Docker-style carriage-return progress redraw that must
+	// collapse to its final state. Step 101 has plain output. Step 0 has none.
+	fake.AddJobStdout(testJobID, 0, 101, []byte("Cloning into 'repo'...\nDone.\n"))
+	fake.AddJobStdout(testJobID, 0, 103, []byte(
+		"layer: Downloading [==>]\r\x1b[Klayer: Downloading [====>]\r\x1b[Klayer: Download complete\n"+
+			"\x1b[32mPASS\x1b[0m\n"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestJobOutputList_JSON(t *testing.T) {
+	fake, env := setupJobGetFake(t)
+	fake.AddJobStdout(testJobID, 0, 101, []byte("Cloning into 'repo'...\nDone.\n"))
+	fake.AddJobStdout(testJobID, 0, 103, []byte(
+		"layer: Downloading [==>]\r\x1b[Klayer: Download complete\n\x1b[32mPASS\x1b[0m\n"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestJobOutputList_Execution(t *testing.T) {
+	fake, env := setupJobGetFake(t)
+	fake.AddJobStdout(testJobID, 1, 103, []byte("second executor output\n"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID, "--execution", "1", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestJobOutputList_ExecutionNotFound(t *testing.T) {
+	_, env := setupJobGetFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID, "--execution", "5"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5)) // ExitNotFound
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}

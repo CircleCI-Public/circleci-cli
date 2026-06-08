@@ -2,3 +2,4 @@ Usage:  circleci job output <command>
 
 Available commands:
   get
+  list

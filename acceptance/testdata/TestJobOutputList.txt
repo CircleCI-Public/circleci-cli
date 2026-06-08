@@ -1,0 +1,33 @@
+# Job Output
+- ID: `8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- Name: yaml-lint
+- Execution: 0
+
+## 0: Spin up environment
+- Status: success
+- Duration: 1.3s
+### Output
+
+_(no output)_
+
+## 101: Checkout code
+- Status: success
+- Duration: 969ms
+### Output
+
+```text
+Cloning into 'repo'...
+Done.
+```
+
+## 103: task lint-yaml
+- Status: success
+- Duration: 649ms
+- Exit Code: 0
+- Command: `#!/bin/bash -eo pipefail` `task lint-yaml`
+### Output
+
+```text
+layer: Download complete
+PASS
+```

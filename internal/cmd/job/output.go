@@ -44,6 +44,7 @@ func newOutputCmd() *cobra.Command {
 	}
 
 	cmd.AddCommand(newOutputGetCmd())
+	cmd.AddCommand(newOutputListCmd())
 
 	return cmd
 }

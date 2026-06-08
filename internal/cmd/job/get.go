@@ -125,7 +125,11 @@ func printGet(ctx context.Context, j *apiclient.JobV3) {
 				exitCode = fmt.Sprintf("%d", *s.ExitCode)
 			}
 			command := formatCommand(s.Command)
-			table.Row(strconv.Itoa(s.Num), s.Name, s.Status, formatDuration(s.Duration), exitCode, command)
+			duration := "-"
+			if s.StoppedAt != nil {
+				duration = formatDuration(s.StoppedAt.Sub(s.StartedAt).Seconds())
+			}
+			table.Row(strconv.Itoa(s.Num), s.Name, s.Status, duration, exitCode, command)
 		}
 		md.WriteString(table.Render())
 	}
