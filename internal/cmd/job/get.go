@@ -25,6 +25,7 @@ package job
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -117,18 +118,41 @@ func printGet(ctx context.Context, j *apiclient.JobV3) {
 		} else {
 			_, _ = fmt.Fprintf(&md, "\n## Execution %d\n", exec.Index)
 		}
-		table := mdtable.New("Name", "Status", "Duration", "Exit Code")
+		table := mdtable.New("#", "Name", "Status", "Duration", "Exit Code", "Command")
 		for _, s := range exec.Steps {
-			exitCode := ""
+			exitCode := "-"
 			if s.ExitCode != nil {
 				exitCode = fmt.Sprintf("%d", *s.ExitCode)
 			}
-			table.Row(s.Name, s.Status, formatDuration(s.Duration), exitCode)
+			command := formatCommand(s.Command)
+			table.Row(strconv.Itoa(s.Num), s.Name, s.Status, formatDuration(s.Duration), exitCode, command)
 		}
 		md.WriteString(table.Render())
 	}
 
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+func formatCommand(s string) string {
+	if s == "" {
+		return "-"
+	}
+	// Commands can be multi-line; keep only the first two lines, wrap each in
+	// backticks for a fixed-width font, join them with <br>, and escape pipes
+	// so they don't break the markdown table.
+	lines := strings.SplitN(s, "\n", 3)
+	truncated := len(lines) > 2
+	if truncated {
+		lines = lines[:2]
+	}
+	for i, line := range lines {
+		lines[i] = "`" + strings.ReplaceAll(line, "|", "\\|") + "`"
+	}
+	command := strings.Join(lines, " ")
+	if truncated {
+		command += " …"
+	}
+	return command
 }
 
 func formatDuration(seconds float64) string {

@@ -27,8 +27,11 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
@@ -145,6 +148,7 @@ type jobStepWire struct {
 	ExitCode  *int       `json:"exit_code,omitempty"`
 	StartedAt time.Time  `json:"started_at"`
 	EndedAt   *time.Time `json:"ended_at"`
+	Command   string     `json:"command"`
 }
 
 type jobReferencesWire struct {
@@ -197,6 +201,7 @@ type JobV3Step struct {
 	Num       int        `json:"num"`
 	Status    string     `json:"status"`
 	ExitCode  *int       `json:"exit_code,omitempty"`
+	Command   string     `json:"command,omitempty"`
 	StartedAt time.Time  `json:"started_at"`
 	StoppedAt *time.Time `json:"stopped_at,omitempty"`
 	Duration  float64    `json:"duration_seconds"`
@@ -235,6 +240,7 @@ func (w jobWire) toJobV3() *JobV3 {
 				ExitCode:  s.ExitCode,
 				StartedAt: s.StartedAt,
 				StoppedAt: s.EndedAt,
+				Command:   s.Command,
 			}
 			if s.EndedAt != nil {
 				step.Duration = s.EndedAt.Sub(s.StartedAt).Seconds()
@@ -276,11 +282,12 @@ func phaseOutcomeStatus(phase, outcome string) string {
 	}
 }
 
-// GetStepOutput fetches the log lines from a step action's output URL.
-func (c *Client) GetStepOutput(ctx context.Context, slug string, number int64, taskIndex, stepID int) ([]byte, error) {
+func (c *Client) GetJobStdout(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
 	var output []byte
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/private/output/raw/%s/%d/output/%d/%d",
-		httpcl.RouteParams(slug, number, taskIndex, stepID),
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout",
+		httpcl.RouteParams(jobID),
+		filterParam("index", strconv.Itoa(execution)),
+		filterParam("step_num", strconv.Itoa(stepNum)),
 		httpcl.BytesDecoder(&output),
 	))
 	if err != nil {
@@ -290,11 +297,12 @@ func (c *Client) GetStepOutput(ctx context.Context, slug string, number int64, t
 	return output, nil
 }
 
-// GetStepError fetches the error lines from a step action's error URL.
-func (c *Client) GetStepError(ctx context.Context, slug string, number int64, taskIndex, stepID int) ([]byte, error) {
+func (c *Client) GetJobStderr(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
 	var output []byte
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/private/output/raw/%s/%d/error/%d/%d",
-		httpcl.RouteParams(slug, number, taskIndex, stepID),
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stderr",
+		httpcl.RouteParams(jobID),
+		filterParam("index", strconv.Itoa(execution)),
+		filterParam("step_num", strconv.Itoa(stepNum)),
 		httpcl.BytesDecoder(&output),
 	))
 	if err != nil {

@@ -25,23 +25,25 @@ package job
 import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewJobCmd returns the "circleci job" command group.
-func NewJobCmd() *cobra.Command {
+func newOutputCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "job <command>",
-		Short: "Manage jobs",
+		Use:   "output <command>",
+		Short: "Work with job step output",
 		Long: heredoc.Doc(`
-			Work with CircleCI jobs.
+			Fetch the raw stdout and stderr produced by a job's steps.
 
-			Jobs are the individual units of work within a workflow.
+			Steps are identified by their step number within a job; for parallel
+			jobs, an execution index selects which executor's output to fetch.
 		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newArtifactsCmd())
-	cmd.AddCommand(newOutputCmd())
+	cmd.AddCommand(newOutputGetCmd())
 
 	return cmd
 }

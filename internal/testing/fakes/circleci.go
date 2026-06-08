@@ -70,8 +70,10 @@ type CircleCI struct {
 	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3         map[string]any   // job UUID → V3 response body
-	workflowJobsV3 map[string][]any // workflow id → V3 job list items
+	jobsV3         map[string]any    // job UUID → V3 response body
+	workflowJobsV3 map[string][]any  // workflow id → V3 job list items
+	jobStdout      map[string]string // "jobID/index/stepNum" → plain text stdout
+	jobStderr      map[string]string // "jobID/index/stepNum" → plain text stderr
 
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
@@ -193,6 +195,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]any{},
 		workflowJobsV3:                    map[string][]any{},
+		jobStdout:                         map[string]string{},
+		jobStderr:                         map[string]string{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
 		workflowsV3:                       map[string]any{},
@@ -307,6 +311,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
+	r.Get("/api/v3/jobs/{id}/stdout", f.handleGetJobStdout)
+	r.Get("/api/v3/jobs/{id}/stderr", f.handleGetJobStderr)
 	// Workflow (v3) routes.
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
@@ -460,6 +466,22 @@ func (f *CircleCI) AddJobV3(id string, job any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobsV3[id] = job
+}
+
+// AddJobStdout registers plain-text stdout for a step, served at
+// GET /api/v3/jobs/<id>/stdout?filter[index]=<execution>&filter[step_num]=<stepNum>.
+func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobStdout[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
+}
+
+// AddJobStderr registers plain-text stderr for a step, served at
+// GET /api/v3/jobs/<id>/stderr?filter[index]=<execution>&filter[step_num]=<stepNum>.
+func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobStderr[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
 }
 
 // SetTriggerResponse registers the response body returned when POST
@@ -713,6 +735,43 @@ func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, job)
+}
+
+func (f *CircleCI) handleGetJobStdout(w http.ResponseWriter, r *http.Request) {
+	key := jobStepKey(r)
+	f.mu.RLock()
+	content, ok := f.jobStdout[key]
+	f.mu.RUnlock()
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.PlainText(w, r, content)
+}
+
+func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
+	key := jobStepKey(r)
+	f.mu.RLock()
+	content, ok := f.jobStderr[key]
+	f.mu.RUnlock()
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.PlainText(w, r, content)
+}
+
+// jobStepKey builds the "jobID/index/stepNum" lookup key from the request,
+// reading the index and step_num from the filter[...] query params.
+func jobStepKey(r *http.Request) string {
+	index := r.URL.Query().Get("filter[index]")
+	if index == "" {
+		index = "0"
+	}
+	stepNum := r.URL.Query().Get("filter[step_num]")
+	return fmt.Sprintf("%s/%s/%s", chi.URLParam(r, "id"), index, stepNum)
 }
 
 func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Request) {

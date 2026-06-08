@@ -10,15 +10,15 @@
 - Run: `682142f3-f35d-4c94-adf7-d855321716e4`
 
 ## Execution 0
-| Name                | Status  | Duration | Exit Code |
-| ------------------- | ------- | -------- | --------- |
-| Spin up environment | success | 1.3s     |           |
-| Checkout code       | success | 969ms    |           |
-| task lint-yaml      | success | 649ms    | 0         |
+| #   | Name                | Status  | Duration | Exit Code | Command                                     |
+| --- | ------------------- | ------- | -------- | --------- | ------------------------------------------- |
+| 0   | Spin up environment | success | 1.3s     | -         | -                                           |
+| 101 | Checkout code       | success | 969ms    | -         | -                                           |
+| 103 | task lint-yaml      | success | 649ms    | 0         | `#!/bin/bash -eo pipefail` `task lint-yaml` |
 
 ## Execution 1
-| Name                | Status  | Duration | Exit Code |
-| ------------------- | ------- | -------- | --------- |
-| Spin up environment | success | 1.3s     |           |
-| Checkout code       | success | 950ms    |           |
-| task lint-yaml      | failed  | 1.6s     | 1         |
+| #   | Name                | Status  | Duration | Exit Code | Command                                         |
+| --- | ------------------- | ------- | -------- | --------- | ----------------------------------------------- |
+| 0   | Spin up environment | success | 1.3s     | -         | -                                               |
+| 101 | Checkout code       | success | 950ms    | -         | -                                               |
+| 103 | task lint-yaml      | failed  | 1.6s     | 1         | `#!/bin/bash -eo pipefail` `task lint-yaml` …   |
