@@ -9,7 +9,7 @@ Pass a run UUID to look up a specific run.
 
 JSON fields: id, status, branch, revision, created_at,
              errors[].type/message,
-             workflows[].id/name/status/jobs[].name/status/type
+             workflows[].id/name/status/duration/jobs[].id/name/status/type
 
 ## Usage
 

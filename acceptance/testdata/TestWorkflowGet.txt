@@ -4,13 +4,13 @@
 - Run:
   - Number: #42
   - ID: `aaaaaaaa-0000-0000-0000-000000000010`
-- Project: gh/testorg/testrepo
+- Project: testrepo
 - Status: failed
 - Created: 2020-01-01 12:00:00 UTC
 - Stopped:  2020-01-01 12:00:00 UTC
 
 ## Jobs
-| Name      | Status  | Number |
-| --------- | ------- | ------ |
-| run-tests | success | 201    |
-| deploy    | success | 202    |
+| Name      | Status  | Type  | ID           |
+| --------- | ------- | ----- | ------------ |
+| run-tests | success | build | job-uuid-201 |
+| deploy    | success | build | job-uuid-202 |

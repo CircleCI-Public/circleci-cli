@@ -372,9 +372,9 @@ func fetchWatchState(ctx context.Context, client *apiclient.Client, runID string
 	if err != nil {
 		return runGetOutput{}, err
 	}
-	wfJobs := make([][]apiclient.WorkflowJob, len(workflows))
+	wfJobs := make([][]apiclient.WorkflowJobV3, len(workflows))
 	for i, wf := range workflows {
-		jobs, err := client.GetWorkflowJobs(ctx, wf.ID)
+		jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
 		if err != nil {
 			return runGetOutput{}, err
 		}
@@ -426,7 +426,7 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 		}
 		lines++
 		for _, j := range wf.Jobs {
-			iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
+			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, j.Status, j.Type)
 			lines++
 		}
 	}
@@ -443,7 +443,7 @@ func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
 		}
 		for _, j := range wf.Jobs {
-			iostream.ErrPrintf(ctx, "    %-30s  %s\n", j.Name, j.Status)
+			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, j.Status, j.Type)
 		}
 	}
 }
