@@ -70,7 +70,6 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 		v3WfOutcome = "succeeded"
 	}
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", v3WfOutcome))
-	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": wfStatus})
 	fake.AddWorkflowJobsV3(wfID,
 		fakeJobV3("job-1", "lint", wfID, watchProjectID),
 		fakeJobV3("job-2", "test", wfID, watchProjectID),

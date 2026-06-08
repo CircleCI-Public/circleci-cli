@@ -29,7 +29,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -47,29 +46,14 @@ const (
 	testPipelineForWF    = "aaaaaaaa-0000-0000-0000-000000000010"
 )
 
-func fakeWorkflowDetail(id, name, status, pipelineID, slug string) map[string]any {
-	ts := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
-	return map[string]any{
-		"id":              id,
-		"name":            name,
-		"status":          status,
-		"pipeline_id":     pipelineID,
-		"pipeline_number": 42,
-		"project_slug":    slug,
-		"started_by":      "testuser-uuid",
-		"created_at":      ts,
-		"stopped_at":      ts,
-	}
-}
-
 const wfProjectID = "3936b1ba-3289-44a2-96d8-d0b4fe366795"
 
 func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddWorkflowDetail(testWorkflowDetailID,
-		fakeWorkflowDetail(testWorkflowDetailID, "build", "failed", testPipelineForWF, testSlug))
+	fake.AddWorkflowV3(testWorkflowDetailID,
+		fakeWorkflowV3(testWorkflowDetailID, "build", testPipelineForWF, wfProjectID, "ended", "failed"))
 	fake.AddWorkflowJobsV3(testWorkflowDetailID,
 		fakeJobV3("job-uuid-201", "run-tests", testWorkflowDetailID, wfProjectID),
 		fakeJobV3("job-uuid-202", "deploy", testWorkflowDetailID, wfProjectID),
@@ -380,35 +364,31 @@ func TestWorkflowList_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --- workflow list (no-arg / recent-pipelines mode) ---
+// --- workflow list (no-arg / recent-runs mode) ---
 
-const testPipelineRecent1 = "bbbbbbbb-0000-0000-0000-000000000001"
-const testPipelineRecent2 = "bbbbbbbb-0000-0000-0000-000000000002"
+const testRunRecent1 = "bbbbbbbb-0000-0000-0000-000000000001"
+const testRunRecent2 = "bbbbbbbb-0000-0000-0000-000000000002"
+const wfListProjectID = "proj-uuid-wflist"
 
-func recentPipeline(id string, number int64, branch string) map[string]any {
-	return map[string]any{
-		"id": id, "number": number, "state": "created",
-		"project_slug": testSlug, "created_at": "2026-01-01T00:00:00Z",
-		"vcs": map[string]any{"branch": branch, "revision": "abc1234567890"},
-	}
+func setupRecentRuns(t *testing.T, fake *fakes.CircleCI) {
+	t.Helper()
+	addProjectInfo(fake, testSlug, wfListProjectID)
+	fake.AddRunV3(testRunRecent1, wfListProjectID,
+		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "failed", "main", "abc1234567890"))
+	fake.AddRunV3(testRunRecent2, wfListProjectID,
+		fakeRunV3(testRunRecent2, wfListProjectID, "running", "", "main", "abc1234567890"))
+	fake.AddRunWorkflowsV3(testRunRecent1,
+		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+		fakeWorkflowV3("wf-recent-bbb", "deploy", testRunRecent1, wfListProjectID, "ended", "failed"),
+	)
+	fake.AddRunWorkflowsV3(testRunRecent2,
+		fakeWorkflowV3("wf-recent-ccc", "build", testRunRecent2, wfListProjectID, "running", ""),
+	)
 }
 
 func TestWorkflowList_NoArg(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-
-	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddRun(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
-	fake.AddProjectRuns(testSlug,
-		recentPipeline(testPipelineRecent1, 10, "main"),
-		recentPipeline(testPipelineRecent2, 9, "main"),
-	)
-	fake.AddRunWorkflows(testPipelineRecent1,
-		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
-		map[string]any{"id": "wf-recent-bbb", "name": "deploy", "status": "failed"},
-	)
-	fake.AddRunWorkflows(testPipelineRecent2,
-		map[string]any{"id": "wf-recent-ccc", "name": "build", "status": "running"},
-	)
+	setupRecentRuns(t, fake)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -427,20 +407,7 @@ func TestWorkflowList_NoArg(t *testing.T) {
 
 func TestWorkflowList_NoArg_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-
-	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddRun(testPipelineRecent2, recentPipeline(testPipelineRecent2, 9, "main"))
-	fake.AddProjectRuns(testSlug,
-		recentPipeline(testPipelineRecent1, 10, "main"),
-		recentPipeline(testPipelineRecent2, 9, "main"),
-	)
-	fake.AddRunWorkflows(testPipelineRecent1,
-		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
-		map[string]any{"id": "wf-recent-bbb", "name": "deploy", "status": "failed"},
-	)
-	fake.AddRunWorkflows(testPipelineRecent2,
-		map[string]any{"id": "wf-recent-ccc", "name": "build", "status": "running"},
-	)
+	setupRecentRuns(t, fake)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -460,13 +427,11 @@ func TestWorkflowList_NoArg_Color(t *testing.T) {
 
 func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-
-	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddProjectRuns(testSlug,
-		recentPipeline(testPipelineRecent1, 10, "main"),
-	)
-	fake.AddRunWorkflows(testPipelineRecent1,
-		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
+	addProjectInfo(fake, testSlug, wfListProjectID)
+	fake.AddRunV3(testRunRecent1, wfListProjectID,
+		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
+	fake.AddRunWorkflowsV3(testRunRecent1,
+		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -485,8 +450,7 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 1))
-	assert.Check(t, cmp.Equal(out[0]["run_id"], testPipelineRecent1))
-	assert.Check(t, cmp.Equal(out[0]["run_number"], float64(10)))
+	assert.Check(t, cmp.Equal(out[0]["run_id"], testRunRecent1))
 	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
@@ -496,13 +460,11 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 
 func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-
-	fake.AddRun(testPipelineRecent1, recentPipeline(testPipelineRecent1, 10, "main"))
-	fake.AddProjectRuns(testSlug,
-		recentPipeline(testPipelineRecent1, 10, "main"),
-	)
-	fake.AddRunWorkflows(testPipelineRecent1,
-		map[string]any{"id": "wf-recent-aaa", "name": "build", "status": "success"},
+	addProjectInfo(fake, testSlug, wfListProjectID)
+	fake.AddRunV3(testRunRecent1, wfListProjectID,
+		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
+	fake.AddRunWorkflowsV3(testRunRecent1,
+		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -521,9 +483,9 @@ func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestWorkflowList_NoArg_NoPipelines(t *testing.T) {
+func TestWorkflowList_NoArg_NoRuns(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	// no pipelines registered for project
+	addProjectInfo(fake, testSlug, wfListProjectID)
 
 	env := testenv.New(t)
 	env.Token = testToken

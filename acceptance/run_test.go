@@ -680,7 +680,7 @@ func TestRunCancel(t *testing.T) {
 	runID := getRunID
 	wfID := "wf-cancel-001"
 	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
-	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "running"})
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "running", ""))
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)
@@ -735,7 +735,7 @@ func TestRunCancel_AlreadyDone(t *testing.T) {
 	runID := "5034460f-c7c4-4c43-9457-de07e2029e7c"
 	wfID := "wf-cancel-002"
 	fake.AddRun(runID, fakeRun(runID, 43, "created", watchSlug, "main"))
-	fake.AddRunWorkflows(runID, map[string]any{"id": wfID, "name": "build", "status": "success"})
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "ended", "succeeded"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -766,7 +766,7 @@ func TestRunCancel_NotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments (no active workflows)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 

@@ -1,5 +1,5 @@
 # Recent runs
-## Run #10
+## Run bbbbbbbb-0000-0000-0000-000000000001
 - Branch: main
 - Commit: abc1234
 ### Workflows
@@ -8,7 +8,7 @@
 | wf-recent-aaa | build  | success |
 | wf-recent-bbb | deploy | failed  |
 
-## Run #9
+## Run bbbbbbbb-0000-0000-0000-000000000002
 - Branch: main
 - Commit: abc1234
 ### Workflows

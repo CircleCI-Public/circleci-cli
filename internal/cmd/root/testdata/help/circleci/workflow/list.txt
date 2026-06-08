@@ -14,7 +14,7 @@ When passing a run number, the project is inferred from the
 current git repository unless overridden with --project.
 
 JSON fields (single run):  id, name, status
-JSON fields (recent runs): run_id, run_number, id, name, status
+JSON fields (recent runs): run_id, id, name, status
 
 ## Usage
 

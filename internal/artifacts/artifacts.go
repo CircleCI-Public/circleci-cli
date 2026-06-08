@@ -46,7 +46,7 @@ type Entry struct {
 
 // Client is the subset of apiclient.Client methods we need.
 type Client interface {
-	GetPipelineWorkflows(ctx context.Context, pipelineID string) ([]apiclient.PipelineWorkflowSummary, error)
+	GetRunWorkflowsV3(ctx context.Context, runID string) ([]apiclient.WorkflowV3, error)
 	GetWorkflowJobs(ctx context.Context, workflowID string) ([]apiclient.WorkflowJob, error)
 	GetJobArtifacts(ctx context.Context, projectSlug string, jobNumber int64) ([]apiclient.Artifact, error)
 	DownloadArtifact(ctx context.Context, artifactURL string, dst io.Writer) error
@@ -55,7 +55,7 @@ type Client interface {
 // ForPipeline fetches all artifacts across every job in the pipeline.
 // Jobs with no artifacts are silently skipped.
 func ForPipeline(ctx context.Context, client Client, pipelineID string) ([]Entry, error) {
-	workflows, err := client.GetPipelineWorkflows(ctx, pipelineID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, pipelineID)
 	if err != nil {
 		return nil, fmt.Errorf("fetching workflows: %w", err)
 	}

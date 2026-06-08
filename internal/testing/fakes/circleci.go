@@ -51,8 +51,6 @@ type CircleCI struct {
 	mu                                sync.RWMutex
 	pipelines                         map[string]any
 	projects                          map[string][]any  // project slug → ordered list of pipelines
-	workflows                         map[string][]any  // pipeline id → workflows
-	workflowDetails                   map[string]any    // workflow id → workflow detail response
 	workflowJobs                      map[string][]any  // workflow id → jobs
 	jobArtifacts                      map[string][]any  // "slug/jobNumber" → artifacts
 	staticFiles                       map[string]string // path → body content, for artifact downloads
@@ -80,6 +78,7 @@ type CircleCI struct {
 	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
 
 	// Workflow (v3) state.
+	workflowsV3      map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
 	workflowsV3ByRun map[string][]any // run UUID → V3 workflow data items
 
 	// Runner (v3) state.
@@ -175,8 +174,6 @@ func NewCircleCI(t *testing.T) *CircleCI {
 
 		pipelines:                         map[string]any{},
 		projects:                          map[string][]any{},
-		workflows:                         map[string][]any{},
-		workflowDetails:                   map[string]any{},
 		workflowJobs:                      map[string][]any{},
 		jobArtifacts:                      map[string][]any{},
 		staticFiles:                       map[string]string{},
@@ -198,6 +195,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
+		workflowsV3:                       map[string]any{},
 		workflowsV3ByRun:                  map[string][]any{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
@@ -247,8 +245,6 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Use(chirecorder.Middleware(f.RequestRecorder))
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
-	r.Get("/api/v2/pipeline/{id}/workflow", f.handleGetPipelineWorkflows)
-	r.Get("/api/v2/workflow/{id}", f.handleGetWorkflowDetail)
 	r.Post("/api/v2/workflow/{id}/rerun", f.handleRerunWorkflow)
 	r.Post("/api/v2/workflow/{id}/cancel", f.handleCancelWorkflow)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
@@ -312,6 +308,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
 	// Workflow (v3) routes.
+	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
@@ -365,13 +362,6 @@ func NewCircleCI(t *testing.T) *CircleCI {
 // URL returns the base URL of the fake server.
 func (f *CircleCI) URL() string {
 	return f.server.URL
-}
-
-// AddWorkflowDetail registers a workflow detail response for GET /api/v2/workflow/<id>.
-func (f *CircleCI) AddWorkflowDetail(id string, detail any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.workflowDetails[id] = detail
 }
 
 // SetPipelineCancelResponse sets the HTTP status code returned for POST /api/v2/pipeline/<id>/cancel.
@@ -430,13 +420,6 @@ func (f *CircleCI) AddProjectRuns(slug string, runs ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projects[slug] = runs
-}
-
-// AddRunWorkflows registers workflow responses for a run.
-func (f *CircleCI) AddRunWorkflows(runID string, workflows ...any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.workflows[runID] = workflows
 }
 
 // AddWorkflowJobs registers job responses for a workflow.
@@ -620,25 +603,6 @@ func (f *CircleCI) handleGetPipelineByNumber(w http.ResponseWriter, r *http.Requ
 	render.JSON(w, r, map[string]any{"message": "not found"})
 }
 
-func (f *CircleCI) handleGetPipelineWorkflows(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	f.mu.RLock()
-	_, pipelineExists := f.pipelines[id]
-	_, runV3Exists := f.runsV3[id]
-	workflows := f.workflows[id]
-	f.mu.RUnlock()
-
-	if !pipelineExists && !runV3Exists {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	if workflows == nil {
-		workflows = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": workflows, "next_page_token": nil})
-}
-
 func (f *CircleCI) handleGetWorkflowJobs(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
@@ -773,11 +737,32 @@ func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Reque
 	render.JSON(w, r, map[string]any{"data": jobs})
 }
 
+// AddWorkflowV3 registers a single V3 workflow response for GET /api/v3/workflows/<id>.
+func (f *CircleCI) AddWorkflowV3(id string, workflow any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowsV3[id] = workflow
+}
+
 // AddRunWorkflowsV3 registers V3 workflow responses for a run.
 func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowsV3ByRun[runID] = workflows
+}
+
+func (f *CircleCI) handleGetWorkflowV3ByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	wf, ok := f.workflowsV3[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": wf})
 }
 
 func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) {
@@ -845,20 +830,6 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 		"data": results,
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
-}
-
-func (f *CircleCI) handleGetWorkflowDetail(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	f.mu.RLock()
-	detail, ok := f.workflowDetails[id]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, detail)
 }
 
 func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {

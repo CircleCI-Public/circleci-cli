@@ -44,18 +44,6 @@ const (
 	testSlug       = "gh/testorg/testrepo"
 )
 
-func fakeWorkflow(id, name string) map[string]any {
-	created := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	stopped := created.Add(2*time.Minute + 34*time.Second)
-	return map[string]any{
-		"id":         id,
-		"name":       name,
-		"status":     "success",
-		"created_at": created.Format(time.RFC3339),
-		"stopped_at": stopped.Format(time.RFC3339),
-	}
-}
-
 func fakeJob(id, name string, jobNumber int64, slug string) map[string]any {
 	return map[string]any{
 		"id":           id,
@@ -106,8 +94,8 @@ func setupArtifactFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		fakeRun(testPipelineID, 7, "created", testSlug, "main"))
 	fake.AddProjectRuns(testSlug,
 		fakeRun(testPipelineID, 7, "created", testSlug, "main"))
-	fake.AddRunWorkflows(testPipelineID,
-		fakeWorkflow(testWorkflowID, "build"))
+	fake.AddRunWorkflowsV3(testPipelineID,
+		fakeWorkflowV3(testWorkflowID, "build", testPipelineID, "proj-artifacts", "ended", "succeeded"))
 	fake.AddWorkflowJobs(testWorkflowID,
 		fakeJob("job-uuid-1", "build", 42, testSlug))
 	fake.AddJobArtifacts(testSlug, 42,

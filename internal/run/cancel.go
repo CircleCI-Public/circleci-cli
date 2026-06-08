@@ -47,7 +47,7 @@ func (e *ErrNothingToCancel) Error() string {
 // Returns ErrNothingToCancel when the run exists but all workflows are
 // already in a terminal state.
 func Cancel(ctx context.Context, client *apiclient.Client, runID string) error {
-	workflows, err := client.GetPipelineWorkflows(ctx, runID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
 		return err
 	}
@@ -67,7 +67,7 @@ func Cancel(ctx context.Context, client *apiclient.Client, runID string) error {
 		cancelled++
 	}
 
-	if cancelled == 0 && len(workflows) > 0 {
+	if cancelled == 0 {
 		return &ErrNothingToCancel{RunID: runID}
 	}
 	return nil
