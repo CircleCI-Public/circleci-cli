@@ -10,6 +10,6 @@
 - Status: success
 - Duration: 2m34s
 - Jobs:
-  - run-tests                             success
-  - deploy                                success
+  - run-tests                             success     job-uuid-1
+  - deploy                                success     job-uuid-2
 

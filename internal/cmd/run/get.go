@@ -62,7 +62,7 @@ func newGetCmd() *cobra.Command {
 
 			JSON fields: id, status, branch, revision, created_at,
 			             errors[].type/message,
-			             workflows[].id/name/status/jobs[].name/status/type
+			             workflows[].id/name/status/duration/jobs[].id/name/status/type
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
@@ -117,6 +117,7 @@ type workflowOutput struct {
 }
 
 type jobOutput struct {
+	ID     string `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
 	Type   string `json:"type"`
@@ -202,6 +203,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSumma
 		jobs := make([]jobOutput, 0, len(wfJobs[i]))
 		for _, j := range wfJobs[i] {
 			jobs = append(jobs, jobOutput{
+				ID:     j.ID,
 				Name:   j.Name,
 				Status: j.Status,
 				Type:   j.Type,
@@ -301,7 +303,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 			}
 			_, _ = fmt.Fprintf(&md, "- Jobs:\n")
 			for _, j := range w.Jobs {
-				_, _ = fmt.Fprintf(&md, "  - %-36s  %s\n", j.Name, j.Status)
+				_, _ = fmt.Fprintf(&md, "  - %-36s  %-10s  %s\n", j.Name, j.Status, j.ID)
 			}
 		}
 		md.WriteString("\n")
