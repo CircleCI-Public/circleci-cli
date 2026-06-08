@@ -54,7 +54,7 @@ func newListCmd() *cobra.Command {
 			version, status, type, and when it was created.
 
 			JSON fields: id, component_name, version, type, status, is_rollback,
-			             pipeline_id, workflow_id, created_at, ended_at
+			             run_id, workflow_id, created_at, ended_at
 		`),
 		Example: heredoc.Doc(`
 			# List the 10 most recent deploys (auto-detect project from git remote)
@@ -91,7 +91,7 @@ type deployEntry struct {
 	Type          string `json:"type"`
 	Status        string `json:"status"`
 	IsRollback    bool   `json:"is_rollback"`
-	PipelineID    string `json:"pipeline_id,omitempty"`
+	RunID         string `json:"run_id,omitempty"`
 	WorkflowID    string `json:"workflow_id,omitempty"`
 	CreatedAt     string `json:"created_at"`
 	EndedAt       string `json:"ended_at,omitempty"`
@@ -137,7 +137,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			Type:          d.Type,
 			Status:        d.Status,
 			IsRollback:    d.PlanIsRollback,
-			PipelineID:    d.PipelineID,
+			RunID:         d.PipelineID,
 			WorkflowID:    d.WorkflowID,
 			CreatedAt:     d.CreatedAt.Format("2006-01-02 15:04 UTC"),
 			EndedAt:       endedAt,

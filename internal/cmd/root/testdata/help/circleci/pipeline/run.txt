@@ -15,10 +15,10 @@ Use --branch or --tag to specify which revision to run on. They are
 mutually exclusive. --branch sets both the config fetch branch and the
 checkout branch; --tag sets both the config fetch tag and the checkout tag.
 
-Pass pipeline parameters with --param key=value (repeatable). Values
-are sent as strings.
+Pass parameters with --param key=value (repeatable). Values are sent
+as strings.
 
-When the pipeline is skipped (e.g. due to a [ci skip] commit message)
+When the run is skipped (e.g. due to a [ci skip] commit message)
 the command exits 0 and prints the reason to stdout.
 
 JSON fields (triggered): id, state, number, created_at, triggered
@@ -36,7 +36,7 @@ JSON fields (skipped):   triggered, message
 | `--definition-id string` | Pipeline definition UUID to run (prompted interactively if omitted)  |
 | `--jq string`            | Process values from the response using jq syntax                     |
 | `--json`                 | Output as JSON                                                       |
-| `--param stringArray`    | Pipeline parameter as key=value (repeatable)                         |
+| `--param stringArray`    | Parameter as key=value (repeatable)                                  |
 | `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote              |
 | `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch) |
 

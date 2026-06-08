@@ -67,10 +67,10 @@ func newRunCmd() *cobra.Command {
 			mutually exclusive. --branch sets both the config fetch branch and the
 			checkout branch; --tag sets both the config fetch tag and the checkout tag.
 
-			Pass pipeline parameters with --param key=value (repeatable). Values
-			are sent as strings.
+			Pass parameters with --param key=value (repeatable). Values are sent
+			as strings.
 
-			When the pipeline is skipped (e.g. due to a [ci skip] commit message)
+			When the run is skipped (e.g. due to a [ci skip] commit message)
 			the command exits 0 and prints the reason to stdout.
 
 			JSON fields (triggered): id, state, number, created_at, triggered
@@ -111,7 +111,7 @@ func newRunCmd() *cobra.Command {
 	cmd.Flags().StringVar(&definitionID, "definition-id", "", "Pipeline definition UUID to run (prompted interactively if omitted)")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch for config fetch and checkout (mutually exclusive with --tag)")
 	cmd.Flags().StringVarP(&tag, "tag", "t", "", "Tag for config fetch and checkout (mutually exclusive with --branch)")
-	cmd.Flags().StringArrayVar(&params, "param", nil, "Pipeline parameter as key=value (repeatable)")
+	cmd.Flags().StringArrayVar(&params, "param", nil, "Parameter as key=value (repeatable)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -183,8 +183,8 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 	if err != nil {
 		return cmdutil.APIErr(err, slug,
 			"pipeline.run_failed",
-			"Failed to trigger pipeline run for project %q.",
-			"Check that the project slug is correct and you have permission to trigger pipelines",
+			"Failed to trigger run for project %q.",
+			"Check that the project slug is correct and you have permission to trigger runs",
 			"Visit: https://app.circleci.com/settings/project")
 	}
 
@@ -205,11 +205,11 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 	}
 
 	if !result.Triggered {
-		iostream.Println(ctx, fmt.Sprintf("Pipeline not triggered: %s", result.Message))
+		iostream.Println(ctx, fmt.Sprintf("Run not triggered: %s", result.Message))
 		return nil
 	}
 
-	msg := fmt.Sprintf("Pipeline #%d triggered  (id: %s, state: %s)", result.Number, result.ID, result.State)
+	msg := fmt.Sprintf("Run #%d triggered  (id: %s, state: %s)", result.Number, result.ID, result.State)
 	if branch != "" {
 		msg += fmt.Sprintf(" on %s", branch)
 	}

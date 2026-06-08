@@ -756,7 +756,7 @@ func TestPipelineRun_Interactive_SelectFirst(t *testing.T) {
 	_, err = console.Send("\r")
 	assert.NilError(t, err)
 
-	_, err = console.ExpectString("Pipeline #42 triggered")
+	_, err = console.ExpectString("Run #42 triggered")
 	assert.NilError(t, err)
 }
 
@@ -782,7 +782,7 @@ func TestPipelineRun_Interactive_SkipDefinition(t *testing.T) {
 	_, err = console.Send("\r")
 	assert.NilError(t, err)
 
-	_, err = console.ExpectString("Pipeline #42 triggered")
+	_, err = console.ExpectString("Run #42 triggered")
 	assert.NilError(t, err)
 }
 
@@ -813,6 +813,6 @@ func TestPipelineRun_Interactive_CustomBranch(t *testing.T) {
 	_, err = console.Send("feature/my-branch\r")
 	assert.NilError(t, err)
 
-	_, err = console.ExpectString("Pipeline #42 triggered")
+	_, err = console.ExpectString("Run #42 triggered")
 	assert.NilError(t, err)
 }

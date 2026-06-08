@@ -184,7 +184,7 @@ type JobV3 struct {
 	StoppedAt  *time.Time       `json:"stopped_at,omitempty"`
 	Executions []JobV3Execution `json:"executions"`
 	ProjectID  string           `json:"project_id"`
-	PipelineID string           `json:"pipeline_id"`
+	RunID      string           `json:"run_id"`
 	WorkflowID string           `json:"workflow_id"`
 }
 
@@ -226,7 +226,7 @@ func (w jobWire) toJobV3() *JobV3 {
 		StartedAt:  a.StartedAt,
 		StoppedAt:  a.EndedAt,
 		ProjectID:  w.References.Project.ID,
-		PipelineID: w.References.Pipeline.ID,
+		RunID:      w.References.Pipeline.ID,
 		WorkflowID: w.References.Workflow.ID,
 	}
 	for i, pe := range a.ParallelExecutions {

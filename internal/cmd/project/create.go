@@ -276,7 +276,7 @@ func printCreatedProject(ctx context.Context, p createProjectOutput, pipelinesUR
 		}
 	}
 	if pipelinesURL != "" {
-		_, _ = fmt.Fprintf(&md, "\nPipelines: %s\n", pipelinesURL)
+		_, _ = fmt.Fprintf(&md, "\nRuns: %s\n", pipelinesURL)
 	}
 	md.WriteString("\n")
 	iostream.PrintMarkdown(ctx, md.String())

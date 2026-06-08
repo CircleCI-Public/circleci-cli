@@ -50,7 +50,7 @@ func newGetCmd() *cobra.Command {
 			'circleci run get --json'.
 
 			JSON fields: id, name, type, status, started_at, stopped_at,
-			             project_id, pipeline_id, workflow_id,
+			             project_id, run_id, workflow_id,
 			             executions[].index/steps[].name/type/status/duration/exit_code
 		`),
 		Example: heredoc.Doc(`
@@ -110,7 +110,7 @@ func printGet(ctx context.Context, j *apiclient.JobV3) {
 		_, _ = fmt.Fprintf(&md, "- Duration: %s\n", j.StoppedAt.Sub(j.StartedAt).Round(100*1e6))
 	}
 	_, _ = fmt.Fprintf(&md, "- Workflow: `%s`\n", j.WorkflowID)
-	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", j.PipelineID)
+	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", j.RunID)
 
 	for _, exec := range j.Executions {
 		if len(j.Executions) == 1 {

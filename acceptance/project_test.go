@@ -909,7 +909,7 @@ func TestProjectCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "my-new-repo"))
-	assert.Check(t, strings.Contains(result.Stdout, "Pipelines:"))
+	assert.Check(t, strings.Contains(result.Stdout, "Runs:"))
 	assert.Check(t, strings.Contains(result.Stdout, "/pipelines/gh/myorg/my-new-repo"))
 
 	t.Run("check request", func(t *testing.T) {
@@ -938,7 +938,7 @@ func TestProjectCreate_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, strings.Contains(result.Stdout, "my-new-repo"))
-	assert.Check(t, strings.Contains(result.Stdout, "Pipelines:"))
+	assert.Check(t, strings.Contains(result.Stdout, "Runs:"))
 	assert.Check(t, strings.Contains(result.Stdout, "/pipelines/gh/myorg/my-new-repo"))
 }
 

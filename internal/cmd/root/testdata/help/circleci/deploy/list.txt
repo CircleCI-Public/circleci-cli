@@ -7,7 +7,7 @@ unless overridden with --project. Each deploy shows the component,
 version, status, type, and when it was created.
 
 JSON fields: id, component_name, version, type, status, is_rollback,
-             pipeline_id, workflow_id, created_at, ended_at
+             run_id, workflow_id, created_at, ended_at
 
 ## Usage
 

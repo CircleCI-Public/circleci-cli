@@ -2,7 +2,7 @@
 
 Permanently remove an iOS signing config from your organization.
 
-This action is irreversible. Pipelines that reference the signing config
+This action is irreversible. Runs that reference the signing config
 by name will fail until they are updated.
 
 In a terminal, you will be prompted to confirm before deleting.

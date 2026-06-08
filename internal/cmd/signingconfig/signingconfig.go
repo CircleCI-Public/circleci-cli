@@ -312,7 +312,7 @@ func newDeleteCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Permanently remove an iOS signing config from your organization.
 
-			This action is irreversible. Pipelines that reference the signing config
+			This action is irreversible. Runs that reference the signing config
 			by name will fail until they are updated.
 
 			In a terminal, you will be prompted to confirm before deleting.
@@ -334,7 +334,7 @@ func newDeleteCmd() *cobra.Command {
 			id := args[0]
 
 			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
-				fmt.Sprintf("Delete signing config %q? Pipelines using it will fail until updated.", id),
+				fmt.Sprintf("Delete signing config %q? Runs using it will fail until updated.", id),
 				clierrors.New("signing_config.delete_aborted", "Deletion aborted",
 					"Signing config deletion was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled),
