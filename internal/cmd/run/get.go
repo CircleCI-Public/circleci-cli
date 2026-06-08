@@ -62,7 +62,7 @@ func newGetCmd() *cobra.Command {
 
 			JSON fields: id, status, branch, revision, created_at,
 			             errors[].type/message,
-			             workflows[].id/name/status/duration/jobs[].id/name/status
+			             workflows[].id/name/status/duration/jobs[].id/name/status/type
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
@@ -172,8 +172,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		r = &runs[0]
 	}
 
-	// Fetch workflows via V2 using the run ID (which is the pipeline ID).
-	workflows, err := client.GetPipelineWorkflows(ctx, r.ID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, r.ID)
 	if err != nil {
 		return apiErr(err, r.ID)
 	}
@@ -197,7 +196,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	return nil
 }
 
-func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSummary, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
+func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
 	wflows := make([]workflowOutput, len(workflows))
 	for i, w := range workflows {
 		jobs := make([]jobOutput, 0, len(wfJobs[i]))
@@ -206,11 +205,12 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.PipelineWorkflowSumma
 				ID:     j.ID,
 				Name:   j.Name,
 				Status: j.Status,
+				Type:   j.Type,
 			})
 		}
 		var dur string
-		if w.StoppedAt != nil {
-			dur = formatElapsed(w.StoppedAt.Sub(w.CreatedAt))
+		if w.EndedAt != nil {
+			dur = formatElapsed(w.EndedAt.Sub(w.CreatedAt))
 		}
 		wflows[i] = workflowOutput{ID: w.ID, Name: w.Name, Status: w.Status, Duration: dur, Jobs: jobs}
 	}

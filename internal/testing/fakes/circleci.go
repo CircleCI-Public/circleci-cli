@@ -79,6 +79,9 @@ type CircleCI struct {
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
 	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
 
+	// Workflow (v3) state.
+	workflowsV3ByRun map[string][]any // run UUID → V3 workflow data items
+
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
 	runnerTokens    map[string][]any // resource class → tokens
@@ -195,6 +198,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
+		workflowsV3ByRun:                  map[string][]any{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
 		runnerInstances:                   []any{},
@@ -307,6 +311,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
+	// Workflow (v3) routes.
+	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
@@ -765,6 +771,25 @@ func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Reque
 		jobs = []any{}
 	}
 	render.JSON(w, r, map[string]any{"data": jobs})
+}
+
+// AddRunWorkflowsV3 registers V3 workflow responses for a run.
+func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowsV3ByRun[runID] = workflows
+}
+
+func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) {
+	runID := r.URL.Query().Get("filter[run_id]")
+	f.mu.RLock()
+	workflows := f.workflowsV3ByRun[runID]
+	f.mu.RUnlock()
+
+	if workflows == nil {
+		workflows = []any{}
+	}
+	render.JSON(w, r, map[string]any{"data": workflows})
 }
 
 // AddRunV3 registers a V3 run response and associates it with a project.

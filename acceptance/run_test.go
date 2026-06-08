@@ -71,6 +71,27 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 	}
 }
 
+// fakeWorkflowV3 returns a V3 workflow payload for the fake server.
+func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) map[string]any {
+	created := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
+	ended := created.Add(2*time.Minute + 34*time.Second)
+	return map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"name":       name,
+			"phase":      phase,
+			"outcome":    outcome,
+			"created_at": created.Format(v3TimeFormat),
+			"ended_at":   ended.Format(v3TimeFormat),
+		},
+		"references": map[string]any{
+			"run":     map[string]any{"id": runID},
+			"project": map[string]any{"id": projectID},
+			"user":    map[string]any{"id": "user-uuid-001"},
+		},
+	}
+}
+
 // fakeRun returns a V2 pipeline payload — still needed for workflows/jobs
 // and commands that haven't migrated to V3 yet (cancel, trigger).
 func fakeRun(id string, number int, state, slug, branch string) map[string]any {
@@ -114,7 +135,7 @@ func TestRunGet_ByID(t *testing.T) {
 	runID := getRunID
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID,
 		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
 		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
@@ -140,7 +161,7 @@ func TestRunGet_ByID_Color(t *testing.T) {
 	runID := getRunID
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID,
 		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
 		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
@@ -167,7 +188,7 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	runID := getRunID
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
@@ -203,7 +224,7 @@ func TestRunGet_ByID_JQ(t *testing.T) {
 	runID := getRunID
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
@@ -226,7 +247,7 @@ func TestRunGet_ByID_JSON_Color(t *testing.T) {
 	runID := getRunID
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflows(runID, fakeWorkflow(wfID, "build"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)

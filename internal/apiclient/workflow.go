@@ -27,6 +27,76 @@ import (
 	"time"
 )
 
+// --- V3 wire types ---
+
+type workflowAttributesWire struct {
+	Name      string     `json:"name"`
+	Phase     string     `json:"phase"`
+	Outcome   string     `json:"outcome"`
+	CreatedAt time.Time  `json:"created_at"`
+	EndedAt   *time.Time `json:"ended_at"`
+}
+
+type workflowReferencesWire struct {
+	Run struct {
+		ID string `json:"id"`
+	} `json:"run"`
+	Project struct {
+		ID string `json:"id"`
+	} `json:"project"`
+	User struct {
+		ID string `json:"id"`
+	} `json:"user"`
+}
+
+type workflowWire struct {
+	ID         string                 `json:"id"`
+	Attributes workflowAttributesWire `json:"attributes"`
+	References workflowReferencesWire `json:"references"`
+}
+
+func (w workflowWire) toWorkflowV3() WorkflowV3 {
+	a := w.Attributes
+	return WorkflowV3{
+		ID:        w.ID,
+		Name:      a.Name,
+		Status:    phaseOutcomeStatus(a.Phase, a.Outcome),
+		CreatedAt: a.CreatedAt,
+		EndedAt:   a.EndedAt,
+		RunID:     w.References.Run.ID,
+		ProjectID: w.References.Project.ID,
+	}
+}
+
+// --- V3 domain types ---
+
+// WorkflowV3 holds workflow detail from the V3 API.
+type WorkflowV3 struct {
+	ID        string     `json:"id"`
+	Name      string     `json:"name"`
+	Status    string     `json:"status"`
+	Type      string     `json:"type,omitempty"`
+	CreatedAt time.Time  `json:"created_at"`
+	EndedAt   *time.Time `json:"ended_at,omitempty"`
+	RunID     string     `json:"run_id"`
+	ProjectID string     `json:"project_id"`
+}
+
+// GetRunWorkflowsV3 fetches workflows for a run from the V3 API.
+func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID string) ([]WorkflowV3, error) {
+	var resp v3List[workflowWire]
+	if err := c.getV3(ctx, "/workflows", &resp, filterParam("run_id", runID)); err != nil {
+		return nil, err
+	}
+	workflows := make([]WorkflowV3, len(resp.Data))
+	for i, w := range resp.Data {
+		workflows[i] = w.toWorkflowV3()
+	}
+	return workflows, nil
+}
+
+// --- V2 types and methods ---
+
 // WorkflowDetail holds the full details of a single workflow.
 type WorkflowDetail struct {
 	ID             string     `json:"id"`
