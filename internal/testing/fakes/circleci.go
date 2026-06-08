@@ -72,8 +72,8 @@ type CircleCI struct {
 	// Job (v3) state.
 	jobsV3         map[string]any    // job UUID → V3 response body
 	workflowJobsV3 map[string][]any  // workflow id → V3 job list items
-	jobStdout      map[string]string // "jobID/index/stepNum" → plain text stdout
-	jobStderr      map[string]string // "jobID/index/stepNum" → plain text stderr
+	jobStdout      map[string][]byte // "jobID/index/stepNum" → plain text stdout
+	jobStderr      map[string][]byte // "jobID/index/stepNum" → plain text stderr
 
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
@@ -195,8 +195,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]any{},
 		workflowJobsV3:                    map[string][]any{},
-		jobStdout:                         map[string]string{},
-		jobStderr:                         map[string]string{},
+		jobStdout:                         map[string][]byte{},
+		jobStderr:                         map[string][]byte{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
 		workflowsV3:                       map[string]any{},
@@ -470,7 +470,7 @@ func (f *CircleCI) AddJobV3(id string, job any) {
 
 // AddJobStdout registers plain-text stdout for a step, served at
 // GET /api/v3/jobs/<id>/stdout?filter[index]=<execution>&filter[step_num]=<stepNum>.
-func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content string) {
+func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobStdout[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
@@ -478,7 +478,7 @@ func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content strin
 
 // AddJobStderr registers plain-text stderr for a step, served at
 // GET /api/v3/jobs/<id>/stderr?filter[index]=<execution>&filter[step_num]=<stepNum>.
-func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content string) {
+func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobStderr[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
@@ -747,7 +747,7 @@ func (f *CircleCI) handleGetJobStdout(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.PlainText(w, r, content)
+	render.Data(w, r, content)
 }
 
 func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
@@ -760,7 +760,7 @@ func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.PlainText(w, r, content)
+	render.Data(w, r, content)
 }
 
 // jobStepKey builds the "jobID/index/stepNum" lookup key from the request,

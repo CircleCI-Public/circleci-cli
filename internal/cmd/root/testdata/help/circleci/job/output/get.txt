@@ -13,16 +13,23 @@ to read; it defaults to the first execution (index 0).
 Stdout and stderr are fetched in parallel and printed together,
 stdout first.
 
+When writing to a terminal the raw output is passed through unchanged.
+When redirected to a file or pipe it is rendered down to plain text:
+ANSI escapes are removed and progress redraws (carriage returns and
+cursor movement, e.g. Docker pulls) are collapsed to their final
+state. Use --strip-ansi to force this rendering even on a terminal.
+
 ## Usage
 
 `circleci job output get <job-id> [flags]`
 
 ## Flags
 
-| Flag              | Description                                  |
-| ----------------- | -------------------------------------------- |
-| `--execution int` | Parallel execution index to read output from |
-| `--step-num int`  | Step number whose output to fetch (required) |
+| Flag              | Description                                             |
+| ----------------- | ------------------------------------------------------- |
+| `--execution int` | Parallel execution index to read output from            |
+| `--step-num int`  | Step number whose output to fetch (required)            |
+| `--strip-ansi`    | Strip ANSI escape codes even when writing to a terminal |
 
 ## Inherited Flags
 

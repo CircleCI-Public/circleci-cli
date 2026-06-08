@@ -3,4 +3,5 @@ Usage:  circleci job output get <job-id> [flags]
 Flags:
   --execution int   Parallel execution index to read output from
   --step-num int    Step number whose output to fetch (required)
+  --strip-ansi      Strip ANSI escape codes even when writing to a terminal
   

@@ -1,0 +1,2 @@
+execution 1 stdout
+execution 1 stderr

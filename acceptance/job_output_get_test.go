@@ -23,10 +23,10 @@
 package acceptance_test
 
 import (
-	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -36,8 +36,8 @@ import (
 
 func TestJobOutputGet(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddJobStdout(testJobID, 0, 103, "hello from stdout\n")
-	fake.AddJobStderr(testJobID, 0, 103, "hello from stderr\n")
+	fake.AddJobStdout(testJobID, 0, 103, []byte("hello from stdout\n"))
+	fake.AddJobStderr(testJobID, 0, 103, []byte("hello from stderr\n"))
 
 	env := testenv.New(t)
 	env.Token = "testtoken"
@@ -50,14 +50,15 @@ func TestJobOutputGet(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stdout, "hello from stdout\nhello from stderr\n")
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestJobOutputGet_Execution(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddJobStdout(testJobID, 1, 103, "execution 1 stdout\n")
-	fake.AddJobStderr(testJobID, 1, 103, "execution 1 stderr\n")
+	fake.AddJobStdout(testJobID, 1, 103, []byte("execution 1 stdout\n"))
+	fake.AddJobStderr(testJobID, 1, 103, []byte("execution 1 stderr\n"))
 
 	env := testenv.New(t)
 	env.Token = "testtoken"
@@ -70,8 +71,30 @@ func TestJobOutputGet_Execution(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Equal(t, result.Stdout, "execution 1 stdout\nexecution 1 stderr\n")
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestJobOutputGet_StripsANSIWhenNotTerminal(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobStdout(testJobID, 0, 103, golden.Get(t, "tty/input.txt"))
+	fake.AddJobStderr(testJobID, 0, 103, []byte(""))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "get", testJobID, "--step-num", "103"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestJobOutputGet_MissingStepNum(t *testing.T) {
@@ -87,7 +110,8 @@ func TestJobOutputGet_MissingStepNum(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -104,8 +128,9 @@ func TestJobOutputGet_InvalidJobID(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Check(t, strings.Contains(result.Stderr, "not a valid job UUID"))
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestJobOutputGet_NotFound(t *testing.T) {
@@ -121,5 +146,7 @@ func TestJobOutputGet_NotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
