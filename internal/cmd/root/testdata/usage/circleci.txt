@@ -12,7 +12,6 @@ Available commands:
   dlc
   envvar
   job
-  logs
   mcp
   namespace
   onboard

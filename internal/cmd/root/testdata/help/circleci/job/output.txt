@@ -1,20 +1,19 @@
 # CircleCI CLI
 
-Work with CircleCI jobs.
+Fetch the raw stdout and stderr produced by a job's steps.
 
-Jobs are the individual units of work within a workflow.
+Steps are identified by their step number within a job; for parallel
+jobs, an execution index selects which executor's output to fetch.
 
 ## Usage
 
-`circleci job <command>`
+`circleci job output <command>`
 
 ## Available Commands
 
-| Command     | Description                          |
-| ----------- | ------------------------------------ |
-| `artifacts` | List or download artifacts for a job |
-| `get`       | Get job details                      |
-| `output`    | Work with job step output            |
+| Command | Description                  |
+| ------- | ---------------------------- |
+| `get`   | Get the output of a job step |
 
 ## Inherited Flags
 

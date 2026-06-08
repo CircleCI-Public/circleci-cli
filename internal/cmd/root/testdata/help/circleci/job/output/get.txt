@@ -1,0 +1,49 @@
+# CircleCI CLI
+
+Fetch the raw stdout and stderr of a single step within a job and
+print it to the terminal.
+
+The job is identified by its UUID, shown in the output of
+'circleci workflow get' and 'circleci job get'. The step number
+(--step-num) selects which step's output to fetch.
+
+For parallel jobs, use --execution to choose which executor's output
+to read; it defaults to the first execution (index 0).
+
+Stdout and stderr are fetched in parallel and printed together,
+stdout first.
+
+## Usage
+
+`circleci job output get <job-id> [flags]`
+
+## Flags
+
+| Flag              | Description                                  |
+| ----------------- | -------------------------------------------- |
+| `--execution int` | Parallel execution index to read output from |
+| `--step-num int`  | Step number whose output to fetch (required) |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Get the output of step 3 in a job: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3`
+- Get the output of step 3 from the second parallel execution: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --execution 1`
+- Pipe the output to a file: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 > step.log`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

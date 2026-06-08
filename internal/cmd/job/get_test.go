@@ -23,25 +23,52 @@
 package job
 
 import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
+	"testing"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
-// NewJobCmd returns the "circleci job" command group.
-func NewJobCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:   "job <command>",
-		Short: "Manage jobs",
-		Long: heredoc.Doc(`
-			Work with CircleCI jobs.
-
-			Jobs are the individual units of work within a workflow.
-		`),
+func Test_formatCommand(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "empty",
+			in:   "",
+			want: "-",
+		},
+		{
+			name: "single line",
+			in:   "task ci:test",
+			want: "`task ci:test`",
+		},
+		{
+			name: "shebang and command",
+			in:   "#!/bin/bash -eo pipefail\ntask ci:test",
+			want: "`#!/bin/bash -eo pipefail` `task ci:test`",
+		},
+		{
+			name: "truncates to first two lines with ellipsis",
+			in:   "#!/bin/bash -eo pipefail\ntask ci:test\ntask ci:lint\ntask ci:build",
+			want: "`#!/bin/bash -eo pipefail` `task ci:test` …",
+		},
+		{
+			name: "escapes pipes",
+			in:   "cat foo | grep bar",
+			want: "`cat foo \\| grep bar`",
+		},
+		{
+			name: "escapes pipes across both lines",
+			in:   "#!/bin/bash -eo pipefail\ncat foo | grep bar | wc -l",
+			want: "`#!/bin/bash -eo pipefail` `cat foo \\| grep bar \\| wc -l`",
+		},
 	}
-
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newArtifactsCmd())
-	cmd.AddCommand(newOutputCmd())
-
-	return cmd
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Check(t, cmp.Equal(formatCommand(tt.in), tt.want))
+		})
+	}
 }

@@ -1,3 +1,0 @@
-args [/var/folders/b0/2s9gwtd97nlc_3kl4y0zqhcw0000gn/T/circleci-cli-test-4251454032/circleci-testextension arg1 arg2]
-token test-token
-url https://circleci.com

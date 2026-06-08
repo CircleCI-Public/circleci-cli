@@ -1,5 +1,0 @@
-Fetching latest run for gh/testorg/testrepo on branch main...
-error: all workflows in this run passed
-
-Suggestions:
-  • Run 'circleci run get' to inspect the run's workflows and jobs
