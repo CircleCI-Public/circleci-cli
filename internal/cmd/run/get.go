@@ -35,6 +35,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
 const (
@@ -300,10 +301,12 @@ func printRun(ctx context.Context, r runGetOutput) {
 			if w.Duration != "" {
 				_, _ = fmt.Fprintf(&md, "- Duration: %s\n", w.Duration)
 			}
-			_, _ = fmt.Fprintf(&md, "- Jobs:\n")
+			md.WriteString("#### Jobs\n")
+			mdTable := mdtable.New("Name", "Status", "Type", "ID")
 			for _, j := range w.Jobs {
-				_, _ = fmt.Fprintf(&md, "  - %-36s  %-10s  %-10s  %s\n", j.Name, j.Status, j.Type, j.ID)
+				mdTable.Row(j.Name, j.Status, j.Type, "`"+j.ID+"`")
 			}
+			md.WriteString(mdTable.Render())
 		}
 		md.WriteString("\n")
 	}

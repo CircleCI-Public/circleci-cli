@@ -9,7 +9,9 @@
 ### build
 - Status: success
 - Duration: 2m34s
-- Jobs:
-  - run-tests                             success     build       job-uuid-1
-  - deploy                                success     build       job-uuid-2
+#### Jobs
+| Name      | Status  | Type  | ID           |
+| --------- | ------- | ----- | ------------ |
+| run-tests | success | build | `job-uuid-1` |
+| deploy    | success | build | `job-uuid-2` |
 
