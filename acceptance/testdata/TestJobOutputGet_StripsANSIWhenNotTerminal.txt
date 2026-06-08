@@ -1,0 +1,40 @@
+Using the v2 container runtime. For more details see: https://discuss.circleci.com/t/docker-executor-infrastructure-upgrade/52282
+docker-agent version: 1.0.72407-489f0dd
+task-agent version 1.0.332358-de955c7f
+Downloading task-agent: success after 401.200532ms.
+System information:
+ Server Version: 5.8.2
+ Storage Driver: overlay
+  Backing Filesystem: xfs
+ Cgroup Driver: systemd
+ Cgroup Version: 2
+ Kernel Version: 6.17.0-1013-aws
+ Operating System: ubuntu
+ OSType: linux
+ Architecture: amd64
+
+Starting container public.ecr.aws/eks-distro/kubernetes/pause:3.6
+  image is cached as public.ecr.aws/eks-distro/kubernetes/pause:3.6, but refreshing...
+8389103237f2: Already exists
+23d07b917726: Already exists
+3c69a9ca2c95: Download complete
+Starting container cimg/node:22.20.0
+Warning: No authentication provided, using CircleCI credentials for pulls from Docker Hub.
+  image cache not found on this host, downloading docker.io/cimg/node:22.20.0
+d9d352c11bbd: Download complete
+c6074187f7fa: Download complete
+227a8985c2d7: Download complete
+e302e870182a: Download complete
+c2f320fea989: Download complete
+9ada2a4e3d22: Download complete
+3a91f1d6a4b5: Download complete
+4f4fb700ef54: Already exists
+5cfd7e0ecaad: Download complete
+41aae4486641: Download complete
+5fc4d0dc4562: Download complete
+6b36479273cd: Download complete
+cimg/node:22.20.0:
+  pull stats: download 285.6MiB in 13.009s (21.96MiB/s)
+  time to create container: 9ms
+Time to upload agent: 714.027291ms
+Time to start containers: 212.429885ms

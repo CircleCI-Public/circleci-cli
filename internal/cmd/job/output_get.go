@@ -23,10 +23,14 @@
 package job
 
 import (
+	"bufio"
 	"context"
 	"fmt"
+	"io"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/charmbracelet/x/vt"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -41,6 +45,7 @@ func newOutputGetCmd() *cobra.Command {
 	var (
 		execution int
 		stepNum   int
+		stripANSI bool
 	)
 
 	cmd := &cobra.Command{
@@ -59,6 +64,12 @@ func newOutputGetCmd() *cobra.Command {
 
 			Stdout and stderr are fetched in parallel and printed together,
 			stdout first.
+
+			When writing to a terminal the raw output is passed through unchanged.
+			When redirected to a file or pipe it is rendered down to plain text:
+			ANSI escapes are removed and progress redraws (carriage returns and
+			cursor movement, e.g. Docker pulls) are collapsed to their final
+			state. Use --strip-ansi to force this rendering even on a terminal.
 		`),
 		Example: heredoc.Doc(`
 			# Get the output of step 3 in a job
@@ -89,17 +100,18 @@ func newOutputGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runOutputGet(ctx, client, jobID, execution, stepNum)
+			return runOutputGet(ctx, client, jobID, execution, stepNum, stripANSI)
 		},
 	}
 
 	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from")
 	cmd.Flags().IntVar(&stepNum, "step-num", 0, "Step number whose output to fetch (required)")
+	cmd.Flags().BoolVar(&stripANSI, "strip-ansi", false, "Strip ANSI escape codes even when writing to a terminal")
 
 	return cmd
 }
 
-func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int) error {
+func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int, stripANSI bool) error {
 	var stdout, stderr []byte
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -117,8 +129,84 @@ func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID
 			"No output found for %s.")
 	}
 
+	// Render ANSI/control sequences down to plain text when the output is not
+	// going to a terminal (e.g. piped to a file), or when the user explicitly
+	// asked for it. On a real terminal we write the raw bytes and let the user's
+	// terminal interpret them.
+	strip := stripANSI || !iostream.IsTerminal(ctx)
+
 	out := iostream.Out(ctx)
-	_, _ = out.Write(stdout)
-	_, _ = out.Write(stderr)
+	writeOutput(out, stdout, strip)
+	writeOutput(out, stderr, strip)
 	return nil
+}
+
+func writeOutput(out io.Writer, b []byte, strip bool) {
+	if !strip {
+		// Write the raw bytes directly to avoid a string copy.
+		_, _ = out.Write(b)
+		return
+	}
+	renderTerminal(out, b)
+}
+
+// Dimensions of the virtual terminal used to render captured output. The width
+// is wide enough to avoid wrapping typical log and progress-bar lines; the
+// scrollback is large enough to retain the full output of a single step.
+const (
+	renderWidth      = 200
+	renderHeight     = 100
+	renderScrollback = 100_000
+)
+
+// renderTerminal replays captured step output through a virtual terminal and
+// writes the resulting plain text to dst. A naive ANSI strip is not enough:
+// tools like Docker redraw progress with carriage returns and cursor movement,
+// so stripping the escapes alone leaves a pile of stale, half-drawn lines.
+// Emulating a terminal collapses those redraws to the final state a human would
+// have seen.
+func renderTerminal(dst io.Writer, b []byte) {
+	if len(b) == 0 {
+		return
+	}
+
+	e := vt.NewEmulator(renderWidth, renderHeight)
+	e.SetScrollbackSize(renderScrollback)
+	// Enable line-feed/new-line mode so a bare "\n" also returns to column 0,
+	// matching the cooked-mode terminal these tools assume they're writing to.
+	_, _ = e.WriteString("\x1b[20h")
+	_, _ = e.Write(b)
+
+	// Write straight through a small buffer rather than materialising the whole
+	// rendered output as one string; the screen can be tens of thousands of
+	// lines once scrollback is included.
+	w := bufio.NewWriter(dst)
+
+	// Buffer blank lines and only emit them once real content follows. This
+	// drops the trailing blank rows of the fixed-height screen (and any trailing
+	// blank scrollback lines) while preserving blank lines between content.
+	pendingBlanks := 0
+	emit := func(line string) {
+		if line == "" {
+			pendingBlanks++
+			return
+		}
+		for ; pendingBlanks > 0; pendingBlanks-- {
+			_ = w.WriteByte('\n')
+		}
+		_, _ = w.WriteString(line)
+		_ = w.WriteByte('\n')
+	}
+
+	sb := e.Scrollback()
+	for i := 0; i < sb.Len(); i++ {
+		emit(strings.TrimRight(sb.Line(i).String(), " "))
+	}
+	// strings.Lines is an allocation-free iterator (each line is a reslice of the
+	// screen string); strings.Split would allocate a slice plus a header per line.
+	for line := range strings.Lines(e.String()) {
+		emit(strings.TrimRight(line, " \n"))
+	}
+
+	_ = w.Flush()
 }
