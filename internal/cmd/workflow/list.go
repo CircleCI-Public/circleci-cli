@@ -129,7 +129,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 		return err
 	}
 
-	workflows, err := client.GetPipelineWorkflows(ctx, runID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
 		return apiErr(err, runID)
 	}
@@ -156,7 +156,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 	}
 
 	table := mdtable.New("ID", "Name", "Status")
-	for _, wf := range workflows {
+	for _, wf := range out {
 		table.Row(wf.ID, wf.Name, wf.Status)
 	}
 	iostream.PrintMarkdown(ctx, "# Workflows\n"+table.Render())

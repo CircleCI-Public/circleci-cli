@@ -234,19 +234,11 @@ func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 
 // --- workflow list ---
 
-// minimalPipeline returns a minimal pipeline payload sufficient for the fake
-// server's pipeline-existence check in handleGetPipelineWorkflows.
-func minimalPipeline(id string) map[string]any {
-	return map[string]any{"id": id, "number": 1, "state": "created",
-		"project_slug": testSlug, "created_at": "2026-01-01T00:00:00Z"}
-}
-
 func TestWorkflowList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddRunWorkflows(testPipelineForWF,
-		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
-		map[string]any{"id": "wf-uuid-bbb", "name": "deploy", "status": "failed"},
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+		fakeWorkflowV3("wf-uuid-bbb", "deploy", testPipelineForWF, "proj-1", "ended", "failed"),
 	)
 
 	env := testenv.New(t)
@@ -266,10 +258,9 @@ func TestWorkflowList(t *testing.T) {
 
 func TestWorkflowList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddRunWorkflows(testPipelineForWF,
-		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
-		map[string]any{"id": "wf-uuid-bbb", "name": "deploy", "status": "failed"},
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+		fakeWorkflowV3("wf-uuid-bbb", "deploy", testPipelineForWF, "proj-1", "ended", "failed"),
 	)
 
 	env := testenv.New(t)
@@ -290,9 +281,8 @@ func TestWorkflowList_Color(t *testing.T) {
 
 func TestWorkflowList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddRunWorkflows(testPipelineForWF,
-		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -320,9 +310,8 @@ func TestWorkflowList_JSON(t *testing.T) {
 
 func TestWorkflowList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddRunWorkflows(testPipelineForWF,
-		map[string]any{"id": "wf-uuid-aaa", "name": "build", "status": "success"},
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -343,8 +332,6 @@ func TestWorkflowList_JSON_Color(t *testing.T) {
 
 func TestWorkflowList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineForWF, minimalPipeline(testPipelineForWF))
-	fake.AddRunWorkflows(testPipelineForWF) // no workflows
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -374,7 +361,9 @@ func TestWorkflowList_NotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
+	// V3 returns empty list for unknown runs instead of 404.
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "No workflows found"))
 }
 
 func TestWorkflowList_NoToken(t *testing.T) {

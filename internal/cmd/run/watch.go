@@ -368,7 +368,7 @@ func fetchWatchState(ctx context.Context, client *apiclient.Client, runID string
 	if err != nil {
 		return runGetOutput{}, err
 	}
-	workflows, err := client.GetPipelineWorkflows(ctx, runID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
 		return runGetOutput{}, err
 	}
