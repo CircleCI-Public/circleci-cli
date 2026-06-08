@@ -1,14 +1,10 @@
 [1;37m[[m
   [1;37m{[m
-    [1;34m"job_name"[m[1;37m:[m [32m"build"[m[1;37m,[m
-    [1;34m"job_number"[m[1;37m:[m 42[1;37m,[m
     [1;34m"path"[m[1;37m:[m [32m"coverage/index.html"[m[1;37m,[m
     [1;34m"url"[m[1;37m:[m [32m"http://127.0.0.1:8000/artifacts/coverage/index.html"[m[1;37m,[m
     [1;34m"node_index"[m[1;37m:[m 0
   [1;37m}[m[1;37m,[m
   [1;37m{[m
-    [1;34m"job_name"[m[1;37m:[m [32m"build"[m[1;37m,[m
-    [1;34m"job_number"[m[1;37m:[m 42[1;37m,[m
     [1;34m"path"[m[1;37m:[m [32m"test-results.xml"[m[1;37m,[m
     [1;34m"url"[m[1;37m:[m [32m"http://127.0.0.1:8000/artifacts/test-results.xml"[m[1;37m,[m
     [1;34m"node_index"[m[1;37m:[m 0

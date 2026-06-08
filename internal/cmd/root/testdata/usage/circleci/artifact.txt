@@ -1,0 +1,7 @@
+Usage:  circleci artifact <job-id> [flags]
+
+Flags:
+  -d, --download string   Download artifacts into this directory
+      --jq string         Process values from the response using jq syntax
+      --json              Output as JSON
+  

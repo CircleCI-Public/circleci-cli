@@ -133,15 +133,15 @@ func TestRunnerTokenDelete_MissingArg(t *testing.T) {
 
 // --- job ---
 
-func TestJobArtifacts_MissingArg(t *testing.T) {
+func TestJobArtifact_MissingArg(t *testing.T) {
 	env := missingArgEnv(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"job", "artifacts"},
+		Args:    []string{"job", "artifact"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
-	assertMissingArg(t, result, "job-number")
+	assertMissingArg(t, result, "job-id")
 }
 
 // --- settings set ---

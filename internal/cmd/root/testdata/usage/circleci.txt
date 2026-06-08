@@ -2,7 +2,7 @@ Usage:  circleci [flags]
 
 Available commands:
   api
-  artifacts
+  artifact
   auth
   certificate
   completion

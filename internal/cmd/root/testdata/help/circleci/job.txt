@@ -10,11 +10,11 @@ Jobs are the individual units of work within a workflow.
 
 ## Available Commands
 
-| Command     | Description                          |
-| ----------- | ------------------------------------ |
-| `artifacts` | List or download artifacts for a job |
-| `get`       | Get job details                      |
-| `output`    | Work with job step output            |
+| Command    | Description                          |
+| ---------- | ------------------------------------ |
+| `artifact` | List or download artifacts for a job |
+| `get`      | Get job details                      |
+| `output`   | Work with job step output            |
 
 ## Inherited Flags
 
