@@ -85,7 +85,7 @@ func ForJob(ctx context.Context, client *apiclient.Client, projectSlug string, j
 // callers can surface a clean error rather than "no failed jobs found" after
 // a full traversal.
 func LastFailed(ctx context.Context, client *apiclient.Client, runID string) (jobNumber int64, projectSlug string, err error) {
-	workflows, err := client.GetPipelineWorkflows(ctx, runID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
 		return 0, "", fmt.Errorf("fetching workflows: %w", err)
 	}
@@ -119,7 +119,7 @@ func LastFailed(ctx context.Context, client *apiclient.Client, runID string) (jo
 
 // LastJob finds the most recently completed job across all workflows in a run.
 func LastJob(ctx context.Context, client *apiclient.Client, runID string) (jobNumber int64, projectSlug string, err error) {
-	workflows, err := client.GetPipelineWorkflows(ctx, runID)
+	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
 		return 0, "", fmt.Errorf("fetching workflows: %w", err)
 	}

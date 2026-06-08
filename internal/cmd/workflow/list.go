@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -66,7 +67,7 @@ func newListCmd() *cobra.Command {
 			current git repository unless overridden with --project.
 
 			JSON fields (single run):  id, name, status
-			JSON fields (recent runs): run_id, run_number, id, name, status
+			JSON fields (recent runs): run_id, id, name, status
 		`),
 		Example: heredoc.Doc(`
 			# List workflows for recent runs in the current project
@@ -116,11 +117,10 @@ type workflowListOutput struct {
 }
 
 type workflowRecentOutput struct {
-	RunID     string `json:"run_id"`
-	RunNumber int64  `json:"run_number"`
-	ID        string `json:"id"`
-	Name      string `json:"name"`
-	Status    string `json:"status"`
+	RunID  string `json:"run_id"`
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug string, jsonOut bool) error {
@@ -172,25 +172,36 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		projectSlug = info.Slug
 	}
 
-	pipelines, err := client.ListPipelines(ctx, projectSlug, branch, limit)
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	if err != nil {
+		return apiErr(err, projectSlug)
+	}
+
+	now := time.Now().UTC()
+	runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+		ProjectIDs: []string{proj.ID},
+		From:       now.AddDate(0, 0, -90),
+		To:         now,
+		Filter:     apiclient.BuildRunFilter(branch, ""),
+		Limit:      limit,
+	})
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
 
 	if jsonOut {
 		var out []workflowRecentOutput
-		for _, p := range pipelines {
-			workflows, wErr := client.GetPipelineWorkflows(ctx, p.ID)
+		for _, r := range runs {
+			workflows, wErr := client.GetRunWorkflowsV3(ctx, r.ID)
 			if wErr != nil {
-				return apiErr(wErr, p.ID)
+				return apiErr(wErr, r.ID)
 			}
 			for _, wf := range workflows {
 				out = append(out, workflowRecentOutput{
-					RunID:     p.ID,
-					RunNumber: p.Number,
-					ID:        wf.ID,
-					Name:      wf.Name,
-					Status:    wf.Status,
+					RunID:  r.ID,
+					ID:     wf.ID,
+					Name:   wf.Name,
+					Status: wf.Status,
 				})
 			}
 		}
@@ -200,7 +211,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		return iostream.PrintJSON(ctx, out)
 	}
 
-	if len(pipelines) == 0 {
+	if len(runs) == 0 {
 		iostream.Printf(ctx, "No runs found for project %s.\n", projectSlug)
 		return nil
 	}
@@ -208,23 +219,18 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 	var md strings.Builder
 	md.WriteString("# Recent runs\n")
 
-	for _, p := range pipelines {
-		branchName := ""
-		revision := ""
-		if p.VCS != nil {
-			branchName = p.VCS.Branch
-			revision = p.VCS.Revision
-			if len(revision) > 7 {
-				revision = revision[:7]
-			}
+	for _, r := range runs {
+		revision := r.Revision
+		if len(revision) > 7 {
+			revision = revision[:7]
 		}
-		_, _ = fmt.Fprintf(&md, "## Run #%d\n", p.Number)
-		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", branchName)
+		_, _ = fmt.Fprintf(&md, "## Run %s\n", r.ID)
+		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", r.Branch)
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", revision)
 
-		workflows, wErr := client.GetPipelineWorkflows(ctx, p.ID)
+		workflows, wErr := client.GetRunWorkflowsV3(ctx, r.ID)
 		if wErr != nil {
-			return apiErr(wErr, p.ID)
+			return apiErr(wErr, r.ID)
 		}
 
 		if len(workflows) == 0 {

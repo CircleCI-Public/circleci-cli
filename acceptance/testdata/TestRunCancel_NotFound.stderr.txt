@@ -1,6 +1,4 @@
-error: No run found for "00000000-0000-0000-0000-000000000000".
-API: {"message":"not found"}
-
+error: Run 00000000-0000-0000-0000-000000000000 has no active workflows to cancel.
 
 Suggestions:
-  • Check the run UUID or branch name and try again
+  • The run may have already completed or been cancelled.

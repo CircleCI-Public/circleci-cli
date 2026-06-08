@@ -4,8 +4,7 @@ Display the status and jobs of a CircleCI workflow.
 
 Workflow IDs are shown in the output of 'circleci run get'.
 
-JSON fields: id, name, status, run_id, run_number,
-             project_name, created_at, stopped_at,
+JSON fields: id, name, status, run_id, created_at, ended_at,
              jobs[].id/name/status/type
 
 ## Usage

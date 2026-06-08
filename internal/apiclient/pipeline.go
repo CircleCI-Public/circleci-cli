@@ -136,41 +136,6 @@ func (c *Client) GetLatestPipeline(ctx context.Context, projectSlug, branch stri
 	return &resp.Items[0], nil
 }
 
-// ListPipelines returns up to limit pipelines for a project, optionally filtered
-// by branch. It paginates the API automatically until the limit is reached or all
-// results are exhausted. Pass limit <= 0 for no limit (fetches all pages).
-func (c *Client) ListPipelines(ctx context.Context, projectSlug, branch string, limit int) ([]Pipeline, error) {
-	var all []Pipeline
-	pageToken := ""
-
-	for {
-		var resp struct {
-			Items         []Pipeline `json:"items"`
-			NextPageToken string     `json:"next_page_token"`
-		}
-
-		err := c.get(ctx, "/project/%s/pipeline", &resp,
-			routeParams(projectSlug),
-			optionalQueryParam("branch", branch),
-			optionalQueryParam("page-token", pageToken),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		all = append(all, resp.Items...)
-
-		if limit > 0 && len(all) >= limit {
-			return all[:limit], nil
-		}
-
-		if resp.NextPageToken == "" {
-			return all, nil
-		}
-		pageToken = resp.NextPageToken
-	}
-}
-
 // TriggerResponse is the response body from triggering a pipeline.
 type TriggerResponse struct {
 	ID        string    `json:"id"`
@@ -198,27 +163,4 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 		return nil, err
 	}
 	return &resp, nil
-}
-
-// PipelineWorkflowSummary holds brief workflow status for a pipeline.
-type PipelineWorkflowSummary struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Status    string     `json:"status"`
-	CreatedAt time.Time  `json:"created_at"`
-	StoppedAt *time.Time `json:"stopped_at"`
-}
-
-// GetPipelineWorkflows returns the workflows for a pipeline.
-func (c *Client) GetPipelineWorkflows(ctx context.Context, pipelineID string) ([]PipelineWorkflowSummary, error) {
-	var resp struct {
-		Items []PipelineWorkflowSummary `json:"items"`
-	}
-	err := c.get(ctx, "/pipeline/%s/workflow", &resp,
-		routeParams(pipelineID),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
 }

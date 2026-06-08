@@ -99,8 +99,8 @@ func setupLogsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		fakeRun(testLogsPipelineID, 8, "created", testSlug, "main"))
 	fake.AddProjectRuns(testSlug,
 		fakeRun(testLogsPipelineID, 8, "created", testSlug, "main"))
-	fake.AddRunWorkflows(testLogsPipelineID,
-		map[string]any{"id": testLogsWorkflowID, "name": "build", "status": "failed"})
+	fake.AddRunWorkflowsV3(testLogsPipelineID,
+		fakeWorkflowV3(testLogsWorkflowID, "build", testLogsPipelineID, "proj-logs", "ended", "failed"))
 	fake.AddWorkflowJobs(testLogsWorkflowID, map[string]any{
 		"id":           "job-uuid-99",
 		"name":         "build-and-test",
@@ -242,8 +242,8 @@ func TestLogs_LastFailed_AllPassed(t *testing.T) {
 		fakeRun(passedPipelineID, 9, "created", testSlug, "main"))
 	fake.AddProjectRuns(testSlug,
 		fakeRun(passedPipelineID, 9, "created", testSlug, "main"))
-	fake.AddRunWorkflows(passedPipelineID,
-		map[string]any{"id": passedWorkflowID, "name": "build", "status": "success"})
+	fake.AddRunWorkflowsV3(passedPipelineID,
+		fakeWorkflowV3(passedWorkflowID, "build", passedPipelineID, "proj-logs", "ended", "succeeded"))
 
 	env := testenv.New(t)
 	env.Token = testToken

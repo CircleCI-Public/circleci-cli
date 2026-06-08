@@ -82,6 +82,16 @@ type WorkflowV3 struct {
 	ProjectID string     `json:"project_id"`
 }
 
+// GetWorkflowV3 fetches a single workflow by UUID from the V3 API.
+func (c *Client) GetWorkflowV3(ctx context.Context, id string) (*WorkflowV3, error) {
+	var env v3Entity[workflowWire]
+	if err := c.getV3(ctx, "/workflows/%s", &env, routeParams(id)); err != nil {
+		return nil, err
+	}
+	wf := env.Data.toWorkflowV3()
+	return &wf, nil
+}
+
 // GetRunWorkflowsV3 fetches workflows for a run from the V3 API.
 func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID string) ([]WorkflowV3, error) {
 	var resp v3List[workflowWire]
@@ -93,33 +103,6 @@ func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID string) ([]Workflo
 		workflows[i] = w.toWorkflowV3()
 	}
 	return workflows, nil
-}
-
-// --- V2 types and methods ---
-
-// WorkflowDetail holds the full details of a single workflow.
-type WorkflowDetail struct {
-	ID             string     `json:"id"`
-	Name           string     `json:"name"`
-	Status         string     `json:"status"`
-	PipelineID     string     `json:"pipeline_id"`
-	PipelineNumber int64      `json:"pipeline_number"`
-	ProjectSlug    string     `json:"project_slug"`
-	StartedBy      string     `json:"started_by"`
-	CreatedAt      time.Time  `json:"created_at"`
-	StoppedAt      *time.Time `json:"stopped_at"`
-}
-
-// GetWorkflow fetches a single workflow by its UUID.
-func (c *Client) GetWorkflow(ctx context.Context, id string) (*WorkflowDetail, error) {
-	var wf WorkflowDetail
-	err := c.get(ctx, "/workflow/%s", &wf,
-		routeParams(id),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return &wf, nil
 }
 
 // RerunWorkflow triggers a rerun of the given workflow. When fromFailed is
