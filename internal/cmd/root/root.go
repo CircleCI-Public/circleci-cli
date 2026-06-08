@@ -132,8 +132,8 @@ func NewRootCmd(version string) *cobra.Command {
 		}
 	}
 
-	initConfig := func(cmd *cobra.Command, maxWidth *int) error {
-		ctx := iostream.FromCmd(cmd.Context(), cmd, maxWidth)
+	initConfig := func(cmd *cobra.Command) error {
+		ctx := iostream.FromCmd(cmd.Context(), cmd)
 		ctx = cmdutil.WithVersion(ctx, version)
 
 		secureStorage := cmdutil.IsSecureStorage(cmd)
@@ -185,7 +185,7 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		return initConfig(cmd, nil)
+		return initConfig(cmd)
 	}
 	cmd.PersistentPostRunE = func(_ *cobra.Command, _ []string) error {
 		_ = telem.Close()
@@ -195,7 +195,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		if telem.Client == nil {
 			// --help flag path: pre/post run hooks don't fire, so own the full lifecycle here.
-			if err := initConfig(cmd, new(0)); err == nil {
+			if err := initConfig(cmd); err == nil {
 				cmdutil.RecordTelemetryNow(cmd, telem.Client)
 				_ = telem.Close()
 			}
@@ -210,7 +210,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
 		if telem.Client == nil {
 			// --help flag path: pre/post run hooks don't fire, so own the full lifecycle here.
-			if err := initConfig(cmd, new(0)); err == nil {
+			if err := initConfig(cmd); err == nil {
 				cmdutil.RecordTelemetryNow(cmd, telem.Client)
 				_ = telem.Close()
 			}
