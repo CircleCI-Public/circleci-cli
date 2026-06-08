@@ -30,7 +30,7 @@ require (
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.20.0
-	golang.org/x/sys v0.44.0
+	golang.org/x/sys v0.45.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.2
 )
@@ -84,3 +84,7 @@ require (
 	golang.org/x/net v0.53.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 )
+
+replace charm.land/lipgloss/v2 => github.com/pete-woods/lipgloss/v2 v2.0.0-20260608100114-97f639bdc7cf
+
+replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260608100929-a377c27c0c6c

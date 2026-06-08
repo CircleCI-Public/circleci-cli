@@ -247,7 +247,7 @@ func Testing(ctx context.Context) context.Context {
 	stdin := os.Stdin
 	stdout := os.Stdout
 	stderr := os.Stderr
-	width, style := terminalProperties(styles.DarkStyle, stdin, stdout, nil)
+	width, style := terminalProperties(styles.DarkStyle, stdin, stdout)
 
 	return WithStreams(ctx, Streams{
 		Out:   stdout,
@@ -264,7 +264,7 @@ func Testing(ctx context.Context) context.Context {
 
 // FromCmd extracts Streams from a cobra.Command's Out/Err/In and reads the
 // --quiet persistent flag if registered on the root command.
-func FromCmd(ctx context.Context, cmd *cobra.Command, maxWidth *int) context.Context {
+func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 	lvl := log.InfoLevel
 	verbose, _ := cmd.Flags().GetBool("debug")
 	if verbose {
@@ -276,7 +276,7 @@ func FromCmd(ctx context.Context, cmd *cobra.Command, maxWidth *int) context.Con
 	stdin := cmd.InOrStdin()
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
-	width, style := terminalProperties(theme, stdin, stdout, maxWidth)
+	width, style := terminalProperties(theme, stdin, stdout)
 
 	return WithStreams(ctx, Streams{
 		Out:   stdout,
@@ -291,7 +291,7 @@ func FromCmd(ctx context.Context, cmd *cobra.Command, maxWidth *int) context.Con
 	})
 }
 
-func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int) (width int, style string) {
+func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, style string) {
 	switch theme {
 	case "auto":
 		// This lipgloss function doesn't seem to work on Windows
@@ -330,9 +330,6 @@ func terminalProperties(theme string, in io.Reader, out io.Writer, maxWidth *int
 		}
 	}
 	if width > 140 {
-		if maxWidth != nil {
-			return *maxWidth, style
-		}
 		width = 140
 	}
 
@@ -580,6 +577,7 @@ func (s Streams) RenderMarkdown(md string) (_ string, err error) {
 	}
 	r, err := glamour.NewTermRenderer(
 		glamour.WithWordWrap(s.width),
+		glamour.WithTableFitContent(),
 		glamour.WithStyles(s.styleConfig()),
 		glamour.WithInlineTableLinks(true),
 	)
