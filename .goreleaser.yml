@@ -145,6 +145,23 @@ snapcrafts:
           - network
         command: circleci
 
+brews:
+  - name: circleci@2
+    repository:
+      owner: CircleCI-Public
+      name: homebrew-circleci
+      branch: main
+      token: '{{ envOrDefault "GITHUB_TOKEN" "" }}'
+    homepage: "https://circleci.com"
+    description: "CircleCI command line tool."
+    license: "MIT"
+    custom_block: |
+      keg_only :versioned_formula
+    install: |
+      bin.install "circleci"
+    test: |
+      system "#{bin}/circleci", "--help"
+
 archives:
   - wrap_in_directory: true
     format_overrides:
