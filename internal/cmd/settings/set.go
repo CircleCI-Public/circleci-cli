@@ -138,12 +138,33 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 	return nil
 }
 
-// promptTheme presents an interactive theme picker with the cursor defaulting
-// to the "auto" theme. Returns "" if the user cancels.
+// promptTheme presents an interactive theme picker. The default theme is
+// marked in the list, and the cursor starts on the currently-configured theme
+// (falling back to the default when none is set). Returns "" if the user
+// cancels.
 func promptTheme(ctx context.Context) (string, error) {
 	themes := iostream.ValidThemes()
-	defaultIdx := slices.Index(themes, config.DefaultTheme)
-	idx, err := iostream.PromptSelectDefault(ctx, "Select a theme", themes, defaultIdx)
+
+	// Display labels mark the default theme, but the underlying values stay
+	// intact so the chosen index maps back to a real theme name.
+	labels := make([]string, len(themes))
+	for i, t := range themes {
+		if t == config.DefaultTheme {
+			labels[i] = t + " (default)"
+		} else {
+			labels[i] = t
+		}
+	}
+
+	// Start the cursor on the current theme; EffectiveTheme returns the default
+	// when none is configured, so the cursor lands on the default in that case.
+	current := cmdutil.GetConfig(ctx).EffectiveTheme()
+	cursorIdx := slices.Index(themes, current)
+	if cursorIdx < 0 {
+		cursorIdx = slices.Index(themes, config.DefaultTheme)
+	}
+
+	idx, err := iostream.PromptSelectDefault(ctx, "Select a theme", labels, cursorIdx)
 	if err != nil {
 		return "", err
 	}
