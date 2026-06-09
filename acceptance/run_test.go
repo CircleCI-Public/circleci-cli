@@ -697,6 +697,31 @@ func TestRunTrigger_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// --- arg whitespace trimming (tested via run get; trimming lives in PersistentPreRunE) ---
+
+func TestArgWhitespaceTrimmed(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+	wfID := testWfID
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	for _, arg := range []string{runID + " ", " " + runID, " " + runID + " ", runID + "\t"} {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"run", "get", arg},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Equal(t, result.ExitCode, 0, "arg %q: whitespace should be trimmed; stderr: %s", arg, result.Stderr)
+	}
+}
+
 // --- run cancel (still V2 for pipeline lookup) ---
 
 func TestRunCancel(t *testing.T) {
