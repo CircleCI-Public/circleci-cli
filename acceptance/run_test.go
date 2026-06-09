@@ -771,6 +771,28 @@ func TestRunCancel(t *testing.T) {
 	})
 }
 
+func TestRunCancel_Started(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+	wfID := "wf-cancel-started"
+	fake.AddRun(runID, fakeRun(runID, 42, "running", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "started", ""))
+	fake.SetCancelResponse(wfID, 202)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "cancel", "--force", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+}
+
 func TestRunCancel_RequiresForce(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
