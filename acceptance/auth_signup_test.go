@@ -70,18 +70,20 @@ func TestAuthSignup_NonInteractive_PrintsSignupURL(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	var authURL string
 	assert.Assert(t, t.Run("read signup authorize url", func(t *testing.T) {
 		out, err := console.ExpectString("Waiting for browser authentication")
 		assert.NilError(t, err)
 
-		authURL = terminalURLRe.FindString(out)
+		authURL := terminalURLRe.FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
-		assert.Check(t, cmp.Contains(authURL, "signup=true"))
+		// With PAR the browser URL only carries client_id + request_uri; the
+		// signup flag rides in the pushed request body.
+		assert.Check(t, cmp.Contains(authURL, "request_uri="))
+		assert.Check(t, cmp.Equal(fake.LastPARRequest().Get("signup"), "true"))
 	}))
 
 	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
-		callbackAuthorizeURL(t, authURL)
+		callbackViaPAR(t, fake)
 	}))
 
 	assert.Assert(t, t.Run("logged in", func(t *testing.T) {
@@ -115,8 +117,6 @@ func TestAuthSignup_AlreadyAuthenticated(t *testing.T) {
 // server. The CLI presents the same TUI as login (host selection, method
 // selection, browser OAuth) but with signup=true on the authorize URL.
 func TestAuthSignup_HappyPath(t *testing.T) {
-	ctx := t.Context()
-
 	fake := fakes.NewCircleCI(t)
 	fake.SetMe(map[string]any{
 		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
@@ -170,33 +170,20 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 		assert.NilError(t, err)
 	}))
 
-	var authURL string
 	assert.Assert(t, t.Run("read authorize url and open browser", func(t *testing.T) {
 		out, err := console.ExpectString("Press Enter to open in your browser")
 		assert.NilError(t, err)
 
-		authURL = terminalURLRe.FindString(out)
+		authURL := terminalURLRe.FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
-		assert.Check(t, cmp.Contains(authURL, "signup=true"))
+		// With PAR the browser URL only carries client_id + request_uri; the
+		// signup flag rides in the pushed request body.
+		assert.Check(t, cmp.Contains(authURL, "request_uri="))
+		assert.Check(t, cmp.Equal(fake.LastPARRequest().Get("signup"), "true"))
 	}))
 
 	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
-		parsed, err := url.Parse(authURL)
-		assert.NilError(t, err)
-		q := parsed.Query()
-		state := q.Get("state")
-		redirectURI := q.Get("redirect_uri")
-		assert.Assert(t, state != "", "state param missing from authorize URL")
-		assert.Assert(t, redirectURI != "", "redirect_uri param missing from authorize URL")
-
-		callbackURL := redirectURI + "?code=fake-auth-code&state=" + url.QueryEscape(state)
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, callbackURL, nil)
-		assert.NilError(t, err)
-
-		resp, err := http.DefaultClient.Do(req)
-		assert.NilError(t, err)
-		_ = resp.Body.Close()
-		assert.Equal(t, resp.StatusCode, http.StatusOK)
+		callbackViaPAR(t, fake)
 	}))
 
 	assert.Assert(t, t.Run("logged in", func(t *testing.T) {
@@ -214,16 +201,18 @@ func TestAuthSignup_HappyPath(t *testing.T) {
 	}))
 }
 
-func callbackAuthorizeURL(t *testing.T, authURL string) {
+// callbackViaPAR simulates the browser redirect by recovering the loopback
+// redirect_uri and state from the pushed authorization request the CLI sent to
+// /oauth/par — these no longer travel in the browser-facing authorize URL.
+func callbackViaPAR(t *testing.T, fake *fakes.CircleCI) {
 	t.Helper()
 
-	parsed, err := url.Parse(authURL)
-	assert.NilError(t, err)
-	q := parsed.Query()
-	state := q.Get("state")
-	redirectURI := q.Get("redirect_uri")
-	assert.Assert(t, state != "", "state param missing from authorize URL")
-	assert.Assert(t, redirectURI != "", "redirect_uri param missing from authorize URL")
+	par := fake.LastPARRequest()
+	assert.Assert(t, par != nil, "no pushed authorization request recorded")
+	state := par.Get("state")
+	redirectURI := par.Get("redirect_uri")
+	assert.Assert(t, state != "", "state param missing from PAR request")
+	assert.Assert(t, redirectURI != "", "redirect_uri param missing from PAR request")
 
 	callbackURL := redirectURI + "?code=fake-auth-code&state=" + url.QueryEscape(state)
 	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, callbackURL, nil)

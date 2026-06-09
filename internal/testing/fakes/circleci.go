@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -126,10 +127,12 @@ type CircleCI struct {
 	iosBundleCounter  int              // monotonic ID generator for created bundles
 
 	// Auth state.
-	me                 any   // response for GET /api/v3/users?filter[user_id]=me
-	collaborations     []any // response for GET /api/v2/me/collaborations
-	oauthTokenResponse any   // response body for POST /oauth/token
-	oauthTokenStatus   int   // HTTP status for POST /oauth/token (0 → 200 OK)
+	me                 any          // response for GET /api/v3/users?filter[user_id]=me
+	collaborations     []any        // response for GET /api/v2/me/collaborations
+	oauthTokenResponse any          // response body for POST /oauth/token
+	oauthTokenStatus   int          // HTTP status for POST /oauth/token (0 → 200 OK)
+	parRequests        []url.Values // recorded POST /oauth/par request bodies, in order
+	parCounter         int          // monotonic ID generator for request_uri values
 
 	// Orb state (v3).
 	orbPackages         map[string]map[string]any // id → package object
@@ -268,6 +271,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/organization/{vcs}/{org}/project", f.handleCreateProject)
 	r.Get("/api/v3/users", f.handleGetMe)
 	r.Get("/api/v2/me/collaborations", f.handleGetCollaborations)
+	r.Post("/oauth/par", f.handleOAuthPAR)
 	r.Post("/oauth/token", f.handleOAuthToken)
 	// Context routes.
 	r.Get("/api/v2/context", f.handleListContexts)
@@ -1251,6 +1255,42 @@ func (f *CircleCI) SetOAuthTokenError(status int, resp any) {
 	defer f.mu.Unlock()
 	f.oauthTokenStatus = status
 	f.oauthTokenResponse = resp
+}
+
+// LastPARRequest returns the form parameters of the most recent
+// POST /oauth/par (RFC 9126), or nil if none has been received. Acceptance
+// tests use it to recover the redirect_uri and state, which no longer travel
+// in the browser-facing authorize URL.
+func (f *CircleCI) LastPARRequest() url.Values {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	if len(f.parRequests) == 0 {
+		return nil
+	}
+	return f.parRequests[len(f.parRequests)-1]
+}
+
+// handleOAuthPAR implements the pushed-authorization-request endpoint
+// (RFC 9126). It records the pushed parameters and returns a fresh
+// request_uri with the mandatory 201 Created status.
+func (f *CircleCI) handleOAuthPAR(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": "invalid_request"})
+		return
+	}
+
+	f.mu.Lock()
+	f.parRequests = append(f.parRequests, r.PostForm)
+	f.parCounter++
+	id := f.parCounter
+	f.mu.Unlock()
+
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, map[string]any{
+		"request_uri": fmt.Sprintf("urn:ietf:params:oauth:request_uri:fake-%d", id),
+		"expires_in":  int64(90),
+	})
 }
 
 func (f *CircleCI) handleOAuthToken(w http.ResponseWriter, r *http.Request) {

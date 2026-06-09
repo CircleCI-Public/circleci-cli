@@ -32,6 +32,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,13 +40,66 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 )
 
-// startFlow returns a Flow against the given host with a Cleanup that closes it.
-func startFlow(t *testing.T, host string) *Flow {
+// parRecorder captures the body of the most recent pushed authorization
+// request so tests can assert on parameters that PAR keeps off the browser URL.
+type parRecorder struct {
+	mu   sync.Mutex
+	last url.Values
+}
+
+func (p *parRecorder) form() url.Values {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.last
+}
+
+// writeFakePAR writes a minimal RFC 9126 success response (201 Created plus a
+// request_uri).
+func writeFakePAR(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"request_uri": "urn:ietf:params:oauth:request_uri:test",
+		"expires_in":  int64(90),
+	})
+}
+
+// newPARServer starts a server that handles POST /oauth/par, recording each
+// request body, and returns the server and its recorder.
+func newPARServer(t *testing.T) (*httptest.Server, *parRecorder) {
+	t.Helper()
+	rec := &parRecorder{}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/oauth/par" {
+			http.NotFound(w, r)
+			return
+		}
+		_ = r.ParseForm()
+		rec.mu.Lock()
+		rec.last = r.PostForm
+		rec.mu.Unlock()
+		writeFakePAR(w)
+	}))
+	t.Cleanup(srv.Close)
+	return srv, rec
+}
+
+// startFlowAgainst returns a Flow against the given host with a Cleanup that
+// closes it. The host must serve POST /oauth/par.
+func startFlowAgainst(t *testing.T, host string) *Flow {
 	t.Helper()
 	flow, err := Start(context.Background(), host, "test-device-id", "test-os")
 	assert.NilError(t, err)
 	t.Cleanup(func() { _ = flow.Close() })
 	return flow
+}
+
+// startFlow spins up a fake PAR server, starts a Flow against it, and returns
+// both the Flow and the recorder that captured the pushed request.
+func startFlow(t *testing.T) (*Flow, *parRecorder) {
+	t.Helper()
+	srv, rec := newPARServer(t)
+	return startFlowAgainst(t, srv.URL), rec
 }
 
 // callback issues a GET to the loopback redirect_uri with the given query params.
@@ -65,98 +119,115 @@ func callback(t *testing.T, redirectURI string, params map[string]string) {
 }
 
 func TestStart_AuthorizeURL(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
+	flow, rec := startFlow(t)
 
 	u, err := url.Parse(flow.AuthorizeURL)
 	assert.NilError(t, err)
 
-	t.Run("base URL", func(t *testing.T) {
-		assert.Check(t, is.Equal(u.Scheme, "https"))
-		assert.Check(t, is.Equal(u.Host, "example.com"))
+	t.Run("authorize URL carries only request_uri", func(t *testing.T) {
 		assert.Check(t, is.Equal(u.Path, "/oauth/authorize"))
+		q := u.Query()
+		assert.Check(t, q.Get("request_uri") != "")
+		// PAR keeps every other parameter off the browser URL; the server
+		// resolves the client from the pushed request.
+		assert.Check(t, is.Equal(q.Get("client_id"), ""))
+		assert.Check(t, is.Equal(q.Get("code_challenge"), ""))
+		assert.Check(t, is.Equal(q.Get("state"), ""))
+		assert.Check(t, is.Equal(q.Get("redirect_uri"), ""))
 	})
 
-	t.Run("required PKCE and OAuth params", func(t *testing.T) {
-		q := u.Query()
-		assert.Check(t, is.Equal(q.Get("client_id"), ClientID))
-		assert.Check(t, is.Equal(q.Get("response_type"), "code"))
-		assert.Check(t, is.Equal(q.Get("code_challenge_method"), "S256"))
-		assert.Check(t, q.Get("code_challenge") != "")
-		assert.Check(t, q.Get("state") != "")
+	par := rec.form()
+
+	t.Run("pushed request carries the OAuth + PKCE params", func(t *testing.T) {
+		assert.Check(t, is.Equal(par.Get("client_id"), ClientID))
+		assert.Check(t, is.Equal(par.Get("response_type"), "code"))
+		assert.Check(t, is.Equal(par.Get("code_challenge_method"), "S256"))
+		assert.Check(t, par.Get("code_challenge") != "")
+		assert.Check(t, par.Get("state") != "")
 	})
 
-	t.Run("device_id and os params", func(t *testing.T) {
-		q := u.Query()
-		assert.Check(t, is.Equal(q.Get("device_id"), "test-device-id"))
-		assert.Check(t, is.Equal(q.Get("os"), "test-os"))
+	t.Run("pushed request carries device_id and os", func(t *testing.T) {
+		assert.Check(t, is.Equal(par.Get("device_id"), "test-device-id"))
+		assert.Check(t, is.Equal(par.Get("os"), "test-os"))
 	})
 
 	t.Run("code_challenge is SHA256(verifier)", func(t *testing.T) {
 		h := sha256.Sum256([]byte(flow.verifier))
 		want := base64.RawURLEncoding.EncodeToString(h[:])
-		assert.Check(t, is.Equal(u.Query().Get("code_challenge"), want))
+		assert.Check(t, is.Equal(par.Get("code_challenge"), want))
 	})
 
 	t.Run("state is 32 hex chars", func(t *testing.T) {
-		s := u.Query().Get("state")
-		assert.Check(t, is.Len(s, 32))
+		assert.Check(t, is.Len(par.Get("state"), 32))
 	})
 
 	t.Run("redirect_uri is loopback", func(t *testing.T) {
-		r := u.Query().Get("redirect_uri")
+		r := par.Get("redirect_uri")
 		assert.Check(t, strings.HasPrefix(r, "http://127.0.0.1:"), r)
 		assert.Check(t, strings.HasSuffix(r, "/callback"), r)
 	})
 }
 
 func TestStart_TrimsTrailingSlashFromHost(t *testing.T) {
-	flow := startFlow(t, "https://example.com/")
-	assert.Check(t, strings.HasPrefix(flow.AuthorizeURL, "https://example.com/oauth/authorize?"))
+	srv, _ := newPARServer(t)
+	flow := startFlowAgainst(t, srv.URL+"/")
+	assert.Check(t, strings.HasPrefix(flow.AuthorizeURL, srv.URL+"/oauth/authorize?"))
 }
 
 func TestStart_FlowsAreUnique(t *testing.T) {
-	a := startFlow(t, "https://example.com")
-	b := startFlow(t, "https://example.com")
+	a, _ := startFlow(t)
+	b, _ := startFlow(t)
 
 	assert.Check(t, a.verifier != b.verifier, "verifier must be per-flow")
 	assert.Check(t, a.state != b.state, "state must be per-flow")
 }
 
 func TestStart_DoesNotIncludeSignupParam(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
-	u, err := url.Parse(flow.AuthorizeURL)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(u.Query().Get("signup"), ""),
-		"Start must not send signup=true; that's reserved for StartSignup")
+	_, rec := startFlow(t)
+	assert.Check(t, is.Equal(rec.form().Get("signup"), ""),
+		"Start must not push signup=true; that's reserved for StartSignup")
+}
+
+func TestStart_PARFailure(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"error":             "invalid_request",
+			"error_description": "redirect_uri not registered",
+		})
+	}))
+	t.Cleanup(srv.Close)
+
+	_, err := Start(context.Background(), srv.URL, "test-device-id", "test-os")
+	assert.ErrorContains(t, err, "pushed authorization request rejected")
 }
 
 func TestStartSignup_IncludesSignupParam(t *testing.T) {
-	flow, err := StartSignup(context.Background(), "https://example.com", "test-device-id", "test-os")
+	srv, rec := newPARServer(t)
+	flow, err := StartSignup(context.Background(), srv.URL, "test-device-id", "test-os")
 	assert.NilError(t, err)
 	t.Cleanup(func() { _ = flow.Close() })
 
-	u, err := url.Parse(flow.AuthorizeURL)
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(u.Query().Get("signup"), "true"))
+	par := rec.form()
+	assert.Check(t, is.Equal(par.Get("signup"), "true"))
 
 	// Everything else should be identical to a regular Start flow.
-	q := u.Query()
-	assert.Check(t, is.Equal(q.Get("client_id"), ClientID))
-	assert.Check(t, is.Equal(q.Get("response_type"), "code"))
-	assert.Check(t, is.Equal(q.Get("code_challenge_method"), "S256"))
-	assert.Check(t, q.Get("code_challenge") != "")
-	assert.Check(t, q.Get("state") != "")
-	assert.Check(t, is.Equal(q.Get("device_id"), "test-device-id"))
-	assert.Check(t, is.Equal(q.Get("os"), "test-os"))
+	assert.Check(t, is.Equal(par.Get("client_id"), ClientID))
+	assert.Check(t, is.Equal(par.Get("response_type"), "code"))
+	assert.Check(t, is.Equal(par.Get("code_challenge_method"), "S256"))
+	assert.Check(t, par.Get("code_challenge") != "")
+	assert.Check(t, par.Get("state") != "")
+	assert.Check(t, is.Equal(par.Get("device_id"), "test-device-id"))
+	assert.Check(t, is.Equal(par.Get("os"), "test-os"))
 }
 
 func TestFlow_Wait_Success(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
-	u, _ := url.Parse(flow.AuthorizeURL)
+	flow, _ := startFlow(t)
 
-	go callback(t, u.Query().Get("redirect_uri"), map[string]string{
+	go callback(t, flow.cfg.RedirectURL, map[string]string{
 		"code":  "test-code",
-		"state": u.Query().Get("state"),
+		"state": flow.state,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -169,10 +240,9 @@ func TestFlow_Wait_Success(t *testing.T) {
 }
 
 func TestFlow_Wait_StateMismatch(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
-	u, _ := url.Parse(flow.AuthorizeURL)
+	flow, _ := startFlow(t)
 
-	go callback(t, u.Query().Get("redirect_uri"), map[string]string{
+	go callback(t, flow.cfg.RedirectURL, map[string]string{
 		"code":  "test-code",
 		"state": "wrong-state",
 	})
@@ -185,10 +255,9 @@ func TestFlow_Wait_StateMismatch(t *testing.T) {
 }
 
 func TestFlow_Wait_OAuthError(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
-	u, _ := url.Parse(flow.AuthorizeURL)
+	flow, _ := startFlow(t)
 
-	go callback(t, u.Query().Get("redirect_uri"), map[string]string{
+	go callback(t, flow.cfg.RedirectURL, map[string]string{
 		"error":             "access_denied",
 		"error_description": "User declined the request",
 	})
@@ -202,11 +271,10 @@ func TestFlow_Wait_OAuthError(t *testing.T) {
 }
 
 func TestFlow_Wait_MissingCode(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
-	u, _ := url.Parse(flow.AuthorizeURL)
+	flow, _ := startFlow(t)
 
-	go callback(t, u.Query().Get("redirect_uri"), map[string]string{
-		"state": u.Query().Get("state"),
+	go callback(t, flow.cfg.RedirectURL, map[string]string{
+		"state": flow.state,
 	})
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -217,7 +285,7 @@ func TestFlow_Wait_MissingCode(t *testing.T) {
 }
 
 func TestFlow_Wait_ContextCancelled(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
+	flow, _ := startFlow(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -227,7 +295,7 @@ func TestFlow_Wait_ContextCancelled(t *testing.T) {
 }
 
 func TestFlow_Wait_ContextDeadline(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
+	flow, _ := startFlow(t)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -237,10 +305,9 @@ func TestFlow_Wait_ContextDeadline(t *testing.T) {
 }
 
 func TestFlow_Callback_RejectsUnknownPath(t *testing.T) {
-	flow := startFlow(t, "https://example.com")
-	u, _ := url.Parse(flow.AuthorizeURL)
+	flow, _ := startFlow(t)
 
-	r, _ := url.Parse(u.Query().Get("redirect_uri"))
+	r, _ := url.Parse(flow.cfg.RedirectURL)
 	r.Path = "/not-callback"
 
 	resp, err := http.Get(r.String())
@@ -254,6 +321,10 @@ func TestFlow_Exchange_Success(t *testing.T) {
 	var gotForm url.Values
 	var gotPath string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/par" {
+			writeFakePAR(w)
+			return
+		}
 		gotPath = r.URL.Path
 		body, _ := io.ReadAll(r.Body)
 		gotForm, _ = url.ParseQuery(string(body))
@@ -267,7 +338,7 @@ func TestFlow_Exchange_Success(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	flow := startFlow(t, srv.URL)
+	flow := startFlowAgainst(t, srv.URL)
 	tok, err := flow.Exchange(context.Background(), "test-code")
 	assert.NilError(t, err)
 
@@ -283,7 +354,11 @@ func TestFlow_Exchange_Success(t *testing.T) {
 }
 
 func TestFlow_Exchange_ServerError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/oauth/par" {
+			writeFakePAR(w)
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		_ = json.NewEncoder(w).Encode(map[string]any{
@@ -293,7 +368,7 @@ func TestFlow_Exchange_ServerError(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	flow := startFlow(t, srv.URL)
+	flow := startFlowAgainst(t, srv.URL)
 	_, err := flow.Exchange(context.Background(), "bad-code")
 	assert.ErrorContains(t, err, "invalid_grant")
 }

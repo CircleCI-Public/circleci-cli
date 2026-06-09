@@ -122,9 +122,11 @@ func runLoginBrowser(ctx context.Context, host string, deviceID string, signup, 
 		flow, err = oauth.Start(ctx, host, deviceID, runtime.GOOS)
 	}
 	if err != nil {
-		return clierrors.New("auth.login.listen_failed",
-			"Could not start local callback server", err.Error()).
-			WithSuggestions("Check that no other process is blocking loopback ports").
+		return clierrors.New("auth.login.start_failed",
+			"Could not start the login flow", err.Error()).
+			WithSuggestions(
+				"Check that no other process is blocking loopback ports",
+				"Verify the host is reachable and supports OAuth: "+host).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 	defer func() { _ = flow.Close() }()

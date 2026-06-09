@@ -108,16 +108,27 @@ func TestAuthLogin_Browser(t *testing.T) {
 		// detects it as a clickable link. It is the only https?:// token here.
 		authURL = regexp.MustCompile(`https?://\S+`).FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
-	}))
 
-	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
+		// With Pushed Authorization Requests (RFC 9126) the browser URL only
+		// carries client_id + request_uri; the real parameters were POSTed to
+		// /oauth/par. The URL must be short and must not leak them.
 		parsed, err := url.Parse(authURL)
 		assert.NilError(t, err)
 		q := parsed.Query()
-		state := q.Get("state")
-		redirectURI := q.Get("redirect_uri")
-		assert.Assert(t, state != "", "state param missing from authorize URL")
-		assert.Assert(t, redirectURI != "", "redirect_uri param missing from authorize URL")
+		assert.Equal(t, q.Get("request_uri") != "", true, "authorize URL missing request_uri")
+		assert.Equal(t, q.Get("code_challenge"), "", "PKCE challenge must not appear in the browser URL")
+		assert.Equal(t, q.Get("redirect_uri"), "", "redirect_uri must not appear in the browser URL")
+	}))
+
+	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
+		// Recover the loopback redirect_uri and state from the pushed
+		// authorization request the CLI sent to /oauth/par.
+		par := fake.LastPARRequest()
+		assert.Assert(t, par != nil, "no pushed authorization request recorded")
+		state := par.Get("state")
+		redirectURI := par.Get("redirect_uri")
+		assert.Assert(t, state != "", "state param missing from PAR request")
+		assert.Assert(t, redirectURI != "", "redirect_uri param missing from PAR request")
 
 		// Hit the loopback callback server directly — the same request a browser
 		// would make after the user approves the OAuth consent screen.
