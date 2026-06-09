@@ -103,7 +103,7 @@ func printGet(ctx context.Context, j *apiclient.JobV3) {
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", j.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", j.Name)
 	_, _ = fmt.Fprintf(&md, "- Type: %s\n", j.Type)
-	_, _ = fmt.Fprintf(&md, "- Status: %s\n", j.Status)
+	_, _ = fmt.Fprintf(&md, "- Status: %s\n", j.Status())
 	_, _ = fmt.Fprintf(&md, "- Started: %s\n", j.StartedAt.Format("2006-01-02 15:04:05 UTC"))
 	if j.StoppedAt != nil {
 		_, _ = fmt.Fprintf(&md, "- Stopped: %s\n", j.StoppedAt.Format("2006-01-02 15:04:05 UTC"))
@@ -129,7 +129,7 @@ func printGet(ctx context.Context, j *apiclient.JobV3) {
 			if s.StoppedAt != nil {
 				duration = formatDuration(s.StoppedAt.Sub(s.StartedAt).Seconds())
 			}
-			table.Row(strconv.Itoa(s.Num), s.Name, s.Status, duration, exitCode, command)
+			table.Row(strconv.Itoa(s.Num), s.Name, s.Status(), duration, exitCode, command)
 		}
 		md.WriteString(table.Render())
 	}

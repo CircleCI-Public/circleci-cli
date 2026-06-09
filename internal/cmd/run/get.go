@@ -40,7 +40,6 @@ import (
 
 const (
 	statusCanceled = "canceled"
-	statusSuccess  = "success"
 )
 
 func newGetCmd() *cobra.Command {
@@ -61,9 +60,10 @@ func newGetCmd() *cobra.Command {
 
 			Pass a run UUID to look up a specific run.
 
-			JSON fields: id, status, branch, revision, created_at,
-			             errors[].type/message,
-			             workflows[].id/name/status/duration/jobs[].id/name/status/type
+			JSON fields: id, phase, outcome, current_outcome, branch, revision,
+			             created_at, errors[].type/message,
+			             workflows[].id/name/phase/outcome/current_outcome/duration/
+			             jobs[].id/name/phase/outcome/current_outcome/type
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
@@ -95,13 +95,15 @@ func newGetCmd() *cobra.Command {
 }
 
 type runGetOutput struct {
-	ID        string           `json:"id"`
-	Status    string           `json:"status"`
-	Branch    string           `json:"branch,omitempty"`
-	Revision  string           `json:"revision,omitempty"`
-	CreatedAt string           `json:"created_at"`
-	Errors    []errorOutput    `json:"errors,omitempty"`
-	Workflows []workflowOutput `json:"workflows"`
+	ID             string           `json:"id"`
+	Phase          string           `json:"phase"`
+	Outcome        string           `json:"outcome,omitempty"`
+	CurrentOutcome string           `json:"current_outcome,omitempty"`
+	Branch         string           `json:"branch,omitempty"`
+	Revision       string           `json:"revision,omitempty"`
+	CreatedAt      string           `json:"created_at"`
+	Errors         []errorOutput    `json:"errors,omitempty"`
+	Workflows      []workflowOutput `json:"workflows"`
 }
 
 type errorOutput struct {
@@ -110,18 +112,22 @@ type errorOutput struct {
 }
 
 type workflowOutput struct {
-	ID       string      `json:"id"`
-	Name     string      `json:"name"`
-	Status   string      `json:"status"`
-	Duration string      `json:"duration,omitempty"`
-	Jobs     []jobOutput `json:"jobs"`
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	Phase          string      `json:"phase"`
+	Outcome        string      `json:"outcome,omitempty"`
+	CurrentOutcome string      `json:"current_outcome,omitempty"`
+	Duration       string      `json:"duration,omitempty"`
+	Jobs           []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Type   string `json:"type,omitempty"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Phase          string `json:"phase"`
+	Outcome        string `json:"outcome,omitempty"`
+	CurrentOutcome string `json:"current_outcome,omitempty"`
+	Type           string `json:"type,omitempty"`
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
@@ -203,17 +209,27 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		jobs := make([]jobOutput, 0, len(wfJobs[i]))
 		for _, j := range wfJobs[i] {
 			jobs = append(jobs, jobOutput{
-				ID:     j.ID,
-				Name:   j.Name,
-				Status: j.Status,
-				Type:   j.Type,
+				ID:             j.ID,
+				Name:           j.Name,
+				Phase:          j.Phase,
+				Outcome:        j.Outcome,
+				CurrentOutcome: j.CurrentOutcome,
+				Type:           j.Type,
 			})
 		}
 		var dur string
 		if w.EndedAt != nil {
 			dur = formatElapsed(w.EndedAt.Sub(w.CreatedAt))
 		}
-		wflows[i] = workflowOutput{ID: w.ID, Name: w.Name, Status: w.Status, Duration: dur, Jobs: jobs}
+		wflows[i] = workflowOutput{
+			ID:             w.ID,
+			Name:           w.Name,
+			Phase:          w.Phase,
+			Outcome:        w.Outcome,
+			CurrentOutcome: w.CurrentOutcome,
+			Duration:       dur,
+			Jobs:           jobs,
+		}
 	}
 
 	revision := r.Revision
@@ -227,48 +243,45 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 	}
 
 	return runGetOutput{
-		ID:        r.ID,
-		Status:    deriveStatus(r.Status, wflows),
-		Branch:    r.Branch,
-		Revision:  revision,
-		CreatedAt: r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
-		Errors:    errs,
-		Workflows: wflows,
+		ID:             r.ID,
+		Phase:          r.Phase,
+		Outcome:        r.Outcome,
+		CurrentOutcome: r.CurrentOutcome,
+		Branch:         r.Branch,
+		Revision:       revision,
+		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		Errors:         errs,
+		Workflows:      wflows,
 	}
 }
 
-// deriveStatus computes a meaningful overall status from workflow statuses.
-func deriveStatus(runStatus string, workflows []workflowOutput) string {
-	if len(workflows) == 0 {
-		return runStatus
+// deriveDisplayStatus computes a meaningful overall display status from
+// workflow phases and outcomes.
+func deriveDisplayStatus(r runGetOutput) string {
+	if len(r.Workflows) == 0 {
+		return apiclient.PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
 	}
-	for _, wf := range workflows {
-		switch wf.Status {
-		case "failed", "error", "failing":
+	for _, wf := range r.Workflows {
+		if wf.Outcome == "failed" || wf.Outcome == "errored" || wf.CurrentOutcome == "failed" {
 			return "failed"
 		}
 	}
-	for _, wf := range workflows {
-		if wf.Status == "running" {
+	for _, wf := range r.Workflows {
+		if wf.Phase != "ended" {
 			return "running"
 		}
 	}
-	for _, wf := range workflows {
-		if wf.Status == "on_hold" {
-			return "on_hold"
-		}
-	}
-	for _, wf := range workflows {
-		if wf.Status == statusCanceled {
+	for _, wf := range r.Workflows {
+		if wf.Outcome == statusCanceled {
 			return statusCanceled
 		}
 	}
-	for _, wf := range workflows {
-		if wf.Status == statusSuccess {
-			return statusSuccess
+	for _, wf := range r.Workflows {
+		if wf.Outcome == "succeeded" {
+			return "succeeded"
 		}
 	}
-	return runStatus
+	return apiclient.PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
 }
 
 func printRun(ctx context.Context, r runGetOutput) {
@@ -282,7 +295,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 	if r.Revision != "" {
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", r.Revision)
 	}
-	_, _ = fmt.Fprintf(&md, "- Status: %s\n", r.Status)
+	_, _ = fmt.Fprintf(&md, "- Status: %s\n", deriveDisplayStatus(r))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", r.CreatedAt)
 
 	if len(r.Errors) > 0 {
@@ -297,14 +310,14 @@ func printRun(ctx context.Context, r runGetOutput) {
 		md.WriteString("## Workflows\n")
 		for _, w := range r.Workflows {
 			_, _ = fmt.Fprintf(&md, "### %s\n", w.Name)
-			_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
+			_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 			if w.Duration != "" {
 				_, _ = fmt.Fprintf(&md, "- Duration: %s\n", w.Duration)
 			}
 			md.WriteString("#### Jobs\n")
 			mdTable := mdtable.New("Name", "Status", "Type", "ID")
 			for _, j := range w.Jobs {
-				mdTable.Row(j.Name, j.Status, j.Type, "`"+j.ID+"`")
+				mdTable.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID+"`")
 			}
 			md.WriteString(mdTable.Render())
 		}

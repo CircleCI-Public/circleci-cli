@@ -7,9 +7,10 @@ the current git repository's remote and checked-out branch.
 
 Pass a run UUID to look up a specific run.
 
-JSON fields: id, status, branch, revision, created_at,
-             errors[].type/message,
-             workflows[].id/name/status/duration/jobs[].id/name/status/type
+JSON fields: id, phase, outcome, current_outcome, branch, revision,
+             created_at, errors[].type/message,
+             workflows[].id/name/phase/outcome/current_outcome/duration/
+             jobs[].id/name/phase/outcome/current_outcome/type
 
 ## Usage
 

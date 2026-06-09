@@ -30,11 +30,12 @@ import (
 // --- V3 wire types ---
 
 type workflowAttributesWire struct {
-	Name      string     `json:"name"`
-	Phase     string     `json:"phase"`
-	Outcome   string     `json:"outcome"`
-	CreatedAt time.Time  `json:"created_at"`
-	EndedAt   *time.Time `json:"ended_at"`
+	Name           string     `json:"name"`
+	Phase          string     `json:"phase"`
+	Outcome        string     `json:"outcome"`
+	CurrentOutcome string     `json:"current_outcome,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	EndedAt        *time.Time `json:"ended_at"`
 }
 
 type workflowReferencesWire struct {
@@ -58,13 +59,15 @@ type workflowWire struct {
 func (w workflowWire) toWorkflowV3() WorkflowV3 {
 	a := w.Attributes
 	return WorkflowV3{
-		ID:        w.ID,
-		Name:      a.Name,
-		Status:    phaseOutcomeStatus(a.Phase, a.Outcome),
-		CreatedAt: a.CreatedAt,
-		EndedAt:   a.EndedAt,
-		RunID:     w.References.Run.ID,
-		ProjectID: w.References.Project.ID,
+		ID:             w.ID,
+		Name:           a.Name,
+		Phase:          a.Phase,
+		Outcome:        a.Outcome,
+		CurrentOutcome: a.CurrentOutcome,
+		CreatedAt:      a.CreatedAt,
+		EndedAt:        a.EndedAt,
+		RunID:          w.References.Run.ID,
+		ProjectID:      w.References.Project.ID,
 	}
 }
 
@@ -72,14 +75,20 @@ func (w workflowWire) toWorkflowV3() WorkflowV3 {
 
 // WorkflowV3 holds workflow detail from the V3 API.
 type WorkflowV3 struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Status    string     `json:"status"`
-	Type      string     `json:"type,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	EndedAt   *time.Time `json:"ended_at,omitempty"`
-	RunID     string     `json:"run_id"`
-	ProjectID string     `json:"project_id"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Phase          string     `json:"phase"`
+	Outcome        string     `json:"outcome,omitempty"`
+	CurrentOutcome string     `json:"current_outcome,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	EndedAt        *time.Time `json:"ended_at,omitempty"`
+	RunID          string     `json:"run_id"`
+	ProjectID      string     `json:"project_id"`
+}
+
+// Status derives a display status from phase and outcome.
+func (w WorkflowV3) Status() string {
+	return PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome)
 }
 
 // GetWorkflowV3 fetches a single workflow by UUID from the V3 API.
@@ -183,29 +192,34 @@ type workflowJobWire struct {
 
 // WorkflowJobV3 is a job belonging to a workflow from the V3 API.
 type WorkflowJobV3 struct {
-	ID        string     `json:"id"`
-	Name      string     `json:"name"`
-	Status    string     `json:"status"`
-	Type      string     `json:"type,omitempty"`
-	ProjectID string     `json:"project_id"`
-	StartedAt *time.Time `json:"started_at,omitempty"`
-	EndedAt   *time.Time `json:"ended_at,omitempty"`
+	ID             string     `json:"id"`
+	Name           string     `json:"name"`
+	Phase          string     `json:"phase"`
+	Outcome        string     `json:"outcome,omitempty"`
+	CurrentOutcome string     `json:"current_outcome,omitempty"`
+	Type           string     `json:"type,omitempty"`
+	ProjectID      string     `json:"project_id"`
+	StartedAt      *time.Time `json:"started_at,omitempty"`
+	EndedAt        *time.Time `json:"ended_at,omitempty"`
+}
+
+// Status derives a display status from phase and outcome.
+func (w WorkflowJobV3) Status() string {
+	return PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome)
 }
 
 func (w workflowJobWire) toDomain() WorkflowJobV3 {
 	a := w.Attributes
-	outcome := a.Outcome
-	if outcome == "" {
-		outcome = a.CurrentOutcome
-	}
 	return WorkflowJobV3{
-		ID:        w.ID,
-		Name:      a.Name,
-		Status:    phaseOutcomeStatus(a.Phase, outcome),
-		Type:      a.Type,
-		ProjectID: w.References.Project.ID,
-		StartedAt: a.StartedAt,
-		EndedAt:   a.EndedAt,
+		ID:             w.ID,
+		Name:           a.Name,
+		Phase:          a.Phase,
+		Outcome:        a.Outcome,
+		CurrentOutcome: a.CurrentOutcome,
+		Type:           a.Type,
+		ProjectID:      w.References.Project.ID,
+		StartedAt:      a.StartedAt,
+		EndedAt:        a.EndedAt,
 	}
 }
 

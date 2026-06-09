@@ -58,7 +58,8 @@ type stepOutputItem struct {
 	Num       int        `json:"num"`
 	Name      string     `json:"name"`
 	Type      string     `json:"type"`
-	Status    string     `json:"status"`
+	Phase     string     `json:"phase"`
+	Outcome   string     `json:"outcome,omitempty"`
 	StartedAt time.Time  `json:"started_at"`
 	StoppedAt *time.Time `json:"stopped_at,omitempty"`
 	ExitCode  *int       `json:"exit_code,omitempty"`
@@ -88,7 +89,7 @@ func newOutputListCmd() *cobra.Command {
 			movement) collapse to the final state a human would have seen.
 
 			JSON fields: id, name, execution,
-			             steps[].num/name/type/status/started_at/stopped_at/
+			             steps[].num/name/type/phase/outcome/started_at/stopped_at/
 			             exit_code/command/output
 		`),
 		Example: heredoc.Doc(`
@@ -153,7 +154,8 @@ func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 				Num:       s.Num,
 				Name:      s.Name,
 				Type:      s.Type,
-				Status:    s.Status,
+				Phase:     s.Phase,
+				Outcome:   s.Outcome,
 				StartedAt: s.StartedAt,
 				StoppedAt: s.StoppedAt,
 				ExitCode:  s.ExitCode,
@@ -243,7 +245,7 @@ func printOutputList(ctx context.Context, data *jobOutputList) {
 
 	for _, s := range data.Steps {
 		_, _ = fmt.Fprintf(&md, "\n## %d: %s\n", s.Num, s.Name)
-		_, _ = fmt.Fprintf(&md, "- Status: %s\n", s.Status)
+		_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(s.Phase, s.Outcome, ""))
 
 		duration := "-"
 		if s.StoppedAt != nil {

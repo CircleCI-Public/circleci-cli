@@ -7,7 +7,7 @@
 - Ended: 2020-01-01 12:02:34 UTC
 
 ## Jobs
-| Name      | Status  | Type  | ID           |
-| --------- | ------- | ----- | ------------ |
-| run-tests | success | build | job-uuid-201 |
-| deploy    | success | build | job-uuid-202 |
+| Name      | Status    | Type  | ID           |
+| --------- | --------- | ----- | ------------ |
+| run-tests | succeeded | build | job-uuid-201 |
+| deploy    | succeeded | build | job-uuid-202 |

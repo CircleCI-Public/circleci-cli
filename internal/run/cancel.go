@@ -52,13 +52,9 @@ func Cancel(ctx context.Context, client *apiclient.Client, runID string) error {
 		return err
 	}
 
-	active := map[string]bool{
-		"running": true, "on_hold": true, "failing": true,
-	}
-
 	cancelled := 0
 	for _, wf := range workflows {
-		if !active[wf.Status] {
+		if wf.Phase == "ended" {
 			continue
 		}
 		if err := client.CancelWorkflow(ctx, wf.ID); err != nil {

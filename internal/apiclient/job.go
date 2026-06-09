@@ -179,13 +179,19 @@ type JobV3 struct {
 	ID         string           `json:"id"`
 	Name       string           `json:"name"`
 	Type       string           `json:"type"`
-	Status     string           `json:"status"`
+	Phase      string           `json:"phase"`
+	Outcome    string           `json:"outcome,omitempty"`
 	StartedAt  time.Time        `json:"started_at"`
 	StoppedAt  *time.Time       `json:"stopped_at,omitempty"`
 	Executions []JobV3Execution `json:"executions"`
 	ProjectID  string           `json:"project_id"`
 	PipelineID string           `json:"pipeline_id"`
 	WorkflowID string           `json:"workflow_id"`
+}
+
+// Status derives a display status from phase and outcome.
+func (j JobV3) Status() string {
+	return PhaseOutcomeStatus(j.Phase, j.Outcome, "")
 }
 
 // JobV3Execution groups the steps that ran on a single executor.
@@ -199,11 +205,17 @@ type JobV3Step struct {
 	Name      string     `json:"name"`
 	Type      string     `json:"type"`
 	Num       int        `json:"num"`
-	Status    string     `json:"status"`
+	Phase     string     `json:"phase"`
+	Outcome   string     `json:"outcome,omitempty"`
 	ExitCode  *int       `json:"exit_code,omitempty"`
 	Command   string     `json:"command,omitempty"`
 	StartedAt time.Time  `json:"started_at"`
 	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+}
+
+// Status derives a display status from phase and outcome.
+func (s JobV3Step) Status() string {
+	return PhaseOutcomeStatus(s.Phase, s.Outcome, "")
 }
 
 // GetJobV3 fetches job detail from the V3 API by UUID.
@@ -221,7 +233,8 @@ func (w jobWire) toJobV3() *JobV3 {
 		ID:         w.ID,
 		Name:       a.Name,
 		Type:       a.Type,
-		Status:     phaseOutcomeStatus(a.Phase, a.Outcome),
+		Phase:      a.Phase,
+		Outcome:    a.Outcome,
 		StartedAt:  a.StartedAt,
 		StoppedAt:  a.EndedAt,
 		ProjectID:  w.References.Project.ID,
@@ -235,7 +248,8 @@ func (w jobWire) toJobV3() *JobV3 {
 				Name:      s.Name,
 				Type:      s.Type,
 				Num:       s.Num,
-				Status:    phaseOutcomeStatus(s.Phase, s.Outcome),
+				Phase:     s.Phase,
+				Outcome:   s.Outcome,
 				ExitCode:  s.ExitCode,
 				StartedAt: s.StartedAt,
 				StoppedAt: s.EndedAt,
@@ -248,31 +262,25 @@ func (w jobWire) toJobV3() *JobV3 {
 	return j
 }
 
-// phaseOutcomeStatus maps V3 phase+outcome to a status string compatible
-// with V2 conventions.
-func phaseOutcomeStatus(phase, outcome string) string {
+// PhaseOutcomeStatus derives a human-readable status string from V3
+// phase, outcome, and current_outcome fields.
+func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
 	switch phase {
 	case "queued":
 		return "queued"
-	case "not_run":
-		return "not_run"
-	case "running":
-		return "running"
-	case "ended":
-		switch outcome {
-		case "succeeded":
-			return "success"
+	case "started":
+		switch currentOutcome {
 		case "failed":
-			return "failed"
+			return "failing"
 		case "canceled":
-			return "canceled"
-		case "infrastructure_fail":
-			return "infrastructure_fail"
-		case "timedout":
-			return "timedout"
+			return "canceling"
+		case "errored":
+			return "erroring"
 		default:
-			return outcome
+			return "running"
 		}
+	case "ended":
+		return outcome
 	default:
 		return phase
 	}

@@ -33,7 +33,8 @@ import (
 
 type runAttributesWire struct {
 	Phase          string         `json:"phase"`
-	CurrentOutcome string         `json:"current_outcome"`
+	Outcome        string         `json:"outcome,omitempty"`
+	CurrentOutcome string         `json:"current_outcome,omitempty"`
 	CreatedAt      time.Time      `json:"created_at"`
 	VCS            *runVCSWire    `json:"vcs,omitempty"`
 	Errors         []runErrorWire `json:"errors,omitempty"`
@@ -74,22 +75,31 @@ type RunError struct {
 
 // RunV3 holds run detail from the V3 API.
 type RunV3 struct {
-	ID        string     `json:"id"`
-	Status    string     `json:"status"`
-	Branch    string     `json:"branch,omitempty"`
-	Revision  string     `json:"revision,omitempty"`
-	CreatedAt time.Time  `json:"created_at"`
-	ProjectID string     `json:"project_id"`
-	Errors    []RunError `json:"errors,omitempty"`
+	ID             string     `json:"id"`
+	Phase          string     `json:"phase"`
+	Outcome        string     `json:"outcome,omitempty"`
+	CurrentOutcome string     `json:"current_outcome,omitempty"`
+	Branch         string     `json:"branch,omitempty"`
+	Revision       string     `json:"revision,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	ProjectID      string     `json:"project_id"`
+	Errors         []RunError `json:"errors,omitempty"`
+}
+
+// Status derives a display status from phase and outcome.
+func (r RunV3) Status() string {
+	return PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
 }
 
 func (w runWire) toRunV3() *RunV3 {
 	a := w.Attributes
 	r := &RunV3{
-		ID:        w.ID,
-		Status:    phaseOutcomeStatus(a.Phase, a.CurrentOutcome),
-		CreatedAt: a.CreatedAt,
-		ProjectID: w.References.Project.ID,
+		ID:             w.ID,
+		Phase:          a.Phase,
+		Outcome:        a.Outcome,
+		CurrentOutcome: a.CurrentOutcome,
+		CreatedAt:      a.CreatedAt,
+		ProjectID:      w.References.Project.ID,
 	}
 	if a.VCS != nil {
 		r.Branch = a.VCS.Branch
