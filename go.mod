@@ -13,6 +13,7 @@ require (
 	github.com/Netflix/go-expect v0.0.0-20220104043353-73e0943537d2
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/charmbracelet/x/vt v0.0.0-20260608090822-c3ad58c6c9e5
+	github.com/cli/browser v1.3.0
 	github.com/creack/pty v1.1.24
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-chi/render v1.0.3
@@ -23,7 +24,6 @@ require (
 	github.com/hexops/gotextdiff v1.0.3
 	github.com/itchyny/gojq v0.12.19
 	github.com/njayp/ophis v1.1.4
-	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/segmentio/analytics-go/v3 v3.3.0
 	github.com/shirou/gopsutil/v4 v4.26.5
 	github.com/spf13/cobra v1.10.2

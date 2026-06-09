@@ -33,8 +33,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
-	"github.com/pkg/browser"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/browser"
 	"github.com/CircleCI-Public/circleci-cli/internal/oauth"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
