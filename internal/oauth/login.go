@@ -21,16 +21,23 @@
 // SPDX-License-Identifier: MIT
 
 // Package oauth implements the client side of the CircleCI OAuth 2.0
-// Authorization Code + PKCE flow (RFC 6749 + RFC 7636 + RFC 8252).
+// Authorization Code + PKCE flow (RFC 6749 + RFC 7636 + RFC 8252) with
+// Pushed Authorization Requests (RFC 9126).
 //
 // The flow:
 //  1. Start a localhost listener on 127.0.0.1:0.
-//  2. Build an authorize URL with a PKCE code challenge and random state.
-//  3. The caller opens the URL in the user's browser.
-//  4. Wait for the OAuth provider to redirect to the loopback server with
+//  2. Assemble the authorization request — PKCE code challenge, state, and
+//     the loopback redirect_uri — and POST it to the server's PAR endpoint
+//     (/oauth/par), which returns a request_uri.
+//  3. Build a short authorize URL carrying only client_id and request_uri.
+//  4. The caller opens that URL in the user's browser.
+//  5. Wait for the OAuth provider to redirect to the loopback server with
 //     ?code=...&state=... and validate the state.
-//  5. Return the captured code and PKCE verifier so the caller can exchange
-//     them for a token (once /oauth/token ships).
+//  6. Exchange the captured code (with the PKCE verifier) for a token via
+//     POST /oauth/token.
+//
+// Pushing the request keeps sensitive parameters off the browser URL and
+// makes the URL short enough to log and click.
 //
 // Two entry points share the same underlying flow:
 //   - Start lands the user on the OAuth login page.
@@ -42,10 +49,13 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -154,8 +164,32 @@ func start(ctx context.Context, host, deviceID, osInfo string, signup bool) (*Fl
 		params = append(params, oauth2.SetAuthURLParam("signup", "true"))
 	}
 
+	// Let the oauth2 library assemble the complete authorization request —
+	// response_type, client_id, redirect_uri, state, and the PKCE challenge —
+	// then push that exact parameter set to the server (RFC 9126) instead of
+	// embedding it in the browser URL. AuthCodeURL builds a URL; we only want
+	// its query string as the PAR request body.
+	full, err := url.Parse(cfg.AuthCodeURL(state, params...))
+	if err != nil {
+		_ = listener.Close()
+		return nil, fmt.Errorf("building authorization request: %w", err)
+	}
+
+	requestURI, err := pushAuthorizationRequest(ctx, host+"/oauth/par", full.RawQuery)
+	if err != nil {
+		_ = listener.Close()
+		return nil, err
+	}
+
+	// After a successful push, the browser only needs the request_uri — the
+	// server resolves the client and every other parameter from the pushed
+	// request it points at.
+	authorizeURL := cfg.Endpoint.AuthURL + "?" + url.Values{
+		"request_uri": {requestURI},
+	}.Encode()
+
 	f := &Flow{
-		AuthorizeURL: cfg.AuthCodeURL(state, params...),
+		AuthorizeURL: authorizeURL,
 		cfg:          cfg,
 		verifier:     verifier,
 		state:        state,
@@ -205,6 +239,64 @@ func (f *Flow) Exchange(ctx context.Context, code string) (*TokenResponse, error
 		ExpiresIn:    tok.ExpiresIn,
 		RefreshToken: tok.RefreshToken,
 	}, nil
+}
+
+// parResponse is the response to a pushed authorization request
+// (RFC 9126 §2.2): the request_uri the browser presents to the authorization
+// endpoint, plus how many seconds it remains valid.
+type parResponse struct {
+	RequestURI string `json:"request_uri"`
+	ExpiresIn  int64  `json:"expires_in"`
+}
+
+// pushAuthorizationRequest POSTs an assembled authorization request to the
+// server's PAR endpoint (RFC 9126) and returns the request_uri the browser
+// must present at the authorization endpoint. body is the urlencoded query
+// string of the authorization parameters.
+func pushAuthorizationRequest(ctx context.Context, endpoint, body string) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, strings.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("building pushed authorization request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := parHTTPClient(ctx).Do(req)
+	if err != nil {
+		return "", fmt.Errorf("pushing authorization request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+	if err != nil {
+		return "", fmt.Errorf("reading pushed authorization response: %w", err)
+	}
+
+	// RFC 9126 §2.2: a successful push returns 201 Created.
+	if resp.StatusCode != http.StatusCreated {
+		return "", fmt.Errorf("pushed authorization request rejected (%s): %s",
+			resp.Status, strings.TrimSpace(string(data)))
+	}
+
+	var par parResponse
+	if err := json.Unmarshal(data, &par); err != nil {
+		return "", fmt.Errorf("decoding pushed authorization response: %w", err)
+	}
+	if par.RequestURI == "" {
+		return "", errors.New("pushed authorization response did not include a request_uri")
+	}
+	return par.RequestURI, nil
+}
+
+// parHTTPClient returns the HTTP client to use for the PAR call. It honors an
+// *http.Client stashed in ctx under oauth2.HTTPClient — the same override the
+// oauth2 library uses for token exchange — and otherwise uses the default
+// client, so PAR and Exchange always travel the same path.
+func parHTTPClient(ctx context.Context) *http.Client {
+	if c, ok := ctx.Value(oauth2.HTTPClient).(*http.Client); ok && c != nil {
+		return c
+	}
+	return http.DefaultClient
 }
 
 // Close shuts down the loopback server. Safe to call multiple times.
