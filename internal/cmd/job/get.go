@@ -152,7 +152,7 @@ func formatCommand(s string) string {
 	for i, line := range lines {
 		lines[i] = "`" + strings.ReplaceAll(line, "|", "\\|") + "`"
 	}
-	command := strings.Join(lines, " ")
+	command := strings.Join(lines, " … ")
 	if truncated {
 		command += " …"
 	}

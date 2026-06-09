@@ -33,7 +33,6 @@ import (
 	"os"
 	"regexp"
 	"runtime"
-	"sort"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -314,35 +313,6 @@ func resolveTheme(cmd *cobra.Command, configTheme string) string {
 		return configTheme
 	}
 	return flagTheme
-}
-
-// themeAuto detects the terminal's background and picks the dark or light
-// style accordingly. It is the default value of the --theme flag and the
-// "theme" CLI setting.
-const themeAuto = "auto"
-
-// ValidThemes returns the theme names accepted by the --theme flag and the
-// "theme" CLI setting, sorted for stable display. This is the single source of
-// truth for theme validation: "auto" detects the terminal background, "ansi"
-// is our custom 16-color style, and the rest are glamour's built-in styles.
-func ValidThemes() []string {
-	themes := make([]string, 0, 2+len(styles.DefaultStyles))
-	themes = append(themes, themeAuto, ansiStyle)
-	for name := range styles.DefaultStyles {
-		themes = append(themes, name)
-	}
-	sort.Strings(themes)
-	return themes
-}
-
-// IsValidTheme reports whether theme is one of the names returned by ValidThemes.
-func IsValidTheme(theme string) bool {
-	for _, t := range ValidThemes() {
-		if t == theme {
-			return true
-		}
-	}
-	return false
 }
 
 func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, style string) {
@@ -665,12 +635,8 @@ func (s Streams) PrintMarkdown(md string) {
 }
 
 func (s Streams) styleConfig() ansi.StyleConfig {
-	if s.style == ansiStyle {
-		return ansiStyleConfig
+	if sc, ok := themeStyles[s.style]; ok {
+		return sc
 	}
-	styleConfig, ok := styles.DefaultStyles[s.style]
-	if !ok {
-		return styles.ASCIIStyleConfig
-	}
-	return *styleConfig
+	return styles.ASCIIStyleConfig
 }

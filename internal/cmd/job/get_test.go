@@ -48,12 +48,12 @@ func Test_formatCommand(t *testing.T) {
 		{
 			name: "shebang and command",
 			in:   "#!/bin/bash -eo pipefail\ntask ci:test",
-			want: "`#!/bin/bash -eo pipefail` `task ci:test`",
+			want: "`#!/bin/bash -eo pipefail` … `task ci:test`",
 		},
 		{
 			name: "truncates to first two lines with ellipsis",
 			in:   "#!/bin/bash -eo pipefail\ntask ci:test\ntask ci:lint\ntask ci:build",
-			want: "`#!/bin/bash -eo pipefail` `task ci:test` …",
+			want: "`#!/bin/bash -eo pipefail` … `task ci:test` …",
 		},
 		{
 			name: "escapes pipes",
@@ -63,7 +63,7 @@ func Test_formatCommand(t *testing.T) {
 		{
 			name: "escapes pipes across both lines",
 			in:   "#!/bin/bash -eo pipefail\ncat foo | grep bar | wc -l",
-			want: "`#!/bin/bash -eo pipefail` `cat foo \\| grep bar \\| wc -l`",
+			want: "`#!/bin/bash -eo pipefail` … `cat foo \\| grep bar \\| wc -l`",
 		},
 	}
 	for _, tt := range tests {

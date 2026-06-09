@@ -141,8 +141,8 @@ var ansiStyleConfig = ansi.StyleConfig{
 	},
 	Code: ansi.StyleBlock{
 		StylePrimitive: ansi.StylePrimitive{
-			Prefix: " ", // non-breaking space to prevent hard breaks
-			Suffix: " ",
+			Prefix: "\u00a0", // non-breaking space to prevent hard breaks
+			Suffix: "\u00a0",
 			Color:  new("9"),
 		},
 	},
@@ -165,6 +165,6 @@ var ansiStyleConfig = ansi.StyleConfig{
 		RowSeparator:    new("─"),
 	},
 	DefinitionDescription: ansi.StylePrimitive{
-		BlockPrefix: "\n🠶 ",
+		BlockPrefix: "\n\U0001F836 ",
 	},
 }
