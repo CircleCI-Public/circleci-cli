@@ -43,6 +43,13 @@ func NewSelectModel(prompt string, options []string) SelectModel {
 	}
 }
 
+// WithCursor returns a copy of the model with the initial highlighted option
+// set to index i. Use this to pre-select a default choice.
+func (m SelectModel) WithCursor(i int) SelectModel {
+	m.inner = m.inner.WithCursor(i)
+	return m
+}
+
 // Selected returns the index of the chosen option. Only valid when !Cancelled().
 func (m SelectModel) Selected() int { return m.inner.Selected() }
 

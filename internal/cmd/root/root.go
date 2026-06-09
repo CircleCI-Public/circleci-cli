@@ -57,6 +57,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
@@ -132,17 +133,25 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	initConfig := func(cmd *cobra.Command) error {
-		ctx := iostream.FromCmd(cmd.Context(), cmd)
-		ctx = cmdutil.WithVersion(ctx, version)
+		if theme, _ := cmd.Flags().GetString("theme"); !iostream.IsValidTheme(theme) {
+			return clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: "+theme).
+				WithSuggestions("Valid themes are: " + strings.Join(iostream.ValidThemes(), ", ")).
+				WithExitCode(clierrors.ExitBadArguments)
+		}
 
 		secureStorage := cmdutil.IsSecureStorage(cmd)
 		configPath := cmdutil.ConfigPath(cmd)
 
-		cfg, err := config.Load(ctx, configPath, secureStorage)
+		// Load config before stream setup so a stored "theme" setting can act as
+		// the fallback when --theme is not explicitly passed. config.Load only
+		// uses ctx for its file lock timeout, so the streamless context is fine.
+		cfg, err := config.Load(cmd.Context(), configPath, secureStorage)
 		if err != nil {
 			return err
 		}
 
+		ctx := iostream.FromCmd(cmd.Context(), cmd, cfg.EffectiveTheme())
+		ctx = cmdutil.WithVersion(ctx, version)
 		ctx = cmdutil.WithConfig(ctx, cfg)
 
 		agentName := agent.Detect()

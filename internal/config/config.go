@@ -55,10 +55,15 @@ type state struct {
 	DeviceID  *uuid.UUID `yaml:"device_id,omitempty"`
 	UserID    *uuid.UUID `yaml:"user_id,omitempty"`
 	Telemetry *bool      `yaml:"telemetry,omitempty"`
+	Theme     string     `yaml:"theme,omitempty"`
 }
 
 // DefaultHost is the CircleCI API host used when none is configured.
 const DefaultHost = "https://circleci.com"
+
+// DefaultTheme is the color theme used when none is configured. It matches the
+// default of the --theme flag and detects the terminal background.
+const DefaultTheme = "auto"
 
 // noTelemetryEnvVars is the set of environment variables that disable telemetry
 // regardless of the stored config preference.
@@ -163,7 +168,7 @@ func lockPath(path string) string {
 }
 
 func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool) error {
-	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Host = host
 		cfg.state.Token = token
 		cfg.state.UserID = &userID
@@ -172,7 +177,7 @@ func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureS
 }
 
 func SetLogout(ctx context.Context, secureStorage bool) error {
-	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Token = ""
 		cfg.state.UserID = nil
 		return nil
@@ -180,15 +185,30 @@ func SetLogout(ctx context.Context, secureStorage bool) error {
 }
 
 func SetToken(ctx context.Context, token string, secureStorage bool) error {
-	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Token = token
 		return nil
 	})
 }
 
-func SetHost(ctx context.Context, host string, secureStorage bool) error {
-	return saveTo(ctx, "", secureStorage, func(cfg *Config) error {
+// SetHost persists the CircleCI server host. The host is not a secret, so it is
+// always written to the config file and never touches secure storage (passing
+// secureStorage here would make saveTo delete the keyring token).
+func SetHost(ctx context.Context, host string) error {
+	return saveTo(ctx, "", func(cfg *Config) error {
 		cfg.state.Host = host
+		return nil
+	})
+}
+
+// SetTheme persists the color theme preference. The theme is not a secret, so
+// it is always written to the config file and never touches secure storage
+// (passing secureStorage here would make saveTo delete the keyring token).
+// Validation of the value is the caller's responsibility (see
+// iostream.IsValidTheme).
+func SetTheme(ctx context.Context, theme string) error {
+	return saveTo(ctx, "", func(cfg *Config) error {
+		cfg.state.Theme = theme
 		return nil
 	})
 }
@@ -196,7 +216,7 @@ func SetHost(ctx context.Context, host string, secureStorage bool) error {
 // SetTelemetry persists the telemetry opt-in/opt-out preference.
 // path follows the same convention as Load (empty → XDG default).
 func SetTelemetry(ctx context.Context, enabled bool, path string) error {
-	return saveTo(ctx, path, false, func(cfg *Config) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
 		cfg.state.Telemetry = &enabled
 		return nil
 	})
@@ -225,7 +245,7 @@ func (c *Config) UserID() uuid.UUID {
 }
 
 func ensureDeviceID(ctx context.Context, path string) (id uuid.UUID, err error) {
-	err = saveTo(ctx, path, false, func(cfg *Config) error {
+	err = saveTo(ctx, path, func(cfg *Config) error {
 		if cfg.state.DeviceID == nil || *cfg.state.DeviceID == uuid.Nil {
 			cfg.state.DeviceID = new(uuid.New())
 		}
@@ -246,9 +266,17 @@ func (c *Config) DeviceID() uuid.UUID {
 	return *c.state.DeviceID
 }
 
-// saveTo writes cfg to the given path, creating parent directories as needed.
+func saveTo(ctx context.Context, path string, cb func(config *Config) error) error {
+	return saveToFull(ctx, path, false, cb)
+}
+
+func saveToIncludingToken(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) error {
+	return saveToFull(ctx, path, secureStorage, cb)
+}
+
+// saveToFull writes cfg to the given path, creating parent directories as needed.
 // If path is empty the default XDG path is used.
-func saveTo(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) error {
+func saveToFull(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) error {
 	resolved, err := resolvePath(path)
 	if err != nil {
 		return err
@@ -342,6 +370,15 @@ func (c *Config) EffectiveToken() string {
 		return t
 	}
 	return c.state.Token
+}
+
+// EffectiveTheme returns the configured color theme, or DefaultTheme when none
+// has been set.
+func (c *Config) EffectiveTheme() string {
+	if c.state.Theme != "" {
+		return c.state.Theme
+	}
+	return DefaultTheme
 }
 
 func (c *Config) loadToken(ctx context.Context) error {

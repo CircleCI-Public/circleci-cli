@@ -6,9 +6,13 @@ Supported keys:
   token      Your CircleCI personal API token
   host       CircleCI server host (default: https://circleci.com)
   telemetry  Enable or disable anonymous usage telemetry (on/off)
+  theme      Color theme for rendered output (default: auto)
 
 Pass "-" as the value to read it from stdin, keeping secrets out of
 shell history and process listings.
+
+Run 'circleci settings set theme' with no value in an interactive
+terminal to pick a theme from a list.
 
 ## Usage
 
@@ -34,6 +38,10 @@ shell history and process listings.
   `circleci settings set telemetry on`
 - Disable telemetry: 
   `circleci settings set telemetry off`
+- Set the color theme used for rendered output: 
+  `circleci settings set theme dracula`
+- Pick the color theme interactively: 
+  `circleci settings set theme`
 
 ## Learn More
 

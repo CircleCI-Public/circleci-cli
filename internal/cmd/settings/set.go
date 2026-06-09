@@ -24,6 +24,7 @@ package settings
 
 import (
 	"context"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -46,9 +47,13 @@ func newSetCmd() *cobra.Command {
 			  token      Your CircleCI personal API token
 			  host       CircleCI server host (default: https://circleci.com)
 			  telemetry  Enable or disable anonymous usage telemetry (on/off)
+			  theme      Color theme for rendered output (default: auto)
 
 			Pass "-" as the value to read it from stdin, keeping secrets out of
 			shell history and process listings.
+
+			Run 'circleci settings set theme' with no value in an interactive
+			terminal to pick a theme from a list.
 		`),
 		Example: heredoc.Doc(`
 			# Store your personal API token
@@ -65,10 +70,32 @@ func newSetCmd() *cobra.Command {
 
 			# Disable telemetry
 			$ circleci settings set telemetry off
+
+			# Set the color theme used for rendered output
+			$ circleci settings set theme dracula
+
+			# Pick the color theme interactively
+			$ circleci settings set theme
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			secureStorage := cmdutil.IsSecureStorage(cmd)
+			configPath := cmdutil.ConfigPath(cmd)
+
+			// "theme" may be selected interactively when the value is omitted
+			// and we have an interactive terminal.
+			if len(args) == 1 && args[0] == "theme" && iostream.IsInteractive(ctx) {
+				value, err := promptTheme(ctx)
+				if err != nil {
+					return err
+				}
+				if value == "" {
+					return nil // cancelled
+				}
+				return runSet(ctx, secureStorage, configPath, "theme", value)
+			}
+
 			if cliErr := cmdutil.RequireArgs(args, "key", "value"); cliErr != nil {
 				return cliErr
 			}
@@ -77,8 +104,6 @@ func newSetCmd() *cobra.Command {
 				return clierrors.New("args.stdin_read_failed", "Failed to read value from stdin", err.Error()).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			secureStorage := cmdutil.IsSecureStorage(cmd)
-			configPath := cmdutil.ConfigPath(cmd)
 			return runSet(ctx, secureStorage, configPath, args[0], value)
 		},
 	}
@@ -90,12 +115,14 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 	case "token":
 		err = config.SetToken(ctx, value, secureStorage)
 	case "host":
-		err = config.SetHost(ctx, value, secureStorage)
+		err = config.SetHost(ctx, value)
 	case "telemetry":
 		return runSetTelemetry(ctx, path, value)
+	case "theme":
+		return runSetTheme(ctx, path, value)
 	default:
 		return clierrors.New("settings.unknown_key", "Unknown setting", "Unknown setting key: "+key).
-			WithSuggestions("Valid keys are: token, host, telemetry").
+			WithSuggestions("Valid keys are: token, host, telemetry, theme").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	if err != nil {
@@ -108,6 +135,37 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 	} else {
 		iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.SymbolOK(ctx), key, path)
 	}
+	return nil
+}
+
+// promptTheme presents an interactive theme picker with the cursor defaulting
+// to the "auto" theme. Returns "" if the user cancels.
+func promptTheme(ctx context.Context) (string, error) {
+	themes := iostream.ValidThemes()
+	defaultIdx := slices.Index(themes, config.DefaultTheme)
+	idx, err := iostream.PromptSelectDefault(ctx, "Select a theme", themes, defaultIdx)
+	if err != nil {
+		return "", err
+	}
+	if idx < 0 {
+		return "", nil // cancelled
+	}
+	return themes[idx], nil
+}
+
+func runSetTheme(ctx context.Context, path, value string) error {
+	if !iostream.IsValidTheme(value) {
+		return clierrors.New("settings.invalid_value", "Invalid theme value", "Invalid value for theme: "+value).
+			WithSuggestions("Valid themes are: " + strings.Join(iostream.ValidThemes(), ", ")).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	if err := config.SetTheme(ctx, value); err != nil {
+		return clierrors.New("settings.save_failed", "Failed to save theme setting", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	iostream.ErrPrintf(ctx, "%s Saved theme to %s\n", iostream.SymbolOK(ctx), path)
 	return nil
 }
 

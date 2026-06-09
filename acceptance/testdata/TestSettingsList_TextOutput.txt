@@ -6,4 +6,5 @@
 | host      | https://circleci.com |
 | token     | (not set)            |
 | telemetry | true                 |
+| theme     | auto                 |
 
