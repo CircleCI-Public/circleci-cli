@@ -76,7 +76,7 @@ func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command, bas
 		parent.SetOut(bb)
 		parent.SetErr(bb)
 
-		ctx := iostream.FromCmd(context.Background(), parent)
+		ctx := iostream.FromCmd(context.Background(), parent, "")
 		parent.SetContext(ctx)
 
 		err := f(parent)

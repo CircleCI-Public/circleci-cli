@@ -282,7 +282,9 @@ assert.Check(t, withinTolerance(actual, expected, 0.01))
 In acceptance tests, there should be a test for the stdout/stderr output of the
 command. This must use gotesttools' `golden.String` comparison:
 ```go
+assert.Check(t, cmp.Equal(result.ExitCode, 0))
 assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 ```
 
 You should not construct the golden test file yourself. Instead, run the tests

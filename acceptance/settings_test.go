@@ -372,3 +372,36 @@ func TestTelemetryInvalidValue(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for invalid telemetry value")
 }
+
+// TestSettingsSetTheme_Interactive drives the interactive theme picker shown
+// when "settings set theme" is run with no value in a terminal. It asserts the
+// cursor defaults to "auto" and that selecting a different theme persists it.
+func TestSettingsSetTheme_Interactive(t *testing.T) {
+	env := testenv.New(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "theme"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// The picker appears with the cursor (›) defaulting to "auto".
+	_, err := console.ExpectString("Select a theme")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("› auto")
+	assert.NilError(t, err)
+
+	// Move down twice (auto → dark → dracula) and confirm with Enter.
+	_, err = console.Send("jj\r")
+	assert.NilError(t, err)
+
+	// The chosen theme is validated and persisted.
+	_, err = console.ExpectString("Saved theme")
+	assert.NilError(t, err)
+
+	cfg, err := config.Load(context.Background(),
+		filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.EffectiveTheme(), "dracula")
+}

@@ -55,6 +55,20 @@ func (m SelectModel) WithHint(hint string) SelectModel {
 	return m
 }
 
+// WithCursor returns a copy of the model with the initial cursor positioned at
+// index i, clamped to the available options. Use this to pre-select a default
+// choice.
+func (m SelectModel) WithCursor(i int) SelectModel {
+	switch {
+	case i < 0:
+		i = 0
+	case i >= len(m.options):
+		i = len(m.options) - 1
+	}
+	m.cursor = i
+	return m
+}
+
 // Selected returns the index chosen by the user. Only valid when Done().
 func (m SelectModel) Selected() int { return m.cursor }
 

@@ -33,6 +33,7 @@ import (
 	"os"
 	"regexp"
 	"runtime"
+	"sort"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -171,6 +172,12 @@ func PromptSelect(ctx context.Context, prompt string, options []string) (int, er
 	return fromContext(ctx).PromptSelect(ctx, prompt, options)
 }
 
+// PromptSelectDefault is like PromptSelect but pre-highlights the option at
+// defaultIdx. Returns the index of the selected option, or -1 if cancelled.
+func PromptSelectDefault(ctx context.Context, prompt string, options []string, defaultIdx int) (int, error) {
+	return fromContext(ctx).PromptSelectDefault(ctx, prompt, options, defaultIdx)
+}
+
 // PromptText presents a plain (non-secret) single-line text input via
 // bubbletea. header is the bold heading above the input; placeholder is
 // shown inside the empty field; defaultVal (optional) is returned when the
@@ -264,19 +271,22 @@ func Testing(ctx context.Context) context.Context {
 
 // FromCmd extracts Streams from a cobra.Command's Out/Err/In and reads the
 // --quiet persistent flag if registered on the root command.
-func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
+//
+// The color theme is resolved with the --theme flag taking precedence when it
+// was explicitly set; otherwise configTheme (the stored CLI setting, "" if
+// none) is used, falling back to the flag's "auto" default.
+func FromCmd(ctx context.Context, cmd *cobra.Command, configTheme string) context.Context {
 	lvl := log.InfoLevel
 	verbose, _ := cmd.Flags().GetBool("debug")
 	if verbose {
 		lvl = log.DebugLevel
 	}
-	theme, _ := cmd.Flags().GetString("theme")
 	quiet, _ := cmd.Flags().GetBool("quiet")
 
 	stdin := cmd.InOrStdin()
 	stdout := cmd.OutOrStdout()
 	stderr := cmd.ErrOrStderr()
-	width, style := terminalProperties(theme, stdin, stdout)
+	width, style := terminalProperties(resolveTheme(cmd, configTheme), stdin, stdout)
 
 	return WithStreams(ctx, Streams{
 		Out:   stdout,
@@ -291,9 +301,53 @@ func FromCmd(ctx context.Context, cmd *cobra.Command) context.Context {
 	})
 }
 
+// resolveTheme picks the color theme in precedence order:
+//  1. an explicitly-passed --theme flag (always wins over config),
+//  2. the stored config theme (configTheme; "" when none is configured),
+//  3. the --theme flag's default value ("auto").
+func resolveTheme(cmd *cobra.Command, configTheme string) string {
+	flagTheme, _ := cmd.Flags().GetString("theme")
+	if cmd.Flags().Changed("theme") {
+		return flagTheme
+	}
+	if configTheme != "" {
+		return configTheme
+	}
+	return flagTheme
+}
+
+// themeAuto detects the terminal's background and picks the dark or light
+// style accordingly. It is the default value of the --theme flag and the
+// "theme" CLI setting.
+const themeAuto = "auto"
+
+// ValidThemes returns the theme names accepted by the --theme flag and the
+// "theme" CLI setting, sorted for stable display. This is the single source of
+// truth for theme validation: "auto" detects the terminal background, "ansi"
+// is our custom 16-color style, and the rest are glamour's built-in styles.
+func ValidThemes() []string {
+	themes := make([]string, 0, 2+len(styles.DefaultStyles))
+	themes = append(themes, themeAuto, ansiStyle)
+	for name := range styles.DefaultStyles {
+		themes = append(themes, name)
+	}
+	sort.Strings(themes)
+	return themes
+}
+
+// IsValidTheme reports whether theme is one of the names returned by ValidThemes.
+func IsValidTheme(theme string) bool {
+	for _, t := range ValidThemes() {
+		if t == theme {
+			return true
+		}
+	}
+	return false
+}
+
 func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, style string) {
 	switch theme {
-	case "auto":
+	case themeAuto:
 		// This lipgloss function doesn't seem to work on Windows
 		if runtime.GOOS == "windows" {
 			break
@@ -487,8 +541,14 @@ func (s Streams) Confirm(ctx context.Context, prompt string) bool {
 // PromptSelect presents a bubbletea single-choice list prompt.
 // Returns the selected index, or -1 if the user cancels.
 func (s Streams) PromptSelect(ctx context.Context, prompt string, options []string) (int, error) {
+	return s.PromptSelectDefault(ctx, prompt, options, 0)
+}
+
+// PromptSelectDefault is like PromptSelect but starts the cursor on
+// defaultIdx (clamped to the options) so a default choice is pre-highlighted.
+func (s Streams) PromptSelectDefault(ctx context.Context, prompt string, options []string, defaultIdx int) (int, error) {
 	p := tea.NewProgram(
-		ui.NewSelectModel(prompt, options),
+		ui.NewSelectModel(prompt, options).WithCursor(defaultIdx),
 		tea.WithContext(ctx),
 		tea.WithInput(s.In),
 		tea.WithOutput(s.Err),
