@@ -386,10 +386,11 @@ func TestSettingsSetTheme_Interactive(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	// The picker appears with the cursor (›) defaulting to "auto".
+	// The picker appears with the default theme marked and the cursor (›)
+	// defaulting to "auto" (no theme is configured yet).
 	_, err := console.ExpectString("Select a theme")
 	assert.NilError(t, err)
-	_, err = console.ExpectString("› auto")
+	_, err = console.ExpectString("› auto (default)")
 	assert.NilError(t, err)
 
 	// Move down twice (auto → dark → dracula) and confirm with Enter.
@@ -397,6 +398,46 @@ func TestSettingsSetTheme_Interactive(t *testing.T) {
 	assert.NilError(t, err)
 
 	// The chosen theme is validated and persisted.
+	_, err = console.ExpectString("Saved theme")
+	assert.NilError(t, err)
+
+	cfg, err := config.Load(context.Background(),
+		filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.EffectiveTheme(), "dracula")
+}
+
+// TestSettingsSetTheme_Interactive_StartsAtCurrent verifies the picker opens
+// with the cursor on the already-configured theme rather than the default.
+func TestSettingsSetTheme_Interactive_StartsAtCurrent(t *testing.T) {
+	env := testenv.New(t)
+	dir := t.TempDir()
+
+	// Pre-configure a non-default theme.
+	set := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "theme", "dracula"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, set.ExitCode, 0, "stderr: %s", set.Stderr)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "theme"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	// The cursor (›) starts on the currently-configured theme.
+	_, err := console.ExpectString("Select a theme")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("› dracula")
+	assert.NilError(t, err)
+
+	// Confirm the current selection with Enter; it persists unchanged.
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
 	_, err = console.ExpectString("Saved theme")
 	assert.NilError(t, err)
 
