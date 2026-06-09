@@ -24,10 +24,11 @@ package context
 
 import (
 	"github.com/MakeNowJust/heredoc"
-	"github.com/pkg/browser"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/browser"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newOpenCmd() *cobra.Command {
@@ -73,7 +74,7 @@ func newOpenCmd() *cobra.Command {
 				return err
 			}
 
-			return browser.OpenURL(u)
+			return browser.OpenURLOrPrint(iostream.Err(ctx), u)
 		},
 	}
 
