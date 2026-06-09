@@ -24,6 +24,7 @@ package root
 
 import (
 	"os"
+	"strings"
 
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
@@ -183,6 +184,9 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		for i := range args {
+			args[i] = strings.TrimSpace(args[i])
+		}
 		return initConfig(cmd)
 	}
 	cmd.PersistentPostRunE = func(_ *cobra.Command, _ []string) error {
