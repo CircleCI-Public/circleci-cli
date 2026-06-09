@@ -58,17 +58,22 @@ var v3TimeFormat = time.RFC3339
 // fakeRunV3 returns a V3 run payload for the fake server.
 func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[string]any {
 	createdAt := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	return map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"phase":           phase,
-			"current_outcome": outcome,
-			"created_at":      createdAt.Format(v3TimeFormat),
-			"vcs": map[string]any{
-				"branch":   branch,
-				"revision": revision,
-			},
+	attrs := map[string]any{
+		"phase":      phase,
+		"created_at": createdAt.Format(v3TimeFormat),
+		"vcs": map[string]any{
+			"branch":   branch,
+			"revision": revision,
 		},
+	}
+	if phase == "ended" {
+		attrs["outcome"] = outcome
+	} else {
+		attrs["current_outcome"] = outcome
+	}
+	return map[string]any{
+		"id":         id,
+		"attributes": attrs,
 		"references": map[string]any{
 			"project": map[string]any{"id": projectID},
 			"user":    map[string]any{"id": "user-uuid-001"},
@@ -79,16 +84,21 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 // fakeWorkflowV3 returns a V3 workflow payload for the fake server.
 func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) map[string]any {
 	created := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	ended := created.Add(2*time.Minute + 34*time.Second)
+	attrs := map[string]any{
+		"name":       name,
+		"phase":      phase,
+		"created_at": created.Format(v3TimeFormat),
+	}
+	if phase == "ended" {
+		attrs["outcome"] = outcome
+		ended := created.Add(2*time.Minute + 34*time.Second)
+		attrs["ended_at"] = ended.Format(v3TimeFormat)
+	} else {
+		attrs["current_outcome"] = outcome
+	}
 	return map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"name":       name,
-			"phase":      phase,
-			"outcome":    outcome,
-			"created_at": created.Format(v3TimeFormat),
-			"ended_at":   ended.Format(v3TimeFormat),
-		},
+		"id":         id,
+		"attributes": attrs,
 		"references": map[string]any{
 			"run":     map[string]any{"id": runID},
 			"project": map[string]any{"id": projectID},
@@ -232,7 +242,8 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["id"], runID))
-	assert.Check(t, cmp.Equal(out["status"], "success"))
+	assert.Check(t, cmp.Equal(out["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out["outcome"], "succeeded"))
 
 	wfs := out["workflows"].([]any)
 	assert.Check(t, cmp.Len(wfs, 1))
@@ -501,8 +512,9 @@ func TestRunList_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
 	assert.Check(t, cmp.Equal(out[0]["id"], "pid-1"))
-	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
-	assert.Check(t, cmp.Equal(out[1]["status"], "failed"))
+	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
+	assert.Check(t, cmp.Equal(out[1]["outcome"], "failed"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
@@ -729,7 +741,7 @@ func TestRunCancel(t *testing.T) {
 	runID := getRunID
 	wfID := "wf-cancel-001"
 	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "running", ""))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "started", ""))
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)

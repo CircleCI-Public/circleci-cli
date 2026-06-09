@@ -336,7 +336,7 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string,
 func hasFailedJob(state runGetOutput) bool {
 	for _, wf := range state.Workflows {
 		for _, j := range wf.Jobs {
-			if j.Status == "failed" {
+			if j.Outcome == "failed" {
 				return true
 			}
 		}
@@ -387,12 +387,8 @@ func allWorkflowsDone(workflows []workflowOutput) bool {
 	if len(workflows) == 0 {
 		return false
 	}
-	terminal := map[string]bool{
-		"success": true, "failed": true, "error": true,
-		"canceled": true, "unauthorized": true, "not_run": true,
-	}
 	for _, wf := range workflows {
-		if !terminal[wf.Status] {
+		if wf.Phase != "ended" {
 			return false
 		}
 	}
@@ -404,12 +400,16 @@ func watchFingerprint(state runGetOutput) string {
 	for _, wf := range state.Workflows {
 		b.WriteString(wf.Name)
 		b.WriteByte('=')
-		b.WriteString(wf.Status)
+		b.WriteString(wf.Phase)
+		b.WriteByte('/')
+		b.WriteString(wf.Outcome)
 		b.WriteByte(';')
 		for _, j := range wf.Jobs {
 			b.WriteString(j.Name)
 			b.WriteByte('=')
-			b.WriteString(j.Status)
+			b.WriteString(j.Phase)
+			b.WriteByte('/')
+			b.WriteString(j.Outcome)
 			b.WriteByte(';')
 		}
 	}
@@ -419,14 +419,15 @@ func watchFingerprint(state runGetOutput) string {
 func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Duration) int {
 	lines := 0
 	for _, wf := range state.Workflows {
+		wfStatus := apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome)
 		if wf.Duration != "" {
-			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wf.Status, wf.Duration)
+			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wfStatus, wf.Duration)
 		} else {
-			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wfStatus)
 		}
 		lines++
 		for _, j := range wf.Jobs {
-			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, j.Status, j.Type)
+			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type)
 			lines++
 		}
 	}
@@ -437,13 +438,14 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 
 func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 	for _, wf := range state.Workflows {
+		wfStatus := apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome)
 		if wf.Duration != "" {
-			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wf.Status, wf.Duration)
+			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wfStatus, wf.Duration)
 		} else {
-			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wf.Status)
+			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wfStatus)
 		}
 		for _, j := range wf.Jobs {
-			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, j.Status, j.Type)
+			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type)
 		}
 	}
 }
@@ -451,7 +453,7 @@ func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Duration) {
 	parts := make([]string, 0, len(state.Workflows))
 	for _, wf := range state.Workflows {
-		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, wf.Status))
+		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome)))
 	}
 	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
 }
@@ -470,7 +472,7 @@ func failedJobNames(state runGetOutput) []string {
 	var names []string
 	for _, wf := range state.Workflows {
 		for _, j := range wf.Jobs {
-			if j.Status == "failed" {
+			if j.Outcome == "failed" {
 				names = append(names, j.Name)
 			}
 		}
@@ -479,8 +481,9 @@ func failedJobNames(state runGetOutput) []string {
 }
 
 func watchFinalResult(ctx context.Context, state runGetOutput, runID string, elapsed time.Duration) error {
-	switch state.Status {
-	case "success":
+	status := deriveDisplayStatus(state)
+	switch status {
+	case "succeeded":
 		iostream.ErrPrintf(ctx, "%s Run %s succeeded (%s)\n",
 			iostream.SymbolOK(ctx), runID, formatElapsed(elapsed))
 		return nil
@@ -503,7 +506,7 @@ func failedJobLogSuggestions(state runGetOutput) []string {
 	var suggestions []string
 	for _, wf := range state.Workflows {
 		for _, j := range wf.Jobs {
-			if j.Status == "failed" {
+			if j.Outcome == "failed" {
 				suggestions = append(suggestions,
 					fmt.Sprintf("View logs for failed job %q: circleci job get <job-id>", j.Name))
 			}

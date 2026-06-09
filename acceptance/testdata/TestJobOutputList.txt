@@ -4,14 +4,14 @@
 - Execution: 0
 
 ## 0: Spin up environment
-- Status: success
+- Status: succeeded
 - Duration: 1.3s
 ### Output
 
 _(no output)_
 
 ## 101: Checkout code
-- Status: success
+- Status: succeeded
 - Duration: 969ms
 ### Output
 
@@ -21,7 +21,7 @@ Done.
 ```
 
 ## 103: task lint-yaml
-- Status: success
+- Status: succeeded
 - Duration: 649ms
 - Exit Code: 0
 - Command: `#!/bin/bash -eo pipefail` … `task lint-yaml`

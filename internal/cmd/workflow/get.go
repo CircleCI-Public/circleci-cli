@@ -47,8 +47,9 @@ func newGetCmd() *cobra.Command {
 
 			Workflow IDs are shown in the output of 'circleci run get'.
 
-			JSON fields: id, name, status, run_id, created_at, ended_at,
-			             jobs[].id/name/status/type
+			JSON fields: id, name, phase, outcome, current_outcome, run_id,
+			             created_at, ended_at,
+			             jobs[].id/name/phase/outcome/current_outcome/type
 		`),
 		Example: heredoc.Doc(`
 			# Get workflow details
@@ -80,20 +81,24 @@ func newGetCmd() *cobra.Command {
 }
 
 type workflowGetOutput struct {
-	ID        string      `json:"id"`
-	Name      string      `json:"name"`
-	Status    string      `json:"status"`
-	RunID     string      `json:"run_id"`
-	CreatedAt string      `json:"created_at"`
-	EndedAt   string      `json:"ended_at,omitempty"`
-	Jobs      []jobOutput `json:"jobs"`
+	ID             string      `json:"id"`
+	Name           string      `json:"name"`
+	Phase          string      `json:"phase"`
+	Outcome        string      `json:"outcome,omitempty"`
+	CurrentOutcome string      `json:"current_outcome,omitempty"`
+	RunID          string      `json:"run_id"`
+	CreatedAt      string      `json:"created_at"`
+	EndedAt        string      `json:"ended_at,omitempty"`
+	Jobs           []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
-	Type   string `json:"type,omitempty"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Phase          string `json:"phase"`
+	Outcome        string `json:"outcome,omitempty"`
+	CurrentOutcome string `json:"current_outcome,omitempty"`
+	Type           string `json:"type,omitempty"`
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
@@ -108,21 +113,25 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 	}
 
 	out := workflowGetOutput{
-		ID:        wf.ID,
-		Name:      wf.Name,
-		Status:    wf.Status,
-		RunID:     wf.RunID,
-		CreatedAt: wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		ID:             wf.ID,
+		Name:           wf.Name,
+		Phase:          wf.Phase,
+		Outcome:        wf.Outcome,
+		CurrentOutcome: wf.CurrentOutcome,
+		RunID:          wf.RunID,
+		CreatedAt:      wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 	}
 	if wf.EndedAt != nil {
 		out.EndedAt = wf.EndedAt.Format("2006-01-02 15:04:05 UTC")
 	}
 	for _, j := range jobs {
 		out.Jobs = append(out.Jobs, jobOutput{
-			ID:     j.ID,
-			Name:   j.Name,
-			Status: j.Status,
-			Type:   j.Type,
+			ID:             j.ID,
+			Name:           j.Name,
+			Phase:          j.Phase,
+			Outcome:        j.Outcome,
+			CurrentOutcome: j.CurrentOutcome,
+			Type:           j.Type,
 		})
 	}
 
@@ -141,7 +150,7 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", w.Name)
 	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", w.RunID)
-	_, _ = fmt.Fprintf(&md, "- Status: %s\n", w.Status)
+	_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
 	if w.EndedAt != "" {
 		_, _ = fmt.Fprintf(&md, "- Ended: %s\n", w.EndedAt)
@@ -151,7 +160,7 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 		_, _ = fmt.Fprintf(&md, "\n## Jobs\n")
 		table := mdtable.New("Name", "Status", "Type", "ID")
 		for _, j := range w.Jobs {
-			table.Row(j.Name, j.Status, j.Type, j.ID)
+			table.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, j.ID)
 		}
 		md.WriteString(table.Render())
 	}

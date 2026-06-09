@@ -55,7 +55,7 @@ func newListCmd() *cobra.Command {
 			unless overridden with --project. Use --branch to filter results
 			to a single branch.
 
-			JSON fields: id, status, branch, revision, created_at
+			JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
@@ -94,11 +94,13 @@ func newListCmd() *cobra.Command {
 }
 
 type runListEntry struct {
-	ID        string `json:"id"`
-	Status    string `json:"status"`
-	Branch    string `json:"branch,omitempty"`
-	Revision  string `json:"revision,omitempty"`
-	CreatedAt string `json:"created_at"`
+	ID             string `json:"id"`
+	Phase          string `json:"phase"`
+	Outcome        string `json:"outcome,omitempty"`
+	CurrentOutcome string `json:"current_outcome,omitempty"`
+	Branch         string `json:"branch,omitempty"`
+	Revision       string `json:"revision,omitempty"`
+	CreatedAt      string `json:"created_at"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
@@ -151,18 +153,20 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 		rev = rev[:7]
 	}
 	return runListEntry{
-		ID:        r.ID,
-		Status:    r.Status,
-		Branch:    r.Branch,
-		Revision:  rev,
-		CreatedAt: r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+		ID:             r.ID,
+		Phase:          r.Phase,
+		Outcome:        r.Outcome,
+		CurrentOutcome: r.CurrentOutcome,
+		Branch:         r.Branch,
+		Revision:       rev,
+		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
 	}
 }
 
 func printList(ctx context.Context, entries []runListEntry) {
 	table := mdtable.New("Branch", "Revision", "ID", "Created", "Status")
 	for _, e := range entries {
-		table.Row(e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, e.Status)
+		table.Row(e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }

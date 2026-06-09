@@ -6,7 +6,7 @@ The project is inferred from the current git repository's remote
 unless overridden with --project. Use --branch to filter results
 to a single branch.
 
-JSON fields: id, status, branch, revision, created_at
+JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 
 ## Usage
 

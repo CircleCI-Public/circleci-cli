@@ -12,7 +12,7 @@ virtual terminal so progress redraws (carriage returns, cursor
 movement) collapse to the final state a human would have seen.
 
 JSON fields: id, name, execution,
-             steps[].num/name/type/status/started_at/stopped_at/
+             steps[].num/name/type/phase/outcome/started_at/stopped_at/
              exit_code/command/output
 
 ## Usage

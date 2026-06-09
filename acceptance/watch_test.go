@@ -266,10 +266,10 @@ func TestRunWatch_FailFast(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "running", "", "main", "abc1234def5678"))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 79, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 79, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "running", ""))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
 		fakeJobV3("job-2", "lint", wfID, watchProjectID),
@@ -299,10 +299,10 @@ func TestRunWatch_Timeout(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "running", "", "main", "abc1234def5678"))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 77, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 77, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "running", ""))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
@@ -329,10 +329,10 @@ func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "running", "", "main", "abc1234def5678"))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 78, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 78, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "running", ""))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)

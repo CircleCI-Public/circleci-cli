@@ -3,10 +3,10 @@
 - Branch: main
 - Commit: abc1234
 ### Workflows
-| ID            | Name   | Status  |
-| ------------- | ------ | ------- |
-| wf-recent-aaa | build  | success |
-| wf-recent-bbb | deploy | failed  |
+| ID            | Name   | Status    |
+| ------------- | ------ | --------- |
+| wf-recent-aaa | build  | succeeded |
+| wf-recent-bbb | deploy | failed    |
 
 ## Run bbbbbbbb-0000-0000-0000-000000000002
 - Branch: main

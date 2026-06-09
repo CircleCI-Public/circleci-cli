@@ -66,8 +66,8 @@ func newListCmd() *cobra.Command {
 			When passing a run number, the project is inferred from the
 			current git repository unless overridden with --project.
 
-			JSON fields (single run):  id, name, status
-			JSON fields (recent runs): run_id, id, name, status
+			JSON fields (single run):  id, name, phase, outcome, current_outcome
+			JSON fields (recent runs): run_id, id, name, phase, outcome, current_outcome
 		`),
 		Example: heredoc.Doc(`
 			# List workflows for recent runs in the current project
@@ -111,16 +111,20 @@ func newListCmd() *cobra.Command {
 }
 
 type workflowListOutput struct {
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Phase          string `json:"phase"`
+	Outcome        string `json:"outcome,omitempty"`
+	CurrentOutcome string `json:"current_outcome,omitempty"`
 }
 
 type workflowRecentOutput struct {
-	RunID  string `json:"run_id"`
-	ID     string `json:"id"`
-	Name   string `json:"name"`
-	Status string `json:"status"`
+	RunID          string `json:"run_id"`
+	ID             string `json:"id"`
+	Name           string `json:"name"`
+	Phase          string `json:"phase"`
+	Outcome        string `json:"outcome,omitempty"`
+	CurrentOutcome string `json:"current_outcome,omitempty"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug string, jsonOut bool) error {
@@ -137,9 +141,11 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 	var out []workflowListOutput
 	for _, wf := range workflows {
 		out = append(out, workflowListOutput{
-			ID:     wf.ID,
-			Name:   wf.Name,
-			Status: wf.Status,
+			ID:             wf.ID,
+			Name:           wf.Name,
+			Phase:          wf.Phase,
+			Outcome:        wf.Outcome,
+			CurrentOutcome: wf.CurrentOutcome,
 		})
 	}
 
@@ -157,7 +163,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 
 	table := mdtable.New("ID", "Name", "Status")
 	for _, wf := range out {
-		table.Row(wf.ID, wf.Name, wf.Status)
+		table.Row(wf.ID, wf.Name, apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome))
 	}
 	iostream.PrintMarkdown(ctx, "# Workflows\n"+table.Render())
 	return nil
@@ -198,10 +204,12 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 			}
 			for _, wf := range workflows {
 				out = append(out, workflowRecentOutput{
-					RunID:  r.ID,
-					ID:     wf.ID,
-					Name:   wf.Name,
-					Status: wf.Status,
+					RunID:          r.ID,
+					ID:             wf.ID,
+					Name:           wf.Name,
+					Phase:          wf.Phase,
+					Outcome:        wf.Outcome,
+					CurrentOutcome: wf.CurrentOutcome,
 				})
 			}
 		}
@@ -240,7 +248,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		_, _ = fmt.Fprintf(&md, "### Workflows\n")
 		table := mdtable.New("ID", "Name", "Status")
 		for _, wf := range workflows {
-			table.Row(wf.ID, wf.Name, wf.Status)
+			table.Row(wf.ID, wf.Name, wf.Status())
 		}
 		md.WriteString(table.Render())
 		md.WriteString("\n")

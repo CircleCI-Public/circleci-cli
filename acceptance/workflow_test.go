@@ -115,12 +115,14 @@ func TestWorkflowGet_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["id"], testWorkflowDetailID))
 	assert.Check(t, cmp.Equal(out["name"], "build"))
-	assert.Check(t, cmp.Equal(out["status"], "failed"))
+	assert.Check(t, cmp.Equal(out["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out["outcome"], "failed"))
 
 	jobs := out["jobs"].([]any)
 	assert.Check(t, cmp.Len(jobs, 2))
 	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["name"], "run-tests"))
-	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["status"], "success"))
+	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["phase"], "ended"))
+	assert.Check(t, cmp.Equal(jobs[0].(map[string]any)["outcome"], "succeeded"))
 }
 
 func TestWorkflowGet_JQ(t *testing.T) {
@@ -287,7 +289,8 @@ func TestWorkflowList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Len(out, 1))
 	assert.Check(t, cmp.Equal(out[0]["id"], "wf-uuid-aaa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
-	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
@@ -376,13 +379,13 @@ func setupRecentRuns(t *testing.T, fake *fakes.CircleCI) {
 	fake.AddRunV3(testRunRecent1, wfListProjectID,
 		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "failed", "main", "abc1234567890"))
 	fake.AddRunV3(testRunRecent2, wfListProjectID,
-		fakeRunV3(testRunRecent2, wfListProjectID, "running", "", "main", "abc1234567890"))
+		fakeRunV3(testRunRecent2, wfListProjectID, "started", "", "main", "abc1234567890"))
 	fake.AddRunWorkflowsV3(testRunRecent1,
 		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
 		fakeWorkflowV3("wf-recent-bbb", "deploy", testRunRecent1, wfListProjectID, "ended", "failed"),
 	)
 	fake.AddRunWorkflowsV3(testRunRecent2,
-		fakeWorkflowV3("wf-recent-ccc", "build", testRunRecent2, wfListProjectID, "running", ""),
+		fakeWorkflowV3("wf-recent-ccc", "build", testRunRecent2, wfListProjectID, "started", ""),
 	)
 }
 
@@ -453,7 +456,8 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["run_id"], testRunRecent1))
 	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
-	assert.Check(t, cmp.Equal(out[0]["status"], "success"))
+	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
