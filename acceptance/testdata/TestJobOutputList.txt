@@ -24,7 +24,7 @@ Done.
 - Status: success
 - Duration: 649ms
 - Exit Code: 0
-- Command: `#!/bin/bash -eo pipefail` `task lint-yaml`
+- Command: `#!/bin/bash -eo pipefail` … `task lint-yaml`
 ### Output
 
 ```text
