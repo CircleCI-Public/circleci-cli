@@ -280,6 +280,11 @@ func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
 			return "running"
 		}
 	case "ended":
+		// The V3 runs API reports only current_outcome, never outcome,
+		// even once a run has ended (a rerun can change it later).
+		if outcome == "" {
+			return currentOutcome
+		}
 		return outcome
 	default:
 		return phase
