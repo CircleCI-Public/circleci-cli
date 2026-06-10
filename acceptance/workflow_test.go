@@ -638,12 +638,12 @@ func TestWorkflowCancel(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/workflow/" + testWorkflowDetailID + "/cancel"},
+			URL:    url.URL{Path: "/api/v3/workflows/" + testWorkflowDetailID + "/cancel"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{}`),
+			Body: new(``),
 		}, ignoreCommonHeaders))
 	})
 }

@@ -255,7 +255,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v2/workflow/{id}/rerun", f.handleRerunWorkflow)
-	r.Post("/api/v2/workflow/{id}/cancel", f.handleCancelWorkflow)
+	r.Post("/api/v3/workflows/{id}/cancel", f.handleCancelWorkflow)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
 	r.Get("/api/v2/workflow/{id}/job", f.handleGetWorkflowJobs)
@@ -393,7 +393,7 @@ func (f *CircleCI) SetRerunResponse(workflowID string, status int) {
 	f.rerunResponses[workflowID] = status
 }
 
-// SetCancelResponse sets the HTTP status code returned for POST /api/v2/workflow/<id>/cancel.
+// SetCancelResponse sets the HTTP status code returned for POST /api/v3/workflows/<id>/cancel.
 // Use http.StatusAccepted (202) for success.
 func (f *CircleCI) SetCancelResponse(workflowID string, status int) {
 	f.mu.Lock()
@@ -945,7 +945,7 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 	render.Status(r, status)
-	render.JSON(w, r, map[string]any{"message": "Accepted."})
+	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
 }
 
 func (f *CircleCI) handleRawStepOutput(w http.ResponseWriter, r *http.Request) {

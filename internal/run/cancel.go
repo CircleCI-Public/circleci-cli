@@ -42,7 +42,7 @@ func (e *ErrNothingToCancel) Error() string {
 
 // Cancel cancels a run by cancelling each of its active workflows.
 // The CircleCI API has no run-level cancel endpoint; cancellation operates
-// at the workflow level via POST /api/v2/workflow/{id}/cancel.
+// at the workflow level via POST /api/v3/workflows/{id}/cancel.
 //
 // Returns ErrNothingToCancel when the run exists but all workflows are
 // already in a terminal state.

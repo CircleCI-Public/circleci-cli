@@ -126,12 +126,13 @@ func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) 
 	)
 }
 
-// CancelWorkflow requests cancellation of a running workflow.
+// CancelWorkflow requests cancellation of a running workflow. Cancellation
+// is processed asynchronously; the V3 API acknowledges with the workflow id.
 func (c *Client) CancelWorkflow(ctx context.Context, id string) error {
-	var resp struct {
-		Message string `json:"message"`
-	}
-	return c.post(ctx, "/workflow/%s/cancel", map[string]any{}, &resp,
+	var resp v3Entity[struct {
+		ID string `json:"id"`
+	}]
+	return c.postV3(ctx, "/workflows/%s/cancel", nil, &resp,
 		routeParams(id),
 	)
 }
