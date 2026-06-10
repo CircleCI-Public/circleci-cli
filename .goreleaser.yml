@@ -155,6 +155,13 @@ homebrew_casks:
     description: "CircleCI command line tool."
     binaries:
       - circleci
+    caveats: |
+      This preview build installs a `circleci` binary that conflicts with the
+      stable `circleci` formula from homebrew-core. Homebrew cannot declare a
+      cask/formula conflict automatically, so if you have the core formula
+      installed, unlink it first to avoid a clashing symlink:
+
+        brew unlink circleci
     hooks:
       post:
         install: |
