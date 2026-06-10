@@ -15,8 +15,14 @@ This is CircleCI's command-line application.
 
 CircleCI CLI is available on the following package managers:
 
-Homebrew:
+Homebrew (preview):
+```shell
+brew tap circleci-public/homebrew-circleci
+brew install circleci@next
 ```
+
+Homebrew (stable):
+```shell
 brew install circleci
 ```
 
