@@ -157,9 +157,6 @@ homebrew_casks:
       - circleci
     generate_completions_from_executable:
       executable: circleci
-      args:
-        - completion
-      base_name: circleci
       shell_parameter_format: cobra
       shells:
         - bash
@@ -171,12 +168,6 @@ homebrew_casks:
       installed, unlink it first to avoid a clashing symlink:
 
         brew unlink circleci
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/circleci"]
-          end
 
 archives:
   - wrap_in_directory: true
