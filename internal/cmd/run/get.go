@@ -25,6 +25,7 @@ package run
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -34,6 +35,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
@@ -181,7 +183,12 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 
 	workflows, err := client.GetRunWorkflowsV3(ctx, r.ID)
 	if err != nil {
-		return apiErr(err, r.ID)
+		// The workflows API can 404 for a run that exists (e.g. workflows
+		// not yet materialised) — still show the run, with no workflows.
+		if !httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return apiErr(err, r.ID)
+		}
+		workflows = nil
 	}
 
 	wfJobs := make([][]apiclient.WorkflowJobV3, len(workflows))
@@ -306,7 +313,9 @@ func printRun(ctx context.Context, r runGetOutput) {
 	}
 	md.WriteString("\n")
 
-	if len(r.Workflows) > 0 {
+	if len(r.Workflows) == 0 {
+		md.WriteString("No workflows found for this run.\n")
+	} else {
 		md.WriteString("## Workflows\n")
 		for _, w := range r.Workflows {
 			_, _ = fmt.Fprintf(&md, "### %s\n", w.Name)
