@@ -144,21 +144,23 @@ snapcrafts:
           - network
         command: circleci
 
-brews:
-  - name: circleci@2
+homebrew_casks:
+  - name: circleci@next
+    directory: Casks
     repository:
       owner: CircleCI-Public
       name: homebrew-circleci
       branch: main
     homepage: "https://circleci.com"
     description: "CircleCI command line tool."
-    license: "MIT"
-    custom_block: |
-      keg_only :versioned_formula
-    install: |
-      bin.install "circleci"
-    test: |
-      system "#{bin}/circleci", "--help"
+    binaries:
+      - circleci
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/circleci"]
+          end
 
 archives:
   - wrap_in_directory: true
