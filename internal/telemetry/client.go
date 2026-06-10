@@ -72,20 +72,25 @@ type Meta struct {
 }
 
 func (m *Meta) toContext() *analytics.Context {
+	var osInfo analytics.OSInfo
+	device := analytics.DeviceInfo{Id: m.InstanceID.String()}
+	// HostInfo is best-effort and may be nil when host detection fails
+	// (e.g. gopsutil's ioreg lookup under a restricted PATH).
+	if m.HostInfo != nil {
+		osInfo = analytics.OSInfo{
+			Name:    m.HostInfo.OS,
+			Version: m.HostInfo.PlatformVersion,
+		}
+		device.Model = m.HostInfo.KernelArch
+		device.Type = m.HostInfo.PlatformFamily
+	}
 	return &analytics.Context{
 		App: analytics.AppInfo{
 			Name:    "circleci-cli",
 			Version: m.Version,
 		},
-		OS: analytics.OSInfo{
-			Name:    m.HostInfo.OS,
-			Version: m.HostInfo.PlatformVersion,
-		},
-		Device: analytics.DeviceInfo{
-			Id:    m.InstanceID.String(),
-			Model: m.HostInfo.KernelArch,
-			Type:  m.HostInfo.PlatformFamily,
-		},
+		OS:     osInfo,
+		Device: device,
 		Traits: m.Extra,
 	}
 }

@@ -157,9 +157,16 @@ func NewRootCmd(version string) *cobra.Command {
 		agentName := agent.Detect()
 		ctx = cmdutil.WithAgentName(ctx, agentName)
 
-		hostInfo, err := host.InfoWithContext(ctx)
-		if err != nil {
-			return err
+		// Only gather host info when telemetry will actually be sent. Skipping
+		// it for telemetry-disabled commands (e.g. completion generation) avoids
+		// gopsutil's `ioreg` lookup, which fails under a restricted PATH such as
+		// Homebrew's sanitized completion-generation environment.
+		var hostInfo *host.InfoStat
+		if cfg.IsTelemetry() && !cmdutil.IsTelemetryDisabled(cmd) {
+			hostInfo, err = host.InfoWithContext(ctx)
+			if err != nil {
+				return err
+			}
 		}
 
 		tc, err := telemetry.New(ctx, telemetry.Config{
