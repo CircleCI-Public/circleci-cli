@@ -146,7 +146,12 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 	}
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		msg := fmt.Sprintf(notFoundMsg, subject)
-		if he, ok := errors.AsType[*httpcl.HTTPError](err); ok && len(he.Body) > 0 {
+		if apiErr, ok := apiclient.ParseError(err); ok {
+			// The API detail just restates "not found" — keep only the error id.
+			if apiErr.ID != "" {
+				msg += "\nerror id: " + apiErr.ID
+			}
+		} else if he, ok := errors.AsType[*httpcl.HTTPError](err); ok && len(he.Body) > 0 {
 			msg += "\nAPI: " + string(he.Body)
 		}
 		nf := clierrors.New(notFoundCode, "Not found", msg).
@@ -157,6 +162,15 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 		return nf
 	}
 	if he, ok := errors.AsType[*httpcl.HTTPError](err); ok {
+		if apiErr, ok := apiclient.ParseError(err); ok {
+			title := apiErr.Title
+			if title == "" {
+				title = "CircleCI API error"
+			}
+			return clierrors.New("api.error", title,
+				fmt.Sprintf("API returned %d: %s", he.StatusCode, apiErr.Message())).
+				WithExitCode(clierrors.ExitAPIError)
+		}
 		return clierrors.New("api.error", "CircleCI API error",
 			fmt.Sprintf("API returned %d: %s", he.StatusCode, string(he.Body))).
 			WithExitCode(clierrors.ExitAPIError)
