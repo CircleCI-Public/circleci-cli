@@ -66,9 +66,9 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 			"revision": revision,
 		},
 	}
-	if phase == "ended" {
-		attrs["outcome"] = outcome
-	} else {
+	// The real V3 runs API reports only current_outcome, never outcome,
+	// regardless of phase.
+	if outcome != "" {
 		attrs["current_outcome"] = outcome
 	}
 	return map[string]any{
@@ -243,7 +243,7 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(out["id"], runID))
 	assert.Check(t, cmp.Equal(out["phase"], "ended"))
-	assert.Check(t, cmp.Equal(out["outcome"], "succeeded"))
+	assert.Check(t, cmp.Equal(out["current_outcome"], "succeeded"))
 
 	wfs := out["workflows"].([]any)
 	assert.Check(t, cmp.Len(wfs, 1))
@@ -513,8 +513,8 @@ func TestRunList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Len(out, 2))
 	assert.Check(t, cmp.Equal(out[0]["id"], "pid-1"))
 	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
-	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
-	assert.Check(t, cmp.Equal(out[1]["outcome"], "failed"))
+	assert.Check(t, cmp.Equal(out[0]["current_outcome"], "succeeded"))
+	assert.Check(t, cmp.Equal(out[1]["current_outcome"], "failed"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
