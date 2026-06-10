@@ -82,8 +82,9 @@ type CircleCI struct {
 	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
 
 	// Workflow (v3) state.
-	workflowsV3      map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
-	workflowsV3ByRun map[string][]any // run UUID → V3 workflow data items
+	workflowsV3         map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
+	workflowsV3ByRun    map[string][]any // run UUID → V3 workflow data items
+	workflowsV3NotFound map[string]bool  // run UUID → workflows list returns 404
 
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
@@ -206,6 +207,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		runsV3ByProject:                   map[string][]any{},
 		workflowsV3:                       map[string]any{},
 		workflowsV3ByRun:                  map[string][]any{},
+		workflowsV3NotFound:               map[string]bool{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
 		runnerInstances:                   []any{},
@@ -837,6 +839,15 @@ func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...any) {
 	f.workflowsV3ByRun[runID] = workflows
 }
 
+// SetRunWorkflowsV3NotFound makes GET /api/v3/workflows?filter[run_id]=<runID>
+// return 404 for the given run, mirroring the real API for runs whose
+// workflows have not materialised.
+func (f *CircleCI) SetRunWorkflowsV3NotFound(runID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowsV3NotFound[runID] = true
+}
+
 func (f *CircleCI) handleGetWorkflowV3ByID(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
@@ -855,8 +866,16 @@ func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) 
 	runID := r.URL.Query().Get("filter[run_id]")
 	f.mu.RLock()
 	workflows := f.workflowsV3ByRun[runID]
+	notFound := f.workflowsV3NotFound[runID]
 	f.mu.RUnlock()
 
+	if notFound {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{
+			"error": map[string]any{"type": "not_found", "detail": "run not found", "id": "fake-error-id"},
+		})
+		return
+	}
 	if workflows == nil {
 		workflows = []any{}
 	}

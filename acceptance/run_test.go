@@ -190,6 +190,27 @@ func TestRunGet_ByID(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
+func TestRunGet_ByID_WorkflowsNotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "created", "", "main", "abc1234def5678"))
+	fake.SetRunWorkflowsV3NotFound(runID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
 func TestRunGet_ByID_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
