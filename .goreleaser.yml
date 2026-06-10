@@ -157,9 +157,6 @@ homebrew_casks:
       - circleci
     generate_completions_from_executable:
       executable: circleci
-      args:
-        - completion
-      base_name: circleci
       shell_parameter_format: cobra
       shells:
         - bash
