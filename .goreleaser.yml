@@ -117,11 +117,9 @@ winget:
     repository:
       owner: CircleCI-Public
       name: winget-pkgs
-      branch: "circleci-cli-{{.Version}}"
-      # token: "{{ .Env.GITHUB_PERSONAL_AUTH_TOKEN }}"
+      branch: "circleci-cli"
+      token: '{{ envOrDefault "GITHUB_TOKEN" "" }}'
       pull_request:
-        # TODO: Remove this once we're ready to release'
-        enabled: false
         base:
           owner: microsoft
           name: winget-pkgs
