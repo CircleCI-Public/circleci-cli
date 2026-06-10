@@ -35,7 +35,7 @@ type tracker interface {
 }
 
 func RecordTelemetry(cmd *cobra.Command, telemetry tracker) {
-	if isTelemetryDisabled(cmd) {
+	if IsTelemetryDisabled(cmd) {
 		return
 	}
 
@@ -74,7 +74,10 @@ func DisableTelemetryForSubcommands(cmd *cobra.Command) {
 	}
 }
 
-func isTelemetryDisabled(cmd *cobra.Command) bool {
+// IsTelemetryDisabled reports whether telemetry has been disabled for this
+// specific command via DisableTelemetry (independent of the user's global
+// telemetry preference).
+func IsTelemetryDisabled(cmd *cobra.Command) bool {
 	return cmd.Annotations["telemetry"] == "disabled"
 }
 

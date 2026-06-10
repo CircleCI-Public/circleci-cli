@@ -42,6 +42,23 @@ const (
 	bashPath = "/bin/bash"
 )
 
+// pathWithoutSbin returns the current PATH with /usr/sbin and /sbin removed.
+// This reproduces Homebrew's sanitized environment when it generates shell
+// completions: gopsutil's host-ID lookup shells out to `ioreg` (in /usr/sbin
+// on macOS), so without that directory on PATH it fails. Combined with
+// telemetry enabled, this is the exact condition that previously produced
+// empty completion scripts.
+func pathWithoutSbin() string {
+	var keep []string
+	for _, p := range filepath.SplitList(os.Getenv("PATH")) {
+		if p == "/usr/sbin" || p == "/sbin" {
+			continue
+		}
+		keep = append(keep, p)
+	}
+	return strings.Join(keep, string(os.PathListSeparator))
+}
+
 func TestCompletionInstallZsh(t *testing.T) {
 	env := testenv.New(t)
 	env.Extra["SHELL"] = zshPath
@@ -321,6 +338,10 @@ func TestCompletionInstallUninstallRoundTrip(t *testing.T) {
 
 func TestCompletionBashGeneratesScript(t *testing.T) {
 	env := testenv.New(t)
+	// Telemetry enabled + PATH without /usr/sbin reproduces the Homebrew
+	// completion-generation environment that previously yielded empty scripts.
+	env.Telemetry = true
+	env.Extra["PATH"] = pathWithoutSbin()
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -329,7 +350,8 @@ func TestCompletionBashGeneratesScript(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 	assert.Check(t, len(result.Stdout) > 0, "expected bash completion output")
 	assert.Check(t, strings.Contains(result.Stdout, "complete") || strings.Contains(result.Stdout, "bash"),
 		"expected bash completion markers, got: %s", result.Stdout[:min(200, len(result.Stdout))])
@@ -337,6 +359,10 @@ func TestCompletionBashGeneratesScript(t *testing.T) {
 
 func TestCompletionZshGeneratesScript(t *testing.T) {
 	env := testenv.New(t)
+	// Telemetry enabled + PATH without /usr/sbin reproduces the Homebrew
+	// completion-generation environment that previously yielded empty scripts.
+	env.Telemetry = true
+	env.Extra["PATH"] = pathWithoutSbin()
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -345,7 +371,8 @@ func TestCompletionZshGeneratesScript(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 	assert.Check(t, len(result.Stdout) > 0, "expected zsh completion output")
 	assert.Check(t, strings.Contains(result.Stdout, "compdef") || strings.Contains(result.Stdout, "#compdef"),
 		"expected zsh completion markers, got: %s", result.Stdout[:min(200, len(result.Stdout))])
