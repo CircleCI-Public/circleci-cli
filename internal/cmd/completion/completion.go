@@ -237,29 +237,43 @@ func newUninstallCmd() *cobra.Command {
 }
 
 func newBashCmd() *cobra.Command {
+	var outputPath string
 	cmd := &cobra.Command{
 		Use:    "bash",
 		Short:  "Generate bash completion script",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-			return cmd.Root().GenBashCompletion(iostream.Out(ctx))
+			w, closeOut, err := cmdutil.OpenOutput(outputPath, iostream.Out(ctx))
+			if err != nil {
+				return err
+			}
+			defer func() { _ = closeOut() }()
+			return cmd.Root().GenBashCompletion(w)
 		},
 	}
 	cmdutil.DisableTelemetry(cmd)
+	cmdutil.AddOutputFlag(cmd, &outputPath, "the completion script")
 	return cmd
 }
 
 func newZshCmd() *cobra.Command {
+	var outputPath string
 	cmd := &cobra.Command{
 		Use:    "zsh",
 		Short:  "Generate zsh completion script",
 		Hidden: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
-			return cmd.Root().GenZshCompletion(iostream.Out(ctx))
+			w, closeOut, err := cmdutil.OpenOutput(outputPath, iostream.Out(ctx))
+			if err != nil {
+				return err
+			}
+			defer func() { _ = closeOut() }()
+			return cmd.Root().GenZshCompletion(w)
 		},
 	}
 	cmdutil.DisableTelemetry(cmd)
+	cmdutil.AddOutputFlag(cmd, &outputPath, "the completion script")
 	return cmd
 }

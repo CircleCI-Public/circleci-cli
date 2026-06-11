@@ -1,0 +1,5 @@
+Usage:  circleci man
+
+Flags:
+  -o, --output string   Write the manpage to this file instead of stdout
+  

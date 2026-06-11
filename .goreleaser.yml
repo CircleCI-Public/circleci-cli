@@ -24,6 +24,15 @@ version: 2
 
 project_name: circleci-cli
 
+before:
+  hooks:
+    # Generate the man page and shell completions from the cobra command tree
+    # (no compiled binary needed), into a UNIX-style share/ layout for packaging.
+    # --output creates any missing parent directories.
+    - go run ./cmd/circleci man --output share/man/man1/circleci.1
+    - go run ./cmd/circleci completion bash --output share/bash-completion/completions/circleci
+    - go run ./cmd/circleci completion zsh --output share/zsh/site-functions/_circleci
+
 builds:
   - binary: circleci
     main: ./cmd/circleci
@@ -47,6 +56,18 @@ nfpms:
     dependencies:
       - git
     description: CircleCI command line tool.
+    contents:
+      - src: ./share/man/man1/circleci.1
+        dst: /usr/share/man/man1/circleci.1
+        file_info:
+          mode: 0644
+      - src: "./share/bash-completion/completions/circleci"
+        dst: "/usr/share/bash-completion/completions/circleci"
+      - src: "./share/zsh/site-functions/_circleci"
+        dst: "/usr/share/zsh/site-functions/_circleci"
+      - src: "./share/zsh/site-functions/_circleci"
+        dst: "/usr/share/zsh/vendor-completions/_circleci"
+        packager: deb
     formats:
       - deb
       - rpm
@@ -155,12 +176,11 @@ homebrew_casks:
     description: "CircleCI command line tool."
     binaries:
       - circleci
-    generate_completions_from_executable:
-      executable: circleci
-      shell_parameter_format: cobra
-      shells:
-        - bash
-        - zsh
+    manpages:
+      - share/man/man1/circleci.1
+    completions:
+      bash: share/bash-completion/completions/circleci
+      zsh: share/zsh/site-functions/_circleci
     caveats: |
       This preview build installs a `circleci` binary that conflicts with the
       stable `circleci` formula from homebrew-core. Homebrew cannot declare a
@@ -171,6 +191,14 @@ homebrew_casks:
 
 archives:
   - wrap_in_directory: true
+    files:
+      - LICENSE
+      - src: ./share/man/man1/circleci.1
+        dst: share/man/man1/circleci.1
+      - src: ./share/bash-completion/completions/circleci
+        dst: share/bash-completion/completions/circleci
+      - src: ./share/zsh/site-functions/_circleci
+        dst: share/zsh/site-functions/_circleci
     format_overrides:
       - goos: windows
         formats:

@@ -1,16 +1,16 @@
 # CircleCI CLI
 
-Generate bash completion script
+Generates manpages
 
 ## Usage
 
-`circleci completion bash [flags]`
+`circleci man`
 
 ## Flags
 
-| Flag                  | Description                                                |
-| --------------------- | ---------------------------------------------------------- |
-| `-o, --output string` | Write the completion script to this file instead of stdout |
+| Flag                  | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `-o, --output string` | Write the manpage to this file instead of stdout |
 
 ## Inherited Flags
 

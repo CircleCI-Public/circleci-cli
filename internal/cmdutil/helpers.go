@@ -27,6 +27,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 
@@ -42,6 +44,36 @@ func AddJSONFlag(cmd *cobra.Command, out *bool) {
 // AddJQFlag registers --jq on cmd and binds it to out.
 func AddJQFlag(cmd *cobra.Command) {
 	cmd.Flags().StringP("jq", "", "", "Process values from the response using jq syntax")
+}
+
+// AddOutputFlag registers --output/-o on cmd, binding it to out. The what
+// argument names the content being written, e.g. "the manpage", and is used in
+// the flag description: "Write <what> to this file instead of stdout".
+func AddOutputFlag(cmd *cobra.Command, out *string, what string) {
+	cmd.Flags().StringVarP(out, "output", "o", "", "Write "+what+" to this file instead of stdout")
+}
+
+// OpenOutput resolves the destination for a command supporting --output. When
+// path is empty it returns def (the command's normal stdout) with a no-op
+// closer; otherwise it creates the file (along with any missing parent
+// directories) and returns it with its Close method. Callers should always
+// defer the returned closer.
+func OpenOutput(path string, def io.Writer) (io.Writer, func() error, error) {
+	if path == "" {
+		return def, func() error { return nil }, nil
+	}
+	if dir := filepath.Dir(path); dir != "" {
+		if err := os.MkdirAll(dir, 0o755); err != nil { //#nosec:G301 // generated docs/completions are not sensitive
+			return nil, nil, clierrors.New("output.write_failed", "Could not write output file", err.Error()).
+				WithExitCode(clierrors.ExitGeneralError)
+		}
+	}
+	f, err := os.Create(path) //#nosec:G304 // path is user-supplied
+	if err != nil {
+		return nil, nil, clierrors.New("output.write_failed", "Could not write output file", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+	return f, f.Close, nil
 }
 
 // WriteJSON encodes v as indented JSON to w. Use streams.Out as the writer.
