@@ -7,7 +7,7 @@ Supported keys:
 
 ## Usage
 
-`circleci settings unset <key>`
+`circleci settings unset <key> [flags]`
 
 ## Inherited Flags
 
