@@ -26,10 +26,12 @@ project_name: circleci-cli
 
 before:
   hooks:
-    # Generate the man page from the cobra command tree (no compiled binary
-    # needed), into a UNIX-style share/man/man1 layout for packaging.
-    - mkdir -p share/man/man1
-    - sh -c "go run ./cmd/circleci man > share/man/man1/circleci.1"
+    # Generate the man page and shell completions from the cobra command tree
+    # (no compiled binary needed), into a UNIX-style share/ layout for packaging.
+    - mkdir -p share/man/man1 share/bash-completion/completions share/zsh/site-functions
+    - sh -c "go run ./cmd/circleci man > share/man/man1/circleci.1.gz"
+    - sh -c "go run ./cmd/circleci completion bash > share/bash-completion/completions/circleci"
+    - sh -c "go run ./cmd/circleci completion zsh > share/zsh/site-functions/_circleci"
 
 builds:
   - binary: circleci
@@ -59,6 +61,13 @@ nfpms:
         dst: /usr/share/man/man1/circleci.1
         file_info:
           mode: 0644
+      - src: "./share/bash-completion/completions/circleci"
+        dst: "/usr/share/bash-completion/completions/circleci"
+      - src: "./share/zsh/site-functions/_circleci"
+        dst: "/usr/share/zsh/site-functions/_circleci"
+      - src: "./share/zsh/site-functions/_circleci"
+        dst: "/usr/share/zsh/vendor-completions/_circleci"
+        packager: deb
     formats:
       - deb
       - rpm
@@ -169,12 +178,9 @@ homebrew_casks:
       - circleci
     manpages:
       - share/man/man1/circleci.1
-    generate_completions_from_executable:
-      executable: circleci
-      shell_parameter_format: cobra
-      shells:
-        - bash
-        - zsh
+    completions:
+      bash: share/bash-completion/completions/circleci
+      zsh: share/zsh/site-functions/_circleci
     caveats: |
       This preview build installs a `circleci` binary that conflicts with the
       stable `circleci` formula from homebrew-core. Homebrew cannot declare a
