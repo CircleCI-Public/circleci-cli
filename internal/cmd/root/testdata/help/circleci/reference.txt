@@ -1279,6 +1279,10 @@ List current CLI settings
 
 Set a CLI setting
 
+### `circleci settings unset <key>`
+
+Remove a stored CLI setting
+
 ## `circleci signing-config <command>`
 
 Manage iOS signing configs
