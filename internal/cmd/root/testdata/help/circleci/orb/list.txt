@@ -10,6 +10,8 @@ Use --private to list only private orbs (requires namespace).
 
 JSON fields: id, name, is_private, is_listed, latest_version
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci orb list [<namespace>] [flags]`

@@ -10,6 +10,8 @@ unless overridden with --project.
 
 JSON fields: name, value
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci project envvar list [flags]`

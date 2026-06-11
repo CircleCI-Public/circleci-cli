@@ -6,7 +6,7 @@ Jobs are the individual units of work within a workflow.
 
 ## Usage
 
-`circleci job <command>`
+`circleci job <command> [flags]`
 
 ## Available Commands
 

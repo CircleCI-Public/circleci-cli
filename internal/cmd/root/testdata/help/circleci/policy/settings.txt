@@ -7,7 +7,7 @@ against the policy bundle before running.
 
 ## Usage
 
-`circleci policy settings <command>`
+`circleci policy settings <command> [flags]`
 
 ## Available Commands
 

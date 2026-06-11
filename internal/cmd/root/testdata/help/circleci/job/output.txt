@@ -7,7 +7,7 @@ jobs, an execution index selects which executor's output to fetch.
 
 ## Usage
 
-`circleci job output <command>`
+`circleci job output <command> [flags]`
 
 ## Available Commands
 

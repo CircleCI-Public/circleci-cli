@@ -4,7 +4,7 @@ Generate bash completion script
 
 ## Usage
 
-`circleci completion bash`
+`circleci completion bash [flags]`
 
 ## Inherited Flags
 

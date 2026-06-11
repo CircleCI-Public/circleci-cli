@@ -9,7 +9,7 @@ install it onto the macOS runner during a job.
 
 ## Usage
 
-`circleci signing-config <command>`
+`circleci signing-config <command> [flags]`
 
 ## Available Commands
 

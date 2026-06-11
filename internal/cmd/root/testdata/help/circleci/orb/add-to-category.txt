@@ -7,7 +7,7 @@ to see available categories.
 
 ## Usage
 
-`circleci orb add-to-category <ns>/<orb> <category>`
+`circleci orb add-to-category <ns>/<orb> <category> [flags]`
 
 ## Inherited Flags
 

@@ -10,7 +10,7 @@ These commands are also available under 'circleci project dlc'.
 
 ## Usage
 
-`circleci project dlc <command>`
+`circleci project dlc <command> [flags]`
 
 ## Available Commands
 

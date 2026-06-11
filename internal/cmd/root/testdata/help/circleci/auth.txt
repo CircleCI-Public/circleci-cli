@@ -9,7 +9,7 @@ Use 'circleci auth logout' to clear your stored credentials.
 
 ## Usage
 
-`circleci auth <command>`
+`circleci auth <command> [flags]`
 
 ## Available Commands
 

@@ -9,6 +9,8 @@ With --strict, exits non-zero for HARD_FAIL or ERROR decisions.
 JSON fields: status, enabled_rules, hard_failures, soft_failures,
              violations, metadata
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci policy decide [flags]`

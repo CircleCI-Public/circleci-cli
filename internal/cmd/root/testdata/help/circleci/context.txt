@@ -8,7 +8,7 @@ reference a context to inject its variables into the build environment.
 
 ## Usage
 
-`circleci context <command>`
+`circleci context <command> [flags]`
 
 ## Available Commands
 

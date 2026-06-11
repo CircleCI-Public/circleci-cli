@@ -13,6 +13,8 @@ GET/DELETE, JSON body fields for POST/PUT/PATCH).
 
 Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci api <path> [flags]`

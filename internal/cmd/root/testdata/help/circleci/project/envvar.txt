@@ -10,7 +10,7 @@ For quick access, use the top-level alias:
 
 ## Usage
 
-`circleci project envvar <command>`
+`circleci project envvar <command> [flags]`
 
 ## Available Commands
 

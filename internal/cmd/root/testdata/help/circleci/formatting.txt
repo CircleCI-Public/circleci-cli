@@ -1,0 +1,49 @@
+# Formatting
+By default, the result of `circleci` commands are output in markdown text format.
+Some commands support passing the `--json` flag, which converts the output to JSON format.
+Once in JSON, the output can be further formatted according to a required formatting string by
+adding either the `--jq` or `--template` flag. This is useful for selecting a subset of data,
+creating new data structures, displaying the data in a different format, or as input to another
+command line script.
+
+The `--json` flag requires a comma separated list of fields to fetch. To view the possible JSON
+field names for a command omit the string argument to the `--json` flag when you run the command.
+Note that you must pass the `--json` flag and field names to use the `--jq` flag.
+
+The `--jq` flag requires a string argument in jq query syntax, and will only print
+those JSON values which match the query. jq queries can be used to select elements from an
+array, fields from an object, create a new array, and more. The `jq` utility does not need
+to be installed on the system to use this formatting directive. When connected to a terminal,
+the output is automatically pretty-printed. To learn about jq query syntax, see:
+<https://jqlang.github.io/jq/manual/>
+
+
+
+Examples
+  ## Default output format
+  $ circleci auth me
+  ```text
+  # User
+  - ID: `c257a143-1fde-4dfe-8cf9-2a85a955f1f7`
+  - Name: Your Name
+  - Login: username
+  - Avatar URL: https://avatars.githubusercontent.com/u/9812739817239?v=4
+  ```
+  
+  ## Adding the --json flag with a list of field names
+  $ circleci auth me --json
+  ```json
+  {
+    "name": "Your Name",
+    "login": "username",
+    "id": "c257a143-1fde-4dfe-8cf9-2a85a955f1f7",
+    "avatar_url": "https://avatars.githubusercontent.com/u/9812739817239?v=4"
+  }
+  ```
+  
+  ## Adding the --jq flag and selecting a field
+  $ circleci auth me --json --jq '.login'
+  ```text
+  username
+  ```
+  

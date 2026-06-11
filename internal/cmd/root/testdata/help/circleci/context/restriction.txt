@@ -9,7 +9,7 @@ accessible to all members of the organization.
 
 ## Usage
 
-`circleci context restriction <command>`
+`circleci context restriction <command> [flags]`
 
 ## Available Commands
 

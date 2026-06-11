@@ -8,6 +8,8 @@ gh/myorg or bitbucket/myorg.
 
 JSON fields: id, name, created_at
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci context create <name> [flags]`

@@ -12,7 +12,7 @@ To manage environment variables directly, use the top-level alias:
 
 ## Usage
 
-`circleci project <command>`
+`circleci project <command> [flags]`
 
 ## Available Commands
 

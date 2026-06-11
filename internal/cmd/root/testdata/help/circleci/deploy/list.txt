@@ -9,6 +9,8 @@ version, status, type, and when it was created.
 JSON fields: id, component_name, version, type, status, is_rollback,
              pipeline_id, workflow_id, created_at, ended_at
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci deploy list [flags]`

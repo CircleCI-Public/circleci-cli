@@ -19,7 +19,7 @@ The merged YAML is printed to stdout.
 
 ## Usage
 
-`circleci config pack <path>`
+`circleci config pack <path> [flags]`
 
 ## Inherited Flags
 

@@ -134,6 +134,10 @@ func rootHelp(command *cobra.Command, _ []string) {
 	if longText == "" {
 		longText = command.Short
 	}
+	if longText != "" && command.LocalFlags().Lookup("jq") != nil {
+		longText = strings.TrimRight(longText, "\n") +
+			"\n\nFor more information about output formatting flags, see `circleci help formatting`."
+	}
 	section("", longText)
 
 	section("Usage", "`"+command.UseLine()+"`")
@@ -152,6 +156,10 @@ func rootHelp(command *cobra.Command, _ []string) {
 			rows = append(rows, [2]string{"`" + c.Name() + "`", c.Short})
 		}
 		section(titleCase(g.Title), mdTable("Command", "Description", rows))
+	}
+
+	if isRootCmd(command) {
+		section("Help Topics", topicsMarkdown(helpTopics))
 	}
 
 	section("Flags", mdTable("Flag", "Description", flagRows(command.LocalFlags())))
@@ -174,6 +182,8 @@ func rootHelp(command *cobra.Command, _ []string) {
 
 // mdTable renders rows as a GitHub-flavored markdown table. Returns "" when
 // there are no rows so the caller can skip the section entirely.
+//
+//nolint:unparam
 func mdTable(col1, col2 string, rows [][2]string) string {
 	if len(rows) == 0 {
 		return ""
@@ -255,6 +265,22 @@ func flagDefaultIsZero(f *pflag.Flag) bool {
 		}
 		return false
 	}
+}
+
+// topicsMarkdown renders the help topics as a markdown table of topic name to
+// its short description, sorted by name. Each name is shown as inline code so
+// it reads as the value to pass to `circleci help <topic>`.
+func topicsMarkdown(topics []helpTopic) string {
+	sorted := slices.Clone(topics)
+	slices.SortFunc(sorted, func(a, b helpTopic) int {
+		return strings.Compare(a.name, b.name)
+	})
+
+	rows := make([][2]string, 0, len(sorted))
+	for _, t := range sorted {
+		rows = append(rows, [2]string{"`" + t.name + "`", t.short})
+	}
+	return mdTable("Topic", "Description", rows)
 }
 
 // exampleMarkdown converts the conventional "# comment" / "$ command" example

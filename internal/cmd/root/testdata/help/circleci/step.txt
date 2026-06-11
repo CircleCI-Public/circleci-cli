@@ -4,7 +4,7 @@ Control job step execution
 
 ## Usage
 
-`circleci step <command>`
+`circleci step <command> [flags]`
 
 ## Available Commands
 

@@ -9,7 +9,7 @@ Exit code is 0 regardless of whether the versions differ.
 
 ## Usage
 
-`circleci orb diff <ns>/<orb> <v1> <v2>`
+`circleci orb diff <ns>/<orb> <v1> <v2> [flags]`
 
 ## Inherited Flags
 

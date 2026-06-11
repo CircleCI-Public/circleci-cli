@@ -4,6 +4,8 @@ Display details of a CircleCI orb namespace.
 
 JSON fields: id, name
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci namespace get <name> [flags]`

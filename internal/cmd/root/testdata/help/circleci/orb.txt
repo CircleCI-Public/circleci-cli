@@ -9,7 +9,7 @@ Use 'circleci namespace' to manage namespaces before publishing orbs.
 
 ## Usage
 
-`circleci orb <command>`
+`circleci orb <command> [flags]`
 
 ## Available Commands
 

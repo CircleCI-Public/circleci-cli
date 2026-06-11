@@ -1,0 +1,1 @@
+Usage: circleci help telemetry

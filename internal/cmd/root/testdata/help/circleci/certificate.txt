@@ -9,7 +9,7 @@ signing config.
 
 ## Usage
 
-`circleci certificate <command>`
+`circleci certificate <command> [flags]`
 
 ## Available Commands
 

@@ -8,6 +8,8 @@ to a single branch.
 
 JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci run list [flags]`

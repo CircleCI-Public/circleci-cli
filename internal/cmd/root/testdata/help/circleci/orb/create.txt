@@ -10,6 +10,8 @@ to create a namespace if needed.
 
 JSON fields: id, name, namespace, is_private
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci orb create <namespace>/<orb> [flags]`

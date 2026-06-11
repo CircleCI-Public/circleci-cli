@@ -8,6 +8,8 @@ unless overridden with --org-id.
 
 JSON fields: id, file_name, org_id, created_at
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci certificate list [flags]`

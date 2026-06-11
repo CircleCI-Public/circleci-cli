@@ -4,7 +4,7 @@ Manage MCP server configuration for Visual Studio Code
 
 ## Usage
 
-`circleci mcp vscode`
+`circleci mcp vscode [flags]`
 
 ## Available Commands
 

@@ -7,7 +7,7 @@ one or more workflows, each of which contains jobs.
 
 ## Usage
 
-`circleci run <command>`
+`circleci run <command> [flags]`
 
 ## Available Commands
 

@@ -2,6 +2,8 @@
 
 Log out of a CircleCI account
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci auth logout [flags]`

@@ -8,6 +8,8 @@ JSON fields: id, name, phase, outcome, current_outcome, run_id,
              created_at, ended_at,
              jobs[].id/name/phase/outcome/current_outcome/type
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci workflow get <workflow-id> [flags]`

@@ -13,6 +13,8 @@ add additional profiles.
 
 JSON fields: id, name, cert_id
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci signing-config create [flags]`

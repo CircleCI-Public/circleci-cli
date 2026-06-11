@@ -7,7 +7,7 @@ tool settings (API token, host, defaults), use 'circleci settings'.
 
 ## Usage
 
-`circleci config <command>`
+`circleci config <command> [flags]`
 
 ## Available Commands
 

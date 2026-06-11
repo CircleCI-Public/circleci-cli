@@ -8,7 +8,7 @@ definition with 'circleci project trigger create'.
 
 ## Usage
 
-`circleci pipeline <command>`
+`circleci pipeline <command> [flags]`
 
 ## Available Commands
 

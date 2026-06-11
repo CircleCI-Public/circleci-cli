@@ -16,7 +16,7 @@ terminal to pick a theme from a list.
 
 ## Usage
 
-`circleci settings set <key> <value>`
+`circleci settings set <key> <value> [flags]`
 
 ## Inherited Flags
 

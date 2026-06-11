@@ -7,7 +7,7 @@ Each resource class belongs to a namespace (usually your organization).
 
 ## Usage
 
-`circleci runner resource-class <command>`
+`circleci runner resource-class <command> [flags]`
 
 ## Available Commands
 

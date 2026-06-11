@@ -8,7 +8,7 @@ connected via the CircleCI GitHub App are supported.
 
 ## Usage
 
-`circleci project trigger <command>`
+`circleci project trigger <command> [flags]`
 
 ## Available Commands
 

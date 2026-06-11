@@ -4,7 +4,7 @@ Manage MCP server configuration for Cursor
 
 ## Usage
 
-`circleci mcp cursor`
+`circleci mcp cursor [flags]`
 
 ## Available Commands
 
