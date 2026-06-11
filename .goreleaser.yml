@@ -53,6 +53,8 @@ nfpms:
     maintainer: CircleCI
     homepage: https://github.com/CircleCI-Public/circleci-cli
     description: CircleCI command line tool.
+    recommends:
+      - bash-completion
     contents:
       - src: ./share/man/man1/circleci.1
         dst: /usr/share/man/man1/circleci.1
