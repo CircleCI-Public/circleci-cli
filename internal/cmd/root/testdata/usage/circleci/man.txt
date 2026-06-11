@@ -1,0 +1,5 @@
+Usage:  circleci man
+
+Flags:
+  -z, --gzip   Compress the generated manpage with gzip
+  

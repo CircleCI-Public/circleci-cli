@@ -24,6 +24,13 @@ version: 2
 
 project_name: circleci-cli
 
+before:
+  hooks:
+    # Generate the man page from the cobra command tree (no compiled binary
+    # needed), into a UNIX-style share/man/man1 layout for packaging.
+    - mkdir -p share/man/man1
+    - sh -c "go run ./cmd/circleci man > share/man/man1/circleci.1"
+
 builds:
   - binary: circleci
     main: ./cmd/circleci
@@ -47,6 +54,11 @@ nfpms:
     dependencies:
       - git
     description: CircleCI command line tool.
+    contents:
+      - src: ./share/man/man1/circleci.1
+        dst: /usr/share/man/man1/circleci.1
+        file_info:
+          mode: 0644
     formats:
       - deb
       - rpm
@@ -155,6 +167,8 @@ homebrew_casks:
     description: "CircleCI command line tool."
     binaries:
       - circleci
+    manpages:
+      - share/man/man1/circleci.1
     generate_completions_from_executable:
       executable: circleci
       shell_parameter_format: cobra
@@ -171,6 +185,22 @@ homebrew_casks:
 
 archives:
   - wrap_in_directory: true
+    files:
+      - LICENSE
+      - src: ./share/man/man1/circleci.1.gz
+        dst: share/man/man1/circleci.1.gz
+      - src: ./share/bash-completion/completions/circleci
+        dst: share/bash-completion/completions/circleci
+      - src: ./share/zsh/site-functions/_circleci
+        dst: share/zsh/site-functions/_circleci
+      - src: ./share/man/man1/circleci.1.gz
+        dst: share/man/man1/circleci.1.gz
+      - src: ./share/man/man1/circleci.1
+        dst: share/man/man1/circleci.1
+      - src: ./share/bash-completion/completions/circleci
+        dst: share/bash-completion/completions/circleci
+      - src: ./share/zsh/site-functions/_circleci
+        dst: share/zsh/site-functions/_circleci
     format_overrides:
       - goos: windows
         formats:

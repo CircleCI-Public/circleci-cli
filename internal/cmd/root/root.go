@@ -205,6 +205,9 @@ func NewRootCmd(version string) *cobra.Command {
 		}
 	}
 
+	// man pages
+	cmd.AddCommand(newManCmd())
+
 	// Register extensions found in PATH. Built-in commands always win on name
 	// conflicts — extensions cannot shadow them.
 	builtins := map[string]bool{}
