@@ -52,9 +52,6 @@ nfpms:
   - license: MIT
     maintainer: CircleCI
     homepage: https://github.com/CircleCI-Public/circleci-cli
-    bindir: /usr
-    dependencies:
-      - git
     description: CircleCI command line tool.
     contents:
       - src: ./share/man/man1/circleci.1
