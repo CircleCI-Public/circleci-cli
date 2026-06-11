@@ -18,12 +18,12 @@
           },
           {
             "type": "command",
-            "command": "cd ${CLAUDE_PROJECT_DIR:-.} \u0026\u0026 task lint",
+            "command": "cd ${CLAUDE_PROJECT_DIR:-.} \u0026\u0026 task check",
             "timeout": 60
           },
           {
             "type": "command",
-            "command": "cd ${CLAUDE_PROJECT_DIR:-.} \u0026\u0026 task fmt",
+            "command": "cd ${CLAUDE_PROJECT_DIR:-.} \u0026\u0026 task fix",
             "timeout": 30
           }
         ]
