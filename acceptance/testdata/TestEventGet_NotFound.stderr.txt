@@ -1,0 +1,6 @@
+error: No event found for "00000000-0000-0000-0000-000000000000".
+API: {"message":"not found"}
+
+
+Suggestions:
+  • Check the event UUID or branch name and try again

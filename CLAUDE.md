@@ -77,10 +77,15 @@ internal/
 │   ├── auth/             circleci auth login/logout/status/token
 │   ├── config/           circleci config validate/process/pack/generate
 │   ├── context/          circleci context + circleci context secret
+│   ├── event/            circleci event list/get/create/cancel/watch/open.
+│   │                     An event is the record of a trigger firing (the V3 API still
+│   │                     calls this entity a "run" on the wire). "Pipeline" only ever
+│   │                     means the definition — never an execution instance.
 │   ├── job/              circleci job artifacts (deep path; wraps internal/artifacts)
 │   ├── open/             circleci open (opens current project in the CircleCI web UI)
-│   ├── pipeline/         circleci pipeline list/get/trigger
-│   ├── workflow/         circleci workflow list/get/cancel/rerun
+│   ├── pipeline/         circleci pipeline create/list (definitions only; fire one
+│   │                     with 'circleci event create --definition-id')
+│   ├── workflow/         circleci workflow get/cancel/rerun
 │   ├── orb/              circleci orb list/info/validate/publish/...
 │   ├── project/          circleci project list/follow + project env
 │   ├── runner/           circleci runner resource-class/token/instance
@@ -92,6 +97,8 @@ internal/
 ├── artifacts/            Business logic for artifact listing and downloading.
 │                         Pattern: non-trivial logic lives in internal/<domain>/, not in
 │                         internal/cmd/. Commands import from here; never the reverse.
+│
+├── event/                Business logic for trigger-event-level operations (cancel).
 │
 ├── iostream/             TTY detection, color, stdout/stderr wiring.
 │                         NEVER call os.Getenv("NO_COLOR") in a command — ask IOStreams.

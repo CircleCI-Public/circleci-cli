@@ -41,6 +41,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/deploy"
 	cmddlc "github.com/CircleCI-Public/circleci-cli/internal/cmd/dlc"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
+	cmdevent "github.com/CircleCI-Public/circleci-cli/internal/cmd/event"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
 	cmdonboard "github.com/CircleCI-Public/circleci-cli/internal/cmd/onboard"
@@ -48,7 +49,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/pipeline"
 	cmdpolicy "github.com/CircleCI-Public/circleci-cli/internal/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
-	cmdrun "github.com/CircleCI-Public/circleci-cli/internal/cmd/run"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/settings"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
@@ -172,11 +172,11 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdconfig.NewConfigCmd())
 	cmd.AddCommand(cmdcontext.NewContextCmd())
 	cmd.AddCommand(cmddlc.NewDLCCmd())
+	cmd.AddCommand(cmdevent.NewEventCmd())
 	cmd.AddCommand(cmdnamespace.NewNamespaceCmd())
 	cmd.AddCommand(cmdonboard.NewOnboardCmd())
 	cmd.AddCommand(cmdorb.NewOrbCmd())
 	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
-	cmd.AddCommand(cmdrun.NewRunCmd())
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(completion.NewCompletionCmd())
 	cmd.AddCommand(deploy.NewDeployCmd())

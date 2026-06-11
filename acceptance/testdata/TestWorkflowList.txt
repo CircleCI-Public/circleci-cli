@@ -1,5 +1,0 @@
-# Workflows
-| ID          | Name   | Status    |
-| ----------- | ------ | --------- |
-| wf-uuid-aaa | build  | succeeded |
-| wf-uuid-bbb | deploy | failed    |

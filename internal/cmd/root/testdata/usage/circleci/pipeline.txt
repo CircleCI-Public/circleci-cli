@@ -3,4 +3,3 @@ Usage:  circleci pipeline <command>
 Available commands:
   create
   list
-  run

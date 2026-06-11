@@ -2,9 +2,9 @@
 
 Display the status and jobs of a CircleCI workflow.
 
-Workflow IDs are shown in the output of 'circleci run get'.
+Workflow IDs are shown in the output of 'circleci event get'.
 
-JSON fields: id, name, phase, outcome, current_outcome, run_id,
+JSON fields: id, name, phase, outcome, current_outcome, event_id,
              created_at, ended_at,
              jobs[].id/name/phase/outcome/current_outcome/type
 
@@ -35,8 +35,8 @@ For more information about output formatting flags, see `circleci help formattin
   `circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b`
 - Output as JSON: 
   `circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
-- Get workflow ID from a run: 
-  `circleci run get | grep -A1 "Workflows"`
+- Get workflow ID from an event: 
+  `circleci event get | grep -A1 "Workflows"`
 
 ## Learn More
 

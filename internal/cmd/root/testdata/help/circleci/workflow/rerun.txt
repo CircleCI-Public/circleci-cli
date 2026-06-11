@@ -6,7 +6,7 @@ By default all jobs in the workflow are rerun from scratch. Use
 --from-failed to rerun only the jobs that failed, leaving successful
 jobs untouched.
 
-Workflow IDs are shown in the output of 'circleci run get'.
+Workflow IDs are shown in the output of 'circleci event get'.
 
 ## Usage
 
@@ -33,7 +33,7 @@ Workflow IDs are shown in the output of 'circleci run get'.
 - Rerun only the failed jobs: 
   `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed`
 - Find a workflow ID from the latest run: 
-  `circleci run get --json --jq '.workflows[].id'`
+  `circleci event get --json --jq '.workflows[].id'`
 
 ## Learn More
 

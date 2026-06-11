@@ -155,6 +155,9 @@ type jobReferencesWire struct {
 	Project struct {
 		ID string `json:"id"`
 	} `json:"project"`
+	// The wire's "pipeline" reference is actually the event (run) ID,
+	// not a pipeline definition. The target API drops this reference
+	// from jobs entirely, keeping only workflow.
 	Pipeline struct {
 		ID string `json:"id"`
 	} `json:"pipeline"`
@@ -185,7 +188,7 @@ type JobV3 struct {
 	StoppedAt  *time.Time       `json:"stopped_at,omitempty"`
 	Executions []JobV3Execution `json:"executions"`
 	ProjectID  string           `json:"project_id"`
-	PipelineID string           `json:"pipeline_id"`
+	EventID    string           `json:"event_id"`
 	WorkflowID string           `json:"workflow_id"`
 }
 
@@ -238,7 +241,7 @@ func (w jobWire) toJobV3() *JobV3 {
 		StartedAt:  a.StartedAt,
 		StoppedAt:  a.EndedAt,
 		ProjectID:  w.References.Project.ID,
-		PipelineID: w.References.Pipeline.ID,
+		EventID:    w.References.Pipeline.ID,
 		WorkflowID: w.References.Workflow.ID,
 	}
 	for i, pe := range a.ParallelExecutions {

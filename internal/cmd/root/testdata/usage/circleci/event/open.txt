@@ -1,0 +1,6 @@
+Usage:  circleci event open [flags]
+
+Flags:
+  -b, --branch string    Filter events to a specific branch
+      --current-branch   Filter events to the current git branch
+  

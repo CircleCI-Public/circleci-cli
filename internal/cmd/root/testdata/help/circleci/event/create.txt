@@ -1,0 +1,83 @@
+# CircleCI CLI
+
+Create a new trigger event for a CircleCI project — fire its
+pipeline and start the workflows it defines.
+
+The project is resolved from --project if provided; otherwise the
+project slug is detected from the git remote.
+
+In a terminal, missing --definition-id prompts you to pick from the
+project's pipeline definitions, and missing --branch/--tag prompts you
+to choose the project's default branch or enter a custom one.
+In non-interactive mode (CI, agents, scripts) both are optional and
+the event is created on the current git branch.
+
+With a pipeline definition (--definition-id or interactive selection),
+the event is created through the pipeline definitions API. Without
+one, the project's pipeline is fired directly on the given branch.
+
+Use --branch or --tag to specify which revision to use. They are
+mutually exclusive. --branch sets both the config fetch branch and the
+checkout branch; --tag sets both the config fetch tag and the checkout
+tag. --tag requires a pipeline definition.
+
+Pass pipeline parameters with --param key=value (repeatable). With a
+definition, values are sent as strings; without one, values are parsed
+as booleans (true/false), integers, or strings.
+
+When the event is skipped (e.g. due to a [ci skip] commit message)
+the command exits 0 and prints the reason to stdout.
+
+JSON fields (created): id, state, number, created_at, branch, triggered
+JSON fields (skipped): triggered, message
+
+For more information about output formatting flags, see `circleci help formatting`.
+
+## Usage
+
+`circleci event create [flags]`
+
+## Flags
+
+| Flag                     | Description                                                          |
+| ------------------------ | -------------------------------------------------------------------- |
+| `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag) |
+| `--definition-id string` | Pipeline definition UUID to fire (prompted interactively if omitted) |
+| `--jq string`            | Process values from the response using jq syntax                     |
+| `--json`                 | Output as JSON                                                       |
+| `--param stringArray`    | Pipeline parameter as key=value (repeatable)                         |
+| `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote              |
+| `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch) |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Create an event on the current branch: 
+  `circleci event create`
+- Create an event interactively — pick definition and branch from menus: 
+  `circleci event create --project gh/myorg/myrepo`
+- Fire a specific pipeline definition on a branch non-interactively: 
+  `circleci event create --project gh/myorg/myrepo \`
+- --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 \
+- --branch main
+- Fire on a tag with parameters: 
+  `circleci event create --project gh/myorg/myrepo \`
+- --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 \
+- --tag v1.2.3 \
+- --param deploy_env=staging
+- Output as JSON for scripting: 
+  `circleci event create --branch main --json`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+
