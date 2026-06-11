@@ -30,11 +30,13 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // newManCmd builds the hidden `man` command that renders the CLI's manpage from
-// the cobra command tree to stdout.
+// the cobra command tree to stdout, or to a file with --output.
 func newManCmd() *cobra.Command {
+	var outputPath string
 	manCmd := &cobra.Command{
 		Use:                   "man",
 		Short:                 "Generates manpages",
@@ -43,14 +45,22 @@ func newManCmd() *cobra.Command {
 		Hidden:                true,
 		Args:                  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+
 			page, err := mango.NewManPage(1, cmd.Root())
 			if err != nil {
 				return err
 			}
-			_, err = fmt.Fprint(cmd.OutOrStdout(), page.Build(roff.NewDocument()))
+			w, closeOut, err := cmdutil.OpenOutput(outputPath, iostream.Out(ctx))
+			if err != nil {
+				return err
+			}
+			defer func() { _ = closeOut() }()
+			_, err = fmt.Fprint(w, page.Build(roff.NewDocument()))
 			return err
 		},
 	}
 	cmdutil.DisableTelemetry(manCmd)
+	cmdutil.AddOutputFlag(manCmd, &outputPath, "the manpage")
 	return manCmd
 }

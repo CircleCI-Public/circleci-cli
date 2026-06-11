@@ -1,1 +1,5 @@
-Usage:  circleci completion bash
+Usage:  circleci completion bash [flags]
+
+Flags:
+  -o, --output string   Write the completion script to this file instead of stdout
+  

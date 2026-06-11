@@ -6,6 +6,12 @@ Generate zsh completion script
 
 `circleci completion zsh [flags]`
 
+## Flags
+
+| Flag                  | Description                                                |
+| --------------------- | ---------------------------------------------------------- |
+| `-o, --output string` | Write the completion script to this file instead of stdout |
+
 ## Inherited Flags
 
 | Flag                  | Description                                                  |

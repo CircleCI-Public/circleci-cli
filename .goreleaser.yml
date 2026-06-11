@@ -28,10 +28,10 @@ before:
   hooks:
     # Generate the man page and shell completions from the cobra command tree
     # (no compiled binary needed), into a UNIX-style share/ layout for packaging.
-    - mkdir -p share/man/man1 share/bash-completion/completions share/zsh/site-functions
-    - sh -c "go run ./cmd/circleci man > share/man/man1/circleci.1.gz"
-    - sh -c "go run ./cmd/circleci completion bash > share/bash-completion/completions/circleci"
-    - sh -c "go run ./cmd/circleci completion zsh > share/zsh/site-functions/_circleci"
+    # --output creates any missing parent directories.
+    - go run ./cmd/circleci man --output share/man/man1/circleci.1
+    - go run ./cmd/circleci completion bash --output share/bash-completion/completions/circleci
+    - go run ./cmd/circleci completion zsh --output share/zsh/site-functions/_circleci
 
 builds:
   - binary: circleci
@@ -193,14 +193,6 @@ archives:
   - wrap_in_directory: true
     files:
       - LICENSE
-      - src: ./share/man/man1/circleci.1.gz
-        dst: share/man/man1/circleci.1.gz
-      - src: ./share/bash-completion/completions/circleci
-        dst: share/bash-completion/completions/circleci
-      - src: ./share/zsh/site-functions/_circleci
-        dst: share/zsh/site-functions/_circleci
-      - src: ./share/man/man1/circleci.1.gz
-        dst: share/man/man1/circleci.1.gz
       - src: ./share/man/man1/circleci.1
         dst: share/man/man1/circleci.1
       - src: ./share/bash-completion/completions/circleci

@@ -6,6 +6,12 @@ Generate bash completion script
 
 `circleci completion bash [flags]`
 
+## Flags
+
+| Flag                  | Description                                                |
+| --------------------- | ---------------------------------------------------------- |
+| `-o, --output string` | Write the completion script to this file instead of stdout |
+
 ## Inherited Flags
 
 | Flag                  | Description                                                  |
