@@ -298,7 +298,7 @@ func (c *Client) GetJobStdout(ctx context.Context, jobID uuid.UUID, execution, s
 	var output []byte
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout",
 		httpcl.RouteParams(jobID),
-		filterParam("index", strconv.Itoa(execution)),
+		filterParam("execution", strconv.Itoa(execution)),
 		filterParam("step_num", strconv.Itoa(stepNum)),
 		httpcl.BytesDecoder(&output),
 	))
@@ -313,7 +313,7 @@ func (c *Client) GetJobStderr(ctx context.Context, jobID uuid.UUID, execution, s
 	var output []byte
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stderr",
 		httpcl.RouteParams(jobID),
-		filterParam("index", strconv.Itoa(execution)),
+		filterParam("execution", strconv.Itoa(execution)),
 		filterParam("step_num", strconv.Itoa(stepNum)),
 		httpcl.BytesDecoder(&output),
 	))

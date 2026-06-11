@@ -486,7 +486,7 @@ func (f *CircleCI) AddJobV3(id string, job any) {
 }
 
 // AddJobStdout registers plain-text stdout for a step, served at
-// GET /api/v3/jobs/<id>/stdout?filter[index]=<execution>&filter[step_num]=<stepNum>.
+// GET /api/v3/jobs/<id>/stdout?filter[execution]=<execution>&filter[step_num]=<stepNum>.
 func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -494,7 +494,7 @@ func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content []byt
 }
 
 // AddJobStderr registers plain-text stderr for a step, served at
-// GET /api/v3/jobs/<id>/stderr?filter[index]=<execution>&filter[step_num]=<stepNum>.
+// GET /api/v3/jobs/<id>/stderr?filter[execution]=<execution>&filter[step_num]=<stepNum>.
 func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -792,15 +792,15 @@ func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
 	render.Data(w, r, content)
 }
 
-// jobStepKey builds the "jobID/index/stepNum" lookup key from the request,
-// reading the index and step_num from the filter[...] query params.
+// jobStepKey builds the "jobID/execution/stepNum" lookup key from the request,
+// reading the execution and step_num from the filter[...] query params.
 func jobStepKey(r *http.Request) string {
-	index := r.URL.Query().Get("filter[index]")
-	if index == "" {
-		index = "0"
+	execution := r.URL.Query().Get("filter[execution]")
+	if execution == "" {
+		execution = "0"
 	}
 	stepNum := r.URL.Query().Get("filter[step_num]")
-	return fmt.Sprintf("%s/%s/%s", chi.URLParam(r, "id"), index, stepNum)
+	return fmt.Sprintf("%s/%s/%s", chi.URLParam(r, "id"), execution, stepNum)
 }
 
 func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Request) {
