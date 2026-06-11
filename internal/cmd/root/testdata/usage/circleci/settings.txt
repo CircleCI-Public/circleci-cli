@@ -3,3 +3,4 @@ Usage:  circleci settings <command>
 Available commands:
   list
   set
+  unset

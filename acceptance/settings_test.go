@@ -446,3 +446,64 @@ func TestSettingsSetTheme_Interactive_StartsAtCurrent(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Equal(t, cfg.EffectiveTheme(), "dracula")
 }
+
+func TestSettingsUnsetToken(t *testing.T) {
+	env := testenv.New(t)
+	dir := t.TempDir()
+
+	// Set a token first, confirm it is stored.
+	set := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "set", "token", "mytoken123"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, set.ExitCode, 0, "stderr: %s", set.Stderr)
+
+	list := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, list.ExitCode, 0, "stderr: %s", list.Stderr)
+	var before map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(list.Stdout), &before))
+	assert.Check(t, cmp.Equal(before["token_set"], true))
+
+	// Unset the token.
+	unset := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "unset", "token"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, unset.ExitCode, 0, "stderr: %s", unset.Stderr)
+	assert.Check(t, strings.Contains(unset.Stderr, "Removed token"),
+		"expected 'Removed token' in stderr, got: %q", unset.Stderr)
+
+	// Confirm the token is gone.
+	verify := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
+	var after map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(verify.Stdout), &after))
+	assert.Check(t, cmp.Equal(after["token_set"], false))
+}
+
+func TestSettingsUnsetToken_UnknownKey(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"settings", "unset", "bogus"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for unknown key")
+}
