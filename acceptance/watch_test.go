@@ -83,12 +83,12 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 
 // --- watch by number ---
 
-func TestRunWatch_ByNumber(t *testing.T) {
+func TestEventWatch_ByNumber(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-001", "watch-wf-001", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Args:    []string{"event", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -100,13 +100,13 @@ func TestRunWatch_ByNumber(t *testing.T) {
 
 // --- watch by UUID (no --project or --branch needed) ---
 
-func TestRunWatch_ByUUID(t *testing.T) {
+func TestEventWatch_ByUUID(t *testing.T) {
 	runID := "0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd"
 	_, env := setupWatchFake(t, runID, "watch-wf-uuid-001", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", runID},
+		Args:    []string{"event", "watch", runID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -118,7 +118,7 @@ func TestRunWatch_ByUUID(t *testing.T) {
 
 // --- watch latest (no number arg) ---
 
-func TestRunWatch_Latest(t *testing.T) {
+func TestEventWatch_Latest(t *testing.T) {
 	runID := "watch-pid-002"
 	wfID := "watch-wf-002"
 
@@ -134,7 +134,7 @@ func TestRunWatch_Latest(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "--project", watchSlug, "--branch", "main"},
+		Args:    []string{"event", "watch", "--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -145,12 +145,12 @@ func TestRunWatch_Latest(t *testing.T) {
 
 // --- failed run → exit 1 ---
 
-func TestRunWatch_Failed(t *testing.T) {
+func TestEventWatch_Failed(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-003", "watch-wf-003", "failed")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Args:    []string{"event", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -162,7 +162,7 @@ func TestRunWatch_Failed(t *testing.T) {
 
 // --- failed pipeline with a failed job → suggests viewing logs ---
 
-func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
+func TestEventWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	runID := "watch-pid-failedjob"
 	wfID := "watch-wf-failedjob"
 
@@ -187,7 +187,7 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Args:    []string{"event", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -200,12 +200,12 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 
 // --- cancelled run → exit 6 ---
 
-func TestRunWatch_Cancelled(t *testing.T) {
+func TestEventWatch_Cancelled(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-004", "watch-wf-004", "canceled")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Args:    []string{"event", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -216,12 +216,12 @@ func TestRunWatch_Cancelled(t *testing.T) {
 
 // --- --sha: run already present ---
 
-func TestRunWatch_SHA(t *testing.T) {
+func TestEventWatch_SHA(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-005", "watch-wf-005", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "abc1234",
+		Args: []string{"event", "watch", "--sha", "abc1234",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -233,7 +233,7 @@ func TestRunWatch_SHA(t *testing.T) {
 
 // --- --sha: not found within wait window → exit 5 ---
 
-func TestRunWatch_SHA_NotFound(t *testing.T) {
+func TestEventWatch_SHA_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
 
@@ -244,19 +244,19 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "deadbeef",
+		Args: []string{"event", "watch", "--sha", "deadbeef",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
-	assert.Check(t, cmp.Contains(result.Stderr, "No run found"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "No event found"), "stderr: %s", result.Stderr)
 }
 
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
 
-func TestRunWatch_FailFast(t *testing.T) {
+func TestEventWatch_FailFast(t *testing.T) {
 	runID := "watch-pid-failfast"
 	wfID := "watch-wf-failfast"
 
@@ -281,7 +281,7 @@ func TestRunWatch_FailFast(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "79", "--project", watchSlug, "--failfast"},
+		Args:    []string{"event", "watch", "79", "--project", watchSlug, "--failfast"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -293,7 +293,7 @@ func TestRunWatch_FailFast(t *testing.T) {
 
 // --- watch timeout while run still running → exit 8 ---
 
-func TestRunWatch_Timeout(t *testing.T) {
+func TestEventWatch_Timeout(t *testing.T) {
 	runID := "watch-pid-006"
 	wfID := "watch-wf-006"
 
@@ -311,7 +311,7 @@ func TestRunWatch_Timeout(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "77", "--project", watchSlug, "--timeout", "1s"},
+		Args:    []string{"event", "watch", "77", "--project", watchSlug, "--timeout", "1s"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -321,7 +321,7 @@ func TestRunWatch_Timeout(t *testing.T) {
 
 // --- Ctrl-C during polling exits within a poll interval (regression: was stuck for 5–30s) ---
 
-func TestRunWatch_InterruptDuringPolling(t *testing.T) {
+func TestEventWatch_InterruptDuringPolling(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "os.Interrupt is not supported on Windows")
 
 	runID := "watch-pid-interrupt"
@@ -342,7 +342,7 @@ func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 	// Start the CLI directly (not via RunCLI) so we can deliver SIGINT.
 	args := []string{
 		"--insecure-storage", "--theme=dark",
-		"run", "watch", "78", "--project", watchSlug,
+		"event", "watch", "78", "--project", watchSlug,
 	}
 	var stdout, stderr bytes.Buffer
 	cmd := exec.Command(binaryPath, args...)
@@ -385,12 +385,12 @@ func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 
 // --- no token → exit 3 ---
 
-func TestRunWatch_NoToken(t *testing.T) {
+func TestEventWatch_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Args:    []string{"event", "watch", "75", "--project", watchSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

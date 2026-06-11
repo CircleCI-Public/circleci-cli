@@ -1,11 +1,11 @@
-unknown command "foo" for "circleci run"
+unknown command "foo" for "circleci event"
 
-Usage:  circleci run <command> [flags]
+Usage:  circleci event <command> [flags]
 
 Available commands:
   cancel
+  create
   get
   list
   open
-  trigger
   watch

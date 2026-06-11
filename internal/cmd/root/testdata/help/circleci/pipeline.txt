@@ -4,7 +4,8 @@ Create and list pipeline definitions for a CircleCI project.
 
 A pipeline definition specifies where CircleCI finds the config YAML
 and which repository to use for code checkout. Attach triggers to a
-definition with 'circleci project trigger create'.
+definition with 'circleci project trigger create'. Fire a definition
+with 'circleci event create'.
 
 ## Usage
 
@@ -16,7 +17,6 @@ definition with 'circleci project trigger create'.
 | -------- | --------------------------------------- |
 | `create` | Create a pipeline definition            |
 | `list`   | List pipeline definitions for a project |
-| `run`    | Trigger a new pipeline run              |
 
 ## Inherited Flags
 

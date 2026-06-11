@@ -1,6 +1,0 @@
-Usage:  circleci run open [flags]
-
-Flags:
-  -b, --branch string    Filter runs to a specific branch
-      --current-branch   Filter runs to the current git branch
-  

@@ -1,0 +1,37 @@
+# CircleCI CLI
+
+Work with CircleCI trigger events.
+
+An event is the record of a trigger firing — a push, an API call,
+or a schedule. It groups the workflows started by that firing,
+each of which contains jobs.
+
+## Usage
+
+`circleci event <command> [flags]`
+
+## Available Commands
+
+| Command  | Description                                                |
+| -------- | ---------------------------------------------------------- |
+| `cancel` | Cancel an event                                            |
+| `create` | Create a new event (start workflows)                       |
+| `get`    | Get an event's status                                      |
+| `list`   | List recent events for a project                           |
+| `open`   | Open the current project's appropriate page in the browser |
+| `watch`  | Watch an event until its workflows complete                |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci.com/docs/local-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

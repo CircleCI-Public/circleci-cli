@@ -3,5 +3,4 @@ Usage:  circleci workflow <command>
 Available commands:
   cancel
   get
-  list
   rerun
