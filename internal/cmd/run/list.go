@@ -38,10 +38,11 @@ import (
 
 func newListCmd() *cobra.Command {
 	var (
-		projectSlug string
-		branch      string
-		limit       int
-		jsonOut     bool
+		projectSlug   string
+		branch        string
+		currentBranch bool
+		limit         int
+		jsonOut       bool
 	)
 
 	cmd := &cobra.Command{
@@ -53,13 +54,17 @@ func newListCmd() *cobra.Command {
 
 			The project is inferred from the current git repository's remote
 			unless overridden with --project. Use --branch to filter results
-			to a single branch.
+			to a single branch, or --current-branch (-B) to automatically use
+			the branch you have checked out.
 
 			JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
 			$ circleci run list
+
+			# Filter to the branch you have checked out
+			$ circleci run list --current-branch
 
 			# Filter to a specific branch
 			$ circleci run list --branch main
@@ -80,12 +85,20 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if currentBranch && branch == "" {
+				info, err := gitremote.Detect()
+				if err != nil {
+					return cmdutil.GitDetectErr(err, "Or specify the branch explicitly: circleci run list --branch <name>")
+				}
+				branch = info.Branch
+			}
 			return runList(ctx, client, projectSlug, branch, limit, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter by branch")
+	cmd.Flags().BoolVarP(&currentBranch, "current-branch", "B", false, "Filter by the currently checked-out branch")
 	cmd.Flags().IntVar(&limit, "limit", 10, "Maximum number of runs to show [default: 10]")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
