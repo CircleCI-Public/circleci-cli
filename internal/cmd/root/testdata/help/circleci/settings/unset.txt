@@ -1,25 +1,13 @@
 # CircleCI CLI
 
-View and modify settings for the circleci CLI tool.
+Remove a stored CLI setting by key.
 
-Use 'circleci settings set token' to configure your personal API token.
-Use 'circleci settings unset token' to remove your stored API token.
-Use 'circleci settings set telemetry on/off' to manage telemetry preferences.
-Use 'circleci settings list' to view current settings.
-
-For pipeline YAML operations, see 'circleci config'.
+Supported keys:
+  token      Remove your stored CircleCI personal API token
 
 ## Usage
 
-`circleci settings <command>`
-
-## Available Commands
-
-| Command | Description                 |
-| ------- | --------------------------- |
-| `list`  | List current CLI settings   |
-| `set`   | Set a CLI setting           |
-| `unset` | Remove a stored CLI setting |
+`circleci settings unset <key>`
 
 ## Inherited Flags
 
@@ -28,6 +16,11 @@ For pipeline YAML operations, see 'circleci config'.
 | `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Remove your stored API token: 
+  `circleci settings unset token`
 
 ## Learn More
 

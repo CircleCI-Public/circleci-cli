@@ -191,6 +191,12 @@ func SetToken(ctx context.Context, token string, secureStorage bool) error {
 	})
 }
 
+// DeleteToken removes the stored API token from both the config file and the
+// system keyring (when secure storage is in use).
+func DeleteToken(ctx context.Context, secureStorage bool) error {
+	return SetToken(ctx, "", secureStorage)
+}
+
 // SetHost persists the CircleCI server host. The host is not a secret, so it is
 // always written to the config file and never touches secure storage (passing
 // secureStorage here would make saveTo delete the keyring token).
