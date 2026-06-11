@@ -9,7 +9,7 @@ within a running CircleCI job.
 
 ## Usage
 
-`circleci step halt`
+`circleci step halt [flags]`
 
 ## Inherited Flags
 

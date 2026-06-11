@@ -8,6 +8,8 @@ or an org UUID. Optionally filter further by namespace.
 
 JSON fields: id, resource_class, description
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci runner resource-class list [flags]`

@@ -5,7 +5,7 @@ Other content in your shell profile is left untouched.
 
 ## Usage
 
-`circleci completion uninstall`
+`circleci completion uninstall [flags]`
 
 ## Inherited Flags
 

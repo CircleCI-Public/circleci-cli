@@ -6,7 +6,7 @@ Instances are live runner agents currently connected to CircleCI.
 
 ## Usage
 
-`circleci runner instance <command>`
+`circleci runner instance <command> [flags]`
 
 ## Available Commands
 

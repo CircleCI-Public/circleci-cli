@@ -7,6 +7,8 @@ Output is always JSON (the bundle is structured data).
 
 JSON fields: policies (map of name → Rego source)
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci policy fetch [policy-name] [flags]`

@@ -9,6 +9,8 @@ all published versions.
 JSON fields: id, name, namespace, is_private, is_listed, created_at,
              latest_version, categories, versions, stats
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci orb get <ns>/<orb>[@<version>]/<orb-id> [flags]`

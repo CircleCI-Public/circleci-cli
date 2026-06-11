@@ -9,7 +9,7 @@ Token values are only shown once at creation time and cannot be retrieved afterw
 
 ## Usage
 
-`circleci runner token <command>`
+`circleci runner token <command> [flags]`
 
 ## Available Commands
 

@@ -15,6 +15,8 @@ JSON fields: id, name, execution,
              steps[].num/name/type/phase/outcome/started_at/stopped_at/
              exit_code/command/output
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci job output list <job-id> [flags]`

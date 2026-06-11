@@ -2,6 +2,8 @@
 
 Display active account information
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci auth me [flags]`

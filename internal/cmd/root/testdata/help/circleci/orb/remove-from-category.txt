@@ -8,7 +8,7 @@ categories.
 
 ## Usage
 
-`circleci orb remove-from-category <ns>/<orb> <category>`
+`circleci orb remove-from-category <ns>/<orb> <category> [flags]`
 
 ## Inherited Flags
 

@@ -7,7 +7,7 @@ Specify a version with @<version> (e.g. @1.2.3 or @volatile for latest).
 
 ## Usage
 
-`circleci orb source <ns>/<orb>[@<version>]`
+`circleci orb source <ns>/<orb>[@<version>] [flags]`
 
 ## Inherited Flags
 

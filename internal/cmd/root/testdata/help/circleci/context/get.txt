@@ -12,6 +12,8 @@ expose secret values after they are set.
 
 JSON fields: id, name, org_id, created_at, environment_variables, restrictions
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci context get <context-id|context-name> [flags]`

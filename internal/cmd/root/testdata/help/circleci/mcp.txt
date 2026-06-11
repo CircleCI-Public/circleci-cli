@@ -4,7 +4,7 @@ Manage MCP servers for AI assistants and code editors
 
 ## Usage
 
-`circleci mcp`
+`circleci mcp [flags]`
 
 ## Available Commands
 

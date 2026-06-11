@@ -13,7 +13,7 @@ directory is created if needed, and the file is written atomically.
 
 ## Usage
 
-`circleci config generate [path]`
+`circleci config generate [path] [flags]`
 
 ## Inherited Flags
 

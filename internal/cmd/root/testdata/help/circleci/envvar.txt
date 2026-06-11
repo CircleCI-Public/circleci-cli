@@ -12,7 +12,7 @@ Also available as: circleci project envvar <command>
 
 ## Usage
 
-`circleci envvar <command>`
+`circleci envvar <command> [flags]`
 
 ## Available Commands
 

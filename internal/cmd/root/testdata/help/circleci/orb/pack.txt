@@ -13,7 +13,7 @@ The merged YAML is written to stdout.
 
 ## Usage
 
-`circleci orb pack <path>`
+`circleci orb pack <path> [flags]`
 
 ## Inherited Flags
 

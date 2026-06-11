@@ -13,7 +13,7 @@ To increment the latest stable version and publish:
 
 ## Usage
 
-`circleci orb publish <command>`
+`circleci orb publish <command> [flags]`
 
 ## Available Commands
 

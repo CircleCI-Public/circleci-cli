@@ -8,6 +8,8 @@ and orbs still referencing the old name are updated.
 
 JSON fields: id, name
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci namespace rename <name> <new-name> [flags]`

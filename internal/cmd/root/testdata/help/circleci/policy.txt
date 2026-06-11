@@ -11,7 +11,7 @@ Find it at: https://app.circleci.com/settings/organization
 
 ## Usage
 
-`circleci policy <command>`
+`circleci policy <command> [flags]`
 
 ## Available Commands
 

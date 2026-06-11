@@ -10,7 +10,7 @@ For pipeline YAML operations, see 'circleci config'.
 
 ## Usage
 
-`circleci settings <command>`
+`circleci settings <command> [flags]`
 
 ## Available Commands
 

@@ -5,6 +5,8 @@ bundle without making any changes.
 
 JSON fields: created, deleted, updated (policy names)
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci policy diff <path> [flags]`

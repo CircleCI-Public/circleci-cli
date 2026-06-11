@@ -24,6 +24,8 @@ the command exits 0 and prints the reason to stdout.
 JSON fields (triggered): id, state, number, created_at, triggered
 JSON fields (skipped):   triggered, message
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci pipeline run [flags]`

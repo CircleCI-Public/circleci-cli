@@ -11,6 +11,8 @@ organization can be inferred from the remote.
 
 JSON fields: id, name, restriction_type, restriction_value
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci context restriction create <context-id|context-name> [flags]`

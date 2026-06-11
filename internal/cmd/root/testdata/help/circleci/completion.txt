@@ -12,7 +12,7 @@ To install manually, add one of the following to your shell profile:
 
 ## Usage
 
-`circleci completion <command>`
+`circleci completion <command> [flags]`
 
 ## Available Commands
 

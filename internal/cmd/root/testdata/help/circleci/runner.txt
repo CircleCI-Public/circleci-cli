@@ -11,7 +11,7 @@ Resource class names use the format: namespace/name
 
 ## Usage
 
-`circleci runner <command>`
+`circleci runner <command> [flags]`
 
 ## Available Commands
 

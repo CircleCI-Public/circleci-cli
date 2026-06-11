@@ -9,7 +9,7 @@ Workflow IDs are shown in the output of 'circleci run get'.
 
 ## Usage
 
-`circleci workflow <command>`
+`circleci workflow <command> [flags]`
 
 ## Available Commands
 

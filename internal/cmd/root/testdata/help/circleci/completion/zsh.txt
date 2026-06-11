@@ -4,7 +4,7 @@ Generate zsh completion script
 
 ## Usage
 
-`circleci completion zsh`
+`circleci completion zsh [flags]`
 
 ## Inherited Flags
 

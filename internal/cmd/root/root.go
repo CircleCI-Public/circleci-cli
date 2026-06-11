@@ -66,6 +66,84 @@ import (
 // NewRootCmd builds the root cobra command and wires all subcommands.
 func NewRootCmd(version string) *cobra.Command {
 	telem := &delegatingTelemetry{}
+	initConfig := func(cmd *cobra.Command) (func(), error) {
+		if telem.Client != nil {
+			return func() {}, nil
+		}
+
+		ctx := cmd.Context()
+
+		if theme, _ := cmd.Flags().GetString("theme"); !iostream.IsValidTheme(theme) {
+			return func() {}, clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: "+theme).
+				WithSuggestions("Valid themes are: " + strings.Join(iostream.ValidThemes(), ", ")).
+				WithExitCode(clierrors.ExitBadArguments)
+		}
+
+		secureStorage := cmdutil.IsSecureStorage(cmd)
+		configPath := cmdutil.ConfigPath(cmd)
+
+		// Load config before stream setup so a stored "theme" setting can act as
+		// the fallback when --theme is not explicitly passed. config.Load only
+		// uses ctx for its file lock timeout, so the streamless context is fine.
+		cfg, err := config.Load(ctx, configPath, secureStorage)
+		if err != nil {
+			return func() {}, err
+		}
+
+		ctx = iostream.FromCmd(ctx, cmd, cfg.EffectiveTheme())
+		ctx = cmdutil.WithVersion(ctx, version)
+		ctx = cmdutil.WithConfig(ctx, cfg)
+
+		agentName := agent.Detect()
+		ctx = cmdutil.WithAgentName(ctx, agentName)
+
+		jqFilter, _ := cmd.Flags().GetString("jq")
+		ctx = iostream.WithJQFilter(ctx, jqFilter)
+
+		cmd.SetContext(ctx)
+
+		// Only gather host info when telemetry will actually be sent. Skipping
+		// it for telemetry-disabled commands (e.g. completion generation) avoids
+		// gopsutil's `ioreg` lookup, which fails under a restricted PATH such as
+		// Homebrew's sanitized completion-generation environment.
+		var hostInfo *host.InfoStat
+		if cfg.IsTelemetry() && !cmdutil.IsTelemetryDisabled(cmd) {
+			hostInfo, err = host.InfoWithContext(ctx)
+			if err != nil {
+				return func() {}, err
+			}
+		}
+
+		tc, err := telemetry.New(ctx, telemetry.Config{
+			Log:      cfg.IsTelemetry(),
+			Send:     cfg.IsTelemetry(),
+			WriteKey: telemetry.SegmentKey,
+			Endpoint: os.Getenv("CIRCLE_TELEMETRY_ENDPOINT"),
+			Metadata: telemetry.Meta{
+				Version:    version,
+				InstanceID: cfg.DeviceID(),
+				UserID:     cfg.UserID(),
+				HostInfo:   hostInfo,
+				Extra: map[string]any{
+					"agent":          agentName,
+					"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
+					"is_tty":         iostream.IsTerminal(ctx),
+				},
+			},
+		})
+		if err != nil {
+			return func() {}, err
+		}
+		telem.Client = tc
+
+		cleanup := func() {
+			if telem.Client != nil {
+				_ = telem.Close()
+			}
+		}
+
+		return cleanup, nil
+	}
 
 	cmd := &cobra.Command{
 		Use:           "circleci",
@@ -115,6 +193,18 @@ func NewRootCmd(version string) *cobra.Command {
 	// Wire in MCP commands
 	cmd.AddCommand(ophis.Command(nil))
 
+	// Help topics
+	var referenceCmd *cobra.Command
+	for _, ht := range helpTopics {
+		helpTopicCmd := newCmdHelpTopic(ht, initConfig)
+		cmd.AddCommand(helpTopicCmd)
+
+		// See bottom of the function for why we explicitly care about the reference cmd
+		if ht.name == "reference" {
+			referenceCmd = helpTopicCmd
+		}
+	}
+
 	// Register extensions found in PATH. Built-in commands always win on name
 	// conflicts — extensions cannot shadow them.
 	builtins := map[string]bool{}
@@ -132,78 +222,12 @@ func NewRootCmd(version string) *cobra.Command {
 		}
 	}
 
-	initConfig := func(cmd *cobra.Command) error {
-		if theme, _ := cmd.Flags().GetString("theme"); !iostream.IsValidTheme(theme) {
-			return clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: "+theme).
-				WithSuggestions("Valid themes are: " + strings.Join(iostream.ValidThemes(), ", ")).
-				WithExitCode(clierrors.ExitBadArguments)
-		}
-
-		secureStorage := cmdutil.IsSecureStorage(cmd)
-		configPath := cmdutil.ConfigPath(cmd)
-
-		// Load config before stream setup so a stored "theme" setting can act as
-		// the fallback when --theme is not explicitly passed. config.Load only
-		// uses ctx for its file lock timeout, so the streamless context is fine.
-		cfg, err := config.Load(cmd.Context(), configPath, secureStorage)
-		if err != nil {
-			return err
-		}
-
-		ctx := iostream.FromCmd(cmd.Context(), cmd, cfg.EffectiveTheme())
-		ctx = cmdutil.WithVersion(ctx, version)
-		ctx = cmdutil.WithConfig(ctx, cfg)
-
-		agentName := agent.Detect()
-		ctx = cmdutil.WithAgentName(ctx, agentName)
-
-		// Only gather host info when telemetry will actually be sent. Skipping
-		// it for telemetry-disabled commands (e.g. completion generation) avoids
-		// gopsutil's `ioreg` lookup, which fails under a restricted PATH such as
-		// Homebrew's sanitized completion-generation environment.
-		var hostInfo *host.InfoStat
-		if cfg.IsTelemetry() && !cmdutil.IsTelemetryDisabled(cmd) {
-			hostInfo, err = host.InfoWithContext(ctx)
-			if err != nil {
-				return err
-			}
-		}
-
-		tc, err := telemetry.New(ctx, telemetry.Config{
-			Log:      cfg.IsTelemetry(),
-			Send:     cfg.IsTelemetry(),
-			WriteKey: telemetry.SegmentKey,
-			Endpoint: os.Getenv("CIRCLE_TELEMETRY_ENDPOINT"),
-			Metadata: telemetry.Meta{
-				Version:    version,
-				InstanceID: cfg.DeviceID(),
-				UserID:     cfg.UserID(),
-				HostInfo:   hostInfo,
-				Extra: map[string]any{
-					"agent":          agentName,
-					"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
-					"is_tty":         iostream.IsTerminal(ctx),
-				},
-			},
-		})
-		if err != nil {
-			return err
-		}
-		telem.Client = tc
-
-		jqFilter, _ := cmd.Flags().GetString("jq")
-		ctx = iostream.WithJQFilter(ctx, jqFilter)
-
-		cmd.SetContext(ctx)
-
-		return nil
-	}
-
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		for i := range args {
 			args[i] = strings.TrimSpace(args[i])
 		}
-		return initConfig(cmd)
+		_, err := initConfig(cmd)
+		return err
 	}
 	cmd.PersistentPostRunE = func(_ *cobra.Command, _ []string) error {
 		_ = telem.Close()
@@ -211,36 +235,28 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
-		if telem.Client == nil {
-			// --help flag path: pre/post run hooks don't fire, so own the full lifecycle here.
-			if err := initConfig(cmd); err == nil {
-				cmdutil.RecordTelemetryNow(cmd, telem.Client)
-				_ = telem.Close()
-			}
-		} else {
-			// `help` subcommand path: PersistentPreRunE already initialized, PersistentPostRunE will close.
+		if cleanup, err := initConfig(cmd); err == nil {
 			cmdutil.RecordTelemetryNow(cmd, telem.Client)
+			cleanup()
 		}
 
 		rootHelp(cmd, args)
 	})
 
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		if telem.Client == nil {
-			// --help flag path: pre/post run hooks don't fire, so own the full lifecycle here.
-			if err := initConfig(cmd); err == nil {
-				cmdutil.RecordTelemetryNow(cmd, telem.Client)
-				_ = telem.Close()
-			}
-		} else {
-			// `help` subcommand path: PersistentPreRunE already initialized, PersistentPostRunE will close.
+		if cleanup, err := initConfig(cmd); err == nil {
 			cmdutil.RecordTelemetryNow(cmd, telem.Client)
+			cleanup()
 		}
 
 		return rootUsage(cmd)
 	})
 
 	cmdutil.RecordTelemetryForSubcommands(cmd, telem)
+
+	if referenceCmd != nil {
+		referenceCmd.Long = stringifyReference(cmd)
+	}
 
 	return cmd
 }

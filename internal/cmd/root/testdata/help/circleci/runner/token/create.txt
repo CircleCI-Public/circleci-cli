@@ -8,6 +8,8 @@ a new one.
 
 JSON fields: id, resource_class, nickname, created_at, token
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci runner token create <resource-class> [flags]`

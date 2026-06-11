@@ -8,6 +8,8 @@ namespace are world-readable.
 
 JSON fields: id, name
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci namespace create <name> --org-id <uuid> [flags]`

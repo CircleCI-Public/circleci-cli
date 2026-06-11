@@ -15,6 +15,8 @@ shell history and process listings.
 
 JSON fields: id, file_name
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci certificate upload [flags]`

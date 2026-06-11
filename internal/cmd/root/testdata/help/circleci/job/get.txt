@@ -9,6 +9,8 @@ JSON fields: id, name, type, status, started_at, stopped_at,
              project_id, pipeline_id, workflow_id,
              executions[].index/steps[].name/type/status/duration/exit_code
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci job get <job-id> [flags]`

@@ -9,7 +9,7 @@ Unlisted orbs can still be used if you know the exact orb reference.
 
 ## Usage
 
-`circleci orb unlist <ns>/<orb> true|false`
+`circleci orb unlist <ns>/<orb> true|false [flags]`
 
 ## Inherited Flags
 

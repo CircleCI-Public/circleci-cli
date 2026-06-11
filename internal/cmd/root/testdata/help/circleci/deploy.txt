@@ -6,7 +6,7 @@ View deployed components and their versions across environments.
 
 ## Usage
 
-`circleci deploy <command>`
+`circleci deploy <command> [flags]`
 
 ## Available Commands
 

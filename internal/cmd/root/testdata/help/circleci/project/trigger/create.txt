@@ -36,6 +36,8 @@ Valid --event-preset values:
 JSON fields: id, created_at, event_name, event_preset, config_ref,
              checkout_ref, disabled
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci project trigger create [flags]`

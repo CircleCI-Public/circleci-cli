@@ -10,6 +10,8 @@ token metadata (ID, nickname, creation date) only.
 
 JSON fields: id, resource_class, nickname, created_at
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci runner token list [flags]`

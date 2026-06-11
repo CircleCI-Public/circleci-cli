@@ -7,6 +7,8 @@ them to a local directory.
 
 JSON fields: path, url, node_index
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci artifact <job-id> [flags]`

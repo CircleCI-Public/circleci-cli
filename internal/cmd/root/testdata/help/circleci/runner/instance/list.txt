@@ -15,6 +15,8 @@ The STATUS column is derived from last_connected_at:
 JSON fields: resource_class, hostname, name, version, ip, status,
              first_connected, last_connected, last_used
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci runner instance list [flags]`

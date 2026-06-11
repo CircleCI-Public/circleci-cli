@@ -8,7 +8,7 @@ from the latest stable release.
 
 ## Usage
 
-`circleci orb publish promote <ns>/<orb>@dev:<label> major|minor|patch`
+`circleci orb publish promote <ns>/<orb>@dev:<label> major|minor|patch [flags]`
 
 ## Inherited Flags
 

@@ -4,6 +4,8 @@ Retrieve the current policy enforcement settings for an organization.
 
 JSON fields: enabled
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci policy settings get [flags]`

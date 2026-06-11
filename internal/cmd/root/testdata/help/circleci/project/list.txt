@@ -8,6 +8,8 @@ following a new project.
 
 JSON fields: slug, name, vcs_type, username, reponame
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci project list [flags]`

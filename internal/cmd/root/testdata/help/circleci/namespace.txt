@@ -8,7 +8,7 @@ and referenced as <namespace>/<orb>. All published orbs are world-readable.
 
 ## Usage
 
-`circleci namespace <command>`
+`circleci namespace <command> [flags]`
 
 ## Available Commands
 

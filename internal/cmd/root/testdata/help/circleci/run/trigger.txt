@@ -10,6 +10,8 @@ booleans (true/false), integers, or strings.
 
 JSON fields: id, number, state, created_at
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci run trigger [flags]`

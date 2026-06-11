@@ -16,6 +16,8 @@ current git repository unless overridden with --project.
 JSON fields (single run):  id, name, phase, outcome, current_outcome
 JSON fields (recent runs): run_id, id, name, phase, outcome, current_outcome
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci workflow list [<run-id>] [flags]`

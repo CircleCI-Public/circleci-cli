@@ -8,6 +8,8 @@ Running tasks are actively executing on a runner instance.
 
 JSON fields: resource_class, unclaimed, running
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci runner task [flags]`

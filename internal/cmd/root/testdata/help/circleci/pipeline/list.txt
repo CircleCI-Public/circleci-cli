@@ -11,6 +11,8 @@ JSON fields: id, name, description, created_at,
              checkout_source.provider,
              checkout_source.repo.external_id, checkout_source.repo.full_name
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci pipeline list [flags]`

@@ -7,6 +7,8 @@ $XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
 
 JSON fields: token_set, host, telemetry, theme
 
+For more information about output formatting flags, see `circleci help formatting`.
+
 ## Usage
 
 `circleci settings list [flags]`
