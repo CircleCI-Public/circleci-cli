@@ -190,8 +190,7 @@ homebrew_casks:
         brew unlink circleci
 
 archives:
-  - wrap_in_directory: true
-    files:
+  - files:
       - LICENSE
       - src: ./share/man/man1/circleci.1
         dst: share/man/man1/circleci.1
