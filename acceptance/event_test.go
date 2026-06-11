@@ -43,9 +43,9 @@ import (
 )
 
 const (
-	getRunID         = "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	testWfID         = "wf-uuid-001"
-	runTestProjectID = "proj-uuid-001"
+	getEventID         = "5034460f-c7c4-4c43-9457-de07e2029e7b"
+	testWfID           = "wf-uuid-001"
+	eventTestProjectID = "proj-uuid-001"
 
 	// Shared across multiple test files.
 	testPipelineID = "aaaaaaaa-0000-0000-0000-000000000001"
@@ -55,8 +55,8 @@ const (
 
 var v3TimeFormat = time.RFC3339
 
-// fakeRunV3 returns a V3 run payload for the fake server.
-func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[string]any {
+// fakeEventV3 returns a V3 event payload for the fake server.
+func fakeEventV3(id, projectID, phase, outcome, branch, revision string) map[string]any {
 	createdAt := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
 	attrs := map[string]any{
 		"phase":      phase,
@@ -66,7 +66,7 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 			"revision": revision,
 		},
 	}
-	// The real V3 runs API reports only current_outcome, never outcome,
+	// The real V3 events API reports only current_outcome, never outcome,
 	// regardless of phase.
 	if outcome != "" {
 		attrs["current_outcome"] = outcome
@@ -82,7 +82,7 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 }
 
 // fakeWorkflowV3 returns a V3 workflow payload for the fake server.
-func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) map[string]any {
+func fakeWorkflowV3(id, name, eventID, projectID, phase, outcome string) map[string]any {
 	created := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
 	attrs := map[string]any{
 		"name":       name,
@@ -100,7 +100,7 @@ func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) map[strin
 		"id":         id,
 		"attributes": attrs,
 		"references": map[string]any{
-			"run":     map[string]any{"id": runID},
+			"event":   map[string]any{"id": eventID},
 			"project": map[string]any{"id": projectID},
 			"user":    map[string]any{"id": "user-uuid-001"},
 		},
@@ -162,17 +162,17 @@ func addProjectInfo(fake *fakes.CircleCI, slug, projectID string) {
 	})
 }
 
-// --- run get (V3) ---
+// --- event get (V3) ---
 
 func TestEventGet_ByID(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := testWfID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, eventTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID,
-		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
-		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
+		fakeJobV3("job-uuid-1", "run-tests", wfID, eventTestProjectID),
+		fakeJobV3("job-uuid-2", "deploy", wfID, eventTestProjectID),
 	)
 
 	env := testenv.New(t)
@@ -181,7 +181,7 @@ func TestEventGet_ByID(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", runID},
+		Args:    []string{"event", "get", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -192,9 +192,9 @@ func TestEventGet_ByID(t *testing.T) {
 
 func TestEventGet_ByID_WorkflowsNotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "created", "", "main", "abc1234def5678"))
-	fake.SetRunWorkflowsV3NotFound(runID)
+	eventID := getEventID
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "created", "", "main", "abc1234def5678"))
+	fake.SetEventWorkflowsV3NotFound(eventID)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -202,7 +202,7 @@ func TestEventGet_ByID_WorkflowsNotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", runID},
+		Args:    []string{"event", "get", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -213,13 +213,13 @@ func TestEventGet_ByID_WorkflowsNotFound(t *testing.T) {
 
 func TestEventGet_ByID_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := testWfID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, eventTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID,
-		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
-		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
+		fakeJobV3("job-uuid-1", "run-tests", wfID, eventTestProjectID),
+		fakeJobV3("job-uuid-2", "deploy", wfID, eventTestProjectID),
 	)
 
 	env := testenv.New(t)
@@ -228,7 +228,7 @@ func TestEventGet_ByID_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", runID},
+		Args:    []string{"event", "get", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -240,11 +240,11 @@ func TestEventGet_ByID_Color(t *testing.T) {
 
 func TestEventGet_ByID_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := testWfID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, eventTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, eventTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -252,7 +252,7 @@ func TestEventGet_ByID_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", "--json", runID},
+		Args:    []string{"event", "get", "--json", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -262,7 +262,7 @@ func TestEventGet_ByID_JSON(t *testing.T) {
 	var out map[string]any
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(out["id"], runID))
+	assert.Check(t, cmp.Equal(out["id"], eventID))
 	assert.Check(t, cmp.Equal(out["phase"], "ended"))
 	assert.Check(t, cmp.Equal(out["current_outcome"], "succeeded"))
 
@@ -277,11 +277,11 @@ func TestEventGet_ByID_JSON(t *testing.T) {
 
 func TestEventGet_ByID_JQ(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := testWfID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, eventTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, eventTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -289,22 +289,22 @@ func TestEventGet_ByID_JQ(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", "--json", "--jq", ".id", runID},
+		Args:    []string{"event", "get", "--json", "--jq", ".id", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), runID))
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), eventID))
 }
 
 func TestEventGet_ByID_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := testWfID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, eventTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, eventTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -312,7 +312,7 @@ func TestEventGet_ByID_JSON_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", "--json", runID},
+		Args:    []string{"event", "get", "--json", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -324,13 +324,13 @@ func TestEventGet_ByID_JSON_Color(t *testing.T) {
 
 func TestEventGet_WithErrors(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 
-	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
-	run["attributes"].(map[string]any)["errors"] = []map[string]any{
+	event := fakeEventV3(eventID, eventTestProjectID, "ended", "failed", "main", "abc1234def5678")
+	event["attributes"].(map[string]any)["errors"] = []map[string]any{
 		{"type": "config", "message": "Could not find config file"},
 	}
-	fake.AddRunV3(runID, runTestProjectID, run)
+	fake.AddEventV3(eventID, eventTestProjectID, event)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -338,7 +338,7 @@ func TestEventGet_WithErrors(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", runID},
+		Args:    []string{"event", "get", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -349,13 +349,13 @@ func TestEventGet_WithErrors(t *testing.T) {
 
 func TestEventGet_WithErrors_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 
-	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
-	run["attributes"].(map[string]any)["errors"] = []map[string]any{
+	event := fakeEventV3(eventID, eventTestProjectID, "ended", "failed", "main", "abc1234def5678")
+	event["attributes"].(map[string]any)["errors"] = []map[string]any{
 		{"type": "config", "message": "Could not find config file"},
 	}
-	fake.AddRunV3(runID, runTestProjectID, run)
+	fake.AddEventV3(eventID, eventTestProjectID, event)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -363,7 +363,7 @@ func TestEventGet_WithErrors_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "get", "--json", runID},
+		Args:    []string{"event", "get", "--json", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -412,15 +412,15 @@ func TestEventGet_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --- run list (V3 search) ---
+// --- event list (V3 search) ---
 
 func TestEventList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	addProjectInfo(fake, slug, eventTestProjectID)
+	fake.AddEventV3("pid-1", eventTestProjectID, fakeEventV3("pid-1", eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventV3("pid-2", eventTestProjectID, fakeEventV3("pid-2", eventTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddEventV3("pid-3", eventTestProjectID, fakeEventV3("pid-3", eventTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -440,10 +440,10 @@ func TestEventList(t *testing.T) {
 func TestEventList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	addProjectInfo(fake, slug, eventTestProjectID)
+	fake.AddEventV3("pid-1", eventTestProjectID, fakeEventV3("pid-1", eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventV3("pid-2", eventTestProjectID, fakeEventV3("pid-2", eventTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddEventV3("pid-3", eventTestProjectID, fakeEventV3("pid-3", eventTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -464,10 +464,10 @@ func TestEventList_Color(t *testing.T) {
 func TestEventList_Limit(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	addProjectInfo(fake, slug, eventTestProjectID)
+	fake.AddEventV3("pid-1", eventTestProjectID, fakeEventV3("pid-1", eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventV3("pid-2", eventTestProjectID, fakeEventV3("pid-2", eventTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
+	fake.AddEventV3("pid-3", eventTestProjectID, fakeEventV3("pid-3", eventTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -487,10 +487,10 @@ func TestEventList_Limit(t *testing.T) {
 func TestEventList_Limit_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	addProjectInfo(fake, slug, eventTestProjectID)
+	fake.AddEventV3("pid-1", eventTestProjectID, fakeEventV3("pid-1", eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventV3("pid-2", eventTestProjectID, fakeEventV3("pid-2", eventTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
+	fake.AddEventV3("pid-3", eventTestProjectID, fakeEventV3("pid-3", eventTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -511,9 +511,9 @@ func TestEventList_Limit_Color(t *testing.T) {
 func TestEventList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	addProjectInfo(fake, slug, eventTestProjectID)
+	fake.AddEventV3("pid-1", eventTestProjectID, fakeEventV3("pid-1", eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventV3("pid-2", eventTestProjectID, fakeEventV3("pid-2", eventTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -543,9 +543,9 @@ func TestEventList_JSON(t *testing.T) {
 func TestEventList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	addProjectInfo(fake, slug, eventTestProjectID)
+	fake.AddEventV3("pid-1", eventTestProjectID, fakeEventV3("pid-1", eventTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddEventV3("pid-2", eventTestProjectID, fakeEventV3("pid-2", eventTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -734,17 +734,17 @@ func TestEventCreate_NoToken(t *testing.T) {
 
 func TestArgWhitespaceTrimmed(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := testWfID
-	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddEventV3(eventID, eventTestProjectID, fakeEventV3(eventID, eventTestProjectID, "ended", "succeeded", "main", "abc1234"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, eventTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, eventTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
-	for _, arg := range []string{runID + " ", " " + runID, " " + runID + " ", runID + "\t"} {
+	for _, arg := range []string{eventID + " ", " " + eventID, " " + eventID + " ", eventID + "\t"} {
 		result := binary.RunCLI(t, binary.RunOpts{
 			Binary:  binaryPath,
 			Args:    []string{"event", "get", arg},
@@ -759,10 +759,10 @@ func TestArgWhitespaceTrimmed(t *testing.T) {
 
 func TestEventCancel(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := "wf-cancel-001"
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "started", ""))
+	fake.AddRun(eventID, fakeRun(eventID, 42, "created", watchSlug, "main"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, "proj-cancel", "started", ""))
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)
@@ -771,7 +771,7 @@ func TestEventCancel(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "cancel", "--force", runID},
+		Args:    []string{"event", "cancel", "--force", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -794,10 +794,10 @@ func TestEventCancel(t *testing.T) {
 
 func TestEventCancel_Started(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
+	eventID := getEventID
 	wfID := "wf-cancel-started"
-	fake.AddRun(runID, fakeRun(runID, 42, "running", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "started", ""))
+	fake.AddRun(eventID, fakeRun(eventID, 42, "running", watchSlug, "main"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, "proj-cancel", "started", ""))
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)
@@ -806,7 +806,7 @@ func TestEventCancel_Started(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "cancel", "--force", runID},
+		Args:    []string{"event", "cancel", "--force", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -816,8 +816,8 @@ func TestEventCancel_Started(t *testing.T) {
 
 func TestEventCancel_RequiresForce(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := getRunID
-	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
+	eventID := getEventID
+	fake.AddRun(eventID, fakeRun(eventID, 42, "created", watchSlug, "main"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -825,7 +825,7 @@ func TestEventCancel_RequiresForce(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "cancel", runID},
+		Args:    []string{"event", "cancel", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -836,10 +836,10 @@ func TestEventCancel_RequiresForce(t *testing.T) {
 
 func TestEventCancel_AlreadyDone(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runID := "5034460f-c7c4-4c43-9457-de07e2029e7c"
+	eventID := "5034460f-c7c4-4c43-9457-de07e2029e7c"
 	wfID := "wf-cancel-002"
-	fake.AddRun(runID, fakeRun(runID, 43, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "ended", "succeeded"))
+	fake.AddRun(eventID, fakeRun(eventID, 43, "created", watchSlug, "main"))
+	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, "proj-cancel", "ended", "succeeded"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -847,7 +847,7 @@ func TestEventCancel_AlreadyDone(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "cancel", "--force", runID},
+		Args:    []string{"event", "cancel", "--force", eventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -893,7 +893,7 @@ func TestEventCancel_NoToken(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "cancel", "--force", getRunID},
+		Args:    []string{"event", "cancel", "--force", getEventID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
