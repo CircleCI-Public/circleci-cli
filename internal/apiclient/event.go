@@ -75,9 +75,7 @@ type EventError struct {
 
 // Event is the record of a trigger firing — it groups the workflows
 // produced by that firing and carries their shared VCS context and any
-// pre-workflow errors. The V3 API currently exposes this entity as a
-// "run"; the wire paths below still say /runs until the events API
-// ships, at which point only the paths change.
+// pre-workflow errors.
 type Event struct {
 	ID             string       `json:"id"`
 	Phase          string       `json:"phase"`
@@ -118,8 +116,7 @@ func (w eventWire) toEvent() *Event {
 // GetEvent fetches a single event by UUID from the V3 API.
 func (c *Client) GetEvent(ctx context.Context, id string) (*Event, error) {
 	var env v3Entity[eventWire]
-	// Target endpoint: GET /events/:id.
-	if err := c.getV3(ctx, "/runs/%s", &env, routeParams(id)); err != nil {
+	if err := c.getV3(ctx, "/events/%s", &env, routeParams(id)); err != nil {
 		return nil, err
 	}
 	return env.Data.toEvent(), nil
@@ -175,8 +172,7 @@ func (c *Client) SearchEvents(ctx context.Context, params EventSearchParams) ([]
 	}
 
 	var resp v3List[eventWire]
-	// Target endpoint: POST /events/search.
-	if err := c.postV3(ctx, "/runs/search", body, &resp); err != nil {
+	if err := c.postV3(ctx, "/events/search", body, &resp); err != nil {
 		return nil, err
 	}
 

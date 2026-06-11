@@ -78,13 +78,13 @@ type CircleCI struct {
 	jobStderr      map[string][]byte // "jobID/index/stepNum" → plain text stderr
 
 	// Run (v3) state.
-	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
-	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
+	eventsV3          map[string]any   // event UUID → V3 response data (inner, not wrapped)
+	eventsV3ByProject map[string][]any // project UUID → ordered V3 event data items
 
 	// Workflow (v3) state.
 	workflowsV3         map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
-	workflowsV3ByRun    map[string][]any // run UUID → V3 workflow data items
-	workflowsV3NotFound map[string]bool  // run UUID → workflows list returns 404
+	workflowsV3ByEvent  map[string][]any // event UUID → V3 workflow data items
+	workflowsV3NotFound map[string]bool  // event UUID → workflows list returns 404
 
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
@@ -203,10 +203,10 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
-		runsV3:                            map[string]any{},
-		runsV3ByProject:                   map[string][]any{},
+		eventsV3:                          map[string]any{},
+		eventsV3ByProject:                 map[string][]any{},
 		workflowsV3:                       map[string]any{},
-		workflowsV3ByRun:                  map[string][]any{},
+		workflowsV3ByEvent:                map[string][]any{},
 		workflowsV3NotFound:               map[string]bool{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
@@ -326,8 +326,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
 	// Run (v3) routes.
-	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
-	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
+	r.Get("/api/v3/events/{id}", f.handleGetEventV3)
+	r.Post("/api/v3/events/search", f.handleSearchEventsV3)
 	// Runner (v3) routes. GET /runner lists instances (scoped by ?org-id= and/or
 	// ?resource-class=); GET /runner/resource lists resource classes (scoped by
 	// ?org-id= and/or ?namespace=). GET /runner also still accepts ?namespace=
@@ -832,20 +832,20 @@ func (f *CircleCI) AddWorkflowV3(id string, workflow any) {
 	f.workflowsV3[id] = workflow
 }
 
-// AddRunWorkflowsV3 registers V3 workflow responses for a run.
-func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...any) {
+// AddEventWorkflowsV3 registers V3 workflow responses for an event.
+func (f *CircleCI) AddEventWorkflowsV3(eventID string, workflows ...any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.workflowsV3ByRun[runID] = workflows
+	f.workflowsV3ByEvent[eventID] = workflows
 }
 
-// SetRunWorkflowsV3NotFound makes GET /api/v3/workflows?filter[run_id]=<runID>
-// return 404 for the given run, mirroring the real API for runs whose
+// SetEventWorkflowsV3NotFound makes GET /api/v3/workflows?filter[event_id]=<eventID>
+// return 404 for the given event, mirroring the real API for events whose
 // workflows have not materialised.
-func (f *CircleCI) SetRunWorkflowsV3NotFound(runID string) {
+func (f *CircleCI) SetEventWorkflowsV3NotFound(eventID string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.workflowsV3NotFound[runID] = true
+	f.workflowsV3NotFound[eventID] = true
 }
 
 func (f *CircleCI) handleGetWorkflowV3ByID(w http.ResponseWriter, r *http.Request) {
@@ -863,16 +863,16 @@ func (f *CircleCI) handleGetWorkflowV3ByID(w http.ResponseWriter, r *http.Reques
 }
 
 func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) {
-	runID := r.URL.Query().Get("filter[run_id]")
+	eventID := r.URL.Query().Get("filter[event_id]")
 	f.mu.RLock()
-	workflows := f.workflowsV3ByRun[runID]
-	notFound := f.workflowsV3NotFound[runID]
+	workflows := f.workflowsV3ByEvent[eventID]
+	notFound := f.workflowsV3NotFound[eventID]
 	f.mu.RUnlock()
 
 	if notFound {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{
-			"error": map[string]any{"type": "not_found", "detail": "run not found", "id": "fake-error-id"},
+			"error": map[string]any{"type": "not_found", "detail": "event not found", "id": "fake-error-id"},
 		})
 		return
 	}
@@ -882,19 +882,19 @@ func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) 
 	render.JSON(w, r, map[string]any{"data": workflows})
 }
 
-// AddRunV3 registers a V3 run response and associates it with a project.
-// The run must have an "id" and "references.project.id" field.
-func (f *CircleCI) AddRunV3(id, projectID string, run any) {
+// AddEventV3 registers a V3 event response and associates it with a project.
+// The event must have an "id" and "references.project.id" field.
+func (f *CircleCI) AddEventV3(id, projectID string, event any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.runsV3[id] = run
-	f.runsV3ByProject[projectID] = append(f.runsV3ByProject[projectID], run)
+	f.eventsV3[id] = event
+	f.eventsV3ByProject[projectID] = append(f.eventsV3ByProject[projectID], event)
 }
 
-func (f *CircleCI) handleGetRunV3(w http.ResponseWriter, r *http.Request) {
+func (f *CircleCI) handleGetEventV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	run, ok := f.runsV3[id]
+	event, ok := f.eventsV3[id]
 	f.mu.RUnlock()
 
 	if !ok {
@@ -902,10 +902,10 @@ func (f *CircleCI) handleGetRunV3(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": run})
+	render.JSON(w, r, map[string]any{"data": event})
 }
 
-func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
+func (f *CircleCI) handleSearchEventsV3(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Scope struct {
 			ProjectIDs []string `json:"project_ids"`
@@ -923,7 +923,7 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
 	var results []any
 	for _, pid := range body.Scope.ProjectIDs {
-		results = append(results, f.runsV3ByProject[pid]...)
+		results = append(results, f.eventsV3ByProject[pid]...)
 	}
 	f.mu.RUnlock()
 
