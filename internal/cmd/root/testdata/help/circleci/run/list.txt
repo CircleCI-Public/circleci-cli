@@ -4,7 +4,8 @@ List recent runs for a CircleCI project.
 
 The project is inferred from the current git repository's remote
 unless overridden with --project. Use --branch to filter results
-to a single branch.
+to a single branch, or --current-branch (-B) to automatically use
+the branch you have checked out.
 
 JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 
@@ -18,13 +19,14 @@ JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 
 ## Flags
 
-| Flag                  | Description                                               |
-| --------------------- | --------------------------------------------------------- |
-| `-b, --branch string` | Filter by branch                                          |
-| `--jq string`         | Process values from the response using jq syntax          |
-| `--json`              | Output as JSON                                            |
-| `--limit int`         | Maximum number of runs to show [default: 10] (default 10) |
-| `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote   |
+| Flag                   | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `-b, --branch string`  | Filter by branch                                          |
+| `-B, --current-branch` | Filter by the currently checked-out branch                |
+| `--jq string`          | Process values from the response using jq syntax          |
+| `--json`               | Output as JSON                                            |
+| `--limit int`          | Maximum number of runs to show [default: 10] (default 10) |
+| `--project string`     | Project slug (e.g. gh/org/repo); defaults to git remote   |
 
 ## Inherited Flags
 
@@ -38,6 +40,8 @@ JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
 
 - List recent runs for the current project: 
   `circleci run list`
+- Filter to the branch you have checked out: 
+  `circleci run list --current-branch`
 - Filter to a specific branch: 
   `circleci run list --branch main`
 - List runs for an explicit project: 
