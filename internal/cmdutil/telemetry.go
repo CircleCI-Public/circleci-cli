@@ -30,11 +30,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type tracker interface {
-	Track(eventName string, props map[string]any) error
-}
-
-func RecordTelemetry(cmd *cobra.Command, telemetry tracker) {
+func RecordTelemetry(cmd *cobra.Command) {
 	if IsTelemetryDisabled(cmd) {
 		return
 	}
@@ -47,16 +43,16 @@ func RecordTelemetry(cmd *cobra.Command, telemetry tracker) {
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		runErr := currentRunE(cmd, args)
 
-		RecordTelemetryNow(cmd, telemetry)
+		RecordTelemetryNow(cmd)
 
 		return runErr
 	}
 }
 
-func RecordTelemetryForSubcommands(cmd *cobra.Command, telemetry tracker) {
+func RecordTelemetryForSubcommands(cmd *cobra.Command) {
 	for _, c := range cmd.Commands() {
-		RecordTelemetry(c, telemetry)
-		RecordTelemetryForSubcommands(c, telemetry)
+		RecordTelemetry(c)
+		RecordTelemetryForSubcommands(c)
 	}
 }
 
@@ -81,14 +77,17 @@ func IsTelemetryDisabled(cmd *cobra.Command) bool {
 	return cmd.Annotations["telemetry"] == "disabled"
 }
 
-func RecordTelemetryNow(cmd *cobra.Command, telemetry tracker) {
+func RecordTelemetryNow(cmd *cobra.Command) {
+	ctx := cmd.Context()
+
 	var flags []string
 	cmd.Flags().Visit(func(f *pflag.Flag) {
 		flags = append(flags, f.Name)
 	})
 	slices.Sort(flags)
 
-	_ = telemetry.Track("command_invocation",
+	tc := GetTelemetry(ctx)
+	_ = tc.Track("command_invocation",
 		map[string]any{
 			"command": cmd.CommandPath(),
 			"flags":   strings.Join(flags, ","),
