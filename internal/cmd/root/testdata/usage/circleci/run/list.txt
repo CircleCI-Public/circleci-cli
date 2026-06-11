@@ -2,6 +2,7 @@ Usage:  circleci run list [flags]
 
 Flags:
   -b, --branch string    Filter by branch
+  -B, --current-branch   Filter by the currently checked-out branch
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --limit int        Maximum number of runs to show [default: 10] (default 10)
