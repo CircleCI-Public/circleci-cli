@@ -1,1 +1,0 @@
-Usage:  circleci settings set <key> <value>

@@ -45,7 +45,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
-func TestSettingsListJSON_Defaults(t *testing.T) {
+func TestSettingListJSON_Defaults(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
 	env := testenv.New(t)
@@ -57,7 +57,7 @@ func TestSettingsListJSON_Defaults(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -71,7 +71,7 @@ func TestSettingsListJSON_Defaults(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestSettingsListJSON_WithToken(t *testing.T) {
+func TestSettingListJSON_WithToken(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
 	env := testenv.New(t)
@@ -84,7 +84,7 @@ func TestSettingsListJSON_WithToken(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -96,7 +96,7 @@ func TestSettingsListJSON_WithToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestSettingsListJSON_WithCustomHost(t *testing.T) {
+func TestSettingListJSON_WithCustomHost(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
 	env := testenv.New(t)
@@ -109,7 +109,7 @@ func TestSettingsListJSON_WithCustomHost(t *testing.T) {
 
 	set := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "host", "https://circleci.example.com"},
+		Args:    []string{"setting", "set", "host", "https://circleci.example.com"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -117,7 +117,7 @@ func TestSettingsListJSON_WithCustomHost(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -129,13 +129,13 @@ func TestSettingsListJSON_WithCustomHost(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestSettingsListJSON_TelemetryEnvVarOverride(t *testing.T) {
+func TestSettingListJSON_TelemetryEnvVarOverride(t *testing.T) {
 	env := testenv.New(t)
 	env.Extra["CIRCLE_NO_TELEMETRY"] = "1"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -147,7 +147,7 @@ func TestSettingsListJSON_TelemetryEnvVarOverride(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-func TestSettingsList_TextOutput(t *testing.T) {
+func TestSettingList_TextOutput(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
 	env := testenv.New(t)
@@ -159,7 +159,7 @@ func TestSettingsList_TextOutput(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list"},
+		Args:    []string{"setting", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -194,7 +194,7 @@ func TestSettingsList_TextOutput(t *testing.T) {
 						UserId:    telemetry.AnonymousID.String(),
 						Event:     "command_invocation",
 						Properties: analytics.Properties{
-							"command": "circleci settings list",
+							"command": "circleci setting list",
 							"flags":   "debug,insecure-storage,theme",
 						},
 						Context: &analytics.Context{
@@ -219,7 +219,7 @@ func TestSettingsList_TextOutput(t *testing.T) {
 	})
 }
 
-func TestSettingsList_TextOutput_Color(t *testing.T) {
+func TestSettingList_TextOutput_Color(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
 	env := testenv.New(t)
@@ -232,7 +232,7 @@ func TestSettingsList_TextOutput_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list"},
+		Args:    []string{"setting", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -260,7 +260,7 @@ func TestSettingsList_TextOutput_Color(t *testing.T) {
 						UserId:    telemetry.AnonymousID.String(),
 						Event:     "command_invocation",
 						Properties: analytics.Properties{
-							"command": "circleci settings list",
+							"command": "circleci setting list",
 							"flags":   "insecure-storage,theme",
 						},
 						Context: &analytics.Context{
@@ -298,7 +298,7 @@ func TestTelemetryEnable(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "telemetry", "on"},
+		Args:    []string{"setting", "set", "telemetry", "on"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -308,13 +308,13 @@ func TestTelemetryEnable(t *testing.T) {
 
 	verify := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
 	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
 	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":true`),
-		"expected telemetry:true in settings list output, got: %q", verify.Stdout)
+		"expected telemetry:true in setting list output, got: %q", verify.Stdout)
 }
 
 func TestTelemetryDisable(t *testing.T) {
@@ -323,7 +323,7 @@ func TestTelemetryDisable(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "telemetry", "off"},
+		Args:    []string{"setting", "set", "telemetry", "off"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -333,13 +333,13 @@ func TestTelemetryDisable(t *testing.T) {
 
 	verify := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
 	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
 	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":false`),
-		"expected telemetry:false in settings list output, got: %q", verify.Stdout)
+		"expected telemetry:false in setting list output, got: %q", verify.Stdout)
 }
 
 func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
@@ -348,7 +348,7 @@ func TestTelemetryEnableWithEnvVarOverride(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "telemetry", "on"},
+		Args:    []string{"setting", "set", "telemetry", "on"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -365,7 +365,7 @@ func TestTelemetryInvalidValue(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "telemetry", "bogus"},
+		Args:    []string{"setting", "set", "telemetry", "bogus"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -373,15 +373,15 @@ func TestTelemetryInvalidValue(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for invalid telemetry value")
 }
 
-// TestSettingsSetTheme_Interactive drives the interactive theme picker shown
-// when "settings set theme" is run with no value in a terminal. It asserts the
+// TestSettingSetTheme_Interactive drives the interactive theme picker shown
+// when "setting set theme" is run with no value in a terminal. It asserts the
 // cursor defaults to "auto" and that selecting a different theme persists it.
-func TestSettingsSetTheme_Interactive(t *testing.T) {
+func TestSettingSetTheme_Interactive(t *testing.T) {
 	env := testenv.New(t)
 
 	console := binary.RunCLIInteractive(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "theme"},
+		Args:    []string{"setting", "set", "theme"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -407,16 +407,16 @@ func TestSettingsSetTheme_Interactive(t *testing.T) {
 	assert.Equal(t, cfg.EffectiveTheme(), "dracula")
 }
 
-// TestSettingsSetTheme_Interactive_StartsAtCurrent verifies the picker opens
+// TestSettingSetTheme_Interactive_StartsAtCurrent verifies the picker opens
 // with the cursor on the already-configured theme rather than the default.
-func TestSettingsSetTheme_Interactive_StartsAtCurrent(t *testing.T) {
+func TestSettingSetTheme_Interactive_StartsAtCurrent(t *testing.T) {
 	env := testenv.New(t)
 	dir := t.TempDir()
 
 	// Pre-configure a non-default theme.
 	set := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "theme", "dracula"},
+		Args:    []string{"setting", "set", "theme", "dracula"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -424,7 +424,7 @@ func TestSettingsSetTheme_Interactive_StartsAtCurrent(t *testing.T) {
 
 	console := binary.RunCLIInteractive(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "theme"},
+		Args:    []string{"setting", "set", "theme"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -447,14 +447,14 @@ func TestSettingsSetTheme_Interactive_StartsAtCurrent(t *testing.T) {
 	assert.Equal(t, cfg.EffectiveTheme(), "dracula")
 }
 
-func TestSettingsUnsetToken(t *testing.T) {
+func TestSettingUnsetToken(t *testing.T) {
 	env := testenv.New(t)
 	dir := t.TempDir()
 
 	// Set a token first, confirm it is stored.
 	set := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "token", "mytoken123"},
+		Args:    []string{"setting", "set", "token", "mytoken123"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -462,7 +462,7 @@ func TestSettingsUnsetToken(t *testing.T) {
 
 	list := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -474,7 +474,7 @@ func TestSettingsUnsetToken(t *testing.T) {
 	// Unset the token.
 	unset := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "unset", "token"},
+		Args:    []string{"setting", "unset", "token"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -485,7 +485,7 @@ func TestSettingsUnsetToken(t *testing.T) {
 	// Confirm the token is gone.
 	verify := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "list", "--json"},
+		Args:    []string{"setting", "list", "--json"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -495,12 +495,12 @@ func TestSettingsUnsetToken(t *testing.T) {
 	assert.Check(t, cmp.Equal(after["token_set"], false))
 }
 
-func TestSettingsUnsetToken_UnknownKey(t *testing.T) {
+func TestSettingUnsetToken_UnknownKey(t *testing.T) {
 	env := testenv.New(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "unset", "bogus"},
+		Args:    []string{"setting", "unset", "bogus"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

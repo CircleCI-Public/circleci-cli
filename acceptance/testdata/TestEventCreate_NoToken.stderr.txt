@@ -1,7 +1,7 @@
 error: No CircleCI API token found.
 
 Suggestions:
-  • Run: circleci settings set token <your-token>
+  • Run: circleci setting set token <your-token>
   • Or set the CIRCLE_TOKEN environment variable
 
 Reference: https://app.circleci.com/settings/user/tokens

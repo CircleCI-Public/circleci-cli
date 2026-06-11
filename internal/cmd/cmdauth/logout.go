@@ -55,7 +55,7 @@ func newLogoutCmd() *cobra.Command {
 func runLogout(ctx context.Context, secureStorage bool) error {
 	err := config.SetLogout(ctx, secureStorage)
 	if err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
+		return clierrors.New("setting.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 

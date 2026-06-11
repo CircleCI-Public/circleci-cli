@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package settings
+package setting
 
 import (
 	"context"
@@ -52,30 +52,30 @@ func newSetCmd() *cobra.Command {
 			Pass "-" as the value to read it from stdin, keeping secrets out of
 			shell history and process listings.
 
-			Run 'circleci settings set theme' with no value in an interactive
+			Run 'circleci setting set theme' with no value in an interactive
 			terminal to pick a theme from a list.
 		`),
 		Example: heredoc.Doc(`
 			# Store your personal API token
-			$ circleci settings set token mytoken123
+			$ circleci setting set token mytoken123
 
 			# Read the token from stdin to avoid shell history exposure
-			$ echo "mytoken123" | circleci settings set token -
+			$ echo "mytoken123" | circleci setting set token -
 
 			# Point to a self-hosted CircleCI server
-			$ circleci settings set host https://circleci.mycompany.com
+			$ circleci setting set host https://circleci.mycompany.com
 
 			# Enable telemetry
-			$ circleci settings set telemetry on
+			$ circleci setting set telemetry on
 
 			# Disable telemetry
-			$ circleci settings set telemetry off
+			$ circleci setting set telemetry off
 
 			# Set the color theme used for rendered output
-			$ circleci settings set theme dracula
+			$ circleci setting set theme dracula
 
 			# Pick the color theme interactively
-			$ circleci settings set theme
+			$ circleci setting set theme
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -121,12 +121,12 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 	case "theme":
 		return runSetTheme(ctx, path, value)
 	default:
-		return clierrors.New("settings.unknown_key", "Unknown setting", "Unknown setting key: "+key).
+		return clierrors.New("setting.unknown_key", "Unknown setting", "Unknown setting key: "+key).
 			WithSuggestions("Valid keys are: token, host, telemetry, theme").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	if err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save settings", err.Error()).
+		return clierrors.New("setting.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
@@ -176,13 +176,13 @@ func promptTheme(ctx context.Context) (string, error) {
 
 func runSetTheme(ctx context.Context, path, value string) error {
 	if !iostream.IsValidTheme(value) {
-		return clierrors.New("settings.invalid_value", "Invalid theme value", "Invalid value for theme: "+value).
+		return clierrors.New("setting.invalid_value", "Invalid theme value", "Invalid value for theme: "+value).
 			WithSuggestions("Valid themes are: " + strings.Join(iostream.ValidThemes(), ", ")).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	if err := config.SetTheme(ctx, value); err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save theme setting", err.Error()).
+		return clierrors.New("setting.save_failed", "Failed to save theme setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
@@ -198,13 +198,13 @@ func runSetTelemetry(ctx context.Context, path, value string) error {
 	case "off", "false", "no", "0", "disabled":
 		enabled = false
 	default:
-		return clierrors.New("settings.invalid_value", "Invalid telemetry value", "Invalid value for telemetry: "+value).
+		return clierrors.New("setting.invalid_value", "Invalid telemetry value", "Invalid value for telemetry: "+value).
 			WithSuggestions("Valid values are: on, off").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	if err := config.SetTelemetry(ctx, enabled, ""); err != nil {
-		return clierrors.New("settings.save_failed", "Failed to save telemetry setting", err.Error()).
+		return clierrors.New("setting.save_failed", "Failed to save telemetry setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 

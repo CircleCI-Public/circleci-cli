@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package settings
+package setting
 
 import (
 	"context"
@@ -53,10 +53,10 @@ func newListCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Show current settings
-			$ circleci settings list
+			$ circleci setting list
 
 			# Output as JSON
-			$ circleci settings list --json
+			$ circleci setting list --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {

@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package settings
+package setting
 
 import (
 	"github.com/MakeNowJust/heredoc"
@@ -29,18 +29,18 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewSettingsCmd returns the "circleci settings" command group.
-func NewSettingsCmd() *cobra.Command {
+// NewSettingCmd returns the "circleci setting" command group.
+func NewSettingCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "settings <command>",
+		Use:   "setting <command>",
 		Short: "Manage CLI settings",
 		Long: heredoc.Doc(`
 			View and modify settings for the circleci CLI tool.
 
-			Use 'circleci settings set token' to configure your personal API token.
-			Use 'circleci settings unset token' to remove your stored API token.
-			Use 'circleci settings set telemetry on/off' to manage telemetry preferences.
-			Use 'circleci settings list' to view current settings.
+			Use 'circleci setting set token' to configure your personal API token.
+			Use 'circleci setting unset token' to remove your stored API token.
+			Use 'circleci setting set telemetry on/off' to manage telemetry preferences.
+			Use 'circleci setting list' to view current settings.
 
 			For pipeline YAML operations, see 'circleci config'.
 		`),
