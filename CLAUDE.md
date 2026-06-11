@@ -27,9 +27,9 @@ Exit code constants live in `internal/errors/exitcodes.go` — always use those,
 This project is a clean rewrite. Importing from the old CLI would carry forward the design
 debt we are explicitly replacing. If you need similar functionality, reimplement it here.
 
-**4. `circleci config` = pipeline YAML. `circleci settings` = CLI tool config.**
+**4. `circleci config` = pipeline YAML. `circleci setting` = CLI tool config.**
 This naming is non-negotiable. `circleci config validate` validates pipeline YAML.
-`circleci settings set token <value>` manages the API token. Never mix these.
+`circleci setting set token <value>` manages the API token. Never mix these.
 
 **5. Maximum 2 levels of command nesting. If you go to 3, add an alias.**
 `circleci context secret set` = fine (2 levels under root).
@@ -90,7 +90,7 @@ internal/
 │   ├── project/          circleci project list/follow + project env
 │   ├── runner/           circleci runner resource-class/token/instance
 │   ├── policy/           circleci policy push/diff/fetch/...
-│   ├── settings/         circleci settings list/get/set
+│   ├── setting/          circleci setting list/get/set
 │   ├── mcp/              circleci mcp start/stream/tools + editor integrations (claude/cursor/vscode)
 │   └── api/              circleci api <endpoint> (raw API escape hatch)
 │

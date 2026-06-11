@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package settings
+package setting
 
 import (
 	"github.com/MakeNowJust/heredoc"
@@ -44,7 +44,7 @@ func newUnsetCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Remove your stored API token
-			$ circleci settings unset token
+			$ circleci setting unset token
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -55,7 +55,7 @@ func newUnsetCmd() *cobra.Command {
 			switch args[0] {
 			case "token":
 				if err := config.DeleteToken(ctx, secureStorage); err != nil {
-					return clierrors.New("settings.unset_failed", "Failed to remove token", err.Error()).
+					return clierrors.New("setting.unset_failed", "Failed to remove token", err.Error()).
 						WithExitCode(clierrors.ExitGeneralError)
 				}
 				if secureStorage {
@@ -65,7 +65,7 @@ func newUnsetCmd() *cobra.Command {
 				}
 				return nil
 			default:
-				return clierrors.New("settings.unknown_key", "Unknown setting", "Unknown setting key: "+args[0]).
+				return clierrors.New("setting.unknown_key", "Unknown setting", "Unknown setting key: "+args[0]).
 					WithSuggestions("Valid keys are: token").
 					WithExitCode(clierrors.ExitBadArguments)
 			}

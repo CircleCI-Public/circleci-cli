@@ -470,7 +470,7 @@ func (s Streams) ErrPrintln(a ...any) {
 // values (tokens, passwords, secrets) to allow callers to pipe the value in
 // without exposing it in shell history or process listings:
 //
-//	echo "mytoken" | circleci settings set token -
+//	echo "mytoken" | circleci setting set token -
 func (s Streams) ReadSecret(value string) (string, error) {
 	if value != "-" {
 		return value, nil

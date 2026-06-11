@@ -50,7 +50,7 @@ import (
 	cmdpolicy "github.com/CircleCI-Public/circleci-cli/internal/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/runner"
-	"github.com/CircleCI-Public/circleci-cli/internal/cmd/settings"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/setting"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/step"
 	cmdversion "github.com/CircleCI-Public/circleci-cli/internal/cmd/version"
@@ -185,7 +185,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(pipeline.NewPipelineCmd())
 	cmd.AddCommand(project.NewProjectCmd())
 	cmd.AddCommand(runner.NewRunnerCmd())
-	cmd.AddCommand(settings.NewSettingsCmd())
+	cmd.AddCommand(setting.NewSettingCmd())
 	cmd.AddCommand(signingconfig.NewSigningConfigCmd())
 	cmd.AddCommand(step.NewStepCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())

@@ -144,24 +144,24 @@ func TestJobArtifact_MissingArg(t *testing.T) {
 	assertMissingArg(t, result, "job-id")
 }
 
-// --- settings set ---
+// --- setting set ---
 
-func TestSettingsSet_MissingBothArgs(t *testing.T) {
+func TestSettingSet_MissingBothArgs(t *testing.T) {
 	env := missingArgEnv(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set"},
+		Args:    []string{"setting", "set"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 	assertMissingArg(t, result, "key")
 }
 
-func TestSettingsSet_MissingValue(t *testing.T) {
+func TestSettingSet_MissingValue(t *testing.T) {
 	env := missingArgEnv(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"settings", "set", "token"},
+		Args:    []string{"setting", "set", "token"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

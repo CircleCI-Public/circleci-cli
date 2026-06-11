@@ -21,7 +21,7 @@ Available commands:
   policy
   project
   runner
-  settings
+  setting
   signing-config
   version
   workflow

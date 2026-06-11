@@ -1248,11 +1248,11 @@ Aliases:
 
 `circleci runner token ls`
 
-## `circleci settings <command>`
+## `circleci setting <command>`
 
 Manage CLI settings
 
-### `circleci settings list [flags]`
+### `circleci setting list [flags]`
 
 List current CLI settings
 
@@ -1262,11 +1262,11 @@ List current CLI settings
 | `--json`      | Output as JSON                                   |
 
 
-### `circleci settings set <key> <value>`
+### `circleci setting set <key> <value>`
 
 Set a CLI setting
 
-### `circleci settings unset <key>`
+### `circleci setting unset <key>`
 
 Remove a stored CLI setting
 

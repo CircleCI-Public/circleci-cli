@@ -1,24 +1,13 @@
 # CircleCI CLI
 
-Display the current CLI settings.
+Remove a stored CLI setting by key.
 
-The token value is masked for security. Settings are read from
-$XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
-
-JSON fields: token_set, host, telemetry, theme
-
-For more information about output formatting flags, see `circleci help formatting`.
+Supported keys:
+  token      Remove your stored CircleCI personal API token
 
 ## Usage
 
-`circleci settings list [flags]`
-
-## Flags
-
-| Flag          | Description                                      |
-| ------------- | ------------------------------------------------ |
-| `--jq string` | Process values from the response using jq syntax |
-| `--json`      | Output as JSON                                   |
+`circleci setting unset <key> [flags]`
 
 ## Inherited Flags
 
@@ -30,10 +19,8 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Examples
 
-- Show current settings: 
-  `circleci settings list`
-- Output as JSON: 
-  `circleci settings list --json`
+- Remove your stored API token: 
+  `circleci setting unset token`
 
 ## Learn More
 

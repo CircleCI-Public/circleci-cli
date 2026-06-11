@@ -51,7 +51,7 @@ func NewConfigCmd() *cobra.Command {
 			Work with the pipeline configuration file at .circleci/config.yml.
 
 			This group manages the pipeline YAML that CircleCI executes. For CLI
-			tool settings (API token, host, defaults), use 'circleci settings'.
+			tool settings (API token, host, defaults), use 'circleci setting'.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
