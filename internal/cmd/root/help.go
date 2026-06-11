@@ -34,6 +34,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
@@ -102,11 +103,8 @@ func rootHelp(command *cobra.Command, _ []string) {
 	flags := command.Flags()
 
 	if isRootCmd(command) {
-		if versionVal, err := flags.GetBool("version"); err == nil && versionVal {
+		if versionVal, _ := flags.GetBool("version"); versionVal {
 			_, _ = fmt.Fprint(iostream.Out(ctx), command.Annotations["versionInfo"])
-			return
-		} else if err != nil {
-			iostream.ErrPrintln(ctx, err)
 			return
 		}
 	}
@@ -139,6 +137,19 @@ func rootHelp(command *cobra.Command, _ []string) {
 			"\n\nFor more information about output formatting flags, see `circleci help formatting`."
 	}
 	section("", longText)
+
+	if isRootCmd(command) {
+		cfg := cmdutil.TryGetConfig(command.Context())
+		if cfg == nil || cfg.EffectiveToken() == "" {
+			section("Getting Started", heredoc.Docf(`
+				You are not logged in. Get started by signing up or authenticating:
+
+				- Sign up for a new account: %[1]scircleci auth signup%[1]s
+				- Log in to an existing account: %[1]scircleci auth login%[1]s
+				- Add a Personal Access Token: %[1]scircleci settings set token <your-token>%[1]s
+			`, "`"))
+		}
+	}
 
 	section("Usage", "`"+command.UseLine()+"`")
 

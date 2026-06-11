@@ -59,6 +59,12 @@ func TestHelp(t *testing.T) {
 	t.Setenv("PATH", "")
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
+	// Isolate config so the test always runs unauthenticated — the root help
+	// Getting Started section is token-gated, so a developer's local token
+	// would make the golden snapshot non-deterministic.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("CIRCLE_TOKEN", "")
+	t.Setenv("CIRCLE_CLI_TOKEN", "")
 	cmd := root.NewRootCmd("1.2.3")
 	// Use insecure storage so the test never touches the OS keychain. Parse it
 	// rather than Set() so it merges into the command's flag set the same way a

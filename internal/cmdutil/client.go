@@ -110,6 +110,17 @@ func GetConfig(ctx context.Context) *config.Config {
 	return v.(*config.Config)
 }
 
+// TryGetConfig returns the config stored in ctx, or nil if none was set.
+// Use this in code paths (e.g. help rendering) where config may not have been
+// initialised yet.
+func TryGetConfig(ctx context.Context) *config.Config {
+	v := ctx.Value(configKey{})
+	if v == nil {
+		return nil
+	}
+	return v.(*config.Config)
+}
+
 // LoadClient reads the CLI config, validates that a token is present, and
 // returns an authenticated API client. On failure it returns a structured
 // CLIError ready to be returned directly from a RunE handler.

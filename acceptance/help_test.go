@@ -23,6 +23,7 @@
 package acceptance_test
 
 import (
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -31,6 +32,63 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
+
+// TestHelpGettingStarted verifies that a "Getting Started" section appears in
+// root help when no token is configured, and is absent when one is present.
+func TestHelpGettingStarted(t *testing.T) {
+	t.Run("shown when unauthenticated", func(t *testing.T) {
+		for _, args := range [][]string{{"--help"}, {"help"}} {
+			t.Run(strings.Join(args, " "), func(t *testing.T) {
+				env := testenv.New(t)
+				env.Extra["NO_COLOR"] = "1"
+
+				result := binary.RunCLI(t, binary.RunOpts{
+					Binary:  binaryPath,
+					Args:    args,
+					Env:     env.Environ(),
+					WorkDir: t.TempDir(),
+				})
+
+				assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+				assert.Check(t, cmp.Contains(result.Stdout, "Getting Started"))
+				assert.Check(t, cmp.Contains(result.Stdout, "circleci auth signup"))
+				assert.Check(t, cmp.Contains(result.Stdout, "circleci auth login"))
+				assert.Check(t, cmp.Contains(result.Stdout, "circleci settings set token"))
+			})
+		}
+	})
+
+	t.Run("hidden when authenticated", func(t *testing.T) {
+		env := testenv.New(t)
+		env.Token = testToken
+		env.Extra["NO_COLOR"] = "1"
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"--help"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, !strings.Contains(result.Stdout, "Getting Started"), "unexpected Getting Started section in output")
+	})
+
+	t.Run("hidden on subcommand help", func(t *testing.T) {
+		env := testenv.New(t)
+		env.Extra["NO_COLOR"] = "1"
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"pipeline", "--help"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, !strings.Contains(result.Stdout, "Getting Started"), "unexpected Getting Started section in output")
+	})
+}
 
 // TestHelpNoStderr guards against telemetry lifecycle bugs (e.g. double-close)
 // that leak error messages onto stderr when help is requested.
