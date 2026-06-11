@@ -65,16 +65,15 @@ import (
 
 // NewRootCmd builds the root cobra command and wires all subcommands.
 func NewRootCmd(version string) *cobra.Command {
-	telem := &delegatingTelemetry{}
 	initConfig := func(cmd *cobra.Command) (func(), error) {
-		if telem.Client != nil {
+		ctx := cmd.Context()
+		if cmdutil.CheckTelemetry(ctx) {
 			return func() {}, nil
 		}
 
-		ctx := cmd.Context()
-
-		if theme, _ := cmd.Flags().GetString("theme"); !iostream.IsValidTheme(theme) {
-			return func() {}, clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: "+theme).
+		theme, err := cmd.Flags().GetString("theme")
+		if err == nil && !iostream.IsValidTheme(theme) {
+			return func() {}, clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: '"+theme+"'").
 				WithSuggestions("Valid themes are: " + strings.Join(iostream.ValidThemes(), ", ")).
 				WithExitCode(clierrors.ExitBadArguments)
 		}
@@ -99,8 +98,6 @@ func NewRootCmd(version string) *cobra.Command {
 
 		jqFilter, _ := cmd.Flags().GetString("jq")
 		ctx = iostream.WithJQFilter(ctx, jqFilter)
-
-		cmd.SetContext(ctx)
 
 		// Only gather host info when telemetry will actually be sent. Skipping
 		// it for telemetry-disabled commands (e.g. completion generation) avoids
@@ -134,11 +131,14 @@ func NewRootCmd(version string) *cobra.Command {
 		if err != nil {
 			return func() {}, err
 		}
-		telem.Client = tc
+
+		ctx = cmdutil.WithTelemetry(ctx, tc)
+
+		cmd.SetContext(ctx)
 
 		cleanup := func() {
-			if telem.Client != nil {
-				_ = telem.Close()
+			if tc != nil {
+				_ = tc.Close()
 			}
 		}
 
@@ -232,14 +232,16 @@ func NewRootCmd(version string) *cobra.Command {
 		_, err := initConfig(cmd)
 		return err
 	}
-	cmd.PersistentPostRunE = func(_ *cobra.Command, _ []string) error {
-		_ = telem.Close()
+	cmd.PersistentPostRunE = func(cmd *cobra.Command, _ []string) error {
+		ctx := cmd.Context()
+		tc := cmdutil.GetTelemetry(ctx)
+		_ = tc.Close()
 		return nil
 	}
 
 	cmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		if cleanup, err := initConfig(cmd); err == nil {
-			cmdutil.RecordTelemetryNow(cmd, telem.Client)
+			cmdutil.RecordTelemetryNow(cmd)
 			cleanup()
 		}
 
@@ -248,22 +250,18 @@ func NewRootCmd(version string) *cobra.Command {
 
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
 		if cleanup, err := initConfig(cmd); err == nil {
-			cmdutil.RecordTelemetryNow(cmd, telem.Client)
+			cmdutil.RecordTelemetryNow(cmd)
 			cleanup()
 		}
 
 		return rootUsage(cmd)
 	})
 
-	cmdutil.RecordTelemetryForSubcommands(cmd, telem)
+	cmdutil.RecordTelemetryForSubcommands(cmd)
 
 	if referenceCmd != nil {
 		referenceCmd.Long = stringifyReference(cmd)
 	}
 
 	return cmd
-}
-
-type delegatingTelemetry struct {
-	*telemetry.Client
 }

@@ -38,6 +38,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 )
 
 type versionKey struct{}
@@ -80,6 +81,25 @@ type configKey struct{}
 // The path is read by LoadClient to locate the config file.
 func WithConfig(ctx context.Context, cfg *config.Config) context.Context {
 	return context.WithValue(ctx, configKey{}, cfg)
+}
+
+type telemetryKey struct{}
+
+func WithTelemetry(ctx context.Context, tc *telemetry.Client) context.Context {
+	return context.WithValue(ctx, telemetryKey{}, tc)
+}
+
+func GetTelemetry(ctx context.Context) *telemetry.Client {
+	v := ctx.Value(telemetryKey{})
+	if v == nil {
+		panic("no telemetry")
+	}
+	return v.(*telemetry.Client)
+}
+
+func CheckTelemetry(ctx context.Context) bool {
+	v := ctx.Value(telemetryKey{})
+	return v != nil
 }
 
 func GetConfig(ctx context.Context) *config.Config {

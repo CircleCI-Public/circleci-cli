@@ -58,7 +58,9 @@ func TestRecordTelemetry(t *testing.T) {
 		root.AddCommand(parent)
 		parent.AddCommand(cmd)
 
-		cmdutil.RecordTelemetry(cmd, client)
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+
+		cmdutil.RecordTelemetry(cmd)
 		assert.NilError(t, cmd.Flags().Set("bool-flag", "true"))
 		assert.NilError(t, cmd.Flags().Set("string-flag", "string-value"))
 		assert.NilError(t, cmd.RunE(cmd, nil))
@@ -101,8 +103,8 @@ func TestRecordTelemetry(t *testing.T) {
 	t.Run("is a no-op when original RunE is nil", func(t *testing.T) {
 		recorder, client := newTelemetry(t)
 		cmd := &cobra.Command{Use: "test"}
-
-		cmdutil.RecordTelemetry(cmd, client)
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
 
 		assert.Check(t, cmp.Nil(cmd.RunE))
 		assert.Check(t, cmp.Len(recorder.Batches(), 0))
@@ -116,7 +118,9 @@ func TestRecordTelemetry(t *testing.T) {
 			RunE: func(cmd *cobra.Command, args []string) error { return expectedErr },
 		}
 
-		cmdutil.RecordTelemetry(cmd, client)
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+
+		cmdutil.RecordTelemetry(cmd)
 
 		err := cmd.RunE(cmd, nil)
 		assert.Check(t, cmp.ErrorIs(err, expectedErr))
@@ -167,7 +171,9 @@ func TestRecordTelemetry(t *testing.T) {
 		cmd.Flags().Bool("alpha", false, "")
 		cmd.Flags().Bool("middle", false, "")
 
-		cmdutil.RecordTelemetry(cmd, client)
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+
+		cmdutil.RecordTelemetry(cmd)
 		assert.NilError(t, cmd.Flags().Set("zebra", "true"))
 		assert.NilError(t, cmd.Flags().Set("alpha", "true"))
 		assert.NilError(t, cmd.Flags().Set("middle", "true"))
@@ -216,7 +222,9 @@ func TestRecordTelemetry(t *testing.T) {
 		}
 		cmd.Flags().Bool("unused", false, "")
 
-		cmdutil.RecordTelemetry(cmd, client)
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+
+		cmdutil.RecordTelemetry(cmd)
 		assert.NilError(t, cmd.RunE(cmd, nil))
 		assert.NilError(t, client.Close())
 
@@ -261,7 +269,8 @@ func TestRecordTelemetry(t *testing.T) {
 			RunE: func(cmd *cobra.Command, args []string) error { return nil },
 		}
 		cmdutil.DisableTelemetry(cmd)
-		cmdutil.RecordTelemetry(cmd, client)
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
 		assert.NilError(t, client.Close())
 
 		assert.NilError(t, cmd.RunE(cmd, nil))
@@ -282,7 +291,11 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		root.AddCommand(parent)
 		parent.AddCommand(child)
 
-		cmdutil.RecordTelemetryForSubcommands(root, client)
+		root.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		parent.SetContext(root.Context())
+		child.SetContext(root.Context())
+
+		cmdutil.RecordTelemetryForSubcommands(root)
 		assert.NilError(t, child.RunE(child, nil))
 		assert.NilError(t, client.Close())
 
@@ -326,8 +339,9 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		root := &cobra.Command{Use: "circleci"}
 		child := &cobra.Command{Use: "help"} // no RunE
 		root.AddCommand(child)
+		root.SetContext(cmdutil.WithTelemetry(context.Background(), client))
 
-		cmdutil.RecordTelemetryForSubcommands(root, client)
+		cmdutil.RecordTelemetryForSubcommands(root)
 		assert.NilError(t, client.Close())
 
 		assert.Check(t, cmp.Nil(child.RunE))
@@ -345,7 +359,9 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		cmdutil.DisableTelemetry(child)
 		root.AddCommand(child)
 
-		cmdutil.RecordTelemetryForSubcommands(root, client)
+		root.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+
+		cmdutil.RecordTelemetryForSubcommands(root)
 		assert.NilError(t, child.RunE(child, nil))
 		assert.NilError(t, client.Close())
 
