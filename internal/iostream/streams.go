@@ -32,7 +32,6 @@ import (
 	"log/slog"
 	"os"
 	"regexp"
-	"runtime"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -318,11 +317,6 @@ func resolveTheme(cmd *cobra.Command, configTheme string) string {
 func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, style string) {
 	switch theme {
 	case themeAuto:
-		// This lipgloss function doesn't seem to work on Windows
-		if runtime.GOOS == "windows" {
-			break
-		}
-
 		stdIn, ok := in.(term.File)
 		if !ok {
 			break

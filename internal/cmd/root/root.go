@@ -71,6 +71,14 @@ func NewRootCmd(version string) *cobra.Command {
 			return func() {}, nil
 		}
 
+		// Extension commands disable cobra flag parsing so the extension
+		// receives its args verbatim, which leaves the root persistent flags
+		// (--theme, --debug, --quiet, ...) unpopulated here. Parse them from
+		// os.Args before anything below reads them.
+		if cmd.DisableFlagParsing {
+			extension.ParseRootFlags(cmd)
+		}
+
 		theme, err := cmd.Flags().GetString("theme")
 		if err == nil && !iostream.IsValidTheme(theme) {
 			return func() {}, clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: '"+theme+"'").

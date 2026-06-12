@@ -39,6 +39,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -109,8 +110,9 @@ func trimExeSufix(extName string) string {
 // NewCmd returns a cobra command that dispatches to the circleci-<name>
 // extension. DisableFlagParsing is set so the extension receives its own args
 // verbatim without cobra attempting to parse them. Root persistent flags
-// (--config, --insecure-storage, etc.) are parsed separately from os.Args so
-// they are available for auth injection without being forwarded to the extension.
+// (--config, --insecure-storage, etc.) are parsed separately from os.Args by
+// ParseRootFlags so they are available for stream setup and auth injection
+// without being forwarded to the extension.
 func NewCmd(name string) *cobra.Command {
 	return &cobra.Command{
 		Use:                name,
@@ -120,14 +122,8 @@ func NewCmd(name string) *cobra.Command {
 		SilenceUsage:       true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			root := cmd.Root()
 
-			// With DisableFlagParsing, cobra never calls ParseFlags, so
-			// persistent flags on the root are unpopulated. We parse them
-			// manually from os.Args up to the command name, keeping only
-			// the args after the command name as the extension's args.
-			rootArgs, extArgs := splitArgsAtCommand(name, os.Args[1:], root)
-			_ = root.ParseFlags(rootArgs)
+			extArgs := ParseRootFlags(cmd)
 
 			// Some extensions do not need a CCI account, load the client and suppress
 			// any errors; extensions are expected to handle any missing vars.
@@ -137,54 +133,29 @@ func NewCmd(name string) *cobra.Command {
 	}
 }
 
-// splitArgsAtCommand scans rawArgs for the first positional argument equal to
-// name, skipping past any flag-value pairs using root's persistent flag
-// definitions to determine which flags consume a following value. It returns
-// the args before the command name (suitable for root.ParseFlags) and the args
-// after it (to forward to the extension).
-func splitArgsAtCommand(name string, rawArgs []string, root *cobra.Command) (rootArgs, extArgs []string) {
-	pf := root.PersistentFlags()
-	skipNext := false
-	for i, arg := range rawArgs {
-		if skipNext {
-			skipNext = false
-			continue
-		}
-		if arg == "--" {
-			// Everything after -- is positional; find name there if present.
-			for j := i + 1; j < len(rawArgs); j++ {
-				if rawArgs[j] == name {
-					return rawArgs[:j], rawArgs[j+1:]
-				}
-			}
-			return rawArgs, nil
-		}
-		if strings.HasPrefix(arg, "--") && !strings.Contains(arg, "=") {
-			// Long flag without =: check if it consumes the next arg as its value.
-			if f := pf.Lookup(strings.TrimPrefix(arg, "--")); f != nil && f.NoOptDefVal == "" {
-				skipNext = true
-			}
-			continue
-		}
-		if strings.HasPrefix(arg, "-") && !strings.HasPrefix(arg, "--") && len(arg) == 2 {
-			// Short flag: same check.
-			if f := pf.ShorthandLookup(arg[1:]); f != nil && f.NoOptDefVal == "" {
-				skipNext = true
-			}
-			continue
-		}
-		if strings.HasPrefix(arg, "-") {
-			// Any other flag form (--flag=value, -flag, etc.): skip without consuming next.
-			continue
-		}
-		// First positional arg: this is the command name.
-		if arg == name {
-			return rawArgs[:i], rawArgs[i+1:]
-		}
-		// Unexpected positional arg before the command name; stop.
-		break
+// ParseRootFlags populates the root command's persistent flags from os.Args
+// for a command that sets DisableFlagParsing. Cobra never calls ParseFlags for
+// such commands, so without this --theme, --debug, --quiet, --config, etc.
+// would still hold their defaults when the root PersistentPreRunE sets up
+// streams and loads config.
+//
+// Parsing is non-interspersed, so it stops at the first positional argument
+// (the extension name); flags after it belong to the extension and are
+// returned verbatim along with any other trailing args.
+func ParseRootFlags(cmd *cobra.Command) (extArgs []string) {
+	fs := pflag.NewFlagSet(cmd.Name(), pflag.ContinueOnError)
+	fs.ParseErrorsAllowlist.UnknownFlags = true
+	fs.SetInterspersed(false)
+	// AddFlagSet shares the underlying *Flag values, so parsing the scratch
+	// set populates the root persistent flags directly.
+	fs.AddFlagSet(cmd.Root().PersistentFlags())
+	_ = fs.Parse(os.Args[1:])
+
+	// fs.Args() holds the extension name followed by its args.
+	if args := fs.Args(); len(args) > 1 {
+		return args[1:]
 	}
-	return rawArgs, nil
+	return nil
 }
 
 // ErrNotFound is returned when no circleci-<name> binary exists in PATH.
