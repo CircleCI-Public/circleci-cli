@@ -23,6 +23,8 @@
 package acceptance_test
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -91,6 +93,128 @@ func TestAPI_Get_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestAPI_RawBody(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	const body = `{"branch":"main","parameters":{"deploy":true}}`
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", body},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	got := fake.LastRequest()
+	assert.Assert(t, got != nil)
+	assert.Equal(t, got.Method, "POST")
+	assert.Assert(t, got.Body != nil)
+	// The body must be transmitted verbatim, not re-encoded.
+	assert.Equal(t, *got.Body, body)
+	assert.Assert(t, cmp.Contains(got.Header.Get("Content-Type"), "application/json"))
+}
+
+func TestAPI_RawBody_DefaultsToPOST(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	// No -X: providing -d should default the method to POST.
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "/project/" + testSlug + "/pipeline", "-d", `{"branch":"main"}`},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, fake.LastRequest().Method, "POST")
+}
+
+func TestAPI_RawBody_FromFile(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	const body = `{"branch":"release"}`
+	path := filepath.Join(dir, "body.json")
+	assert.NilError(t, os.WriteFile(path, []byte(body), 0o600))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", "@" + path},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, *fake.LastRequest().Body, body)
+}
+
+func TestAPI_RawBody_FromStdin(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	const body = `{"branch":"from-stdin"}`
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", "@-"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		Stdin:   strings.NewReader(body),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, *fake.LastRequest().Body, body)
+}
+
+func TestAPI_RawBody_InvalidJSON(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", "not json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+}
+
+func TestAPI_RawBody_ConflictsWithFields(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", `{}`, "-f", "branch=main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
 }
 
 func TestAPI_NotFound(t *testing.T) {

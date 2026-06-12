@@ -5,10 +5,11 @@ Make an API call
 
 | Flag                       | Description                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------- |
+| `-d, --data string`        | Raw request body sent verbatim; @file reads from a file, @- from stdin            |
 | `-f, --field stringArray`  | Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH) |
 | `-H, --header stringArray` | Add a request header: "Key: Value"                                                |
 | `--jq string`              | Process values from the response using jq syntax                                  |
-| `-X, --method string`      | HTTP method (default: GET, or POST when -f is used)                               |
+| `-X, --method string`      | HTTP method (default: GET, or POST when -f or -d is used)                         |
 
 
 ## `circleci artifact <job-id> [flags]`

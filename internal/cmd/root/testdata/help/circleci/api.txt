@@ -11,6 +11,11 @@ The Authorization: Bearer header is added automatically from your stored token.
 Use -H to add extra headers and -f to set fields (query parameters for
 GET/DELETE, JSON body fields for POST/PUT/PATCH).
 
+To send a raw request body instead of building one from -f fields, use
+-d/--data. The value is sent verbatim; @file reads the body from a file and
+@- reads it from stdin. -d and -f cannot be combined. When -d is given the
+default method is POST.
+
 Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
 
 For more information about output formatting flags, see `circleci help formatting`.
@@ -23,10 +28,11 @@ For more information about output formatting flags, see `circleci help formattin
 
 | Flag                       | Description                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------- |
+| `-d, --data string`        | Raw request body sent verbatim; @file reads from a file, @- from stdin            |
 | `-f, --field stringArray`  | Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH) |
 | `-H, --header stringArray` | Add a request header: "Key: Value"                                                |
 | `--jq string`              | Process values from the response using jq syntax                                  |
-| `-X, --method string`      | HTTP method (default: GET, or POST when -f is used)                               |
+| `-X, --method string`      | HTTP method (default: GET, or POST when -f or -d is used)                         |
 
 ## Inherited Flags
 
@@ -46,6 +52,10 @@ For more information about output formatting flags, see `circleci help formattin
   `circleci api /project/gh/myorg/myrepo/pipeline --json`
 - Trigger a pipeline on a branch: 
   `circleci api -X POST /project/gh/myorg/myrepo/pipeline -f branch=main`
+- Send a raw JSON body: 
+  `circleci api -X POST /project/gh/myorg/myrepo/pipeline -d '{"branch":"main"}'`
+- Send a body read from a file (@- reads from stdin): 
+  `circleci api -X POST /project/gh/myorg/myrepo/pipeline -d @body.json`
 - Add a custom header: 
   `circleci api -H "Accept: application/json" /me`
 - Access the v1.1 API: 

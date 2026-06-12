@@ -29,8 +29,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -49,6 +51,7 @@ func NewAPICmd() *cobra.Command {
 		method  string
 		fields  []string
 		headers []string
+		data    string
 	)
 
 	cmd := &cobra.Command{
@@ -66,6 +69,11 @@ func NewAPICmd() *cobra.Command {
 			Use -H to add extra headers and -f to set fields (query parameters for
 			GET/DELETE, JSON body fields for POST/PUT/PATCH).
 
+			To send a raw request body instead of building one from -f fields, use
+			-d/--data. The value is sent verbatim; @file reads the body from a file and
+			@- reads it from stdin. -d and -f cannot be combined. When -d is given the
+			default method is POST.
+
 			Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
 		`),
 		Example: heredoc.Doc(`
@@ -81,6 +89,12 @@ func NewAPICmd() *cobra.Command {
 			# Trigger a pipeline on a branch
 			$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -f branch=main
 
+			# Send a raw JSON body
+			$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -d '{"branch":"main"}'
+
+			# Send a body read from a file (@- reads from stdin)
+			$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -d @body.json
+
 			# Add a custom header
 			$ circleci api -H "Accept: application/json" /me
 
@@ -95,19 +109,29 @@ func NewAPICmd() *cobra.Command {
 			if cliErr != nil {
 				return cliErr
 			}
-			return run(ctx, client, args[0], method, fields, headers)
+			return run(ctx, client, args[0], method, fields, headers, data)
 		},
 	}
 
-	cmd.Flags().StringVarP(&method, "method", "X", "", "HTTP method (default: GET, or POST when -f is used)")
+	cmd.Flags().StringVarP(&method, "method", "X", "", "HTTP method (default: GET, or POST when -f or -d is used)")
 	cmd.Flags().StringArrayVarP(&fields, "field", "f", nil, "Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH)")
 	cmd.Flags().StringArrayVarP(&headers, "header", "H", nil, "Add a request header: \"Key: Value\"")
+	cmd.Flags().StringVarP(&data, "data", "d", "", "Raw request body sent verbatim; @file reads from a file, @- from stdin")
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }
 
-func run(ctx context.Context, client *apiclient.Client, path, method string, fields, headers []string) error {
+func run(ctx context.Context, client *apiclient.Client, path, method string, fields, headers []string, data string) error {
+	hasData := data != ""
+
+	// -d and -f build the body in incompatible ways, so reject the combination.
+	if hasData && len(fields) > 0 {
+		return clierrors.New("api.data_and_fields", "Cannot combine -d and -f",
+			"Use -d to send a raw body or -f to build one from fields, not both.").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
 	// Parse key=value fields.
 	parsedFields := make(map[string]string, len(fields))
 	for _, f := range fields {
@@ -120,9 +144,9 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 		parsedFields[k] = v
 	}
 
-	// Default method: POST when fields are provided (mirrors gh api), otherwise GET.
+	// Default method: POST when a body is provided (mirrors gh api), otherwise GET.
 	if method == "" {
-		if len(parsedFields) > 0 {
+		if len(parsedFields) > 0 || hasData {
 			method = http.MethodPost
 		} else {
 			method = http.MethodGet
@@ -141,11 +165,20 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 		httpcl.BytesDecoder(&respBody),
 	}
 
-	// For GET/DELETE: fields become query parameters.
-	// For writes: fields become a JSON body.
-
-	switch method {
-	case http.MethodGet, http.MethodDelete:
+	// A raw -d body is sent verbatim regardless of method. Otherwise:
+	//   GET/DELETE: fields become query parameters.
+	//   writes:     fields become a JSON body.
+	switch {
+	case hasData:
+		body, err := resolveBody(ctx, data)
+		if err != nil {
+			return err
+		}
+		// httpcl sets Content-Type: application/json automatically when a body
+		// is present. json.RawMessage marshals to itself, so the body is sent
+		// verbatim rather than re-encoded as a JSON string.
+		opts = append(opts, httpcl.Body(json.RawMessage(body)))
+	case method == http.MethodGet || method == http.MethodDelete:
 		if len(parsedFields) > 0 {
 			// Use url.Values so keys and values are percent-encoded.  Raw
 			// concatenation (k+"="+v) would allow a value containing "&" or
@@ -167,10 +200,7 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 				return clierrors.New("api.marshal_failed", "Failed to encode fields", err.Error()).
 					WithExitCode(clierrors.ExitGeneralError)
 			}
-			opts = append(opts,
-				httpcl.Header("Content-Type", "application/json"),
-				httpcl.Body(b),
-			)
+			opts = append(opts, httpcl.Body(json.RawMessage(b)))
 		}
 	}
 
@@ -206,4 +236,39 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 			WithExitCode(clierrors.ExitAPIError)
 	}
 	return nil
+}
+
+// resolveBody returns the raw request body for a -d/--data value. A literal
+// string is used verbatim; @file reads from a file and @- reads from stdin.
+// The result must be valid JSON, since it is sent with Content-Type: application/json.
+func resolveBody(ctx context.Context, data string) ([]byte, error) {
+	var body []byte
+
+	switch {
+	case data == "@-":
+		b, err := io.ReadAll(iostream.In(ctx))
+		if err != nil {
+			return nil, clierrors.New("api.data_read_failed", "Failed to read body from stdin", err.Error()).
+				WithExitCode(clierrors.ExitGeneralError)
+		}
+		body = b
+	case strings.HasPrefix(data, "@"):
+		file := data[1:]
+		b, err := os.ReadFile(file) //#nosec:G304 // file is a user-supplied -d @file flag value, not arbitrary external input
+		if err != nil {
+			return nil, clierrors.New("api.data_read_failed", "Failed to read body file",
+				fmt.Sprintf("Could not read %q: %v", file, err)).
+				WithExitCode(clierrors.ExitBadArguments)
+		}
+		body = b
+	default:
+		body = []byte(data)
+	}
+
+	if !json.Valid(body) {
+		return nil, clierrors.New("api.invalid_json_body", "Invalid JSON body",
+			"The request body is not valid JSON. Use -d to pass a JSON document or @file/@- to read one.").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return body, nil
 }
