@@ -28,7 +28,7 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/Netflix/go-expect"
+	"github.com/pete-woods/go-expect"
 	"gotest.tools/v3/assert"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -104,9 +104,13 @@ func TestAuthLogin_Browser(t *testing.T) {
 		out, err := console.ExpectString("Press Enter to open")
 		assert.NilError(t, err)
 
-		// The URL is printed as plain text (no ANSI codes) so the terminal
-		// detects it as a clickable link. It is the only https?:// token here.
-		authURL = regexp.MustCompile(`https?://\S+`).FindString(out)
+		// Extract the authorize URL. On a Unix PTY the program's output is
+		// passed through verbatim, but Windows ConPTY repaints the screen and
+		// wraps the URL in an OSC 8 hyperlink (\x1b]8;;<url>\a) plus color and
+		// cursor-positioning escapes. Excluding control characters from the
+		// match stops it at the escape boundary on both platforms, yielding a
+		// clean URL rather than one trailing a pile of control bytes.
+		authURL = regexp.MustCompile(`https?://[^[:cntrl:]\s]+`).FindString(out)
 		assert.Assert(t, authURL != "", "authorize URL not found in output: %q", out)
 
 		// With Pushed Authorization Requests (RFC 9126) the browser URL only
