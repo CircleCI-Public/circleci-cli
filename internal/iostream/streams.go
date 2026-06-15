@@ -31,7 +31,9 @@ import (
 	"io"
 	"log/slog"
 	"os"
+	"os/exec"
 	"regexp"
+	"runtime"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -79,6 +81,26 @@ func colorDisabled() bool {
 		return true
 	}
 	return false
+}
+
+// pagerProgram interprets the PAGER environment variable.
+//
+//   - set is false when PAGER is unset, meaning the caller should use the
+//     built-in scrollable viewport.
+//   - set is true with cmd == "" when PAGER is empty or "cat" — the
+//     conventional way to turn paging off, so output is printed inline.
+//   - set is true with a non-empty cmd (e.g. "less", "more", "less -R") when
+//     the user has chosen an external pager program to pipe output through.
+func pagerProgram() (cmd string, set bool) {
+	v, ok := os.LookupEnv("PAGER")
+	if !ok {
+		return "", false
+	}
+	v = strings.TrimSpace(v)
+	if v == "" || v == "cat" {
+		return "", true
+	}
+	return v, true
 }
 
 type contextKey struct{}
@@ -599,12 +621,19 @@ func filterFromContext(ctx context.Context) string {
 // RenderMarkdown renders md as styled markdown when color is enabled, falling
 // back to the raw string when output is not a TTY or color is disabled.
 // The rendered string is returned; use PrintMarkdown to write it to Out.
-func (s Streams) RenderMarkdown(md string) (_ string, err error) {
+func (s Streams) RenderMarkdown(md string) (string, error) {
 	if !s.ColorEnabled() {
 		return md, nil
 	}
+	return s.renderMarkdownAt(md, s.width)
+}
+
+// renderMarkdownAt renders md as styled markdown word-wrapped to width columns.
+// Unlike RenderMarkdown it does not consult ColorEnabled — callers use it once
+// they have already decided to produce styled output (e.g. the viewport pager).
+func (s Streams) renderMarkdownAt(md string, width int) (_ string, err error) {
 	r, err := glamour.NewTermRenderer(
-		glamour.WithWordWrap(s.width),
+		glamour.WithWordWrap(width),
 		glamour.WithTableFitContent(),
 		glamour.WithStyles(s.styleConfig()),
 		glamour.WithInlineTableLinks(true),
@@ -617,15 +646,102 @@ func (s Streams) RenderMarkdown(md string) (_ string, err error) {
 	return r.Render(md)
 }
 
-// PrintMarkdown renders md and writes the result to Out.
-// Falls back to writing raw markdown on render error.
+// PrintMarkdown renders md and writes the result to Out. When Out is an
+// interactive terminal and the rendered output is taller than the screen, it
+// is shown in a scrollable full-screen viewport instead. Falls back to writing
+// raw markdown on render error.
 func (s Streams) PrintMarkdown(md string) {
 	rendered, err := s.RenderMarkdown(md)
 	if err != nil {
 		_, _ = fmt.Fprint(s.Out, md)
 		return
 	}
+	if s.pageMarkdown(md, rendered) {
+		return
+	}
 	_, _ = fmt.Fprint(s.Out, rendered)
+}
+
+// pageMarkdown displays the rendered markdown through a pager when Out is an
+// interactive terminal. An explicit PAGER program is piped the output; with no
+// PAGER set, content taller than the screen is shown in the built-in
+// scrollable viewport. It returns true when it has handled the output, in which
+// case the caller must not also print inline. Any failure (non-interactive,
+// pager disabled, size unknown, content fits, program error) returns false so
+// the caller prints normally.
+func (s Streams) pageMarkdown(md, rendered string) bool {
+	if !s.IsInteractive() {
+		return false
+	}
+	if os.Getenv("CIRCLE_NO_PAGER") != "" {
+		return false
+	}
+	if cmd, set := pagerProgram(); set {
+		// An explicit PAGER overrides the built-in viewport: "" disables
+		// paging (print inline); anything else is run as an external pager.
+		if cmd == "" {
+			return false
+		}
+		return s.runPager(cmd, rendered)
+	}
+
+	out, ok := s.Out.(term.File)
+	if !ok {
+		return false
+	}
+	width, height, err := term.GetSize(out.Fd())
+	if err != nil || width <= 0 || height <= 0 {
+		return false
+	}
+	// Nothing to page if it already fits on screen (leaving room for the footer).
+	if lipgloss.Height(rendered) <= height-ui.MarkdownViewportFooterHeight {
+		return false
+	}
+
+	model := ui.NewMarkdownViewportModel(func(w int) string {
+		r, err := s.renderMarkdownAt(md, w)
+		if err != nil {
+			return rendered
+		}
+		return r
+	})
+	p := tea.NewProgram(model,
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Out),
+	)
+	_, err = p.Run()
+	return err == nil
+}
+
+// runPager pipes content through the external pager command line (e.g. "less"
+// or "less -R"), connecting the pager to the user's terminal. It returns true
+// when the pager ran successfully; on any error (pager not found, exec failed)
+// it returns false so the caller falls back to printing inline.
+//
+// When LESS is not already set we default it to "FRX" — the same defaults git
+// uses — so colored output is shown raw (R), the pager quits if the content
+// fits on one screen (F), and the screen is not cleared on exit (X).
+//
+// cmdline is run through the platform shell so PAGER may carry flags (e.g.
+// "less -R"): sh on Unix, cmd on Windows (where "more" is built in and "less"
+// works if installed).
+func (s Streams) runPager(cmdline, content string) bool {
+	cmd := pagerCommand(cmdline)
+	cmd.Stdin = strings.NewReader(content)
+	cmd.Stdout = s.Out
+	cmd.Stderr = s.Err
+	if _, ok := os.LookupEnv("LESS"); !ok {
+		cmd.Env = append(os.Environ(), "LESS=FRX")
+	}
+	return cmd.Run() == nil
+}
+
+// pagerCommand builds the exec.Cmd that runs cmdline through the platform shell.
+func pagerCommand(cmdline string) *exec.Cmd {
+	if runtime.GOOS == "windows" {
+		return exec.Command("cmd", "/c", cmdline) //nolint:gosec // user-controlled PAGER, by design
+	}
+	return exec.Command("sh", "-c", cmdline) //nolint:gosec // user-controlled PAGER, by design
 }
 
 func (s Streams) styleConfig() ansi.StyleConfig {

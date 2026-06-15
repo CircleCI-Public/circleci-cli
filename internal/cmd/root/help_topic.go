@@ -52,6 +52,12 @@ var helpTopics = []helpTopic{
 
 			%[1]sNO_COLOR%[1]s: set to any value to avoid printing ANSI escape sequences for color output.
 
+			%[1]sCIRCLE_NO_PAGER%[1]s: set to any value to print long output directly instead of through a pager.
+
+			%[1]sPAGER%[1]s: names the pager program to send long output through (for example %[1]sless%[1]s or %[1]smore%[1]s).
+			When unset, a built-in scrollable viewer is used. Set it to %[1]scat%[1]s or an empty value to disable
+			paging entirely.
+
 			%[1]sCIRCLE_NO_TELEMETRY%[1]s: set to any value to disable telemetry.
 
 			%[1]sNO_ANALYTICS%[1]s: set to any value to disable telemetry.
