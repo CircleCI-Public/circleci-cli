@@ -36,7 +36,7 @@ import (
 // SegmentKey is the Segment write key for CircleCI.
 const SegmentKey = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
 
-type Client struct {
+type Sender struct {
 	client analytics.Client
 	meta   Meta
 }
@@ -95,8 +95,8 @@ func (m *Meta) toContext() *analytics.Context {
 	}
 }
 
-// New creates a new segment client
-func New(ctx context.Context, cfg Config) (_ *Client, err error) {
+// NewSender creates a new telemetry sender
+func NewSender(ctx context.Context, cfg Config) (_ *Sender, err error) {
 	client := &multiClient{}
 
 	if cfg.Log {
@@ -123,13 +123,13 @@ func New(ctx context.Context, cfg Config) (_ *Client, err error) {
 		cfg.Metadata.UserID = AnonymousID
 	}
 
-	return &Client{
+	return &Sender{
 		client: client,
 		meta:   cfg.Metadata,
 	}, nil
 }
 
-func (c *Client) Identify() error {
+func (c *Sender) Identify() error {
 	return c.client.Enqueue(analytics.Identify{
 		UserId:       c.meta.UserID.String(),
 		Context:      c.meta.toContext(),
@@ -137,7 +137,7 @@ func (c *Client) Identify() error {
 	})
 }
 
-func (c *Client) Close() error {
+func (c *Sender) Close() error {
 	return c.client.Close()
 }
 
@@ -146,7 +146,7 @@ func (c *Client) Close() error {
 var AnonymousID = uuid.MustParse("66f35d3e-40f6-4ade-909b-a6314990de53")
 
 // Track sends an analytics event.
-func (c *Client) Track(eventName string, props map[string]any) error {
+func (c *Sender) Track(eventName string, props map[string]any) error {
 	p := analytics.NewProperties()
 	for key, val := range props {
 		p.Set(key, val)

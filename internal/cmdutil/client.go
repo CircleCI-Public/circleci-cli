@@ -85,16 +85,16 @@ func WithConfig(ctx context.Context, cfg *config.Config) context.Context {
 
 type telemetryKey struct{}
 
-func WithTelemetry(ctx context.Context, tc *telemetry.Client) context.Context {
+func WithTelemetry(ctx context.Context, tc *telemetry.Sender) context.Context {
 	return context.WithValue(ctx, telemetryKey{}, tc)
 }
 
-func GetTelemetry(ctx context.Context) *telemetry.Client {
+func GetTelemetry(ctx context.Context) *telemetry.Sender {
 	v := ctx.Value(telemetryKey{})
 	if v == nil {
 		panic("no telemetry")
 	}
-	return v.(*telemetry.Client)
+	return v.(*telemetry.Sender)
 }
 
 func CheckTelemetry(ctx context.Context) bool {

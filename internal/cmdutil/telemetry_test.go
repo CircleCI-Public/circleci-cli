@@ -369,7 +369,7 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 	})
 }
 
-func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
+func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Sender) {
 	t.Helper()
 
 	ctx := iostream.Testing(context.Background())
@@ -380,7 +380,7 @@ func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
 	srv := httptest.NewServer(fs)
 	t.Cleanup(srv.Close)
 
-	client, err := telemetry.New(ctx, telemetry.Config{
+	client, err := telemetry.NewSender(ctx, telemetry.Config{
 		Send:     true,
 		Log:      true,
 		WriteKey: goodAPIKey,

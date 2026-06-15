@@ -119,7 +119,7 @@ func NewRootCmd(version string) *cobra.Command {
 			}
 		}
 
-		tc, err := telemetry.New(ctx, telemetry.Config{
+		tc, err := telemetry.NewSender(ctx, telemetry.Config{
 			Log:      cfg.IsTelemetry(),
 			Send:     cfg.IsTelemetry(),
 			WriteKey: telemetry.SegmentKey,
