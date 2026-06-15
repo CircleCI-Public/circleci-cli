@@ -20,32 +20,19 @@
 //
 // SPDX-License-Identifier: MIT
 
-package telemetry
+package main
 
 import (
-	"context"
+	"fmt"
+	"os"
 
-	"github.com/segmentio/analytics-go/v3"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry/receiver"
 )
 
-type loggingDestination struct {
-	ctx context.Context
-}
-
-func (l *loggingDestination) Close() error {
-	return nil
-}
-
-func (l *loggingDestination) Enqueue(m analytics.Track) error {
-	msg := "track " + m.Event
-	args := make([]any, 0, 2+2*len(m.Properties))
-	for k, v := range m.Properties {
-		args = append(args, k, v)
+func main() {
+	err := receiver.Receive(os.Stdin)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		os.Exit(1)
 	}
-	args = append(args, "kind", "telemetry")
-	iostream.DebugContext(l.ctx, msg, args...)
-
-	return nil
 }

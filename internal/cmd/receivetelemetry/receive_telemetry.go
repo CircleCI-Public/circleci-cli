@@ -20,32 +20,31 @@
 //
 // SPDX-License-Identifier: MIT
 
-package telemetry
+package receivetelemetry
 
 import (
-	"context"
+	"github.com/spf13/cobra"
 
-	"github.com/segmentio/analytics-go/v3"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry/receiver"
 )
 
-type loggingDestination struct {
-	ctx context.Context
-}
-
-func (l *loggingDestination) Close() error {
-	return nil
-}
-
-func (l *loggingDestination) Enqueue(m analytics.Track) error {
-	msg := "track " + m.Event
-	args := make([]any, 0, 2+2*len(m.Properties))
-	for k, v := range m.Properties {
-		args = append(args, k, v)
+// NewReceiveTelemetryCmd builds the hidden `receive-telemetry` command. The CLI
+// re-execs itself with this subcommand to deliver buffered telemetry events out
+// of process (see internal/telemetry/delegate.go): the parent serializes the
+// events as JSON to this command's stdin, and this command forwards them to
+// Segment. Telemetry is disabled here so receiving telemetry never emits its own.
+func NewReceiveTelemetryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "receive-telemetry",
+		Short:        "Receive telemetry events and forward them to Segment",
+		SilenceUsage: true,
+		Hidden:       true,
+		Args:         cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return receiver.Receive(cmd.InOrStdin())
+		},
 	}
-	args = append(args, "kind", "telemetry")
-	iostream.DebugContext(l.ctx, msg, args...)
-
-	return nil
+	cmdutil.DisableEverything(cmd)
+	return cmd
 }

@@ -30,6 +30,17 @@ import (
 	"github.com/spf13/pflag"
 )
 
+func DisableEverything(cmd *cobra.Command) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = map[string]string{}
+	}
+	cmd.Annotations["everything"] = "disabled"
+}
+
+func IsEverythingDisabled(cmd *cobra.Command) bool {
+	return cmd.Annotations["everything"] == "disabled"
+}
+
 func RecordTelemetry(cmd *cobra.Command) {
 	if IsTelemetryDisabled(cmd) {
 		return
@@ -87,6 +98,9 @@ func RecordTelemetryNow(cmd *cobra.Command) {
 	slices.Sort(flags)
 
 	tc := GetTelemetry(ctx)
+	if tc == nil {
+		return
+	}
 	_ = tc.Track("command_invocation",
 		map[string]any{
 			"command": cmd.CommandPath(),

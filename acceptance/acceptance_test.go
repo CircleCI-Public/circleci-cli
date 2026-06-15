@@ -54,14 +54,22 @@ var (
 func TestMain(m *testing.M) {
 	var err error
 	var cleanup, cleanup2 func()
-	binaryPath, cleanup, err = binary.BuildBinary()
+	binaryPath, cleanup, err = binary.Build(
+		"circleci",
+		"..",
+		"./cmd/circleci",
+	)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "skipping acceptance tests: %v\n", err)
 		os.Exit(0)
 	}
 	_, _ = fmt.Fprintf(os.Stderr, "built circleci binary: %s\n", binaryPath)
 
-	testBinaryPath, cleanup2, err = binary.BuildBinaryOptions("circleci-testextension", filepath.Join("testdata", "circleci-testextension"))
+	testBinaryPath, cleanup2, err = binary.Build(
+		"circleci-testextension",
+		".",
+		"./testdata/circleci-testextension",
+	)
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "skipping acceptance tests: %v\n", err)
 		os.Exit(0)

@@ -25,7 +25,7 @@ package telemetry
 import (
 	"context"
 	"errors"
-	"fmt"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,9 +36,14 @@ import (
 // SegmentKey is the Segment write key for CircleCI.
 const SegmentKey = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
 
-type Client struct {
-	client analytics.Client
-	meta   Meta
+type Sender struct {
+	dest destination
+	meta Meta
+}
+
+type destination interface {
+	io.Closer
+	Enqueue(track analytics.Track) error
 }
 
 type Config struct {
@@ -47,14 +52,18 @@ type Config struct {
 	// Log enables logging events to stderr.
 	Log bool
 
-	// WriteKey is the Segment write key, and if not provided, will disable telemtry.
+	// Binary will be executed with JSON-encoded events as the stdin.
+	Binary string
+	// WriteKey is the Segment write key for the CLI.
 	WriteKey string
 	// Endpoint is the Segment endpoint, and is optional, defaulting to segment io.
 	// This is normally only set for testing.
 	Endpoint string
-	// Specifies the number of events to batch together before sending. If zero the client will use a default.
-	// This is likely only useful for testing.
-	BatchSize int
+
+	// TestDestination, when non-nil, is added as an event destination. It lets
+	// tests record events and assert on them synchronously without spawning a
+	// subprocess or hitting the network.
+	TestDestination destination
 
 	Metadata Meta
 }
@@ -95,50 +104,44 @@ func (m *Meta) toContext() *analytics.Context {
 	}
 }
 
-// New creates a new segment client
-func New(ctx context.Context, cfg Config) (_ *Client, err error) {
-	client := &multiClient{}
+// NewSender creates a new telemetry sender
+func NewSender(ctx context.Context, cfg Config) (_ *Sender, err error) {
+	dest := &multiDestination{}
+
+	if cfg.TestDestination != nil {
+		dest.Add(cfg.TestDestination)
+	}
 
 	if cfg.Log {
-		client.Add(&loggingClient{
+		dest.Add(&loggingDestination{
 			ctx: ctx,
 		})
 	}
 
 	if cfg.Send {
-		if cfg.WriteKey == "" {
-			return nil, errors.New("write key is required")
+		if cfg.Binary == "" {
+			return nil, errors.New("binary is required")
 		}
-		c, err := analytics.NewWithConfig(cfg.WriteKey, analytics.Config{
-			Endpoint:  cfg.Endpoint,
-			BatchSize: cfg.BatchSize,
+
+		dest.Add(&delegateDestination{
+			bin:      cfg.Binary,
+			writeKey: cfg.WriteKey,
+			endpoint: cfg.Endpoint,
 		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to create segment client: %w", err)
-		}
-		client.Add(c)
 	}
 
 	if cfg.Metadata.UserID == uuid.Nil {
 		cfg.Metadata.UserID = AnonymousID
 	}
 
-	return &Client{
-		client: client,
-		meta:   cfg.Metadata,
+	return &Sender{
+		dest: dest,
+		meta: cfg.Metadata,
 	}, nil
 }
 
-func (c *Client) Identify() error {
-	return c.client.Enqueue(analytics.Identify{
-		UserId:       c.meta.UserID.String(),
-		Context:      c.meta.toContext(),
-		Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-	})
-}
-
-func (c *Client) Close() error {
-	return c.client.Close()
+func (c *Sender) Close() error {
+	return c.dest.Close()
 }
 
 // AnonymousID is hard-coded to a well-known value for unknown users.
@@ -146,13 +149,13 @@ func (c *Client) Close() error {
 var AnonymousID = uuid.MustParse("66f35d3e-40f6-4ade-909b-a6314990de53")
 
 // Track sends an analytics event.
-func (c *Client) Track(eventName string, props map[string]any) error {
+func (c *Sender) Track(eventName string, props map[string]any) error {
 	p := analytics.NewProperties()
 	for key, val := range props {
 		p.Set(key, val)
 	}
 
-	return c.client.Enqueue(analytics.Track{
+	return c.dest.Enqueue(analytics.Track{
 		Event:      eventName,
 		Timestamp:  time.Now(),
 		Properties: p,

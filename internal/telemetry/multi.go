@@ -28,11 +28,11 @@ import (
 	"github.com/segmentio/analytics-go/v3"
 )
 
-type multiClient struct {
-	delegates []analytics.Client
+type multiDestination struct {
+	delegates []destination
 }
 
-func (mc *multiClient) Close() error {
+func (mc *multiDestination) Close() error {
 	errs := make([]error, 0, len(mc.delegates))
 	for _, d := range mc.delegates {
 		errs = append(errs, d.Close())
@@ -40,7 +40,7 @@ func (mc *multiClient) Close() error {
 	return errors.Join(errs...)
 }
 
-func (mc *multiClient) Enqueue(m analytics.Message) error {
+func (mc *multiDestination) Enqueue(m analytics.Track) error {
 	errs := make([]error, 0, len(mc.delegates))
 	for _, d := range mc.delegates {
 		errs = append(errs, d.Enqueue(m))
@@ -48,6 +48,6 @@ func (mc *multiClient) Enqueue(m analytics.Message) error {
 	return errors.Join(errs...)
 }
 
-func (mc *multiClient) Add(client analytics.Client) {
+func (mc *multiDestination) Add(client destination) {
 	mc.delegates = append(mc.delegates, client)
 }

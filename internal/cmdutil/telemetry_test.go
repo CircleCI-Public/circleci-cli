@@ -25,7 +25,8 @@ package cmdutil_test
 import (
 	"context"
 	"fmt"
-	"net/http/httptest"
+	"slices"
+	"sync"
 	"testing"
 	"time"
 
@@ -67,35 +68,28 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(recorder.Batches(), []fakesegment.Batch{
+		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    userID,
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "circleci banana list",
-							"flags":   "bool-flag,string-flag",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{
-								Name:    "circleci-cli",
-								Version: "1.2.3",
-							},
-							Device: analytics.DeviceInfo{
-								Id:    instanceID,
-								Model: "x86_64",
-								Type:  "debian",
-							},
-							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
-						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-					},
+				Timestamp: now,
+				UserId:    userID,
+				Event:     "command_invocation",
+				Properties: analytics.Properties{
+					"command": "circleci banana list",
+					"flags":   "bool-flag,string-flag",
 				},
+				Context: &analytics.Context{
+					App: analytics.AppInfo{
+						Name:    "circleci-cli",
+						Version: "1.2.3",
+					},
+					Device: analytics.DeviceInfo{
+						Id:    instanceID,
+						Model: "x86_64",
+						Type:  "debian",
+					},
+					OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
+				},
+				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
@@ -107,7 +101,7 @@ func TestRecordTelemetry(t *testing.T) {
 		cmdutil.RecordTelemetry(cmd)
 
 		assert.Check(t, cmp.Nil(cmd.RunE))
-		assert.Check(t, cmp.Len(recorder.Batches(), 0))
+		assert.Check(t, cmp.Len(recorder.Tracks(), 0))
 	})
 
 	t.Run("propagates error from original RunE", func(t *testing.T) {
@@ -128,35 +122,28 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(recorder.Batches(), []fakesegment.Batch{
+		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    userID,
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "fail",
-							"flags":   "",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{
-								Name:    "circleci-cli",
-								Version: "1.2.3",
-							},
-							Device: analytics.DeviceInfo{
-								Id:    instanceID,
-								Model: "x86_64",
-								Type:  "debian",
-							},
-							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
-						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-					},
+				Timestamp: now,
+				UserId:    userID,
+				Event:     "command_invocation",
+				Properties: analytics.Properties{
+					"command": "fail",
+					"flags":   "",
 				},
+				Context: &analytics.Context{
+					App: analytics.AppInfo{
+						Name:    "circleci-cli",
+						Version: "1.2.3",
+					},
+					Device: analytics.DeviceInfo{
+						Id:    instanceID,
+						Model: "x86_64",
+						Type:  "debian",
+					},
+					OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
+				},
+				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
@@ -181,35 +168,28 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(recorder.Batches(), []fakesegment.Batch{
+		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    userID,
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "test",
-							"flags":   "alpha,middle,zebra",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{
-								Name:    "circleci-cli",
-								Version: "1.2.3",
-							},
-							Device: analytics.DeviceInfo{
-								Id:    instanceID,
-								Model: "x86_64",
-								Type:  "debian",
-							},
-							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
-						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-					},
+				Timestamp: now,
+				UserId:    userID,
+				Event:     "command_invocation",
+				Properties: analytics.Properties{
+					"command": "test",
+					"flags":   "alpha,middle,zebra",
 				},
+				Context: &analytics.Context{
+					App: analytics.AppInfo{
+						Name:    "circleci-cli",
+						Version: "1.2.3",
+					},
+					Device: analytics.DeviceInfo{
+						Id:    instanceID,
+						Model: "x86_64",
+						Type:  "debian",
+					},
+					OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
+				},
+				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
@@ -229,35 +209,28 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(recorder.Batches(), []fakesegment.Batch{
+		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    userID,
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "test",
-							"flags":   "",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{
-								Name:    "circleci-cli",
-								Version: "1.2.3",
-							},
-							Device: analytics.DeviceInfo{
-								Id:    instanceID,
-								Model: "x86_64",
-								Type:  "debian",
-							},
-							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
-						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-					},
+				Timestamp: now,
+				UserId:    userID,
+				Event:     "command_invocation",
+				Properties: analytics.Properties{
+					"command": "test",
+					"flags":   "",
 				},
+				Context: &analytics.Context{
+					App: analytics.AppInfo{
+						Name:    "circleci-cli",
+						Version: "1.2.3",
+					},
+					Device: analytics.DeviceInfo{
+						Id:    instanceID,
+						Model: "x86_64",
+						Type:  "debian",
+					},
+					OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
+				},
+				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
@@ -274,7 +247,7 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		assert.NilError(t, cmd.RunE(cmd, nil))
-		assert.Check(t, cmp.Len(recorder.Batches(), 0))
+		assert.Check(t, cmp.Len(recorder.Tracks(), 0))
 	})
 }
 
@@ -300,35 +273,28 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(recorder.Batches(), []fakesegment.Batch{
+		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    userID,
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "circleci subcommand list",
-							"flags":   "",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{
-								Name:    "circleci-cli",
-								Version: "1.2.3",
-							},
-							Device: analytics.DeviceInfo{
-								Id:    instanceID,
-								Model: "x86_64",
-								Type:  "debian",
-							},
-							OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
-						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-					},
+				Timestamp: now,
+				UserId:    userID,
+				Event:     "command_invocation",
+				Properties: analytics.Properties{
+					"command": "circleci subcommand list",
+					"flags":   "",
 				},
+				Context: &analytics.Context{
+					App: analytics.AppInfo{
+						Name:    "circleci-cli",
+						Version: "1.2.3",
+					},
+					Device: analytics.DeviceInfo{
+						Id:    instanceID,
+						Model: "x86_64",
+						Type:  "debian",
+					},
+					OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
+				},
+				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
@@ -345,7 +311,7 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		assert.Check(t, cmp.Nil(child.RunE))
-		assert.Check(t, cmp.Len(recorder.Batches(), 0))
+		assert.Check(t, cmp.Len(recorder.Tracks(), 0))
 	})
 
 	t.Run("skips subcommands with telemetry disabled", func(t *testing.T) {
@@ -365,26 +331,44 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		assert.NilError(t, child.RunE(child, nil))
 		assert.NilError(t, client.Close())
 
-		assert.Check(t, cmp.Len(recorder.Batches(), 0))
+		assert.Check(t, cmp.Len(recorder.Tracks(), 0))
 	})
 }
 
-func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
+// recordingDestination is a telemetry destination that records the events it
+// receives so tests can assert on them synchronously, without spawning the
+// out-of-process sender or hitting the network.
+type recordingDestination struct {
+	mu     sync.Mutex
+	tracks []analytics.Track
+}
+
+func (r *recordingDestination) Enqueue(track analytics.Track) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.tracks = append(r.tracks, track)
+	return nil
+}
+
+func (r *recordingDestination) Close() error { return nil }
+
+func (r *recordingDestination) Tracks() []analytics.Track {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return slices.Clone(r.tracks)
+}
+
+func newTelemetry(t *testing.T) (*recordingDestination, *telemetry.Sender) {
 	t.Helper()
 
 	ctx := iostream.Testing(context.Background())
 
-	const goodAPIKey = "fc269e01-cf68-4244-ba14-55d040af0cd1"
+	recorder := &recordingDestination{}
 
-	fs := fakesegment.New(ctx, goodAPIKey)
-	srv := httptest.NewServer(fs)
-	t.Cleanup(srv.Close)
-
-	client, err := telemetry.New(ctx, telemetry.Config{
-		Send:     true,
-		Log:      true,
-		WriteKey: goodAPIKey,
-		Endpoint: srv.URL,
+	client, err := telemetry.NewSender(ctx, telemetry.Config{
+		Send:            false,
+		Log:             true,
+		TestDestination: recorder,
 		Metadata: telemetry.Meta{
 			Version:    "1.2.3",
 			InstanceID: uuid.MustParse(instanceID),
@@ -404,7 +388,7 @@ func newTelemetry(t *testing.T) (*fakesegment.Service, *telemetry.Client) {
 		_ = client.Close()
 	})
 
-	return fs, client
+	return recorder, client
 }
 
 const (

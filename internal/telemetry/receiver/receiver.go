@@ -20,32 +20,58 @@
 //
 // SPDX-License-Identifier: MIT
 
-package telemetry
+package receiver
 
 import (
-	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"os"
 
 	"github.com/segmentio/analytics-go/v3"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-type loggingDestination struct {
-	ctx context.Context
-}
+const (
+	// EnvWriteKey configures the write key for the telemetry client.
+	EnvWriteKey = "__CIRCLE_TELEMETRY_WRITE_KEY"
+	// EnvTelemetryEndpoint configures the endpoint for the telemetry client.
+	EnvTelemetryEndpoint = "__CIRCLE_TELEMETRY_ENDPOINT"
+)
 
-func (l *loggingDestination) Close() error {
-	return nil
-}
+func Receive(in io.Reader) (err error) {
+	writeKey := os.Getenv(EnvWriteKey)
+	endpoint := os.Getenv(EnvTelemetryEndpoint)
 
-func (l *loggingDestination) Enqueue(m analytics.Track) error {
-	msg := "track " + m.Event
-	args := make([]any, 0, 2+2*len(m.Properties))
-	for k, v := range m.Properties {
-		args = append(args, k, v)
+	var messages []analytics.Track
+	err = json.NewDecoder(in).Decode(&messages)
+	if err != nil {
+		return err
 	}
-	args = append(args, "kind", "telemetry")
-	iostream.DebugContext(l.ctx, msg, args...)
+
+	if writeKey == "" {
+		return errors.New("write key is required")
+	}
+	c, err := analytics.NewWithConfig(writeKey, analytics.Config{
+		Endpoint: endpoint,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create segment client: %w", err)
+	}
+
+	defer func() {
+		cerr := c.Close()
+		if err == nil {
+			err = cerr
+		}
+	}()
+
+	for _, m := range messages {
+		err := c.Enqueue(m)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
