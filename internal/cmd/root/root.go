@@ -153,9 +153,7 @@ func NewRootCmd(version string) *cobra.Command {
 		cmd.SetContext(ctx)
 
 		cleanup := func() {
-			if tc != nil {
-				_ = tc.Close()
-			}
+			_ = tc.Close()
 		}
 
 		return cleanup, nil
@@ -266,9 +264,8 @@ func NewRootCmd(version string) *cobra.Command {
 	})
 
 	cmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		if cleanup, err := initConfig(cmd); err == nil {
+		if _, err := initConfig(cmd); err == nil {
 			cmdutil.RecordTelemetryNow(cmd)
-			cleanup()
 		}
 
 		return rootUsage(cmd)
