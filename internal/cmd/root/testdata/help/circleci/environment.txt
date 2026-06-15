@@ -6,6 +6,12 @@ being prompted to authenticate and takes precedence over previously stored crede
 
 `NO_COLOR`: set to any value to avoid printing ANSI escape sequences for color output.
 
+`CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
+
+`PAGER`: names the pager program to send long output through (for example `less` or `more`).
+When unset, a built-in scrollable viewer is used. Set it to `cat` or an empty value to disable
+paging entirely.
+
 `CIRCLE_NO_TELEMETRY`: set to any value to disable telemetry.
 
 `NO_ANALYTICS`: set to any value to disable telemetry.

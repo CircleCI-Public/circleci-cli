@@ -124,6 +124,7 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		c, err := expect.NewConsole(
 			expect.WithStdout(&stdout),
 			expect.WithStdout(os.Stdout),
+			expect.WithTermSize(80, 80),
 		)
 		assert.NilError(t, err)
 		defer func() {
@@ -185,7 +186,7 @@ func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
 	c, err := expect.NewConsole(
 		expect.WithStdout(os.Stdout),
 		expect.WithDefaultTimeout(5*time.Second),
-		expect.WithTermSize(500, 24),
+		expect.WithTermSize(500, 80),
 	)
 	assert.NilError(t, err)
 	t.Cleanup(func() {
