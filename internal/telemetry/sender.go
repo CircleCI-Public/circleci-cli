@@ -26,6 +26,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,8 @@ const SegmentKey = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
 type Sender struct {
 	dest destination
 	meta Meta
+
+	closed atomic.Bool
 }
 
 type destination interface {
@@ -141,6 +144,15 @@ func NewSender(ctx context.Context, cfg Config) (_ *Sender, err error) {
 }
 
 func (c *Sender) Close() error {
+	if c == nil {
+		return nil
+	}
+
+	closed := c.closed.Swap(true)
+	if closed {
+		return nil
+	}
+
 	return c.dest.Close()
 }
 
@@ -150,6 +162,10 @@ var AnonymousID = uuid.MustParse("66f35d3e-40f6-4ade-909b-a6314990de53")
 
 // Track sends an analytics event.
 func (c *Sender) Track(eventName string, props map[string]any) error {
+	if c == nil {
+		return nil
+	}
+
 	p := analytics.NewProperties()
 	for key, val := range props {
 		p.Set(key, val)
