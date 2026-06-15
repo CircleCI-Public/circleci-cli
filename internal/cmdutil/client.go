@@ -92,7 +92,7 @@ func WithTelemetry(ctx context.Context, tc *telemetry.Sender) context.Context {
 func GetTelemetry(ctx context.Context) *telemetry.Sender {
 	v := ctx.Value(telemetryKey{})
 	if v == nil {
-		panic("no telemetry")
+		return nil
 	}
 	return v.(*telemetry.Sender)
 }

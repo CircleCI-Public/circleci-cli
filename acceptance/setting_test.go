@@ -36,6 +36,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
@@ -181,41 +182,44 @@ func TestSettingList_TextOutput(t *testing.T) {
 		hostInfo, err := host.Info()
 		assert.NilError(t, err)
 
-		batches := fs.Batches()
-		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
-			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    telemetry.AnonymousID.String(),
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "circleci setting list",
-							"flags":   "debug,insecure-storage,theme",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
-							Device: analytics.DeviceInfo{
-								Id:    cfg.DeviceID().String(),
-								Model: hostInfo.KernelArch,
-								Type:  hostInfo.PlatformFamily,
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			batches := fs.Batches()
+			now := time.Now()
+			return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
+				{
+					SentAt: now,
+					Messages: []analytics.Track{
+						{
+							Type:      "track",
+							MessageId: "ignored",
+							Timestamp: now,
+							UserId:    telemetry.AnonymousID.String(),
+							Event:     "command_invocation",
+							Properties: analytics.Properties{
+								"command": "circleci setting list",
+								"flags":   "debug,insecure-storage,theme",
 							},
-							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
-							Traits: map[string]any{
-								"agent":          "",
-								"is_self_hosted": false,
-								"is_tty":         false,
+							Context: &analytics.Context{
+								App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
+								Device: analytics.DeviceInfo{
+									Id:    cfg.DeviceID().String(),
+									Model: hostInfo.KernelArch,
+									Type:  hostInfo.PlatformFamily,
+								},
+								OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
+								Traits: map[string]any{
+									"agent":          "",
+									"is_self_hosted": false,
+									"is_tty":         false,
+								},
 							},
+							Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
 				},
-			},
-		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+			}, fakesegment.CompareTrack, fakesegment.CompareTime))
+		})
+
 	})
 }
 
@@ -247,41 +251,44 @@ func TestSettingList_TextOutput_Color(t *testing.T) {
 		hostInfo, err := host.Info()
 		assert.NilError(t, err)
 
-		batches := fs.Batches()
-		now := time.Now()
-		assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
-			{
-				SentAt: now,
-				Messages: []analytics.Track{
-					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    telemetry.AnonymousID.String(),
-						Event:     "command_invocation",
-						Properties: analytics.Properties{
-							"command": "circleci setting list",
-							"flags":   "insecure-storage,theme",
-						},
-						Context: &analytics.Context{
-							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
-							Device: analytics.DeviceInfo{
-								Id:    cfg.DeviceID().String(),
-								Model: hostInfo.KernelArch,
-								Type:  hostInfo.PlatformFamily,
+		poll.WaitOn(t, func(t poll.LogT) poll.Result {
+			batches := fs.Batches()
+			now := time.Now()
+			return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
+				{
+					SentAt: now,
+					Messages: []analytics.Track{
+						{
+							Type:      "track",
+							MessageId: "ignored",
+							Timestamp: now,
+							UserId:    telemetry.AnonymousID.String(),
+							Event:     "command_invocation",
+							Properties: analytics.Properties{
+								"command": "circleci setting list",
+								"flags":   "insecure-storage,theme",
 							},
-							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
-							Traits: map[string]any{
-								"agent":          "chunk",
-								"is_self_hosted": false,
-								"is_tty":         true,
+							Context: &analytics.Context{
+								App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
+								Device: analytics.DeviceInfo{
+									Id:    cfg.DeviceID().String(),
+									Model: hostInfo.KernelArch,
+									Type:  hostInfo.PlatformFamily,
+								},
+								OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
+								Traits: map[string]any{
+									"agent":          "chunk",
+									"is_self_hosted": false,
+									"is_tty":         true,
+								},
 							},
+							Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 						},
-						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
 				},
-			},
-		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+			}, fakesegment.CompareTrack, fakesegment.CompareTime))
+		})
+
 	})
 }
 

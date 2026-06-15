@@ -20,32 +20,13 @@
 //
 // SPDX-License-Identifier: MIT
 
+//go:build !windows
+
 package telemetry
 
-import (
-	"context"
+import "syscall"
 
-	"github.com/segmentio/analytics-go/v3"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
-)
-
-type loggingDestination struct {
-	ctx context.Context
-}
-
-func (l *loggingDestination) Close() error {
-	return nil
-}
-
-func (l *loggingDestination) Enqueue(m analytics.Track) error {
-	msg := "track " + m.Event
-	args := make([]any, 0, 2+2*len(m.Properties))
-	for k, v := range m.Properties {
-		args = append(args, k, v)
-	}
-	args = append(args, "kind", "telemetry")
-	iostream.DebugContext(l.ctx, msg, args...)
-
-	return nil
+// detachAttrs avoids signals being send to the child process
+func detachAttrs() *syscall.SysProcAttr {
+	return &syscall.SysProcAttr{Setpgid: true}
 }

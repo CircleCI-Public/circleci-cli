@@ -49,6 +49,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/pipeline"
 	cmdpolicy "github.com/CircleCI-Public/circleci-cli/internal/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/receivetelemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/setting"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
@@ -66,6 +67,10 @@ import (
 // NewRootCmd builds the root cobra command and wires all subcommands.
 func NewRootCmd(version string) *cobra.Command {
 	initConfig := func(cmd *cobra.Command) (func(), error) {
+		if cmdutil.IsEverythingDisabled(cmd) {
+			return func() {}, nil
+		}
+
 		ctx := cmd.Context()
 		if cmdutil.CheckTelemetry(ctx) {
 			return func() {}, nil
@@ -119,11 +124,14 @@ func NewRootCmd(version string) *cobra.Command {
 			}
 		}
 
+		executable := executablePath("circleci")
+
 		tc, err := telemetry.NewSender(ctx, telemetry.Config{
 			Log:      cfg.IsTelemetry(),
 			Send:     cfg.IsTelemetry(),
 			WriteKey: telemetry.SegmentKey,
 			Endpoint: os.Getenv("CIRCLE_TELEMETRY_ENDPOINT"),
+			Binary:   executable,
 			Metadata: telemetry.Meta{
 				Version:    version,
 				InstanceID: cfg.DeviceID(),
@@ -192,6 +200,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(job.NewJobCmd())
 	cmd.AddCommand(pipeline.NewPipelineCmd())
 	cmd.AddCommand(project.NewProjectCmd())
+	cmd.AddCommand(receivetelemetry.NewReceiveTelemetryCmd())
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(setting.NewSettingCmd())
 	cmd.AddCommand(signingconfig.NewSigningConfigCmd())

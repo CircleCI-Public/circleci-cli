@@ -47,22 +47,15 @@ import (
 
 const osWindows = "windows"
 
-// BuildBinary compiles the CLI binary once and returns its path.
-// Call from TestMain; on error, the binary could not be built and tests
-// should be skipped rather than failed.
-func BuildBinary() (string, func(), error) {
-	return BuildBinaryOptions("circleci", filepath.Join("..", ""))
-}
-
-func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) {
+func Build(binaryName, relativeDir, source string) (string, func(), error) {
 	dir, err := os.MkdirTemp("", "circleci-cli-test-*")
 	if err != nil {
 		return "", func() {}, fmt.Errorf("create temp dir: %w", err)
 
 	}
-	binaryPath := filepath.Join(dir, binaryName)
+	outputPath := filepath.Join(dir, binaryName)
 	if runtime.GOOS == osWindows {
-		binaryPath += ".exe"
+		outputPath += ".exe"
 	}
 
 	// acceptance/ is one level below the module root.
@@ -71,7 +64,7 @@ func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) 
 		return "", func() {}, fmt.Errorf("resolve repo root: %w", err)
 	}
 
-	cmd := exec.Command("go", "build", "-o", binaryPath, "./cmd/circleci") //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
+	cmd := exec.Command("go", "build", "-o", outputPath, source) //#nosec:G204 // fixed "go build" invocation, binaryPath is a temp file path under test control
 	cmd.Dir = repoRoot
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
@@ -81,7 +74,7 @@ func BuildBinaryOptions(binaryName, relativeDir string) (string, func(), error) 
 		return "", func() {}, fmt.Errorf("go build failed: %w\nstderr: %s", err, stderr.String())
 	}
 
-	return binaryPath, func() {
+	return outputPath, func() {
 		_ = os.RemoveAll(dir)
 	}, nil
 }

@@ -24,7 +24,9 @@ package telemetry_test
 
 import (
 	"context"
+	"fmt"
 	"net/http/httptest"
+	"os"
 	"testing"
 	"time"
 
@@ -33,13 +35,37 @@ import (
 	"github.com/shirou/gopsutil/v4/host"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/poll"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
 const goodWriteKey = "b4b250188e5994cf45e7b0e5"
+
+var testBinaryPath string
+
+func TestMain(m *testing.M) {
+	var err error
+	var cleanup func()
+
+	testBinaryPath, cleanup, err = binary.Build(
+		"receiver",
+		"../..",
+		"./internal/telemetry/testdata/receiverbin",
+	)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "building testapp binary: %v\n", err)
+		os.Exit(1)
+	}
+	_, _ = fmt.Fprintf(os.Stderr, "built testapp binary: %s\n", testBinaryPath)
+
+	code := m.Run()
+	cleanup()
+	os.Exit(code)
+}
 
 func TestClient_Track_with_user_id(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
@@ -55,6 +81,7 @@ func TestClient_Track_with_user_id(t *testing.T) {
 		Log:      true,
 		Endpoint: srv.URL,
 		WriteKey: goodWriteKey,
+		Binary:   testBinaryPath,
 		Metadata: telemetry.Meta{
 			InstanceID: instanceID,
 			UserID:     userID,
@@ -79,9 +106,6 @@ func TestClient_Track_with_user_id(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = ac.Identify()
-	assert.NilError(t, err)
-
 	err = ac.Track("myevent", map[string]any{
 		"foo": "bar",
 		"baz": 42,
@@ -92,66 +116,45 @@ func TestClient_Track_with_user_id(t *testing.T) {
 	err = ac.Close()
 	assert.NilError(t, err)
 
-	batches := fs.Batches()
-	now := time.Now()
-	assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
-		{
-			SentAt: now,
-			Messages: []analytics.Track{
-				{
-					Type:      "identify",
-					MessageId: "ignored",
-					Timestamp: now,
-					UserId:    userID.String(),
-					Context: &analytics.Context{
-						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
-						Device: analytics.DeviceInfo{
-							Id:    instanceID.String(),
-							Type:  "Standalone Workstation",
-							Model: "arm64",
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		batches := fs.Batches()
+		now := time.Now()
+		return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
+			{
+				SentAt: now,
+				Messages: []analytics.Track{
+					{
+						Type:      "track",
+						MessageId: "ignored",
+						Timestamp: now,
+						UserId:    userID.String(),
+						Event:     "myevent",
+						Properties: analytics.Properties{
+							"foo": "bar",
+							"baz": float64(42),
 						},
-						OS: analytics.OSInfo{
-							Name:    "darwin",
-							Version: "26.4.1",
+						Context: &analytics.Context{
+							App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
+							Device: analytics.DeviceInfo{
+								Id:    instanceID.String(),
+								Type:  "Standalone Workstation",
+								Model: "arm64",
+							},
+							OS: analytics.OSInfo{
+								Name:    "darwin",
+								Version: "26.4.1",
+							},
+							Traits: map[string]any{
+								"extra_a": "extra_value_a",
+								"extra_b": "extra_value_b",
+							},
 						},
-						Traits: map[string]any{
-							"extra_a": "extra_value_a",
-							"extra_b": "extra_value_b",
-						},
+						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
-					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-				},
-				{
-					Type:      "track",
-					MessageId: "ignored",
-					Timestamp: now,
-					UserId:    userID.String(),
-					Event:     "myevent",
-					Properties: analytics.Properties{
-						"foo": "bar",
-						"baz": float64(42),
-					},
-					Context: &analytics.Context{
-						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
-						Device: analytics.DeviceInfo{
-							Id:    instanceID.String(),
-							Type:  "Standalone Workstation",
-							Model: "arm64",
-						},
-						OS: analytics.OSInfo{
-							Name:    "darwin",
-							Version: "26.4.1",
-						},
-						Traits: map[string]any{
-							"extra_a": "extra_value_a",
-							"extra_b": "extra_value_b",
-						},
-					},
-					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 				},
 			},
-		},
-	}, fakesegment.CompareTrack, fakesegment.CompareTime))
+		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
 }
 
 func TestClient_Track_without_userid(t *testing.T) {
@@ -167,6 +170,7 @@ func TestClient_Track_without_userid(t *testing.T) {
 		Log:      true,
 		Endpoint: srv.URL,
 		WriteKey: goodWriteKey,
+		Binary:   testBinaryPath,
 		Metadata: telemetry.Meta{
 			InstanceID: instanceID,
 			Version:    "1.2.3",
@@ -190,9 +194,6 @@ func TestClient_Track_without_userid(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	err = ac.Identify()
-	assert.NilError(t, err)
-
 	err = ac.Track("user-event", map[string]any{
 		"foo": "bar",
 		"baz": 84,
@@ -203,64 +204,44 @@ func TestClient_Track_without_userid(t *testing.T) {
 	err = ac.Close()
 	assert.NilError(t, err)
 
-	batches := fs.Batches()
-	now := time.Now()
-	assert.Check(t, cmp.DeepEqual(batches, []fakesegment.Batch{
-		{
-			SentAt: now,
-			Messages: []analytics.Track{
-				{
-					Type:      "identify",
-					MessageId: "ignored",
-					Timestamp: now,
-					UserId:    telemetry.AnonymousID.String(),
-					Context: &analytics.Context{
-						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
-						Device: analytics.DeviceInfo{
-							Id:    instanceID.String(),
-							Type:  "debian",
-							Model: "x86_64",
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		batches := fs.Batches()
+		now := time.Now()
+		return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
+			{
+				SentAt: now,
+				Messages: []analytics.Track{
+					{
+						Type:      "track",
+						MessageId: "ignored",
+						Timestamp: now,
+						UserId:    telemetry.AnonymousID.String(),
+						Event:     "user-event",
+						Properties: analytics.Properties{
+							"foo": "bar",
+							"baz": float64(84),
 						},
-						OS: analytics.OSInfo{
-							Name:    "linux",
-							Version: "1.2.3",
+						Context: &analytics.Context{
+							App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
+							Device: analytics.DeviceInfo{
+								Id:    instanceID.String(),
+								Type:  "debian",
+								Model: "x86_64",
+							},
+							OS: analytics.OSInfo{
+								Name:    "linux",
+								Version: "1.2.3",
+							},
+							Traits: map[string]any{
+								"extra_1": "extra_value_1",
+								"extra_2": "extra_value_2",
+							},
 						},
-						Traits: map[string]any{
-							"extra_1": "extra_value_1",
-							"extra_2": "extra_value_2",
-						},
+						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 					},
-					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
-				},
-				{
-					Type:      "track",
-					MessageId: "ignored",
-					Timestamp: now,
-					UserId:    telemetry.AnonymousID.String(),
-					Event:     "user-event",
-					Properties: analytics.Properties{
-						"foo": "bar",
-						"baz": float64(84),
-					},
-					Context: &analytics.Context{
-						App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
-						Device: analytics.DeviceInfo{
-							Id:    instanceID.String(),
-							Type:  "debian",
-							Model: "x86_64",
-						},
-						OS: analytics.OSInfo{
-							Name:    "linux",
-							Version: "1.2.3",
-						},
-						Traits: map[string]any{
-							"extra_1": "extra_value_1",
-							"extra_2": "extra_value_2",
-						},
-					},
-					Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 				},
 			},
-		},
-	}, fakesegment.CompareTrack, fakesegment.CompareTime))
+		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
+
 }
