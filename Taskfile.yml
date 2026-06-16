@@ -109,6 +109,7 @@ tasks:
           -ignore ".idea/**" \
           -ignore ".circleci/**" \
           -ignore ".claude/**" \
+          -ignore ".github/**" \
           -ignore "test-reports/**" \
           -ignore "**/*.html" \
           -ignore "acceptance/testdata/**" \
