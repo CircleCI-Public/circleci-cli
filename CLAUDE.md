@@ -78,8 +78,9 @@ internal/
 │   ├── config/           circleci config validate/process/pack/generate
 │   ├── context/          circleci context + circleci context secret
 │   ├── event/            circleci event list/get/create/cancel/watch/open.
-│   │                     An event is the record of a trigger firing. "Pipeline" only
-│   │                     ever means the definition — never an execution instance.
+│   │                     An event is the record of a trigger firing (the V3 API still
+│   │                     calls this entity a "run" on the wire). "Pipeline" only ever
+│   │                     means the definition — never an execution instance.
 │   ├── job/              circleci job artifacts (deep path; wraps internal/artifacts)
 │   ├── open/             circleci open (opens current project in the CircleCI web UI)
 │   ├── pipeline/         circleci pipeline create/list (definitions only; fire one

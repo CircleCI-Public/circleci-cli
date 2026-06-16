@@ -39,9 +39,9 @@ type workflowAttributesWire struct {
 }
 
 type workflowReferencesWire struct {
-	Event struct {
+	Run struct {
 		ID string `json:"id"`
-	} `json:"event"`
+	} `json:"run"`
 	Project struct {
 		ID string `json:"id"`
 	} `json:"project"`
@@ -66,7 +66,7 @@ func (w workflowWire) toWorkflowV3() WorkflowV3 {
 		CurrentOutcome: a.CurrentOutcome,
 		CreatedAt:      a.CreatedAt,
 		EndedAt:        a.EndedAt,
-		EventID:        w.References.Event.ID,
+		EventID:        w.References.Run.ID,
 		ProjectID:      w.References.Project.ID,
 	}
 }
@@ -105,7 +105,8 @@ func (c *Client) GetWorkflowV3(ctx context.Context, id string) (*WorkflowV3, err
 // from the V3 API.
 func (c *Client) GetEventWorkflows(ctx context.Context, eventID string) ([]WorkflowV3, error) {
 	var resp v3List[workflowWire]
-	if err := c.getV3(ctx, "/workflows", &resp, filterParam("event_id", eventID)); err != nil {
+	// Target filter: event_id (the wire still calls the event a run).
+	if err := c.getV3(ctx, "/workflows", &resp, filterParam("run_id", eventID)); err != nil {
 		return nil, err
 	}
 	workflows := make([]WorkflowV3, len(resp.Data))
