@@ -33,6 +33,9 @@
 #             Defaults to the latest non-prerelease. Preview/prerelease builds
 #             are NOT resolved automatically — set VERSION explicitly for those.
 #   DESTDIR   Install directory for the `circleci` binary. Default: /usr/local/bin.
+#             This names the directory, not the binary path. A legacy value
+#             ending in /circleci (e.g. /usr/local/bin/circleci) is accepted
+#             for backward compatibility and reinterpreted as its parent dir.
 #   REPO      GitHub "owner/name". Default: CircleCI-Public/circleci-cli.
 #
 # Dependencies: curl, tar, grep, install, and one of sha256sum / shasum.
@@ -57,6 +60,17 @@ install_cli() {
 	fi
 	info()  { echo "${DIM}==>${RESET} $*" >&2; }
 	fail()  { echo "${BOLD}error:${RESET} $*" >&2; exit 1; }
+
+	# Backward-compat: the legacy install.sh treated DESTDIR as install(1)'s
+	# DEST argument, so DESTDIR=/usr/local/bin/circleci meant the full binary
+	# path. DESTDIR now names the install directory. If it ends in /circleci and
+	# isn't an existing directory, assume legacy usage, strip the trailing
+	# component, and warn.
+	if [ "$(basename "${DESTDIR}")" = "circleci" ] && [ ! -d "${DESTDIR}" ]; then
+		info "${BOLD}DESTDIR${RESET} now names the install directory, not the binary path."
+		info "Interpreting ${DESTDIR} as $(dirname "${DESTDIR}") for backward compatibility."
+		DESTDIR="$(dirname "${DESTDIR}")"
+	fi
 
 	command -v curl >/dev/null 2>&1 || fail "curl is required but was not found in PATH."
 	command -v tar  >/dev/null 2>&1 || fail "tar is required but was not found in PATH."
