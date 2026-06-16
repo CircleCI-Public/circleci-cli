@@ -236,7 +236,7 @@ func TestWorkflowRerun(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/workflow/" + testWorkflowDetailID + "/rerun"},
+			URL:    url.URL{Path: "/api/v3/workflows/" + testWorkflowDetailID + "/rerun"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -277,7 +277,7 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/workflow/" + testWorkflowDetailID + "/rerun"},
+			URL:    url.URL{Path: "/api/v3/workflows/" + testWorkflowDetailID + "/rerun"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},

@@ -119,10 +119,10 @@ func (c *Client) GetEventWorkflows(ctx context.Context, eventID string) ([]Workf
 // true only the failed jobs are rerun; otherwise all jobs restart from scratch.
 func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) error {
 	body := map[string]any{"from_failed": fromFailed}
-	var resp struct {
-		Message string `json:"message"`
-	}
-	return c.post(ctx, "/workflow/%s/rerun", body, &resp,
+	var resp v3Entity[struct {
+		WorkflowID string `json:"workflow_id"`
+	}]
+	return c.postV3(ctx, "/workflows/%s/rerun", body, &resp,
 		routeParams(id),
 	)
 }
