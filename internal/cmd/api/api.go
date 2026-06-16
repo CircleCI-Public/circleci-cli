@@ -56,7 +56,7 @@ func NewAPICmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "api <path>",
-		Short: "Make an API call",
+		Short: "Call the CircleCI REST API directly",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				<path> is the request path. It is relative to /api/v2 by default

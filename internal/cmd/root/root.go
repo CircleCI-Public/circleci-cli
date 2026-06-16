@@ -205,8 +205,11 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(step.NewStepCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
 
-	// Wire in MCP commands
-	cmd.AddCommand(ophis.Command(nil))
+	// Wire in MCP commands. ophis sets its own terse Short; override it so the
+	// root command table explains what the command actually does.
+	mcpCmd := ophis.Command(nil)
+	mcpCmd.Short = "Run the CLI as an MCP server for AI tools"
+	cmd.AddCommand(mcpCmd)
 
 	// Help topics
 	var referenceCmd *cobra.Command

@@ -39,7 +39,7 @@ import (
 func NewNamespaceCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "namespace <command>",
-		Short: "Manage orb namespaces",
+		Short: "Manage the org namespace orbs publish under",
 		Long: heredoc.Doc(`
 			Work with CircleCI orb namespaces.
 

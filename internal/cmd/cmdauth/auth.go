@@ -39,7 +39,7 @@ import (
 func NewAuthCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth <command>",
-		Short: "Authenticate with CircleCI",
+		Short: "Log in, sign up and check your CircleCI identity",
 		Long: heredoc.Doc(`
 			Manage authentication for the CLI.
 

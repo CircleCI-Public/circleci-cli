@@ -36,12 +36,13 @@ import (
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <command>",
-		Short: "Manage CI runs",
+		Short: "Trigger, watch and cancel CI runs",
 		Long: heredoc.Doc(`
 			Work with CircleCI runs.
 
-			Runs are the top-level unit of work in CircleCI — they contain
-			one or more workflows, each of which contains jobs.
+			A run is created each time a trigger fires for a pipeline. It carries
+			the VCS context for that firing and groups the workflows it produced;
+			each workflow in turn contains jobs.
 		`),
 	}
 

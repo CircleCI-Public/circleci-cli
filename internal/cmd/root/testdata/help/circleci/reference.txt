@@ -12,7 +12,7 @@ Work with CircleCI from the command line.
 
 ## `circleci api <path> [flags]`
 
-Make an API call
+Call the CircleCI REST API directly
 
 | Flag                       | Description                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -31,7 +31,7 @@ prefix, include it explicitly, e.g. "/api/v1.1/me".
 
 ## `circleci artifact <job-id> [flags]`
 
-List or download job artifacts
+List and download a job's artifact files
 
 | Flag                    | Description                                      |
 | ----------------------- | ------------------------------------------------ |
@@ -48,7 +48,7 @@ e.g. 5034460f-c7c4-4c43-9457-de07e2029e7b.
 
 ## `circleci auth <command>`
 
-Authenticate with CircleCI
+Log in, sign up and check your CircleCI identity
 
 ### `circleci auth id [flags]`
 
@@ -146,7 +146,7 @@ Upload a .p12 certificate
 
 ## `circleci completion <command>`
 
-Manage shell completions
+Install, remove or print shell completions
 
 ### `circleci completion install`
 
@@ -158,7 +158,7 @@ Remove shell completion from your shell profile
 
 ## `circleci config <command>`
 
-Work with pipeline config
+Generate, validate, process and pack config YAML
 
 ### `circleci config generate [path]`
 
@@ -205,7 +205,7 @@ Validate a pipeline config file
 
 ## `circleci context <command>`
 
-Manage contexts
+Manage secret env vars shared across pipelines
 
 ### `circleci context create <name> [flags]`
 
@@ -383,7 +383,7 @@ A context can be specified in the form:
 
 ## `circleci deploy <command>`
 
-Manage deploys
+Track released components and versions
 
 ### `circleci deploy init [flags]`
 
@@ -423,7 +423,7 @@ Open the deploys page in the browser
 
 ## `circleci dlc <command>`
 
-Manage docker layer caching
+Purge a project's Docker layer cache (DLC)
 
 ### `circleci dlc purge --project <slug> [flags]`
 
@@ -437,7 +437,7 @@ Purge the Docker Layer Cache for a project
 
 ## `circleci envvar <command>`
 
-Manage project environment variables
+List, set and delete a project's environment variables
 
 ### `circleci envvar delete <name> [flags]`
 
@@ -482,7 +482,7 @@ after being set and is masked in all subsequent list output.
 
 ## `circleci job <command>`
 
-Manage jobs
+Inspect a job's details, output and artifacts
 
 ### `circleci job artifact <job-id> [flags]`
 
@@ -556,7 +556,7 @@ UUIDs are shown in the output of "circleci workflow get" and
 
 ## `circleci mcp`
 
-MCP server management
+Run the CLI as an MCP server for AI tools
 
 ### `circleci mcp claude`
 
@@ -700,7 +700,7 @@ Show VSCode MCP servers
 
 ## `circleci namespace <command>`
 
-Manage orb namespaces
+Manage the org namespace orbs publish under
 
 ### `circleci namespace create <name> --org-id <uuid> [flags]`
 
@@ -772,7 +772,7 @@ Guided onboarding: scan, test, generate config, sign up
 
 ## `circleci orb <command>`
 
-Manage orbs
+Create, publish and inspect orbs (reusable config)
 
 ### `circleci orb add-to-category <ns>/<orb> <category>`
 
@@ -944,7 +944,7 @@ Validate an orb YAML file
 
 ## `circleci pipeline <command>`
 
-Manage pipeline definitions
+Define what will happen in a run
 
 ### `circleci pipeline create [flags]`
 
@@ -994,7 +994,7 @@ Trigger a new pipeline run
 
 ## `circleci policy <command>`
 
-Manage security policies
+Govern config with Rego security policies
 
 ### `circleci policy decide [flags]`
 
@@ -1111,7 +1111,7 @@ Update policy enforcement settings
 
 ## `circleci project <command>`
 
-Manage projects
+List, follow and configure CircleCI projects
 
 ### `circleci project create [project-name] --org <vcs/org-slug> [flags]`
 
@@ -1132,7 +1132,7 @@ non-interactive mode it is used automatically.
 
 ### `circleci project dlc <command>`
 
-Manage docker layer caching
+Purge a project's Docker layer cache (DLC)
 
 #### `circleci project dlc purge --project <slug> [flags]`
 
@@ -1146,7 +1146,7 @@ Purge the Docker Layer Cache for a project
 
 ### `circleci project envvar <command>`
 
-Manage project environment variables
+List, set and delete a project's environment variables
 
 #### `circleci project envvar delete <name> [flags]`
 
@@ -1279,7 +1279,7 @@ List triggers for a pipeline definition
 
 ## `circleci run <command>`
 
-Manage CI runs
+Trigger, watch and cancel CI runs
 
 ### `circleci run cancel <run-number-or-id> [flags]`
 
@@ -1547,7 +1547,7 @@ List tokens for a resource class
 
 ## `circleci setting <command>`
 
-Manage CLI settings
+Configure the CLI itself (token, host, defaults)
 
 ### `circleci setting list [flags]`
 
@@ -1636,7 +1636,7 @@ Print version information
 
 ## `circleci workflow <command>`
 
-Manage workflows
+Inspect, rerun and cancel workflows (job graphs)
 
 ### `circleci workflow cancel <workflow-id> [flags]`
 

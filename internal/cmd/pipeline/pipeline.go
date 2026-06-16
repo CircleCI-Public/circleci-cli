@@ -34,13 +34,14 @@ import (
 func NewPipelineCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "pipeline <command>",
-		Short: "Manage pipeline definitions",
+		Short: "Define what will happen in a run",
 		Long: heredoc.Doc(`
 			Create and list pipeline definitions for a CircleCI project.
 
-			A pipeline definition specifies where CircleCI finds the config YAML
-			and which repository to use for code checkout. Attach triggers to a
-			definition with 'circleci project trigger create'.
+			A pipeline definition decides what happens when a run is triggered:
+			which repository to check out and where to find the config YAML that
+			CircleCI compiles into workflows. Attach triggers to a definition with
+			'circleci project trigger create'.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},

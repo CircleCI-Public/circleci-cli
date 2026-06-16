@@ -44,7 +44,7 @@ func NewArtifactCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "artifact <job-id>",
-		Short: "List or download job artifacts",
+		Short: "List and download a job's artifact files",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				<job-id> is the UUID of the job whose artifacts you want to

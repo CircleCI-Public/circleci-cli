@@ -35,7 +35,7 @@ import (
 func NewWorkflowCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "workflow <command>",
-		Short: "Manage workflows",
+		Short: "Inspect, rerun and cancel workflows (job graphs)",
 		Long: heredoc.Doc(`
 			Work with CircleCI workflows.
 
