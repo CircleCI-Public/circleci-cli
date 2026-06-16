@@ -43,6 +43,14 @@ disableKinds = ["taxonomy", "term", "RSS", "404"]
   startLevel = 2
   endLevel = 3
 
+# Emit CSS classes for code highlighting instead of inline styles, so the code
+# blocks can be themed from main.css (see the .highlight rules there) rather
+# than carrying Chroma's hardcoded colors.
+[markup.highlight]
+  noClasses = false
+  guessSyntax = false
+  tabWidth = 2
+
 # Single page for now — only emit HTML for the home page.
 [outputs]
   home = ["HTML"]

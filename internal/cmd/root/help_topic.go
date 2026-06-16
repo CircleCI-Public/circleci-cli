@@ -51,18 +51,36 @@ var helpTopics = []helpTopic{
 
 			## Installation
 
-			Installation instructions are in the README:
-			<https://github.com/CircleCI-Public/circleci-cli#readme>
+			Installation instructions are in the [README](https://github.com/CircleCI-Public/circleci-cli#readme)
 
 			## Configuration
 
 			Run %[1]scircleci auth login%[1]s to authenticate with your CircleCI account. You can also set the
 			%[1]sCIRCLE_TOKEN%[1]s environment variable.
 
+			## Model Context Protocol
+			The CLI supports the MCP protocol. To enable it, run:
+			
+			Claude:
+			%[1]s%[1]s%[1]sshell
+			circleci mcp claude enable # Enable in Claude desktop
+			claude mcp add-from-claude-desktop -s user # Add with current user scope
+			%[1]s%[1]s%[1]s
+			
+			Cursor:
+			%[1]s%[1]s%[1]sshell
+			circleci mcp cursor enable
+			%[1]s%[1]s%[1]s
+			
+			VS Code:
+			%[1]s%[1]s%[1]sshell
+			circleci mcp vscode enable
+			%[1]s%[1]s%[1]s
+
 			## Support
 
-			Report bugs or search for existing feature requests in our issue tracker:
-			<https://github.com/CircleCI-Public/circleci-cli/issues>
+			Report bugs or search for existing feature requests in our
+			[issue tracker](https://github.com/CircleCI-Public/circleci-cli/issues)
 		`, "`"),
 	},
 	{

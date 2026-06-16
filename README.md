@@ -49,8 +49,8 @@ The CLI supports the MCP protocol. To enable it, run:
 
 Claude:
 ```shell
-circleci mcp claude enable # Enable the MCP protocol
-claude mcp add-from-claude-desktop -s user # Add for current user
+circleci mcp claude enable # Enable in Claude desktop
+claude mcp add-from-claude-desktop -s user # Add with current user scope
 ```
 
 Cursor:
