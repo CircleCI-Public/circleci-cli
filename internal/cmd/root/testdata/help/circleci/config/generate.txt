@@ -36,6 +36,6 @@ directory is created if needed, and the file is written atomically.
 ## Learn More
 
 - Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://circleci.com/docs/local-cli>
+- Read the manual at <https://circleci-public.github.io/circleci-cli>
 - Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 

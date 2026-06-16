@@ -1,0 +1,21 @@
+{{- /* Recursively render a heading tree as nested nav lists.
+       Params (dict): items (heading slice), parent (parent's full command
+       label, "" at the root), depth (1-based), maxDepth (deepest level shown).
+       Each label has its parent's command path stripped, so the reference
+       reads "auth → login" rather than "auth → auth login". */ -}}
+{{- $parent := .parent -}}
+{{- $depth := .depth -}}
+{{- $maxDepth := .maxDepth -}}
+<ul>
+  {{- range .items -}}
+    {{- $full := partial "nav-label.html" .Title -}}
+    {{- $label := $full -}}
+    {{- if $parent -}}{{- $label = strings.TrimPrefix (printf "%s " $parent) $full -}}{{- end -}}
+    <li>
+      <a href="#{{ .ID }}">{{ $label }}</a>
+      {{- if and (lt $depth $maxDepth) .Headings -}}
+        {{- partial "command-nav.html" (dict "items" .Headings "parent" $full "depth" (add $depth 1) "maxDepth" $maxDepth) -}}
+      {{- end -}}
+    </li>
+  {{- end -}}
+</ul>

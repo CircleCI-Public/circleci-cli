@@ -33,6 +33,23 @@ import (
 
 func stringifyReference(cmd *cobra.Command) string {
 	var buf = bytes.Buffer{}
+
+	// Lead with the root command's intro blurb so the reference reads like the
+	// top-level help rather than starting abruptly at the first command.
+	intro := cmd.Long
+	if intro == "" {
+		intro = cmd.Short
+	}
+	if intro != "" {
+		_, _ = fmt.Fprintf(&buf, "%s\n\n", strings.TrimSpace(intro))
+	}
+
+	// Global flags apply to every command, so document them once up front.
+	if flags := cmd.PersistentFlags(); flags.HasAvailableFlags() {
+		_, _ = fmt.Fprintf(&buf, "## Global Flags\n\n")
+		_, _ = fmt.Fprintf(&buf, "%s\n\n", mdTable("Flag", "Description", flagRows(flags)))
+	}
+
 	for _, c := range cmd.Commands() {
 		if c.Hidden {
 			continue
@@ -49,6 +66,12 @@ func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
 	flags := cmd.Flags()
 	if flags.HasAvailableFlags() {
 		_, _ = fmt.Fprintf(w, "%s\n\n", mdTable("Flag", "Description", flagRows(flags)))
+	}
+
+	// Render the arguments annotation as a bold label rather than a heading so
+	// it doesn't show up as a section in the generated site's heading nav.
+	if args := cmd.Annotations["help:arguments"]; strings.Trim(args, "\n") != "" {
+		_, _ = fmt.Fprintf(w, "**Arguments**\n\n%s\n\n", strings.Trim(args, "\n"))
 	}
 
 	if len(cmd.Aliases) > 0 {
