@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/charmbracelet/x/vt v0.0.0-20260608090822-c3ad58c6c9e5
 	github.com/cli/browser v1.3.0
-	github.com/go-chi/chi/v5 v5.2.5
+	github.com/go-chi/chi/v5 v5.3.0
 	github.com/go-chi/render v1.0.3
 	github.com/gofrs/flock v0.13.0
 	github.com/google/go-cmp v0.7.0
