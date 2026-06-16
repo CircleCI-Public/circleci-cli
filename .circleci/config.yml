@@ -32,13 +32,9 @@ commands:
 
 executors:
   linux:
-    docker:
-      - image: cimg/base:stable
-    resource_class: large.gen2
-
-  linux_machine:
-    machine: true
-    resource_class: large.gen2
+    machine:
+      image: ubuntu-2604:current
+    resource_class: medium.gen3
 
   macos:
     macos:
@@ -89,7 +85,7 @@ jobs:
           when: on_fail
 
   deploy:
-    executor: linux_machine
+    executor: linux
     parameters:
       publish_steps:
         type: steps
@@ -223,7 +219,7 @@ workflows:
 
       - smoke-test-preview:
           name: smoke-test-snap
-          executor: linux_machine
+          executor: linux
           install-steps:
             - run:
                 name: Install snapd
