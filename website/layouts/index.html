@@ -5,8 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{{ .Title }}</title>
   <meta name="description" content="Command reference for the CircleCI CLI.">
-  <!-- Relative link: works at the site root locally and under the Pages subpath. -->
-  <link rel="stylesheet" href="css/main.css">
+  <!-- Relative link (works at the site root locally and under the Pages subpath),
+       with a content-hash query so a changed stylesheet busts browser/CDN cache.
+       htmltest ignores the query and resolves the file itself. -->
+  {{ $cssVer := os.ReadFile "static/css/main.css" | hash.FNV32a }}
+  <link rel="stylesheet" href="css/main.css?v={{ $cssVer }}">
 </head>
 <body>
   <div class="layout">
