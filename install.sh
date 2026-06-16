@@ -163,7 +163,7 @@ install_cli() {
 	rm -rf "${SCRATCH}"
 
 	installed="${DESTDIR}/circleci"
-	info "Installed: ${BOLD}$("${installed}" version 2>/dev/null || echo "v${VERSION}")${RESET}"
+	info "Installed: ${BOLD}v${VERSION}${RESET}"
 	case ":${PATH}:" in
 		*":${DESTDIR}:"*) command -v circleci >/dev/null 2>&1 || true ;;
 		*) info "Note: ${DESTDIR} is not on your PATH. Add it, or run ${installed} directly." ;;
