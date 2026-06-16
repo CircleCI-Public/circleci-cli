@@ -37,8 +37,8 @@ type ValidateResult struct {
 
 // Validate compiles the config YAML against the CircleCI API and returns whether it
 // is valid. orgID may be empty; pass one to enable private orb resolution.
-func Validate(ctx context.Context, client *apiclient.Client, configYAML, orgID string) (*ValidateResult, error) {
-	resp, err := client.CompileConfig(ctx, configYAML, orgID, LocalPipelineValues(nil), nil)
+func Validate(ctx context.Context, client *apiclient.Client, configYAML, orgID string, previewNext bool) (*ValidateResult, error) {
+	resp, err := client.CompileConfig(ctx, configYAML, orgID, previewNext, LocalPipelineValues(nil), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -55,8 +55,8 @@ func Validate(ctx context.Context, client *apiclient.Client, configYAML, orgID s
 
 // Process compiles the config YAML and returns the fully expanded output YAML.
 // params are pipeline parameters injected at << pipeline.parameters.* >>.
-func Process(ctx context.Context, client *apiclient.Client, configYAML, orgID string, params map[string]any) (*ValidateResult, error) {
-	resp, err := client.CompileConfig(ctx, configYAML, orgID, LocalPipelineValues(params), params)
+func Process(ctx context.Context, client *apiclient.Client, configYAML, orgID string, previewNext bool, params map[string]any) (*ValidateResult, error) {
+	resp, err := client.CompileConfig(ctx, configYAML, orgID, previewNext, LocalPipelineValues(params), params)
 	if err != nil {
 		return nil, err
 	}

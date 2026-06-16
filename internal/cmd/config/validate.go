@@ -36,10 +36,11 @@ import (
 
 func newValidateCmd() *cobra.Command {
 	var (
-		configPath string
-		orgID      string
-		orgSlug    string
-		jsonOut    bool
+		configPath  string
+		orgID       string
+		orgSlug     string
+		previewNext bool
+		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
@@ -84,7 +85,7 @@ func newValidateCmd() *cobra.Command {
 
 			orgID = resolveOrgID(ctx, client, orgSlug, orgID)
 
-			result, err := configcmd.Validate(ctx, client, yaml, orgID)
+			result, err := configcmd.Validate(ctx, client, yaml, orgID, previewNext)
 			if err != nil {
 				return configAPIErr(err)
 			}
@@ -117,6 +118,7 @@ func newValidateCmd() *cobra.Command {
 
 	cmd.Flags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "Path to config file (use \"-\" for stdin)")
 	cmd.Flags().StringVar(&orgID, "org-id", "", "Organization UUID for private orb resolution")
+	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	cmd.Flags().StringVarP(&orgSlug, "org-slug", "o", "", "Organization slug for private orb resolution (e.g. gh/myorg)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 

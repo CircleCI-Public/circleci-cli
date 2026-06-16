@@ -16,12 +16,13 @@ JSON fields (--json):
 
 ## Flags
 
-| Flag                    | Description                                                              |
-| ----------------------- | ------------------------------------------------------------------------ |
-| `-c, --config string`   | Path to config file (use "-" for stdin) (default ".circleci/config.yml") |
-| `--json`                | Output as JSON                                                           |
-| `--org-id string`       | Organization UUID for private orb resolution                             |
-| `-o, --org-slug string` | Organization slug for private orb resolution (e.g. gh/myorg)             |
+| Flag                    | Description                                                                    |
+| ----------------------- | ------------------------------------------------------------------------------ |
+| `-c, --config string`   | Path to config file (use "-" for stdin) (default ".circleci/config.yml")       |
+| `--json`                | Output as JSON                                                                 |
+| `-n, --next`            | Enable config next which previews upcoming potentially breaking config changes |
+| `--org-id string`       | Organization UUID for private orb resolution                                   |
+| `-o, --org-slug string` | Organization slug for private orb resolution (e.g. gh/myorg)                   |
 
 ## Inherited Flags
 

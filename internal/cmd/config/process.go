@@ -41,6 +41,7 @@ func newProcessCmd() *cobra.Command {
 	var (
 		orgID          string
 		orgSlug        string
+		previewNext    bool
 		pipelineParams string
 	)
 
@@ -99,7 +100,7 @@ func newProcessCmd() *cobra.Command {
 
 			orgID = resolveOrgID(ctx, client, orgSlug, orgID)
 
-			result, err := configcmd.Process(ctx, client, configYAML, orgID, params)
+			result, err := configcmd.Process(ctx, client, configYAML, orgID, previewNext, params)
 			if err != nil {
 				return configAPIErr(err)
 			}
@@ -120,6 +121,7 @@ func newProcessCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&orgID, "org-id", "", "Organization UUID for private orb resolution")
 	cmd.Flags().StringVarP(&orgSlug, "org-slug", "o", "", "Organization slug for private orb resolution (e.g. gh/myorg)")
+	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	cmd.Flags().StringVar(&pipelineParams, "pipeline-parameters", "", "Pipeline parameters as a YAML map or path to a YAML file")
 
 	return cmd

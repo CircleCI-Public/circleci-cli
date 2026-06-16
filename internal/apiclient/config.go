@@ -33,6 +33,7 @@ type CompileConfigRequest struct {
 // CompileConfigOptions controls org ownership and pipeline context for compilation.
 type CompileConfigOptions struct {
 	OwnerID            string         `json:"owner_id,omitempty"`
+	Next               bool           `json:"next,omitempty"`
 	PipelineValues     map[string]any `json:"pipeline_values,omitempty"`
 	PipelineParameters map[string]any `json:"pipeline_parameters,omitempty"`
 }
@@ -52,11 +53,12 @@ type CompileConfigError struct {
 
 // CompileConfig sends a config YAML to the compilation API and returns the result.
 // Transport failures are returned as errors; API-level validation errors are in the response.
-func (c *Client) CompileConfig(ctx context.Context, configYAML, orgID string, pipelineValues, pipelineParams map[string]any) (*CompileConfigResponse, error) {
+func (c *Client) CompileConfig(ctx context.Context, configYAML, orgID string, previewNext bool, pipelineValues, pipelineParams map[string]any) (*CompileConfigResponse, error) {
 	req := CompileConfigRequest{
 		ConfigYAML: configYAML,
 		Options: CompileConfigOptions{
 			OwnerID:            orgID,
+			Next:               previewNext,
 			PipelineValues:     pipelineValues,
 			PipelineParameters: pipelineParams,
 		},
