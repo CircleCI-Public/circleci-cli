@@ -40,6 +40,11 @@ func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <name>",
 		Short: "Get details of a namespace",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<name> is the name of the namespace to look up, e.g. "myorg".
+			`),
+		},
 		Long: heredoc.Doc(`
 			Display details of a CircleCI orb namespace.
 

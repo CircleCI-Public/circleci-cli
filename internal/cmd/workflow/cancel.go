@@ -41,6 +41,12 @@ func newCancelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cancel <workflow-id>",
 		Short: "Cancel a running workflow",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<workflow-id> is the UUID of the workflow to cancel. Workflow IDs are
+				shown in the output of "circleci run get".
+			`),
+		},
 		Long: heredoc.Doc(`
 			Cancel a running CircleCI workflow.
 

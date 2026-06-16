@@ -33,6 +33,11 @@ launch-agent-config.yaml.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<resource-class> is the runner resource class to generate config for,
+in the form "namespace/name" (e.g. my-org/my-runner).
+
 ## Examples
 
 - Create a new token and print config to stdout: 

@@ -20,6 +20,12 @@ Pass '-' as the path to read from stdin.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <path>: path to the orb YAML to publish. Pass '-' to read from stdin.
+- <ns>/<orb>: the orb to publish, as "namespace/orb-name"
+- major|minor|patch: how to increment from the current latest stable version
+
 ## Examples
 
 - Increment patch version and publish: 

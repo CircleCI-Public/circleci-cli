@@ -309,6 +309,12 @@ func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <signing-config-id>",
 		Short: "Delete an iOS signing config",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<signing-config-id> is the ID of the signing config to delete
+				(see: circleci signing-config list).
+			`),
+		},
 		Long: heredoc.Doc(`
 			Permanently remove an iOS signing config from your organization.
 

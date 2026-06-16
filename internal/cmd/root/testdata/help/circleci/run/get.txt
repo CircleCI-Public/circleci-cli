@@ -35,6 +35,13 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<run-id> is optional and is the UUID of the run to look up. When
+omitted, the latest run is resolved from the project and branch
+inferred from the current git repository's remote and checked-out
+branch (override with --project and --branch).
+
 ## Examples
 
 - Get the latest run for the current branch: 

@@ -26,6 +26,11 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<signing-config-id> is the ID of the signing config to delete
+(see: circleci signing-config list).
+
 ## Examples
 
 - Delete a signing config (with confirmation): 

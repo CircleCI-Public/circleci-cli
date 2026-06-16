@@ -36,6 +36,11 @@ func newUnsetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "unset <key>",
 		Short: "Remove a stored CLI setting",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<key> is the setting to remove. Currently only "token" is supported.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Remove a stored CLI setting by key.
 

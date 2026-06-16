@@ -44,6 +44,11 @@ func newCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <name>",
 		Short: "Create a new context",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				The name for the new context, e.g. "build-secrets".
+			`),
+		},
 		Long: heredoc.Doc(`
 			Create a new CircleCI context for an organization.
 

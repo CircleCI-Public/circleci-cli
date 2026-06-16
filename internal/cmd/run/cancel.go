@@ -46,6 +46,14 @@ func newCancelCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "cancel <run-number-or-id>",
 		Short: "Cancel a run",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<run-number-or-id> identifies the run to cancel. It can be:
+				- a run UUID (shown in "circleci run list --json")
+				- a run number (shown in "circleci run list"); the project is
+				  inferred from the git remote unless overridden with --project
+			`),
+		},
 		Long: heredoc.Doc(`
 			Cancel a running CircleCI run by number or UUID.
 

@@ -96,6 +96,12 @@ func newPublishPromoteCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "promote <ns>/<orb>@dev:<label> major|minor|patch",
 		Short: "Promote a dev orb version to a stable semver",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+				- major|minor|patch: how to increment from the latest stable release
+			`),
+		},
 		Long: heredoc.Doc(`
 			Promote a dev orb version to a stable semver version.
 
@@ -138,6 +144,13 @@ func newPublishIncrementCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "increment <path> <ns>/<orb> major|minor|patch",
 		Short: "Increment and publish a new orb version",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <path>: path to the orb YAML to publish. Pass '-' to read from stdin.
+				- <ns>/<orb>: the orb to publish, as "namespace/orb-name"
+				- major|minor|patch: how to increment from the current latest stable version
+			`),
+		},
 		Long: heredoc.Doc(`
 			Read orb YAML from path, compute the next version by incrementing
 			the current latest stable version, and publish it.

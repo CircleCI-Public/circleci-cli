@@ -46,6 +46,13 @@ func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <context-id|context-name>",
 		Short: "Get details of a context",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				A context can be specified in the form:
+				- "context-name"
+				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+			`),
+		},
 		Long: heredoc.Doc(`
 			Display details of a CircleCI context, including its environment
 			variable names and metadata.

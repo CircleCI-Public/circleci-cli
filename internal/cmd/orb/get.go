@@ -42,6 +42,13 @@ func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <ns>/<orb>[@<version>]/<orb-id>",
 		Short: "Get orb metadata and statistics",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				An orb can be specified in the form:
+				- "namespace/orb-name", optionally with a version, e.g. "namespace/orb-name@1.2.3"
+				- by orb ID (UUID), e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+			`),
+		},
 		Long: heredoc.Doc(`
 			Get metadata and statistics for an orb.
 

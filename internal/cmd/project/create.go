@@ -46,6 +46,14 @@ func newCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create [project-name] --org <vcs/org-slug>",
 		Short: "Create a new project",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				[project-name] is the name for the new project and is optional.
+				When omitted, the current git repository's name is used: in a
+				terminal you are prompted with it as the default, and in
+				non-interactive mode it is used automatically.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Create a new CircleCI project in the given organization.
 

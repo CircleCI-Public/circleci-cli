@@ -17,6 +17,12 @@ Specify a version with @<version> (e.g. @1.2.3 or @volatile for latest).
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <ns>/<orb>[@<version>]: the orb to print, as "namespace/orb-name".
+  Optionally append @<version> (e.g. @1.2.3, @volatile, or @dev:my-branch).
+  When omitted, the latest published version is shown.
+
 ## Examples
 
 - Print source of the latest version: 

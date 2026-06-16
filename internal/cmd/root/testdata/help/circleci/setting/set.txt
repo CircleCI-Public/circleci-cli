@@ -26,6 +26,12 @@ terminal to pick a theme from a list.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <key> is the setting to change: token, host, telemetry, or theme.
+- <value> is the value to store. Pass "-" to read it from stdin.
+  May be omitted for "theme" to pick interactively.
+
 ## Examples
 
 - Store your personal API token: 

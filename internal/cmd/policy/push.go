@@ -45,6 +45,13 @@ func newPushCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "push <path>",
 		Short: "Push a policy bundle to CircleCI",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<path> is the path to a local directory of .rego policy files,
+				e.g. "./policies". Its contents are uploaded as the policy
+				bundle, replacing the existing bundle.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Upload a directory of .rego files as a policy bundle.
 

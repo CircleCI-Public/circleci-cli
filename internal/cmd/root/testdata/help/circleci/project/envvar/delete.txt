@@ -30,6 +30,11 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<name> is the name of the environment variable to delete from
+the project. This action is irreversible.
+
 ## Examples
 
 - Delete an env var from the current project (with confirmation): 

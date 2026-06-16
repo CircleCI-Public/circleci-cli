@@ -43,6 +43,12 @@ func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <job-id>",
 		Short: "Get job details",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<job-id> is the UUID of the job to look up. Job UUIDs are shown in
+				the output of "circleci workflow get" and "circleci run get --json".
+			`),
+		},
 		Long: heredoc.Doc(`
 			Display the status and steps of a CircleCI job.
 

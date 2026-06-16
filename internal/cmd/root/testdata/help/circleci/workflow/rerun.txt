@@ -26,6 +26,11 @@ Workflow IDs are shown in the output of 'circleci run get'.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<workflow-id> is the UUID of the workflow to rerun. Workflow IDs are
+shown in the output of "circleci run get".
+
 ## Examples
 
 - Rerun all jobs in a workflow from scratch: 

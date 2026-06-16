@@ -26,6 +26,11 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+The resource class to delete, given in the form "namespace/name",
+where namespace is your organization name (e.g. my-org/my-runner).
+
 ## Examples
 
 - Delete a resource class (with confirmation prompt): 

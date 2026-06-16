@@ -37,6 +37,13 @@ JSON fields: id, slug, name, organization_name, organization_slug,
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+[project-name] is the name for the new project and is optional.
+When omitted, the current git repository's name is used: in a
+terminal you are prompted with it as the default, and in
+non-interactive mode it is used automatically.
+
 ## Examples
 
 - Create a project (prompted for name if run interactively): 

@@ -38,6 +38,13 @@ func newSourceCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "source <ns>/<orb>[@<version>]",
 		Short: "Print the YAML source of an orb version",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <ns>/<orb>[@<version>]: the orb to print, as "namespace/orb-name".
+				  Optionally append @<version> (e.g. @1.2.3, @volatile, or @dev:my-branch).
+				  When omitted, the latest published version is shown.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Print the raw YAML source of an orb version.
 
