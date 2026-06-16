@@ -1,0 +1,7 @@
+{{- /* Turn a heading title into a short nav label: strip the "circleci "
+       prefix and any "<arg>"/"[flags]" hints, e.g. "circleci auth login [flags]"
+       -> "auth login". Returns a string. */ -}}
+{{- $l := . | plainify | htmlUnescape | strings.TrimPrefix "circleci " -}}
+{{- $l = index (split $l " <") 0 -}}
+{{- $l = index (split $l " [") 0 -}}
+{{- return $l -}}

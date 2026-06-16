@@ -1,0 +1,226 @@
+/*
+ * Copyright (c) 2026 Circle Internet Services, Inc.
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
+
+/* A man-page-like reference: a sticky command nav on the left and a single
+   readable content column. Palette mirrors the CLI's OAuth landing page
+   (internal/oauth/page.html): navy by default, light via prefers-color-scheme. */
+
+:root {
+  --bg: #1a2035;
+  --surface: #222b3e;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --fg: #e8edf7;
+  --heading: #ffffff;
+  --muted: #7b8db5;
+  --accent: #6ea8fe;
+  --accent-hover: #9cc4ff;
+  --code-bg: rgba(255, 255, 255, 0.06);
+
+  --mono: ui-monospace, "SFMono-Regular", "Menlo", "Consolas", monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --sidebar-w: 17rem;
+  --measure: 48rem;
+}
+
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #ffffff;
+    --surface: #f0f3fa;
+    --border: rgba(0, 0, 0, 0.10);
+    --border-strong: rgba(0, 0, 0, 0.16);
+    --fg: #2b3757;
+    --heading: #1a2035;
+    --muted: #5a6b8a;
+    --accent: #1a5fd0;
+    --accent-hover: #0b47ab;
+    --code-bg: rgba(26, 32, 53, 0.06);
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+/* ---- Layout ----------------------------------------------------------- */
+
+.layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) minmax(0, 1fr);
+  align-items: start;
+}
+
+/* ---- Sidebar / command nav -------------------------------------------- */
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1.5rem 1rem;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 1.5rem;
+  color: var(--heading);
+}
+.brand:hover { text-decoration: none; }
+.brand svg { width: 1.9rem; height: 1.9rem; fill: var(--heading); flex: none; }
+.brand-text { display: flex; flex-direction: column; line-height: 1.2; }
+.brand-prog { font-family: var(--mono); font-weight: 700; font-size: 1rem; }
+.brand-sub {
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.toc ul { list-style: none; margin: 0; padding: 0; }
+.toc a {
+  display: block;
+  padding: 0.22rem 0.5rem;
+  border-radius: 5px;
+  color: var(--fg);
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.toc a:hover { background: var(--code-bg); color: var(--heading); text-decoration: none; }
+
+/* Three levels: top sections ("Getting started", "Reference"), then commands,
+   then subcommands — each a little deeper and quieter than the last. */
+.toc > ul > li > a {
+  margin-top: 0.5rem;
+  font-weight: 700;
+  color: var(--heading);
+}
+.toc > ul > li > ul > li > a { padding-left: 1.2rem; }
+.toc ul ul ul a { padding-left: 2.2rem; font-size: 0.78rem; color: var(--muted); }
+.toc ul ul ul a:hover { color: var(--heading); }
+.toc :target { color: var(--accent); }
+
+/* ---- Content ---------------------------------------------------------- */
+
+.content-col { min-width: 0; }
+
+.content {
+  max-width: var(--measure);
+  margin: 0 auto;
+  padding: 2.5rem 2rem 1rem;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--mono);
+  color: var(--heading);
+  line-height: 1.25;
+  scroll-margin-top: 1rem;
+}
+h1 { font-size: 1.7rem; margin: 0 0 1.25rem; }
+h2 {
+  font-size: 1.2rem;
+  margin: 2.75rem 0 0.6rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-strong);
+}
+h3 { font-size: 1.02rem; margin: 1.9rem 0 0.4rem; }
+h4 { font-size: 0.95rem; margin: 1.5rem 0 0.35rem; color: var(--muted); }
+
+p { margin: 0.5rem 0 1rem; }
+
+code, kbd, pre { font-family: var(--mono); font-size: 0.86em; }
+code {
+  background: var(--code-bg);
+  padding: 0.1em 0.35em;
+  border-radius: 4px;
+}
+h1 code, h2 code, h3 code, h4 code { background: none; padding: 0; }
+
+/* Flag tables. */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0.75rem 0 1.5rem;
+  font-size: 0.9rem;
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.45rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+}
+th {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+td:first-child { white-space: nowrap; font-family: var(--mono); }
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  max-width: var(--measure);
+  margin: 2rem auto 0;
+  padding: 1rem 2rem 2.5rem;
+  border-top: 1px solid var(--border);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+/* ---- Narrow screens: nav stacks above the content -------------------- */
+
+@media (max-width: 52rem) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .toc { max-height: 16rem; overflow-y: auto; }
+  .content { padding-top: 1.5rem; }
+}

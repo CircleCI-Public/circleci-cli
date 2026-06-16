@@ -1,0 +1,17 @@
+# Getting started
+`circleci` is a command-line interface to CircleCI for use in your terminal or your scripts.
+
+## Installation
+
+Installation instructions are in the README:
+<https://github.com/CircleCI-Public/circleci-cli#readme>
+
+## Configuration
+
+Run `circleci auth login` to authenticate with your CircleCI account. You can also set the
+`CIRCLE_TOKEN` environment variable.
+
+## Support
+
+Report bugs or search for existing feature requests in our issue tracker:
+<https://github.com/CircleCI-Public/circleci-cli/issues>

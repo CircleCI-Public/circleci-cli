@@ -26,6 +26,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"strings"
+	"unicode"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -41,6 +43,28 @@ type helpTopic struct {
 }
 
 var helpTopics = []helpTopic{
+	{
+		name:  "getting-started",
+		short: "Install, authenticate, and start using circleci",
+		long: heredoc.Docf(`
+			%[1]scircleci%[1]s is a command-line interface to CircleCI for use in your terminal or your scripts.
+
+			## Installation
+
+			Installation instructions are in the README:
+			<https://github.com/CircleCI-Public/circleci-cli#readme>
+
+			## Configuration
+
+			Run %[1]scircleci auth login%[1]s to authenticate with your CircleCI account. You can also set the
+			%[1]sCIRCLE_TOKEN%[1]s environment variable.
+
+			## Support
+
+			Report bugs or search for existing feature requests in our issue tracker:
+			<https://github.com/CircleCI-Public/circleci-cli/issues>
+		`, "`"),
+	},
 	{
 		name:  "environment",
 		short: "Environment variables that can be used with circleci",
@@ -168,7 +192,7 @@ func newCmdHelpTopic(ht helpTopic, initConfig func(cmd *cobra.Command) (func(), 
 
 func helpTopicHelpFunc(ctx context.Context, command *cobra.Command) {
 	var md bytes.Buffer
-	_, _ = fmt.Fprintf(&md, "# %s\n", titleCase(command.Name()))
+	_, _ = fmt.Fprintf(&md, "# %s\n", topicTitle(command.Name()))
 	md.WriteString(command.Long)
 	if command.Example != "" {
 		_, _ = fmt.Fprintf(&md, "\n\nExamples\n")
@@ -181,4 +205,17 @@ func helpTopicHelpFunc(ctx context.Context, command *cobra.Command) {
 func helpTopicUsageFunc(ctx context.Context, command *cobra.Command) error {
 	iostream.ErrPrintf(ctx, "Usage: circleci help %s", command.Use)
 	return nil
+}
+
+// topicTitle turns a topic's command name into a display heading: hyphens
+// become spaces and only the first letter is capitalized, so "getting-started"
+// reads as "Getting started" (single-word topics are unaffected).
+func topicTitle(name string) string {
+	name = strings.ReplaceAll(name, "-", " ")
+	if name == "" {
+		return name
+	}
+	r := []rune(name)
+	r[0] = unicode.ToUpper(r[0])
+	return string(r)
 }

@@ -27,6 +27,14 @@ vars:
   TEST_REPORT: test-reports/tests.xml
   LINT_REPORT: test-reports/lint.xml
 
+  # Docs site toolchain (installed by the `docs:install` task).
+  TOOLS_DIR: bin/tools
+  HUGO: ./bin/tools/hugo
+  HTMLTEST: ./bin/tools/htmltest
+  # Hugo project lives in website/; built output lands in website/public.
+  SITE_DIR: website
+  SITE_OUT: website/public
+
 tasks:
   build:
     desc: Build the circleci binary
@@ -104,6 +112,9 @@ tasks:
           -ignore "test-reports/**" \
           -ignore "**/*.html" \
           -ignore "acceptance/testdata/**" \
+          -ignore "bin/**" \
+          -ignore "website/content/**" \
+          -ignore "website/public/**" \
           {{.ARGS}}
 
   mod-tidy:
@@ -141,6 +152,113 @@ tasks:
     desc: Run go generate
     cmds:
       - go generate ./...
+
+  # Docs site tasks
+  #
+  # The reference page is generated from the live command tree via
+  # `circleci reference`, then rendered into a static site with Hugo. It's a
+  # single page today; the layout is structured so we can split it later.
+
+  docs:install:
+    desc: Download the Hugo and htmltest binaries into bin/tools
+    vars:
+      HUGO_VERSION: 0.150.0
+      HTMLTEST_VERSION: 0.17.0
+      # htmltest names the macOS build "macos"; Hugo uses "darwin".
+      HTMLTEST_OS: '{{if eq OS "darwin"}}macos{{else}}{{OS}}{{end}}'
+      HUGO_ARCH: '{{if eq OS "darwin"}}universal{{else}}{{ARCH}}{{end}}'
+    status:
+      - test -x {{.HUGO}}
+      - test -x {{.HTMLTEST}}
+    cmds:
+      - mkdir -p {{.TOOLS_DIR}}
+      # Use the non-extended Hugo: it's a static pure-Go binary with no glibc
+      # dependency, so it runs on older CI images. The site uses no SCSS/Sass or
+      # image processing, so the "extended" build (dynamically linked) isn't needed.
+      - >-
+        curl -fsSL
+        'https://github.com/gohugoio/hugo/releases/download/v{{.HUGO_VERSION}}/hugo_{{.HUGO_VERSION}}_{{OS}}-{{.HUGO_ARCH}}.tar.gz'
+        | tar -C {{.TOOLS_DIR}} -xz hugo
+      - >-
+        curl -fsSL
+        'https://github.com/wjdp/htmltest/releases/download/v{{.HTMLTEST_VERSION}}/htmltest_{{.HTMLTEST_VERSION}}_{{.HTMLTEST_OS}}_{{ARCH}}.tar.gz'
+        | tar -C {{.TOOLS_DIR}} -xz htmltest
+
+  docs:reference:
+    desc: Generate the reference page from the live command tree
+    cmds:
+      - mkdir -p {{.SITE_DIR}}/content
+      - |
+        {
+          echo '---'
+          echo 'title: CircleCI CLI Reference'
+          echo '---'
+          echo
+          go run ./cmd/circleci getting-started
+          echo
+          go run ./cmd/circleci reference
+        } > {{.SITE_DIR}}/content/_index.md
+
+  docs:clean:
+    desc: Remove the built docs site
+    cmds:
+      - rm -rf {{.SITE_OUT}}
+
+  docs:build:
+    desc: Generate the reference and build the static site
+    deps:
+      - docs:clean
+      - docs:reference
+    cmds:
+      - '{{.HUGO}} --source {{.SITE_DIR}} --minify --gc'
+
+  docs:server:
+    desc: Serve the docs site locally with live reload
+    deps:
+      - docs:reference
+    cmds:
+      - '{{.HUGO}} server --source {{.SITE_DIR}} {{.CLI_ARGS}}'
+
+  docs:test:
+    desc: Validate the built site's internal links with htmltest
+    cmds:
+      - '{{.HTMLTEST}} -c {{.SITE_DIR}}/.htmltest.yml {{.CLI_ARGS}}'
+
+  docs:hugo:
+    desc: Run the pinned Hugo binary with arbitrary arguments
+    cmds:
+      - '{{.HUGO}} --source {{.SITE_DIR}} {{.CLI_ARGS}}'
+
+  ci:docs:publish:
+    desc: Publish the built site to the gh-pages branch (CI only)
+    vars:
+      BRANCH: gh-pages
+      WORKTREE: .gh-pages
+      MESSAGE: 'Deploy docs from {{env "CIRCLE_SHA1" | default "local"}}'
+    cmds:
+      - test -d {{.SITE_OUT}} || { echo "Run 'task docs:build' first."; exit 1; }
+      # In CI, identity comes from the release context; locally, keep existing config.
+      - |
+        if [ -n "${GH_EMAIL:-}" ]; then git config --global user.email "$GH_EMAIL"; fi
+        if [ -n "${GH_NAME:-}" ]; then git config --global user.name "$GH_NAME"; fi
+      - rm -rf {{.WORKTREE}}
+      - git worktree prune
+      - |
+        git fetch origin {{.BRANCH}} || true
+        if git rev-parse --verify --quiet refs/remotes/origin/{{.BRANCH}}; then
+          git worktree add -B {{.BRANCH}} {{.WORKTREE}} origin/{{.BRANCH}}
+        else
+          git worktree add --orphan -b {{.BRANCH}} {{.WORKTREE}}
+        fi
+      # Replace the branch's contents wholesale so deletions propagate, then copy
+      # in the freshly built site (the .git pointer file must survive).
+      - find {{.WORKTREE}} -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+      - cp -R {{.SITE_OUT}}/. {{.WORKTREE}}/
+      - |
+        git -C {{.WORKTREE}} add -A
+        git -C {{.WORKTREE}} commit -m '{{.MESSAGE}}' || { echo "No changes to publish."; }
+        git -C {{.WORKTREE}} push origin {{.BRANCH}}
+      - git worktree remove --force {{.WORKTREE}}
 
   # CI tasks
 

@@ -200,6 +200,36 @@ jobs:
       - store_artifacts:
           path: dist
 
+  docs:
+    executor: linux
+    steps:
+      - setup
+      - run:
+          name: Install docs toolchain (Hugo + htmltest)
+          command: task docs:install
+      - run:
+          name: Generate reference and build the site
+          command: task docs:build
+      - run:
+          name: Check internal links
+          command: task docs:test
+      - store_artifacts:
+          path: website/public
+
+  docs-publish:
+    executor: linux
+    steps:
+      - setup
+      - run:
+          name: Install docs toolchain (Hugo + htmltest)
+          command: task docs:install
+      - run:
+          name: Generate reference and build the site
+          command: task docs:build
+      - run:
+          name: Publish to gh-pages
+          command: task ci:docs:publish
+
   ok-to-deploy:
     type: no-op
 
@@ -207,7 +237,13 @@ workflows:
   ci:
     jobs:
 
-      - check
+      # gh-pages holds only generated HTML — never run CI on it. Entry jobs (no
+      # `requires`) must opt out explicitly; downstream jobs are gated by these.
+
+      - check:
+          filters:
+            branches:
+              ignore: gh-pages
 
       - test:
           matrix:
@@ -216,6 +252,14 @@ workflows:
                 - linux
                 - macos
                 - windows
+          filters:
+            branches:
+              ignore: gh-pages
+
+      - docs:
+          filters:
+            branches:
+              ignore: gh-pages
 
       - deploy:
           name: dry-run
@@ -223,12 +267,15 @@ workflows:
             - run: task ci:build
           filters:
             branches:
-              ignore: main
+              ignore:
+                - main
+                - gh-pages
 
       - ok-to-deploy:
           requires:
             - check
             - test
+            - docs
           filters:
             branches:
               only: main
@@ -243,3 +290,9 @@ workflows:
           context:
             - devex-release
             - macos-codesigning
+
+      - docs-publish:
+          requires:
+            - ok-to-deploy
+          context:
+            - devex-release
