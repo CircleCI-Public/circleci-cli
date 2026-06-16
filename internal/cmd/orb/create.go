@@ -44,6 +44,12 @@ func newCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <namespace>/<orb>",
 		Short: "Reserve an orb name in a namespace",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <namespace>/<orb>: the orb name to reserve, as "namespace/orb-name".
+				  The namespace must already exist.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Reserve an orb name in the given namespace.
 

@@ -27,6 +27,11 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<cert-id> is the ID of the certificate to delete
+(see: circleci certificate list).
+
 ## Examples
 
 - Delete a certificate (with confirmation): 

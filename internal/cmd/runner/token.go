@@ -189,6 +189,12 @@ func newTokenCreateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "create <resource-class>",
 		Short: "Create a token for a resource class",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<resource-class> is the runner resource class to create a token for,
+				in the form "namespace/name" (e.g. my-org/my-runner).
+			`),
+		},
 		Long: heredoc.Doc(`
 			Create a new authentication token for a runner resource class.
 
@@ -272,6 +278,12 @@ func newTokenDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <token-id>",
 		Short: "Delete a runner token",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<token-id> is the ID of the token to delete (a UUID). Find token IDs
+				with: circleci runner token list --resource-class <namespace/name>
+			`),
+		},
 		Long: heredoc.Doc(`
 			Delete a CircleCI runner authentication token by its ID.
 

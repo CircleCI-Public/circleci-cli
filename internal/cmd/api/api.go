@@ -57,6 +57,13 @@ func NewAPICmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "api <path>",
 		Short: "Make an API call",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<path> is the request path. It is relative to /api/v2 by default
+				(e.g. "/project/gh/org/repo"). To target a different version
+				prefix, include it explicitly, e.g. "/api/v1.1/me".
+			`),
+		},
 		Long: heredoc.Doc(`
 			Make an authenticated HTTP request to the REST APIs and print
 			the raw response body.

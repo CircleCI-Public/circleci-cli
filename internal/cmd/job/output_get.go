@@ -51,6 +51,13 @@ func newOutputGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <job-id>",
 		Short: "Get the output of a job step",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<job-id> is the UUID of the job whose step output to fetch. Job UUIDs
+				are shown in the output of "circleci workflow get" and "circleci job get".
+				Use --step-num to select which step's output to read.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Fetch the raw stdout and stderr of a single step within a job and
 			print it to the terminal.

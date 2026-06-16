@@ -45,6 +45,13 @@ func newDeleteCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "delete <context-id|context-name>",
 		Short: "Delete a context",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				A context can be specified in the form:
+				- "context-name"
+				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+			`),
+		},
 		Long: heredoc.Doc(`
 			Delete a CircleCI context by UUID or name.
 

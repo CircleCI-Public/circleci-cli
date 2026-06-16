@@ -41,6 +41,11 @@ func newProcessCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "process <path>",
 		Short: "Validate and print expanded orb YAML",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <path>: path to an orb YAML file. Pass '-' to read from stdin.
+			`),
+		},
 		Long: heredoc.Doc(`
 			Validate an orb YAML file and print the expanded (processed) YAML.
 

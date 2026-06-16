@@ -23,6 +23,10 @@ The merged YAML is written to stdout.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <path>: path to an orb source directory or a single orb YAML file.
+
 ## Examples
 
 - Pack a single orb file: 

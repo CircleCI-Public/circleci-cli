@@ -19,6 +19,12 @@ Exit code is 0 regardless of whether the versions differ.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <ns>/<orb>: the orb to diff, as "namespace/orb-name"
+- <v1>: the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)
+- <v2>: the second version, in the same form as <v1>
+
 ## Examples
 
 - Diff two semver versions: 

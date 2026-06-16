@@ -18,6 +18,11 @@ from the latest stable release.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+- major|minor|patch: how to increment from the latest stable release
+
 ## Examples
 
 - Promote dev:my-branch to a patch release: 

@@ -66,6 +66,17 @@ func newWatchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "watch [<run-id>]",
 		Short: "Watch a run until it completes",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<run-id> is optional and selects the run to watch. It can be:
+				- a run UUID (shown in "circleci run list --json")
+				- a run number (shown in "circleci run list"); the project is
+				  inferred from the git remote unless overridden with --project
+
+				When omitted, the latest run for the current branch is watched
+				(override the branch with --branch, or match a commit with --sha).
+			`),
+		},
 		Long: heredoc.Doc(`
 			Monitor a CircleCI run and block until it reaches a terminal state.
 

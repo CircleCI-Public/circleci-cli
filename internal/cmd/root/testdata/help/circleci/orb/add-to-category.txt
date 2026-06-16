@@ -17,6 +17,11 @@ to see available categories.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <ns>/<orb>: the orb to add, as "namespace/orb-name"
+- <category>: the registry category name, e.g. "Testing"
+
 ## Examples
 
 - Add an orb to the Testing category: 

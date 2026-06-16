@@ -38,6 +38,12 @@ func newUnlistCmd() *cobra.Command {
 	return &cobra.Command{
 		Use:   "unlist <ns>/<orb> true|false",
 		Short: "Hide or restore an orb in the registry",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <ns>/<orb>: the orb to update, as "namespace/orb-name"
+				- true|false: pass 'true' to hide (unlist) the orb, 'false' to restore its visibility
+			`),
+		},
 		Long: heredoc.Doc(`
 			Control whether an orb is visible in the CircleCI orb registry.
 

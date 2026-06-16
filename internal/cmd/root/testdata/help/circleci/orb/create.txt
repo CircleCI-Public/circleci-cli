@@ -32,6 +32,11 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <namespace>/<orb>: the orb name to reserve, as "namespace/orb-name".
+  The namespace must already exist.
+
 ## Examples
 
 - Create a public orb: 

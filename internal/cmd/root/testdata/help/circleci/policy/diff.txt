@@ -28,6 +28,12 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<path> is the path to a local directory of .rego policy files,
+e.g. "./policies". Its contents are compared against the remote
+policy bundle.
+
 ## Examples
 
 - Diff policies in ./policies against the remote bundle: 

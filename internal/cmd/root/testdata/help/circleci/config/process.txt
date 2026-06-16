@@ -28,6 +28,12 @@ Pass a file path or "-" to read from stdin.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<path> is the path to a pipeline config file to compile,
+e.g. ".circleci/config.yml". Pass "-" to read the config
+from stdin.
+
 ## Examples
 
 - Process the default config: 

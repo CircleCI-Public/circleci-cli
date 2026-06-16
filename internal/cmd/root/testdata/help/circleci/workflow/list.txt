@@ -44,6 +44,16 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<run-id> is optional and selects a single run. It can be:
+- a run UUID (shown in "circleci run list --json")
+- a run number (shown in "circleci run list"); the project is
+  inferred from the git remote unless overridden with --project
+
+When omitted, workflows for recent runs in the current project are
+listed, grouped by run.
+
 ## Examples
 
 - List workflows for recent runs in the current project: 

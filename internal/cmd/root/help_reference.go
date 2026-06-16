@@ -71,11 +71,11 @@ func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
 	// Render the arguments annotation as a bold label rather than a heading so
 	// it doesn't show up as a section in the generated site's heading nav.
 	if args := cmd.Annotations["help:arguments"]; strings.Trim(args, "\n") != "" {
-		_, _ = fmt.Fprintf(w, "**Arguments**\n\n%s\n\n", strings.Trim(args, "\n"))
+		_, _ = fmt.Fprintf(w, "**Arguments:**\n\n%s\n\n", strings.Trim(args, "\n"))
 	}
 
 	if len(cmd.Aliases) > 0 {
-		_, _ = fmt.Fprintf(w, "%s\n\n", "Aliases:")
+		_, _ = fmt.Fprintf(w, "%s\n\n", "**Aliases:**")
 		aliasList := buildAliasList(cmd, cmd.Aliases)
 		for i, a := range aliasList {
 			aliasList[i] = "`" + a + "`"

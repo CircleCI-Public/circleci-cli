@@ -45,6 +45,12 @@ func newListCmd() *cobra.Command {
 		Use:     "list [<namespace>]",
 		Aliases: []string{"ls"},
 		Short:   "List orbs in the registry",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				- <namespace>: optional. When given, lists all orbs in that namespace.
+				  When omitted, lists certified orbs globally.
+			`),
+		},
 		Long: heredoc.Doc(`
 			List orbs in the CircleCI orb registry.
 

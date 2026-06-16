@@ -39,6 +39,12 @@ state. Use --strip-ansi to force this rendering even on a terminal.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<job-id> is the UUID of the job whose step output to fetch. Job UUIDs
+are shown in the output of "circleci workflow get" and "circleci job get".
+Use --step-num to select which step's output to read.
+
 ## Examples
 
 - Get the output of step 3 in a job: 

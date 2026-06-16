@@ -28,6 +28,10 @@ Use --dry-run (-n) to preview what would be deleted without deleting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<name> is the name of the namespace to delete, e.g. "myorg".
+
 ## Examples
 
 - Delete a namespace (with confirmation prompt): 

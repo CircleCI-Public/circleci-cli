@@ -32,6 +32,12 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+A context can be specified in the form:
+- "context-name"
+- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+
 ## Examples
 
 - Delete a restriction (with confirmation): 

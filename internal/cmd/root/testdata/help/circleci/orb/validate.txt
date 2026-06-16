@@ -27,6 +27,10 @@ Exit code 7 if the orb is invalid.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <path>: path to an orb YAML file. Pass '-' to read from stdin.
+
 ## Examples
 
 - Validate an orb file: 

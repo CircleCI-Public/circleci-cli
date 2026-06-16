@@ -28,6 +28,11 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<token-id> is the ID of the token to delete (a UUID). Find token IDs
+with: circleci runner token list --resource-class <namespace/name>
+
 ## Examples
 
 - Delete a token by ID (with confirmation prompt): 

@@ -29,6 +29,11 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+The resource class name must be given in the form "namespace/name",
+where namespace is your organization name (e.g. my-org/my-runner).
+
 ## Examples
 
 - Create a resource class: 

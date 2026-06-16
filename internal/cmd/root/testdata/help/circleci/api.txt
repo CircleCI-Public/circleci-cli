@@ -42,6 +42,12 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<path> is the request path. It is relative to /api/v2 by default
+(e.g. "/project/gh/org/repo"). To target a different version
+prefix, include it explicitly, e.g. "/api/v1.1/me".
+
 ## Examples
 
 - Get your user profile: 

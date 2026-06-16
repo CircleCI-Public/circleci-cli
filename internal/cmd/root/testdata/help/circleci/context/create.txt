@@ -30,6 +30,10 @@ For more information about output formatting flags, see `circleci help formattin
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+The name for the new context, e.g. "build-secrets".
+
 ## Examples
 
 - Create a context for the org inferred from git remote: 

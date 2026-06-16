@@ -18,6 +18,11 @@ categories.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+- <ns>/<orb>: the orb to remove, as "namespace/orb-name"
+- <category>: the registry category name, e.g. "Testing"
+
 ## Examples
 
 - Remove an orb from the Testing category: 

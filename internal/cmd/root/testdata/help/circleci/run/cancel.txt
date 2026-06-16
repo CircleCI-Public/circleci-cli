@@ -30,6 +30,13 @@ Use --force (-f) to skip the prompt for scripting.
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
+## Arguments
+
+<run-number-or-id> identifies the run to cancel. It can be:
+- a run UUID (shown in "circleci run list --json")
+- a run number (shown in "circleci run list"); the project is
+  inferred from the git remote unless overridden with --project
+
 ## Examples
 
 - Cancel a run by number (with confirmation): 
