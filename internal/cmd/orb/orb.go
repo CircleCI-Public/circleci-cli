@@ -39,9 +39,9 @@ import (
 func NewOrbCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "orb <command>",
-		Short: "Manage orbs",
+		Short: "Create, publish and inspect orbs (reusable config)",
 		Long: heredoc.Doc(`
-			Managed orbs in the orb registry.
+			Manage orbs in the orb registry.
 
 			Orbs are reusable packages of CircleCI configuration. They can be
 			published to a namespace and shared with the community or kept private.

@@ -46,7 +46,7 @@ import (
 func NewConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "config <command>",
-		Short: "Work with pipeline config",
+		Short: "Generate, validate, process and pack config YAML",
 		Long: heredoc.Doc(`
 			Work with the pipeline configuration file at .circleci/config.yml.
 

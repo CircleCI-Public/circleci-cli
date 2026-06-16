@@ -16,17 +16,17 @@ To manage environment variables directly, use the top-level alias:
 
 ## Available Commands
 
-| Command   | Description                              |
-| --------- | ---------------------------------------- |
-| `create`  | Create a new project                     |
-| `dlc`     | Manage docker layer caching              |
-| `envvar`  | Manage project environment variables     |
-| `follow`  | Follow a project                         |
-| `get`     | Show project details                     |
-| `link`    | Bind this checkout to a CircleCI project |
-| `list`    | List followed projects                   |
-| `open`    | Open the project page in the browser     |
-| `trigger` | Manage project triggers                  |
+| Command   | Description                                            |
+| --------- | ------------------------------------------------------ |
+| `create`  | Create a new project                                   |
+| `dlc`     | Purge a project's Docker layer cache (DLC)             |
+| `envvar`  | List, set and delete a project's environment variables |
+| `follow`  | Follow a project                                       |
+| `get`     | Show project details                                   |
+| `link`    | Bind this checkout to a CircleCI project               |
+| `list`    | List followed projects                                 |
+| `open`    | Open the project page in the browser                   |
+| `trigger` | Manage project triggers                                |
 
 ## Inherited Flags
 

@@ -34,7 +34,7 @@ import (
 func NewDeployCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "deploy <command>",
-		Short: "Manage deploys",
+		Short: "Track released components and versions",
 		Long: heredoc.Doc(`
 			Work with CircleCI Deploys.
 

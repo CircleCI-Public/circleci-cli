@@ -38,7 +38,7 @@ import (
 func NewEnvVarCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "envvar <command>",
-		Short: "Manage project environment variables",
+		Short: "List, set and delete a project's environment variables",
 		Long: heredoc.Doc(`
 			List, set, and delete environment variables for a CircleCI project.
 

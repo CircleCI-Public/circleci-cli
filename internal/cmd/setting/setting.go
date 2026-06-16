@@ -33,7 +33,7 @@ import (
 func NewSettingCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "setting <command>",
-		Short: "Manage CLI settings",
+		Short: "Configure the CLI itself (token, host, defaults)",
 		Long: heredoc.Doc(`
 			View and modify settings for the circleci CLI tool.
 

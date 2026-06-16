@@ -34,7 +34,7 @@ import (
 func NewDLCCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "dlc <command>",
-		Short: "Manage docker layer caching",
+		Short: "Purge a project's Docker layer cache (DLC)",
 		Long: heredoc.Doc(`
 			Manage docker layer caching (DLC) for projects.
 

@@ -31,7 +31,7 @@ import (
 func NewJobCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "job <command>",
-		Short: "Manage jobs",
+		Short: "Inspect a job's details, output and artifacts",
 		Long: heredoc.Doc(`
 			Work with CircleCI jobs.
 

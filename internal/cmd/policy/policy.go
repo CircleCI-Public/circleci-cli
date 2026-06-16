@@ -35,7 +35,7 @@ import (
 func NewPolicyCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "policy <command>",
-		Short: "Manage security policies",
+		Short: "Govern config with Rego security policies",
 		Long: heredoc.Doc(`
 			Manage security policies.
 

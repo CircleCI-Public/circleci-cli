@@ -35,7 +35,7 @@ import (
 func NewContextCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "context <command>",
-		Short: "Manage contexts",
+		Short: "Manage secret env vars shared across pipelines",
 		Long: heredoc.Doc(`
 			Work with CircleCI contexts.
 
