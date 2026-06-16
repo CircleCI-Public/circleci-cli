@@ -256,7 +256,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Use(chirecorder.Middleware(f.RequestRecorder))
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
-	r.Post("/api/v2/workflow/{id}/rerun", f.handleRerunWorkflow)
+	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)
 	r.Post("/api/v3/workflows/{id}/cancel", f.handleCancelWorkflow)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
@@ -949,7 +949,7 @@ func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Status(r, status)
-	render.JSON(w, r, map[string]any{"message": "Accepted."})
+	render.JSON(w, r, map[string]any{"data": map[string]any{"workflow_id": id}})
 }
 
 func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) {
