@@ -44,32 +44,32 @@ import (
 const watchSlug = "gh/testorg/testrepo"
 const watchProjectID = "proj-uuid-watch"
 
-// setupWatchFake builds a fake with one event whose single workflow has the
-// given status. It registers the event in both V2 (for number lookup and
-// workflow fetching) and V3 (for event detail), plus project info for
+// setupWatchFake builds a fake with one run whose single workflow has the
+// given status. It registers the run in both V2 (for number lookup and
+// workflow fetching) and V3 (for run detail), plus project info for
 // search-based lookups.
-func setupWatchFake(t *testing.T, eventID, wfID, wfStatus string) (*fakes.CircleCI, *testenv.TestEnv) {
+func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
-	v2Run := fakeRun(eventID, 75, "created", watchSlug, "main")
+	v2Run := fakeRun(runID, 75, "created", watchSlug, "main")
 	v2Run["vcs"].(map[string]any)["revision"] = "abc1234def5678abcdef"
 
-	// Map V2 workflow status to V3 outcome for the event.
+	// Map V2 workflow status to V3 outcome for the run.
 	v3Outcome := wfStatus
 	if v3Outcome == "success" {
 		v3Outcome = "succeeded"
 	}
-	v3Event := fakeEventV3(eventID, watchProjectID, "ended", v3Outcome, "main", "abc1234def5678abcdef")
+	v3Run := fakeRunV3(runID, watchProjectID, "ended", v3Outcome, "main", "abc1234def5678abcdef")
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddEventV3(eventID, watchProjectID, v3Event)
-	fake.AddRun(eventID, v2Run)
+	fake.AddRunV3(runID, watchProjectID, v3Run)
+	fake.AddRun(runID, v2Run)
 	fake.AddProjectRuns(watchSlug, v2Run)
 	v3WfOutcome := wfStatus
 	if v3WfOutcome == "success" {
 		v3WfOutcome = "succeeded"
 	}
-	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, watchProjectID, "ended", v3WfOutcome))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", v3WfOutcome))
 	fake.AddWorkflowJobsV3(wfID,
 		fakeJobV3("job-1", "lint", wfID, watchProjectID),
 		fakeJobV3("job-2", "test", wfID, watchProjectID),
@@ -101,31 +101,31 @@ func TestEventWatch_ByNumber(t *testing.T) {
 // --- watch by UUID (no --project or --branch needed) ---
 
 func TestEventWatch_ByUUID(t *testing.T) {
-	eventID := "0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd"
-	_, env := setupWatchFake(t, eventID, "watch-wf-uuid-001", "success")
+	runID := "0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd"
+	_, env := setupWatchFake(t, runID, "watch-wf-uuid-001", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "watch", eventID},
+		Args:    []string{"event", "watch", runID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, eventID), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, runID), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
 // --- watch latest (no number arg) ---
 
 func TestEventWatch_Latest(t *testing.T) {
-	eventID := "watch-pid-002"
+	runID := "watch-pid-002"
 	wfID := "watch-wf-002"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddEventV3(eventID, watchProjectID, fakeEventV3(eventID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, watchProjectID, "ended", "succeeded"))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
@@ -143,7 +143,7 @@ func TestEventWatch_Latest(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
-// --- failed event → exit 1 ---
+// --- failed run → exit 1 ---
 
 func TestEventWatch_Failed(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-003", "watch-wf-003", "failed")
@@ -163,7 +163,7 @@ func TestEventWatch_Failed(t *testing.T) {
 // --- failed pipeline with a failed job → suggests viewing logs ---
 
 func TestEventWatch_Failed_SuggestsJobLogs(t *testing.T) {
-	eventID := "watch-pid-failedjob"
+	runID := "watch-pid-failedjob"
 	wfID := "watch-wf-failedjob"
 
 	failedJob := fakeJobV3("job-1", "integration-test", wfID, watchProjectID)
@@ -172,10 +172,10 @@ func TestEventWatch_Failed_SuggestsJobLogs(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddEventV3(eventID, watchProjectID, fakeEventV3(eventID, watchProjectID, "ended", "failed", "main", "abc1234def5678"))
-	fake.AddRun(eventID, fakeRun(eventID, 75, "created", watchSlug, "main"))
-	fake.AddProjectRuns(watchSlug, fakeRun(eventID, 75, "created", watchSlug, "main"))
-	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, watchProjectID, "ended", "failed"))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRun(runID, fakeRun(runID, 75, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 75, "created", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", "failed"))
 	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
 		fakeJobV3("job-2", "lint", wfID, watchProjectID),
@@ -198,7 +198,7 @@ func TestEventWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
 }
 
-// --- cancelled event → exit 6 ---
+// --- cancelled run → exit 6 ---
 
 func TestEventWatch_Cancelled(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-004", "watch-wf-004", "canceled")
@@ -214,7 +214,7 @@ func TestEventWatch_Cancelled(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "cancelled"), "stderr: %s", result.Stderr)
 }
 
-// --- --sha: event already present ---
+// --- --sha: run already present ---
 
 func TestEventWatch_SHA(t *testing.T) {
 	_, env := setupWatchFake(t, "watch-pid-005", "watch-wf-005", "success")
@@ -254,10 +254,10 @@ func TestEventWatch_SHA_NotFound(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "No event found"), "stderr: %s", result.Stderr)
 }
 
-// --- --failfast: exit immediately when a job fails, without waiting for the rest of the event ---
+// --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
 
 func TestEventWatch_FailFast(t *testing.T) {
-	eventID := "watch-pid-failfast"
+	runID := "watch-pid-failfast"
 	wfID := "watch-wf-failfast"
 
 	failedJob := fakeJobV3("job-1", "integration-test", wfID, watchProjectID)
@@ -266,10 +266,10 @@ func TestEventWatch_FailFast(t *testing.T) {
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddEventV3(eventID, watchProjectID, fakeEventV3(eventID, watchProjectID, "started", "", "main", "abc1234def5678"))
-	fake.AddRun(eventID, fakeRun(eventID, 79, "created", watchSlug, "main"))
-	fake.AddProjectRuns(watchSlug, fakeRun(eventID, 79, "created", watchSlug, "main"))
-	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, watchProjectID, "started", ""))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
+	fake.AddRun(runID, fakeRun(runID, 79, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 79, "created", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
 		fakeJobV3("job-2", "lint", wfID, watchProjectID),
@@ -294,15 +294,15 @@ func TestEventWatch_FailFast(t *testing.T) {
 // --- watch timeout while run still running → exit 8 ---
 
 func TestEventWatch_Timeout(t *testing.T) {
-	eventID := "watch-pid-006"
+	runID := "watch-pid-006"
 	wfID := "watch-wf-006"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddEventV3(eventID, watchProjectID, fakeEventV3(eventID, watchProjectID, "started", "", "main", "abc1234def5678"))
-	fake.AddRun(eventID, fakeRun(eventID, 77, "created", watchSlug, "main"))
-	fake.AddProjectRuns(watchSlug, fakeRun(eventID, 77, "created", watchSlug, "main"))
-	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, watchProjectID, "started", ""))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
+	fake.AddRun(runID, fakeRun(runID, 77, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 77, "created", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
@@ -324,15 +324,15 @@ func TestEventWatch_Timeout(t *testing.T) {
 func TestEventWatch_InterruptDuringPolling(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "os.Interrupt is not supported on Windows")
 
-	eventID := "watch-pid-interrupt"
+	runID := "watch-pid-interrupt"
 	wfID := "watch-wf-interrupt"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
-	fake.AddEventV3(eventID, watchProjectID, fakeEventV3(eventID, watchProjectID, "started", "", "main", "abc1234def5678"))
-	fake.AddRun(eventID, fakeRun(eventID, 78, "created", watchSlug, "main"))
-	fake.AddProjectRuns(watchSlug, fakeRun(eventID, 78, "created", watchSlug, "main"))
-	fake.AddEventWorkflowsV3(eventID, fakeWorkflowV3(wfID, "build", eventID, watchProjectID, "started", ""))
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
+	fake.AddRun(runID, fakeRun(runID, 78, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 78, "created", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
