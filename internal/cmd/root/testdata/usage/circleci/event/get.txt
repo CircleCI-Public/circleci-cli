@@ -1,8 +1,0 @@
-Usage:  circleci event get [<event-id>] [flags]
-
-Flags:
-  -b, --branch string    Branch name (defaults to current branch)
-      --jq string        Process values from the response using jq syntax
-      --json             Output as JSON
-      --project string   Project slug (e.g. gh/org/repo); used for latest-event lookup
-  

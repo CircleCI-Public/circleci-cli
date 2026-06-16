@@ -218,6 +218,294 @@ func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(stdout, ""))
 }
 
+// --- workflow list ---
+
+func TestWorkflowList(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+		fakeWorkflowV3("wf-uuid-bbb", "deploy", testPipelineForWF, "proj-1", "ended", "failed"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+		fakeWorkflowV3("wf-uuid-bbb", "deploy", testPipelineForWF, "proj-1", "ended", "failed"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--json", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["id"], "wf-uuid-aaa"))
+	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
+	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestWorkflowList_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunWorkflowsV3(testPipelineForWF,
+		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--json", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestWorkflowList_Empty(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "00000000-0000-0000-0000-000000000000"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// V3 returns empty list for unknown runs instead of 404.
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "No workflows found"))
+}
+
+func TestWorkflowList_NoToken(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", testPipelineForWF},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- workflow list (no-arg / recent-runs mode) ---
+
+const testRunRecent1 = "bbbbbbbb-0000-0000-0000-000000000001"
+const testRunRecent2 = "bbbbbbbb-0000-0000-0000-000000000002"
+const wfListProjectID = "proj-uuid-wflist"
+
+func setupRecentRuns(t *testing.T, fake *fakes.CircleCI) {
+	t.Helper()
+	addProjectInfo(fake, testSlug, wfListProjectID)
+	fake.AddRunV3(testRunRecent1, wfListProjectID,
+		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "failed", "main", "abc1234567890"))
+	fake.AddRunV3(testRunRecent2, wfListProjectID,
+		fakeRunV3(testRunRecent2, wfListProjectID, "started", "", "main", "abc1234567890"))
+	fake.AddRunWorkflowsV3(testRunRecent1,
+		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+		fakeWorkflowV3("wf-recent-bbb", "deploy", testRunRecent1, wfListProjectID, "ended", "failed"),
+	)
+	fake.AddRunWorkflowsV3(testRunRecent2,
+		fakeWorkflowV3("wf-recent-ccc", "build", testRunRecent2, wfListProjectID, "started", ""),
+	)
+}
+
+func TestWorkflowList_NoArg(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	setupRecentRuns(t, fake)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_NoArg_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	setupRecentRuns(t, fake)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestWorkflowList_NoArg_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectInfo(fake, testSlug, wfListProjectID)
+	fake.AddRunV3(testRunRecent1, wfListProjectID,
+		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
+	fake.AddRunWorkflowsV3(testRunRecent1,
+		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--json", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["run_id"], testRunRecent1))
+	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
+	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
+	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
+	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectInfo(fake, testSlug, wfListProjectID)
+	fake.AddRunV3(testRunRecent1, wfListProjectID,
+		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
+	fake.AddRunWorkflowsV3(testRunRecent1,
+		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--json", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestWorkflowList_NoArg_NoRuns(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectInfo(fake, testSlug, wfListProjectID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "list", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
 // --- workflow rerun ---
 
 func TestWorkflowRerun(t *testing.T) {

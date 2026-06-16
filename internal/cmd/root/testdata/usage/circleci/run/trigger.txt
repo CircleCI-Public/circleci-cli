@@ -1,0 +1,9 @@
+Usage:  circleci run trigger [flags]
+
+Flags:
+  -b, --branch string           Branch to trigger (defaults to current branch)
+      --jq string               Process values from the response using jq syntax
+      --json                    Output as JSON
+      --parameter stringArray   Run parameter as key=value (repeatable)
+      --project string          Project slug (e.g. gh/org/repo); defaults to git remote
+  

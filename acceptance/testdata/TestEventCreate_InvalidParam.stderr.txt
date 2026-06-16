@@ -1,4 +1,0 @@
-error: "noequals" is not valid: expected key=value
-
-Suggestions:
-  • Parameters must be in key=value form, e.g. --param deploy_env=staging

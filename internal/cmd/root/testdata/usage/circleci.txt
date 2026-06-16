@@ -11,7 +11,6 @@ Available commands:
   deploy
   dlc
   envvar
-  event
   job
   mcp
   namespace
@@ -20,6 +19,7 @@ Available commands:
   pipeline
   policy
   project
+  run
   runner
   setting
   signing-config

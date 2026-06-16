@@ -3,10 +3,10 @@
 Display the status and steps of a CircleCI job.
 
 Job IDs are shown in the output of 'circleci workflow get' and
-'circleci event get --json'.
+'circleci run get --json'.
 
 JSON fields: id, name, type, status, started_at, stopped_at,
-             project_id, event_id, workflow_id,
+             project_id, pipeline_id, workflow_id,
              executions[].index/steps[].name/type/status/duration/exit_code
 
 For more information about output formatting flags, see `circleci help formatting`.

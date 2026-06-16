@@ -46,7 +46,7 @@ func newRerunCmd() *cobra.Command {
 			--from-failed to rerun only the jobs that failed, leaving successful
 			jobs untouched.
 
-			Workflow IDs are shown in the output of 'circleci event get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 		`),
 		Example: heredoc.Doc(`
 			# Rerun all jobs in a workflow from scratch
@@ -56,7 +56,7 @@ func newRerunCmd() *cobra.Command {
 			$ circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed
 
 			# Find a workflow ID from the latest run
-			$ circleci event get --json --jq '.workflows[].id'
+			$ circleci run get --json --jq '.workflows[].id'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

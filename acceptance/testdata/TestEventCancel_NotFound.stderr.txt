@@ -1,4 +1,0 @@
-error: Event 00000000-0000-0000-0000-000000000000 has no active workflows to cancel.
-
-Suggestions:
-  • The event may have already completed or been cancelled.

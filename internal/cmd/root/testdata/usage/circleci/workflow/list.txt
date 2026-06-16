@@ -1,0 +1,9 @@
+Usage:  circleci workflow list [<run-id>] [flags]
+
+Flags:
+  -b, --branch string    Filter by branch (recent-runs mode)
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --limit int        Number of recent runs to show (recent-runs mode) (default 10)
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  

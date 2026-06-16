@@ -1,7 +1,7 @@
 # Workflow
 - ID: `cccccccc-0000-0000-0000-000000000010`
 - Name: build
-- Event: `aaaaaaaa-0000-0000-0000-000000000010`
+- Run: `aaaaaaaa-0000-0000-0000-000000000010`
 - Status: failed
 - Created: 2020-01-01 12:00:00 UTC
 - Ended: 2020-01-01 12:02:34 UTC

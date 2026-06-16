@@ -40,8 +40,7 @@ func NewPipelineCmd() *cobra.Command {
 
 			A pipeline definition specifies where CircleCI finds the config YAML
 			and which repository to use for code checkout. Attach triggers to a
-			definition with 'circleci project trigger create'. Fire a definition
-			with 'circleci event create'.
+			definition with 'circleci project trigger create'.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
@@ -49,6 +48,7 @@ func NewPipelineCmd() *cobra.Command {
 
 	cmd.AddCommand(newCreateCmd())
 	cmd.AddCommand(newListCmd())
+	cmd.AddCommand(newRunCmd())
 
 	return cmd
 }

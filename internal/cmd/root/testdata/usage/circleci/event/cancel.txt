@@ -1,6 +1,0 @@
-Usage:  circleci event cancel <event-number-or-id> [flags]
-
-Flags:
-  -f, --force            skip confirmation prompt
-      --project string   Project slug (e.g. gh/org/repo); used when cancelling by number
-  
