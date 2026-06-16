@@ -223,7 +223,7 @@ workflows:
             - run: task ci:build
           filters:
             branches:
-              ignore: next
+              ignore: main
 
       - ok-to-deploy:
           requires:
@@ -231,7 +231,7 @@ workflows:
             - test
           filters:
             branches:
-              only: next
+              only: main
 
       - mark-release:
           requires:
