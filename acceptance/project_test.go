@@ -29,7 +29,6 @@ import (
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -74,10 +73,22 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		},
 	})
 
-	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx", nil)
-	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx",
-		new(time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)),
-	)
+	fake.AddProjectInfo("gh/myorg/beta", map[string]any{
+		"id":                "proj-uuid-beta",
+		"slug":              "gh/myorg/beta",
+		"name":              "beta",
+		"organization_name": "myorg",
+		"organization_slug": "gh/myorg",
+		"organization_id":   "org-uuid-5678",
+		"vcs_info": map[string]any{
+			"provider":       "GitHub",
+			"default_branch": "main",
+			"vcs_url":        "https://github.com/myorg/beta",
+		},
+	})
+
+	fake.AddEnvVar("proj-uuid-1234", "DATABASE_URL", "xxxx")
+	fake.AddEnvVar("proj-uuid-1234", "SECRET_KEY", "xxxx")
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -398,7 +409,7 @@ func TestEnvSet(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/project/gh/myorg/alpha/envvar"},
+			URL:    url.URL{Path: "/api/v3/projects/proj-uuid-1234/environment-variables"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -471,7 +482,7 @@ func TestEnvDelete(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v2/project/gh/myorg/alpha/envvar/DATABASE_URL"},
+			URL:    url.URL{Path: "/api/v3/projects/proj-uuid-1234/environment-variables/DATABASE_URL"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},

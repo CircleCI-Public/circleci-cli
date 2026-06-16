@@ -1,12 +1,10 @@
 [1;37m[[m
   [1;37m{[m
     [1;34m"name"[m[1;37m:[m [32m"DATABASE_URL"[m[1;37m,[m
-    [1;34m"value"[m[1;37m:[m [32m"xxxx"[m[1;37m,[m
-    [1;34m"created_at"[m[1;37m:[m [36mnull[m
+    [1;34m"value"[m[1;37m:[m [32m"xxxx"[m
   [1;37m}[m[1;37m,[m
   [1;37m{[m
     [1;34m"name"[m[1;37m:[m [32m"SECRET_KEY"[m[1;37m,[m
-    [1;34m"value"[m[1;37m:[m [32m"xxxx"[m[1;37m,[m
-    [1;34m"created_at"[m[1;37m:[m [32m"2020-01-01T00:00:00Z"[m
+    [1;34m"value"[m[1;37m:[m [32m"xxxx"[m
   [1;37m}[m
 [1;37m][m

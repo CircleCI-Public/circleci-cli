@@ -1,1 +1,1 @@
-[{"name":"DATABASE_URL","value":"xxxx","created_at":null},{"name":"SECRET_KEY","value":"xxxx","created_at":"2020-01-01T00:00:00Z"}]
+[{"name":"DATABASE_URL","value":"xxxx"},{"name":"SECRET_KEY","value":"xxxx"}]

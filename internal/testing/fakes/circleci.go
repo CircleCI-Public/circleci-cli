@@ -33,7 +33,6 @@ import (
 	"strings"
 	"sync"
 	"testing"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/render"
@@ -96,8 +95,8 @@ type CircleCI struct {
 	// Project / env-var state.
 	followedProjects  []any            // list of project objects for GET /api/v1.1/projects
 	followedSlugs     map[string]bool  // vcs+org+repo → true (for follow idempotency)
-	envVars           map[string][]any // project slug → env vars
-	deletedEnvVars    map[string]bool  // "slug/name" → deleted
+	envVars           map[string][]any // project UUID → env vars
+	deletedEnvVars    map[string]bool  // "projectID/name" → deleted
 	projectInfos      map[string]any   // project slug → project info response
 	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
 
@@ -285,9 +284,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Delete("/api/v2/context/{id}/environment-variable/{name}", f.handleDeleteContextEnvVar)
 	r.Post("/api/v2/context/{id}/restrictions", f.handleCreateContextRestriction)
 	r.Delete("/api/v2/context/{id}/restrictions/{restriction_id}", f.handleDeleteContextRestriction)
-	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
-	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
-	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
+	r.Get("/api/v3/projects/{projectID}/environment-variables", f.handleListEnvVars)
+	r.Post("/api/v3/projects/{projectID}/environment-variables", f.handleSetEnvVar)
+	r.Delete("/api/v3/projects/{projectID}/environment-variables/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
 	r.Get("/api/v2/projects/{projectID}/pipeline-definitions", f.handleListPipelineDefinitions)
 	r.Post("/api/v2/projects/{projectID}/pipeline-definitions", f.handleCreatePipelineDefinition)
@@ -1395,14 +1394,13 @@ func (f *CircleCI) SetCreateProjectResponse(resp any) {
 }
 
 // AddEnvVar registers an env var for a project.
-// slug should be in "vcs/org/repo" form.
-func (f *CircleCI) AddEnvVar(slug, name, value string, createdAt *time.Time) {
+// projectID is the project UUID.
+func (f *CircleCI) AddEnvVar(projectID, name, value string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.envVars[slug] = append(f.envVars[slug], map[string]any{
-		"name":       name,
-		"value":      value,
-		"created_at": createdAt,
+	f.envVars[projectID] = append(f.envVars[projectID], map[string]any{
+		"name":  name,
+		"value": value,
 	})
 }
 
@@ -1455,9 +1453,9 @@ func (f *CircleCI) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *CircleCI) handleListEnvVars(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	projectID := chi.URLParam(r, "projectID")
 	f.mu.RLock()
-	vars := f.envVars[slug]
+	vars := f.envVars[projectID]
 	deleted := f.deletedEnvVars
 	f.mu.RUnlock()
 
@@ -1465,23 +1463,24 @@ func (f *CircleCI) handleListEnvVars(w http.ResponseWriter, r *http.Request) {
 	for _, v := range vars {
 		m, ok := v.(map[string]any)
 		if !ok {
-			items = append(items, v)
 			continue
 		}
 		name, _ := m["name"].(string)
-		key := slug + "/" + name
-		if !deleted[key] {
-			items = append(items, v)
+		if deleted[projectID+"/"+name] {
+			continue
 		}
+		items = append(items, map[string]any{
+			"attributes": map[string]any{"name": name, "value": m["value"]},
+		})
 	}
 	if items == nil {
 		items = []any{}
 	}
-	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"data": items})
 }
 
 func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	projectID := chi.URLParam(r, "projectID")
 	var body map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
@@ -1493,21 +1492,24 @@ func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
 
 	ev := map[string]any{"name": name, "value": value}
 	f.mu.Lock()
-	// Remove any existing var with this name.
 	var kept []any
-	for _, v := range f.envVars[slug] {
+	for _, v := range f.envVars[projectID] {
 		m, ok := v.(map[string]any)
 		if ok && m["name"] == name {
 			continue
 		}
 		kept = append(kept, v)
 	}
-	f.envVars[slug] = append(kept, ev)
-	delete(f.deletedEnvVars, slug+"/"+name)
+	f.envVars[projectID] = append(kept, ev)
+	delete(f.deletedEnvVars, projectID+"/"+name)
 	f.mu.Unlock()
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, ev)
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{
+			"attributes": map[string]any{"name": name, "value": value},
+		},
+	})
 }
 
 // --- Context helpers ---
@@ -1914,13 +1916,13 @@ func (f *CircleCI) handleListDeploys(w http.ResponseWriter, r *http.Request) {
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	projectID := chi.URLParam(r, "projectID")
 	name := chi.URLParam(r, "name")
-	key := slug + "/" + name
+	key := projectID + "/" + name
 
 	f.mu.Lock()
 	found := false
-	for _, v := range f.envVars[slug] {
+	for _, v := range f.envVars[projectID] {
 		m, ok := v.(map[string]any)
 		if ok && m["name"] == name {
 			found = true
@@ -1937,7 +1939,7 @@ func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"message": "Deleted."})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // AddNamespace registers a namespace for REST API queries.

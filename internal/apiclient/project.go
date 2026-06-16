@@ -24,7 +24,6 @@ package apiclient
 
 import (
 	"context"
-	"time"
 )
 
 // Project is a followed CircleCI project.
@@ -39,9 +38,15 @@ type Project struct {
 // EnvVar is a project environment variable.
 // The value is masked in list responses; it is only returned on set.
 type EnvVar struct {
-	Name      string     `json:"name"`
-	Value     string     `json:"value"`
-	CreatedAt *time.Time `json:"created_at"`
+	Name  string `json:"name"`
+	Value string `json:"value"`
+}
+
+type envVarWire struct {
+	Attributes struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	} `json:"attributes"`
 }
 
 // ListProjects returns all followed projects for the authenticated user.
@@ -66,38 +71,35 @@ func (c *Client) FollowProject(ctx context.Context, vcsType, org, repo string) e
 }
 
 // ListEnvVars returns the environment variables for a project.
-// Values are masked in the response.
-func (c *Client) ListEnvVars(ctx context.Context, projectSlug string) ([]EnvVar, error) {
-	var resp struct {
-		Items []EnvVar `json:"items"`
-	}
-	err := c.get(ctx, "/project/%s/envvar", &resp,
-		routeParams(projectSlug),
-	)
-	if err != nil {
+// projectID is the project UUID. Values are masked in the response.
+func (c *Client) ListEnvVars(ctx context.Context, projectID string) ([]EnvVar, error) {
+	var resp v3List[envVarWire]
+	if err := c.getV3(ctx, "/projects/%s/environment-variables", &resp, routeParams(projectID)); err != nil {
 		return nil, err
 	}
-	return resp.Items, nil
+	vars := make([]EnvVar, len(resp.Data))
+	for i, w := range resp.Data {
+		vars[i] = EnvVar{Name: w.Attributes.Name, Value: w.Attributes.Value}
+	}
+	return vars, nil
 }
 
 // SetEnvVar creates or updates a project environment variable.
-func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string) (*EnvVar, error) {
+// projectID is the project UUID.
+func (c *Client) SetEnvVar(ctx context.Context, projectID, name, value string) (*EnvVar, error) {
 	body := map[string]any{"name": name, "value": value}
-	var ev EnvVar
-	err := c.post(ctx, "/project/%s/envvar", body, &ev,
-		routeParams(projectSlug),
-	)
-	if err != nil {
+	var resp v3Entity[envVarWire]
+	if err := c.postV3(ctx, "/projects/%s/environment-variables", body, &resp, routeParams(projectID)); err != nil {
 		return nil, err
 	}
+	ev := EnvVar{Name: resp.Data.Attributes.Name, Value: resp.Data.Attributes.Value}
 	return &ev, nil
 }
 
 // DeleteEnvVar deletes a project environment variable by name.
-func (c *Client) DeleteEnvVar(ctx context.Context, projectSlug, name string) error {
-	return c.deleteV2(ctx, "/project/%s/envvar/%s",
-		routeParams(projectSlug, name),
-	)
+// projectID is the project UUID.
+func (c *Client) DeleteEnvVar(ctx context.Context, projectID, name string) error {
+	return c.deleteV3(ctx, "/projects/%s/environment-variables/%s", routeParams(projectID, name))
 }
 
 // ProjectInfo contains detailed information about a CircleCI project.

@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -82,6 +81,7 @@ func NewEnvListCmd() *cobra.Command {
 
 			JSON fields: name, value
 		`),
+
 		Example: heredoc.Doc(`
 			# List env vars for the current project
 			$ circleci envvar list
@@ -122,13 +122,18 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 		projectSlug = info.Slug
 	}
 
-	vars, err := client.ListEnvVars(ctx, projectSlug)
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return clierrors.New("project.not_found", "Project not found",
 				fmt.Sprintf("No project found for %q.", projectSlug)).
 				WithExitCode(clierrors.ExitNotFound)
 		}
+		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
+	}
+
+	vars, err := client.ListEnvVars(ctx, proj.ID)
+	if err != nil {
 		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
 	}
 
@@ -141,13 +146,9 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 		return nil
 	}
 
-	tbl := mdtable.New("Name", "Value", "Created At")
+	tbl := mdtable.New("Name", "Value")
 	for _, v := range vars {
-		created := ""
-		if v.CreatedAt != nil {
-			created = v.CreatedAt.Format(time.RFC3339)
-		}
-		tbl.Row(v.Name, v.Value, created)
+		tbl.Row(v.Name, v.Value)
 	}
 	iostream.PrintMarkdown(ctx, "# Environment Variables\n"+tbl.Render())
 	return nil
@@ -215,12 +216,17 @@ func RunEnvSet(ctx context.Context, client *apiclient.Client, projectSlug, name,
 		projectSlug = info.Slug
 	}
 
-	if _, err := client.SetEnvVar(ctx, projectSlug, name, value); err != nil {
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return clierrors.New("project.not_found", "Project not found",
 				fmt.Sprintf("No project found for %q.", projectSlug)).
 				WithExitCode(clierrors.ExitNotFound)
 		}
+		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
+	}
+
+	if _, err := client.SetEnvVar(ctx, proj.ID, name, value); err != nil {
 		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
 	}
 
@@ -306,7 +312,17 @@ func RunEnvDelete(ctx context.Context, client *apiclient.Client, projectSlug, na
 		projectSlug = info.Slug
 	}
 
-	if err := client.DeleteEnvVar(ctx, projectSlug, name); err != nil {
+	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return clierrors.New("project.not_found", "Project not found",
+				fmt.Sprintf("No project found for %q.", projectSlug)).
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.")
+	}
+
+	if err := client.DeleteEnvVar(ctx, proj.ID, name); err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return clierrors.New("envvar.not_found", "Environment variable not found",
 				fmt.Sprintf("No environment variable %q found in project %q.", name, projectSlug)).
