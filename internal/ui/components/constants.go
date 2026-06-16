@@ -24,7 +24,19 @@ package components
 
 // Key constants map bubbletea key-press string representations to named values.
 const (
-	KeyCtrlC = "ctrl+c"
-	KeyEnter = "enter"
-	KeyEsc   = "esc"
+	KeyCtrlC     = "ctrl+c"
+	KeyEnter     = "enter"
+	KeyEsc       = "esc"
+	KeyBackspace = "backspace"
+	KeyHome      = "home"
+	KeyEnd       = "end"
+	KeySlash     = "/"
+
+	// Letter keys. The value is the literal bubbletea reports; uppercase
+	// variants are the shifted key (e.g. "N" for shift+n).
+	KeyQ      = "q"
+	KeyN      = "n"
+	KeyShiftN = "N"
+	KeyG      = "g"
+	KeyShiftG = "G"
 )

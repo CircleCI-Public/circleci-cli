@@ -62,6 +62,13 @@ var (
 	WarningStyle = lipgloss.NewStyle().Foreground(ColorWarning)
 
 	NoColorStyle = lipgloss.NewStyle().Foreground(lipgloss.NoColor{})
+
+	// SearchMatchStyle highlights every pager search hit; SearchSelectedStyle
+	// marks the one the viewport is currently scrolled to (like the focused
+	// match in less). Dark text on a colored background keeps hits legible
+	// regardless of the underlying syntax color.
+	SearchMatchStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("232")).Background(ColorWarning)
+	SearchSelectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("232")).Background(ColorAccent)
 )
 
 // Status icons. Keep these in one place so prompts, results, and JSON-text
