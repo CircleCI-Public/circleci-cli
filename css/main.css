@@ -46,7 +46,7 @@
 
 @media (prefers-color-scheme: light) {
   :root {
-    --bg: #ffffff;
+    --bg: #f4f6f9;
     --surface: #f0f3fa;
     --border: rgba(0, 0, 0, 0.10);
     --border-strong: rgba(0, 0, 0, 0.16);
@@ -155,14 +155,17 @@ h1, h2, h3, h4, h5, h6 {
   line-height: 1.25;
   scroll-margin-top: 1rem;
 }
-h1 { font-size: 1.7rem; margin: 0 0 1.25rem; }
+h1 { font-size: 1.7rem; margin: 4rem 0 1.25rem; }
 h2 {
   font-size: 1.2rem;
-  margin: 2.75rem 0 0.6rem;
-  padding-top: 0.75rem;
+  margin: 3.75rem 0 0.6rem;
+  padding-top: 1rem;
   border-top: 1px solid var(--border-strong);
 }
 h3 { font-size: 1.02rem; margin: 1.9rem 0 0.4rem; }
+
+/* No leading gap before the very first heading on the page. */
+.content > :first-child { margin-top: 0; padding-top: 0; }
 h4 { font-size: 0.95rem; margin: 1.5rem 0 0.35rem; color: var(--muted); }
 
 p { margin: 0.5rem 0 1rem; }
@@ -174,6 +177,33 @@ code {
   border-radius: 4px;
 }
 h1 code, h2 code, h3 code, h4 code { background: none; padding: 0; }
+
+/* Fenced code blocks. Always dark — palette taken from the CLI's OAuth page
+   (internal/oauth/page.html) — with a rounded border that reads on either a
+   light or dark page background. Fixed colors (not the themed vars) so the
+   block stays dark in light mode. */
+.highlight {
+  --cb-bg: #1a2035;
+  --cb-fg: #e8edf7;
+  --cb-border: #3b4664;
+  --cb-muted: #7b8db5;
+  background: var(--cb-bg);
+  border: 1px solid var(--cb-border);
+  border-radius: 0.6rem;
+  padding: 0.85rem 1rem;
+  margin: 1rem 0 1.5rem;
+  overflow-x: auto;
+}
+.highlight pre { margin: 0; background: none; }
+.highlight code {
+  background: none;
+  padding: 0;
+  color: var(--cb-fg);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+/* Comments quietened to the palette's muted tone. */
+.highlight .c, .highlight .c1, .highlight .cm { color: var(--cb-muted); font-style: italic; }
 
 /* Flag tables. */
 table {
