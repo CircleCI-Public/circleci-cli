@@ -25,7 +25,7 @@ require (
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
 	github.com/njayp/ophis v1.1.4
-	github.com/pete-woods/go-expect v0.1.1
+	github.com/pete-woods/go-expect v0.1.2
 	github.com/segmentio/analytics-go/v3 v3.3.0
 	github.com/shirou/gopsutil/v4 v4.26.5
 	github.com/spf13/cobra v1.10.2
