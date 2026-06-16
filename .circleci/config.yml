@@ -6,7 +6,7 @@ x_values:
 parameters:
   go_version_with_patch:
     type: string
-    default: 1.26.2
+    default: 1.26.4
 
 orbs:
   go: circleci/go@3.0.4
