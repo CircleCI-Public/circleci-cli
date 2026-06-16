@@ -1,9 +1,0 @@
-Usage:  circleci event watch [<event-id>] [flags]
-
-Flags:
-  -b, --branch string      Branch to watch (defaults to current branch)
-      --failfast           Exit as soon as any job fails, without waiting for the rest of the event
-      --project string     Project slug (e.g. gh/org/repo); defaults to git remote
-      --sha string         Watch event for this commit SHA; polls up to 2m if not yet created
-      --timeout duration   Maximum time to wait for event completion (default 30m0s)
-  

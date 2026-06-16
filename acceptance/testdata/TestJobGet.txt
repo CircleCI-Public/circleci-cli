@@ -7,7 +7,7 @@
 - Stopped: 2026-05-19 20:29:22 UTC
 - Duration: 8.6s
 - Workflow: `c266c3a7-0dad-459a-aa7b-dd13e005b9a0`
-- Event: `682142f3-f35d-4c94-adf7-d855321716e4`
+- Run: `682142f3-f35d-4c94-adf7-d855321716e4`
 
 ## Execution 0
 | #   | Name                | Status    | Duration | Exit Code | Command                                         |

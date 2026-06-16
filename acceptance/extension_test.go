@@ -128,7 +128,7 @@ func TestExtensionNestedUnknownNotIntercepted(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"event", "foo"},
+		Args:    []string{"run", "foo"},
 		Env:     withExtDir(env.Environ(), extDir),
 		WorkDir: t.TempDir(),
 	})

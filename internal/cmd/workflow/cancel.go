@@ -47,7 +47,7 @@ func newCancelCmd() *cobra.Command {
 			Any in-progress jobs will be stopped. Jobs that have already
 			completed are not affected.
 
-			Workflow IDs are shown in the output of 'circleci event get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 
 			In a terminal, you will be prompted to confirm before cancelling.
 			Use --force (-f) to skip the prompt for scripting.
@@ -60,7 +60,7 @@ func newCancelCmd() *cobra.Command {
 			$ circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force
 
 			# Find a running workflow ID from the latest run and cancel it
-			$ circleci event get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
+			$ circleci run get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,7 +73,7 @@ func newCancelCmd() *cobra.Command {
 				return err
 			}
 
-			return eventCancel(ctx, client, args[0], force)
+			return runCancel(ctx, client, args[0], force)
 		},
 	}
 
@@ -81,7 +81,7 @@ func newCancelCmd() *cobra.Command {
 	return cmd
 }
 
-func eventCancel(ctx context.Context, client *apiclient.Client, id string, force bool) error {
+func runCancel(ctx context.Context, client *apiclient.Client, id string, force bool) error {
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 		fmt.Sprintf("Cancel workflow %s? In-progress jobs will be stopped.", id),
 		clierrors.New("workflow.cancel_aborted", "Cancellation aborted",

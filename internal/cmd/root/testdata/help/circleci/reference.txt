@@ -383,89 +383,6 @@ Set a project environment variable
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
-## `circleci event <command>`
-
-Manage trigger events
-
-### `circleci event cancel <event-number-or-id> [flags]`
-
-Cancel an event
-
-| Flag               | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `-f, --force`      | skip confirmation prompt                                        |
-| `--project string` | Project slug (e.g. gh/org/repo); used when cancelling by number |
-
-
-### `circleci event create [flags]`
-
-Create a new event (start workflows)
-
-| Flag                     | Description                                                          |
-| ------------------------ | -------------------------------------------------------------------- |
-| `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag) |
-| `--definition-id string` | Pipeline definition UUID to fire (prompted interactively if omitted) |
-| `--jq string`            | Process values from the response using jq syntax                     |
-| `--json`                 | Output as JSON                                                       |
-| `--param stringArray`    | Pipeline parameter as key=value (repeatable)                         |
-| `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote              |
-| `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch) |
-
-
-### `circleci event get [<event-id>] [flags]`
-
-Get an event's status
-
-| Flag                  | Description                                                   |
-| --------------------- | ------------------------------------------------------------- |
-| `-b, --branch string` | Branch name (defaults to current branch)                      |
-| `--jq string`         | Process values from the response using jq syntax              |
-| `--json`              | Output as JSON                                                |
-| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-event lookup |
-
-
-### `circleci event list [flags]`
-
-List recent events for a project
-
-| Flag                   | Description                                                 |
-| ---------------------- | ----------------------------------------------------------- |
-| `-b, --branch string`  | Filter by branch                                            |
-| `-B, --current-branch` | Filter by the currently checked-out branch                  |
-| `--jq string`          | Process values from the response using jq syntax            |
-| `--json`               | Output as JSON                                              |
-| `--limit int`          | Maximum number of events to show [default: 10] (default 10) |
-| `--project string`     | Project slug (e.g. gh/org/repo); defaults to git remote     |
-
-
-Aliases:
-
-
-`circleci event ls`
-
-### `circleci event open [flags]`
-
-Open the current project's appropriate page in the browser
-
-| Flag                  | Description                             |
-| --------------------- | --------------------------------------- |
-| `-b, --branch string` | Filter events to a specific branch      |
-| `--current-branch`    | Filter events to the current git branch |
-
-
-### `circleci event watch [<event-id>] [flags]`
-
-Watch an event until its workflows complete
-
-| Flag                  | Description                                                              |
-| --------------------- | ------------------------------------------------------------------------ |
-| `-b, --branch string` | Branch to watch (defaults to current branch)                             |
-| `--failfast`          | Exit as soon as any job fails, without waiting for the rest of the event |
-| `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote                  |
-| `--sha string`        | Watch event for this commit SHA; polls up to 2m if not yet created       |
-| `--timeout duration`  | Maximum time to wait for event completion (default 30m0s)                |
-
-
 ## `circleci job <command>`
 
 Manage jobs
@@ -856,6 +773,21 @@ List pipeline definitions for a project
 | `--project-id string` | Project UUID (overrides --project)                      |
 
 
+### `circleci pipeline run [flags]`
+
+Trigger a new pipeline run
+
+| Flag                     | Description                                                          |
+| ------------------------ | -------------------------------------------------------------------- |
+| `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag) |
+| `--definition-id string` | Pipeline definition UUID to run (prompted interactively if omitted)  |
+| `--jq string`            | Process values from the response using jq syntax                     |
+| `--json`                 | Output as JSON                                                       |
+| `--param stringArray`    | Pipeline parameter as key=value (repeatable)                         |
+| `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote              |
+| `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch) |
+
+
 ## `circleci policy <command>`
 
 Manage security policies
@@ -1111,6 +1043,87 @@ List triggers for a pipeline definition
 | `--project-id string`             | Project UUID (overrides --project)                      |
 
 
+## `circleci run <command>`
+
+Manage CI runs
+
+### `circleci run cancel <run-number-or-id> [flags]`
+
+Cancel a run
+
+| Flag               | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `-f, --force`      | skip confirmation prompt                                        |
+| `--project string` | Project slug (e.g. gh/org/repo); used when cancelling by number |
+
+
+### `circleci run get [<run-id>] [flags]`
+
+Get a run's status
+
+| Flag                  | Description                                                 |
+| --------------------- | ----------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to current branch)                    |
+| `--jq string`         | Process values from the response using jq syntax            |
+| `--json`              | Output as JSON                                              |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
+
+
+### `circleci run list [flags]`
+
+List recent runs for a project
+
+| Flag                   | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `-b, --branch string`  | Filter by branch                                          |
+| `-B, --current-branch` | Filter by the currently checked-out branch                |
+| `--jq string`          | Process values from the response using jq syntax          |
+| `--json`               | Output as JSON                                            |
+| `--limit int`          | Maximum number of runs to show [default: 10] (default 10) |
+| `--project string`     | Project slug (e.g. gh/org/repo); defaults to git remote   |
+
+
+Aliases:
+
+
+`circleci run ls`
+
+### `circleci run open [flags]`
+
+Open the current project's runs page in the browser
+
+| Flag                  | Description                           |
+| --------------------- | ------------------------------------- |
+| `-b, --branch string` | Filter runs to a specific branch      |
+| `--current-branch`    | Filter runs to the current git branch |
+
+
+### `circleci run trigger [flags]`
+
+Trigger a new run
+
+| Flag                      | Description                                             |
+| ------------------------- | ------------------------------------------------------- |
+| `-b, --branch string`     | Branch to trigger (defaults to current branch)          |
+| `--jq string`             | Process values from the response using jq syntax        |
+| `--json`                  | Output as JSON                                          |
+| `--parameter stringArray` | Run parameter as key=value (repeatable)                 |
+| `--project string`        | Project slug (e.g. gh/org/repo); defaults to git remote |
+
+
+### `circleci run watch [<run-id>] [flags]`
+
+Watch a run until it completes
+
+| Flag                  | Description                                                            |
+| --------------------- | ---------------------------------------------------------------------- |
+| `-b, --branch string` | Branch to watch (defaults to current branch)                           |
+| `--failfast`          | Exit as soon as any job fails, without waiting for the rest of the run |
+| `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote                |
+| `--sha string`        | Watch run for this commit SHA; polls up to 2m if not yet created       |
+| `--timeout duration`  | Maximum time to wait for run completion (default 30m0s)                |
+
+
 ## `circleci runner <command>`
 
 Manage self-hosted runners
@@ -1345,6 +1358,24 @@ Get workflow details
 | `--jq string` | Process values from the response using jq syntax |
 | `--json`      | Output as JSON                                   |
 
+
+### `circleci workflow list [<run-id>] [flags]`
+
+List workflows for a run or recent runs
+
+| Flag                  | Description                                                   |
+| --------------------- | ------------------------------------------------------------- |
+| `-b, --branch string` | Filter by branch (recent-runs mode)                           |
+| `--jq string`         | Process values from the response using jq syntax              |
+| `--json`              | Output as JSON                                                |
+| `--limit int`         | Number of recent runs to show (recent-runs mode) (default 10) |
+| `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote       |
+
+
+Aliases:
+
+
+`circleci workflow ls`
 
 ### `circleci workflow rerun <workflow-id> [flags]`
 

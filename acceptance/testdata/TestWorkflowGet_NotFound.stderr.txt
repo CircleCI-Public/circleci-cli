@@ -3,4 +3,4 @@ API: {"message":"not found"}
 
 
 Suggestions:
-  • Check the workflow ID with: circleci event get
+  • Check the workflow ID with: circleci run get

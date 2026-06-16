@@ -45,9 +45,9 @@ func newGetCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Display the status and jobs of a CircleCI workflow.
 
-			Workflow IDs are shown in the output of 'circleci event get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 
-			JSON fields: id, name, phase, outcome, current_outcome, event_id,
+			JSON fields: id, name, phase, outcome, current_outcome, run_id,
 			             created_at, ended_at,
 			             jobs[].id/name/phase/outcome/current_outcome/type
 		`),
@@ -58,8 +58,8 @@ func newGetCmd() *cobra.Command {
 			# Output as JSON
 			$ circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b --json
 
-			# Get workflow ID from an event
-			$ circleci event get | grep -A1 "Workflows"
+			# Get workflow ID from a run
+			$ circleci run get | grep -A1 "Workflows"
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -71,7 +71,7 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return eventGet(ctx, client, args[0], jsonOut)
+			return runGet(ctx, client, args[0], jsonOut)
 		},
 	}
 
@@ -86,7 +86,7 @@ type workflowGetOutput struct {
 	Phase          string      `json:"phase"`
 	Outcome        string      `json:"outcome,omitempty"`
 	CurrentOutcome string      `json:"current_outcome,omitempty"`
-	EventID        string      `json:"event_id"`
+	RunID          string      `json:"run_id"`
 	CreatedAt      string      `json:"created_at"`
 	EndedAt        string      `json:"ended_at,omitempty"`
 	Jobs           []jobOutput `json:"jobs"`
@@ -101,7 +101,7 @@ type jobOutput struct {
 	Type           string `json:"type,omitempty"`
 }
 
-func eventGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
 	wf, err := client.GetWorkflowV3(ctx, id)
 	if err != nil {
 		return apiErr(err, id)
@@ -118,7 +118,7 @@ func eventGet(ctx context.Context, client *apiclient.Client, id string, jsonOut 
 		Phase:          wf.Phase,
 		Outcome:        wf.Outcome,
 		CurrentOutcome: wf.CurrentOutcome,
-		EventID:        wf.EventID,
+		RunID:          wf.RunID,
 		CreatedAt:      wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 	}
 	if wf.EndedAt != nil {
@@ -149,7 +149,7 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", w.Name)
-	_, _ = fmt.Fprintf(&md, "- Event: `%s`\n", w.EventID)
+	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", w.RunID)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
 	if w.EndedAt != "" {

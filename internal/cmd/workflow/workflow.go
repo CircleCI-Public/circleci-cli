@@ -39,13 +39,14 @@ func NewWorkflowCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Work with CircleCI workflows.
 
-			Workflows orchestrate jobs within a trigger event. Use these commands to
+			Workflows orchestrate jobs within a run. Use these commands to
 			inspect workflow status, rerun failed jobs, or cancel a running workflow.
 
-			Workflow IDs are shown in the output of 'circleci event get'.
+			Workflow IDs are shown in the output of 'circleci run get'.
 		`),
 	}
 
+	cmd.AddCommand(newListCmd())
 	cmd.AddCommand(newGetCmd())
 	cmd.AddCommand(newRerunCmd())
 	cmd.AddCommand(newCancelCmd())
@@ -56,5 +57,5 @@ func NewWorkflowCmd() *cobra.Command {
 func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"workflow.not_found", "No workflow found for %q.",
-		"Check the workflow ID with: circleci event get")
+		"Check the workflow ID with: circleci run get")
 }

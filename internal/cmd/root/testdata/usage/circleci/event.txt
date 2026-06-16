@@ -1,9 +1,0 @@
-Usage:  circleci event <command>
-
-Available commands:
-  cancel
-  create
-  get
-  list
-  open
-  watch
