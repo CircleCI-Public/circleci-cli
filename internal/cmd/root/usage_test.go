@@ -44,6 +44,11 @@ func TestUsage(t *testing.T) {
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
 	cmd := root.NewRootCmd("1.2.3")
+	// Execute() lazily registers the default --help and --version flags; the
+	// help/usage funcs read --version, so register them here since we invoke
+	// Usage()/Help() directly without going through Execute().
+	cmd.InitDefaultHelpFlag()
+	cmd.InitDefaultVersionFlag()
 	// Use insecure storage so the test never touches the OS keychain. Parse it
 	// rather than Set() so it merges into the command's flag set the same way a
 	// real invocation does — IsSecureStorage reads cmd.Root().Flags().
@@ -60,6 +65,11 @@ func TestHelp(t *testing.T) {
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
 	cmd := root.NewRootCmd("1.2.3")
+	// Execute() lazily registers the default --help and --version flags; the
+	// help/usage funcs read --version, so register them here since we invoke
+	// Usage()/Help() directly without going through Execute().
+	cmd.InitDefaultHelpFlag()
+	cmd.InitDefaultVersionFlag()
 	// Use insecure storage so the test never touches the OS keychain. Parse it
 	// rather than Set() so it merges into the command's flag set the same way a
 	// real invocation does — IsSecureStorage reads cmd.Root().Flags().

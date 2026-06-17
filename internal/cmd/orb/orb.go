@@ -38,8 +38,9 @@ import (
 // NewOrbCmd returns the "circleci orb" command group.
 func NewOrbCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "orb <command>",
-		Short: "Create, publish and inspect orbs (reusable config)",
+		Use:     "orb <command>",
+		GroupID: "management",
+		Short:   "Create, publish and inspect orbs (reusable config)",
 		Long: heredoc.Doc(`
 			Manage orbs in the orb registry.
 
@@ -52,19 +53,23 @@ func NewOrbCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newListCategoriesCmd())
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newValidateCmd())
-	cmd.AddCommand(newProcessCmd())
-	cmd.AddCommand(newPublishCmd())
-	cmd.AddCommand(newSourceCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newUnlistCmd())
-	cmd.AddCommand(newDiffCmd())
-	cmd.AddCommand(newAddToCategoryCmd())
-	cmd.AddCommand(newRemoveFromCategoryCmd())
-	cmd.AddCommand(newPackCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newCreateCmd(),
+		newListCmd(),
+		newListCategoriesCmd(),
+		newValidateCmd(),
+		newProcessCmd(),
+		newPackCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newGetCmd(),
+		newPublishCmd(),
+		newSourceCmd(),
+		newUnlistCmd(),
+		newDiffCmd(),
+		newAddToCategoryCmd(),
+		newRemoveFromCategoryCmd(),
+	)
 
 	return cmd
 }

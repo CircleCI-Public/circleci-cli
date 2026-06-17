@@ -34,8 +34,9 @@ import (
 // NewContextCmd returns the "circleci context" command group.
 func NewContextCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "context <command>",
-		Short: "Manage secret env vars shared across pipelines",
+		Use:     "context <command>",
+		GroupID: "management",
+		Short:   "Manage secret env vars shared across pipelines",
 		Long: heredoc.Doc(`
 			Work with CircleCI contexts.
 
@@ -45,13 +46,19 @@ func NewContextCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newDeleteCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newSecretCmd())
-	cmd.AddCommand(newRestrictionCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+		newCreateCmd(),
+		newOpenCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newGetCmd(),
+		newDeleteCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Subcommands",
+		newSecretCmd(),
+		newRestrictionCmd(),
+	)
 
 	return cmd
 }

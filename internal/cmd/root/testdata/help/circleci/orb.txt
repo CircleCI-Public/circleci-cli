@@ -11,23 +11,28 @@ Use 'circleci namespace' to manage namespaces before publishing orbs.
 
 `circleci orb <command> [flags]`
 
-## Available Commands
+## General Commands
 
-| Command                | Description                                        |
-| ---------------------- | -------------------------------------------------- |
-| `add-to-category`      | Add an orb to a registry category                  |
-| `create`               | Reserve an orb name in a namespace                 |
-| `diff`                 | Show a unified diff between two orb versions       |
-| `get`                  | Get orb metadata and statistics                    |
-| `list`                 | List orbs in the registry                          |
-| `list-categories`      | List orb registry categories                       |
-| `pack`                 | Pack a multi-file orb directory into a single YAML |
-| `process`              | Validate and print expanded orb YAML               |
-| `publish`              | Publish orb versions                               |
-| `remove-from-category` | Remove an orb from a registry category             |
-| `source`               | Print the YAML source of an orb version            |
-| `unlist`               | Hide or restore an orb in the registry             |
-| `validate`             | Validate an orb YAML file                          |
+| Command           | Description                                        |
+| ----------------- | -------------------------------------------------- |
+| `create`          | Reserve an orb name in a namespace                 |
+| `list`            | List orbs in the registry                          |
+| `list-categories` | List orb registry categories                       |
+| `pack`            | Pack a multi-file orb directory into a single YAML |
+| `process`         | Validate and print expanded orb YAML               |
+| `validate`        | Validate an orb YAML file                          |
+
+## Targeted Commands
+
+| Command                | Description                                  |
+| ---------------------- | -------------------------------------------- |
+| `add-to-category`      | Add an orb to a registry category            |
+| `diff`                 | Show a unified diff between two orb versions |
+| `get`                  | Get orb metadata and statistics              |
+| `publish`              | Publish orb versions                         |
+| `remove-from-category` | Remove an orb from a registry category       |
+| `source`               | Print the YAML source of an orb version      |
+| `unlist`               | Hide or restore an orb in the registry       |
 
 ## Inherited Flags
 

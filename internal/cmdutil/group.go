@@ -20,33 +20,18 @@
 //
 // SPDX-License-Identifier: MIT
 
-package job
+package cmdutil
 
-import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
+import "github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-)
-
-// NewJobCmd returns the "circleci job" command group.
-func NewJobCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "job <command>",
-		GroupID: "ci",
-		Short:   "Inspect a job's details, output and artifacts",
-		Long: heredoc.Doc(`
-			Work with CircleCI jobs.
-
-			Jobs are the individual units of work within a workflow.
-		`),
+func AddGroup(parent *cobra.Command, title string, cmds ...*cobra.Command) {
+	g := &cobra.Group{
+		Title: title,
+		ID:    title,
 	}
-
-	cmdutil.AddGroup(cmd, "Targeted commands",
-		newGetCmd(),
-		newArtifactCmd(),
-		newOutputCmd(),
-	)
-
-	return cmd
+	parent.AddGroup(g)
+	for _, c := range cmds {
+		c.GroupID = g.ID
+		parent.AddCommand(c)
+	}
 }

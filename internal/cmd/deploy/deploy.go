@@ -33,8 +33,9 @@ import (
 // NewDeployCmd returns the "circleci deploy" command group.
 func NewDeployCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "deploy <command>",
-		Short: "Track released components and versions",
+		Use:     "deploy <command>",
+		GroupID: "management",
+		Short:   "Track released components and versions",
 		Long: heredoc.Doc(`
 			Work with CircleCI Deploys.
 
@@ -42,9 +43,11 @@ func NewDeployCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newInitCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+		newOpenCmd(),
+		newInitCmd(),
+	)
 
 	return cmd
 }

@@ -35,8 +35,9 @@ import (
 // NewRunCmd returns the "circleci run" command group.
 func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "run <command>",
-		Short: "Trigger, watch and cancel CI runs",
+		Use:     "run <command>",
+		GroupID: "ci",
+		Short:   "Trigger, watch and cancel CI runs",
 		Long: heredoc.Doc(`
 			Work with CircleCI runs.
 
@@ -46,12 +47,16 @@ func NewRunCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newCancelCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newWatchCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+		newOpenCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newCancelCmd(),
+		newGetCmd(),
+		newTriggerCmd(),
+		newWatchCmd(),
+	)
 
 	return cmd
 }

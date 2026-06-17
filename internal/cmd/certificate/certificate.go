@@ -44,8 +44,9 @@ import (
 // NewCertificateCmd returns the "circleci certificate" command group.
 func NewCertificateCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "certificate <command>",
-		Short: "Manage iOS code signing certificates",
+		Use:     "certificate <command>",
+		GroupID: "management",
+		Short:   "Manage iOS code signing certificates",
 		Long: heredoc.Doc(`
 			Upload, list, and delete Apple .p12 code signing certificates stored in
 			your CircleCI organization's secure storage.
@@ -56,9 +57,13 @@ func NewCertificateCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newUploadCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newDeleteCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newDeleteCmd(),
+		newUploadCmd(),
+	)
 
 	return cmd
 }

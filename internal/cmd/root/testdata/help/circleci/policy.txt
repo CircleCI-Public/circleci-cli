@@ -13,16 +13,26 @@ Find it at: https://app.circleci.com/settings/organization
 
 `circleci policy <command> [flags]`
 
-## Available Commands
+## General Commands
 
-| Command    | Description                                       |
-| ---------- | ------------------------------------------------- |
-| `decide`   | Evaluate a config against remote policies         |
-| `diff`     | Show diff between local and remote policy bundles |
-| `fetch`    | Download the remote policy bundle                 |
-| `logs`     | Get policy decision logs                          |
-| `push`     | Push a policy bundle to CircleCI                  |
-| `settings` | Manage policy enforcement settings                |
+| Command  | Description                               |
+| -------- | ----------------------------------------- |
+| `decide` | Evaluate a config against remote policies |
+| `push`   | Push a policy bundle to CircleCI          |
+
+## Targeted Commands
+
+| Command | Description                                       |
+| ------- | ------------------------------------------------- |
+| `diff`  | Show diff between local and remote policy bundles |
+| `fetch` | Download the remote policy bundle                 |
+| `logs`  | Get policy decision logs                          |
+
+## Subcommands
+
+| Command    | Description                        |
+| ---------- | ---------------------------------- |
+| `settings` | Manage policy enforcement settings |
 
 ## Inherited Flags
 

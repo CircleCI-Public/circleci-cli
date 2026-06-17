@@ -13,16 +13,26 @@ Resource class names use the format: namespace/name
 
 `circleci runner <command> [flags]`
 
-## Available Commands
+## General Commands
 
-| Command          | Description                                    |
-| ---------------- | ---------------------------------------------- |
-| `config`         | Generate a runner agent configuration file     |
-| `instance`       | Manage runner instances                        |
-| `open`           | Open the runners inventory page in the browser |
-| `resource-class` | Manage runner resource classes                 |
-| `task`           | Show task counts for a runner resource class   |
-| `token`          | Manage runner tokens                           |
+| Command | Description                                    |
+| ------- | ---------------------------------------------- |
+| `open`  | Open the runners inventory page in the browser |
+
+## Targeted Commands
+
+| Command  | Description                                  |
+| -------- | -------------------------------------------- |
+| `config` | Generate a runner agent configuration file   |
+| `task`   | Show task counts for a runner resource class |
+
+## Subcommands
+
+| Command          | Description                    |
+| ---------------- | ------------------------------ |
+| `instance`       | Manage runner instances        |
+| `resource-class` | Manage runner resource classes |
+| `token`          | Manage runner tokens           |
 
 ## Inherited Flags
 

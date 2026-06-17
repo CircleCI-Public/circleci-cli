@@ -26,13 +26,16 @@ package project
 import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
 // NewProjectCmd returns the "circleci project" parent command.
 func NewProjectCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "project <command>",
-		Short: "List, follow and configure CircleCI projects",
+		Use:     "project <command>",
+		GroupID: "management",
+		Short:   "List, follow and configure CircleCI projects",
 		Long: heredoc.Doc(`
 			List, follow, and manage settings for CircleCI projects.
 
@@ -46,15 +49,21 @@ func NewProjectCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(NewGetCmd())
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newFollowCmd())
-	cmd.AddCommand(newLinkCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newEnvCmd())
-	cmd.AddCommand(newTriggerCmd())
-	cmd.AddCommand(newProjectDLCCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+		newCreateCmd(),
+		newOpenCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		NewGetCmd(),
+		newFollowCmd(),
+		newLinkCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Subcommands",
+		newEnvCmd(),
+		newTriggerCmd(),
+		newProjectDLCCmd(),
+	)
 
 	return cmd
 }

@@ -34,8 +34,9 @@ import (
 // NewWorkflowCmd returns the "circleci workflow" command group.
 func NewWorkflowCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "workflow <command>",
-		Short: "Inspect, rerun and cancel workflows (job graphs)",
+		Use:     "workflow <command>",
+		GroupID: "ci",
+		Short:   "Inspect, rerun and cancel workflows (job graphs)",
 		Long: heredoc.Doc(`
 			Work with CircleCI workflows.
 
@@ -46,10 +47,14 @@ func NewWorkflowCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newRerunCmd())
-	cmd.AddCommand(newCancelCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newGetCmd(),
+		newRerunCmd(),
+		newCancelCmd(),
+	)
 
 	return cmd
 }

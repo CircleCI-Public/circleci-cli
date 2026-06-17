@@ -47,8 +47,10 @@ func newSettingsCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newSettingsGetCmd())
-	cmd.AddCommand(newSettingsSetCmd())
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newSettingsGetCmd(),
+		newSettingsSetCmd(),
+	)
 
 	return cmd
 }

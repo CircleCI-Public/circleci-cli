@@ -36,8 +36,9 @@ func NewOnboardCmd() *cobra.Command {
 	var noBrowser bool
 
 	cmd := &cobra.Command{
-		Use:   "onboard [path]",
-		Short: "Guided onboarding: scan, test, generate config, sign up",
+		Use:     "onboard [path]",
+		GroupID: "user",
+		Short:   "Guided onboarding: scan, test, generate config, sign up",
 		Long: heredoc.Doc(`
 			Scan a local repository, run its detected tests, generate a starter
 			.circleci/config.yml when one does not already exist, and sign up for

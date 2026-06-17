@@ -13,11 +13,16 @@ For pipeline YAML operations, see 'circleci config'.
 
 `circleci setting <command> [flags]`
 
-## Available Commands
+## General Commands
+
+| Command | Description               |
+| ------- | ------------------------- |
+| `list`  | List current CLI settings |
+
+## Targeted Commands
 
 | Command | Description                 |
 | ------- | --------------------------- |
-| `list`  | List current CLI settings   |
 | `set`   | Set a CLI setting           |
 | `unset` | Remove a stored CLI setting |
 

@@ -8,7 +8,7 @@ Instances are live runner agents currently connected to CircleCI.
 
 `circleci runner instance <command> [flags]`
 
-## Available Commands
+## General Commands
 
 | Command | Description                     |
 | ------- | ------------------------------- |

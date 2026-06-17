@@ -49,8 +49,9 @@ func newRunCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "run",
-		Short: "Trigger a new pipeline run",
+		Use:     "run",
+		GroupID: "ci",
+		Short:   "Trigger a new pipeline run",
 		Long: heredoc.Doc(`
 			Trigger a new pipeline run using the recommended CircleCI v2 API.
 

@@ -38,8 +38,9 @@ import (
 // NewNamespaceCmd returns the "circleci namespace" command group.
 func NewNamespaceCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "namespace <command>",
-		Short: "Manage the org namespace orbs publish under",
+		Use:     "namespace <command>",
+		GroupID: "management",
+		Short:   "Manage the org namespace orbs publish under",
 		Long: heredoc.Doc(`
 			Work with CircleCI orb namespaces.
 
@@ -51,10 +52,14 @@ func NewNamespaceCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newGetCmd())
-	cmd.AddCommand(newRenameCmd())
-	cmd.AddCommand(newDeleteCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newCreateCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newGetCmd(),
+		newDeleteCmd(),
+		newRenameCmd(),
+	)
 
 	return cmd
 }

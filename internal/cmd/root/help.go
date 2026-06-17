@@ -101,7 +101,7 @@ func rootHelp(command *cobra.Command, _ []string) {
 
 	flags := command.Flags()
 
-	if isRootCmd(command) {
+	if isRootCmd(command) && flags.Lookup("version") != nil {
 		if versionVal, err := flags.GetBool("version"); err == nil && versionVal {
 			_, _ = fmt.Fprint(iostream.Out(ctx), command.Annotations["versionInfo"])
 			return

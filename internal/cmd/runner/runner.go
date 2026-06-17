@@ -34,8 +34,9 @@ import (
 // NewRunnerCmd returns the "circleci runner" command group.
 func NewRunnerCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "runner <command>",
-		Short: "Manage self-hosted runners",
+		Use:     "runner <command>",
+		GroupID: "management",
+		Short:   "Manage self-hosted runners",
 		Long: heredoc.Doc(`
 			Manage self-hosted runner resources.
 
@@ -48,12 +49,18 @@ func NewRunnerCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newResourceClassCmd())
-	cmd.AddCommand(newTokenCmd())
-	cmd.AddCommand(newInstanceCmd())
-	cmd.AddCommand(newOpenCmd())
-	cmd.AddCommand(newTasksCmd())
-	cmd.AddCommand(newConfigCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newOpenCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newTasksCmd(),
+		newConfigCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Subcommands",
+		newResourceClassCmd(),
+		newTokenCmd(),
+		newInstanceCmd(),
+	)
 
 	return cmd
 }
