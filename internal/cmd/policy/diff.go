@@ -35,7 +35,7 @@ import (
 
 func newDiffCmd() *cobra.Command {
 	var (
-		ownerID   string
+		org       string
 		policyCtx string
 		jsonOut   bool
 	)
@@ -58,13 +58,13 @@ func newDiffCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Diff policies in ./policies against the remote bundle
-			$ circleci policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy diff ./policies --org gh/acme
 
 			# Diff against a custom policy context
-			$ circleci policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --policy-context config
+			$ circleci policy diff ./policies --org gh/acme --policy-context config
 
 			# Output diff as JSON for scripting
-			$ circleci policy diff ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json
+			$ circleci policy diff ./policies --org gh/acme --json
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -73,15 +73,18 @@ func newDiffCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runDiff(ctx, client, args[0], ownerID, policyCtx, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy diff")
+			if err != nil {
+				return err
+			}
+			return runDiff(ctx, client, args[0], orgID.String(), policyCtx, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd
 }

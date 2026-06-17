@@ -38,7 +38,7 @@ import (
 )
 
 func newValidateCmd() *cobra.Command {
-	var orgID string
+	var org string
 
 	cmd := &cobra.Command{
 		Use:   "validate <path>",
@@ -53,8 +53,8 @@ func newValidateCmd() *cobra.Command {
 
 			Pass '-' as the path to read from stdin.
 
-			Use --org-id to validate against a specific organization's private
-			orb dependencies.
+			Use --org (a slug or UUID) to validate against a specific
+			organization's private orb dependencies.
 
 			Exit code 7 if the orb is invalid.
 		`),
@@ -66,7 +66,7 @@ func newValidateCmd() *cobra.Command {
 			$ cat orb.yml | circleci orb validate -
 
 			# Validate with a specific org for private deps
-			$ circleci orb validate orb.yml --org-id 00000000-0000-0000-0000-000000000001
+			$ circleci orb validate orb.yml --org gh/acme
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -78,11 +78,15 @@ func newValidateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			orgID, err := resolveOrgID(ctx, client, org, "circleci orb validate")
+			if err != nil {
+				return err
+			}
 			return runOrbValidate(ctx, client, args[0], orgID)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "organization UUID for private orb dependencies")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb dependencies"})
 
 	return cmd
 }

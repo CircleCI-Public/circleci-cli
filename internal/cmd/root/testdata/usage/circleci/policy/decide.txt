@@ -6,7 +6,7 @@ Flags:
   --json                    Output as JSON
   --meta string             Decision metadata as a JSON string
   --metafile string         Path to decision metadata file (YAML or JSON)
-  --owner-id string         Organization UUID (required)
+  --org string              Organization slug (e.g. gh/myorg) or UUID (required)
   --policy-context string   Policy context (default "config")
   --strict                  Exit non-zero for HARD_FAIL or ERROR decisions
   

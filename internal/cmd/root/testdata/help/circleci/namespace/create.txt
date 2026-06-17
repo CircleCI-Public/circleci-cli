@@ -12,15 +12,15 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Usage
 
-`circleci namespace create <name> --org-id <uuid> [flags]`
+`circleci namespace create <name> --org <org> [flags]`
 
 ## Flags
 
-| Flag              | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--jq string`     | Process values from the response using jq syntax        |
-| `--json`          | Output as JSON                                          |
-| `--org-id string` | organization UUID to claim the namespace for (required) |
+| Flag           | Description                                                                     |
+| -------------- | ------------------------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax                                |
+| `--json`       | Output as JSON                                                                  |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID to claim the namespace for (required) |
 
 ## Inherited Flags
 
@@ -38,11 +38,11 @@ across CircleCI, e.g. "myorg".
 ## Examples
 
 - Create a namespace for an organization: 
-  `circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001`
+  `circleci namespace create myorg --org gh/acme`
 - Create a namespace and output JSON: 
-  `circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json`
+  `circleci namespace create myorg --org gh/acme --json`
 - Capture just the namespace ID: 
-  `circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json --jq '.id'`
+  `circleci namespace create myorg --org gh/acme --json --jq '.id'`
 
 ## Learn More
 

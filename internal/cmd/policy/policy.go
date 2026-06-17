@@ -44,7 +44,8 @@ func NewPolicyCmd() *cobra.Command {
 			to enforce organizational security rules. Use these commands to push,
 			inspect, and test policy bundles, and to query decision logs.
 
-			Most commands require --owner-id, which is your organization's UUID.
+			Most commands require --org, which is your organization's slug
+			(e.g. gh/acme) or UUID.
 			Find it at: https://app.circleci.com/settings/organization
 		`),
 		RunE:               cmdutil.GroupRunE,
@@ -70,6 +71,6 @@ func NewPolicyCmd() *cobra.Command {
 func policyAPIErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"policy.not_found", "No policy found for %q.",
-		"Check the owner ID and policy context",
-		"Run: circleci policy fetch --owner-id <id>")
+		"Check the organization and policy context",
+		"Run: circleci policy fetch --org <org>")
 }

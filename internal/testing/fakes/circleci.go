@@ -157,9 +157,10 @@ type CircleCI struct {
 	// DLC state.
 	dlcPurgeStatus map[string]int // projectID → HTTP status to return (default 204)
 	// Config compile state.
-	compileValid      bool
-	compileOutputYAML string
-	compileErrors     []string
+	compileValid       bool
+	compileOutputYAML  string
+	compileErrors      []string
+	lastCompileOwnerID string
 
 	// Org state.
 	orgs map[string]map[string]any
@@ -3273,6 +3274,15 @@ func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...s
 	f.compileErrors = errors
 }
 
+// LastCompileOwnerID returns the owner_id sent on the most recent
+// POST /compile-config-with-defaults request (empty if none yet). Tests use it
+// to assert that --org resolved to the expected organization UUID.
+func (f *CircleCI) LastCompileOwnerID() string {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.lastCompileOwnerID
+}
+
 // AddOrg registers an org returned by GET /api/v2/organization/{slug}.
 func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 	f.mu.Lock()
@@ -3286,11 +3296,21 @@ func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 }
 
 func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
-	f.mu.RLock()
+	// Capture the resolved owner_id so tests can assert that --org (slug or UUID)
+	// resolved to the expected organization UUID before the compile call.
+	var body struct {
+		Options struct {
+			OwnerID string `json:"owner_id"`
+		} `json:"options"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	f.mu.Lock()
+	f.lastCompileOwnerID = body.Options.OwnerID
 	valid := f.compileValid
 	outputYAML := f.compileOutputYAML
 	errs := f.compileErrors
-	f.mu.RUnlock()
+	f.mu.Unlock()
 
 	apiErrors := make([]map[string]any, len(errs))
 	for i, e := range errs {

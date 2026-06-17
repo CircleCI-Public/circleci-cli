@@ -36,7 +36,7 @@ import (
 )
 
 func newProcessCmd() *cobra.Command {
-	var orgID string
+	var org string
 
 	cmd := &cobra.Command{
 		Use:   "process <path>",
@@ -63,7 +63,7 @@ func newProcessCmd() *cobra.Command {
 			$ cat orb.yml | circleci orb process -
 
 			# Process with a specific org for private deps
-			$ circleci orb process orb.yml --org-id 00000000-0000-0000-0000-000000000001
+			$ circleci orb process orb.yml --org gh/acme
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -75,11 +75,15 @@ func newProcessCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			orgID, err := resolveOrgID(ctx, client, org, "circleci orb process")
+			if err != nil {
+				return err
+			}
 			return runOrbProcess(ctx, client, args[0], orgID)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "organization UUID for private orb dependencies")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb dependencies"})
 
 	return cmd
 }

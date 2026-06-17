@@ -6,7 +6,8 @@ Policies are written in Rego and evaluated against pipeline configs
 to enforce organizational security rules. Use these commands to push,
 inspect, and test policy bundles, and to query decision logs.
 
-Most commands require --owner-id, which is your organization's UUID.
+Most commands require --org, which is your organization's slug
+(e.g. gh/acme) or UUID.
 Find it at: https://app.circleci.com/settings/organization
 
 ## Usage

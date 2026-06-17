@@ -105,7 +105,7 @@ func newInstanceListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&org, "org", "", "Organization slug (e.g. gh/myorg) or UUID; defaults to git remote")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
 	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)

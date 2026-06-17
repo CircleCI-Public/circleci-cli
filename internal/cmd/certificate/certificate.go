@@ -72,14 +72,14 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"certificate.not_found", "No iOS certificate found for %q.",
 		"Check the certificate ID and try again",
-		"Run: circleci certificate list --org-id <org-uuid>")
+		"Run: circleci certificate list --org <org>")
 }
 
 // --- certificate upload ---
 
 func newUploadCmd() *cobra.Command {
 	var (
-		orgID    string
+		org      string
 		certPath string
 		password string
 		jsonOut  bool
@@ -93,7 +93,7 @@ func newUploadCmd() *cobra.Command {
 			organization's secure storage.
 
 			The organization is inferred from the current git repository's remote
-			unless overridden with --org-id.
+			unless overridden with --org (a slug or UUID).
 
 			The certificate file is read from disk and base64-encoded locally
 			before being sent. In a terminal, --password may be omitted and you
@@ -112,7 +112,7 @@ func newUploadCmd() *cobra.Command {
 			$ echo "$P12_PASSWORD" | circleci certificate upload --cert-file ./Certificates.p12 --password -
 
 			# Explicit org and capture the new cert id for scripting
-			$ echo "$P12_PASSWORD" | circleci certificate upload --org-id <org-uuid> --cert-file ./Certificates.p12 --password - --json --jq -r '.id'
+			$ echo "$P12_PASSWORD" | circleci certificate upload --org gh/acme --cert-file ./Certificates.p12 --password - --json --jq -r '.id'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -160,11 +160,11 @@ func newUploadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedOrgID, err := cmdutil.ResolveOrgID(ctx, client, orgID, "circleci certificate upload")
+			resolvedOrgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci certificate upload")
 			if err != nil {
 				return err
 			}
-			certID, err := client.UploadIOSCertificate(ctx, resolvedOrgID, fileName, blob, password)
+			certID, err := client.UploadIOSCertificate(ctx, resolvedOrgID.String(), fileName, blob, password)
 			if err != nil {
 				return apiErr(err, fileName)
 			}
@@ -180,7 +180,7 @@ func newUploadCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "CircleCI organization UUID; defaults to the org of the current git project")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmd.Flags().StringVar(&certPath, "cert-file", "", "Path to the .p12 certificate file")
 	cmd.Flags().StringVar(&password, "password", "", "Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal.")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
@@ -199,7 +199,7 @@ type listEntry struct {
 
 func newListCmd() *cobra.Command {
 	var (
-		orgID   string
+		org     string
 		jsonOut bool
 	)
 
@@ -212,7 +212,7 @@ func newListCmd() *cobra.Command {
 			secure storage.
 
 			The organization is inferred from the current git repository's remote
-			unless overridden with --org-id.
+			unless overridden with --org (a slug or UUID).
 
 			JSON fields: id, file_name, org_id, created_at
 		`),
@@ -221,7 +221,7 @@ func newListCmd() *cobra.Command {
 			$ circleci certificate list
 
 			# List for a specific org
-			$ circleci certificate list --org-id <org-uuid>
+			$ circleci certificate list --org gh/acme
 
 			# Output as JSON
 			$ circleci certificate list --json
@@ -236,15 +236,15 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedOrgID, err := cmdutil.ResolveOrgID(ctx, client, orgID, "circleci certificate list")
+			resolvedOrgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci certificate list")
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, resolvedOrgID, jsonOut)
+			return runList(ctx, client, resolvedOrgID.String(), jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "CircleCI organization UUID; defaults to the org of the current git project")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -344,7 +344,7 @@ func newDeleteCmd() *cobra.Command {
 					return clierrors.New("certificate.in_use", "Cannot delete certificate",
 						fmt.Sprintf("Certificate %q is referenced by one or more signing configs.", certID)).
 						WithSuggestions(
-							"Run: circleci signing-config list --org-id <org-uuid>",
+							"Run: circleci signing-config list --org <org>",
 							"Delete the signing configs that reference this certificate, then retry",
 						).
 						WithExitCode(clierrors.ExitAPIError)

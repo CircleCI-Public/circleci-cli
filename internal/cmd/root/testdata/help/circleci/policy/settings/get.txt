@@ -12,12 +12,12 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 ## Inherited Flags
 
@@ -30,11 +30,11 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - Get policy enforcement settings: 
-  `circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+  `circleci policy settings get --org gh/acme`
 - Output as JSON: 
-  `circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json`
+  `circleci policy settings get --org gh/acme --json`
 - Use with jq to extract the enabled field: 
-  `circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq '.enabled'`
+  `circleci policy settings get --org gh/acme --json --jq '.enabled'`
 
 ## Learn More
 

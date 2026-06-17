@@ -69,7 +69,7 @@ func TestPolicyPush(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "push", dir, "--owner-id", testOwnerID, "--no-prompt"},
+		Args:    []string{"policy", "push", dir, "--org", testOwnerID, "--no-prompt"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -109,7 +109,7 @@ func TestPolicyPush_DryRun(t *testing.T) {
 	// We test the JSON output matches the diff format.
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "push", dir, "--owner-id", testOwnerID, "--no-prompt", "--json"},
+		Args:    []string{"policy", "push", dir, "--org", testOwnerID, "--no-prompt", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -133,7 +133,7 @@ func TestPolicyDiff(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "diff", dir, "--owner-id", testOwnerID},
+		Args:    []string{"policy", "diff", dir, "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -156,7 +156,7 @@ func TestPolicyFetch(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "fetch", "--owner-id", testOwnerID},
+		Args:    []string{"policy", "fetch", "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -177,7 +177,7 @@ func TestPolicyFetch_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "fetch", "--owner-id", testOwnerID, "--json"},
+		Args:    []string{"policy", "fetch", "--org", testOwnerID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -200,7 +200,7 @@ func TestPolicyFetch_ByName(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "fetch", "my_policy", "--owner-id", testOwnerID},
+		Args:    []string{"policy", "fetch", "my_policy", "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -224,7 +224,7 @@ func TestPolicyLogs(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "logs", "--owner-id", testOwnerID},
+		Args:    []string{"policy", "logs", "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -247,7 +247,7 @@ func TestPolicyLogs_ByDecisionID(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "logs", testDecisionID, "--owner-id", testOwnerID},
+		Args:    []string{"policy", "logs", testDecisionID, "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -276,7 +276,7 @@ func TestPolicyDecide(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "decide", "--owner-id", testOwnerID, "--input", configFile},
+		Args:    []string{"policy", "decide", "--org", testOwnerID, "--input", configFile},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -315,7 +315,7 @@ func TestPolicyDecide_Strict(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "decide", "--owner-id", testOwnerID, "--input", configFile, "--strict"},
+		Args:    []string{"policy", "decide", "--org", testOwnerID, "--input", configFile, "--strict"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -336,7 +336,7 @@ func TestPolicySettingsGet(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "settings", "get", "--owner-id", testOwnerID},
+		Args:    []string{"policy", "settings", "get", "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -355,7 +355,7 @@ func TestPolicySettingsGet_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "settings", "get", "--owner-id", testOwnerID, "--json"},
+		Args:    []string{"policy", "settings", "get", "--org", testOwnerID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -375,7 +375,7 @@ func TestPolicySettingsSet(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "settings", "set", "--owner-id", testOwnerID, "--enabled"},
+		Args:    []string{"policy", "settings", "set", "--org", testOwnerID, "--enabled"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -405,7 +405,7 @@ func TestPolicySettingsSet_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "settings", "set", "--owner-id", testOwnerID, "--enabled", "--json"},
+		Args:    []string{"policy", "settings", "set", "--org", testOwnerID, "--enabled", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -423,10 +423,29 @@ func TestPolicy_NoToken(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"policy", "fetch", "--owner-id", testOwnerID},
+		Args:    []string{"policy", "fetch", "--org", testOwnerID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
+}
+
+// --- removed flag ---
+
+// TestPolicy_RemovedOwnerIDFlag pins the clean break from --owner-id: every
+// policy command now takes --org, and the old name must no longer be accepted.
+func TestPolicy_RemovedOwnerIDFlag(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "fetch", "--owner-id", testOwnerID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, result.ExitCode != 0)
+	assert.Check(t, cmp.Contains(result.Stderr, "unknown flag: --owner-id"))
 }

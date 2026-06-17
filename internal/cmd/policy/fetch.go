@@ -35,7 +35,7 @@ import (
 
 func newFetchCmd() *cobra.Command {
 	var (
-		ownerID   string
+		org       string
 		policyCtx string
 		jsonOut   bool
 	)
@@ -53,13 +53,13 @@ func newFetchCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Fetch the full policy bundle
-			$ circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy fetch --org gh/acme
 
 			# Fetch a single policy by name
-			$ circleci policy fetch my-policy --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy fetch my-policy --org gh/acme
 
 			# Output as JSON with jq filtering
-			$ circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq 'keys'
+			$ circleci policy fetch --org gh/acme --json --jq 'keys'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -72,15 +72,18 @@ func newFetchCmd() *cobra.Command {
 			if len(args) == 1 {
 				policyName = args[0]
 			}
-			return runFetch(ctx, client, ownerID, policyCtx, policyName, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy fetch")
+			if err != nil {
+				return err
+			}
+			return runFetch(ctx, client, orgID.String(), policyCtx, policyName, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd
 }

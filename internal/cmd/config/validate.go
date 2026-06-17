@@ -37,8 +37,7 @@ import (
 func newValidateCmd() *cobra.Command {
 	var (
 		configPath  string
-		orgID       string
-		orgSlug     string
+		org         string
 		previewNext bool
 		jsonOut     bool
 	)
@@ -65,7 +64,7 @@ func newValidateCmd() *cobra.Command {
 			$ circleci config validate --config path/to/config.yml
 
 			# Validate with private orb resolution for your org
-			$ circleci config validate --org-slug gh/myorg
+			$ circleci config validate --org gh/myorg
 
 			# Validate and output as JSON
 			$ circleci config validate --json
@@ -83,7 +82,10 @@ func newValidateCmd() *cobra.Command {
 				return err
 			}
 
-			orgID = resolveOrgID(ctx, client, orgSlug, orgID)
+			orgID, err := resolveOrgID(ctx, client, org, "circleci config validate")
+			if err != nil {
+				return err
+			}
 
 			result, err := configcmd.Validate(ctx, client, yaml, orgID, previewNext)
 			if err != nil {
@@ -117,9 +119,8 @@ func newValidateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "Path to config file (use \"-\" for stdin)")
-	cmd.Flags().StringVar(&orgID, "org-id", "", "Organization UUID for private orb resolution")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution"})
 	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
-	cmd.Flags().StringVarP(&orgSlug, "org-slug", "o", "", "Organization slug for private orb resolution (e.g. gh/myorg)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 
 	return cmd

@@ -35,12 +35,12 @@ import (
 
 func newCreateCmd() *cobra.Command {
 	var (
-		orgID   string
+		org     string
 		jsonOut bool
 	)
 
 	cmd := &cobra.Command{
-		Use:   "create <name> --org-id <uuid>",
+		Use:   "create <name> --org <org>",
 		Short: "Create a namespace",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
@@ -59,13 +59,13 @@ func newCreateCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Create a namespace for an organization
-			$ circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001
+			$ circleci namespace create myorg --org gh/acme
 
 			# Create a namespace and output JSON
-			$ circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json
+			$ circleci namespace create myorg --org gh/acme --json
 
 			# Capture just the namespace ID
-			$ circleci namespace create myorg --org-id 00000000-0000-0000-0000-000000000001 --json --jq '.id'
+			$ circleci namespace create myorg --org gh/acme --json --jq '.id'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,12 +77,15 @@ func newCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runCreate(ctx, client, args[0], orgID, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci namespace create")
+			if err != nil {
+				return err
+			}
+			return runCreate(ctx, client, args[0], orgID.String(), jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "organization UUID to claim the namespace for (required)")
-	_ = cmd.MarkFlagRequired("org-id")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "to claim the namespace for", Required: true})
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 

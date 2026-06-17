@@ -24,7 +24,7 @@ For more information about output formatting flags, see `circleci help formattin
 | `--json`                  | Output as JSON                                            |
 | `--meta string`           | Decision metadata as a JSON string                        |
 | `--metafile string`       | Path to decision metadata file (YAML or JSON)             |
-| `--owner-id string`       | Organization UUID (required)                              |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)      |
 | `--policy-context string` | Policy context (default "config")                         |
 | `--strict`                | Exit non-zero for HARD_FAIL or ERROR decisions            |
 
@@ -39,13 +39,13 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - Evaluate a config against remote policies: 
-  `circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml`
+  `circleci policy decide --org gh/acme --input .circleci/config.yml`
 - Exit non-zero on hard failures: 
-  `circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --strict`
+  `circleci policy decide --org gh/acme --input .circleci/config.yml --strict`
 - Pass metadata alongside the decision: 
-  `circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --meta '{"project_id":"abc"}'`
+  `circleci policy decide --org gh/acme --input .circleci/config.yml --meta '{"project_id":"abc"}'`
 - Output decision as JSON: 
-  `circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --json`
+  `circleci policy decide --org gh/acme --input .circleci/config.yml --json`
 
 ## Learn More
 

@@ -18,13 +18,13 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--no-prompt`             | Skip confirmation prompt                         |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--no-prompt`             | Skip confirmation prompt                             |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 ## Inherited Flags
 
@@ -43,13 +43,13 @@ bundle, replacing the existing bundle.
 ## Examples
 
 - Push policies in the ./policies directory: 
-  `circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+  `circleci policy push ./policies --org gh/acme`
 - Push without confirmation prompt: 
-  `circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --no-prompt`
+  `circleci policy push ./policies --org gh/acme --no-prompt`
 - Push to a custom policy context: 
-  `circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --policy-context config`
+  `circleci policy push ./policies --org gh/acme --policy-context config`
 - Output the diff as JSON: 
-  `circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --no-prompt --json`
+  `circleci policy push ./policies --org gh/acme --no-prompt --json`
 
 ## Learn More
 
