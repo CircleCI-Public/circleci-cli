@@ -52,9 +52,13 @@ func newResourceClassCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newResourceClassListCmd())
-	cmd.AddCommand(newResourceClassCreateCmd())
-	cmd.AddCommand(newResourceClassDeleteCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newResourceClassListCmd(),
+		newResourceClassCreateCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newResourceClassDeleteCmd(),
+	)
 
 	return cmd
 }

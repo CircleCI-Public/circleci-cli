@@ -33,8 +33,9 @@ import (
 // NewPipelineCmd returns the "circleci pipeline" command group.
 func NewPipelineCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "pipeline <command>",
-		Short: "Define what will happen in a run",
+		Use:     "pipeline <command>",
+		GroupID: "ci",
+		Short:   "Define what will happen in a run",
 		Long: heredoc.Doc(`
 			Create and list pipeline definitions for a CircleCI project.
 
@@ -46,10 +47,13 @@ func NewPipelineCmd() *cobra.Command {
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
-
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newRunCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+		newCreateCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newRunCmd(),
+	)
 
 	return cmd
 }

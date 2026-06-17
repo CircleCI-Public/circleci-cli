@@ -9,13 +9,18 @@ Each resource class belongs to a namespace (usually your organization).
 
 `circleci runner resource-class <command> [flags]`
 
-## Available Commands
+## General Commands
 
 | Command  | Description                    |
 | -------- | ------------------------------ |
 | `create` | Create a runner resource class |
-| `delete` | Delete a runner resource class |
 | `list`   | List runner resource classes   |
+
+## Targeted Commands
+
+| Command  | Description                    |
+| -------- | ------------------------------ |
+| `delete` | Delete a runner resource class |
 
 ## Inherited Flags
 

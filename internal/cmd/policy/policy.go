@@ -34,8 +34,9 @@ import (
 // NewPolicyCmd returns the "circleci policy" command group.
 func NewPolicyCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "policy <command>",
-		Short: "Govern config with Rego security policies",
+		Use:     "policy <command>",
+		GroupID: "management",
+		Short:   "Govern config with Rego security policies",
 		Long: heredoc.Doc(`
 			Manage security policies.
 
@@ -50,12 +51,18 @@ func NewPolicyCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newPushCmd())
-	cmd.AddCommand(newDiffCmd())
-	cmd.AddCommand(newFetchCmd())
-	cmd.AddCommand(newLogsCmd())
-	cmd.AddCommand(newDecideCmd())
-	cmd.AddCommand(newSettingsCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newDecideCmd(),
+		newPushCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newDiffCmd(),
+		newFetchCmd(),
+		newLogsCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Subcommands",
+		newSettingsCmd(),
+	)
 
 	return cmd
 }

@@ -29,6 +29,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
 // NewEnvVarCmd returns the "circleci envvar" command, the primary entry point for
@@ -37,8 +38,9 @@ import (
 // is 3 levels deep).
 func NewEnvVarCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "envvar <command>",
-		Short: "List, set and delete a project's environment variables",
+		Use:     "envvar <command>",
+		GroupID: "management",
+		Short:   "List, set and delete a project's environment variables",
 		Long: heredoc.Doc(`
 			List, set, and delete environment variables for a CircleCI project.
 
@@ -62,9 +64,13 @@ func NewEnvVarCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(project.NewEnvListCmd())
-	cmd.AddCommand(project.NewEnvSetCmd())
-	cmd.AddCommand(project.NewEnvDeleteCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		project.NewEnvListCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		project.NewEnvSetCmd(),
+		project.NewEnvDeleteCmd(),
+	)
 
 	return cmd
 }

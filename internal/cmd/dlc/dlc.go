@@ -33,8 +33,9 @@ import (
 // NewDLCCmd returns the "circleci dlc" parent command.
 func NewDLCCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "dlc <command>",
-		Short: "Purge a project's Docker layer cache (DLC)",
+		Use:     "dlc <command>",
+		GroupID: "management",
+		Short:   "Purge a project's Docker layer cache (DLC)",
 		Long: heredoc.Doc(`
 			Manage docker layer caching (DLC) for projects.
 

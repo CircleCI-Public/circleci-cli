@@ -45,8 +45,9 @@ import (
 // NewConfigCmd returns the "circleci config" command group.
 func NewConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "config <command>",
-		Short: "Generate, validate, process and pack config YAML",
+		Use:     "config <command>",
+		GroupID: "ci",
+		Short:   "Generate, validate, process and pack config YAML",
 		Long: heredoc.Doc(`
 			Work with the pipeline configuration file at .circleci/config.yml.
 

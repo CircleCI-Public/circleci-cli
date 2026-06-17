@@ -53,9 +53,13 @@ func newTokenCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newTokenListCmd())
-	cmd.AddCommand(newTokenCreateCmd())
-	cmd.AddCommand(newTokenDeleteCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newTokenListCmd(),
+		newTokenCreateCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newTokenDeleteCmd(),
+	)
 
 	return cmd
 }

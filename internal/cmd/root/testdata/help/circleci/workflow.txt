@@ -11,14 +11,19 @@ Workflow IDs are shown in the output of 'circleci run get'.
 
 `circleci workflow <command> [flags]`
 
-## Available Commands
+## General Commands
 
-| Command  | Description                             |
-| -------- | --------------------------------------- |
-| `cancel` | Cancel a running workflow               |
-| `get`    | Get workflow details                    |
-| `list`   | List workflows for a run or recent runs |
-| `rerun`  | Rerun a workflow                        |
+| Command | Description                             |
+| ------- | --------------------------------------- |
+| `list`  | List workflows for a run or recent runs |
+
+## Targeted Commands
+
+| Command  | Description               |
+| -------- | ------------------------- |
+| `cancel` | Cancel a running workflow |
+| `get`    | Get workflow details      |
+| `rerun`  | Rerun a workflow          |
 
 ## Inherited Flags
 

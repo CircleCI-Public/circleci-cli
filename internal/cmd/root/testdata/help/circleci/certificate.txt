@@ -11,13 +11,18 @@ signing config.
 
 `circleci certificate <command> [flags]`
 
-## Available Commands
+## General Commands
 
-| Command  | Description                    |
-| -------- | ------------------------------ |
-| `delete` | Delete an iOS certificate      |
-| `list`   | List uploaded iOS certificates |
-| `upload` | Upload a .p12 certificate      |
+| Command | Description                    |
+| ------- | ------------------------------ |
+| `list`  | List uploaded iOS certificates |
+
+## Targeted Commands
+
+| Command  | Description               |
+| -------- | ------------------------- |
+| `delete` | Delete an iOS certificate |
+| `upload` | Upload a .p12 certificate |
 
 ## Inherited Flags
 

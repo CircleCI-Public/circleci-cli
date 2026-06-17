@@ -46,8 +46,9 @@ import (
 // NewSigningConfigCmd returns the "circleci signing-config" command group.
 func NewSigningConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "signing-config <command>",
-		Short: "Manage iOS signing configs",
+		Use:     "signing-config <command>",
+		GroupID: "management",
+		Short:   "Manage iOS signing configs",
 		Long: heredoc.Doc(`
 			Create, list, and delete iOS signing configs.
 
@@ -58,9 +59,13 @@ func NewSigningConfigCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newCreateCmd())
-	cmd.AddCommand(newListCmd())
-	cmd.AddCommand(newDeleteCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+		newCreateCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newDeleteCmd(),
+	)
 
 	return cmd
 }

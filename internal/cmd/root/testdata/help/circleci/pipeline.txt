@@ -11,13 +11,18 @@ CircleCI compiles into workflows. Attach triggers to a definition with
 
 `circleci pipeline <command> [flags]`
 
-## Available Commands
+## General Commands
 
 | Command  | Description                             |
 | -------- | --------------------------------------- |
 | `create` | Create a pipeline definition            |
 | `list`   | List pipeline definitions for a project |
-| `run`    | Trigger a new pipeline run              |
+
+## Targeted Commands
+
+| Command | Description                |
+| ------- | -------------------------- |
+| `run`   | Trigger a new pipeline run |
 
 ## Inherited Flags
 

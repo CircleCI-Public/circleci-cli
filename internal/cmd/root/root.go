@@ -179,6 +179,23 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
 
+	cmd.AddGroup(&cobra.Group{
+		ID:    "ci",
+		Title: "CI commands",
+	})
+	cmd.AddGroup(&cobra.Group{
+		ID:    "management",
+		Title: "Management commands",
+	})
+	cmd.AddGroup(&cobra.Group{
+		ID:    "user",
+		Title: "User commands",
+	})
+	cmd.AddGroup(&cobra.Group{
+		ID:    "extension",
+		Title: "Extension commands",
+	})
+
 	cmd.AddCommand(artifacts.NewArtifactCmd())
 	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(cmdapi.NewAPICmd())
@@ -209,6 +226,7 @@ func NewRootCmd(version string) *cobra.Command {
 	// root command table explains what the command actually does.
 	mcpCmd := ophis.Command(nil)
 	mcpCmd.Short = "Run the CLI as an MCP server for AI tools"
+	mcpCmd.GroupID = "user"
 	cmd.AddCommand(mcpCmd)
 
 	// Help topics
@@ -235,7 +253,6 @@ func NewRootCmd(version string) *cobra.Command {
 
 	path := os.Getenv("PATH")
 	if exts := extension.FindAll(path); len(exts) > 0 {
-		cmd.AddGroup(&cobra.Group{ID: "extension", Title: "Extensions"})
 		for _, name := range exts {
 			if !builtins[name] {
 				cmd.AddCommand(extension.NewCmd(name))

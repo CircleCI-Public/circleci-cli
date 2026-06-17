@@ -14,12 +14,17 @@ Also available as: circleci project envvar <command>
 
 `circleci envvar <command> [flags]`
 
-## Available Commands
+## General Commands
+
+| Command | Description                        |
+| ------- | ---------------------------------- |
+| `list`  | List project environment variables |
+
+## Targeted Commands
 
 | Command  | Description                           |
 | -------- | ------------------------------------- |
 | `delete` | Delete a project environment variable |
-| `list`   | List project environment variables    |
 | `set`    | Set a project environment variable    |
 
 ## Inherited Flags

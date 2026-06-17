@@ -43,8 +43,9 @@ const completionTag = "# circleci shell completion"
 // NewCompletionCmd returns the "circleci completion" command group.
 func NewCompletionCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "completion <command>",
-		Short: "Install, remove or print shell completions",
+		Use:     "completion <command>",
+		GroupID: "user",
+		Short:   "Install, remove or print shell completions",
 		Long: heredoc.Doc(`
 			Manage shell tab-completion for circleci.
 

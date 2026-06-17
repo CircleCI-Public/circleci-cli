@@ -11,13 +11,18 @@ install it onto the macOS runner during a job.
 
 `circleci signing-config <command> [flags]`
 
-## Available Commands
+## General Commands
 
 | Command  | Description                  |
 | -------- | ---------------------------- |
 | `create` | Create an iOS signing config |
-| `delete` | Delete an iOS signing config |
 | `list`   | List iOS signing configs     |
+
+## Targeted Commands
+
+| Command  | Description                  |
+| -------- | ---------------------------- |
+| `delete` | Delete an iOS signing config |
 
 ## Inherited Flags
 

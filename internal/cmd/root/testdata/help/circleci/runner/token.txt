@@ -11,13 +11,18 @@ Token values are only shown once at creation time and cannot be retrieved afterw
 
 `circleci runner token <command> [flags]`
 
-## Available Commands
+## General Commands
 
 | Command  | Description                         |
 | -------- | ----------------------------------- |
 | `create` | Create a token for a resource class |
-| `delete` | Delete a runner token               |
 | `list`   | List tokens for a resource class    |
+
+## Targeted Commands
+
+| Command  | Description           |
+| -------- | --------------------- |
+| `delete` | Delete a runner token |
 
 ## Inherited Flags
 

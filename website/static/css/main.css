@@ -85,6 +85,10 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 
 /* ---- Sidebar / command nav -------------------------------------------- */
 
+/* The mobile nav toggle, button and backdrop are hidden on wide screens;
+   the mobile media query at the bottom reveals and wires them up. */
+.nav-toggle, .nav-toggle-btn, .nav-backdrop { display: none; }
+
 .sidebar {
   position: sticky;
   top: 0;
@@ -127,16 +131,29 @@ a:hover { color: var(--accent-hover); text-decoration: underline; }
 }
 .toc a:hover { background: var(--code-bg); color: var(--heading); text-decoration: none; }
 
-/* Three levels: top sections ("Getting started", "Reference"), then commands,
-   then subcommands — each a little deeper and quieter than the last. */
+/* Four levels: top sections ("Getting started", "Reference"), then command
+   groups (CI / Management / ...), then commands, then subcommands — each a
+   little deeper and quieter than the last. Selectors are depth-exact (child
+   combinators) so commands and subcommands don't collapse to one indent. */
 .toc > ul > li > a {
   margin-top: 0.5rem;
   font-weight: 700;
   color: var(--heading);
 }
-.toc > ul > li > ul > li > a { padding-left: 1.2rem; }
-.toc ul ul ul a { padding-left: 2.2rem; font-size: 0.78rem; color: var(--muted); }
-.toc ul ul ul a:hover { color: var(--heading); }
+.toc > ul > li > ul > li > a {
+  padding-left: 1.2rem;
+  font-weight: 600;
+}
+.toc > ul > li > ul > li > ul > li > a {
+  padding-left: 2.2rem;
+  font-weight: 400;
+}
+.toc > ul > li > ul > li > ul > li > ul > li > a {
+  padding-left: 3.2rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.toc > ul > li > ul > li > ul > li > ul > li > a:hover { color: var(--heading); }
 .toc :target { color: var(--accent); }
 
 /* ---- Content ---------------------------------------------------------- */
@@ -241,16 +258,102 @@ td:first-child { white-space: nowrap; font-family: var(--mono); }
   color: var(--muted);
 }
 
-/* ---- Narrow screens: nav stacks above the content -------------------- */
+/* ---- Narrow screens: off-canvas nav reachable wherever you scroll ----- */
 
 @media (max-width: 52rem) {
   .layout { grid-template-columns: 1fr; }
-  .sidebar {
-    position: static;
-    height: auto;
-    border-right: none;
-    border-bottom: 1px solid var(--border);
-  }
-  .toc { max-height: 16rem; overflow-y: auto; }
+
+  /* Keep content clear of the fixed toggle button at the top-left. */
   .content { padding-top: 1.5rem; }
+  .content-col { padding-top: 3.5rem; }
+
+  /* Fixed hamburger button: stays put on screen at any scroll position. */
+  .nav-toggle-btn {
+    display: flex;
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 30;
+    width: 2.75rem;
+    height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  }
+  /* Hamburger icon: the middle bar plus two pseudo-element bars. Animates to
+     an X when the nav is open. */
+  .nav-toggle-bars { position: relative; }
+  .nav-toggle-bars,
+  .nav-toggle-bars::before,
+  .nav-toggle-bars::after {
+    content: "";
+    display: block;
+    width: 1.25rem;
+    height: 2px;
+    background: var(--heading);
+    transition: transform 0.2s ease, background 0.2s ease;
+  }
+  .nav-toggle-bars::before { position: absolute; top: -6px; left: 0; }
+  .nav-toggle-bars::after  { position: absolute; top:  6px; left: 0; }
+
+  /* Visually-hidden but focusable checkbox holds the open/closed state so the
+     toggle works with no JavaScript and is operable from the keyboard. */
+  .nav-toggle {
+    display: block;
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin: 0;
+    opacity: 0;
+    z-index: 31;
+    cursor: pointer;
+  }
+
+  /* Off-canvas sidebar: slides in from the left over the content. */
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    height: 100vh;
+    width: min(20rem, 85vw);
+    z-index: 25;
+    padding-top: 4rem;
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+  .toc { max-height: none; }
+
+  /* Dimming backdrop behind the open panel; tapping it closes the nav. */
+  .nav-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  /* Open state. */
+  .nav-toggle:checked ~ .layout .sidebar { transform: translateX(0); }
+  .nav-toggle:checked ~ .nav-backdrop { opacity: 1; pointer-events: auto; }
+  .nav-toggle:checked ~ .nav-toggle-btn .nav-toggle-bars { background: transparent; }
+  .nav-toggle:checked ~ .nav-toggle-btn .nav-toggle-bars::before { transform: translateY(6px) rotate(45deg); }
+  .nav-toggle:checked ~ .nav-toggle-btn .nav-toggle-bars::after { transform: translateY(-6px) rotate(-45deg); }
+
+  /* Visible focus ring on the (invisible) checkbox, drawn on the button. */
+  .nav-toggle:focus-visible ~ .nav-toggle-btn {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }

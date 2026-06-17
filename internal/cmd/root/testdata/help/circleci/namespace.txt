@@ -10,11 +10,16 @@ and referenced as <namespace>/<orb>. All published orbs are world-readable.
 
 `circleci namespace <command> [flags]`
 
-## Available Commands
+## General Commands
+
+| Command  | Description        |
+| -------- | ------------------ |
+| `create` | Create a namespace |
+
+## Targeted Commands
 
 | Command  | Description                         |
 | -------- | ----------------------------------- |
-| `create` | Create a namespace                  |
 | `delete` | Delete a namespace and all its orbs |
 | `get`    | Get details of a namespace          |
 | `rename` | Rename a namespace                  |

@@ -8,7 +8,7 @@ View deployed components and their versions across environments.
 
 `circleci deploy <command> [flags]`
 
-## Available Commands
+## General Commands
 
 | Command | Description                                |
 | ------- | ------------------------------------------ |

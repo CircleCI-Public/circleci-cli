@@ -32,8 +32,9 @@ import (
 // NewSettingCmd returns the "circleci setting" command group.
 func NewSettingCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "setting <command>",
-		Short: "Configure the CLI itself (token, host, defaults)",
+		Use:     "setting <command>",
+		GroupID: "user",
+		Short:   "Configure the CLI itself (token, host, defaults)",
 		Long: heredoc.Doc(`
 			View and modify settings for the circleci CLI tool.
 
@@ -48,9 +49,13 @@ func NewSettingCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmd.AddCommand(newSetCmd())
-	cmd.AddCommand(newUnsetCmd())
-	cmd.AddCommand(newListCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+	)
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newSetCmd(),
+		newUnsetCmd(),
+	)
 
 	return cmd
 }

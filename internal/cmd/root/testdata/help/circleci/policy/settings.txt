@@ -9,7 +9,7 @@ against the policy bundle before running.
 
 `circleci policy settings <command> [flags]`
 
-## Available Commands
+## Targeted Commands
 
 | Command | Description                        |
 | ------- | ---------------------------------- |

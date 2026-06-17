@@ -49,7 +49,9 @@ func newInstanceCmd() *cobra.Command {
 		`),
 	}
 
-	cmd.AddCommand(newInstanceListCmd())
+	cmdutil.AddGroup(cmd, "General commands",
+		newInstanceListCmd(),
+	)
 
 	return cmd
 }
