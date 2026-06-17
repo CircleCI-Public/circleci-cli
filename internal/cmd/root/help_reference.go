@@ -50,11 +50,14 @@ func stringifyReference(cmd *cobra.Command) string {
 		_, _ = fmt.Fprintf(&buf, "%s\n\n", mdTable("Flag", "Description", flagRows(flags)))
 	}
 
-	for _, c := range cmd.Commands() {
-		if c.Hidden {
-			continue
+	// Group top-level commands under the same headings cobra uses for the root
+	// help (CI / Management / User / Additional Commands), in the same order, so
+	// the reference mirrors `circleci --help`.
+	for _, g := range groupedCommands(cmd) {
+		_, _ = fmt.Fprintf(&buf, "## %s\n\n", titleCase(g.Title))
+		for _, c := range g.Commands {
+			cmdRef(&buf, c, 3)
 		}
-		cmdRef(&buf, c, 2)
 	}
 	return buf.String()
 }

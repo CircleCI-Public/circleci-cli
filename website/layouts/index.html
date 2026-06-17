@@ -12,6 +12,15 @@
   <link rel="stylesheet" href="css/main.css?v={{ $cssVer }}">
 </head>
 <body>
+  {{/* Mobile command-nav toggle. Pure CSS (checkbox + labels): the checkbox
+       holds open/closed state, the fixed button toggles it wherever you scroll,
+       and the backdrop label closes it. Hidden on wide screens via CSS. */}}
+  <input type="checkbox" id="nav-toggle" class="nav-toggle">
+  <label for="nav-toggle" class="nav-toggle-btn" aria-label="Toggle command navigation">
+    <span class="nav-toggle-bars" aria-hidden="true"></span>
+  </label>
+  <label for="nav-toggle" class="nav-backdrop" aria-hidden="true"></label>
+
   <div class="layout">
     <aside class="sidebar">
       <a class="brand" href="https://circleci.com">
@@ -25,10 +34,11 @@
       </a>
 
       {{/* Build the command nav from the page's heading tree. The page has two
-           top-level sections ("Getting started" and "Reference"); render them
-           and their descendants down to H3 (commands -> subcommands). */}}
+           top-level sections ("Getting started" and "Reference"); under
+           Reference the commands are grouped (CI / Management / User / ...), so
+           render down to H4: group -> command -> subcommand. */}}
       <nav class="toc" aria-label="Command reference">
-        {{ partial "command-nav.html" (dict "items" .Fragments.Headings "parent" "" "depth" 1 "maxDepth" 3) }}
+        {{ partial "command-nav.html" (dict "items" .Fragments.Headings "parent" "" "depth" 1 "maxDepth" 4) }}
       </nav>
     </aside>
 
@@ -42,5 +52,22 @@
       </footer>
     </div>
   </div>
+
+  {{/* Progressive enhancement: open/close already works without JS via the
+       checkbox. This just closes the mobile nav after a link is chosen or on
+       Escape, so it doesn't stay covering the content. */}}
+  <script>
+    (function () {
+      var toggle = document.getElementById('nav-toggle');
+      var toc = document.querySelector('.toc');
+      if (!toggle || !toc) return;
+      toc.addEventListener('click', function (e) {
+        if (e.target.closest('a')) toggle.checked = false;
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') toggle.checked = false;
+      });
+    })();
+  </script>
 </body>
 </html>
