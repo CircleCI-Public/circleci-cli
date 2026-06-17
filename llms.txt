@@ -94,8 +94,7 @@ Compile and expand a pipeline config file
 | Flag                           | Description                                                                    |
 | ------------------------------ | ------------------------------------------------------------------------------ |
 | `-n, --next`                   | Enable config next which previews upcoming potentially breaking config changes |
-| `--org-id string`              | Organization UUID for private orb resolution                                   |
-| `-o, --org-slug string`        | Organization slug for private orb resolution (e.g. gh/myorg)                   |
+| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution           |
 | `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                       |
 
 
@@ -109,13 +108,12 @@ from stdin.
 
 Validate a pipeline config file
 
-| Flag                    | Description                                                                    |
-| ----------------------- | ------------------------------------------------------------------------------ |
-| `-c, --config string`   | Path to config file (use "-" for stdin) (default ".circleci/config.yml")       |
-| `--json`                | Output as JSON                                                                 |
-| `-n, --next`            | Enable config next which previews upcoming potentially breaking config changes |
-| `--org-id string`       | Organization UUID for private orb resolution                                   |
-| `-o, --org-slug string` | Organization slug for private orb resolution (e.g. gh/myorg)                   |
+| Flag                  | Description                                                                    |
+| --------------------- | ------------------------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (use "-" for stdin) (default ".circleci/config.yml")       |
+| `--json`              | Output as JSON                                                                 |
+| `-n, --next`          | Enable config next which previews upcoming potentially breaking config changes |
+| `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution           |
 
 
 ### `circleci job <command>`
@@ -456,11 +454,11 @@ Delete an iOS certificate
 
 List uploaded iOS certificates
 
-| Flag              | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| `--jq string`     | Process values from the response using jq syntax                           |
-| `--json`          | Output as JSON                                                             |
-| `--org-id string` | CircleCI organization UUID; defaults to the org of the current git project |
+| Flag           | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax                  |
+| `--json`       | Output as JSON                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote |
 
 
 **Aliases:**
@@ -477,7 +475,7 @@ Upload a .p12 certificate
 | `--cert-file string` | Path to the .p12 certificate file                                                         |
 | `--jq string`        | Process values from the response using jq syntax                                          |
 | `--json`             | Output as JSON                                                                            |
-| `--org-id string`    | CircleCI organization UUID; defaults to the org of the current git project                |
+| `--org string`       | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                         |
 | `--password string`  | Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal. |
 
 
@@ -787,15 +785,15 @@ after being set and is masked in all subsequent list output.
 
 Manage the org namespace orbs publish under
 
-#### `circleci namespace create <name> --org-id <uuid> [flags]`
+#### `circleci namespace create <name> --org <org> [flags]`
 
 Create a namespace
 
-| Flag              | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--jq string`     | Process values from the response using jq syntax        |
-| `--json`          | Output as JSON                                          |
-| `--org-id string` | organization UUID to claim the namespace for (required) |
+| Flag           | Description                                                                     |
+| -------------- | ------------------------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax                                |
+| `--json`       | Output as JSON                                                                  |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID to claim the namespace for (required) |
 
 
 **Arguments:**
@@ -954,9 +952,9 @@ Pack a multi-file orb directory into a single YAML
 
 Validate and print expanded orb YAML
 
-| Flag              | Description                                    |
-| ----------------- | ---------------------------------------------- |
-| `--org-id string` | organization UUID for private orb dependencies |
+| Flag           | Description                                                            |
+| -------------- | ---------------------------------------------------------------------- |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID for private orb dependencies |
 
 
 **Arguments:**
@@ -1030,9 +1028,9 @@ Hide or restore an orb in the registry
 
 Validate an orb YAML file
 
-| Flag              | Description                                    |
-| ----------------- | ---------------------------------------------- |
-| `--org-id string` | organization UUID for private orb dependencies |
+| Flag           | Description                                                            |
+| -------------- | ---------------------------------------------------------------------- |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID for private orb dependencies |
 
 
 **Arguments:**
@@ -1054,7 +1052,7 @@ Evaluate a config against remote policies
 | `--json`                  | Output as JSON                                            |
 | `--meta string`           | Decision metadata as a JSON string                        |
 | `--metafile string`       | Path to decision metadata file (YAML or JSON)             |
-| `--owner-id string`       | Organization UUID (required)                              |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)      |
 | `--policy-context string` | Policy context (default "config")                         |
 | `--strict`                | Exit non-zero for HARD_FAIL or ERROR decisions            |
 
@@ -1063,12 +1061,12 @@ Evaluate a config against remote policies
 
 Show diff between local and remote policy bundles
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 
 **Arguments:**
@@ -1081,12 +1079,12 @@ policy bundle.
 
 Download the remote policy bundle
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 
 #### `circleci policy logs [decision-id] [flags]`
@@ -1100,8 +1098,8 @@ Get policy decision logs
 | `--branch string`         | Filter by branch name                                         |
 | `--jq string`             | Process values from the response using jq syntax              |
 | `--json`                  | Output as JSON                                                |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)          |
 | `--out string`            | Write output to this file instead of stdout                   |
-| `--owner-id string`       | Organization UUID (required)                                  |
 | `--policy-bundle`         | Retrieve the policy bundle snapshot for the given decision ID |
 | `--policy-context string` | Policy context (default "config")                             |
 | `--project-id string`     | Filter by project ID                                          |
@@ -1112,13 +1110,13 @@ Get policy decision logs
 
 Push a policy bundle to CircleCI
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--no-prompt`             | Skip confirmation prompt                         |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--no-prompt`             | Skip confirmation prompt                             |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 
 **Arguments:**
@@ -1135,25 +1133,25 @@ Manage policy enforcement settings
 
 Get policy enforcement settings
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 
 ##### `circleci policy settings set [flags]`
 
 Update policy enforcement settings
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--enabled`               | Enable policy enforcement                        |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--enabled`               | Enable policy enforcement                            |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 
 ### `circleci project <command>`
@@ -1520,14 +1518,14 @@ Manage iOS signing configs
 
 Create an iOS signing config
 
-| Flag                    | Description                                                                |
-| ----------------------- | -------------------------------------------------------------------------- |
-| `--cert-id string`      | ID of an uploaded certificate (see: circleci certificate list)             |
-| `--jq string`           | Process values from the response using jq syntax                           |
-| `--json`                | Output as JSON                                                             |
-| `--name string`         | Name for the signing config (referenced in pipeline config)                |
-| `--org-id string`       | CircleCI organization UUID; defaults to the org of the current git project |
-| `--profile stringArray` | Path to a provisioning profile file (repeatable)                           |
+| Flag                    | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `--cert-id string`      | ID of an uploaded certificate (see: circleci certificate list)    |
+| `--jq string`           | Process values from the response using jq syntax                  |
+| `--json`                | Output as JSON                                                    |
+| `--name string`         | Name for the signing config (referenced in pipeline config)       |
+| `--org string`          | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote |
+| `--profile stringArray` | Path to a provisioning profile file (repeatable)                  |
 
 
 #### `circleci signing-config delete <signing-config-id> [flags]`
@@ -1553,11 +1551,11 @@ Delete an iOS signing config
 
 List iOS signing configs
 
-| Flag              | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| `--jq string`     | Process values from the response using jq syntax                           |
-| `--json`          | Output as JSON                                                             |
-| `--org-id string` | CircleCI organization UUID; defaults to the org of the current git project |
+| Flag           | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax                  |
+| `--json`       | Output as JSON                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote |
 
 
 **Aliases:**
