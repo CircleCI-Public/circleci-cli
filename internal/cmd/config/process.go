@@ -39,8 +39,7 @@ import (
 
 func newProcessCmd() *cobra.Command {
 	var (
-		orgID          string
-		orgSlug        string
+		org            string
 		previewNext    bool
 		pipelineParams string
 	)
@@ -72,7 +71,7 @@ func newProcessCmd() *cobra.Command {
 			$ circleci config process .circleci/config.yml --pipeline-parameters 'env: staging'
 
 			# Process with private orb resolution
-			$ circleci config process .circleci/config.yml --org-slug gh/myorg
+			$ circleci config process .circleci/config.yml --org gh/myorg
 
 			# Read from stdin
 			$ cat .circleci/config.yml | circleci config process -
@@ -98,7 +97,10 @@ func newProcessCmd() *cobra.Command {
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 
-			orgID = resolveOrgID(ctx, client, orgSlug, orgID)
+			orgID, err := resolveOrgID(ctx, client, org, "circleci config process")
+			if err != nil {
+				return err
+			}
 
 			result, err := configcmd.Process(ctx, client, configYAML, orgID, previewNext, params)
 			if err != nil {
@@ -119,8 +121,7 @@ func newProcessCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "Organization UUID for private orb resolution")
-	cmd.Flags().StringVarP(&orgSlug, "org-slug", "o", "", "Organization slug for private orb resolution (e.g. gh/myorg)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution"})
 	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	cmd.Flags().StringVar(&pipelineParams, "pipeline-parameters", "", "Pipeline parameters as a YAML map or path to a YAML file")
 

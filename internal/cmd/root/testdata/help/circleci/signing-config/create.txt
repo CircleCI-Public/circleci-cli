@@ -5,7 +5,7 @@ with one or more provisioning profiles. The signing config name is what
 you reference in your pipeline config under 'code_signing'.
 
 The organization is inferred from the current git repository's remote
-unless overridden with --org-id.
+unless overridden with --org (a slug or UUID).
 
 Each --profile flag points to a single provisioning profile file on
 disk. The file is read and base64-encoded locally. Repeat the flag to
@@ -21,14 +21,14 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag                    | Description                                                                |
-| ----------------------- | -------------------------------------------------------------------------- |
-| `--cert-id string`      | ID of an uploaded certificate (see: circleci certificate list)             |
-| `--jq string`           | Process values from the response using jq syntax                           |
-| `--json`                | Output as JSON                                                             |
-| `--name string`         | Name for the signing config (referenced in pipeline config)                |
-| `--org-id string`       | CircleCI organization UUID; defaults to the org of the current git project |
-| `--profile stringArray` | Path to a provisioning profile file (repeatable)                           |
+| Flag                    | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `--cert-id string`      | ID of an uploaded certificate (see: circleci certificate list)    |
+| `--jq string`           | Process values from the response using jq syntax                  |
+| `--json`                | Output as JSON                                                    |
+| `--name string`         | Name for the signing config (referenced in pipeline config)       |
+| `--org string`          | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote |
+| `--profile stringArray` | Path to a provisioning profile file (repeatable)                  |
 
 ## Inherited Flags
 
@@ -52,7 +52,7 @@ For more information about output formatting flags, see `circleci help formattin
 - --profile ./MyApp.mobileprovision \
 - --profile ./MyAppExtension.mobileprovision
 - Explicit org and capture the id for scripting: 
-  `circleci signing-config create --org-id <org-uuid> --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'`
+  `circleci signing-config create --org gh/acme --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'`
 
 ## Learn More
 

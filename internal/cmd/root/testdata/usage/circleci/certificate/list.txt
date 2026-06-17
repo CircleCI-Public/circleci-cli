@@ -1,7 +1,7 @@
 Usage:  circleci certificate list [flags]
 
 Flags:
-  --jq string       Process values from the response using jq syntax
-  --json            Output as JSON
-  --org-id string   CircleCI organization UUID; defaults to the org of the current git project
+  --jq string    Process values from the response using jq syntax
+  --json         Output as JSON
+  --org string   Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
   

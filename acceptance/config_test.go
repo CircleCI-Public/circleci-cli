@@ -164,9 +164,11 @@ func TestConfigValidate_FileNotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+const testOrgUUID = "00000000-0000-0000-0000-0000000000aa"
+
 func TestConfigValidate_WithOrgSlug(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddOrg("org-uuid-001", "gh/myorg", "My Org", "github")
+	fake.AddOrg(testOrgUUID, "gh/myorg", "My Org", "github")
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -177,14 +179,65 @@ func TestConfigValidate_WithOrgSlug(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"config", "validate", "--config", ".circleci/config.yml", "--org-slug", "gh/myorg"},
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml", "--org", "gh/myorg"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+	// The slug was resolved to its org UUID before the compile call.
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigValidate_WithOrgUUID is the UUID counterpart of
+// TestConfigValidate_WithOrgSlug: passing the org UUID directly to --org must
+// reach the compile endpoint as the same owner_id, with no slug lookup needed
+// (no AddOrg is registered).
+func TestConfigValidate_WithOrgUUID(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml", "--org", testOrgUUID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
+}
+
+// TestConfigValidate_RemovedOrgFlags pins the clean break from the legacy org
+// flag names: --org-id and --org-slug were collapsed into --org and must no
+// longer be accepted. Cobra reports unknown flags with a non-zero exit and an
+// "unknown flag" message on stderr.
+func TestConfigValidate_RemovedOrgFlags(t *testing.T) {
+	for _, flag := range []string{"--org-id", "--org-slug"} {
+		t.Run(flag, func(t *testing.T) {
+			env := testenv.New(t)
+			env.Token = testToken
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    []string{"config", "validate", flag, "gh/myorg"},
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, result.ExitCode != 0)
+			assert.Check(t, cmp.Contains(result.Stderr, "unknown flag: "+flag))
+		})
+	}
 }
 
 // --- config process ---

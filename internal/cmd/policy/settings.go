@@ -57,7 +57,7 @@ func newSettingsCmd() *cobra.Command {
 
 func newSettingsGetCmd() *cobra.Command {
 	var (
-		ownerID   string
+		org       string
 		policyCtx string
 		jsonOut   bool
 	)
@@ -72,13 +72,13 @@ func newSettingsGetCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Get policy enforcement settings
-			$ circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy settings get --org gh/acme
 
 			# Output as JSON
-			$ circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json
+			$ circleci policy settings get --org gh/acme --json
 
 			# Use with jq to extract the enabled field
-			$ circleci policy settings get --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq '.enabled'
+			$ circleci policy settings get --org gh/acme --json --jq '.enabled'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -87,22 +87,25 @@ func newSettingsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runSettingsGet(ctx, client, ownerID, policyCtx, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy settings get")
+			if err != nil {
+				return err
+			}
+			return runSettingsGet(ctx, client, orgID.String(), policyCtx, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd
 }
 
 func newSettingsSetCmd() *cobra.Command {
 	var (
-		ownerID   string
+		org       string
 		policyCtx string
 		enabled   bool
 		jsonOut   bool
@@ -121,13 +124,13 @@ func newSettingsSetCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Enable policy enforcement
-			$ circleci policy settings set --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --enabled
+			$ circleci policy settings set --org gh/acme --enabled
 
 			# Disable policy enforcement
-			$ circleci policy settings set --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --enabled=false
+			$ circleci policy settings set --org gh/acme --enabled=false
 
 			# Output result as JSON
-			$ circleci policy settings set --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --enabled --json
+			$ circleci policy settings set --org gh/acme --enabled --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -136,16 +139,19 @@ func newSettingsSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runSettingsSet(ctx, client, ownerID, policyCtx, enabled, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy settings set")
+			if err != nil {
+				return err
+			}
+			return runSettingsSet(ctx, client, orgID.String(), policyCtx, enabled, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmd.Flags().BoolVar(&enabled, "enabled", false, "Enable policy enforcement")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 	_ = cmd.MarkFlagRequired("enabled")
 
 	return cmd

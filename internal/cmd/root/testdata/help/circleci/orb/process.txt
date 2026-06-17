@@ -14,9 +14,9 @@ Pass '-' as the path to read from stdin.
 
 ## Flags
 
-| Flag              | Description                                    |
-| ----------------- | ---------------------------------------------- |
-| `--org-id string` | organization UUID for private orb dependencies |
+| Flag           | Description                                                            |
+| -------------- | ---------------------------------------------------------------------- |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID for private orb dependencies |
 
 ## Inherited Flags
 
@@ -37,7 +37,7 @@ Pass '-' as the path to read from stdin.
 - Process from stdin: 
   `cat orb.yml | circleci orb process -`
 - Process with a specific org for private deps: 
-  `circleci orb process orb.yml --org-id 00000000-0000-0000-0000-000000000001`
+  `circleci orb process orb.yml --org gh/acme`
 
 ## Learn More
 

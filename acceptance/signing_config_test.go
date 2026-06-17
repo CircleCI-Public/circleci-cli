@@ -52,7 +52,7 @@ func TestSigningConfigCreate(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"signing-config", "create",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--name", "production-signing",
 			"--cert-id", "cert-abc",
 			"--profile", profilePath,
@@ -89,7 +89,7 @@ func TestSigningConfigCreate_JSON(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"signing-config", "create",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--name", "production-signing",
 			"--cert-id", "cert-abc",
 			"--profile", profilePath,
@@ -111,7 +111,7 @@ func TestSigningConfigCreate_MissingProfile(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"signing-config", "create",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--name", "x",
 			"--cert-id", "cert-abc",
 		},
@@ -134,7 +134,7 @@ func TestSigningConfigCreate_UnknownCertID(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"signing-config", "create",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--name", "production-signing",
 			"--cert-id", "cert-does-not-exist",
 			"--profile", profilePath,
@@ -161,7 +161,7 @@ func TestSigningConfigCreate_DuplicateName(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"signing-config", "create",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--name", "production-signing",
 			"--cert-id", "cert-abc",
 			"--profile", profilePath,
@@ -187,7 +187,7 @@ func TestSigningConfigList(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "list", "--org-id", testIOSOrgID},
+		Args:    []string{"signing-config", "list", "--org", testIOSOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -207,7 +207,7 @@ func TestSigningConfigList_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "list", "--org-id", testIOSOrgID},
+		Args:    []string{"signing-config", "list", "--org", testIOSOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -228,7 +228,7 @@ func TestSigningConfigList_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "list", "--org-id", testIOSOrgID, "--json"},
+		Args:    []string{"signing-config", "list", "--org", testIOSOrgID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -243,7 +243,7 @@ func TestSigningConfigList_Empty(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "list", "--org-id", testIOSOrgID},
+		Args:    []string{"signing-config", "list", "--org", testIOSOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

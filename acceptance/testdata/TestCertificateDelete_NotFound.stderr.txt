@@ -4,4 +4,4 @@ API: {"message":"not found"}
 
 Suggestions:
   • Check the certificate ID and try again
-  • Run: circleci certificate list --org-id <org-uuid>
+  • Run: circleci certificate list --org <org>

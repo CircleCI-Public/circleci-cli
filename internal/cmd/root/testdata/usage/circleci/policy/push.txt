@@ -4,6 +4,6 @@ Flags:
   --jq string               Process values from the response using jq syntax
   --json                    Output as JSON
   --no-prompt               Skip confirmation prompt
-  --owner-id string         Organization UUID (required)
+  --org string              Organization slug (e.g. gh/myorg) or UUID (required)
   --policy-context string   Policy context (default "config")
   

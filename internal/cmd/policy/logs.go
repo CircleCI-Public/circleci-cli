@@ -39,7 +39,7 @@ import (
 
 func newLogsCmd() *cobra.Command {
 	var (
-		ownerID      string
+		org          string
 		policyCtx    string
 		after        string
 		before       string
@@ -69,16 +69,16 @@ func newLogsCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Get all decision logs
-			$ circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy logs --org gh/acme
 
 			# Get a specific decision log
-			$ circleci policy logs abc123 --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy logs abc123 --org gh/acme
 
 			# Filter by status and branch
-			$ circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --status HARD_FAIL --branch main
+			$ circleci policy logs --org gh/acme --status HARD_FAIL --branch main
 
 			# Write output to a file
-			$ circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --out logs.json
+			$ circleci policy logs --org gh/acme --out logs.json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -114,11 +114,15 @@ func newLogsCmd() *cobra.Command {
 				}
 				req.Before = &t
 			}
-			return runLogs(ctx, client, ownerID, policyCtx, decisionID, outputFile, policyBundle, jsonOut, req)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy logs")
+			if err != nil {
+				return err
+			}
+			return runLogs(ctx, client, orgID.String(), policyCtx, decisionID, outputFile, policyBundle, jsonOut, req)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmd.Flags().StringVar(&after, "after", "", "Return logs created after this time (RFC3339 or YYYY-MM-DD)")
 	cmd.Flags().StringVar(&before, "before", "", "Return logs created before this time (RFC3339 or YYYY-MM-DD)")
@@ -129,7 +133,6 @@ func newLogsCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&policyBundle, "policy-bundle", false, "Retrieve the policy bundle snapshot for the given decision ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd
 }

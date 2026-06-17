@@ -95,23 +95,22 @@ func readConfigInput(ctx context.Context, path string) (string, error) {
 	return string(b), nil
 }
 
-// resolveOrgID returns the org UUID to use for compilation.
-// --org-id takes precedence. --org-slug triggers a direct org lookup.
-// If the lookup fails, a warning is printed and "" is returned
-// (private orb resolution will be skipped, but the compile call still proceeds).
-func resolveOrgID(ctx context.Context, client *apiclient.Client, orgSlug, orgID string) string {
-	if orgID != "" {
-		return orgID
+// resolveOrgID returns the org UUID to use for private orb resolution during
+// compilation. When --org is empty it returns "" and private orb resolution is
+// skipped (the compile call still proceeds). When set, the slug or UUID is
+// resolved to a UUID via the API; an unresolvable value is a hard error so a
+// typo isn't silently ignored.
+//
+// cmdName is used only in the suggestion text of any resulting error.
+func resolveOrgID(ctx context.Context, client *apiclient.Client, org, cmdName string) (string, error) {
+	if org == "" {
+		return "", nil
 	}
-	if orgSlug == "" {
-		return ""
-	}
-	org, err := client.GetOrg(ctx, orgSlug)
+	id, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, cmdName)
 	if err != nil {
-		iostream.ErrPrintf(ctx, "warning: could not resolve org %q: %s\n", orgSlug, err)
-		return ""
+		return "", err
 	}
-	return org.ID
+	return id.String(), nil
 }
 
 func configAPIErr(err error) *clierrors.CLIError {

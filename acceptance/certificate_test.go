@@ -102,7 +102,7 @@ func TestCertificateUpload(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"certificate", "upload",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--cert-file", certPath,
 			"--password", "hunter2",
 		},
@@ -137,7 +137,7 @@ func TestCertificateUpload_JSON(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"certificate", "upload",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--cert-file", certPath,
 			"--password", "hunter2",
 			"--json",
@@ -161,7 +161,7 @@ func TestCertificateUpload_PasswordFromStdin(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"certificate", "upload",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--cert-file", certPath,
 			"--password", "-",
 			"--json",
@@ -186,7 +186,7 @@ func TestCertificateUpload_MissingPasswordNonInteractive(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"certificate", "upload",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--cert-file", certPath,
 		},
 		Env:     env.Environ(),
@@ -208,7 +208,7 @@ func TestCertificateUpload_EmptyFile(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"certificate", "upload",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--cert-file", certPath,
 			"--password", "x",
 		},
@@ -229,7 +229,7 @@ func TestCertificateUpload_NoToken(t *testing.T) {
 		Binary: binaryPath,
 		Args: []string{
 			"certificate", "upload",
-			"--org-id", testIOSOrgID,
+			"--org", testIOSOrgID,
 			"--cert-file", certPath,
 			"--password", "p",
 		},
@@ -251,7 +251,7 @@ func TestCertificateList(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "list", "--org-id", testIOSOrgID},
+		Args:    []string{"certificate", "list", "--org", testIOSOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -268,7 +268,7 @@ func TestCertificateList_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "list", "--org-id", testIOSOrgID},
+		Args:    []string{"certificate", "list", "--org", testIOSOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -286,7 +286,7 @@ func TestCertificateList_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "list", "--org-id", testIOSOrgID, "--json"},
+		Args:    []string{"certificate", "list", "--org", testIOSOrgID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -301,7 +301,7 @@ func TestCertificateList_Empty(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "list", "--org-id", testIOSOrgID},
+		Args:    []string{"certificate", "list", "--org", testIOSOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -315,7 +315,7 @@ func TestCertificateList_NoOrgIDOutsideGit(t *testing.T) {
 	env := setupIOSEnv(t, fake)
 
 	// t.TempDir is not a git repo, so auto-detection fails and the user is
-	// pointed at --org-id.
+	// pointed at --org.
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"certificate", "list"},
@@ -326,7 +326,7 @@ func TestCertificateList_NoOrgIDOutsideGit(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	// git's "not a git repo" wording varies by version; assert only on the parts we own.
 	assert.Check(t, cmp.Contains(result.Stderr, "could not read git remote"))
-	assert.Check(t, cmp.Contains(result.Stderr, "--org-id"))
+	assert.Check(t, cmp.Contains(result.Stderr, "--org"))
 }
 
 // --- certificate delete ---

@@ -40,7 +40,7 @@ import (
 
 func newDecideCmd() *cobra.Command {
 	var (
-		ownerID   string
+		org       string
 		policyCtx string
 		inputFile string
 		meta      string
@@ -64,16 +64,16 @@ func newDecideCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Evaluate a config against remote policies
-			$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml
+			$ circleci policy decide --org gh/acme --input .circleci/config.yml
 
 			# Exit non-zero on hard failures
-			$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --strict
+			$ circleci policy decide --org gh/acme --input .circleci/config.yml --strict
 
 			# Pass metadata alongside the decision
-			$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --meta '{"project_id":"abc"}'
+			$ circleci policy decide --org gh/acme --input .circleci/config.yml --meta '{"project_id":"abc"}'
 
 			# Output decision as JSON
-			$ circleci policy decide --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --input .circleci/config.yml --json
+			$ circleci policy decide --org gh/acme --input .circleci/config.yml --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -82,11 +82,15 @@ func newDecideCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runDecide(ctx, client, ownerID, policyCtx, inputFile, meta, metaFile, strict, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy decide")
+			if err != nil {
+				return err
+			}
+			return runDecide(ctx, client, orgID.String(), policyCtx, inputFile, meta, metaFile, strict, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmd.Flags().StringVar(&inputFile, "input", "", "Path to input file (e.g. .circleci/config.yml) (required)")
 	cmd.Flags().StringVar(&meta, "meta", "", "Decision metadata as a JSON string")
@@ -94,7 +98,6 @@ func newDecideCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&strict, "strict", false, "Exit non-zero for HARD_FAIL or ERROR decisions")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 	_ = cmd.MarkFlagRequired("input")
 
 	return cmd

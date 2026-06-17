@@ -15,12 +15,12 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag                      | Description                                      |
-| ------------------------- | ------------------------------------------------ |
-| `--jq string`             | Process values from the response using jq syntax |
-| `--json`                  | Output as JSON                                   |
-| `--owner-id string`       | Organization UUID (required)                     |
-| `--policy-context string` | Policy context (default "config")                |
+| Flag                      | Description                                          |
+| ------------------------- | ---------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax     |
+| `--json`                  | Output as JSON                                       |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
+| `--policy-context string` | Policy context (default "config")                    |
 
 ## Inherited Flags
 
@@ -33,11 +33,11 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - Fetch the full policy bundle: 
-  `circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+  `circleci policy fetch --org gh/acme`
 - Fetch a single policy by name: 
-  `circleci policy fetch my-policy --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+  `circleci policy fetch my-policy --org gh/acme`
 - Output as JSON with jq filtering: 
-  `circleci policy fetch --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --json --jq 'keys'`
+  `circleci policy fetch --org gh/acme --json --jq 'keys'`
 
 ## Learn More
 

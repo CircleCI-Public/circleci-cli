@@ -3,7 +3,7 @@
 List the iOS signing configs defined for your organization.
 
 The organization is inferred from the current git repository's remote
-unless overridden with --org-id.
+unless overridden with --org (a slug or UUID).
 
 JSON fields: id, name, certificate, provisioning_profiles
 
@@ -19,11 +19,11 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag              | Description                                                                |
-| ----------------- | -------------------------------------------------------------------------- |
-| `--jq string`     | Process values from the response using jq syntax                           |
-| `--json`          | Output as JSON                                                             |
-| `--org-id string` | CircleCI organization UUID; defaults to the org of the current git project |
+| Flag           | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax                  |
+| `--json`       | Output as JSON                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote |
 
 ## Inherited Flags
 
@@ -38,7 +38,7 @@ For more information about output formatting flags, see `circleci help formattin
 - List signing configs (org inferred from git remote): 
   `circleci signing-config list`
 - List for a specific org: 
-  `circleci signing-config list --org-id <org-uuid>`
+  `circleci signing-config list --org gh/acme`
 - Output as JSON: 
   `circleci signing-config list --json`
 - Get signing config names only: 

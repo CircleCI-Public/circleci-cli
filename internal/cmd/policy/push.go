@@ -36,7 +36,7 @@ import (
 
 func newPushCmd() *cobra.Command {
 	var (
-		ownerID   string
+		org       string
 		policyCtx string
 		noPrompt  bool
 		jsonOut   bool
@@ -65,16 +65,16 @@ func newPushCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Push policies in the ./policies directory
-			$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f
+			$ circleci policy push ./policies --org gh/acme
 
 			# Push without confirmation prompt
-			$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --no-prompt
+			$ circleci policy push ./policies --org gh/acme --no-prompt
 
 			# Push to a custom policy context
-			$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --policy-context config
+			$ circleci policy push ./policies --org gh/acme --policy-context config
 
 			# Output the diff as JSON
-			$ circleci policy push ./policies --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --no-prompt --json
+			$ circleci policy push ./policies --org gh/acme --no-prompt --json
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -83,16 +83,19 @@ func newPushCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runPush(ctx, client, args[0], ownerID, policyCtx, noPrompt, jsonOut)
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci policy push")
+			if err != nil {
+				return err
+			}
+			return runPush(ctx, client, args[0], orgID.String(), policyCtx, noPrompt, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&ownerID, "owner-id", "", "Organization UUID (required)")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Required: true})
 	cmd.Flags().StringVar(&policyCtx, "policy-context", "config", "Policy context")
 	cmd.Flags().BoolVar(&noPrompt, "no-prompt", false, "Skip confirmation prompt")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
-	_ = cmd.MarkFlagRequired("owner-id")
 
 	return cmd
 }

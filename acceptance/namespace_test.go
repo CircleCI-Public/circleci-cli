@@ -120,7 +120,7 @@ func TestNamespaceCreate(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"namespace", "create", testNamespaceName, "--org-id", testOrgID},
+		Args:    []string{"namespace", "create", testNamespaceName, "--org", testOrgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -152,7 +152,7 @@ func TestNamespaceCreate_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"namespace", "create", testNamespaceName, "--org-id", testOrgID, "--json"},
+		Args:    []string{"namespace", "create", testNamespaceName, "--org", testOrgID, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

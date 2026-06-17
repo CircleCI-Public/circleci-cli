@@ -46,6 +46,45 @@ func AddJQFlag(cmd *cobra.Command) {
 	cmd.Flags().StringP("jq", "", "", "Process values from the response using jq syntax")
 }
 
+// OrgFlag configures the canonical --org flag added by AddOrgFlag. The flag
+// always accepts an organization slug (e.g. gh/myorg) or a UUID; resolve its
+// value to a UUID with ResolveOrgSlugOrID.
+type OrgFlag struct {
+	// Purpose, when set, is appended to describe what the organization scopes,
+	// e.g. "for private orb resolution" or "to claim the namespace for". Omit
+	// the leading space.
+	Purpose string
+	// Required marks --org required and appends "(required)" to its
+	// description. Use it for commands with no git-remote fallback. It is
+	// mutually exclusive with DefaultsToGitRemote.
+	Required bool
+	// DefaultsToGitRemote appends "; defaults to git remote" to the description.
+	// Set it for commands that infer the org from the current repository when
+	// --org is omitted. Ignored when Required is true.
+	DefaultsToGitRemote bool
+}
+
+// AddOrgFlag registers the canonical --org flag on cmd, binding it to org and
+// marking it required when opts.Required is set. It is the single source of the
+// flag name and help wording shared by every org-scoped command; pair it with
+// ResolveOrgSlugOrID to turn the value into an org UUID.
+func AddOrgFlag(cmd *cobra.Command, org *string, opts OrgFlag) {
+	desc := "Organization slug (e.g. gh/myorg) or UUID"
+	if opts.Purpose != "" {
+		desc += " " + opts.Purpose
+	}
+	switch {
+	case opts.Required:
+		desc += " (required)"
+	case opts.DefaultsToGitRemote:
+		desc += "; defaults to git remote"
+	}
+	cmd.Flags().StringVar(org, "org", "", desc)
+	if opts.Required {
+		_ = cmd.MarkFlagRequired("org")
+	}
+}
+
 // AddOutputFlag registers --output/-o on cmd, binding it to out. The what
 // argument names the content being written, e.g. "the manpage", and is used in
 // the flag description: "Write <what> to this file instead of stdout".

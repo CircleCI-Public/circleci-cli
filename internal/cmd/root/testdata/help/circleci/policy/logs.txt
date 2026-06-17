@@ -27,8 +27,8 @@ For more information about output formatting flags, see `circleci help formattin
 | `--branch string`         | Filter by branch name                                         |
 | `--jq string`             | Process values from the response using jq syntax              |
 | `--json`                  | Output as JSON                                                |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)          |
 | `--out string`            | Write output to this file instead of stdout                   |
-| `--owner-id string`       | Organization UUID (required)                                  |
 | `--policy-bundle`         | Retrieve the policy bundle snapshot for the given decision ID |
 | `--policy-context string` | Policy context (default "config")                             |
 | `--project-id string`     | Filter by project ID                                          |
@@ -45,13 +45,13 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - Get all decision logs: 
-  `circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+  `circleci policy logs --org gh/acme`
 - Get a specific decision log: 
-  `circleci policy logs abc123 --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f`
+  `circleci policy logs abc123 --org gh/acme`
 - Filter by status and branch: 
-  `circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --status HARD_FAIL --branch main`
+  `circleci policy logs --org gh/acme --status HARD_FAIL --branch main`
 - Write output to a file: 
-  `circleci policy logs --owner-id 462d67f8-b232-4da4-a7de-0c86dd667d3f --out logs.json`
+  `circleci policy logs --org gh/acme --out logs.json`
 
 ## Learn More
 

@@ -37,7 +37,7 @@ import (
 // ResolveOrgSlug returns orgSlug as-is when non-empty. Otherwise it derives the
 // organization slug (vcs/org, e.g. gh/myorg) from the current git remote. It
 // makes no API call — use this for endpoints keyed on an owner slug rather than
-// an org UUID (see ResolveOrgID / ResolveOrgSlugOrID for the UUID case).
+// an org UUID (see ResolveOrgSlugOrID for the UUID case).
 //
 // cmdName is included in the GitDetectErr suggestion text so users see the
 // exact override flag for the command they invoked, e.g. "circleci context list".
@@ -60,22 +60,6 @@ func orgSlugFromProjectSlug(projectSlug string) string {
 		return parts[0] + "/" + parts[1]
 	}
 	return projectSlug
-}
-
-// ResolveOrgID returns orgID as-is when non-empty. Otherwise it detects the
-// project from the current git remote and resolves it through the API to
-// recover the org UUID.
-//
-// cmdName is included in the GitDetectErr suggestion text so users see the
-// exact override flag for the command they invoked, e.g.
-// "circleci certificate list".
-func ResolveOrgID(ctx context.Context, client *apiclient.Client, orgID, cmdName string) (string, error) {
-	if orgID != "" {
-		return orgID, nil
-	}
-	return orgIDFromGitRemote(ctx, client,
-		"Or specify the organization: "+cmdName+" --org-id <org-uuid>",
-		"Pass --org-id <org-uuid> explicitly")
 }
 
 // ResolveOrgSlugOrID resolves an organization reference to its UUID. The
@@ -121,7 +105,7 @@ func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdN
 // resolves it through the API to recover the org UUID (as the raw string the
 // API returns). detectHint is passed to GitDetectErr and projectFailSuggestion
 // is used when the project lookup fails, so callers can phrase the override in
-// terms of their own flag (--org-id vs --org).
+// terms of their own flag.
 func orgIDFromGitRemote(ctx context.Context, client *apiclient.Client, detectHint, projectFailSuggestion string) (string, error) {
 	info, err := gitremote.Detect()
 	if err != nil {

@@ -1,5 +1,5 @@
 error: Certificate "cert-zzzz" is referenced by one or more signing configs.
 
 Suggestions:
-  • Run: circleci signing-config list --org-id <org-uuid>
+  • Run: circleci signing-config list --org <org>
   • Delete the signing configs that reference this certificate, then retry

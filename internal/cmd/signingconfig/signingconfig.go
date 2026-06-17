@@ -74,7 +74,7 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"signing_config.not_found", "No iOS signing config found for %q.",
 		"Check the signing config ID and try again",
-		"Run: circleci signing-config list --org-id <org-uuid>")
+		"Run: circleci signing-config list --org <org>")
 }
 
 // createAPIErr translates errors from POST /signing-configs into structured
@@ -108,7 +108,7 @@ func createAPIErr(err error, name, certID string) *clierrors.CLIError {
 
 func newCreateCmd() *cobra.Command {
 	var (
-		orgID       string
+		org         string
 		name        string
 		certID      string
 		profilePath []string
@@ -124,7 +124,7 @@ func newCreateCmd() *cobra.Command {
 			you reference in your pipeline config under 'code_signing'.
 
 			The organization is inferred from the current git repository's remote
-			unless overridden with --org-id.
+			unless overridden with --org (a slug or UUID).
 
 			Each --profile flag points to a single provisioning profile file on
 			disk. The file is read and base64-encoded locally. Repeat the flag to
@@ -147,7 +147,7 @@ func newCreateCmd() *cobra.Command {
 			    --profile ./MyAppExtension.mobileprovision
 
 			# Explicit org and capture the id for scripting
-			$ circleci signing-config create --org-id <org-uuid> --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'
+			$ circleci signing-config create --org gh/acme --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -176,11 +176,11 @@ func newCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedOrgID, err := cmdutil.ResolveOrgID(ctx, client, orgID, "circleci signing-config create")
+			resolvedOrgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci signing-config create")
 			if err != nil {
 				return err
 			}
-			id, err := client.CreateIOSSigningConfig(ctx, resolvedOrgID, name, certID, profiles)
+			id, err := client.CreateIOSSigningConfig(ctx, resolvedOrgID.String(), name, certID, profiles)
 			if err != nil {
 				return createAPIErr(err, name, certID)
 			}
@@ -197,7 +197,7 @@ func newCreateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "CircleCI organization UUID; defaults to the org of the current git project")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmd.Flags().StringVar(&name, "name", "", "Name for the signing config (referenced in pipeline config)")
 	cmd.Flags().StringVar(&certID, "cert-id", "", "ID of an uploaded certificate (see: circleci certificate list)")
 	cmd.Flags().StringArrayVar(&profilePath, "profile", nil, "Path to a provisioning profile file (repeatable)")
@@ -218,7 +218,7 @@ type listEntry struct {
 
 func newListCmd() *cobra.Command {
 	var (
-		orgID   string
+		org     string
 		jsonOut bool
 	)
 
@@ -230,7 +230,7 @@ func newListCmd() *cobra.Command {
 			List the iOS signing configs defined for your organization.
 
 			The organization is inferred from the current git repository's remote
-			unless overridden with --org-id.
+			unless overridden with --org (a slug or UUID).
 
 			JSON fields: id, name, certificate, provisioning_profiles
 		`),
@@ -239,7 +239,7 @@ func newListCmd() *cobra.Command {
 			$ circleci signing-config list
 
 			# List for a specific org
-			$ circleci signing-config list --org-id <org-uuid>
+			$ circleci signing-config list --org gh/acme
 
 			# Output as JSON
 			$ circleci signing-config list --json
@@ -254,15 +254,15 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			resolvedOrgID, err := cmdutil.ResolveOrgID(ctx, client, orgID, "circleci signing-config list")
+			resolvedOrgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci signing-config list")
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, resolvedOrgID, jsonOut)
+			return runList(ctx, client, resolvedOrgID.String(), jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgID, "org-id", "", "CircleCI organization UUID; defaults to the org of the current git project")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 

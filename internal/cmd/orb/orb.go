@@ -24,6 +24,7 @@
 package orb
 
 import (
+	"context"
 	"errors"
 	"fmt"
 
@@ -110,4 +111,21 @@ func orbAPIErr(err error, subject string) *clierrors.CLIError {
 			WithExitCode(clierrors.ExitNotFound)
 	}
 	return cmdutil.APIErr(err, subject, "orb.api_error", "Orb API request failed for %q.")
+}
+
+// resolveOrgID returns the org UUID to use for private orb dependency
+// resolution. When --org is empty it returns "" and resolution is skipped;
+// validation/processing still proceeds for public orbs. When set, the slug or
+// UUID is resolved to a UUID via the API.
+//
+// cmdName is used only in the suggestion text of any resulting error.
+func resolveOrgID(ctx context.Context, client *apiclient.Client, org, cmdName string) (string, error) {
+	if org == "" {
+		return "", nil
+	}
+	id, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, cmdName)
+	if err != nil {
+		return "", err
+	}
+	return id.String(), nil
 }

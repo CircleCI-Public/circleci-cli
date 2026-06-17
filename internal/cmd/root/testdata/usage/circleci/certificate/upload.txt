@@ -4,6 +4,6 @@ Flags:
   --cert-file string   Path to the .p12 certificate file
   --jq string          Process values from the response using jq syntax
   --json               Output as JSON
-  --org-id string      CircleCI organization UUID; defaults to the org of the current git project
+  --org string         Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
   --password string    Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal.
   

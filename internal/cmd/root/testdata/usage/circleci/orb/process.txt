@@ -1,5 +1,5 @@
 Usage:  circleci orb process <path> [flags]
 
 Flags:
-  --org-id string   organization UUID for private orb dependencies
+  --org string   Organization slug (e.g. gh/myorg) or UUID for private orb dependencies
   
