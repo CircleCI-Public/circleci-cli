@@ -125,6 +125,7 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 			WithSuggestions(
 				"Run: circleci setting set token <your-token>",
 				"Or set the CIRCLE_TOKEN environment variable",
+				"See: circleci help getting-started",
 			).
 			WithRef("https://app.circleci.com/settings/user/tokens").
 			WithExitCode(clierrors.ExitAuthError)
@@ -160,8 +161,12 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 	if httpcl.HasStatusCode(err, http.StatusUnauthorized) {
 		return clierrors.New("auth.token_invalid", "Authentication failed",
 			"The API token was rejected by CircleCI.").
-			WithSuggestions("Run: circleci setting set token <your-token>").
-			WithRef("https://app.circleci.com/settings/user/tokens").
+			WithSuggestions(
+				"Run: circleci auth login",
+				"Or set the CIRCLE_TOKEN environment variable",
+				"See: circleci help getting-started",
+			).
+			WithRef("https://app.circleci.com/settings/user/oauth-clients").
 			WithExitCode(clierrors.ExitAuthError)
 	}
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
