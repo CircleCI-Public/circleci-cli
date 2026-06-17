@@ -312,8 +312,9 @@ func newDeleteCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <signing-config-id>",
-		Short: "Delete an iOS signing config",
+		Use:     "delete <signing-config-id>",
+		Aliases: []string{"rm"},
+		Short:   "Delete an iOS signing config",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				<signing-config-id> is the ID of the signing config to delete

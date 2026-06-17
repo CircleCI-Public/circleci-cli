@@ -14,6 +14,10 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci runner token delete <token-id> [flags]`
 
+## Aliases
+
+`circleci runner token rm`
+
 ## Flags
 
 | Flag          | Description              |

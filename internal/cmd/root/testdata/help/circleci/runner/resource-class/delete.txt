@@ -12,6 +12,10 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci runner resource-class delete <namespace>/<name> [flags]`
 
+## Aliases
+
+`circleci runner resource-class rm`
+
 ## Flags
 
 | Flag          | Description              |

@@ -343,7 +343,7 @@ func TestOrbPublishPromote(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"orb", "publish", "promote", testOrbName + "@dev:my-branch", "patch"},
+		Args:    []string{"orb", "publish", "promote", testOrbName + "@dev:my-branch", "--bump", "patch"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -376,7 +376,7 @@ func TestOrbPublishIncrement(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"orb", "publish", "increment", orbFile, testOrbName, "patch"},
+		Args:    []string{"orb", "publish", "increment", orbFile, testOrbName, "--bump", "patch"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -503,7 +503,7 @@ func TestOrbUnlist(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"orb", "unlist", testOrbName, "true"},
+		Args:    []string{"orb", "unlist", testOrbName},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -531,7 +531,7 @@ func TestOrbRelist(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"orb", "unlist", testOrbName, "false"},
+		Args:    []string{"orb", "unlist", testOrbName, "--restore"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -565,7 +565,7 @@ func TestOrbDiff(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"orb", "diff", testOrbName, "1.0.0", "1.1.0"},
+		Args:    []string{"orb", "diff", testOrbName, "--from", "1.0.0", "--to", "1.1.0"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -738,7 +738,7 @@ func TestOrbDiff_SameVersion(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"orb", "diff", testOrbName, "1.0.0", "1.0.0"},
+		Args:    []string{"orb", "diff", testOrbName, "--from", "1.0.0", "--to", "1.0.0"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

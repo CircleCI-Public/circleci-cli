@@ -15,6 +15,10 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci project envvar delete <name> [flags]`
 
+## Aliases
+
+`circleci project envvar rm`
+
 ## Flags
 
 | Flag               | Description                                             |

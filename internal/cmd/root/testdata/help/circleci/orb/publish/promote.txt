@@ -3,12 +3,18 @@
 Promote a dev orb version to a stable semver version.
 
 The dev version ref must be in the form <ns>/<orb>@dev:<label>.
-The segment argument determines how the version is incremented
+The --bump flag determines how the version is incremented
 from the latest stable release.
 
 ## Usage
 
-`circleci orb publish promote <ns>/<orb>@dev:<label> major|minor|patch [flags]`
+`circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch [flags]`
+
+## Flags
+
+| Flag            | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `--bump string` | which version segment to increment: major, minor, or patch |
 
 ## Inherited Flags
 
@@ -21,16 +27,15 @@ from the latest stable release.
 ## Arguments
 
 - <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
-- major|minor|patch: how to increment from the latest stable release
 
 ## Examples
 
 - Promote dev:my-branch to a patch release: 
-  `circleci orb publish promote myorg/my-orb@dev:my-branch patch`
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump patch`
 - Promote to a minor release: 
-  `circleci orb publish promote myorg/my-orb@dev:my-branch minor`
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump minor`
 - Promote to a major release: 
-  `circleci orb publish promote myorg/my-orb@dev:my-branch major`
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump major`
 
 ## Learn More
 

@@ -257,8 +257,9 @@ func newResourceClassDeleteCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <namespace>/<name>",
-		Short: "Delete a runner resource class",
+		Use:     "delete <namespace>/<name>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a runner resource class",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				The resource class to delete, given in the form "namespace/name",

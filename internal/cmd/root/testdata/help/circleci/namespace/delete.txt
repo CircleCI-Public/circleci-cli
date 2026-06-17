@@ -13,6 +13,10 @@ Use --dry-run (-n) to preview what would be deleted without deleting.
 
 `circleci namespace delete <name> [flags]`
 
+## Aliases
+
+`circleci namespace rm`
+
 ## Flags
 
 | Flag            | Description                                  |

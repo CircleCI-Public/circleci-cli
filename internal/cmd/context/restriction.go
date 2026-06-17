@@ -188,8 +188,9 @@ func newRestrictionDeleteCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete <context-id|context-name>",
-		Short: "Delete a restriction from a context",
+		Use:     "delete <context-id|context-name>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a restriction from a context",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				A context can be specified in the form:

@@ -44,8 +44,9 @@ func newListCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List pipeline definitions for a project",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List pipeline definitions for a project",
 		Long: heredoc.Doc(`
 			List all pipeline definitions for a CircleCI project.
 

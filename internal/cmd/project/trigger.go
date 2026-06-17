@@ -168,8 +168,9 @@ func newTriggerListCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List triggers for a pipeline definition",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List triggers for a pipeline definition",
 		Long: heredoc.Doc(`
 			List all triggers attached to a pipeline definition.
 

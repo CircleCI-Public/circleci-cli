@@ -43,8 +43,9 @@ func newDeleteCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "delete <context-id|context-name>",
-		Short: "Delete a context",
+		Use:     "delete <context-id|context-name>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a context",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				A context can be specified in the form:

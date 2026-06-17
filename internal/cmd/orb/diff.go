@@ -39,47 +39,61 @@ import (
 )
 
 func newDiffCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "diff <ns>/<orb> <v1> <v2>",
+	var (
+		from string
+		to   string
+	)
+
+	cmd := &cobra.Command{
+		Use:   "diff <ns>/<orb> --from <v1> --to <v2>",
 		Short: "Show a unified diff between two orb versions",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				- <ns>/<orb>: the orb to diff, as "namespace/orb-name"
-				- <v1>: the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)
-				- <v2>: the second version, in the same form as <v1>
 			`),
 		},
 		Long: heredoc.Doc(`
 			Show a unified diff between two versions of an orb.
 
-			Version strings can be semver (e.g. 1.0.0) or dev labels
+			The --from and --to versions can be semver (e.g. 1.0.0) or dev labels
 			(e.g. dev:my-branch).
 
 			Exit code is 0 regardless of whether the versions differ.
 		`),
 		Example: heredoc.Doc(`
 			# Diff two semver versions
-			$ circleci orb diff myorg/my-orb 1.0.0 1.1.0
+			$ circleci orb diff myorg/my-orb --from 1.0.0 --to 1.1.0
 
 			# Diff a semver and a dev version
-			$ circleci orb diff myorg/my-orb 1.0.0 dev:my-branch
+			$ circleci orb diff myorg/my-orb --from 1.0.0 --to dev:my-branch
 
 			# Diff two dev versions
-			$ circleci orb diff myorg/my-orb dev:branch-a dev:branch-b
+			$ circleci orb diff myorg/my-orb --from dev:branch-a --to dev:branch-b
 		`),
-		Args: cobra.MaximumNArgs(3),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cmdutil.RequireArgs(args, "ns/orb", "v1", "v2"); err != nil {
+			if err := cmdutil.RequireArgs(args, "ns/orb"); err != nil {
 				return err
+			}
+			if from == "" {
+				return cmdutil.RequireFlag("from")
+			}
+			if to == "" {
+				return cmdutil.RequireFlag("to")
 			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runOrbDiff(ctx, client, args[0], args[1], args[2])
+			return runOrbDiff(ctx, client, args[0], from, to)
 		},
 	}
+
+	cmd.Flags().StringVar(&from, "from", "", "the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)")
+	cmd.Flags().StringVar(&to, "to", "", "the second version, in the same form as --from")
+
+	return cmd
 }
 
 func runOrbDiff(ctx context.Context, client *apiclient.Client, orbName, v1, v2 string) error {

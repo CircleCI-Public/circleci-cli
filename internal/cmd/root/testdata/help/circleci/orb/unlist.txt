@@ -2,14 +2,20 @@
 
 Control whether an orb is visible in the CircleCI orb registry.
 
-Pass 'true' to hide the orb (unlist it from search results).
-Pass 'false' to restore the orb's visibility.
+By default, hides the orb (unlists it from search results).
+Pass --restore to make the orb visible again.
 
 Unlisted orbs can still be used if you know the exact orb reference.
 
 ## Usage
 
-`circleci orb unlist <ns>/<orb> true|false [flags]`
+`circleci orb unlist <ns>/<orb> [flags]`
+
+## Flags
+
+| Flag        | Description                                       |
+| ----------- | ------------------------------------------------- |
+| `--restore` | restore the orb's visibility instead of hiding it |
 
 ## Inherited Flags
 
@@ -22,14 +28,13 @@ Unlisted orbs can still be used if you know the exact orb reference.
 ## Arguments
 
 - <ns>/<orb>: the orb to update, as "namespace/orb-name"
-- true|false: pass 'true' to hide (unlist) the orb, 'false' to restore its visibility
 
 ## Examples
 
 - Hide an orb from the registry: 
-  `circleci orb unlist myorg/my-orb true`
+  `circleci orb unlist myorg/my-orb`
 - Restore an orb's visibility: 
-  `circleci orb unlist myorg/my-orb false`
+  `circleci orb unlist myorg/my-orb --restore`
 
 ## Learn More
 

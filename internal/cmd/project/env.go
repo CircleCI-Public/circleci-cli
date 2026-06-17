@@ -69,8 +69,9 @@ func NewEnvListCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List project environment variables",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List project environment variables",
 		Long: heredoc.Doc(`
 			List the environment variables defined for a CircleCI project.
 
@@ -235,8 +236,9 @@ func NewEnvDeleteCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <name>",
-		Short: "Delete a project environment variable",
+		Use:     "delete <name>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a project environment variable",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				<name> is the name of the environment variable to delete from

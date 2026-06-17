@@ -13,6 +13,10 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci certificate delete <cert-id> [flags]`
 
+## Aliases
+
+`circleci certificate rm`
+
 ## Flags
 
 | Flag          | Description              |

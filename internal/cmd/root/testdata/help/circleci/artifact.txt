@@ -15,11 +15,11 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag                    | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `-d, --download string` | Download artifacts into this directory           |
-| `--jq string`           | Process values from the response using jq syntax |
-| `--json`                | Output as JSON                                   |
+| Flag                  | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `--jq string`         | Process values from the response using jq syntax |
+| `--json`              | Output as JSON                                   |
+| `-o, --output string` | Download artifacts into this directory           |
 
 ## Inherited Flags
 
