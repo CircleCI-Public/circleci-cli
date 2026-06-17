@@ -197,7 +197,7 @@ func TestArtifact_Download(t *testing.T) {
 	downloadDir := t.TempDir()
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifact", testArtifactJobID, "--download", downloadDir},
+		Args:    []string{"artifact", testArtifactJobID, "--output", downloadDir},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -229,7 +229,7 @@ func TestArtifact_Download_MultiExecution(t *testing.T) {
 	downloadDir := t.TempDir()
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"artifact", jobID, "--download", downloadDir},
+		Args:    []string{"artifact", jobID, "--output", downloadDir},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

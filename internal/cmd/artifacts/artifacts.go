@@ -38,8 +38,8 @@ import (
 // NewArtifactCmd returns the top-level "circleci artifact" command.
 func NewArtifactCmd() *cobra.Command {
 	var (
-		downloadDir string
-		jsonOut     bool
+		outputDir string
+		jsonOut   bool
 	)
 
 	cmd := &cobra.Command{
@@ -99,9 +99,9 @@ func NewArtifactCmd() *cobra.Command {
 				entries = []artifacts.Entry{}
 			}
 
-			if downloadDir != "" {
-				sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %s", len(entries), downloadDir))
-				dlErr := artifacts.Download(ctx, client, entries, downloadDir)
+			if outputDir != "" {
+				sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %q", len(entries), outputDir))
+				dlErr := artifacts.Download(ctx, client, entries, outputDir)
 				sp.Stop()
 				if dlErr != nil {
 					return clierrors.New("artifacts.download_failed", "Download failed", dlErr.Error()).
@@ -119,7 +119,7 @@ func NewArtifactCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&downloadDir, "download", "d", "", "Download artifacts into this directory")
+	cmd.Flags().StringVarP(&outputDir, "output", "o", "", "Download artifacts into this directory")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 

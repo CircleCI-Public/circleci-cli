@@ -16,6 +16,10 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci context restriction delete <context-id|context-name> [flags]`
 
+## Aliases
+
+`circleci context restriction rm`
+
 ## Flags
 
 | Flag                      | Description                                                       |

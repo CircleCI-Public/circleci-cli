@@ -2,14 +2,21 @@
 
 Show a unified diff between two versions of an orb.
 
-Version strings can be semver (e.g. 1.0.0) or dev labels
+The --from and --to versions can be semver (e.g. 1.0.0) or dev labels
 (e.g. dev:my-branch).
 
 Exit code is 0 regardless of whether the versions differ.
 
 ## Usage
 
-`circleci orb diff <ns>/<orb> <v1> <v2> [flags]`
+`circleci orb diff <ns>/<orb> --from <v1> --to <v2> [flags]`
+
+## Flags
+
+| Flag            | Description                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| `--from string` | the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch) |
+| `--to string`   | the second version, in the same form as --from                           |
 
 ## Inherited Flags
 
@@ -22,17 +29,15 @@ Exit code is 0 regardless of whether the versions differ.
 ## Arguments
 
 - <ns>/<orb>: the orb to diff, as "namespace/orb-name"
-- <v1>: the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)
-- <v2>: the second version, in the same form as <v1>
 
 ## Examples
 
 - Diff two semver versions: 
-  `circleci orb diff myorg/my-orb 1.0.0 1.1.0`
+  `circleci orb diff myorg/my-orb --from 1.0.0 --to 1.1.0`
 - Diff a semver and a dev version: 
-  `circleci orb diff myorg/my-orb 1.0.0 dev:my-branch`
+  `circleci orb diff myorg/my-orb --from 1.0.0 --to dev:my-branch`
 - Diff two dev versions: 
-  `circleci orb diff myorg/my-orb dev:branch-a dev:branch-b`
+  `circleci orb diff myorg/my-orb --from dev:branch-a --to dev:branch-b`
 
 ## Learn More
 

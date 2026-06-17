@@ -6,10 +6,10 @@ To publish a specific version:
   circleci orb publish <path> <ns>/<orb>@<version>
 
 To promote a dev version to a stable semver:
-  circleci orb publish promote <ns>/<orb>@dev:<label> major|minor|patch
+  circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch
 
 To increment the latest stable version and publish:
-  circleci orb publish increment <path> <ns>/<orb> major|minor|patch
+  circleci orb publish increment <path> <ns>/<orb> --bump major|minor|patch
 
 ## Usage
 
@@ -37,9 +37,9 @@ To increment the latest stable version and publish:
 - Publish a dev version: 
   `circleci orb publish orb.yml myorg/my-orb@dev:my-branch`
 - Promote a dev version to a patch release: 
-  `circleci orb publish promote myorg/my-orb@dev:my-branch patch`
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump patch`
 - Increment major version and publish: 
-  `circleci orb publish increment orb.yml myorg/my-orb major`
+  `circleci orb publish increment orb.yml myorg/my-orb --bump major`
 
 ## Learn More
 

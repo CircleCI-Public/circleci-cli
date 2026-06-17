@@ -13,6 +13,10 @@ For more information about output formatting flags, see `circleci help formattin
 
 `circleci setting list [flags]`
 
+## Aliases
+
+`circleci setting ls`
+
 ## Flags
 
 | Flag          | Description                                      |

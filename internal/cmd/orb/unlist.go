@@ -30,59 +30,54 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newUnlistCmd() *cobra.Command {
-	return &cobra.Command{
-		Use:   "unlist <ns>/<orb> true|false",
+	var restore bool
+
+	cmd := &cobra.Command{
+		Use:   "unlist <ns>/<orb>",
 		Short: "Hide or restore an orb in the registry",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				- <ns>/<orb>: the orb to update, as "namespace/orb-name"
-				- true|false: pass 'true' to hide (unlist) the orb, 'false' to restore its visibility
 			`),
 		},
 		Long: heredoc.Doc(`
 			Control whether an orb is visible in the CircleCI orb registry.
 
-			Pass 'true' to hide the orb (unlist it from search results).
-			Pass 'false' to restore the orb's visibility.
+			By default, hides the orb (unlists it from search results).
+			Pass --restore to make the orb visible again.
 
 			Unlisted orbs can still be used if you know the exact orb reference.
 		`),
 		Example: heredoc.Doc(`
 			# Hide an orb from the registry
-			$ circleci orb unlist myorg/my-orb true
+			$ circleci orb unlist myorg/my-orb
 
 			# Restore an orb's visibility
-			$ circleci orb unlist myorg/my-orb false
+			$ circleci orb unlist myorg/my-orb --restore
 		`),
-		Args: cobra.MaximumNArgs(2),
+		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if err := cmdutil.RequireArgs(args, "ns/orb", "true|false"); err != nil {
+			if err := cmdutil.RequireArgs(args, "ns/orb"); err != nil {
 				return err
-			}
-			var listed bool
-			switch args[1] {
-			case "true":
-				listed = false // unlist = hide = not listed
-			case "false":
-				listed = true // relist = show = listed
-			default:
-				return clierrors.New("args.invalid_unlist", "Invalid value for listed flag",
-					"Expected 'true' (to unlist) or 'false' (to relist), got: "+args[1]).
-					WithExitCode(clierrors.ExitBadArguments)
 			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runOrbUnlist(ctx, client, args[0], listed)
+			// listed is the desired visibility: --restore makes it listed,
+			// the default (unlist) makes it not listed.
+			return runOrbUnlist(ctx, client, args[0], restore)
 		},
 	}
+
+	cmd.Flags().BoolVar(&restore, "restore", false, "restore the orb's visibility instead of hiding it")
+
+	return cmd
 }
 
 func runOrbUnlist(ctx context.Context, client *apiclient.Client, fullName string, listed bool) error {

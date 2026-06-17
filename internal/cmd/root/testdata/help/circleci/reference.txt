@@ -16,11 +16,11 @@ Work with CircleCI from the command line.
 
 List and download a job's artifact files
 
-| Flag                    | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `-d, --download string` | Download artifacts into this directory           |
-| `--jq string`           | Process values from the response using jq syntax |
-| `--json`                | Output as JSON                                   |
+| Flag                  | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `--jq string`         | Process values from the response using jq syntax |
+| `--json`              | Output as JSON                                   |
+| `-o, --output string` | Download artifacts into this directory           |
 
 
 **Arguments:**
@@ -86,11 +86,11 @@ Inspect a job's details, output and artifacts
 
 List or download artifacts for a job
 
-| Flag                    | Description                                      |
-| ----------------------- | ------------------------------------------------ |
-| `-d, --download string` | Download artifacts into this directory           |
-| `--jq string`           | Process values from the response using jq syntax |
-| `--json`                | Output as JSON                                   |
+| Flag                  | Description                                      |
+| --------------------- | ------------------------------------------------ |
+| `--jq string`         | Process values from the response using jq syntax |
+| `--json`              | Output as JSON                                   |
+| `-o, --output string` | Download artifacts into this directory           |
 
 
 **Arguments:**
@@ -186,6 +186,11 @@ List pipeline definitions for a project
 | `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote |
 | `--project-id string` | Project UUID (overrides --project)                      |
 
+
+**Aliases:**
+
+
+`circleci pipeline ls`
 
 #### `circleci pipeline run [flags]`
 
@@ -402,6 +407,11 @@ Delete an iOS certificate
 <cert-id> is the ID of the certificate to delete
 (see: circleci certificate list).
 
+**Aliases:**
+
+
+`circleci certificate rm`
+
 #### `circleci certificate list [flags]`
 
 List uploaded iOS certificates
@@ -465,6 +475,11 @@ Delete a context
 A context can be specified in the form:
 - "context-name"
 - by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+
+**Aliases:**
+
+
+`circleci context rm`
 
 #### `circleci context get <context-id|context-name> [flags]`
 
@@ -549,6 +564,11 @@ A context can be specified in the form:
 - "context-name"
 - by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
 
+**Aliases:**
+
+
+`circleci context restriction rm`
+
 #### `circleci context secret <command>`
 
 Manage context environment variables
@@ -569,6 +589,11 @@ Delete an environment variable from a context
 A context can be specified in the form:
 - "context-name"
 - by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+
+**Aliases:**
+
+
+`circleci context secret rm`
 
 ##### `circleci context secret list <context-id|context-name> [flags]`
 
@@ -682,6 +707,11 @@ Delete a project environment variable
 <name> is the name of the environment variable to delete from
 the project. This action is irreversible.
 
+**Aliases:**
+
+
+`circleci envvar rm`
+
 #### `circleci envvar list [flags]`
 
 List project environment variables
@@ -692,6 +722,11 @@ List project environment variables
 | `--json`           | Output as JSON                                          |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
+
+**Aliases:**
+
+
+`circleci envvar ls`
 
 #### `circleci envvar set <name> <value> [flags]`
 
@@ -741,6 +776,11 @@ Delete a namespace and all its orbs
 **Arguments:**
 
 <name> is the name of the namespace to delete, e.g. "myorg".
+
+**Aliases:**
+
+
+`circleci namespace rm`
 
 #### `circleci namespace get <name> [flags]`
 
@@ -800,15 +840,19 @@ Reserve an orb name in a namespace
 - <namespace>/<orb>: the orb name to reserve, as "namespace/orb-name".
   The namespace must already exist.
 
-#### `circleci orb diff <ns>/<orb> <v1> <v2>`
+#### `circleci orb diff <ns>/<orb> --from <v1> --to <v2> [flags]`
 
 Show a unified diff between two orb versions
+
+| Flag            | Description                                                              |
+| --------------- | ------------------------------------------------------------------------ |
+| `--from string` | the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch) |
+| `--to string`   | the second version, in the same form as --from                           |
+
 
 **Arguments:**
 
 - <ns>/<orb>: the orb to diff, as "namespace/orb-name"
-- <v1>: the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)
-- <v2>: the second version, in the same form as <v1>
 
 #### `circleci orb get <ns>/<orb>[@<version>]/<orb-id> [flags]`
 
@@ -883,24 +927,32 @@ Validate and print expanded orb YAML
 
 Publish orb versions
 
-##### `circleci orb publish increment <path> <ns>/<orb> major|minor|patch`
+##### `circleci orb publish increment <path> <ns>/<orb> --bump major|minor|patch [flags]`
 
 Increment and publish a new orb version
+
+| Flag            | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `--bump string` | which version segment to increment: major, minor, or patch |
+
 
 **Arguments:**
 
 - <path>: path to the orb YAML to publish. Pass '-' to read from stdin.
 - <ns>/<orb>: the orb to publish, as "namespace/orb-name"
-- major|minor|patch: how to increment from the current latest stable version
 
-##### `circleci orb publish promote <ns>/<orb>@dev:<label> major|minor|patch`
+##### `circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch [flags]`
 
 Promote a dev orb version to a stable semver
+
+| Flag            | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `--bump string` | which version segment to increment: major, minor, or patch |
+
 
 **Arguments:**
 
 - <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
-- major|minor|patch: how to increment from the latest stable release
 
 #### `circleci orb remove-from-category <ns>/<orb> <category>`
 
@@ -921,14 +973,18 @@ Print the YAML source of an orb version
   Optionally append @<version> (e.g. @1.2.3, @volatile, or @dev:my-branch).
   When omitted, the latest published version is shown.
 
-#### `circleci orb unlist <ns>/<orb> true|false`
+#### `circleci orb unlist <ns>/<orb> [flags]`
 
 Hide or restore an orb in the registry
+
+| Flag        | Description                                       |
+| ----------- | ------------------------------------------------- |
+| `--restore` | restore the orb's visibility instead of hiding it |
+
 
 **Arguments:**
 
 - <ns>/<orb>: the orb to update, as "namespace/orb-name"
-- true|false: pass 'true' to hide (unlist) the orb, 'false' to restore its visibility
 
 #### `circleci orb validate <path> [flags]`
 
@@ -1114,6 +1170,11 @@ Delete a project environment variable
 <name> is the name of the environment variable to delete from
 the project. This action is irreversible.
 
+**Aliases:**
+
+
+`circleci project envvar rm`
+
 ##### `circleci project envvar list [flags]`
 
 List project environment variables
@@ -1124,6 +1185,11 @@ List project environment variables
 | `--json`           | Output as JSON                                          |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
+
+**Aliases:**
+
+
+`circleci project envvar ls`
 
 ##### `circleci project envvar set <name> <value> [flags]`
 
@@ -1228,6 +1294,11 @@ List triggers for a pipeline definition
 | `--project-id string`             | Project UUID (overrides --project)                      |
 
 
+**Aliases:**
+
+
+`circleci project trigger ls`
+
 ### `circleci runner <command>`
 
 Manage self-hosted runners
@@ -1313,6 +1384,11 @@ Delete a runner resource class
 The resource class to delete, given in the form "namespace/name",
 where namespace is your organization name (e.g. my-org/my-runner).
 
+**Aliases:**
+
+
+`circleci runner resource-class rm`
+
 ##### `circleci runner resource-class list [flags]`
 
 List runner resource classes
@@ -1375,6 +1451,11 @@ Delete a runner token
 <token-id> is the ID of the token to delete (a UUID). Find token IDs
 with: circleci runner token list --resource-class <namespace/name>
 
+**Aliases:**
+
+
+`circleci runner token rm`
+
 ##### `circleci runner token list [flags]`
 
 List tokens for a resource class
@@ -1422,6 +1503,11 @@ Delete an iOS signing config
 
 <signing-config-id> is the ID of the signing config to delete
 (see: circleci signing-config list).
+
+**Aliases:**
+
+
+`circleci signing-config rm`
 
 #### `circleci signing-config list [flags]`
 
@@ -1670,6 +1756,11 @@ List current CLI settings
 | `--jq string` | Process values from the response using jq syntax |
 | `--json`      | Output as JSON                                   |
 
+
+**Aliases:**
+
+
+`circleci setting ls`
 
 #### `circleci setting set <key> <value>`
 

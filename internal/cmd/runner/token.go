@@ -280,8 +280,9 @@ func newTokenDeleteCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <token-id>",
-		Short: "Delete a runner token",
+		Use:     "delete <token-id>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a runner token",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				<token-id> is the ID of the token to delete (a UUID). Find token IDs

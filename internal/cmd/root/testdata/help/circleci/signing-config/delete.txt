@@ -12,6 +12,10 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci signing-config delete <signing-config-id> [flags]`
 
+## Aliases
+
+`circleci signing-config rm`
+
 ## Flags
 
 | Flag          | Description              |

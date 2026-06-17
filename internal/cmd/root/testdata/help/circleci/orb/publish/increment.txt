@@ -3,14 +3,21 @@
 Read orb YAML from path, compute the next version by incrementing
 the current latest stable version, and publish it.
 
-If no stable version exists yet, publishes as 0.0.1 (patch), 0.1.0 (minor),
-or 1.0.0 (major) depending on the segment.
+The --bump flag selects which segment to increment. If no stable
+version exists yet, publishes as 0.0.1 (patch), 0.1.0 (minor),
+or 1.0.0 (major) depending on --bump.
 
 Pass '-' as the path to read from stdin.
 
 ## Usage
 
-`circleci orb publish increment <path> <ns>/<orb> major|minor|patch [flags]`
+`circleci orb publish increment <path> <ns>/<orb> --bump major|minor|patch [flags]`
+
+## Flags
+
+| Flag            | Description                                                |
+| --------------- | ---------------------------------------------------------- |
+| `--bump string` | which version segment to increment: major, minor, or patch |
 
 ## Inherited Flags
 
@@ -24,16 +31,15 @@ Pass '-' as the path to read from stdin.
 
 - <path>: path to the orb YAML to publish. Pass '-' to read from stdin.
 - <ns>/<orb>: the orb to publish, as "namespace/orb-name"
-- major|minor|patch: how to increment from the current latest stable version
 
 ## Examples
 
 - Increment patch version and publish: 
-  `circleci orb publish increment orb.yml myorg/my-orb patch`
+  `circleci orb publish increment orb.yml myorg/my-orb --bump patch`
 - Increment minor version: 
-  `circleci orb publish increment orb.yml myorg/my-orb minor`
+  `circleci orb publish increment orb.yml myorg/my-orb --bump minor`
 - Read orb from stdin, increment major: 
-  `cat orb.yml | circleci orb publish increment - myorg/my-orb major`
+  `cat orb.yml | circleci orb publish increment - myorg/my-orb --bump major`
 
 ## Learn More
 

@@ -16,6 +16,10 @@ For more information about output formatting flags, see `circleci help formattin
 
 `circleci envvar list [flags]`
 
+## Aliases
+
+`circleci envvar ls`
+
 ## Flags
 
 | Flag               | Description                                             |

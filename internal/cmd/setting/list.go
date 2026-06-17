@@ -41,8 +41,9 @@ func newListCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:   "list",
-		Short: "List current CLI settings",
+		Use:     "list",
+		Aliases: []string{"ls"},
+		Short:   "List current CLI settings",
 		Long: heredoc.Doc(`
 			Display the current CLI settings.
 

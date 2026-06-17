@@ -289,8 +289,9 @@ func newDeleteCmd() *cobra.Command {
 	var force bool
 
 	cmd := &cobra.Command{
-		Use:   "delete <cert-id>",
-		Short: "Delete an iOS certificate",
+		Use:     "delete <cert-id>",
+		Aliases: []string{"rm"},
+		Short:   "Delete an iOS certificate",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				<cert-id> is the ID of the certificate to delete

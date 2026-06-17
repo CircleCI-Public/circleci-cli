@@ -19,6 +19,10 @@ For more information about output formatting flags, see `circleci help formattin
 
 `circleci project trigger list [flags]`
 
+## Aliases
+
+`circleci project trigger ls`
+
 ## Flags
 
 | Flag                              | Description                                             |
