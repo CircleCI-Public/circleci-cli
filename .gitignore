@@ -4,6 +4,7 @@ share/
 
 # Docs site (generated reference page, built output, pinned tools, publish worktree)
 website/content/_index.md
+website/static/llms.txt
 website/public/
 bin/tools/
 /.gh-pages/
