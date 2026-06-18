@@ -11,9 +11,21 @@ This is CircleCI's command-line application.
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
 
+`circleci` is CircleCI's official command line tool. It is an agent-friedly CLI that brings CI runs, jobs,
+configuration, and other CircleCI features to the terminal right where you're already working.
+
+<p align="center">
+  <a href="./docs/demos/run-get.svg">
+    <img alt="output of freeze command, Haskell code block" src="./docs/demos/run-get.svg" width="800" />
+  </a>
+</p>
+
+The CLI is supported for users on [circleci.com](https://circleci.com) and CircleCI server; with support for macOS,
+Windows, and Linux.
+
 ## Installation
 
-CircleCI CLI is available on the following package managers:
+The CircleCI CLI is available on the following package managers:
 
 Homebrew (preview):
 ```shell
@@ -29,6 +41,11 @@ brew install circleci
 Snap:
 ```shell
 sudo snap install circleci
+```
+
+WinGet:
+```shell
+winget install CircleCI.CLI
 ```
 
 Chocolatey:
