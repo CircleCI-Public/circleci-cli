@@ -24,8 +24,8 @@
 //
 // goreleaser only pushes to packagecloud under a Pro licence, so this small
 // release-time tool does it against the public REST API instead. Each package is
-// published to the generic "rpm_any"/"deb_any" distribution so a single upload
-// serves every distro version.
+// published to packagecloud's generic distribution for its format ("rpm_any" for
+// rpm, "any" for deb) so a single upload serves every distro version.
 //
 // Usage:
 //
@@ -101,7 +101,7 @@ func run(ctx context.Context, repo string, files []string, dryRun bool) error {
 			iostream.InfoContext(ctx, "would publish",
 				"package", filepath.Base(f),
 				"repo", repo,
-				"distro", pkgExt(f)+"_any",
+				"distro", anyDistro[pkgExt(f)],
 			)
 		}
 		return nil
@@ -216,13 +216,22 @@ func alreadyPublished(err error) bool {
 	return errors.As(err, &httpErr) && bytes.Contains(httpErr.Body, []byte("already been taken"))
 }
 
-// resolveAnyDistroIDs returns the distro_version_id of the generic "rpm_any" and
-// "deb_any" distributions, keyed by package extension ("rpm"/"deb").
+// anyDistro maps a package extension to packagecloud's generic, distro-agnostic
+// distribution. A single upload to one of these serves every version of that
+// package format. The names are NOT symmetric: rpm uses "rpm_any", but
+// deb/dsc use "any". See https://packagecloud.io/docs#announcing-fat-manifests.
+var anyDistro = map[string]string{
+	"rpm": "rpm_any",
+	"deb": "any",
+}
+
+// resolveAnyDistroIDs returns the distro_version_id of the generic distributions
+// in anyDistro, keyed by package extension ("rpm"/"deb").
 func (c *client) resolveAnyDistroIDs(ctx context.Context) (map[string]int, error) {
-	var dists struct {
-		Deb []distro `json:"deb"`
-		Rpm []distro `json:"rpm"`
-	}
+	// Distributions are grouped by package type (deb, rpm, dsc, ...). Decode the
+	// whole document and search every group so we don't depend on which group a
+	// generic distribution happens to live under.
+	var dists map[string][]distro
 	if _, err := c.http.Call(ctx, httpcl.NewRequest("GET", "/api/v1/distributions.json",
 		httpcl.JSONDecoder(&dists),
 	)); err != nil {
@@ -230,34 +239,46 @@ func (c *client) resolveAnyDistroIDs(ctx context.Context) (map[string]int, error
 	}
 
 	ids := map[string]int{}
-	for ext, list := range map[string][]distro{"rpm": dists.Rpm, "deb": dists.Deb} {
-		name := ext + "_any"
-		id, ok := findDistroVersion(list, name)
+	for ext, name := range anyDistro {
+		id, ok := findDistroVersion(dists, name)
 		if !ok {
-			return nil, fmt.Errorf("distribution %q not found in packagecloud distributions", name)
+			return nil, fmt.Errorf("packagecloud distribution %q not found among %v", name, versionNames(dists))
 		}
 		ids[ext] = id
 	}
 	return ids, nil
 }
 
-func findDistroVersion(list []distro, name string) (int, bool) {
-	for _, d := range list {
-		if d.IndexName != name {
-			continue
-		}
-		for _, v := range d.Versions {
-			if v.IndexName == name {
-				return v.ID, true
+// findDistroVersion returns the id of the distro version whose index_name equals
+// name (e.g. "rpm_any", "any"), searching every distribution across all groups.
+func findDistroVersion(dists map[string][]distro, name string) (int, bool) {
+	for _, list := range dists {
+		for _, d := range list {
+			for _, v := range d.Versions {
+				if v.IndexName == name {
+					return v.ID, true
+				}
 			}
 		}
 	}
 	return 0, false
 }
 
+// versionNames returns every distro version index_name across all groups, for error messages.
+func versionNames(dists map[string][]distro) []string {
+	var names []string
+	for _, list := range dists {
+		for _, d := range list {
+			for _, v := range d.Versions {
+				names = append(names, v.IndexName)
+			}
+		}
+	}
+	return names
+}
+
 type distro struct {
-	IndexName string `json:"index_name"`
-	Versions  []struct {
+	Versions []struct {
 		ID        int    `json:"id"`
 		IndexName string `json:"index_name"`
 	} `json:"versions"`
