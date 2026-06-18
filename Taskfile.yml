@@ -345,13 +345,30 @@ tasks:
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - git push origin '{{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --clean
+      - task: ci:packagecloud
+
+  ci:packagecloud:
+    desc: Publish the Linux nfpm packages (rpm + deb) from dist/ to packagecloud
+    # PACKAGECLOUD_TOKEN must be set in the environment (not needed when DRY_RUN is
+    # set). Override REPO to target a different packagecloud repository
+    # (<user>/<repo>); set DRY_RUN to validate without uploading.
+    vars:
+      REPO: '{{default "circleci/circleci" .REPO}}'
+      DRY_RUN: '{{default "" .DRY_RUN}}'
+    cmds:
+      # goreleaser only pushes to packagecloud under a Pro licence, so cmd/packagecloud
+      # uploads the nfpm output to the public REST API instead — no Ruby CLI needed.
+      - go run ./cmd/packagecloud {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.REPO}}' dist/*.rpm dist/*.deb
 
   ci:build:
-    desc: Build a release
+    desc: Dry-run a release — build a snapshot (incl. nfpms) and dry-run the packagecloud publish
     vars:
       VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-pre'
     cmds:
       - git config --global user.email $GH_EMAIL
       - git config --global user.name $GH_NAME
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
-      - go tool -modfile tools/go.mod goreleaser build --clean
+      - go tool -modfile tools/go.mod goreleaser release --snapshot --skip=snapcraft --skip=chocolatey --clean
+      - task: ci:packagecloud
+        vars:
+          DRY_RUN: "true"

@@ -142,7 +142,12 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	}()
 
 	var bodyReader io.Reader
-	if r.body != nil {
+	contentType := jsonContentType
+	switch {
+	case r.rawBody != nil:
+		bodyReader = bytes.NewReader(r.rawBody)
+		contentType = r.contentType
+	case r.body != nil:
 		b, err := json.Marshal(r.body)
 		if err != nil {
 			return 0, fmt.Errorf("httpcl: marshal body: %w", err)
@@ -158,8 +163,8 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 		return 0, fmt.Errorf("httpcl: new request: %w", err)
 	}
 
-	if r.body != nil {
-		req.Header.Set("Content-Type", jsonContentType)
+	if bodyReader != nil {
+		req.Header.Set("Content-Type", contentType)
 	}
 	req.Header.Set("Accept", "application/json")
 

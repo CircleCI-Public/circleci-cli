@@ -35,6 +35,8 @@ type Request struct {
 	method      string
 	route       string
 	body        any
+	rawBody     []byte
+	contentType string
 	decoder     func(io.Reader) error
 	headers     http.Header
 	query       url.Values
@@ -58,6 +60,16 @@ func NewRequest(method, route string, opts ...func(*Request)) Request {
 // Body sets a value that will be JSON-encoded as the request body.
 func Body(v any) func(*Request) {
 	return func(r *Request) { r.body = v }
+}
+
+// RawBody sets a pre-encoded request body sent verbatim with the given
+// Content-Type, bypassing JSON marshaling (e.g. multipart/form-data uploads).
+// Takes precedence over Body.
+func RawBody(body []byte, contentType string) func(*Request) {
+	return func(r *Request) {
+		r.rawBody = body
+		r.contentType = contentType
+	}
 }
 
 // JSONDecoder decodes a 2xx response body as JSON into v.
