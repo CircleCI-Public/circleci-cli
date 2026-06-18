@@ -47,16 +47,37 @@ type runErrorWire struct {
 
 type runVCSWire struct {
 	Branch   string `json:"branch"`
+	Tag      string `json:"tag"`
 	Revision string `json:"revision"`
 }
 
 type runReferencesWire struct {
+	// Event carries the VCS details of the event that triggered the run,
+	// including the tag — which the legacy top-level attributes.vcs lacks.
+	Event   runEventRefWire   `json:"event"`
+	Trigger runTriggerRefWire `json:"trigger"`
 	Project struct {
 		ID string `json:"id"`
 	} `json:"project"`
 	User struct {
 		ID string `json:"id"`
 	} `json:"user"`
+}
+
+type runEventRefWire struct {
+	Attributes struct {
+		Type   string      `json:"type"`
+		Action string      `json:"action"`
+		VCS    *runVCSWire `json:"vcs"`
+	} `json:"attributes"`
+}
+
+type runTriggerRefWire struct {
+	Attributes struct {
+		EventSource struct {
+			Type string `json:"type"`
+		} `json:"event_source"`
+	} `json:"attributes"`
 }
 
 type runWire struct {
@@ -80,6 +101,7 @@ type RunV3 struct {
 	Outcome        string     `json:"outcome,omitempty"`
 	CurrentOutcome string     `json:"current_outcome,omitempty"`
 	Branch         string     `json:"branch,omitempty"`
+	Tag            string     `json:"tag,omitempty"`
 	Revision       string     `json:"revision,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	ProjectID      string     `json:"project_id"`
@@ -101,7 +123,14 @@ func (w runWire) toRunV3() *RunV3 {
 		CreatedAt:      a.CreatedAt,
 		ProjectID:      w.References.Project.ID,
 	}
-	if a.VCS != nil {
+	// VCS details now live on the event reference, which is the only source
+	// that carries the tag. Fall back to the legacy top-level attributes.vcs
+	// (branch/revision only) while the API still serves it during rollout.
+	if v := w.References.Event.Attributes.VCS; v != nil {
+		r.Branch = v.Branch
+		r.Tag = v.Tag
+		r.Revision = v.Revision
+	} else if a.VCS != nil {
 		r.Branch = a.VCS.Branch
 		r.Revision = a.VCS.Revision
 	}

@@ -57,7 +57,7 @@ func newListCmd() *cobra.Command {
 			to a single branch, or --current-branch (-B) to automatically use
 			the branch you have checked out.
 
-			JSON fields: id, phase, outcome, current_outcome, branch, revision, created_at
+			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
@@ -112,6 +112,7 @@ type runListEntry struct {
 	Outcome        string `json:"outcome,omitempty"`
 	CurrentOutcome string `json:"current_outcome,omitempty"`
 	Branch         string `json:"branch,omitempty"`
+	Tag            string `json:"tag,omitempty"`
 	Revision       string `json:"revision,omitempty"`
 	CreatedAt      string `json:"created_at"`
 }
@@ -171,15 +172,25 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 		Outcome:        r.Outcome,
 		CurrentOutcome: r.CurrentOutcome,
 		Branch:         r.Branch,
+		Tag:            r.Tag,
 		Revision:       rev,
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
 	}
 }
 
 func printList(ctx context.Context, entries []runListEntry) {
-	table := mdtable.New("Branch", "Revision", "ID", "Created", "Status")
+	table := mdtable.New("Ref", "Revision", "ID", "Created", "Status")
 	for _, e := range entries {
-		table.Row(e.Branch, e.Revision, "`"+e.ID+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
+		table.Row(refDisplay(e.Branch, e.Tag), e.Revision, "`"+e.ID+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
+}
+
+// refDisplay renders the git ref for a run: the branch, or the tag (marked
+// with 🏷) for runs triggered by a tag rather than a branch.
+func refDisplay(branch, tag string) string {
+	if branch == "" && tag != "" {
+		return "🏷 " + tag
+	}
+	return branch
 }
