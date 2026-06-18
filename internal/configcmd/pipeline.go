@@ -84,7 +84,6 @@ func LocalPipelineValues(params map[string]any) map[string]any {
 		"pipeline.git.repo_name":                                     "",
 		"pipeline.git.repo_owner":                                    "",
 		"pipeline.git.repo_url":                                      gitURL,
-		"pipeline.git.ssh_checkout_url":                              "",
 		"pipeline.trigger_parameters.circleci.event_time":            "2020-01-01T00:00:00Z",
 		"pipeline.trigger_parameters.circleci.trigger_type":          "github_app",
 		"pipeline.trigger_parameters.circleci.event_type":            "push",
