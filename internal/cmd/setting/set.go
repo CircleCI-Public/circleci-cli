@@ -171,7 +171,7 @@ func promptTheme(ctx context.Context) (string, error) {
 		cursorIdx = slices.Index(themes, config.DefaultTheme)
 	}
 
-	idx, err := iostream.PromptSelectDefault(ctx, "Select a theme", labels, cursorIdx)
+	idx, err := iostream.PromptThemePreview(ctx, "Select a theme", labels, themes, cursorIdx, themePreviewMarkdown)
 	if err != nil {
 		return "", err
 	}
@@ -180,6 +180,28 @@ func promptTheme(ctx context.Context) (string, error) {
 	}
 	return themes[idx], nil
 }
+
+// themePreviewMarkdown is the sample document rendered in the right-hand pane of
+// the interactive theme picker. It exercises the markdown elements a theme most
+// visibly affects — headings, emphasis, links, lists, inline and block code,
+// blockquotes, and tables — so each theme's colors are easy to compare.
+const themePreviewMarkdown = `# Title
+
+Preview of the **selected** theme.
+
+## List
+
+- ` + "`circleci run list`" + ` — *recent* runs
+
+> Tip: pass ` + "`--json`" + ` to any command.
+
+## Table
+
+| Status  | Count |
+| ------- | ----- |
+| success |    42 |
+| failed  |     3 |
+`
 
 func runSetTheme(ctx context.Context, path, value string) error {
 	if !iostream.IsValidTheme(value) {
