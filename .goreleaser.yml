@@ -49,7 +49,8 @@ builds:
       - -s -w -X main.version={{.Version}}
 
 nfpms:
-  - license: MIT
+  - package_name: circleci
+    license: MIT
     maintainer: CircleCI
     homepage: https://github.com/CircleCI-Public/circleci-cli
     description: CircleCI command line tool.

@@ -20,7 +20,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Command packagecloud uploads Linux nfpm packages (.rpm/.deb) to packagecloud.io.
+// Command packagecloud talks to the packagecloud.io REST API: it publishes Linux
+// nfpm packages (.rpm/.deb) and lists, shows, and creates repositories.
 //
 // goreleaser only pushes to packagecloud under a Pro licence, so this small
 // release-time tool does it against the public REST API instead. Each package is
@@ -29,7 +30,10 @@
 //
 // Usage:
 //
-//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud --repo circleci/circleci dist/*.rpm dist/*.deb
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud pkg push --repo circleci/circleci dist/*.rpm dist/*.deb
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud repo list
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud repo get circleci/runner
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud repo create circleci/circleci
 package main
 
 import (
@@ -44,6 +48,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"text/tabwriter"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -59,27 +64,105 @@ func main() {
 }
 
 func rootCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:          "packagecloud <command>",
+		Short:        "Publish packages to, and inspect, packagecloud.io",
+		SilenceUsage: true,
+	}
+	// --debug is read by iostream.FromCmd to enable httpcl's request logging; as a
+	// persistent flag it's available to every subcommand.
+	cmd.PersistentFlags().Bool("debug", false, "log HTTP requests to stderr")
+	cmd.AddCommand(pkgCmd(), repoCmd())
+	return cmd
+}
+
+func pkgCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "pkg <command>",
+		Short: "Manage packagecloud packages",
+	}
+	cmd.AddCommand(pushCmd())
+	return cmd
+}
+
+func pushCmd() *cobra.Command {
 	var repo string
 	var dryRun bool
 	cmd := &cobra.Command{
-		Use:          "packagecloud [flags] <package>...",
-		Short:        "Upload Linux nfpm packages (.rpm/.deb) to packagecloud.io",
-		Args:         cobra.MinimumNArgs(1),
-		SilenceUsage: true,
+		Use:   "push [flags] <package>...",
+		Short: "Upload Linux nfpm packages (.rpm/.deb) to packagecloud.io",
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			// FromCmd installs Streams into the context so httpcl's
-			// iostream.DebugContext logging works; --debug enables it.
 			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
-			return run(ctx, repo, args, dryRun)
+			return runPush(ctx, repo, args, dryRun)
 		},
 	}
 	cmd.Flags().StringVar(&repo, "repo", "circleci/circleci", "packagecloud repository as <user>/<repo>")
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "validate the packages and print what would be uploaded, without contacting packagecloud")
-	cmd.Flags().Bool("debug", false, "log HTTP requests to stderr")
 	return cmd
 }
 
-func run(ctx context.Context, repo string, files []string, dryRun bool) error {
+func repoCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "repo <command>",
+		Short: "Manage packagecloud repositories",
+	}
+	cmd.AddCommand(repoListCmd(), repoGetCmd(), repoCreateCmd())
+	return cmd
+}
+
+func repoListCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List the repositories the API token can access",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			return runRepoList(ctx)
+		},
+	}
+}
+
+func repoGetCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "get <user>/<repo>",
+		Short: "Show a single packagecloud repository",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			return runRepoGet(ctx, args[0])
+		},
+	}
+}
+
+func repoCreateCmd() *cobra.Command {
+	var private bool
+	cmd := &cobra.Command{
+		Use:   "create <user>/<repo>",
+		Short: "Create a packagecloud repository",
+		// The API creates the repository under the account the token belongs to,
+		// so the <user> in the argument is informational; the created repository's
+		// real owner is shown in the output.
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			return runRepoCreate(ctx, args[0], private)
+		},
+	}
+	cmd.Flags().BoolVar(&private, "private", false, "create a private repository")
+	return cmd
+}
+
+// requireToken reads the packagecloud API token from the environment.
+func requireToken() (string, error) {
+	token := os.Getenv("PACKAGECLOUD_TOKEN")
+	if token == "" {
+		return "", errors.New("PACKAGECLOUD_TOKEN must be set")
+	}
+	return token, nil
+}
+
+func runPush(ctx context.Context, repo string, files []string, dryRun bool) error {
 	user, name, ok := strings.Cut(repo, "/")
 	if !ok || user == "" || name == "" {
 		return fmt.Errorf("--repo must be <user>/<repo>, got %q", repo)
@@ -107,9 +190,9 @@ func run(ctx context.Context, repo string, files []string, dryRun bool) error {
 		return nil
 	}
 
-	token := os.Getenv("PACKAGECLOUD_TOKEN")
-	if token == "" {
-		return errors.New("PACKAGECLOUD_TOKEN must be set")
+	token, err := requireToken()
+	if err != nil {
+		return err
 	}
 
 	pc := newClient(token)
@@ -133,10 +216,119 @@ func run(ctx context.Context, repo string, files []string, dryRun bool) error {
 	return nil
 }
 
+func runRepoList(ctx context.Context) error {
+	token, err := requireToken()
+	if err != nil {
+		return err
+	}
+
+	repos, err := newClient(token).listRepos(ctx)
+	if err != nil {
+		return err
+	}
+
+	// tabwriter buffers writes and reports any error on Flush, so the intermediate
+	// writes can be discarded.
+	w := tabwriter.NewWriter(iostream.Out(ctx), 0, 0, 2, ' ', 0)
+	_, _ = fmt.Fprintln(w, "REPOSITORY\tVISIBILITY\tCREATED\tPRIVATE")
+	for _, r := range repos {
+		visibility := "public"
+		if r.Private {
+			visibility = "private"
+		}
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%t\n", r.FQName, visibility, r.CreatedAt, r.Private)
+	}
+	return w.Flush()
+}
+
+func runRepoGet(ctx context.Context, fqname string) error {
+	user, name, err := splitRepo(fqname)
+	if err != nil {
+		return err
+	}
+	token, err := requireToken()
+	if err != nil {
+		return err
+	}
+	repo, err := newClient(token).getRepo(ctx, user, name)
+	if err != nil {
+		return err
+	}
+	// The show response doesn't always echo fqname; fall back to what was asked for.
+	if repo.FQName == "" {
+		repo.FQName = user + "/" + name
+	}
+	return printRepoDetail(ctx, repo)
+}
+
+func runRepoCreate(ctx context.Context, fqname string, private bool) error {
+	user, name, err := splitRepo(fqname)
+	if err != nil {
+		return err
+	}
+	token, err := requireToken()
+	if err != nil {
+		return err
+	}
+	pc := newClient(token)
+	if err := pc.createRepo(ctx, name, private); err != nil {
+		return err
+	}
+	iostream.InfoContext(ctx, "created repository", "repo", fqname)
+
+	// The create response is minimal, so re-fetch to show the same details as
+	// `repo get`. The repository is owned by the token's account, which should
+	// match the requested <user>.
+	repo, err := pc.getRepo(ctx, user, name)
+	if err != nil {
+		return err
+	}
+	if repo.FQName == "" {
+		repo.FQName = user + "/" + name
+	}
+	return printRepoDetail(ctx, repo)
+}
+
+// splitRepo splits a "<user>/<repo>" argument into its parts.
+func splitRepo(fqname string) (user, name string, err error) {
+	user, name, ok := strings.Cut(fqname, "/")
+	if !ok || user == "" || name == "" {
+		return "", "", fmt.Errorf("repository must be <user>/<repo>, got %q", fqname)
+	}
+	return user, name, nil
+}
+
+// printRepoDetail writes a repository's details as an aligned key/value table.
+func printRepoDetail(ctx context.Context, r *repoDetail) error {
+	url := ""
+	if r.Path != "" {
+		url = baseURL + r.Path
+	}
+	rows := [][2]string{{"REPOSITORY", r.FQName}}
+	if r.RepoType != "" {
+		rows = append(rows, [2]string{"TYPE", r.RepoType})
+	}
+	rows = append(rows,
+		[2]string{"INSTALLS", strconv.Itoa(r.TotalInstalls)},
+		[2]string{"CREATED", r.CreatedAt},
+		[2]string{"UPDATED", r.UpdatedAt},
+		[2]string{"URL", url},
+	)
+
+	w := tabwriter.NewWriter(iostream.Out(ctx), 0, 0, 2, ' ', 0)
+	for _, row := range rows {
+		_, _ = fmt.Fprintf(w, "%s\t%s\n", row[0], row[1])
+	}
+	return w.Flush()
+}
+
 // pkgExt returns the package type ("rpm"/"deb") from a file's extension.
 func pkgExt(path string) string {
 	return strings.TrimPrefix(filepath.Ext(path), ".")
 }
+
+// baseURL is the packagecloud API and website host.
+const baseURL = "https://packagecloud.io"
 
 // client is a thin packagecloud REST API client over httpcl.
 type client struct {
@@ -146,7 +338,7 @@ type client struct {
 func newClient(token string) *client {
 	return &client{
 		http: httpcl.New(httpcl.Config{
-			BaseURL: "https://packagecloud.io",
+			BaseURL: baseURL,
 			// packagecloud authenticates with HTTP Basic: token as username, blank password.
 			AuthHeader: "Authorization",
 			AuthToken:  "Basic " + base64.StdEncoding.EncodeToString([]byte(token+":")),
@@ -154,6 +346,69 @@ func newClient(token string) *client {
 			Timeout:    2 * time.Minute,
 		}),
 	}
+}
+
+// repository holds the fields the list endpoint returns and the table renders.
+type repository struct {
+	FQName    string `json:"fqname"` // "<user>/<repo>"
+	Private   bool   `json:"private"`
+	CreatedAt string `json:"created_at"`
+}
+
+// listRepos returns every repository the API token can access.
+func (c *client) listRepos(ctx context.Context) ([]repository, error) {
+	var repos []repository
+	if _, err := c.http.Call(ctx, httpcl.NewRequest("GET", "/api/v1/repos.json",
+		httpcl.JSONDecoder(&repos),
+	)); err != nil {
+		return nil, fmt.Errorf("listing repositories: %w", err)
+	}
+	return repos, nil
+}
+
+// repoDetail is the GET /api/v1/repos/:user/:repo.json response. It does not
+// include the "private" flag or a browser URL (the browser URL is baseURL+Path).
+type repoDetail struct {
+	Name          string `json:"name"`
+	FQName        string `json:"fqname"` // "<user>/<repo>"
+	Path          string `json:"path"`   // API/browser path, e.g. /circleci/runner
+	RepoType      string `json:"repo_type"`
+	TotalInstalls int    `json:"total_installs_count"`
+	CreatedAt     string `json:"created_at"`
+	UpdatedAt     string `json:"updated_at"`
+}
+
+// getRepo returns a single repository's details.
+func (c *client) getRepo(ctx context.Context, user, name string) (*repoDetail, error) {
+	var repo repoDetail
+	if _, err := c.http.Call(ctx, httpcl.NewRequest("GET", "/api/v1/repos/%s/%s.json",
+		httpcl.RouteParams(user, name),
+		httpcl.JSONDecoder(&repo),
+	)); err != nil {
+		return nil, fmt.Errorf("getting repository %s/%s: %w", user, name, err)
+	}
+	return &repo, nil
+}
+
+// createRepo creates a repository named name under the token's account. The API
+// has no owner parameter, so the repository belongs to whoever the token
+// authenticates as. private toggles repository visibility.
+func (c *client) createRepo(ctx context.Context, name string, private bool) error {
+	body := struct {
+		Repository struct {
+			Name    string `json:"name"`
+			Private bool   `json:"private"`
+		} `json:"repository"`
+	}{}
+	body.Repository.Name = name
+	body.Repository.Private = private
+
+	if _, err := c.http.Call(ctx, httpcl.NewRequest("POST", "/api/v1/repos.json",
+		httpcl.Body(body),
+	)); err != nil {
+		return fmt.Errorf("creating repository %q: %w", name, err)
+	}
+	return nil
 }
 
 // push uploads a single package as multipart/form-data. An "already published"
