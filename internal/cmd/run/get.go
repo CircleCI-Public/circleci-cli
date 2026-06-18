@@ -70,7 +70,7 @@ func newGetCmd() *cobra.Command {
 
 			Pass a run UUID to look up a specific run.
 
-			JSON fields: id, phase, outcome, current_outcome, branch, revision,
+			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
 			             created_at, errors[].type/message,
 			             workflows[].id/name/phase/outcome/current_outcome/duration/
 			             jobs[].id/name/phase/outcome/current_outcome/type
@@ -110,6 +110,7 @@ type runGetOutput struct {
 	Outcome        string           `json:"outcome,omitempty"`
 	CurrentOutcome string           `json:"current_outcome,omitempty"`
 	Branch         string           `json:"branch,omitempty"`
+	Tag            string           `json:"tag,omitempty"`
 	Revision       string           `json:"revision,omitempty"`
 	CreatedAt      string           `json:"created_at"`
 	Errors         []errorOutput    `json:"errors,omitempty"`
@@ -263,6 +264,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		Outcome:        r.Outcome,
 		CurrentOutcome: r.CurrentOutcome,
 		Branch:         r.Branch,
+		Tag:            r.Tag,
 		Revision:       revision,
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 		Errors:         errs,
@@ -306,6 +308,9 @@ func printRun(ctx context.Context, r runGetOutput) {
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", r.ID)
 	if r.Branch != "" {
 		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", r.Branch)
+	}
+	if r.Tag != "" {
+		_, _ = fmt.Fprintf(&md, "- Tag: %s\n", r.Tag)
 	}
 	if r.Revision != "" {
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", r.Revision)

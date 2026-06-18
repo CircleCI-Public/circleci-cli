@@ -75,10 +75,34 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 		"id":         id,
 		"attributes": attrs,
 		"references": map[string]any{
+			// VCS now lives on the event reference (and carries the tag);
+			// attributes.vcs above is retained for legacy clients.
+			"event": map[string]any{
+				"attributes": map[string]any{
+					"vcs": map[string]any{
+						"branch":   branch,
+						"revision": revision,
+					},
+				},
+			},
+			"trigger": map[string]any{
+				"attributes": map[string]any{
+					"event_source": map[string]any{"type": "webhook"},
+				},
+			},
 			"project": map[string]any{"id": projectID},
 			"user":    map[string]any{"id": "user-uuid-001"},
 		},
 	}
+}
+
+// fakeRunV3Tag returns a V3 run payload for a tag-triggered run: no branch,
+// with the tag carried on the event reference's VCS.
+func fakeRunV3Tag(id, projectID, phase, outcome, tag, revision string) map[string]any {
+	run := fakeRunV3(id, projectID, phase, outcome, "", revision)
+	ev := run["references"].(map[string]any)["event"].(map[string]any)["attributes"].(map[string]any)
+	ev["vcs"].(map[string]any)["tag"] = tag
+	return run
 }
 
 // fakeWorkflowV3 returns a V3 workflow payload for the fake server.
@@ -435,6 +459,57 @@ func TestRunList(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunList_Tag(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3Tag("pid-2", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "🏷 v1.2.3"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunList_Tag_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectInfo(fake, slug, runTestProjectID)
+	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3Tag("pid-2", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["tag"], "v1.2.3"))
+	_, hasBranch := out[0]["branch"]
+	assert.Check(t, !hasBranch) // omitempty: tag runs carry no branch
 }
 
 func TestRunList_Color(t *testing.T) {
