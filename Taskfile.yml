@@ -155,6 +155,28 @@ tasks:
     cmds:
       - go generate ./...
 
+  # Demo tasks
+  #
+  # Static PNG/SVG screenshots of the CLI in action are captured with
+  # charmbracelet/freeze
+
+  demo:
+    desc: Generate all README/docs screenshots
+    cmds:
+      - task: demo:run-get-png
+
+  demo:run-get-png:
+    desc: Capture a macOS-style PNG and SVG of `circleci run get -b main`
+    cmds:
+      - for: ['svg']
+        cmd: >-
+          CIRCLE_NO_PAGER=1 CIRCLE_SPINNER_DISABLED=1
+          go tool -modfile tools/go.mod freeze
+          --config docs/demos/freeze.json
+          --execute "go run ./cmd/circleci run get -b main"
+          --execute.timeout 60s
+          --output docs/demos/run-get.{{.ITEM}}
+
   # Docs site tasks
   #
   # The reference page is generated from the live command tree via
