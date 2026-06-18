@@ -236,6 +236,10 @@ func DebugContext(ctx context.Context, msg string, args ...any) {
 	fromContext(ctx).DebugContext(ctx, msg, args...)
 }
 
+func InfoContext(ctx context.Context, msg string, args ...any) {
+	fromContext(ctx).InfoContext(ctx, msg, args...)
+}
+
 func PrintJSON(ctx context.Context, v any) error {
 	return fromContext(ctx).PrintJSON(ctx, v)
 }
@@ -609,6 +613,10 @@ func (s Streams) PromptSecret(ctx context.Context, header string) (string, error
 
 func (s Streams) DebugContext(ctx context.Context, msg string, args ...any) {
 	s.slog.DebugContext(ctx, msg, args...)
+}
+
+func (s Streams) InfoContext(ctx context.Context, msg string, args ...any) {
+	s.slog.InfoContext(ctx, msg, args...)
 }
 
 func (s Streams) PrintJSON(ctx context.Context, v any) error {
