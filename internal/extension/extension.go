@@ -243,6 +243,9 @@ func buildEnv(ctx context.Context, client *apiclient.Client) []string {
 		if info.Branch != "" {
 			overlays = append(overlays, kv{"CIRCLE_BRANCH", info.Branch})
 		}
+		if info.DefaultBranch != "" {
+			overlays = append(overlays, kv{"CIRCLE_DEFAULT_BRANCH", info.DefaultBranch})
+		}
 
 		if id := resolveProjectID(ctx, client, cfg, info.Slug); id != "" {
 			overlays = append(overlays, kv{"CIRCLE_PROJECT_ID", id})

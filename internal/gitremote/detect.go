@@ -43,6 +43,8 @@ type ProjectInfo struct {
 	Slug string
 	// Branch is the current git branch name.
 	Branch string
+	// DefaultBranch is the default branch name.
+	DefaultBranch string
 }
 
 var (
@@ -83,7 +85,12 @@ func Detect() (*ProjectInfo, error) {
 	if cwd, err := os.Getwd(); err == nil {
 		if ref, err := projectref.Read(cwd); err == nil {
 			branch, _ := gitOutput("rev-parse", "--abbrev-ref", "HEAD")
-			return &ProjectInfo{Slug: ref.EffectiveSlug(), Branch: branch}, nil
+			defaultBranch, _ := gitOutput("rev-parse", "--abbrev-ref", "origin/HEAD")
+			return &ProjectInfo{
+				Slug:          ref.EffectiveSlug(),
+				Branch:        branch,
+				DefaultBranch: strings.TrimPrefix(defaultBranch, "origin/"),
+			}, nil
 		}
 	}
 	return DetectFromRemote()
@@ -109,7 +116,16 @@ func DetectFromRemote() (*ProjectInfo, error) {
 		return nil, fmt.Errorf("could not determine current branch: %w", err)
 	}
 
-	return &ProjectInfo{Slug: slug, Branch: branch}, nil
+	defaultBranch, err := gitOutput("rev-parse", "--abbrev-ref", "origin/HEAD")
+	if err != nil {
+		return nil, fmt.Errorf("could not determine default branch: %w", err)
+	}
+
+	return &ProjectInfo{
+		Slug:          slug,
+		Branch:        branch,
+		DefaultBranch: strings.TrimPrefix(defaultBranch, "origin/"),
+	}, nil
 }
 
 // SlugFromRemote is exported for testing.
