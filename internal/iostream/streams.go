@@ -198,6 +198,12 @@ func PromptSelectDefault(ctx context.Context, prompt string, options []string, d
 	return fromContext(ctx).PromptSelectDefault(ctx, prompt, options, defaultIdx)
 }
 
+// PromptThemePreview presents a split-pane theme picker with a live markdown
+// preview rendered in the highlighted theme. See Streams.PromptThemePreview.
+func PromptThemePreview(ctx context.Context, prompt string, labels, themes []string, defaultIdx int, sampleMarkdown string) (int, error) {
+	return fromContext(ctx).PromptThemePreview(ctx, prompt, labels, themes, defaultIdx, sampleMarkdown)
+}
+
 // PromptText presents a plain (non-secret) single-line text input via
 // bubbletea. header is the bold heading above the input; placeholder is
 // shown inside the empty field; defaultVal (optional) is returned when the
@@ -550,6 +556,36 @@ func (s Streams) PromptSelectDefault(ctx context.Context, prompt string, options
 	return m.Selected(), nil
 }
 
+// PromptThemePreview presents a split-pane theme picker: a select list of
+// labels on the left and a live preview of sampleMarkdown rendered in the
+// highlighted theme on the right. themes are the raw theme names parallel to
+// labels; cursorIdx is the initially-highlighted option. Returns the selected
+// index, or -1 if the user cancels.
+func (s Streams) PromptThemePreview(ctx context.Context, prompt string, labels, themes []string, cursorIdx int, sampleMarkdown string) (int, error) {
+	render := func(theme string, width int) string {
+		out, err := s.renderMarkdownThemeAt(sampleMarkdown, theme, width)
+		if err != nil {
+			return sampleMarkdown
+		}
+		return out
+	}
+	p := tea.NewProgram(
+		ui.NewThemePickerModel(prompt, labels, themes, render, s.ColorEnabled(), !spinnerDisabled()).WithCursor(cursorIdx),
+		tea.WithContext(ctx),
+		tea.WithInput(s.In),
+		tea.WithOutput(s.Err),
+	)
+	anyModel, err := p.Run()
+	if err != nil {
+		return -1, err
+	}
+	m := anyModel.(ui.ThemePickerModel)
+	if m.Cancelled() {
+		return -1, nil
+	}
+	return m.Selected(), nil
+}
+
 // PromptSecret presents a masked text input via bubbletea to collect a secret
 // value. header is displayed above the input field (e.g. "Enter value for MY_VAR").
 // Returns ("", nil) if the user cancels with esc or ctrl+c.
@@ -644,6 +680,38 @@ func (s Streams) renderMarkdownAt(md string, width int) (_ string, err error) {
 	defer closer.ErrorHandler(r, &err)
 
 	return r.Render(md)
+}
+
+// renderMarkdownThemeAt renders md word-wrapped to width columns using the
+// markdown style for the named theme, rather than the stream's own configured
+// theme. "auto" (and any name needing terminal detection) is resolved via
+// terminalProperties. Used by the interactive theme picker to preview a theme
+// the user has not committed to yet.
+func (s Streams) renderMarkdownThemeAt(md, theme string, width int) (_ string, err error) {
+	r, err := glamour.NewTermRenderer(
+		glamour.WithWordWrap(width),
+		glamour.WithTableFitContent(),
+		glamour.WithStyles(s.styleConfigForTheme(theme)),
+		glamour.WithInlineTableLinks(true),
+	)
+	if err != nil {
+		return md, err
+	}
+	defer closer.ErrorHandler(r, &err)
+
+	return r.Render(md)
+}
+
+// styleConfigForTheme resolves a theme name to its glamour style config. Unlike
+// styleConfig (which uses the stream's already-resolved style), it accepts any
+// valid theme name and resolves "auto" against the terminal background, so a
+// preview matches what the theme would actually produce.
+func (s Streams) styleConfigForTheme(theme string) ansi.StyleConfig {
+	_, style := terminalProperties(theme, s.In, s.Out)
+	if sc, ok := themeStyles[style]; ok {
+		return sc
+	}
+	return styles.ASCIIStyleConfig
 }
 
 // PrintMarkdown renders md and writes the result to Out. When Out is an
