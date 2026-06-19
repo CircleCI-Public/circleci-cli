@@ -80,6 +80,7 @@ type CircleCI struct {
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
 	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
+	userRunsV3      []any            // ordered V3 run data items for GET /runs?filter[user_id]=me
 
 	// Workflow (v3) state.
 	workflowsV3         map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
@@ -327,6 +328,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
 	// Run (v3) routes.
+	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
 	// Runner (v3) routes. GET /runner lists instances (scoped by ?org-id= and/or
@@ -890,6 +892,35 @@ func (f *CircleCI) AddRunV3(id, projectID string, run any) {
 	defer f.mu.Unlock()
 	f.runsV3[id] = run
 	f.runsV3ByProject[projectID] = append(f.runsV3ByProject[projectID], run)
+}
+
+// SetUserRuns registers the V3 run data items returned by
+// GET /api/v3/runs?filter[user_id]=me (i.e. "circleci my runs").
+func (f *CircleCI) SetUserRuns(runs ...any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.userRunsV3 = runs
+}
+
+func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
+	if got := r.URL.Query().Get("filter[user_id]"); got != "me" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "expected filter[user_id]=me, got " + got})
+		return
+	}
+
+	f.mu.RLock()
+	results := append([]any(nil), f.userRunsV3...)
+	f.mu.RUnlock()
+
+	if size, err := strconv.Atoi(r.URL.Query().Get("page[size]")); err == nil && size > 0 && len(results) > size {
+		results = results[:size]
+	}
+
+	render.JSON(w, r, map[string]any{
+		"data": results,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
 }
 
 func (f *CircleCI) handleGetRunV3(w http.ResponseWriter, r *http.Request) {

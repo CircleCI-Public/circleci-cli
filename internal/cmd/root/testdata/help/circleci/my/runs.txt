@@ -1,0 +1,54 @@
+# CircleCI CLI
+
+List recent runs you triggered, grouped by project.
+
+This is the personal counterpart to "circleci run list": rather than
+a single project, it shows your runs across everywhere you have access,
+grouped by project with the most recent run first.
+
+JSON: an array of projects, each { repository, runs: [...] }.
+Run fields: id, phase, outcome, current_outcome, branch, tag, revision, created_at
+
+For more information about output formatting flags, see `circleci help formatting`.
+
+## Usage
+
+`circleci my runs [flags]`
+
+## Aliases
+
+`circleci my run`
+
+## Flags
+
+| Flag          | Description                                                |
+| ------------- | ---------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax           |
+| `--json`      | Output as JSON                                             |
+| `--limit int` | Maximum number of runs to fetch [default: 20] (default 20) |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- List your recent runs grouped by project: 
+  `circleci my runs`
+- Show more results: 
+  `circleci my runs --limit 50`
+- Output as JSON for scripting: 
+  `circleci my runs --json`
+- Pull out just the run IDs with jq: 
+  `circleci my runs --json --jq '.[].runs[].id'`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci-public.github.io/circleci-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

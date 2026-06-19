@@ -40,6 +40,7 @@ Work with CircleCI from the command line.
 | `auth`       | Log in, sign up and check your CircleCI identity        |
 | `completion` | Install, remove or print shell completions              |
 | `mcp`        | Run the CLI as an MCP server for AI tools               |
+| `my`         | Show resources for the authenticated user               |
 | `onboard`    | Guided onboarding: scan, test, generate config, sign up |
 | `setting`    | Configure the CLI itself (token, host, defaults)        |
 

@@ -1,0 +1,174 @@
+// Copyright (c) 2026 Circle Internet Services, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package acceptance_test
+
+import (
+	"encoding/json"
+	"strings"
+	"testing"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
+	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+)
+
+// fakeMyRunV3 builds a V3 run payload with a repository_url and an explicit
+// created_at, as returned by GET /api/v3/runs?filter[user_id]=me. Output groups
+// these by repository, most recent run first.
+func fakeMyRunV3(id, projectID, phase, outcome, repoURL, branch, revision, createdAt string) map[string]any {
+	run := fakeRunV3(id, projectID, phase, outcome, branch, revision)
+	attrs := run["attributes"].(map[string]any)
+	attrs["vcs"].(map[string]any)["repository_url"] = repoURL
+	attrs["created_at"] = createdAt
+	return run
+}
+
+func TestMyRuns(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	// web has two runs (newest and oldest overall); api has one in between.
+	// Expected grouping: acme/web (run-1, run-3) then acme/api (run-2).
+	fake.SetUserRuns(
+		fakeMyRunV3("run-3", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
+		fakeMyRunV3("run-1", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("run-2", "proj-b", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "## acme/web"))
+	assert.Check(t, strings.Contains(result.Stdout, "## acme/api"))
+	// web (carrying the most recent run) groups before api.
+	assert.Check(t, strings.Index(result.Stdout, "acme/web") < strings.Index(result.Stdout, "acme/api"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestMyRuns_Empty(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	// No runs registered.
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "No runs found."))
+}
+
+func TestMyRuns_Limit(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetUserRuns(
+		fakeMyRunV3("run-1", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("run-2", "proj-b", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
+		fakeMyRunV3("run-3", "proj-c", "ended", "succeeded", "https://github.com/acme/cli", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs", "--limit", "2"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "acme/web"))
+	assert.Check(t, strings.Contains(result.Stdout, "acme/api"))
+	assert.Check(t, !strings.Contains(result.Stdout, "acme/cli"))
+}
+
+func TestMyRuns_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetUserRuns(
+		fakeMyRunV3("run-3", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
+		fakeMyRunV3("run-1", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("run-2", "proj-b", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Len(out, 2))
+
+	// First group: acme/web with its two runs, newest first.
+	assert.Check(t, cmp.Equal(out[0]["repository"], "acme/web"))
+	webRuns := out[0]["runs"].([]any)
+	assert.Check(t, cmp.Len(webRuns, 2))
+	assert.Check(t, cmp.Equal(webRuns[0].(map[string]any)["id"], "run-1"))
+	assert.Check(t, cmp.Equal(webRuns[1].(map[string]any)["id"], "run-3"))
+
+	// Second group: acme/api with one run.
+	assert.Check(t, cmp.Equal(out[1]["repository"], "acme/api"))
+	apiRuns := out[1]["runs"].([]any)
+	assert.Check(t, cmp.Len(apiRuns, 1))
+	assert.Check(t, cmp.Equal(apiRuns[0].(map[string]any)["current_outcome"], "failed"))
+}
+
+func TestMyRuns_NoToken(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
+}

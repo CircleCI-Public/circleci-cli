@@ -13,6 +13,7 @@ Available commands:
   envvar
   job
   mcp
+  my
   namespace
   onboard
   orb

@@ -46,9 +46,10 @@ type runErrorWire struct {
 }
 
 type runVCSWire struct {
-	Branch   string `json:"branch"`
-	Tag      string `json:"tag"`
-	Revision string `json:"revision"`
+	Branch        string `json:"branch"`
+	Tag           string `json:"tag"`
+	Revision      string `json:"revision"`
+	RepositoryURL string `json:"repository_url"`
 }
 
 type runReferencesWire struct {
@@ -103,6 +104,7 @@ type RunV3 struct {
 	Branch         string     `json:"branch,omitempty"`
 	Tag            string     `json:"tag,omitempty"`
 	Revision       string     `json:"revision,omitempty"`
+	RepositoryURL  string     `json:"repository_url,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	ProjectID      string     `json:"project_id"`
 	Errors         []RunError `json:"errors,omitempty"`
@@ -133,6 +135,11 @@ func (w runWire) toRunV3() *RunV3 {
 	} else if a.VCS != nil {
 		r.Branch = a.VCS.Branch
 		r.Revision = a.VCS.Revision
+	}
+	// repository_url is only carried by the top-level attributes.vcs, not the
+	// event reference — set it independently of the branch/tag source above.
+	if a.VCS != nil {
+		r.RepositoryURL = a.VCS.RepositoryURL
 	}
 	for _, e := range a.Errors {
 		r.Errors = append(r.Errors, RunError(e))
@@ -200,6 +207,23 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 
 	var resp v3List[runWire]
 	if err := c.postV3(ctx, "/runs/search", body, &resp); err != nil {
+		return nil, err
+	}
+
+	runs := make([]RunV3, len(resp.Data))
+	for i, w := range resp.Data {
+		runs[i] = *w.toRunV3()
+	}
+	return runs, nil
+}
+
+// ListMyRunsV3 lists runs triggered by the authenticated user across all
+// projects, via GET /api/v3/runs?filter[user_id]=me. limit caps the page size;
+// a value <= 0 uses the server default.
+func (c *Client) ListMyRunsV3(ctx context.Context, limit int) ([]RunV3, error) {
+	var resp v3List[runWire]
+	if err := c.getV3(ctx, "/runs", &resp,
+		filterParam("user_id", "me"), pageSize(limit)); err != nil {
 		return nil, err
 	}
 
