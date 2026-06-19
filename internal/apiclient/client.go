@@ -164,8 +164,6 @@ type v3List[T any] struct {
 
 // pageSize returns a request option that sets page[size].
 // A size of 0 is ignored (server default is used).
-//
-//nolint:unused // this will likely become used
 func pageSize(n int) func(*httpcl.Request) {
 	if n <= 0 {
 		return func(*httpcl.Request) {}

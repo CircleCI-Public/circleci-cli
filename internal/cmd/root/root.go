@@ -42,6 +42,7 @@ import (
 	cmddlc "github.com/CircleCI-Public/circleci-cli/internal/cmd/dlc"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
 	cmdonboard "github.com/CircleCI-Public/circleci-cli/internal/cmd/onboard"
 	cmdorb "github.com/CircleCI-Public/circleci-cli/internal/cmd/orb"
@@ -213,6 +214,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())
 	cmd.AddCommand(job.NewJobCmd())
+	cmd.AddCommand(my.NewMyCmd())
 	cmd.AddCommand(pipeline.NewPipelineCmd())
 	cmd.AddCommand(project.NewProjectCmd())
 	cmd.AddCommand(receivetelemetry.NewReceiveTelemetryCmd())

@@ -1,0 +1,7 @@
+Usage:  circleci my runs [flags]
+
+Flags:
+  --jq string   Process values from the response using jq syntax
+  --json        Output as JSON
+  --limit int   Maximum number of runs to fetch [default: 20] (default 20)
+  

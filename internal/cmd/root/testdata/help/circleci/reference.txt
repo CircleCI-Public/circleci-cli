@@ -1732,6 +1732,26 @@ Show VSCode MCP servers
 | `--workspace`          | List from workspace settings (.vscode/mcp.json) instead of user settings |
 
 
+### `circleci my <command>`
+
+Show resources for the authenticated user
+
+#### `circleci my runs [flags]`
+
+List your recent runs grouped by project
+
+| Flag          | Description                                                |
+| ------------- | ---------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax           |
+| `--json`      | Output as JSON                                             |
+| `--limit int` | Maximum number of runs to fetch [default: 20] (default 20) |
+
+
+**Aliases:**
+
+
+`circleci my run`
+
 ### `circleci onboard [path] [flags]`
 
 Guided onboarding: scan, test, generate config, sign up
