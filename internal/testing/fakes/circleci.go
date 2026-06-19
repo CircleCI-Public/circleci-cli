@@ -99,6 +99,7 @@ type CircleCI struct {
 	envVars           map[string][]any // project slug → env vars
 	deletedEnvVars    map[string]bool  // "slug/name" → deleted
 	projectInfos      map[string]any   // project slug → project info response
+	projectsByID      map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
 	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
 
 	// Context state.
@@ -226,6 +227,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		deletedContextVars:                map[string]bool{},
 		deletedContextRestrictions:        map[string]bool{},
 		projectInfos:                      map[string]any{},
+		projectsByID:                      map[string]any{},
 		deploys:                           map[string][]any{},
 		policyBundles:                     make(map[string]map[string]string),
 		decisionLogs:                      make(map[string][]any),
@@ -326,6 +328,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Workflow (v3) routes.
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
+	// Project (v3) routes.
+	r.Get("/api/v3/projects/{id}", f.handleGetProjectV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
@@ -1341,6 +1345,28 @@ func (f *CircleCI) AddProjectInfo(slug string, info any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projectInfos[slug] = info
+}
+
+// AddProjectV3 registers a project returned by GET /api/v3/projects/<id>,
+// keyed by the project's UUID. The response is wrapped as {"data": project}.
+func (f *CircleCI) AddProjectV3(id string, project any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.projectsByID[id] = project
+}
+
+func (f *CircleCI) handleGetProjectV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	project, ok := f.projectsByID[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": project})
 }
 
 // AddPipelineDefinition registers a pipeline definition for a project, returned by

@@ -33,6 +33,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -41,6 +42,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
@@ -59,18 +61,18 @@ func NewAPICmd() *cobra.Command {
 		Short: "Call the CircleCI REST API directly",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<path> is the request path. It is relative to /api/v2 by default
-				(e.g. "/project/gh/org/repo"). To target a different version
-				prefix, include it explicitly, e.g. "/api/v1.1/me".
+				<path> is the request path. It is relative to /api/v3 by default
+				(e.g. "projects/{project-id}"). To target
+				a different version prefix, include it explicitly, e.g. "api/v2/me".
 			`),
 		},
 		Long: heredoc.Doc(`
 			Make an authenticated HTTP request to the REST APIs and print
 			the raw response body.
 
-			<path> is relative to /api/v2 (e.g. /project/gh/org/repo). To target
+			<path> is relative to /api/v3 (e.g. projects/{project-id}). To target
 			a different version prefix, include it explicitly:
-			  circleci api /api/v1.1/me
+			  circleci api api/v2/me
 
 			The Authorization: Bearer header is added automatically from your stored token.
 			Use -H to add extra headers and -f to set fields (query parameters for
@@ -85,28 +87,31 @@ func NewAPICmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Get your user profile
-			$ circleci api /me
+			$ circleci api api/v2/me
 
 			# Get a project
-			$ circleci api /project/gh/myorg/myrepo
+			$ circleci api projects/{project-id}
 
-			# List pipelines for a project (pretty-printed)
-			$ circleci api /project/gh/myorg/myrepo/pipeline --json
+			# List runs for a project
+			$ circleci api 'runs?filter[project_id]={project-id}'
+
+			# List my runs
+			$ circleci api 'runs?filter[user_id]=me'
 
 			# Trigger a pipeline on a branch
-			$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -f branch=main
+			$ circleci api -X POST project/gh/myorg/myrepo/pipeline -f branch=main
 
 			# Send a raw JSON body
-			$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -d '{"branch":"main"}'
+			$ circleci api -X POST project/gh/myorg/myrepo/pipeline -d '{"branch":"main"}'
 
 			# Send a body read from a file (@- reads from stdin)
-			$ circleci api -X POST /project/gh/myorg/myrepo/pipeline -d @body.json
+			$ circleci api -X POST project/gh/myorg/myrepo/pipeline -d @body.json
 
 			# Add a custom header
-			$ circleci api -H "Accept: application/json" /me
+			$ circleci api -H "Accept: application/json" api/v2/me
 
 			# Access the v1.1 API
-			$ circleci api /api/v1.1/me
+			$ circleci api api/v1.1/me
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -129,7 +134,7 @@ func NewAPICmd() *cobra.Command {
 	return cmd
 }
 
-func run(ctx context.Context, client *apiclient.Client, path, method string, fields, headers []string, data string) error {
+func run(ctx context.Context, client *apiclient.Client, thepath, method string, fields, headers []string, data string) error {
 	hasData := data != ""
 
 	// -d and -f build the body in incompatible ways, so reject the combination.
@@ -161,9 +166,34 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 	}
 	method = strings.ToUpper(method)
 
-	// Default to /api/v2 when no version prefix is given.
-	if !strings.HasPrefix(path, "/api/") {
-		path = "/api/v2" + path
+	thepath = strings.TrimPrefix(thepath, "/")
+
+	// Default to /api/v3 when no version prefix is given.
+	if !strings.HasPrefix(thepath, "api") {
+		thepath = path.Join("api/v3", thepath)
+	}
+
+	thepath = "/" + thepath
+
+	// Resolve {project-id}/{org-id} placeholders from the current git
+	// repository, but only when the path actually uses them — otherwise every
+	// api call would pay for a git detect and an extra API round-trip.
+	if strings.Contains(thepath, "{project-id}") || strings.Contains(thepath, "{org-id}") {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return cmdutil.GitDetectErr(err, "Or pass the IDs explicitly in the path instead of {project-id}/{org-id}.")
+		}
+		proj, err := client.GetProjectInfo(ctx, info.Slug)
+		if err != nil {
+			return clierrors.New("api.project_lookup_failed", "Could not resolve project",
+				fmt.Sprintf("Failed to look up project %q: %v", info.Slug, err)).
+				WithExitCode(clierrors.ExitAPIError)
+		}
+		r := strings.NewReplacer(
+			"{project-id}", proj.ID,
+			"{org-id}", proj.OrganizationID,
+		)
+		thepath = r.Replace(thepath)
 	}
 
 	var respBody []byte
@@ -195,10 +225,10 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 				q.Set(k, v)
 			}
 			sep := "?"
-			if strings.Contains(path, "?") {
+			if strings.Contains(thepath, "?") {
 				sep = "&"
 			}
-			path += sep + q.Encode()
+			thepath += sep + q.Encode()
 		}
 	default:
 		if len(parsedFields) > 0 {
@@ -224,7 +254,7 @@ func run(ctx context.Context, client *apiclient.Client, path, method string, fie
 		)
 	}
 
-	status, err := client.Do(ctx, method, path, opts...)
+	status, err := client.Do(ctx, method, thepath, opts...)
 	if err != nil {
 		return clierrors.New("api.request_failed", "Request failed", err.Error()).
 			WithExitCode(clierrors.ExitAPIError)
