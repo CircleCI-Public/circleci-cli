@@ -24,7 +24,6 @@ package workflow
 
 import (
 	"context"
-	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -235,37 +234,45 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		return nil
 	}
 
-	var md strings.Builder
-	md.WriteString("# Recent runs\n")
-
+	// One row per workflow, grouped by run. Ref and Revision print on the
+	// first workflow of each run and are blank on the rest, so each run reads
+	// as a visual block. The workflow ID is wrapped in backticks to pick up the
+	// same inline-code colour the runs table uses for IDs.
+	table := mdtable.New("Ref", "Revision", "Workflow", "Status", "ID")
 	for _, r := range runs {
-		revision := r.Revision
-		if len(revision) > 7 {
-			revision = revision[:7]
-		}
-		_, _ = fmt.Fprintf(&md, "## Run %s\n", r.ID)
-		_, _ = fmt.Fprintf(&md, "- Branch: %s\n", r.Branch)
-		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", revision)
-
 		workflows, wErr := client.GetRunWorkflowsV3(ctx, r.ID)
 		if wErr != nil {
 			return apiErr(wErr, r.ID)
 		}
 
+		revision := r.Revision
+		if len(revision) > 7 {
+			revision = revision[:7]
+		}
+		ref := refDisplay(r.Branch, r.Tag)
+
 		if len(workflows) == 0 {
-			_, _ = fmt.Fprintf(&md, "- Workflows: none\n")
+			table.Row(ref, revision)
 			continue
 		}
-		_, _ = fmt.Fprintf(&md, "### Workflows\n")
-		table := mdtable.New("ID", "Name", "Status")
-		for _, wf := range workflows {
-			table.Row(wf.ID, wf.Name, wf.Status())
+		for i, wf := range workflows {
+			if i > 0 {
+				ref, revision = "", ""
+			}
+			table.Row(ref, revision, wf.Name, wf.Status(), "`"+wf.ID+"`")
 		}
-		md.WriteString(table.Render())
-		md.WriteString("\n")
 	}
-	iostream.PrintMarkdown(ctx, md.String())
+	iostream.PrintMarkdown(ctx, "# Workflows\n"+table.Render())
 	return nil
+}
+
+// refDisplay renders the git ref for a run: the branch, or the tag (marked
+// with 🏷) for runs triggered by a tag rather than a branch.
+func refDisplay(branch, tag string) string {
+	if branch == "" && tag != "" {
+		return "🏷 " + tag
+	}
+	return branch
 }
 
 // resolveRunID returns a run UUID from either a UUID string or a
