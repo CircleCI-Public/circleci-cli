@@ -174,15 +174,9 @@ task test                              # all tests including acceptance, with -r
 task check                             # run all static checks
 task fix                               # auto-fix static check issues
 
-task lint                              # run golangci-lint check
-task license                           # apply license headers
-task fmt                               # golangci-lint formatting
-task mod-tidy                          # go mod tidy
-
-goreleaser build --snapshot --clean    # test multi-platform release builds
-./dist/circleci --help                 # smoke test
-NO_COLOR=1 ./dist/circleci --help      # verify color is disabled
-CI=true ./dist/circleci --help         # verify CI mode
+go run ./cmd/circleci --help            # smoke test
+NO_COLOR=1 go run ./cmd/circleci --help # verify color is disabled
+CI=true go run ./cmd/circleci --help    # verify CI mode
 ```
 
 To wire up the CLI as an MCP server:
@@ -191,12 +185,8 @@ To wire up the CLI as an MCP server:
 # Once — build and install the binary
 task dev-install
 
-# Option A: register with Claude Desktop, then import per-project
 circleci mcp claude enable
-claude mcp add-from-claude-desktop
-
-# Option B: add globally to Claude Code (available in all sessions)
-claude mcp add -s user circleci -- ~/.local/bin/circleci mcp start
+claude mcp add-from-claude-desktop -s user
 ```
 
 `task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
@@ -263,8 +253,10 @@ func TestXxx(t *testing.T) {
 
     result := binary.RunCLI(t, []string{"pipeline", "get", id}, env.Environ(), t.TempDir())
 
-    assert.Equal(t, result.ExitCode, 0)
-    assert.Assert(t, strings.Contains(result.Stdout, "expected text"))
+	// soft assertions for maximum discovery with assert.Check
+    assert.Check(t, cmp.Equal(result.ExitCode, 0))
+    assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+    assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 ```
 

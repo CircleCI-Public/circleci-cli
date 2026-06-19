@@ -37,9 +37,27 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
+// IDs used by the {project-id}/{org-id} substitution tests.
+const (
+	apiProjectID = "proj-uuid-api-001"
+	apiOrgID     = "org-uuid-api-001"
+)
+
+// writeInfoYML writes .circleci/info.yml into dir so that gitremote.Detect
+// resolves the given slug without needing a real git checkout. This is what
+// the {project-id}/{org-id} placeholder resolution relies on.
+func writeInfoYML(t *testing.T, dir, slug string) {
+	t.Helper()
+	ccDir := filepath.Join(dir, ".circleci")
+	assert.NilError(t, os.MkdirAll(ccDir, 0o755))
+	body := "project:\n  slug: " + slug + "\n"
+	assert.NilError(t, os.WriteFile(filepath.Join(ccDir, "info.yml"), []byte(body), 0o644))
+}
+
 func TestAPI_Get(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 42, "created", testSlug, "main"))
+	fake.AddRunV3(getRunID, runTestProjectID,
+		fakeRunV3(getRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -47,37 +65,42 @@ func TestAPI_Get(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Args:    []string{"api", "api/v3/runs/" + getRunID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_Get_JQ(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 42, "created", testSlug, "main"))
+	fake.AddRunV3(getRunID, runTestProjectID,
+		fakeRunV3(getRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
+	// V3 wraps the resource in {"data": ...}, so the id lives at .data.id.
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "--jq", ".id", "/pipeline/" + testPipelineID},
+		Args:    []string{"api", "--jq", ".data.id", "api/v3/runs/" + getRunID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), testPipelineID))
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_Get_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 42, "created", testSlug, "main"))
+	fake.AddRunV3(getRunID, runTestProjectID,
+		fakeRunV3(getRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -85,34 +108,36 @@ func TestAPI_Get_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Args:    []string{"api", "api/v3/runs/" + getRunID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_RawBody(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
-	const body = `{"branch":"main","parameters":{"deploy":true}}`
+	const body = `{"scope":{"project_ids":["` + runTestProjectID + `"]}}`
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", body},
+		Args:    []string{"api", "-X", "POST", "api/v3/runs/search", "-d", body},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	got := fake.LastRequest()
 	assert.Assert(t, got != nil)
@@ -125,7 +150,6 @@ func TestAPI_RawBody(t *testing.T) {
 
 func TestAPI_RawBody_DefaultsToPOST(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -134,58 +158,65 @@ func TestAPI_RawBody_DefaultsToPOST(t *testing.T) {
 	// No -X: providing -d should default the method to POST.
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/project/" + testSlug + "/pipeline", "-d", `{"branch":"main"}`},
+		Args:    []string{"api", "api/v3/runs/search", "-d", `{"scope":{"project_ids":[]}}`},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
 	assert.Equal(t, fake.LastRequest().Method, "POST")
 }
 
 func TestAPI_RawBody_FromFile(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	dir := t.TempDir()
-	const body = `{"branch":"release"}`
+	const body = `{"scope":{"project_ids":[]},"page":{"limit":5}}`
 	path := filepath.Join(dir, "body.json")
 	assert.NilError(t, os.WriteFile(path, []byte(body), 0o600))
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", "@" + path},
+		Args:    []string{"api", "-X", "POST", "api/v3/runs/search", "-d", "@" + path},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
 	assert.Equal(t, *fake.LastRequest().Body, body)
 }
 
 func TestAPI_RawBody_FromStdin(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetTriggerResponse(testSlug, map[string]any{"id": testPipelineID})
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
-	const body = `{"branch":"from-stdin"}`
+	const body = `{"scope":{"project_ids":[]},"page":{"limit":1}}`
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", "@-"},
+		Args:    []string{"api", "-X", "POST", "api/v3/runs/search", "-d", "@-"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		Stdin:   strings.NewReader(body),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
 	assert.Equal(t, *fake.LastRequest().Body, body)
 }
 
@@ -195,12 +226,14 @@ func TestAPI_RawBody_InvalidJSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", "not json"},
+		Args:    []string{"api", "-X", "POST", "api/v3/runs/search", "-d", "not json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Equal(result.ExitCode, 2)) // ExitBadArguments
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_RawBody_ConflictsWithFields(t *testing.T) {
@@ -209,12 +242,14 @@ func TestAPI_RawBody_ConflictsWithFields(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "-X", "POST", "/project/" + testSlug + "/pipeline", "-d", `{}`, "-f", "branch=main"},
+		Args:    []string{"api", "-X", "POST", "api/v3/runs/search", "-d", `{}`, "-f", "limit=5"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Equal(result.ExitCode, 2)) // ExitBadArguments
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_NotFound(t *testing.T) {
@@ -226,12 +261,14 @@ func TestAPI_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/pipeline/does-not-exist"},
+		Args:    []string{"api", "api/v3/runs/does-not-exist"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 4, "stderr: %s", result.Stderr) // ExitAPIError
+	assert.Check(t, cmp.Equal(result.ExitCode, 4)) // ExitAPIError
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_NoToken(t *testing.T) {
@@ -239,37 +276,88 @@ func TestAPI_NoToken(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/me"},
+		Args:    []string{"api", "api/v3/users"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
+	assert.Check(t, cmp.Equal(result.ExitCode, 3)) // ExitAuthError
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-func TestAPI_PathDefaultsToV2(t *testing.T) {
+// A path with no version prefix is routed to /api/v3 by default.
+func TestAPI_PathDefaultsToV3(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 7, "created", testSlug, "main"))
+	fake.AddRunV3(getRunID, runTestProjectID,
+		fakeRunV3(getRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
-	// Path without /api/ prefix should be routed to /api/v2.
+	// "runs/<id>" has no version prefix, so it must resolve to /api/v3/runs/<id>.
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Args:    []string{"api", "runs/" + getRunID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	got := fake.LastRequest()
+	assert.Assert(t, got != nil)
+	assert.Equal(t, got.URL.Path, "/api/v3/runs/"+getRunID)
 }
 
-func TestAPI_PathDefaultsToV2_Color(t *testing.T) {
+// {project-id} is replaced with the project UUID resolved from the current
+// repository, then used against the V3 GET /api/v3/projects/{id} endpoint.
+func TestAPI_ProjectIDSubstitution(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddRun(testPipelineID, fakeRun(testPipelineID, 7, "created", testSlug, "main"))
+	// Slug → UUID resolution (the CLI's internal lookup).
+	fake.AddProjectInfo(testSlug, map[string]any{
+		"id":              apiProjectID,
+		"slug":            testSlug,
+		"organization_id": apiOrgID,
+	})
+	// The V3 project the substituted path actually targets.
+	fake.AddProjectV3(apiProjectID, map[string]any{
+		"id":         apiProjectID,
+		"attributes": map[string]any{"name": "testrepo", "slug": testSlug},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeInfoYML(t, dir, testSlug)
+
+	// No version prefix → defaults to /api/v3/projects/<resolved-uuid>.
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "projects/{project-id}"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// {project-id} must have been substituted into the outgoing request path.
+	got := fake.LastRequest()
+	assert.Assert(t, got != nil)
+	assert.Equal(t, got.URL.Path, "/api/v3/projects/"+apiProjectID)
+}
+
+// When a placeholder is used but no project can be detected (no git remote and
+// no info.yml), the command fails with a bad-arguments exit code.
+func TestAPI_ProjectIDSubstitution_NoProject(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -277,12 +365,39 @@ func TestAPI_PathDefaultsToV2_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"api", "/pipeline/" + testPipelineID},
+		Args:    []string{"api", "projects/{project-id}"},
 		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-		TTY:     true,
+		WorkDir: t.TempDir(), // empty dir → no git remote, no info.yml
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 2)) // ExitBadArguments
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	// The git-detect failure embeds git's own (version/platform-dependent)
+	// message, so match a stable substring rather than golden the whole thing.
+	assert.Check(t, cmp.Contains(result.Stderr, "could not read git remote"))
+}
+
+// When the project lookup itself fails (slug resolves but the API has no such
+// project), the command surfaces an API error.
+func TestAPI_ProjectIDSubstitution_LookupFails(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	// Deliberately register no project info, so the slug→UUID lookup 404s.
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeInfoYML(t, dir, testSlug)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "projects/{project-id}"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4)) // ExitAPIError
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
