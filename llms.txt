@@ -1841,9 +1841,9 @@ Call the CircleCI REST API directly
 
 **Arguments:**
 
-<path> is the request path. It is relative to /api/v2 by default
-(e.g. "/project/gh/org/repo"). To target a different version
-prefix, include it explicitly, e.g. "/api/v1.1/me".
+<path> is the request path. It is relative to /api/v3 by default
+(e.g. "projects/{project-id}"). To target
+a different version prefix, include it explicitly, e.g. "api/v2/me".
 
 ### `circleci version [flags]`
 
