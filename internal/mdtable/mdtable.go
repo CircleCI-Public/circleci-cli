@@ -40,6 +40,7 @@ type Table struct {
 	headers []string
 	rows    [][]string
 	widths  []int
+	right   []bool
 }
 
 // New creates a Table with the given column headers.
@@ -48,7 +49,16 @@ func New(headers ...string) *Table {
 	for i, h := range headers {
 		widths[i] = len(h)
 	}
-	return &Table{headers: headers, widths: widths}
+	return &Table{headers: headers, widths: widths, right: make([]bool, len(headers))}
+}
+
+// RightAlign marks a column (0-indexed) as right-aligned. The separator row
+// renders a trailing colon so GFM renderers right-align the column.
+// WIP: separator marker not yet emitted.
+func (t *Table) RightAlign(col int) {
+	if col >= 0 && col < len(t.right) {
+		t.right[col] = true
+	}
 }
 
 // Row appends a data row. Values beyond the header count are ignored;
