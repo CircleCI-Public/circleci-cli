@@ -160,10 +160,22 @@ snapcrafts:
     apps:
       circleci:
         plugs:
-          - docker
           - home
           - network
+          - password-manager-service
         command: circleci
+
+flatpak:
+  - id: circleci
+    app_id: com.circleci.cli
+    command: circleci
+    runtime: org.freedesktop.Platform
+    runtime_version: "24.08"
+    sdk: org.freedesktop.Sdk
+    finish_args:
+      - --share=network
+      - --filesystem=home
+      - --talk-name=org.freedesktop.secrets
 
 homebrew_casks:
   - name: circleci@next

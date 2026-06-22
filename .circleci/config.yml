@@ -173,12 +173,17 @@ jobs:
           - run: task ci:release
     steps:
       - setup
+      - run: sudo apt update --yes
       - run:
           name: Install snapcraft
           command: |
-            sudo apt update --yes
-            sudo apt install snapd  --yes
+            sudo apt install snapd --yes
             sudo snap install snapcraft --classic
+      - run:
+          name: Install flatpak
+          command: |
+            sudo apt install flatpak --yes
+            flatpak remote-add --if-not-exists --user flathub https://dl.flathub.org/repo/flathub.flatpakrepo
       - run:
           name: Configure snapcraft
           # Credentials are read from the SNAPCRAFT_LOGIN_FILE env var (base64-encoded).
