@@ -173,11 +173,11 @@ jobs:
           - run: task ci:release
     steps:
       - setup
+      - run: sudo apt update --yes
       - run:
           name: Install snapcraft
           command: |
-            sudo apt update --yes
-            sudo apt install snapd  --yes
+            sudo apt install snapd --yes
             sudo snap install snapcraft --classic
       - run:
           name: Configure snapcraft
