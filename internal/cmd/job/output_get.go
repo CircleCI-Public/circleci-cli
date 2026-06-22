@@ -179,6 +179,24 @@ func renderTerminal(dst io.Writer, b []byte) {
 
 	e := vt.NewEmulator(renderWidth, renderHeight)
 	e.SetScrollbackSize(renderScrollback)
+
+	// The emulator answers terminal queries — Device Attributes ("\x1b[c"),
+	// OSC color queries ("\x1b]11;?\a"), in-band resize — by writing the reply
+	// to its input pipe, which is an *unbuffered* io.Pipe. Captured CI logs
+	// routinely contain such queries (goreleaser, Docker, etc.), so unless that
+	// pipe is drained, the very first reply makes e.Write block forever — and
+	// because it's an uninterruptible pipe write, the whole command hangs past
+	// Ctrl-C. We only want the rendered screen, so discard the replies.
+	//
+	// Stop the drain by closing the input pipe's write end (which makes the
+	// reader see EOF through io.Pipe's own synchronization) rather than
+	// e.Close(): the latter also flips an unsynchronised "closed" flag that the
+	// draining Read reads concurrently, which is a data race.
+	go func() { _, _ = io.Copy(io.Discard, e) }()
+	if pw, ok := e.InputPipe().(io.Closer); ok {
+		defer func() { _ = pw.Close() }()
+	}
+
 	// Enable line-feed/new-line mode so a bare "\n" also returns to column 0,
 	// matching the cooked-mode terminal these tools assume they're writing to.
 	_, _ = e.WriteString("\x1b[20h")

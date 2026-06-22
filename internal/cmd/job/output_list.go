@@ -149,10 +149,10 @@ func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 	}
 
 	items := make([]stepOutputItem, len(steps))
-	g := new(errgroup.Group)
+	g, ctx := errgroup.WithContext(ctx)
 	g.SetLimit(maxStepOutputFetches)
 	for i, s := range steps {
-		g.Go(func() error {
+		g.Go(func() (err error) {
 			out, err := renderStepOutput(ctx, client, jobID, execution, s.Num)
 			if err != nil {
 				return err
