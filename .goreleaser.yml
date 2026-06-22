@@ -160,9 +160,9 @@ snapcrafts:
     apps:
       circleci:
         plugs:
-          - docker
           - home
           - network
+          - password-manager-service
         command: circleci
 
 homebrew_casks:
