@@ -3215,7 +3215,12 @@ func (f *CircleCI) handleCreatePolicyBundle(w http.ResponseWriter, r *http.Reque
 	}
 	f.mu.Unlock()
 
-	render.JSON(w, r, map[string]any{"created": []string{}, "deleted": []string{}, "updated": []string{}})
+	var created []string
+	for k := range body.Policies {
+		created = append(created, k)
+	}
+
+	render.JSON(w, r, map[string]any{"created": created, "deleted": []string{}, "updated": []string{}})
 }
 
 func (f *CircleCI) handleFetchPolicyBundle(w http.ResponseWriter, r *http.Request) {
