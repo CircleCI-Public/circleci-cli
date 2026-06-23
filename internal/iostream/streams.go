@@ -67,6 +67,20 @@ func WithJQFilter(ctx context.Context, jqFilter string) context.Context {
 	return context.WithValue(ctx, jqFilterKey{}, jqFilter)
 }
 
+// interactiveEnvDisabled returns true when environment variables force
+// non-interactive behavior, independent of whether the streams are TTYs.
+// Checked: CI (set by CI systems) and CIRCLE_NO_INTERACTIVE (explicit opt-out).
+// Does NOT check TTY — call IsTerminal() for that.
+func interactiveEnvDisabled() bool {
+	if os.Getenv("CI") != "" {
+		return true
+	}
+	if os.Getenv("CIRCLE_NO_INTERACTIVE") != "" {
+		return true
+	}
+	return false
+}
+
 // colorDisabled returns true when any of the standard "no color" signals are present.
 // Checked: NO_COLOR (no-color.org), CIRCLE_NO_COLOR, TERM=dumb.
 // Does NOT check TTY — call IsTerminal() for that.
@@ -346,6 +360,20 @@ func resolveTheme(cmd *cobra.Command, configTheme string) string {
 	return flagTheme
 }
 
+// backgroundQueryable reports whether it is safe to probe the terminal for its
+// background color. The probe (an OSC 11 escape) blocks until the terminal
+// replies or a 2s-per-stream timeout fires, so it must only run against a real,
+// interactive terminal. CI runners frequently allocate a PTY — so both streams
+// report as terminals — yet nothing answers the query; gate on the same
+// signals that mark a session non-interactive (CI, CIRCLE_NO_INTERACTIVE) plus
+// the no-color signals, since a disabled-color session won't use the result.
+func backgroundQueryable(in, out term.File) bool {
+	if !term.IsTerminal(in.Fd()) || !term.IsTerminal(out.Fd()) {
+		return false
+	}
+	return !colorDisabled() && !interactiveEnvDisabled()
+}
+
 func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, style string) {
 	switch theme {
 	case themeAuto:
@@ -356,6 +384,19 @@ func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, s
 
 		stdOut, ok := out.(term.File)
 		if !ok {
+			break
+		}
+
+		if !backgroundQueryable(stdIn, stdOut) {
+			// Detecting the background means writing an OSC 11 query to the
+			// terminal and waiting for a reply. In a non-interactive context
+			// (CI, NO_INTERACTIVE, no-color, or TERM=dumb) no reply ever comes,
+			// so each query blocks until lipgloss's 2s timeout — and it queries
+			// both stdin and stdout, so the stall is ~4s on every invocation,
+			// including `--help`. CI runners that allocate a PTY hit this even
+			// though the streams report as terminals. Default to the dark style
+			// (lipgloss's own on-error default) without the query.
+			style = styles.DarkStyle
 			break
 		}
 
@@ -408,16 +449,7 @@ func (s Streams) ColorEnabled() bool {
 // False when: not a TTY, CI=true (running in a CI environment),
 // or CIRCLE_NO_INTERACTIVE is set.
 func (s Streams) IsInteractive() bool {
-	if !s.IsTerminal() {
-		return false
-	}
-	if os.Getenv("CI") != "" {
-		return false
-	}
-	if os.Getenv("CIRCLE_NO_INTERACTIVE") != "" {
-		return false
-	}
-	return true
+	return s.IsTerminal() && !interactiveEnvDisabled()
 }
 
 func (s Streams) SymbolSuccess(strs ...string) string {
