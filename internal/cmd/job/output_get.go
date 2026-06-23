@@ -72,11 +72,14 @@ func newOutputGetCmd() *cobra.Command {
 			Stdout and stderr are fetched in parallel and printed together,
 			stdout first.
 
-			When writing to a terminal the raw output is passed through unchanged.
-			When redirected to a file or pipe it is rendered down to plain text:
-			ANSI escapes are removed and progress redraws (carriage returns and
-			cursor movement, e.g. Docker pulls) are collapsed to their final
-			state. Use --strip-ansi to force this rendering even on a terminal.
+			By default, when writing to a terminal the raw output is passed
+			through unchanged, and when redirected to a file or pipe it is
+			rendered down to plain text: ANSI escapes are removed and progress
+			redraws (carriage returns and cursor movement, e.g. Docker pulls)
+			are collapsed to their final state.
+
+			Use --strip-ansi to force this rendering even on a terminal, or
+			--strip-ansi=false to pass the raw output through even when piped.
 		`),
 		Example: heredoc.Doc(`
 			# Get the output of step 3 in a job
@@ -107,18 +110,25 @@ func newOutputGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runOutputGet(ctx, client, jobID, execution, stepNum, stripANSI)
+			// --strip-ansi is tri-state: when the user sets it explicitly we
+			// honour that value; otherwise default to rendering whenever the
+			// output is not going to a terminal.
+			strip := !iostream.IsTerminal(ctx)
+			if cmd.Flags().Changed("strip-ansi") {
+				strip = stripANSI
+			}
+			return runOutputGet(ctx, client, jobID, execution, stepNum, strip)
 		},
 	}
 
 	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from")
 	cmd.Flags().IntVar(&stepNum, "step-num", 0, "Step number whose output to fetch (required)")
-	cmd.Flags().BoolVar(&stripANSI, "strip-ansi", false, "Strip ANSI escape codes even when writing to a terminal")
+	cmd.Flags().BoolVar(&stripANSI, "strip-ansi", false, "Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal")
 
 	return cmd
 }
 
-func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int, stripANSI bool) error {
+func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int, strip bool) error {
 	var stdout, stderr []byte
 
 	g, gctx := errgroup.WithContext(ctx)
@@ -135,12 +145,6 @@ func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID
 		return cmdutil.APIErr(err, subject, "job.output_not_found",
 			"No output found for %s.")
 	}
-
-	// Render ANSI/control sequences down to plain text when the output is not
-	// going to a terminal (e.g. piped to a file), or when the user explicitly
-	// asked for it. On a real terminal we write the raw bytes and let the user's
-	// terminal interpret them.
-	strip := stripANSI || !iostream.IsTerminal(ctx)
 
 	out := iostream.Out(ctx)
 	writeOutput(out, stdout, strip)

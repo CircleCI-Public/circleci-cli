@@ -120,11 +120,11 @@ Work with job step output
 
 Get the output of a job step
 
-| Flag              | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--execution int` | Parallel execution index to read output from            |
-| `--step-num int`  | Step number whose output to fetch (required)            |
-| `--strip-ansi`    | Strip ANSI escape codes even when writing to a terminal |
+| Flag              | Description                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `--execution int` | Parallel execution index to read output from                                                   |
+| `--step-num int`  | Step number whose output to fetch (required)                                                   |
+| `--strip-ansi`    | Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal |
 
 
 **Arguments:**
