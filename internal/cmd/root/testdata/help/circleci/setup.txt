@@ -1,0 +1,47 @@
+# CircleCI CLI
+
+Persist a CircleCI host and API token to the CLI config file.
+
+This command exists only for backwards compatibility with the
+CircleCI CLI orb. Only the non-interactive path is supported: you
+must pass --no-prompt, --host, and --token. The interactive setup
+flow from the legacy CLI is not reimplemented.
+
+For new usage, prefer:
+  circleci auth login                 interactive, browser-based
+  circleci setting set host <host>    store the host
+  circleci setting set token <token>  store the token
+
+## Usage
+
+`circleci setup [flags]`
+
+## Flags
+
+| Flag             | Description                                         |
+| ---------------- | --------------------------------------------------- |
+| `--host string`  | CircleCI host, e.g. https://circleci.com (required) |
+| `--no-prompt`    | Run without interactive prompts (required)          |
+| `--token string` | CircleCI API token (required)                       |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Examples
+
+- Configure the CLI non-interactively (the path the orb uses): 
+  `circleci setup --no-prompt --host https://circleci.com --token mytoken123`
+- Point at a self-hosted CircleCI server: 
+  `circleci setup --no-prompt --host https://circleci.example.com --token mytoken123`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://circleci-public.github.io/circleci-cli>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

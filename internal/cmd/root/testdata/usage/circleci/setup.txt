@@ -1,0 +1,7 @@
+Usage:  circleci setup [flags]
+
+Flags:
+  --host string    CircleCI host, e.g. https://circleci.com (required)
+  --no-prompt      Run without interactive prompts (required)
+  --token string   CircleCI API token (required)
+  

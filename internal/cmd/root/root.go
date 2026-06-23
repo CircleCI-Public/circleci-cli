@@ -53,6 +53,7 @@ import (
 	cmdrun "github.com/CircleCI-Public/circleci-cli/internal/cmd/run"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/runner"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/setting"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/setup"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/step"
 	cmdversion "github.com/CircleCI-Public/circleci-cli/internal/cmd/version"
@@ -220,6 +221,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(receivetelemetry.NewReceiveTelemetryCmd())
 	cmd.AddCommand(runner.NewRunnerCmd())
 	cmd.AddCommand(setting.NewSettingCmd())
+	cmd.AddCommand(setup.NewSetupCmd())
 	cmd.AddCommand(signingconfig.NewSigningConfigCmd())
 	cmd.AddCommand(step.NewStepCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
