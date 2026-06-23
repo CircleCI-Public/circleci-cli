@@ -40,16 +40,34 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
+type mode int
+
+const (
+	modeScan   mode = iota // scan repo, run tests, generate config, then sign up
+	modeSignup             // sign up only — no repo required
+)
+
 // Options configures the onboarding flow.
 type Options struct {
 	ConfigPath    string
 	NoBrowser     bool
 	SecureStorage bool
+	Scan          bool
+	Signup        bool
 }
 
 // Run scans a repository, verifies its tests, generates a starter config when
 // needed, and ensures the CLI has an authenticated CircleCI session.
 func Run(ctx context.Context, dir string, opts Options) error {
+	m, err := resolveMode(ctx, opts)
+	if err != nil {
+		return err
+	}
+
+	if m == modeSignup {
+		return cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath)
+	}
+
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return clierrors.New(
@@ -112,6 +130,43 @@ func Run(ctx context.Context, dir string, opts Options) error {
 	iostream.Printf(ctx, "%s Onboarded\n", iostream.SymbolOK(ctx))
 	iostream.Printf(ctx, "Commit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
 	return nil
+}
+
+func resolveMode(ctx context.Context, opts Options) (mode, error) {
+	if opts.Scan {
+		return modeScan, nil
+	}
+	if opts.Signup {
+		return modeSignup, nil
+	}
+
+	if !iostream.IsInteractive(ctx) {
+		return modeScan, nil
+	}
+
+	idx, err := iostream.PromptSelect(ctx, "What would you like to do?", []string{
+		"Scan this repo and generate config",
+		"Sign up for CircleCI",
+	})
+	if err != nil {
+		return 0, clierrors.New(
+			"onboard.mode_prompt_failed",
+			"Mode selection failed",
+			err.Error(),
+		).WithExitCode(clierrors.ExitGeneralError)
+	}
+	if idx == -1 {
+		return 0, clierrors.New(
+			"onboard.cancelled",
+			"Onboarding cancelled",
+			"No mode selected.",
+		).WithExitCode(clierrors.ExitCancelled)
+	}
+
+	if idx == 1 {
+		return modeSignup, nil
+	}
+	return modeScan, nil
 }
 
 // displayPreamble shows a confirmation gate before any work begins. The prompt

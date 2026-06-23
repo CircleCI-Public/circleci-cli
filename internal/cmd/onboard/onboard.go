@@ -28,35 +28,54 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/onboarder"
 )
 
 // NewOnboardCmd returns the "circleci onboard" command.
 func NewOnboardCmd() *cobra.Command {
-	var noBrowser bool
+	var (
+		noBrowser bool
+		scan      bool
+		signup    bool
+	)
 
 	cmd := &cobra.Command{
 		Use:     "onboard [path]",
 		GroupID: "user",
 		Short:   "Guided onboarding: scan, test, generate config, sign up",
 		Long: heredoc.Doc(`
-			Scan a local repository, run its detected tests, generate a starter
-			.circleci/config.yml when one does not already exist, and sign up for
-			CircleCI through the browser-based auth flow.
+			Guided onboarding: scan a local repository, run its detected tests,
+			generate a starter .circleci/config.yml, and sign up for CircleCI.
+
+			When run interactively without --scan or --signup, a prompt lets you
+			choose between scanning the current repo or signing up directly.
 		`),
 		Example: heredoc.Doc(`
-			# Onboard the current directory
+			# Interactive mode: choose scan or signup
 			$ circleci onboard
 
+			# Scan the current directory (skip the choice prompt)
+			$ circleci onboard --scan
+
+			# Sign up for CircleCI (no repo needed)
+			$ circleci onboard --signup
+
 			# Onboard a specific project path
-			$ circleci onboard ./my-app
+			$ circleci onboard --scan ./my-app
 
 			# Print the signup URL instead of opening a browser
-			$ circleci onboard --no-browser
+			$ circleci onboard --signup --no-browser
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			if scan && signup {
+				return clierrors.New("onboard.invalid_args", "Invalid arguments",
+					"--scan and --signup are mutually exclusive").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 
 			dir := "."
 			if len(args) == 1 {
@@ -68,10 +87,14 @@ func NewOnboardCmd() *cobra.Command {
 				NoBrowser:     noBrowser,
 				SecureStorage: cmdutil.IsSecureStorage(cmd),
 				ConfigPath:    configPath,
+				Scan:          scan,
+				Signup:        signup,
 			})
 		},
 	}
 
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the signup URL instead of opening a browser")
+	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: scan the repo and generate config")
+	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
 	return cmd
 }
