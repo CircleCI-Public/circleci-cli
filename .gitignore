@@ -3,9 +3,9 @@ dist/
 share/
 
 # Docs site (generated reference page, built output, pinned tools, publish worktree)
-website/content/_index.md
-website/static/llms.txt
-website/public/
+docs/website/content/_index.md
+docs/website/static/llms.txt
+docs/website/public/
 bin/tools/
 /.gh-pages/
 # htmltest writes its cache/log here when `task docs:test` runs.

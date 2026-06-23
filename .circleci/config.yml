@@ -217,7 +217,7 @@ jobs:
                 name: Check internal links
                 command: task docs:test
       - store_artifacts:
-          path: website/public
+          path: docs/website/public
 
   docs-publish:
     executor: linux

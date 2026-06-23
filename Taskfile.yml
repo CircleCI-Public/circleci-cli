@@ -31,9 +31,9 @@ vars:
   TOOLS_DIR: bin/tools
   HUGO: ./bin/tools/hugo
   HTMLTEST: ./bin/tools/htmltest
-  # Hugo project lives in website/; built output lands in website/public.
-  SITE_DIR: website
-  SITE_OUT: website/public
+  # Hugo project lives in docs/website/; built output lands in docs/website/public.
+  SITE_DIR: docs/website
+  SITE_OUT: docs/website/public
 
 tasks:
   build:
@@ -116,8 +116,8 @@ tasks:
           -ignore "acceptance/testdata/**" \
           -ignore "bin/**" \
           -ignore "dist/**" \
-          -ignore "website/content/**" \
-          -ignore "website/public/**" \
+          -ignore "docs/website/content/**" \
+          -ignore "docs/website/public/**" \
           {{.ARGS}}
 
   mod-tidy:
