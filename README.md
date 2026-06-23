@@ -1,5 +1,9 @@
 # circleci-cli
 
+> **Preview release** — this branch (`main`) tracks the new v2 CLI rewrite. It is under
+> active development and not yet stable. For the current stable CLI, see
+> [stable installation](#stable-installation).
+
 This is CircleCI's command-line application.
 
 [Documentation](https://cli.circleci.com/reference/) |
@@ -11,7 +15,7 @@ This is CircleCI's command-line application.
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
 
-`circleci` is CircleCI's official command line tool. It is an agent-friedly CLI that brings CI runs, jobs,
+`circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
 configuration, and other CircleCI features to the terminal right where you're already working.
 
 <p align="center">
@@ -23,17 +27,66 @@ configuration, and other CircleCI features to the terminal right where you're al
 The CLI is supported for users on [circleci.com](https://circleci.com) and CircleCI server; with support for macOS,
 Windows, and Linux.
 
+---
+
+## Preview: CLI v2 now available
+
+A ground-up rewrite of the CircleCI CLI is available for preview.
+
+### What's new
+
+- **`circleci run`** — Full pipeline run management: list, get, trigger, cancel, and watch runs from the terminal. `run watch` blocks until a run completes and exits with a status code that reflects the result, making it easy to script CI gating.
+- **`circleci deploy`** — View deployed components and versions across environments, and initialize CircleCI Deploys for a project.
+- **`circleci dlc purge`** — Invalidate Docker layer caching for a project to force a fresh image build on the next run.
+- **`circleci workflow`** — List, inspect, cancel, and rerun individual workflows.
+- **`circleci pipeline`** — List and inspect pipelines.
+- **`circleci envvar`** — Manage project environment variables.
+- **`--json` on every command** — Every data-returning command supports `--json` for machine-readable, scriptable output.
+- **MCP server** — First-class [Model Context Protocol](https://modelcontextprotocol.io) support: register the CLI as an MCP server in Claude, Cursor, or VS Code with a single command.
+- **Shell completions** — Bash and Zsh completions via `circleci completion`.
+
+> **Note:** This is a preview release. Commands and flags may change before stable. Please [open an issue](https://github.com/CircleCI-Public/circleci-cli/issues) with any feedback.
+
+---
+
 ## Installation
 
-The CircleCI CLI is available on the following package managers:
+### Preview installation
 
-Homebrew (preview):
+Install the preview (v2) CLI via one of the following package managers:
+
+Homebrew:
 ```shell
 brew tap circleci-public/homebrew-circleci
+brew trust circleci-public/homebrew-circleci
 brew install circleci@next
 ```
 
-Homebrew (stable):
+**If you have the stable CLI installed:**
+```shell
+brew uninstall circleci
+brew tap circleci-public/homebrew-circleci
+brew trust circleci-public/homebrew-circleci # for brew greater than v6
+brew install circleci@next
+```
+
+Snap (edge channel):
+```shell
+sudo snap install circleci --channel=edge
+```
+
+Chocolatey (pre-release):
+```shell
+choco install circleci-cli --pre -y
+```
+
+WinGet: preview channel coming soon.
+
+### Stable installation
+
+Install the current stable version via HomeBrew, Snap, WinGet, or Chocolatey
+
+Homebrew:
 ```shell
 brew install circleci
 ```
