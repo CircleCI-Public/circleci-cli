@@ -13,11 +13,14 @@ to read; it defaults to the first execution (index 0).
 Stdout and stderr are fetched in parallel and printed together,
 stdout first.
 
-When writing to a terminal the raw output is passed through unchanged.
-When redirected to a file or pipe it is rendered down to plain text:
-ANSI escapes are removed and progress redraws (carriage returns and
-cursor movement, e.g. Docker pulls) are collapsed to their final
-state. Use --strip-ansi to force this rendering even on a terminal.
+By default, when writing to a terminal the raw output is passed
+through unchanged, and when redirected to a file or pipe it is
+rendered down to plain text: ANSI escapes are removed and progress
+redraws (carriage returns and cursor movement, e.g. Docker pulls)
+are collapsed to their final state.
+
+Use --strip-ansi to force this rendering even on a terminal, or
+--strip-ansi=false to pass the raw output through even when piped.
 
 ## Usage
 
@@ -25,11 +28,11 @@ state. Use --strip-ansi to force this rendering even on a terminal.
 
 ## Flags
 
-| Flag              | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `--execution int` | Parallel execution index to read output from            |
-| `--step-num int`  | Step number whose output to fetch (required)            |
-| `--strip-ansi`    | Strip ANSI escape codes even when writing to a terminal |
+| Flag              | Description                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------- |
+| `--execution int` | Parallel execution index to read output from                                                   |
+| `--step-num int`  | Step number whose output to fetch (required)                                                   |
+| `--strip-ansi`    | Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal |
 
 ## Inherited Flags
 

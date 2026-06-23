@@ -97,6 +97,29 @@ func TestJobOutputGet_StripsANSIWhenNotTerminal(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestJobOutputGet_StripANSIFalseKeepsRawWhenNotTerminal(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobStdout(testJobID, 0, 103, golden.Get(t, "tty/input.txt"))
+	fake.AddJobStderr(testJobID, 0, 103, []byte(""))
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "get", testJobID, "--step-num", "103", "--strip-ansi=false"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	// --strip-ansi=false forces the raw bytes through even though stdout is not
+	// a terminal, so the output should match the unmodified input verbatim.
+	assert.Check(t, cmp.Equal(result.Stdout, string(golden.Get(t, "tty/input.txt"))))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestJobOutputGet_MissingStepNum(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)

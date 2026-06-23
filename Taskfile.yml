@@ -115,6 +115,7 @@ tasks:
           -ignore "**/*.html" \
           -ignore "acceptance/testdata/**" \
           -ignore "bin/**" \
+          -ignore "dist/**" \
           -ignore "website/content/**" \
           -ignore "website/public/**" \
           {{.ARGS}}
