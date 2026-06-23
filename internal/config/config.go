@@ -324,17 +324,20 @@ func saveToFull(ctx context.Context, path string, secureStorage bool, cb func(co
 
 	cp := cfg.state
 	if secureStorage {
+		// Defense in depth: callers gate secureStorage on keyring.Available(),
+		// but the backend could still be unreachable here. Rather than fail the
+		// whole write, fall back to leaving the token in the config file (for a
+		// store) or treating a clear as a no-op (for a delete) — the same
+		// outcome as --insecure-storage.
 		if cp.Token == "" {
 			err = cfg.deleteToken(ctx)
-			if err != nil {
+			if err != nil && !errors.Is(err, keyring.ErrUnavailable) {
 				return err
 			}
-		} else {
-			cp.Token = ""
-			err = cfg.storeToken(ctx)
-			if err != nil {
-				return err
-			}
+		} else if err = cfg.storeToken(ctx); err == nil {
+			cp.Token = "" // persisted to the keyring; keep it out of the plaintext file
+		} else if !errors.Is(err, keyring.ErrUnavailable) {
+			return err
 		}
 	}
 
