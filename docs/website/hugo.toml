@@ -24,9 +24,9 @@
 # relative asset URLs resolve correctly.
 baseURL = "https://circleci-public.github.io/circleci-cli/"
 languageCode = "en-us"
-title = "CircleCI CLI Reference"
+title = "CircleCI CLI"
 
-# Man-page-style single page: no taxonomy/term/RSS/404 pages.
+# Landing page (/) + the reference section (/reference); no taxonomy/term/RSS/404.
 disableKinds = ["taxonomy", "term", "RSS", "404"]
 
 # The reference page is generated markdown and contains rendered HTML tables;

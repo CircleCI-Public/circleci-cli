@@ -212,11 +212,15 @@ tasks:
   docs:reference:
     desc: Generate the reference page from the live command tree
     cmds:
-      - mkdir -p {{.SITE_DIR}}/content {{.SITE_DIR}}/static
+      - mkdir -p {{.SITE_DIR}}/content/reference {{.SITE_DIR}}/static/img
+      # The landing page (/) is a hand-written template; the screenshot it shows
+      # is the freeze-captured demo, copied into the site's static tree.
+      - cp docs/demos/run-get.svg {{.SITE_DIR}}/static/img/run-get.svg
       # Generate the reference body once, then derive two artifacts from it:
-      #   static/llms.txt   — clean markdown for LLMs/agents (llmstxt.org), copied
-      #                        to the site root verbatim by Hugo.
-      #   content/_index.md — the same body with Hugo front matter prepended.
+      #   static/llms.txt           — clean markdown for LLMs/agents (llmstxt.org),
+      #                                copied to the site root verbatim by Hugo.
+      #   content/reference/_index.md — the same body with Hugo front matter, served
+      #                                at /reference.
       # The llms.txt opens with an H1 + blockquote summary per the llms.txt spec.
       - |
         {
@@ -237,7 +241,7 @@ tasks:
           go run ./cmd/circleci getting-started
           echo
           go run ./cmd/circleci reference
-        } > {{.SITE_DIR}}/content/_index.md
+        } > {{.SITE_DIR}}/content/reference/_index.md
 
   docs:clean:
     desc: Remove the built docs site

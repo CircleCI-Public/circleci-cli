@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode | default "en" }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ .Title }}</title>
+  <meta name="description" content="Command reference for the CircleCI CLI.">
+  <!-- Clean-markdown copy of this reference for LLMs/agents (llmstxt.org).
+       Generated alongside _index.md by the docs:reference task. -->
+  <link rel="alternate" type="text/markdown" href="../llms.txt" title="Markdown for LLMs">
+  <!-- Page-relative links (this page lives at /reference/, so assets are one
+       level up) keep the site correct under the Pages subpath; the content-hash
+       query busts browser/CDN cache when the stylesheet changes. htmltest ignores
+       the query and resolves the file itself. -->
+  {{ $cssVer := os.ReadFile "static/css/main.css" | hash.FNV32a }}
+  <link rel="stylesheet" href="../css/main.css?v={{ $cssVer }}">
+</head>
+<body class="has-site-nav">
+  {{ partial "navbar.html" (dict "root" "../") }}
+
+  {{/* Mobile command-nav toggle. Pure CSS (checkbox + labels): the checkbox
+       holds open/closed state, the fixed button toggles it wherever you scroll,
+       and the backdrop label closes it. Hidden on wide screens via CSS. */}}
+  <input type="checkbox" id="nav-toggle" class="nav-toggle">
+  <label for="nav-toggle" class="nav-toggle-btn" aria-label="Toggle command navigation">
+    <span class="nav-toggle-bars" aria-hidden="true"></span>
+  </label>
+  <label for="nav-toggle" class="nav-backdrop" aria-hidden="true"></label>
+
+  <div class="layout">
+    <aside class="sidebar">
+      {{/* Build the command nav from the page's heading tree. The page has two
+           top-level sections ("Getting started" and "Reference"); under
+           Reference the commands are grouped (CI / Management / User / ...), so
+           render down to H4: group -> command -> subcommand. */}}
+      <nav class="toc" aria-label="Command reference">
+        {{ partial "command-nav.html" (dict "items" .Fragments.Headings "parent" "" "depth" 1 "maxDepth" 4) }}
+      </nav>
+    </aside>
+
+    <div class="content-col">
+      <main class="content">
+        {{ .Content }}
+      </main>
+      <footer class="footer">
+        <span>CircleCI CLI</span>
+        <span>Generated from <code>circleci reference</code></span>
+        <span><a href="../llms.txt">View as Markdown</a> · for LLMs</span>
+      </footer>
+    </div>
+  </div>
+
+  {{/* Progressive enhancement: open/close already works without JS via the
+       checkbox. This just closes the mobile nav after a link is chosen or on
+       Escape, so it doesn't stay covering the content. */}}
+  <script>
+    (function () {
+      var toggle = document.getElementById('nav-toggle');
+      var toc = document.querySelector('.toc');
+      if (!toggle || !toc) return;
+      toc.addEventListener('click', function (e) {
+        if (e.target.closest('a')) toggle.checked = false;
+      });
+      document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') toggle.checked = false;
+      });
+    })();
+  </script>
+</body>
+</html>
