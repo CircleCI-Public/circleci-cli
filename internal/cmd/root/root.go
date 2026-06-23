@@ -181,6 +181,9 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
 
+	cmd.PersistentFlags().BoolP("skip-update-check", "", false, "skip checking for CLI updates")
+	_ = cmd.PersistentFlags().MarkHidden("skip-update-check")
+
 	cmd.AddGroup(&cobra.Group{
 		ID:    "ci",
 		Title: "CI commands",
