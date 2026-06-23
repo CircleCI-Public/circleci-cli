@@ -11,7 +11,7 @@ This is CircleCI's command-line application.
 [![GoDoc](https://img.shields.io/badge/godoc-reference-blue.svg)](https://godoc.org/github.com/CircleCI-Public/circleci-cli)
 [![License](https://img.shields.io/badge/license-MIT-red.svg)](./LICENSE)
 
-`circleci` is CircleCI's official command line tool. It is an agent-friedly CLI that brings CI runs, jobs,
+`circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
 configuration, and other CircleCI features to the terminal right where you're already working.
 
 <p align="center">
@@ -22,6 +22,51 @@ configuration, and other CircleCI features to the terminal right where you're al
 
 The CLI is supported for users on [circleci.com](https://circleci.com) and CircleCI server; with support for macOS,
 Windows, and Linux.
+
+---
+
+## Preview: CLI v2 now available
+
+A ground-up rewrite of the CircleCI CLI is available for preview on the [`next` branch](https://github.com/CircleCI-Public/circleci-cli/tree/next).
+
+### What's new
+
+- **`circleci run`** — Full pipeline run management: list, get, trigger, cancel, and watch runs from the terminal. `run watch` blocks until a run completes and exits with a status code that reflects the result, making it easy to script CI gating.
+- **`circleci deploy`** — View deployed components and versions across environments, and initialize CircleCI Deploys for a project.
+- **`circleci dlc purge`** — Invalidate Docker layer caching for a project to force a fresh image build on the next run.
+- **`circleci workflow`** — List, inspect, cancel, and rerun individual workflows.
+- **`circleci pipeline`** — List and inspect pipelines.
+- **`circleci envvar`** — Manage project environment variables.
+- **`--json` on every command** — Every data-returning command supports `--json` for machine-readable, scriptable output.
+- **MCP server** — First-class [Model Context Protocol](https://modelcontextprotocol.io) support: register the CLI as an MCP server in Claude, Cursor, or VS Code with a single command.
+- **Shell completions** — Bash, Zsh, and Fish completions via `circleci completion`.
+
+### Install the preview
+
+The preview CLI (`circleci@next`) conflicts with the stable Homebrew formula — you need to switch between them.
+
+**If you have the stable CLI installed:**
+```shell
+brew uninstall circleci
+brew tap circleci-public/homebrew-circleci
+brew install circleci@next
+```
+
+**Fresh install:**
+```shell
+brew tap circleci-public/homebrew-circleci
+brew install circleci@next
+```
+
+**To go back to the stable CLI:**
+```shell
+brew uninstall circleci@next
+brew install circleci
+```
+
+> **Note:** This is a preview release. Commands and flags may change before stable. Please [open an issue](https://github.com/CircleCI-Public/circleci-cli/issues) with any feedback.
+
+---
 
 ## Installation
 
