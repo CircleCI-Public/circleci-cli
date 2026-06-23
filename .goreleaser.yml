@@ -157,6 +157,12 @@ snapcrafts:
     license: MIT
     grade: devel # TODO: Change to stable once we're ready to release
     confinement: strict
+    publish: true
+    # devel-grade snaps can only be released to edge/beta, never
+    # candidate/stable. Pin the channels until grade becomes stable.
+    channel_templates:
+      - edge
+      - beta
     apps:
       circleci:
         plugs:
