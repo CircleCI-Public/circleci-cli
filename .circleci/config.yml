@@ -41,7 +41,7 @@ commands:
                 ;;
             esac
             echo "Detected architecture: $ARCH"
-            
+
             os="$(uname -o)"
             case "$os" in
               "Darwin")
@@ -59,14 +59,14 @@ commands:
                 ;;
             esac
             echo "Detected OS: $OS"
-            
+
             EXTENSION="tar.gz"
             if [[ "$OS" == "windows" ]]; then
               EXTENSION="zip"
             fi
             URL="https://golang.org/dl/go<< pipeline.parameters.go_version_with_patch >>.${OS}-${ARCH}.${EXTENSION}"
             echo "Downloading Go from $URL"
-            
+
             if [[ "$OS" == "windows" ]]; then
               rm -rf /c/go
               curl -o /tmp/go.zip -fsSL "$URL" 
@@ -77,7 +77,7 @@ commands:
               sudo rm -rf /usr/local/go
               curl -fsSL "$URL" | sudo tar -C /usr/local -xz
             fi
-            
+
             go version
 
   install-task:
@@ -108,7 +108,7 @@ executors:
       xcode: 26.5.0
     environment:
       # Work around Go orb not knowing where the cache is on MacOS (assuming ~/.cache/go-build).
-      GOCACHE: '/Users/distiller/.cache/go-build'
+      GOCACHE: "/Users/distiller/.cache/go-build"
 
   windows:
     machine: true
@@ -200,6 +200,19 @@ jobs:
       - store_artifacts:
           path: dist
 
+  smoke-test-preview:
+    parameters:
+      executor:
+        type: executor
+      install-steps:
+        type: steps
+    executor: << parameters.executor >>
+    steps:
+      - steps: << parameters.install-steps >>
+      - run:
+          name: Verify circleci binary
+          command: circleci version
+
   docs:
     executor: linux
     steps:
@@ -239,7 +252,6 @@ jobs:
 workflows:
   ci:
     jobs:
-
       # gh-pages holds only generated HTML — never run CI on it. Entry jobs (no
       # `requires`) must opt out explicitly; downstream jobs are gated by these.
 
@@ -299,3 +311,50 @@ workflows:
             - ok-to-deploy
           context:
             - devex-release
+
+      - smoke-test-preview:
+          name: smoke-test-snap
+          executor: linux_machine
+          install-steps:
+            - run:
+                name: Install snapd
+                command: sudo apt update --yes && sudo apt install snapd --yes
+            - run:
+                name: Install circleci via Snap edge channel
+                command: sudo snap install circleci --channel=edge
+          requires:
+            - deploy
+          filters:
+            branches:
+              only: main
+
+      - smoke-test-preview:
+          name: smoke-test-brew
+          executor: macos
+          install-steps:
+            - run:
+                name: Install circleci via Homebrew preview tap
+                command: |
+                  brew update
+                  rm -f /opt/homebrew/bin/circleci
+                  brew tap circleci-public/homebrew-circleci
+                  brew trust circleci-public/homebrew-circleci
+                  brew install circleci@next
+          requires:
+            - deploy
+          filters:
+            branches:
+              only: main
+
+      - smoke-test-preview:
+          name: smoke-test-choco
+          executor: windows
+          install-steps:
+            - run:
+                name: Install circleci via Chocolatey pre-release
+                command: choco install circleci-cli --pre -y
+          requires:
+            - deploy
+          filters:
+            branches:
+              only: main
