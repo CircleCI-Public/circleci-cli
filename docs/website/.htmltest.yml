@@ -21,7 +21,7 @@
 # SPDX-License-Identifier: MIT
 
 # Path is relative to the working directory htmltest runs from (repo root).
-DirectoryPath: "website/public"
+DirectoryPath: "docs/website/public"
 # Keep CI hermetic: validate internal links/anchors only, don't reach the network.
 CheckExternal: false
 IgnoreInternalEmptyHash: true
