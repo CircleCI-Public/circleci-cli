@@ -25,6 +25,9 @@ package keyring
 import (
 	"context"
 	"errors"
+	"os"
+	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/zalando/go-keyring"
@@ -32,9 +35,46 @@ import (
 
 const timeout = 3 * time.Second
 
-var ErrNotFound = errors.New("password not found in keyring")
+var (
+	ErrNotFound = errors.New("password not found in keyring")
+
+	// ErrUnavailable indicates the OS keyring backend cannot be reached (for
+	// example a headless Linux/CI host with no D-Bus session bus). Callers
+	// should treat secure storage as absent and fall back to the config file.
+	ErrUnavailable = errors.New("keyring unavailable")
+)
+
+// Available reports whether the OS keyring backend is usable.
+//
+// On Unix the backend talks to the Secret Service over D-Bus. When no session
+// bus is advertised, the underlying library shells out to "dbus-launch" to
+// start one; on headless/CI machines that binary is absent and the call fails
+// with a confusing `exec: "dbus-launch": executable file not found in $PATH`.
+// We detect that situation up front so we never attempt the operation — and so
+// the load path doesn't pay a doomed 3s timeout on every command.
+//
+// macOS (Keychain) and Windows (Credential Manager) have no such dependency and
+// are always considered available.
+func Available() bool {
+	switch runtime.GOOS {
+	case "linux", "freebsd", "netbsd", "openbsd", "dragonfly":
+		// A reachable session bus is enough on its own.
+		if os.Getenv("DBUS_SESSION_BUS_ADDRESS") != "" {
+			return true
+		}
+		// Otherwise the library can only reach the bus via dbus-launch.
+		_, err := exec.LookPath("dbus-launch")
+		return err == nil
+	default:
+		return true
+	}
+}
 
 func Set(ctx context.Context, service, user, password string) error {
+	if !Available() {
+		return ErrUnavailable
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -52,6 +92,10 @@ func Set(ctx context.Context, service, user, password string) error {
 }
 
 func Get(ctx context.Context, service, user string) (password string, err error) {
+	if !Available() {
+		return "", ErrUnavailable
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
@@ -82,6 +126,10 @@ func hostname(service string) string {
 }
 
 func Delete(ctx context.Context, service, user string) error {
+	if !Available() {
+		return ErrUnavailable
+	}
+
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 

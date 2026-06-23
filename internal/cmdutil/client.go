@@ -38,6 +38,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/keyring"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 )
 
@@ -69,10 +70,22 @@ func GetAgentName(ctx context.Context) string {
 	return v.(string)
 }
 
+// IsSecureStorage reports whether the API token should be stored in (and read
+// from) the OS keyring rather than the plaintext config file.
+//
+// It is the single decision point feeding both the load path (root PreRun) and
+// every write path (auth, setting set, setup). Secure storage requires both
+// that the user did not opt out via --insecure-storage and that the keyring
+// backend is actually reachable. The latter check keeps headless/CI Linux hosts
+// — which have no D-Bus session bus — from hitting a confusing
+// `exec: "dbus-launch": executable file not found` failure; instead they
+// transparently fall back to the config file, exactly as --insecure-storage does.
 func IsSecureStorage(cmd *cobra.Command) bool {
 	insecureStorage, _ := cmd.Root().Flags().GetBool("insecure-storage")
-	secureStorage := !insecureStorage
-	return secureStorage
+	if insecureStorage {
+		return false
+	}
+	return keyring.Available()
 }
 
 type configKey struct{}
