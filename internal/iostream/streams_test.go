@@ -35,10 +35,36 @@ import (
 // where it runs (notably, CI sets CI=true on the very machine running these).
 func clearTerminalEnv(t *testing.T) {
 	t.Helper()
-	for _, k := range []string{"CI", "CIRCLE_NO_INTERACTIVE", "NO_COLOR", "CIRCLE_NO_COLOR"} {
+	for _, k := range []string{"CI", "CIRCLECI", "CIRCLE_NO_INTERACTIVE", "NO_COLOR", "CIRCLE_NO_COLOR"} {
 		t.Setenv(k, "")
 	}
 	t.Setenv("TERM", "xterm-256color")
+}
+
+func TestColorDisabled(t *testing.T) {
+	tests := []struct {
+		name string
+		env  map[string]string
+		want bool
+	}{
+		{name: "interactive defaults", env: nil, want: false},
+		{name: "NO_COLOR", env: map[string]string{"NO_COLOR": "1"}, want: true},
+		{name: "CIRCLE_NO_COLOR", env: map[string]string{"CIRCLE_NO_COLOR": "1"}, want: true},
+		{name: "TERM=dumb outside CircleCI", env: map[string]string{"TERM": "dumb"}, want: true},
+		// CircleCI sets TERM=dumb but renders ANSI, so color stays on there.
+		{name: "TERM=dumb in CircleCI", env: map[string]string{"TERM": "dumb", "CIRCLECI": "true"}, want: false},
+		// An explicit opt-out still wins, even in CircleCI.
+		{name: "NO_COLOR wins in CircleCI", env: map[string]string{"TERM": "dumb", "CIRCLECI": "true", "NO_COLOR": "1"}, want: true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			clearTerminalEnv(t)
+			for k, v := range tc.env {
+				t.Setenv(k, v)
+			}
+			assert.Check(t, cmp.Equal(colorDisabled(), tc.want))
+		})
+	}
 }
 
 func TestInteractiveEnvDisabled(t *testing.T) {

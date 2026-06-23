@@ -91,10 +91,21 @@ func colorDisabled() bool {
 	if os.Getenv("CIRCLE_NO_COLOR") != "" {
 		return true
 	}
-	if os.Getenv("TERM") == "dumb" {
+	// TERM=dumb conventionally means "no ANSI capability", so it normally
+	// disables color. CircleCI, however, sets TERM=dumb on every job while its
+	// log viewer renders ANSI just fine — honoring it there would strip color
+	// from all CI output. So dumb only disables color outside CircleCI; the
+	// explicit NO_COLOR / CIRCLE_NO_COLOR opt-outs above still win everywhere.
+	if os.Getenv("TERM") == "dumb" && !isCircleCI() {
 		return true
 	}
 	return false
+}
+
+// isCircleCI reports whether we're running inside a CircleCI job, which sets
+// CIRCLECI=true. CircleCI's log viewer renders ANSI color despite TERM=dumb.
+func isCircleCI() bool {
+	return os.Getenv("CIRCLECI") != ""
 }
 
 // pagerProgram interprets the PAGER environment variable.
