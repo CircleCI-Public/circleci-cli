@@ -47,6 +47,6 @@ e.g. 5034460f-c7c4-4c43-9457-de07e2029e7b.
 ## Learn More
 
 - Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://circleci-public.github.io/circleci-cli>
+- Read the manual at <https://cli.circleci.com/reference/>
 - Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 

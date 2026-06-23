@@ -93,7 +93,7 @@ chocolateys:
     license_url: https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/master/LICENSE
     require_license_acceptance: false
     project_source_url: https://github.com/CircleCI-Public/circleci-cli
-    docs_url: https://circleci-public.github.io/circleci-cli
+    docs_url: https://cli.circleci.com/reference/
     bug_tracker_url: https://github.com/CircleCI-Public/circleci-cli/issues
     tags: "ci"
     summary: CircleCI command line tool
