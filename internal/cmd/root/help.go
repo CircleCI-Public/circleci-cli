@@ -173,7 +173,7 @@ func rootHelp(command *cobra.Command, _ []string) {
 
 	section("Learn More", heredoc.Docf(`
 		- Use %[1]scircleci <command> <subcommand> --help%[1]s for more information about a command.
-		- Read the manual at <https://circleci-public.github.io/circleci-cli>
+		- Read the manual at <https://cli.circleci.com/reference/>
 		- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 	`, "`"))
 

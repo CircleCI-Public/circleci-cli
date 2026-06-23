@@ -2,7 +2,7 @@
 
 This is CircleCI's command-line application.
 
-[Documentation](https://circleci-public.github.io/circleci-cli) |
+[Documentation](https://cli.circleci.com/reference/) |
 [Code of Conduct](./CODE_OF_CONDUCT.md) |
 [Contribution Guidelines](./CONTRIBUTING.md) |
 

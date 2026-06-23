@@ -33,6 +33,6 @@ Each resource class belongs to a namespace (usually your organization).
 ## Learn More
 
 - Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://circleci-public.github.io/circleci-cli>
+- Read the manual at <https://cli.circleci.com/reference/>
 - Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 
