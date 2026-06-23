@@ -20,9 +20,10 @@
 #
 # SPDX-License-Identifier: MIT
 
-# Published to GitHub Pages under the repo subpath. Keep the trailing slash so
-# relative asset URLs resolve correctly.
-baseURL = "https://circleci-public.github.io/circleci-cli/"
+# Served from the custom domain at the root (the CNAME file in static/ sets it).
+# Page links are page-relative, so they resolve under any path; baseURL only
+# affects absolute URLs like sitemap.xml. Keep the trailing slash.
+baseURL = "https://cli.circleci.com/"
 languageCode = "en-us"
 title = "CircleCI CLI"
 
