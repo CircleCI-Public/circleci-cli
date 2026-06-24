@@ -8,7 +8,7 @@ require (
 	charm.land/glamour/v2 v2.0.0
 	charm.land/lipgloss/v2 v2.0.3
 	charm.land/log/v2 v2.0.0
-	github.com/CircleCI-Public/chunk-cli v0.7.85
+	github.com/CircleCI-Public/chunk-cli v0.7.95
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/term v0.2.2
