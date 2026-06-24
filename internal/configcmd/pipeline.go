@@ -25,8 +25,12 @@ package configcmd
 
 import (
 	"fmt"
-	"os/exec"
+	"os"
+	"sort"
 	"strings"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
@@ -158,22 +162,63 @@ func LocalPipelineValues(params map[string]any) map[string]any {
 	return vals
 }
 
+// gitHead returns the full SHA of HEAD, or "" when git state is unreadable.
+// Equivalent to `git rev-parse HEAD`.
 func gitHead() string {
-	return gitOut("rev-parse", "HEAD")
-}
-
-func gitCurrentTag() string {
-	tags := gitOut("tag", "--points-at", "HEAD")
-	if tags == "" {
-		return ""
-	}
-	return strings.SplitN(tags, "\n", 2)[0]
-}
-
-func gitOut(args ...string) string {
-	out, err := exec.Command("git", args...).Output() //#nosec:G204
+	repo, err := openGitRepo()
 	if err != nil {
 		return ""
 	}
-	return strings.TrimSpace(string(out))
+	head, err := repo.Head()
+	if err != nil {
+		return ""
+	}
+	return head.Hash().String()
+}
+
+// gitCurrentTag returns the first tag (in lexicographic order, as `git tag`
+// sorts) pointing at HEAD, or "" when there is none or git state is unreadable.
+// Equivalent to the first line of `git tag --points-at HEAD`.
+func gitCurrentTag() string {
+	repo, err := openGitRepo()
+	if err != nil {
+		return ""
+	}
+	head, err := repo.Head()
+	if err != nil {
+		return ""
+	}
+	iter, err := repo.Tags()
+	if err != nil {
+		return ""
+	}
+
+	var matches []string
+	_ = iter.ForEach(func(ref *plumbing.Reference) error {
+		// Lightweight tags point straight at the commit; annotated tags point at
+		// a tag object that must be dereferenced to its target commit.
+		target := ref.Hash()
+		if tagObj, err := repo.TagObject(ref.Hash()); err == nil {
+			target = tagObj.Target
+		}
+		if target == head.Hash() {
+			matches = append(matches, ref.Name().Short())
+		}
+		return nil
+	})
+	if len(matches) == 0 {
+		return ""
+	}
+	sort.Strings(matches)
+	return matches[0]
+}
+
+// openGitRepo opens the repository containing the current working directory,
+// walking up to find the .git dir (like the git CLI does).
+func openGitRepo() (*git.Repository, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return git.PlainOpenWithOptions(cwd, &git.PlainOpenOptions{DetectDotGit: true})
 }
