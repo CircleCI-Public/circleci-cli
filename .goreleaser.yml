@@ -145,6 +145,10 @@ winget:
           name: winget-pkgs
           branch: master
 
+# To refresh the snapcraft credentials, run:
+# $ snapcraft export-login --snaps circleci --channels stable,candidate,edge,beta --acls package_push,package_release snapcraft-credentials.txt
+# Then paste the contents of snapcraft-credentials.txt into:
+# $ circleci context secret set devex-release --name SNAPCRAFT_STORE_CREDENTIALS
 snapcrafts:
   - id: circleci
     name: circleci

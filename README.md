@@ -56,15 +56,12 @@ A ground-up rewrite of the CircleCI CLI is available for preview.
 Install the preview (v2) CLI via one of the following package managers:
 
 Homebrew:
-```shell
-brew tap circleci-public/homebrew-circleci
-brew trust circleci-public/homebrew-circleci
-brew install circleci@next
-```
-
 **If you have the stable CLI installed:**
 ```shell
 brew uninstall circleci
+```
+
+```shell
 brew tap circleci-public/homebrew-circleci
 brew trust circleci-public/homebrew-circleci # for brew greater than v6
 brew install circleci@next
