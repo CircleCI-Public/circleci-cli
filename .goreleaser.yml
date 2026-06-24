@@ -98,9 +98,8 @@ chocolateys:
     tags: "ci"
     summary: CircleCI command line tool
     description: |
-      Command line tool for performing tasks related to a CircleCI project. Enables
-      you to run local builds, debug your continuous integration config files, and
-      manage Orbs.
+      `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
+      configuration, and other CircleCI features to the terminal right where you're already working.
     api_key: "{{ .Env.CHOCO_API_KEY }}"
     skip_publish: true # TODO: Remove this once we're ready to release
 
@@ -109,9 +108,8 @@ winget:
     name: CircleCI CLI
     short_description: "CircleCI command line tool."
     description: |
-      Command line tool for performing tasks related to a CircleCI project. Enables
-      you to run local builds, debug your continuous integration config files, and
-      manage Orbs.
+      `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
+      configuration, and other CircleCI features to the terminal right where you're already working.
     license: "MIT"
     license_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
     tags:
@@ -149,13 +147,8 @@ winget:
     name: CircleCI CLI Preview
     short_description: "CircleCI command line tool."
     description: |
-      Command line tool for performing tasks related to a CircleCI project. Enables
-      you to run local builds, debug your continuous integration config files, and
-      manage Orbs.
-      
-      Secure token storage requires connecting the password-manager interface:
-      `sudo snap connect circleci:password-manager-service`. Without it, the token
-      falls back to the config file.
+      `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
+      configuration, and other CircleCI features to the terminal right where you're already working.
     license: "MIT"
     license_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
     tags:
@@ -198,9 +191,8 @@ snapcrafts:
     title: CircleCI CLI
     summary: CircleCI command line tool
     description: |
-      Command line tool for performing tasks related to a CircleCI project. Enables
-      you to run local builds, debug your continuous integration config files, and
-      manage Orbs.
+      `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
+      configuration, and other CircleCI features to the terminal right where you're already working.
 
       Secure token storage requires connecting the password-manager interface:
       `sudo snap connect circleci:password-manager-service`. Without it, the token
@@ -272,5 +264,5 @@ release:
     For the production-ready CLI, install the latest stable release from:
     - [Homebrew](https://formulae.brew.sh/formula/circleci);
     - Snap;
-    - Chocolatey;
+    - WinGet;
     - or the [install script](https://github.com/CircleCI-Public/circleci-cli#install-script).
