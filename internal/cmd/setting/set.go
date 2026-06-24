@@ -118,9 +118,10 @@ func newSetCmd() *cobra.Command {
 }
 
 func runSet(ctx context.Context, secureStorage bool, path, key, value string) (err error) {
+	var res config.SaveResult
 	switch key {
 	case "token":
-		err = config.SetToken(ctx, value, secureStorage)
+		res, err = config.SetToken(ctx, value, secureStorage)
 	case "host":
 		err = config.SetHost(ctx, value)
 	case "telemetry":
@@ -137,10 +138,13 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	if key == "token" && secureStorage {
+	if res.Storage == config.StoredInKeyring {
 		iostream.ErrPrintf(ctx, "%s Saved %s to keyring\n", iostream.SymbolOK(ctx), key)
 	} else {
 		iostream.ErrPrintf(ctx, "%s Saved %s to %s\n", iostream.SymbolOK(ctx), key, path)
+	}
+	if hint := cmdutil.KeyringConnectHint(res.KeyringErr); hint != "" {
+		iostream.ErrPrintf(ctx, "%s %s\n", iostream.SymbolWarn(ctx), hint)
 	}
 	return nil
 }

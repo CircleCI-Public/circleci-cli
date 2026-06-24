@@ -32,7 +32,36 @@ import (
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/keyring"
 )
+
+func TestKeyringConnectHint(t *testing.T) {
+	const want = "To connect the secret manager, run `sudo snap connect circleci:password-manager-service`"
+
+	t.Run("access denied inside a snap suggests connecting the interface", func(t *testing.T) {
+		t.Setenv("SNAP_INSTANCE_NAME", "")
+		t.Setenv("SNAP_NAME", "circleci")
+		assert.Check(t, cmp.Equal(KeyringConnectHint(keyring.ErrAccessDenied), want))
+	})
+
+	t.Run("uses the running instance name for a parallel install", func(t *testing.T) {
+		t.Setenv("SNAP_INSTANCE_NAME", "circleci_beta")
+		t.Setenv("SNAP_NAME", "circleci")
+		assert.Check(t, cmp.Contains(KeyringConnectHint(keyring.ErrAccessDenied), "circleci_beta:password-manager-service"))
+	})
+
+	t.Run("access denied outside a snap has no actionable hint", func(t *testing.T) {
+		t.Setenv("SNAP_INSTANCE_NAME", "")
+		t.Setenv("SNAP_NAME", "")
+		assert.Check(t, cmp.Equal(KeyringConnectHint(keyring.ErrAccessDenied), ""))
+	})
+
+	t.Run("other failures produce no hint even inside a snap", func(t *testing.T) {
+		t.Setenv("SNAP_NAME", "circleci")
+		assert.Check(t, cmp.Equal(KeyringConnectHint(keyring.ErrUnavailable), ""))
+		assert.Check(t, cmp.Equal(KeyringConnectHint(nil), ""))
+	})
+}
 
 func httpErr(status int, body string) error {
 	return &httpcl.HTTPError{

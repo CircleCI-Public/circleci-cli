@@ -100,16 +100,20 @@ func runSetup(ctx context.Context, host, token string, secureStorage bool, path 
 	}
 	// Let the config layer route the token to the keyring or the config file
 	// based on secureStorage, exactly as 'setting set token' does.
-	if err := config.SetToken(ctx, token, secureStorage); err != nil {
+	res, err := config.SetToken(ctx, token, secureStorage)
+	if err != nil {
 		return clierrors.New("setup.save_failed", "Failed to save token", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
 	iostream.ErrPrintf(ctx, "%s Saved host to %s\n", iostream.SymbolOK(ctx), path)
-	if secureStorage {
+	if res.Storage == config.StoredInKeyring {
 		iostream.ErrPrintf(ctx, "%s Saved token to keyring\n", iostream.SymbolOK(ctx))
 	} else {
 		iostream.ErrPrintf(ctx, "%s Saved token to %s\n", iostream.SymbolOK(ctx), path)
+	}
+	if hint := cmdutil.KeyringConnectHint(res.KeyringErr); hint != "" {
+		iostream.ErrPrintf(ctx, "%s %s\n", iostream.SymbolWarn(ctx), hint)
 	}
 	return nil
 }

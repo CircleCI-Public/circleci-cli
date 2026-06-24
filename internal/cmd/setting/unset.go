@@ -59,11 +59,12 @@ func newUnsetCmd() *cobra.Command {
 
 			switch args[0] {
 			case "token":
-				if err := config.DeleteToken(ctx, secureStorage); err != nil {
+				res, err := config.DeleteToken(ctx, secureStorage)
+				if err != nil {
 					return clierrors.New("setting.unset_failed", "Failed to remove token", err.Error()).
 						WithExitCode(clierrors.ExitGeneralError)
 				}
-				if secureStorage {
+				if res.Storage == config.StoredInKeyring {
 					iostream.ErrPrintf(ctx, "%s Removed token from keyring\n", iostream.SymbolOK(ctx))
 				} else {
 					iostream.ErrPrintf(ctx, "%s Removed token from %s\n", iostream.SymbolOK(ctx), configPath)
