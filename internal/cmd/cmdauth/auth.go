@@ -68,16 +68,19 @@ func NewAuthCmd() *cobra.Command {
 // "Saved token to <path>" status line on stderr. Shared by `auth login`
 // (after OAuth token exchange) and `auth token` (after the TUI prompt).
 func persistToken(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool, path string) error {
-	storage, err := config.SetLogin(ctx, host, token, userID, secureStorage)
+	res, err := config.SetLogin(ctx, host, token, userID, secureStorage)
 	if err != nil {
 		return clierrors.New("auth.save_failed", "Failed to save token", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 	tokenLoc := path
-	if storage == config.StoredInKeyring {
+	if res.Storage == config.StoredInKeyring {
 		tokenLoc = "keyring"
 	}
 	iostream.ErrPrintf(ctx, "%s Saved token to %s\n", iostream.SymbolOK(ctx), tokenLoc)
 	iostream.ErrPrintf(ctx, "%s Saved host to %s\n", iostream.SymbolOK(ctx), path)
+	if hint := cmdutil.KeyringConnectHint(res.KeyringErr); hint != "" {
+		iostream.ErrPrintf(ctx, "%s %s\n", iostream.SymbolWarn(ctx), hint)
+	}
 	return nil
 }

@@ -183,7 +183,19 @@ const (
 	StoredInKeyring
 )
 
-func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool) (TokenStorage, error) {
+// SaveResult reports the outcome of a token-mutating call.
+type SaveResult struct {
+	// Storage is where the token actually landed.
+	Storage TokenStorage
+	// KeyringErr is non-nil when secure storage was requested but the OS keyring
+	// could not be used, so the token transparently fell back to the config
+	// file. It wraps keyring.ErrUnavailable (and may be keyring.ErrAccessDenied
+	// for a denial the user can fix, such as an unconnected snap interface).
+	// This is NOT a fatal error — callers may inspect it to surface guidance.
+	KeyringErr error
+}
+
+func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool) (SaveResult, error) {
 	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Host = host
 		cfg.state.Token = token
@@ -192,7 +204,7 @@ func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureS
 	})
 }
 
-func SetLogout(ctx context.Context, secureStorage bool) (TokenStorage, error) {
+func SetLogout(ctx context.Context, secureStorage bool) (SaveResult, error) {
 	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Token = ""
 		cfg.state.UserID = nil
@@ -200,7 +212,7 @@ func SetLogout(ctx context.Context, secureStorage bool) (TokenStorage, error) {
 	})
 }
 
-func SetToken(ctx context.Context, token string, secureStorage bool) (TokenStorage, error) {
+func SetToken(ctx context.Context, token string, secureStorage bool) (SaveResult, error) {
 	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
 		cfg.state.Token = token
 		return nil
@@ -209,7 +221,7 @@ func SetToken(ctx context.Context, token string, secureStorage bool) (TokenStora
 
 // DeleteToken removes the stored API token from both the config file and the
 // system keyring (when secure storage is in use).
-func DeleteToken(ctx context.Context, secureStorage bool) (TokenStorage, error) {
+func DeleteToken(ctx context.Context, secureStorage bool) (SaveResult, error) {
 	return SetToken(ctx, "", secureStorage)
 }
 
@@ -293,23 +305,24 @@ func saveTo(ctx context.Context, path string, cb func(config *Config) error) err
 	return err
 }
 
-func saveToIncludingToken(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) (TokenStorage, error) {
+func saveToIncludingToken(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) (SaveResult, error) {
 	return saveToFull(ctx, path, secureStorage, cb)
 }
 
 // saveToFull writes cfg to the given path, creating parent directories as needed.
-// If path is empty the default XDG path is used. The returned TokenStorage
-// reports where the token actually landed (keyring vs config file); it is only
-// meaningful when secureStorage is set, and is StoredInFile otherwise.
-func saveToFull(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) (TokenStorage, error) {
+// If path is empty the default XDG path is used. The returned SaveResult reports
+// where the token actually landed (keyring vs config file) and, when secure
+// storage was requested but unavailable, the keyring error behind the fallback.
+// Both fields are only meaningful when secureStorage is set.
+func saveToFull(ctx context.Context, path string, secureStorage bool, cb func(config *Config) error) (SaveResult, error) {
 	resolved, err := resolvePath(path)
 	if err != nil {
-		return StoredInFile, err
+		return SaveResult{}, err
 	}
 
 	err = mkConfigDir(resolved)
 	if err != nil {
-		return StoredInFile, err
+		return SaveResult{}, err
 	}
 
 	fl := flock.New(lockPath(resolved))
@@ -317,10 +330,10 @@ func saveToFull(ctx context.Context, path string, secureStorage bool, cb func(co
 
 	lock, err := fl.TryLockContext(ctx, time.Second)
 	if err != nil {
-		return StoredInFile, err
+		return SaveResult{}, err
 	}
 	if !lock {
-		return StoredInFile, fmt.Errorf("could not lock config file %s", resolved)
+		return SaveResult{}, fmt.Errorf("could not lock config file %s", resolved)
 	}
 
 	var cfg Config
@@ -329,58 +342,59 @@ func saveToFull(ctx context.Context, path string, secureStorage bool, cb func(co
 	switch {
 	case os.IsNotExist(err):
 	case err != nil:
-		return StoredInFile, fmt.Errorf("reading config file: %w", err)
+		return SaveResult{}, fmt.Errorf("reading config file: %w", err)
 	}
 
 	if err := yaml.Unmarshal(data, &cfg.state); err != nil {
-		return StoredInFile, fmt.Errorf("parsing config file %s: %w", resolved, err)
+		return SaveResult{}, fmt.Errorf("parsing config file %s: %w", resolved, err)
 	}
 
 	err = cb(&cfg)
 	if err != nil {
-		return StoredInFile, err
+		return SaveResult{}, err
 	}
 
 	cp := cfg.state
-	storage := StoredInFile
+	result := SaveResult{Storage: StoredInFile}
 	if secureStorage {
 		// Defense in depth: callers gate secureStorage on keyring.Available(),
 		// but the backend could still be unreachable here. Rather than fail the
 		// whole write, fall back to leaving the token in the config file (for a
 		// store) or treating a clear as a no-op (for a delete) — the same
-		// outcome as --insecure-storage. storage stays StoredInFile in that case
-		// so callers report the real location.
+		// outcome as --insecure-storage. Storage stays StoredInFile and the
+		// keyring error is recorded so callers can report the real location and
+		// surface a hint.
 		if cp.Token == "" {
 			switch err = cfg.deleteToken(ctx); {
 			case err == nil:
-				storage = StoredInKeyring
+				result.Storage = StoredInKeyring
 			case errors.Is(err, keyring.ErrUnavailable):
-				// No keyring to clear; the file write below removes the token.
+				result.KeyringErr = err // no keyring to clear; the file write removes the token
 			default:
-				return StoredInFile, err
+				return SaveResult{}, err
 			}
 		} else {
 			switch err = cfg.storeToken(ctx); {
 			case err == nil:
-				storage = StoredInKeyring
+				result.Storage = StoredInKeyring
 				cp.Token = "" // persisted to the keyring; keep it out of the plaintext file
 			case errors.Is(err, keyring.ErrUnavailable):
-				// Leave the token in the config file as a fallback.
+				result.KeyringErr = err // leave the token in the config file as a fallback
 			default:
-				return StoredInFile, err
+				return SaveResult{}, err
 			}
 		}
 	}
 
 	data, err = yaml.Marshal(cp)
 	if err != nil {
-		return StoredInFile, fmt.Errorf("serialising config: %w", err)
+		return SaveResult{}, fmt.Errorf("serialising config: %w", err)
 	}
 
 	if err := os.WriteFile(resolved, data, 0o600); err != nil {
-		return StoredInFile, fmt.Errorf("writing config file: %w", err)
+		return SaveResult{}, fmt.Errorf("writing config file: %w", err)
 	}
-	return storage, nil
+	return result, nil
 }
 
 // Path returns the resolved path to the default config file.

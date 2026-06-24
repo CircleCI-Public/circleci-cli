@@ -25,11 +25,13 @@ package keyring
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"os"
 	"os/exec"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/godbus/dbus/v5"
@@ -45,6 +47,14 @@ var (
 	// example a headless Linux/CI host with no D-Bus session bus). Callers
 	// should treat secure storage as absent and fall back to the config file.
 	ErrUnavailable = errors.New("keyring unavailable")
+
+	// ErrAccessDenied is a specific ErrUnavailable: the session bus exists but
+	// the sandbox or D-Bus policy refused the connection — most commonly a
+	// strict snap whose password-manager-service interface is not connected.
+	// Unlike a missing provider, this is something the user can fix, so callers
+	// may surface a hint. It wraps ErrUnavailable so the file-storage fallback
+	// still triggers.
+	ErrAccessDenied = fmt.Errorf("%w: access to the secret service was denied", ErrUnavailable)
 )
 
 // Available reports whether the OS keyring backend is usable.
@@ -95,9 +105,20 @@ func classify(err error) error {
 		return nil
 	}
 
+	// A sandbox or D-Bus policy refused the connection — the user can fix this
+	// (e.g. by connecting a snap interface), so flag it distinctly. At the
+	// socket level this surfaces as EACCES on connect; at the D-Bus level as an
+	// AccessDenied reply.
+	var dbusErr dbus.Error
+	if errors.As(err, &dbusErr) && dbusErr.Name == "org.freedesktop.DBus.Error.AccessDenied" {
+		return ErrAccessDenied
+	}
+	if errors.Is(err, syscall.EACCES) {
+		return ErrAccessDenied
+	}
+
 	// The session bus has no Secret Service provider, or one could not be
 	// activated on demand.
-	var dbusErr dbus.Error
 	if errors.As(err, &dbusErr) {
 		switch dbusErr.Name {
 		case "org.freedesktop.DBus.Error.ServiceUnknown",
@@ -109,8 +130,8 @@ func classify(err error) error {
 		}
 	}
 
-	// Could not even reach the bus: the socket connect was denied/refused (no
-	// bus running, sandbox policy) or the autolaunch helper was missing.
+	// Could not even reach the bus: the socket connect was refused (no bus
+	// running) or the autolaunch helper was missing.
 	var opErr *net.OpError
 	var execErr *exec.Error
 	if errors.As(err, &opErr) || errors.As(err, &execErr) {

@@ -54,13 +54,13 @@ func newLogoutCmd() *cobra.Command {
 }
 
 func runLogout(ctx context.Context, secureStorage bool, path string) error {
-	storage, err := config.SetLogout(ctx, secureStorage)
+	res, err := config.SetLogout(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	if storage == config.StoredInKeyring {
+	if res.Storage == config.StoredInKeyring {
 		iostream.ErrPrintf(ctx, "%s Removed token from keyring\n", iostream.SymbolOK(ctx))
 	} else {
 		iostream.ErrPrintf(ctx, "%s Removed token from %s\n", iostream.SymbolOK(ctx), path)

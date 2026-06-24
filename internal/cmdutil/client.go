@@ -31,6 +31,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 
 	"github.com/spf13/cobra"
 
@@ -86,6 +87,29 @@ func IsSecureStorage(cmd *cobra.Command) bool {
 		return false
 	}
 	return keyring.Available()
+}
+
+// KeyringConnectHint returns a one-line, actionable suggestion when secure
+// storage was requested but the keyring could not be reached for a reason the
+// user can fix. It returns "" when there is nothing actionable to suggest.
+//
+// The only such case today is a strict snap whose password-manager-service
+// interface is not connected: the session bus exists but the sandbox denies the
+// connection (keyring.ErrAccessDenied). We detect the snap via the SNAP_*
+// environment variables snapd injects, and use the running instance name so the
+// suggested command is correct even for a parallel install.
+func KeyringConnectHint(keyringErr error) string {
+	if !errors.Is(keyringErr, keyring.ErrAccessDenied) {
+		return ""
+	}
+	name := os.Getenv("SNAP_INSTANCE_NAME")
+	if name == "" {
+		name = os.Getenv("SNAP_NAME")
+	}
+	if name == "" {
+		return ""
+	}
+	return fmt.Sprintf("To connect the secret manager, run `sudo snap connect %s:password-manager-service`", name)
 }
 
 type configKey struct{}

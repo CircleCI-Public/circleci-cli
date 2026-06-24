@@ -27,8 +27,10 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
 	"os/exec"
 	"runtime"
+	"syscall"
 	"testing"
 
 	"github.com/godbus/dbus/v5"
@@ -93,7 +95,29 @@ func TestClassify(t *testing.T) {
 	}
 	for name, err := range unavailable {
 		t.Run(name, func(t *testing.T) {
-			assert.ErrorIs(t, classify(err), ErrUnavailable)
+			result := classify(err)
+			assert.ErrorIs(t, result, ErrUnavailable)
+			assert.Check(t, !errors.Is(result, ErrAccessDenied), "must not be flagged access-denied")
+		})
+	}
+
+	// A sandbox/policy denial the user can fix (e.g. an unconnected snap
+	// interface): EACCES on the socket connect, or a D-Bus AccessDenied reply.
+	// These map to ErrAccessDenied, which is itself an ErrUnavailable so the
+	// fallback still triggers.
+	accessDenied := map[string]error{
+		"socket connect EACCES": &net.OpError{
+			Op:  "dial",
+			Net: "unix",
+			Err: os.NewSyscallError("connect", syscall.EACCES),
+		},
+		"dbus access denied": dbus.Error{Name: "org.freedesktop.DBus.Error.AccessDenied"},
+	}
+	for name, err := range accessDenied {
+		t.Run(name, func(t *testing.T) {
+			result := classify(err)
+			assert.ErrorIs(t, result, ErrAccessDenied)
+			assert.ErrorIs(t, result, ErrUnavailable)
 		})
 	}
 
