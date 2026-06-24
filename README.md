@@ -56,11 +56,12 @@ A ground-up rewrite of the CircleCI CLI is available for preview.
 Install the preview (v2) CLI via one of the following package managers:
 
 Homebrew:
-**If you have the stable CLI installed:**
+
+*If you have the stable CLI installed:*
 ```shell
 brew uninstall circleci
 ```
-
+Then:
 ```shell
 brew tap circleci-public/homebrew-circleci
 brew trust circleci-public/homebrew-circleci # for brew greater than v6
@@ -70,14 +71,13 @@ brew install circleci@next
 Snap (edge channel):
 ```shell
 sudo snap install circleci --channel=edge
+sudo snap connect circleci:password-manager-service
 ```
 
-Chocolatey (pre-release):
+WinGet:
 ```shell
-choco install circleci-cli --pre -y
+winget install --id CircleCI.CLI.Preview
 ```
-
-WinGet: preview channel coming soon.
 
 ### Stable installation
 
@@ -95,7 +95,7 @@ sudo snap install circleci
 
 WinGet:
 ```shell
-winget install CircleCI.CLI
+winget install --id CircleCI.CLI
 ```
 
 Chocolatey:
