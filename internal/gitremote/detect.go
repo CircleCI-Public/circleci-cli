@@ -27,12 +27,13 @@
 package gitremote
 
 import (
-	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
+
+	"github.com/go-git/go-git/v5"
+	"github.com/go-git/go-git/v5/plumbing"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
@@ -84,12 +85,18 @@ func DetectNamespace() (string, error) {
 func Detect() (*ProjectInfo, error) {
 	if cwd, err := os.Getwd(); err == nil {
 		if ref, err := projectref.Read(cwd); err == nil {
-			branch, _ := gitOutput("rev-parse", "--abbrev-ref", "HEAD")
-			defaultBranch, _ := gitOutput("rev-parse", "--abbrev-ref", "origin/HEAD")
+			// Branch info is per-checkout and never persisted in info.yml, so
+			// read it from the repo best-effort — a missing or non-git dir just
+			// leaves the fields empty.
+			var branch, defaultBranch string
+			if repo, err := openRepo(); err == nil {
+				branch, _ = gitCurrentBranch(repo)
+				defaultBranch, _ = gitDefaultBranch(repo)
+			}
 			return &ProjectInfo{
 				Slug:          ref.EffectiveSlug(),
 				Branch:        branch,
-				DefaultBranch: strings.TrimPrefix(defaultBranch, "origin/"),
+				DefaultBranch: defaultBranch,
 			}, nil
 		}
 	}
@@ -101,7 +108,15 @@ func Detect() (*ProjectInfo, error) {
 // — reading info.yml there would short-circuit the very write that link is
 // about to perform.
 func DetectFromRemote() (*ProjectInfo, error) {
-	remoteURL, err := gitOutput("remote", "get-url", "origin")
+	// Both "not a git repo" and "repo without an origin remote" surface as the
+	// same user-facing failure, matching the previous `git remote get-url`
+	// behaviour.
+	repo, err := openRepo()
+	if err != nil {
+		return nil, fmt.Errorf("could not read git remote: %w", err)
+	}
+
+	remoteURL, err := gitOriginURL(repo)
 	if err != nil {
 		return nil, fmt.Errorf("could not read git remote: %w", err)
 	}
@@ -111,12 +126,12 @@ func DetectFromRemote() (*ProjectInfo, error) {
 		return nil, err
 	}
 
-	branch, err := gitOutput("rev-parse", "--abbrev-ref", "HEAD")
+	branch, err := gitCurrentBranch(repo)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine current branch: %w", err)
 	}
 
-	defaultBranch, err := gitOutput("rev-parse", "--abbrev-ref", "origin/HEAD")
+	defaultBranch, err := gitDefaultBranch(repo)
 	if err != nil {
 		return nil, fmt.Errorf("could not determine default branch: %w", err)
 	}
@@ -124,7 +139,7 @@ func DetectFromRemote() (*ProjectInfo, error) {
 	return &ProjectInfo{
 		Slug:          slug,
 		Branch:        branch,
-		DefaultBranch: strings.TrimPrefix(defaultBranch, "origin/"),
+		DefaultBranch: defaultBranch,
 	}, nil
 }
 
@@ -169,13 +184,51 @@ func buildSlug(host, org, repo string) (string, error) {
 	return fmt.Sprintf("%s/%s/%s", vcs, org, repo), nil
 }
 
-func gitOutput(args ...string) (string, error) {
-	out, err := exec.Command("git", args...).Output() //#nosec:G204 // args are controlled caller-supplied git subcommand names, not user input
+// openRepo opens the git repository containing the current working directory,
+// walking up parent directories to find the .git dir (like the git CLI does).
+func openRepo() (*git.Repository, error) {
+	cwd, err := os.Getwd()
 	if err != nil {
-		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
-			return "", fmt.Errorf("%w: %s", err, strings.TrimSpace(string(exitErr.Stderr)))
-		}
+		return nil, err
+	}
+	return git.PlainOpenWithOptions(cwd, &git.PlainOpenOptions{DetectDotGit: true})
+}
+
+// gitOriginURL returns the first configured URL for the "origin" remote,
+// equivalent to `git remote get-url origin`.
+func gitOriginURL(repo *git.Repository) (string, error) {
+	remote, err := repo.Remote("origin")
+	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(out)), nil
+	urls := remote.Config().URLs
+	if len(urls) == 0 {
+		return "", fmt.Errorf("remote %q has no URL configured", "origin")
+	}
+	return urls[0], nil
+}
+
+// gitCurrentBranch returns the short name of the checked-out branch, or "HEAD"
+// in detached-HEAD state — matching `git rev-parse --abbrev-ref HEAD`.
+func gitCurrentBranch(repo *git.Repository) (string, error) {
+	head, err := repo.Head()
+	if err != nil {
+		return "", err
+	}
+	return head.Name().Short(), nil
+}
+
+// gitDefaultBranch returns the short name of the remote default branch (e.g.
+// "main"), read from the symbolic ref refs/remotes/origin/HEAD. This is the
+// "origin/"-stripped equivalent of `git rev-parse --abbrev-ref origin/HEAD`.
+func gitDefaultBranch(repo *git.Repository) (string, error) {
+	ref, err := repo.Reference(plumbing.ReferenceName("refs/remotes/origin/HEAD"), false)
+	if err != nil {
+		return "", err
+	}
+	target := ref.Target()
+	if target == "" {
+		return "", fmt.Errorf("origin/HEAD is not a symbolic reference")
+	}
+	return strings.TrimPrefix(target.Short(), "origin/"), nil
 }

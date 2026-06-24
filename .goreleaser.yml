@@ -139,7 +139,7 @@ winget:
     repository:
       owner: CircleCI-Public
       name: winget-pkgs
-      branch: "circleci-cli"
+      branch: "circleci-cli-{{ .Tag }}"
       pull_request:
         base:
           owner: microsoft
@@ -181,7 +181,7 @@ winget:
     repository:
       owner: CircleCI-Public
       name: winget-pkgs
-      branch: "circleci-cli-next"
+      branch: "circleci-cli-next-{{ .Tag }}"
       pull_request:
         base:
           owner: microsoft
