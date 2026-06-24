@@ -1,6 +1,6 @@
 # circleci-cli
 
-> **Preview release** — this branch (`main`) tracks the new v2 CLI rewrite. It is under
+> **Preview release** — this branch (`main`) tracks the new CLI rewrite. It is under
 > active development and not yet stable. For the current stable CLI, see
 > [stable installation](#stable-installation).
 
@@ -29,7 +29,7 @@ Windows, and Linux.
 
 ---
 
-## Preview: CLI v2 now available
+## Preview: CLI v1.x now available
 
 A ground-up rewrite of the CircleCI CLI is available for preview.
 
@@ -53,7 +53,7 @@ A ground-up rewrite of the CircleCI CLI is available for preview.
 
 ### Preview installation
 
-Install the preview (v2) CLI via one of the following package managers:
+Install the preview (v1.x) CLI via one of the following package managers:
 
 Homebrew:
 
