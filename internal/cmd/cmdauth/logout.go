@@ -43,7 +43,8 @@ func newLogoutCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			secureStorage := cmdutil.IsSecureStorage(cmd)
-			return runLogout(ctx, secureStorage)
+			configPath := cmdutil.ConfigPath(cmd)
+			return runLogout(ctx, secureStorage, configPath)
 		},
 	}
 
@@ -52,13 +53,17 @@ func newLogoutCmd() *cobra.Command {
 	return cmd
 }
 
-func runLogout(ctx context.Context, secureStorage bool) error {
-	err := config.SetLogout(ctx, secureStorage)
+func runLogout(ctx context.Context, secureStorage bool, path string) error {
+	storage, err := config.SetLogout(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
-	iostream.ErrPrintf(ctx, "%s Removed %s from keyring\n", iostream.SymbolOK(ctx), "token")
+	if storage == config.StoredInKeyring {
+		iostream.ErrPrintf(ctx, "%s Removed token from keyring\n", iostream.SymbolOK(ctx))
+	} else {
+		iostream.ErrPrintf(ctx, "%s Removed token from %s\n", iostream.SymbolOK(ctx), path)
+	}
 	return nil
 }

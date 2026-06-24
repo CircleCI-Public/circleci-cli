@@ -25,11 +25,14 @@ package keyring
 import (
 	"context"
 	"errors"
+	"net"
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"time"
 
+	"github.com/godbus/dbus/v5"
 	"github.com/zalando/go-keyring"
 )
 
@@ -70,6 +73,53 @@ func Available() bool {
 	}
 }
 
+// classify maps "the Secret Service backend is absent or unreachable" failures
+// to ErrUnavailable, so callers fall back to file storage instead of aborting
+// the command.
+//
+// Available() only verifies that a session bus is advertised (or that
+// dbus-launch exists) — not that a Secret Service provider (gnome-keyring,
+// kwallet, KeePassXC, …) is actually registered on it. A minimal desktop, a
+// fresh container, or a snap on a box without a password manager can have a
+// live D-Bus session with no provider, in which case the backend fails with
+//
+//	org.freedesktop.DBus.Error.ServiceUnknown:
+//	The name org.freedesktop.secrets was not provided by any .service files
+//
+// We also map raw connection failures (cannot dial the bus socket, or a missing
+// dbus-launch the library tried to autostart). Genuine backend errors — a
+// locked collection, an item not found — are NOT remapped and still surface to
+// the caller.
+func classify(err error) error {
+	if err == nil {
+		return nil
+	}
+
+	// The session bus has no Secret Service provider, or one could not be
+	// activated on demand.
+	var dbusErr dbus.Error
+	if errors.As(err, &dbusErr) {
+		switch dbusErr.Name {
+		case "org.freedesktop.DBus.Error.ServiceUnknown",
+			"org.freedesktop.DBus.Error.NameHasNoOwner":
+			return ErrUnavailable
+		}
+		if strings.HasPrefix(dbusErr.Name, "org.freedesktop.DBus.Error.Spawn.") {
+			return ErrUnavailable
+		}
+	}
+
+	// Could not even reach the bus: the socket connect was denied/refused (no
+	// bus running, sandbox policy) or the autolaunch helper was missing.
+	var opErr *net.OpError
+	var execErr *exec.Error
+	if errors.As(err, &opErr) || errors.As(err, &execErr) {
+		return ErrUnavailable
+	}
+
+	return err
+}
+
 func Set(ctx context.Context, service, user, password string) error {
 	if !Available() {
 		return ErrUnavailable
@@ -85,7 +135,7 @@ func Set(ctx context.Context, service, user, password string) error {
 	}()
 	select {
 	case err := <-ch:
-		return err
+		return classify(err)
 	case <-ctx.Done():
 		return ctx.Err()
 	}
@@ -115,7 +165,7 @@ func Get(ctx context.Context, service, user string) (password string, err error)
 		if errors.Is(res.err, keyring.ErrNotFound) {
 			return "", ErrNotFound
 		}
-		return res.password, res.err
+		return res.password, classify(res.err)
 	case <-ctx.Done():
 		return "", ctx.Err()
 	}
@@ -140,7 +190,7 @@ func Delete(ctx context.Context, service, user string) error {
 	}()
 	select {
 	case err := <-ch:
-		return err
+		return classify(err)
 	case <-ctx.Done():
 		return ctx.Err()
 	}

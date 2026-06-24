@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -164,7 +165,11 @@ telemetry: false
 		})
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
 		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+		// Acceptance tests run with --insecure-storage, so the token lives in
+		// the config file, not the keyring. Normalise the per-run temp path to a
+		// stable placeholder for the golden comparison.
+		stderr := strings.ReplaceAll(result.Stderr, cfgPath, "<config>")
+		assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 	})
 
 	t.Run("deleted", func(t *testing.T) {

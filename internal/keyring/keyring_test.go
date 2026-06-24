@@ -24,9 +24,14 @@ package keyring
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"net"
+	"os/exec"
 	"runtime"
 	"testing"
 
+	"github.com/godbus/dbus/v5"
 	"gotest.tools/v3/assert"
 )
 
@@ -64,4 +69,47 @@ func TestAvailableWithSessionBus(t *testing.T) {
 	t.Setenv("DBUS_SESSION_BUS_ADDRESS", "unix:path=/run/user/1000/bus")
 
 	assert.Check(t, Available(), "expected keyring to be available with a session bus")
+}
+
+// classify converts "the backend is absent or unreachable" failures into
+// ErrUnavailable so callers fall back to file storage, while leaving genuine
+// backend errors untouched.
+func TestClassify(t *testing.T) {
+	// A live session bus with no Secret Service provider — the error reported
+	// on minimal desktops, fresh containers, and snaps on boxes without a
+	// password manager.
+	serviceUnknown := dbus.Error{
+		Name: "org.freedesktop.DBus.Error.ServiceUnknown",
+		Body: []any{"The name org.freedesktop.secrets was not provided by any .service files"},
+	}
+
+	unavailable := map[string]error{
+		"no secret service provider": serviceUnknown,
+		"wrapped service unknown":    fmt.Errorf("set token: %w", serviceUnknown),
+		"name has no owner":          dbus.Error{Name: "org.freedesktop.DBus.Error.NameHasNoOwner"},
+		"provider failed to spawn":   dbus.Error{Name: "org.freedesktop.DBus.Error.Spawn.ExecFailed"},
+		"bus socket denied":          &net.OpError{Op: "dial", Net: "unix", Err: errors.New("connect: permission denied")},
+		"dbus-launch missing":        &exec.Error{Name: "dbus-launch", Err: exec.ErrNotFound},
+	}
+	for name, err := range unavailable {
+		t.Run(name, func(t *testing.T) {
+			assert.ErrorIs(t, classify(err), ErrUnavailable)
+		})
+	}
+
+	// classify(nil) must stay nil.
+	assert.NilError(t, classify(nil))
+
+	// Genuine backend errors must NOT be remapped to ErrUnavailable; they pass
+	// through so the caller still sees the real failure. (dbus.Error is
+	// uncomparable, so assert via errors.Is, which guards comparability.)
+	passthrough := map[string]error{
+		"locked collection": dbus.Error{Name: "org.freedesktop.Secret.Error.IsLocked"},
+		"generic error":     errors.New("boom"),
+	}
+	for name, err := range passthrough {
+		t.Run(name, func(t *testing.T) {
+			assert.Check(t, !errors.Is(classify(err), ErrUnavailable), "must not be remapped to ErrUnavailable")
+		})
+	}
 }
