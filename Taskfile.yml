@@ -351,6 +351,7 @@ tasks:
       - git push origin '{{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --clean
       - task: ci:packagecloud
+      - task: ci:cloudsmith
 
   ci:packagecloud:
     desc: Publish the Linux nfpm packages (rpm + deb) from dist/ to packagecloud
@@ -365,6 +366,21 @@ tasks:
       # uploads the nfpm output to the public REST API instead — no Ruby CLI needed.
       - go run ./cmd/packagecloud pkg push {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.REPO}}' dist/*.rpm dist/*.deb
 
+  ci:cloudsmith:
+    desc: Publish the Linux nfpm packages (deb + rpm) from dist/ to Cloudsmith
+    # CLOUDSMITH_API_KEY must be set in the environment (not needed when DRY_RUN is
+    # set). Override CLOUDSMITH_REPO to target a different Cloudsmith repository
+    # (<owner>/<repo>); set DRY_RUN to validate without uploading.
+    vars:
+      CLOUDSMITH_REPO: '{{default "circleci-deps/public" .CLOUDSMITH_REPO}}'
+      DRY_RUN: '{{default "" .DRY_RUN}}'
+    cmds:
+      # goreleaser can't push to Cloudsmith without a Pro licence, so cmd/cloudsmith
+      # uploads the nfpm output to the public REST API instead. Every package is
+      # published to the generic "any-distro/any-version" distribution.
+      - go run ./cmd/cloudsmith push deb {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.deb
+      - go run ./cmd/cloudsmith push rpm {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.rpm
+
   ci:build:
     desc: Dry-run a release — build a snapshot (incl. nfpms) and dry-run the packagecloud publish
     vars:
@@ -375,5 +391,8 @@ tasks:
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --snapshot --skip=snapcraft --skip=chocolatey --clean
       - task: ci:packagecloud
+        vars:
+          DRY_RUN: "true"
+      - task: ci:cloudsmith
         vars:
           DRY_RUN: "true"
