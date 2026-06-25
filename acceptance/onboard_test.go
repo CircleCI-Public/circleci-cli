@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -154,7 +155,7 @@ func TestOnboard_ConfigAlreadyExists(t *testing.T) {
 	assert.NilError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
 	assert.NilError(t, os.WriteFile(configPath, []byte("# existing config\nversion: 2.1\n"), 0o644))
 
-	env := onboardAuthenticatedEnv(t, "testuser")
+	_, env := onboardAuthenticatedEnv(t, "testuser")
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -177,7 +178,7 @@ func TestOnboard_HappyPath_AlreadyAuthenticated(t *testing.T) {
 	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitDir(t, dir)
 
-	env := onboardAuthenticatedEnv(t, "testuser")
+	_, env := onboardAuthenticatedEnv(t, "testuser")
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -213,7 +214,7 @@ func TestOnboard_ScanAndSignupMutuallyExclusive(t *testing.T) {
 func TestOnboard_SignupFlag_AlreadyAuthenticated(t *testing.T) {
 	dir := t.TempDir()
 
-	env := onboardAuthenticatedEnv(t, "testuser")
+	_, env := onboardAuthenticatedEnv(t, "testuser")
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--signup"},
@@ -228,7 +229,7 @@ func TestOnboard_SignupFlag_AlreadyAuthenticated(t *testing.T) {
 func TestOnboard_SignupFlag_NotInGitRepo(t *testing.T) {
 	dir := t.TempDir()
 
-	env := onboardAuthenticatedEnv(t, "testuser")
+	_, env := onboardAuthenticatedEnv(t, "testuser")
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--signup"},
@@ -265,7 +266,7 @@ func TestOnboard_ScanFlag_ExplicitSameAsDefault(t *testing.T) {
 	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitDir(t, dir)
 
-	env := onboardAuthenticatedEnv(t, "testuser")
+	_, env := onboardAuthenticatedEnv(t, "testuser")
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -280,7 +281,76 @@ func TestOnboard_ScanFlag_ExplicitSameAsDefault(t *testing.T) {
 	assert.Check(t, golden.String(stdout, "TestOnboard_HappyPath_AlreadyAuthenticated.txt"))
 }
 
-func onboardAuthenticatedEnv(t *testing.T, login string) *testenv.TestEnv {
+func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	_, env := onboardAuthenticatedEnv(t, "testuser")
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Project created: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Organization: myorg"))
+	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
+}
+
+func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitDir(t, dir)
+
+	fake, env := onboardAuthenticatedEnv(t, "testuser")
+	fake.SetCollaborations(nil)
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "isn't part of a CircleCI organization"))
+	assert.Check(t, strings.Contains(result.Stdout, "circleci project create"))
+}
+
+func TestOnboard_PostSignup_CreateFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardAuthenticatedEnv(t, "testuser")
+	fake.SetCreateProjectResponse(nil)
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "Could not create project"))
+	assert.Check(t, strings.Contains(result.Stdout, "circleci project create"))
+}
+
+func onboardAuthenticatedEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 
 	fake := fakes.NewCircleCI(t)
@@ -291,11 +361,27 @@ func onboardAuthenticatedEnv(t *testing.T, login string) *testenv.TestEnv {
 			"login": login,
 		},
 	})
+	fake.SetCollaborations([]any{
+		map[string]any{"id": "org-uuid-1234", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
+	})
+	fake.SetCreateProjectResponse(map[string]any{
+		"id":                "proj-uuid-5678",
+		"slug":              "gh/myorg/my-repo",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "gh/myorg",
+		"organization_id":   "org-uuid-1234",
+		"vcs_info": map[string]any{
+			"provider":       "GitHub",
+			"default_branch": "main",
+			"vcs_url":        "https://github.com/myorg/my-repo",
+		},
+	})
 
 	env := testenv.New(t)
 	env.CircleCIURL = fake.URL()
 	env.Token = "test-token"
-	return env
+	return fake, env
 }
 
 func statConfig(dir string) error {
@@ -306,6 +392,38 @@ func statConfig(dir string) error {
 func initGitDir(t *testing.T, dir string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".git"), 0o755))
+}
+
+func initGitRepoWithRemote(t *testing.T, dir, remoteURL string) {
+	t.Helper()
+	gitEnv := append(os.Environ(),
+		"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
+		"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com",
+	)
+	run := func(d string, args ...string) {
+		t.Helper()
+		cmd := exec.Command(args[0], args[1:]...)
+		cmd.Dir = d
+		cmd.Env = gitEnv
+		out, err := cmd.CombinedOutput()
+		assert.NilError(t, err, "command %v failed: %s", args, out)
+	}
+
+	bare := t.TempDir()
+	run(bare, "git", "init", "--bare", "--initial-branch=main")
+
+	run(dir, "git", "init", "--initial-branch=main")
+	run(dir, "git", "remote", "add", "origin", bare)
+	run(dir, "git", "commit", "--allow-empty", "-m", "init")
+	run(dir, "git", "push", "origin", "main")
+	run(dir, "git", "remote", "set-url", "origin", remoteURL)
+
+	// Create origin/HEAD symref so gitremote.DetectFromRemote can resolve the default branch.
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".git", "refs", "remotes", "origin"), 0o755))
+	assert.NilError(t, os.WriteFile(
+		filepath.Join(dir, ".git", "refs", "remotes", "origin", "HEAD"),
+		[]byte("ref: refs/remotes/origin/main\n"), 0o644,
+	))
 }
 
 func normalizeOnboardOutput(stdout, dir string) string {

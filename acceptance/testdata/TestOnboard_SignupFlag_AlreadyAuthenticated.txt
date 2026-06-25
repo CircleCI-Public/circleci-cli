@@ -1,1 +1,4 @@
 ✓ Already signed in as testuser
+✓ Using organization gh/myorg
+
+Run 'circleci project create' to connect this repo to CircleCI.
