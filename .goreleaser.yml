@@ -68,6 +68,15 @@ nfpms:
       - src: "./share/zsh/site-functions/_circleci"
         dst: "/usr/share/zsh/vendor-completions/_circleci"
         packager: deb
+      # nfpm doesn't generate a debian/copyright file and the deb control format
+      # has no License field, so the `license:` above is silently dropped for deb
+      # (rpm gets it from its native License tag). Ship a DEP-5 copyright file so
+      # the package — and Cloudsmith's license detection — reports MIT.
+      - src: ./packaging/deb/copyright
+        dst: /usr/share/doc/circleci/copyright
+        packager: deb
+        file_info:
+          mode: 0644
     formats:
       - deb
       - rpm
