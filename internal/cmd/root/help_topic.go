@@ -51,7 +51,44 @@ var helpTopics = []helpTopic{
 
 			## Installation
 
-			Installation instructions are in the [README](https://github.com/CircleCI-Public/circleci-cli#readme)
+			### Preview (v1.x)
+
+			**Homebrew** — if you have the stable CLI installed, uninstall it first:
+
+			%[1]s%[1]s%[1]sshell
+			brew uninstall circleci
+			%[1]s%[1]s%[1]s
+
+			Then install the preview:
+
+			%[1]s%[1]s%[1]sshell
+			brew tap circleci-public/homebrew-circleci
+			brew trust circleci-public/homebrew-circleci  # brew >= v6
+			brew install circleci@next
+			%[1]s%[1]s%[1]s
+
+			**Snap** (edge channel):
+
+			%[1]s%[1]s%[1]sshell
+			sudo snap install circleci --channel=edge
+			sudo snap connect circleci:password-manager-service
+			%[1]s%[1]s%[1]s
+
+			**WinGet**:
+
+			%[1]s%[1]s%[1]sshell
+			winget install --id CircleCI.CLI.Preview
+			%[1]s%[1]s%[1]s
+
+			### Stable (v0.x)
+
+			**Homebrew**: %[1]sbrew install circleci%[1]s
+
+			**Snap**: %[1]ssudo snap install circleci%[1]s
+
+			**WinGet**: %[1]swinget install --id CircleCI.CLI%[1]s
+
+			**Chocolatey**: %[1]schoco install circleci-cli -y%[1]s
 
 			## Configuration
 
