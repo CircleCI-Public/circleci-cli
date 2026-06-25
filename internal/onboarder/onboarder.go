@@ -68,6 +68,15 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath)
 	}
 
+	dir, err = filepath.Abs(dir)
+	if err != nil {
+		return clierrors.New(
+			"onboard.resolve_path",
+			"Cannot resolve directory",
+			fmt.Sprintf("Could not resolve %q to an absolute path: %s.", dir, err),
+		).WithExitCode(clierrors.ExitGeneralError)
+	}
+
 	info, err := os.Stat(dir)
 	if err != nil || !info.IsDir() {
 		return clierrors.New(

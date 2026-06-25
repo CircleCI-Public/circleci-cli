@@ -78,7 +78,7 @@ func (m PreambleModel) View() tea.View {
 		sb.WriteString("  • " + b + "\n")
 	}
 	if m.dir != "" {
-		sb.WriteString("\nThis will run in: " + m.dir + "\n")
+		sb.WriteString("\nThis will run in your current directory: " + m.dir + "\n")
 	}
 	if !m.done {
 		sb.WriteString("\nPress Enter to continue · Esc to cancel\n")
