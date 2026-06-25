@@ -71,6 +71,20 @@ func DetectNamespace() (string, error) {
 	return parts[1], nil
 }
 
+// DetectRepoName returns the repository name from the git remote, or "" if it
+// cannot be detected.
+func DetectRepoName() string {
+	info, err := Detect()
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(info.Slug, "/")
+	if len(parts) == 3 {
+		return parts[2]
+	}
+	return ""
+}
+
 // Detect resolves the CircleCI project for the current working directory.
 //
 // Resolution priority:

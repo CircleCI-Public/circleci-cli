@@ -35,6 +35,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/org"
 )
 
 func newCreateCmd() *cobra.Command {
@@ -96,7 +97,7 @@ func newCreateCmd() *cobra.Command {
 			}
 
 			if name == "" {
-				defaultName := repoNameFromGit()
+				defaultName := gitremote.DetectRepoName()
 				if iostream.IsInteractive(ctx) {
 					val, err := iostream.PromptText(ctx, "Project name", defaultName)
 					if err != nil {
@@ -141,14 +142,14 @@ func newCreateCmd() *cobra.Command {
 						).
 						WithExitCode(clierrors.ExitBadArguments)
 				}
-				selected, err := selectOrg(ctx, client)
+				selected, err := org.Select(ctx, client)
 				if err != nil {
 					return err
 				}
 				orgSlug = selected
 			}
 
-			vcs, org, err := parseOrgSlug(orgSlug)
+			vcs, orgName, err := org.ParseSlug(orgSlug)
 			if err != nil {
 				return clierrors.New("args.invalid_org", "Invalid --org value",
 					fmt.Sprintf("%q is not a valid org slug.", orgSlug)).
@@ -159,7 +160,7 @@ func newCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runProjectCreate(ctx, client, vcs, org, name, appURL, jsonOut)
+			return runProjectCreate(ctx, client, vcs, orgName, name, appURL, jsonOut)
 		},
 	}
 
@@ -167,15 +168,6 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
 
 	return cmd
-}
-
-// parseOrgSlug splits "gh/myorg" → ("gh", "myorg").
-func parseOrgSlug(slug string) (vcs, org string, err error) {
-	parts := strings.SplitN(slug, "/", 2)
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return "", "", fmt.Errorf("invalid org slug")
-	}
-	return parts[0], parts[1], nil
 }
 
 type createProjectOutput struct {
@@ -218,51 +210,6 @@ func runProjectCreate(ctx context.Context, client *apiclient.Client, vcs, org, n
 	pipelinesURL, _ := cmdutil.PipelinesURL(appURL, out.Slug)
 	printCreatedProject(ctx, out, pipelinesURL)
 	return nil
-}
-
-// selectOrg fetches the user's organizations and presents an interactive picker.
-func selectOrg(ctx context.Context, client *apiclient.Client) (string, error) {
-	collabs, err := client.ListCollaborations(ctx)
-	if err != nil {
-		return "", cmdutil.APIErr(err, "", "org.list_failed", "Could not fetch your organizations.",
-			"Check your API token and network connection",
-		)
-	}
-	if len(collabs) == 0 {
-		return "", clierrors.New("org.none_found", "No organizations found",
-			"Your account is not a member of any CircleCI organizations.").
-			WithExitCode(clierrors.ExitNotFound)
-	}
-
-	labels := make([]string, len(collabs))
-	for i, c := range collabs {
-		labels[i] = c.Slug
-		if c.Name != "" && c.Name != c.Slug {
-			labels[i] = fmt.Sprintf("%s (%s)", c.Slug, c.Name)
-		}
-	}
-
-	idx, err := iostream.PromptSelect(ctx, "Select an organization", labels)
-	if err != nil || idx < 0 {
-		return "", clierrors.New("project.create_cancelled", "Cancelled",
-			"No organization selected.").
-			WithExitCode(clierrors.ExitCancelled)
-	}
-	return collabs[idx].Slug, nil
-}
-
-// repoNameFromGit returns the repository name from the git remote, or "" if it
-// cannot be detected.
-func repoNameFromGit() string {
-	info, err := gitremote.Detect()
-	if err != nil {
-		return ""
-	}
-	parts := strings.Split(info.Slug, "/")
-	if len(parts) == 3 {
-		return parts[2]
-	}
-	return ""
 }
 
 func printCreatedProject(ctx context.Context, p createProjectOutput, pipelinesURL string) {
