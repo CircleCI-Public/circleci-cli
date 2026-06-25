@@ -1,8 +1,10 @@
 # CircleCI CLI
 
-Scan a local repository, run its detected tests, generate a starter
-.circleci/config.yml when one does not already exist, and sign up for
-CircleCI through the browser-based auth flow.
+Guided onboarding: scan a local repository, run its detected tests,
+generate a starter .circleci/config.yml, and sign up for CircleCI.
+
+When run interactively without --scan or --signup, a prompt lets you
+choose between scanning the current repo or signing up directly.
 
 ## Usage
 
@@ -13,6 +15,8 @@ CircleCI through the browser-based auth flow.
 | Flag           | Description                                       |
 | -------------- | ------------------------------------------------- |
 | `--no-browser` | Print the signup URL instead of opening a browser |
+| `--scan`       | Skip prompt: scan the repo and generate config    |
+| `--signup`     | Skip prompt: sign up for CircleCI                 |
 
 ## Inherited Flags
 
@@ -24,12 +28,16 @@ CircleCI through the browser-based auth flow.
 
 ## Examples
 
-- Onboard the current directory: 
+- Interactive mode: choose scan or signup: 
   `circleci onboard`
+- Scan the current directory (skip the choice prompt): 
+  `circleci onboard --scan`
+- Sign up for CircleCI (no repo needed): 
+  `circleci onboard --signup`
 - Onboard a specific project path: 
-  `circleci onboard ./my-app`
+  `circleci onboard --scan ./my-app`
 - Print the signup URL instead of opening a browser: 
-  `circleci onboard --no-browser`
+  `circleci onboard --signup --no-browser`
 
 ## Learn More
 

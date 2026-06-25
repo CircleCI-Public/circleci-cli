@@ -194,6 +194,92 @@ func TestOnboard_HappyPath_AlreadyAuthenticated(t *testing.T) {
 	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
 }
 
+func TestOnboard_ScanAndSignupMutuallyExclusive(t *testing.T) {
+	dir := t.TempDir()
+	initGitDir(t, dir)
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--signup", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOnboard_SignupFlag_AlreadyAuthenticated(t *testing.T) {
+	dir := t.TempDir()
+
+	env := onboardAuthenticatedEnv(t, "testuser")
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--signup"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestOnboard_SignupFlag_NotInGitRepo(t *testing.T) {
+	dir := t.TempDir()
+
+	env := onboardAuthenticatedEnv(t, "testuser")
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--signup"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Already signed in"), "expected signup confirmation")
+}
+
+func TestOnboard_ScanFlag_NotAGitRepo(t *testing.T) {
+	dir := t.TempDir()
+
+	env := testenv.New(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
+
+	stderr := strings.ReplaceAll(result.Stderr, strconv.Quote(dir), `"<DIR>"`)
+	assert.Check(t, golden.String(stderr, "TestOnboard_NotAGitRepo.stderr.txt"))
+}
+
+func TestOnboard_ScanFlag_ExplicitSameAsDefault(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitDir(t, dir)
+
+	env := onboardAuthenticatedEnv(t, "testuser")
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", dir},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	stdout := normalizeOnboardOutput(result.Stdout, dir)
+	assert.Check(t, golden.String(stdout, "TestOnboard_HappyPath_AlreadyAuthenticated.txt"))
+}
+
 func onboardAuthenticatedEnv(t *testing.T, login string) *testenv.TestEnv {
 	t.Helper()
 
