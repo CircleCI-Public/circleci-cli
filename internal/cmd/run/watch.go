@@ -142,7 +142,11 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 	if needsGit {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify --project and --branch explicitly")
+			suggestion := "Or specify --project and --branch explicitly"
+			if sha != "" {
+				suggestion = "Or specify --project explicitly"
+			}
+			return cmdutil.GitDetectErr(err, suggestion)
 		}
 		if projectSlug == "" {
 			projectSlug = info.Slug
@@ -225,9 +229,21 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 	interval := 5 * time.Second
 	printed := false
 
-	if expanded := gitremote.ExpandSHA(sha); expanded != sha {
+	expanded, expandErr := gitremote.ExpandSHA(sha)
+	switch {
+	case expandErr == nil:
 		sha = expanded
-	} else if len(sha) < 40 {
+	case errors.Is(expandErr, gitremote.ErrSHANotHex):
+		return nil, clierrors.New("run.invalid_sha_format", "Invalid SHA format",
+			fmt.Sprintf("%q does not look like a commit SHA; expected hex characters only.", sha)).
+			WithSuggestions("Pass a hex commit SHA, e.g. from 'git log --oneline'").
+			WithExitCode(clierrors.ExitBadArguments)
+	case errors.Is(expandErr, gitremote.ErrSHARepoInaccessible):
+		return nil, clierrors.New("run.sha_unresolvable", "Could not resolve short SHA",
+			fmt.Sprintf("Cannot expand %q: local git repository is not accessible.", sha)).
+			WithSuggestions("Pass the full 40-character SHA to skip local resolution").
+			WithExitCode(clierrors.ExitBadArguments)
+	case errors.Is(expandErr, gitremote.ErrSHANotFound):
 		return nil, clierrors.New("run.invalid_sha", "Commit not found",
 			fmt.Sprintf("Commit %q does not exist in the local repository.", sha)).
 			WithSuggestions(
