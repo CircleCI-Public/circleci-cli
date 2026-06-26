@@ -107,14 +107,13 @@ func ValidateSlug(collabs []apiclient.Collaboration, slug string) error {
 			return nil
 		}
 	}
-	suggestions := []string{"Check the --org value and try again"}
-	if len(collabs) <= 5 {
-		slugs := make([]string, len(collabs))
-		for i, c := range collabs {
-			slugs[i] = c.Slug
-		}
-		suggestions = append(suggestions,
-			fmt.Sprintf("Your organizations: %s", strings.Join(slugs, ", ")))
+	slugs := make([]string, len(collabs))
+	for i, c := range collabs {
+		slugs[i] = c.Slug
+	}
+	suggestions := []string{
+		"Check the --org value and try again",
+		fmt.Sprintf("Your organizations: %s", strings.Join(slugs, ", ")),
 	}
 	return clierrors.New("org.not_member", "Not a member of this organization",
 		fmt.Sprintf("You are not a member of organization %q.", slug)).
