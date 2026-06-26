@@ -6,5 +6,6 @@ fake dotnet test --framework net8.0 --filter FullyQualifiedName!~BufferErroringW
 ✓ Tests passed
 ✓ Generated <DIR>/.circleci/config.yml
 ✓ Already signed in as testuser
-✓ Onboarded
-Commit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.
+✓ Using organization gh/myorg
+
+Run 'circleci project create' to connect this repo to CircleCI.

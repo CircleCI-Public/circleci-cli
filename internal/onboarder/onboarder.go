@@ -32,9 +32,12 @@ import (
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/org"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 	"github.com/CircleCI-Public/circleci-cli/internal/testrunner"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
@@ -65,7 +68,10 @@ func Run(ctx context.Context, dir string, opts Options) error {
 	}
 
 	if m == modeSignup {
-		return cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath)
+		if err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath); err != nil {
+			return err
+		}
+		return postSignupGuidance(ctx)
 	}
 
 	dir, err = filepath.Abs(dir)
@@ -136,9 +142,126 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return err
 	}
 
-	iostream.Printf(ctx, "%s Onboarded\n", iostream.SymbolOK(ctx))
-	iostream.Printf(ctx, "Commit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+	return postSignupGuidance(ctx)
+}
+
+// postSignupGuidance offers inline project creation and prints a follow-up
+// message after the user has authenticated.
+//
+// Errors are handled gracefully: project creation failure falls through to
+// manual guidance rather than failing the onboard command.
+func postSignupGuidance(ctx context.Context) error {
+	client, err := cmdutil.LoadClient(ctx)
+	if err != nil {
+		printManualGuidance(ctx)
+		return nil
+	}
+
+	appURL, _ := cmdutil.AppURL(ctx)
+
+	orgs, err := org.List(ctx, client)
+	if err != nil {
+		printManualGuidance(ctx)
+		return nil
+	}
+
+	if len(orgs) == 0 {
+		printNoOrgGuidance(ctx, appURL)
+		return nil
+	}
+
+	var orgSlug string
+	switch {
+	case len(orgs) == 1:
+		orgSlug = orgs[0].Slug
+		iostream.Printf(ctx, "%s Using organization %s\n", iostream.SymbolOK(ctx), orgSlug)
+	case iostream.IsInteractive(ctx):
+		iostream.ErrPrintf(ctx, "\nLet's create your CircleCI project.\n\n")
+		labels := make([]string, len(orgs))
+		for i, c := range orgs {
+			labels[i] = c.Slug
+			if c.Name != "" && c.Name != c.Slug {
+				labels[i] = fmt.Sprintf("%s (%s)", c.Slug, c.Name)
+			}
+		}
+		idx, err := iostream.PromptSelect(ctx,
+			"Which organization should this project belong to?", labels)
+		if err != nil || idx < 0 {
+			printManualGuidance(ctx)
+			return nil
+		}
+		orgSlug = orgs[idx].Slug
+	default:
+		printManualGuidance(ctx)
+		return nil
+	}
+
+	vcs, orgName, err := org.ParseSlug(orgSlug)
+	if err != nil {
+		printManualGuidance(ctx)
+		return nil
+	}
+
+	defaultName := gitremote.DetectRepoName()
+	var name string
+	if iostream.IsInteractive(ctx) {
+		name, err = iostream.PromptText(ctx, "Project name", defaultName)
+		if err != nil {
+			printManualGuidance(ctx)
+			return nil
+		}
+		if name == "" {
+			name = defaultName
+		}
+		if name == "" {
+			printManualGuidance(ctx)
+			return nil
+		}
+	} else {
+		name = defaultName
+		if name == "" {
+			printManualGuidance(ctx)
+			return nil
+		}
+	}
+
+	proj, err := client.CreateProject(ctx, vcs, orgName, name)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
+		printManualGuidance(ctx)
+		return nil
+	}
+
+	iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
+	iostream.Printf(ctx, "  Organization: %s\n", proj.OrganizationName)
+	if pipelinesURL, err := cmdutil.PipelinesURL(appURL, proj.Slug); err == nil {
+		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
+	}
+	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
 	return nil
+}
+
+func printManualGuidance(ctx context.Context) {
+	iostream.Printf(ctx, "\nRun 'circleci project create' to connect this repo to CircleCI.\n")
+}
+
+func printNoOrgGuidance(ctx context.Context, appURL string) {
+	if appURL != "" {
+		iostream.Printf(ctx, `
+Your account isn't part of a CircleCI organization yet.
+Create or join one at: %s
+
+Then run:
+  circleci project create
+`, appURL)
+	} else {
+		iostream.Printf(ctx, `
+Your account isn't part of a CircleCI organization yet.
+
+Then run:
+  circleci project create
+`)
+	}
 }
 
 func resolveMode(ctx context.Context, opts Options) (mode, error) {
