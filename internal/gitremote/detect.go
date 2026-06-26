@@ -218,6 +218,24 @@ func gitCurrentBranch(repo *git.Repository) (string, error) {
 	return head.Name().Short(), nil
 }
 
+// ExpandSHA attempts to resolve an abbreviated git SHA to its full 40-character
+// form. Returns the input unchanged if the repo cannot be opened, the SHA isn't
+// found, or the input is already 40 characters.
+func ExpandSHA(sha string) string {
+	if len(sha) == 40 {
+		return sha
+	}
+	repo, err := openRepo()
+	if err != nil {
+		return sha
+	}
+	hash, err := repo.ResolveRevision(plumbing.Revision(sha))
+	if err != nil {
+		return sha
+	}
+	return hash.String()
+}
+
 // gitDefaultBranch returns the short name of the remote default branch (e.g.
 // "main"), read from the symbolic ref refs/remotes/origin/HEAD. This is the
 // "origin/"-stripped equivalent of `git rev-parse --abbrev-ref origin/HEAD`.

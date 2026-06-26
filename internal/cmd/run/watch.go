@@ -147,7 +147,7 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		if projectSlug == "" {
 			projectSlug = info.Slug
 		}
-		if branch == "" {
+		if branch == "" && sha == "" {
 			branch = info.Branch
 		}
 	}
@@ -224,6 +224,8 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 	deadline := time.Now().Add(waitDur)
 	interval := 5 * time.Second
 	printed := false
+
+	sha = gitremote.ExpandSHA(sha)
 
 	filter := fmt.Sprintf("pipeline.git.revision == %q", sha)
 	if branch != "" {
