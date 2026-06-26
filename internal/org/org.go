@@ -45,17 +45,38 @@ func List(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaborat
 	return collabs, nil
 }
 
+// Require fetches the user's organizations and returns an actionable error
+// when the account has none. Callers that need to ensure at least one org
+// exists before proceeding should use this instead of List.
+func Require(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaboration, error) {
+	collabs, err := List(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+	if len(collabs) == 0 {
+		suggestions := []string{
+			"Ask an admin to invite you to an existing organization",
+		}
+		if appURL, err := cmdutil.AppURL(ctx); err == nil {
+			suggestions = []string{
+				fmt.Sprintf("Create or join an organization at %s", appURL),
+				"Ask an admin to invite you to an existing organization",
+			}
+		}
+		return nil, clierrors.New("org.none_found", "No organizations found",
+			"Your account is not a member of any CircleCI organizations.").
+			WithSuggestions(suggestions...).
+			WithExitCode(clierrors.ExitNotFound)
+	}
+	return collabs, nil
+}
+
 // Select fetches the user's organizations and presents an interactive picker.
 // With exactly one org it is auto-selected; with multiple the user picks.
 func Select(ctx context.Context, client *apiclient.Client) (string, error) {
-	collabs, err := List(ctx, client)
+	collabs, err := Require(ctx, client)
 	if err != nil {
 		return "", err
-	}
-	if len(collabs) == 0 {
-		return "", clierrors.New("org.none_found", "No organizations found",
-			"Your account is not a member of any CircleCI organizations.").
-			WithExitCode(clierrors.ExitNotFound)
 	}
 
 	if len(collabs) == 1 {
@@ -72,11 +93,33 @@ func Select(ctx context.Context, client *apiclient.Client) (string, error) {
 
 	idx, err := iostream.PromptSelect(ctx, "Select an organization", labels)
 	if err != nil || idx < 0 {
-		return "", clierrors.New("project.create_cancelled", "Cancelled",
+		return "", clierrors.New("org.selection_cancelled", "Cancelled",
 			"No organization selected.").
 			WithExitCode(clierrors.ExitCancelled)
 	}
 	return collabs[idx].Slug, nil
+}
+
+// ValidateSlug checks that the given org slug is among the user's organizations.
+func ValidateSlug(collabs []apiclient.Collaboration, slug string) error {
+	for _, c := range collabs {
+		if c.Slug == slug {
+			return nil
+		}
+	}
+	suggestions := []string{"Check the --org value and try again"}
+	if len(collabs) <= 5 {
+		slugs := make([]string, len(collabs))
+		for i, c := range collabs {
+			slugs[i] = c.Slug
+		}
+		suggestions = append(suggestions,
+			fmt.Sprintf("Your organizations: %s", strings.Join(slugs, ", ")))
+	}
+	return clierrors.New("org.not_member", "Not a member of this organization",
+		fmt.Sprintf("You are not a member of organization %q.", slug)).
+		WithSuggestions(suggestions...).
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 // ParseSlug splits "gh/myorg" into its VCS and org components.

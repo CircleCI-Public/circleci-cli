@@ -134,6 +134,9 @@ func newCreateCmd() *cobra.Command {
 
 			if orgSlug == "" {
 				if !iostream.IsInteractive(ctx) {
+					if _, err := org.Require(ctx, client); err != nil {
+						return err
+					}
 					return clierrors.New("args.missing_org", "Missing required flag",
 						"--org is required to specify the target organization.").
 						WithSuggestions(
@@ -147,6 +150,14 @@ func newCreateCmd() *cobra.Command {
 					return err
 				}
 				orgSlug = selected
+			} else {
+				orgs, err := org.Require(ctx, client)
+				if err != nil {
+					return err
+				}
+				if err := org.ValidateSlug(orgs, orgSlug); err != nil {
+					return err
+				}
 			}
 
 			vcs, orgName, err := org.ParseSlug(orgSlug)
