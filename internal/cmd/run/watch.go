@@ -225,7 +225,17 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 	interval := 5 * time.Second
 	printed := false
 
-	sha = gitremote.ExpandSHA(sha)
+	if expanded := gitremote.ExpandSHA(sha); expanded != sha {
+		sha = expanded
+	} else if len(sha) < 40 {
+		return nil, clierrors.New("run.invalid_sha", "Commit not found",
+			fmt.Sprintf("Commit %q does not exist in the local repository.", sha)).
+			WithSuggestions(
+				"Check the SHA is correct: git log --oneline",
+				"Pass the full 40-character SHA to skip local resolution",
+			).
+			WithExitCode(clierrors.ExitNotFound)
+	}
 
 	filter := fmt.Sprintf("pipeline.git.revision == %q", sha)
 	if branch != "" {
