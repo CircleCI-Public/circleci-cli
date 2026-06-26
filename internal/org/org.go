@@ -111,9 +111,13 @@ func ValidateSlug(collabs []apiclient.Collaboration, slug string) error {
 	for i, c := range collabs {
 		slugs[i] = c.Slug
 	}
+	orgList := strings.Join(slugs, ", ")
+	if len(slugs) > 10 {
+		orgList = strings.Join(slugs[:10], ", ") + fmt.Sprintf(" (and %d more)", len(slugs)-10)
+	}
 	suggestions := []string{
 		"Check the --org value and try again",
-		fmt.Sprintf("Your organizations: %s", strings.Join(slugs, ", ")),
+		fmt.Sprintf("Your organizations: %s", orgList),
 	}
 	return clierrors.New("org.not_member", "Not a member of this organization",
 		fmt.Sprintf("You are not a member of organization %q.", slug)).
