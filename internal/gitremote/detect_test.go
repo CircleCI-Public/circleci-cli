@@ -23,9 +23,11 @@
 package gitremote
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/config"
@@ -173,6 +175,82 @@ func TestDetect_SurfacesMalformedInfoYml(t *testing.T) {
 
 	_, err = Detect()
 	assert.Check(t, err != nil, "expected Detect to surface a malformed info.yml rather than fall back")
+}
+
+func TestExpandSHA(t *testing.T) {
+	origDir, err := os.Getwd()
+	assert.NilError(t, err)
+
+	t.Run("already 40 hex chars returns input unchanged", func(t *testing.T) {
+		full := "1234567890abcdef1234567890abcdef12345678"
+		got, err := ExpandSHA(full)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, full))
+	})
+
+	t.Run("non-hex input returns ErrSHANotHex", func(t *testing.T) {
+		_, err := ExpandSHA("main")
+		assert.Check(t, errors.Is(err, ErrSHANotHex), "got: %v", err)
+	})
+
+	t.Run("repo inaccessible returns ErrSHARepoInaccessible", func(t *testing.T) {
+		dir := t.TempDir()
+		assert.NilError(t, os.Chdir(dir))
+		t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+		_, err := ExpandSHA("abc1234")
+		assert.Check(t, errors.Is(err, ErrSHARepoInaccessible), "got: %v", err)
+	})
+
+	t.Run("SHA not found in repo returns ErrSHANotFound", func(t *testing.T) {
+		dir := t.TempDir()
+		_, err := git.PlainInit(dir, false)
+		assert.NilError(t, err)
+		assert.NilError(t, os.Chdir(dir))
+		t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+		_, err = ExpandSHA("deadbeef")
+		assert.Check(t, errors.Is(err, ErrSHANotFound), "got: %v", err)
+	})
+
+	t.Run("short SHA expands to full 40-char hash", func(t *testing.T) {
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+		assert.NilError(t, os.Chdir(dir))
+		t.Cleanup(func() { _ = os.Chdir(origDir) })
+
+		short := fullHash[:7]
+		got, err := ExpandSHA(short)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, fullHash))
+	})
+}
+
+// initRepoWithCommit initialises a new git repository in dir, adds one commit,
+// and returns the full 40-character SHA of that commit.
+func initRepoWithCommit(t *testing.T, dir string) string {
+	t.Helper()
+	repo, err := git.PlainInit(dir, false)
+	assert.NilError(t, err)
+
+	err = os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0o644)
+	assert.NilError(t, err)
+
+	wt, err := repo.Worktree()
+	assert.NilError(t, err)
+
+	_, err = wt.Add("README")
+	assert.NilError(t, err)
+
+	hash, err := wt.Commit("initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	assert.NilError(t, err)
+	return hash.String()
 }
 
 // Sanity check that DetectFromRemote does not consult info.yml — used by
