@@ -12,7 +12,7 @@
     {{- $label := $full -}}
     {{- if $parent -}}{{- $label = strings.TrimPrefix (printf "%s " $parent) $full -}}{{- end -}}
     <li>
-      <a href="#{{ .ID }}">{{ $label }}</a>
+      <a href="#{{ .ID }}" data-depth="{{ $depth }}">{{ $label }}</a>
       {{- if and (lt $depth $maxDepth) .Headings -}}
         {{- partial "command-nav.html" (dict "items" .Headings "parent" $full "depth" (add $depth 1) "maxDepth" $maxDepth) -}}
       {{- end -}}

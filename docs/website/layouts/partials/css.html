@@ -1,0 +1,22 @@
+{{- /* Load main.css; minify and fingerprint in production.
+
+       The href is built page-relative (not the resource's root-relative
+       .RelPermalink, which starts with "/css/..."), so the site works when
+       served under any path — e.g. previewed as a CI build artifact, not just
+       at the domain root. $root is the page-relative path back to the site
+       root: "" at /, "../" under /reference/. */ -}}
+{{- with resources.Get "css/main.css" -}}
+  {{- $css := . -}}
+  {{- if not hugo.IsDevelopment -}}
+    {{- $css = $css | minify | fingerprint -}}
+  {{- end -}}
+  {{- $rel := strings.TrimSuffix "/" (strings.TrimPrefix "/" $.RelPermalink) -}}
+  {{- $root := "" -}}
+  {{- if $rel -}}{{- $root = strings.Repeat (len (split $rel "/")) "../" -}}{{- end -}}
+  {{- $href := printf "%s%s" $root (strings.TrimPrefix "/" $css.RelPermalink) -}}
+  {{- if hugo.IsDevelopment -}}
+    <link rel="stylesheet" href="{{ $href }}">
+  {{- else -}}
+    <link rel="stylesheet" href="{{ $href }}" integrity="{{ $css.Data.Integrity }}" crossorigin="anonymous">
+  {{- end -}}
+{{- end -}}
