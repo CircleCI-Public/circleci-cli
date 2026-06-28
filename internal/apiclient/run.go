@@ -223,7 +223,7 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 func (c *Client) ListMyRunsV3(ctx context.Context, limit int) ([]RunV3, error) {
 	var resp v3List[runWire]
 	if err := c.getV3(ctx, "/runs", &resp,
-		filterParam("user_id", "me"), pageSize(limit)); err != nil {
+		filterParam("user_id", "me"), pageLimit(limit)); err != nil {
 		return nil, err
 	}
 

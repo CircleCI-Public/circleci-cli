@@ -917,7 +917,7 @@ func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
 	results := append([]any(nil), f.userRunsV3...)
 	f.mu.RUnlock()
 
-	if size, err := strconv.Atoi(r.URL.Query().Get("page[size]")); err == nil && size > 0 && len(results) > size {
+	if size, err := strconv.Atoi(r.URL.Query().Get("page[limit]")); err == nil && size > 0 && len(results) > size {
 		results = results[:size]
 	}
 
@@ -2842,7 +2842,7 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 
 	orbID := r.URL.Query().Get("filter[orb_id]")
 	channel := r.URL.Query().Get("filter[channel]")
-	pageSizeStr := r.URL.Query().Get("page[size]")
+	pageSizeStr := r.URL.Query().Get("page[limit]")
 
 	f.mu.RLock()
 	versionIDs := f.orbVersionsByOrbID[orbID]
