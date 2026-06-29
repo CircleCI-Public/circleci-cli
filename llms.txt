@@ -152,6 +152,15 @@ Get job details
 <job-id> is the UUID of the job to look up. Job UUIDs are shown in
 the output of "circleci workflow get" and "circleci run get --json".
 
+#### `circleci job open <job-id>`
+
+Open job in browser
+
+**Arguments:**
+
+<job-id> is the UUID of the job to look up. Job UUIDs are shown in
+the output of "circleci workflow get" and "circleci run get --json".
+
 #### `circleci job output <command>`
 
 Work with job step output
@@ -308,10 +317,10 @@ List recent runs for a project
 
 Open the current project's runs page in the browser
 
-| Flag                  | Description                           |
-| --------------------- | ------------------------------------- |
-| `-b, --branch string` | Filter runs to a specific branch      |
-| `--current-branch`    | Filter runs to the current git branch |
+| Flag                  | Description                                                 |
+| --------------------- | ----------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to current branch)                    |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
 
 
 #### `circleci run trigger [flags]`
@@ -410,6 +419,15 @@ listed, grouped by run.
 
 
 `circleci workflow ls`
+
+#### `circleci workflow open <workflow-id>`
+
+Open workflow in browser
+
+**Arguments:**
+
+<workflow-id> is the UUID of the workflow to look up. Workflow IDs are
+shown in the output of "circleci run get".
 
 #### `circleci workflow rerun <workflow-id> [flags]`
 
