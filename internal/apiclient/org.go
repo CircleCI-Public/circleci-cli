@@ -40,3 +40,14 @@ func (c *Client) GetOrg(ctx context.Context, slugOrID string) (*OrgInfo, error) 
 	}
 	return &org, nil
 }
+
+// CreateOrg creates a new organization. vcsType must be one of "github",
+// "bitbucket", or "circleci".
+func (c *Client) CreateOrg(ctx context.Context, name, vcsType string) (*OrgInfo, error) {
+	body := map[string]string{"name": name, "vcs_type": vcsType}
+	var org OrgInfo
+	if err := c.post(ctx, "/organization", body, &org); err != nil {
+		return nil, err
+	}
+	return &org, nil
+}

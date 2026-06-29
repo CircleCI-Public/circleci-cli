@@ -46,14 +46,17 @@ func List(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaborat
 }
 
 // Require fetches the user's organizations and returns an actionable error
-// when the account has none. Callers that need to ensure at least one org
-// exists before proceeding should use this instead of List.
+// when the account has none. In interactive mode, offers to create a new
+// CircleCI organization on the spot.
 func Require(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaboration, error) {
 	collabs, err := List(ctx, client)
 	if err != nil {
 		return nil, err
 	}
 	if len(collabs) == 0 {
+		if iostream.IsInteractive(ctx) {
+			return promptCreateOrg(ctx, client)
+		}
 		suggestions := []string{
 			"Ask an admin to invite you to an existing organization",
 		}
@@ -69,6 +72,28 @@ func Require(ctx context.Context, client *apiclient.Client) ([]apiclient.Collabo
 			WithExitCode(clierrors.ExitNotFound)
 	}
 	return collabs, nil
+}
+
+func promptCreateOrg(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaboration, error) {
+	iostream.ErrPrintf(ctx, "You don't belong to any CircleCI organizations yet.\n\n")
+
+	name, err := iostream.PromptText(ctx, "Organization name", "")
+	if err != nil || name == "" {
+		return nil, clierrors.New("org.create_cancelled", "Cancelled",
+			"No organization name entered.").
+			WithExitCode(clierrors.ExitCancelled)
+	}
+
+	created, err := client.CreateOrg(ctx, name, "circleci")
+	if err != nil {
+		return nil, cmdutil.APIErr(err, name, "org.create_failed", "Could not create organization %q.")
+	}
+
+	iostream.Printf(ctx, "%s Created organization %s\n", iostream.SymbolOK(ctx), created.Slug)
+
+	return []apiclient.Collaboration{
+		{ID: created.ID, Name: created.Name, Slug: created.Slug, VCSType: created.VCSType},
+	}, nil
 }
 
 // Select fetches the user's organizations and presents an interactive picker.

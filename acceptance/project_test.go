@@ -1067,6 +1067,38 @@ func TestProjectCreate_NoOrgs_NoOrgFlag(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "not a member of any CircleCI organizations"))
 }
 
+func TestProjectCreate_NoOrgs_Interactive_CreatesOrg(t *testing.T) {
+	fake, env := setupCreateProjectFake(t)
+	fake.SetCollaborations(nil)
+	fake.SetCreateOrgResponse(map[string]any{
+		"id":       "org-new-uuid",
+		"name":     "my-new-org",
+		"slug":     "circleci/my-new-org",
+		"vcs_type": "circleci",
+	})
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, t.Run("prompts for org name", func(t *testing.T) {
+		_, err := console.ExpectString("Organization name")
+		assert.NilError(t, err)
+		_, err = console.Send("my-new-org\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("creates org and project", func(t *testing.T) {
+		_, err := console.ExpectString("Created organization")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("my-new-repo")
+		assert.NilError(t, err)
+	}))
+}
+
 func TestProjectCreate_WrongOrg(t *testing.T) {
 	_, env := setupCreateProjectFake(t)
 
