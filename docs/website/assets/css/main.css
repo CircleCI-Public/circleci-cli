@@ -218,6 +218,17 @@ a:hover {
   text-decoration: none;
 }
 
+.navbar-link--icon {
+  display: flex;
+  align-items: center;
+  color: var(--color-site-muted);
+}
+
+.navbar-icon {
+  height: 1.25rem;
+  width: auto;
+}
+
 @media (hover: hover) {
   .navbar-link:hover { color: var(--color-site-heading); }
 }
