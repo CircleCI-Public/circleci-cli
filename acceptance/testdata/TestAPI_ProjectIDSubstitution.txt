@@ -1,1 +1,1 @@
-{"data":{"attributes":{"name":"testrepo","slug":"gh/testorg/testrepo"},"id":"proj-uuid-api-001"}}
+{"data":{"attributes":{"name":"testrepo","slug":"gh/testorg/testrepo"},"id":"a0000000-0000-4000-8000-0000000a0001"}}

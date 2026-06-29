@@ -206,7 +206,7 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 			WithRef("https://app.circleci.com/settings/user/oauth-clients").
 			WithExitCode(clierrors.ExitAuthError)
 	}
-	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+	if httpcl.HasStatusCode(err, http.StatusNotFound) || errors.Is(err, apiclient.ErrProjectNotFound) {
 		msg := fmt.Sprintf(notFoundMsg, subject)
 		if apiErr, ok := apiclient.ParseError(err); ok {
 			// The API detail just restates "not found" — keep only the error id.

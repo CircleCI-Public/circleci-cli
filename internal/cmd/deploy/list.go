@@ -106,7 +106,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 		projectSlug = info.Slug
 	}
 
-	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
 	if err != nil {
 		return cmdutil.APIErr(err, projectSlug,
 			"project.not_found", "No project found for %q.",
@@ -115,7 +115,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			"Use 'circleci project list' to see followed projects")
 	}
 
-	deploys, err := client.ListDeploys(ctx, proj.ID, proj.OrganizationID, 10)
+	deploys, err := client.ListDeploys(ctx, proj.ID.String(), proj.OrgID.String(), 10)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}

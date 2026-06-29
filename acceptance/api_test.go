@@ -39,8 +39,8 @@ import (
 
 // IDs used by the {project-id}/{org-id} substitution tests.
 const (
-	apiProjectID = "proj-uuid-api-001"
-	apiOrgID     = "org-uuid-api-001"
+	apiProjectID = "a0000000-0000-4000-8000-0000000a0001"
+	apiOrgID     = "a0000000-0000-4000-8000-0000000a0002"
 )
 
 // writeInfoYML writes .circleci/info.yml into dir so that gitremote.Detect
@@ -318,11 +318,7 @@ func TestAPI_PathDefaultsToV3(t *testing.T) {
 func TestAPI_ProjectIDSubstitution(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	// Slug → UUID resolution (the CLI's internal lookup).
-	fake.AddProjectInfo(testSlug, map[string]any{
-		"id":              apiProjectID,
-		"slug":            testSlug,
-		"organization_id": apiOrgID,
-	})
+	fake.AddProjectBySlug(testSlug, apiProjectID, "testrepo", apiOrgID)
 	// The V3 project the substituted path actually targets.
 	fake.AddProjectV3(apiProjectID, map[string]any{
 		"id":         apiProjectID,

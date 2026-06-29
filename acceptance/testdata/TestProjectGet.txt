@@ -1,9 +1,9 @@
 # Project
 - Name: alpha
 - Slug: gh/myorg/alpha
-- Project ID: `proj-uuid-1234`
+- Project ID: `a0000000-0000-4000-8000-0000000c0001`
 - Organization: myorg
-- Organization ID: `org-uuid-5678`
+- Organization ID: `a0000000-0000-4000-8000-0000000c0002`
 
 ## VCS
 - Provider: GitHub

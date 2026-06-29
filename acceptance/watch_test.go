@@ -61,7 +61,7 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 	v3Run := fakeRunV3(runID, watchProjectID, "ended", v3Outcome, "main", "abc1234def5678abcdef")
 
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, v3Run)
 	fake.AddRun(runID, v2Run)
 	fake.AddProjectRuns(watchSlug, v2Run)
@@ -123,7 +123,7 @@ func TestRunWatch_Latest(t *testing.T) {
 	wfID := "b0000000-0000-4000-8000-0000000f0002"
 
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-00000000f001", "test", wfID, watchProjectID))
@@ -171,7 +171,7 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	failedJob["attributes"].(map[string]any)["outcome"] = "failed"
 
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "failed", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 75, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 75, "created", watchSlug, "main"))
@@ -235,7 +235,7 @@ func TestRunWatch_SHA(t *testing.T) {
 
 func TestRunWatch_SHA_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -265,7 +265,7 @@ func TestRunWatch_FailFast(t *testing.T) {
 	failedJob["attributes"].(map[string]any)["outcome"] = "failed"
 
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 79, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 79, "created", watchSlug, "main"))
@@ -298,7 +298,7 @@ func TestRunWatch_Timeout(t *testing.T) {
 	wfID := "b0000000-0000-4000-8000-0000000f0006"
 
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 77, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 77, "created", watchSlug, "main"))
@@ -328,7 +328,7 @@ func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 	wfID := "b0000000-0000-4000-8000-0000000ff033"
 
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, watchSlug, watchProjectID)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
 	fake.AddRun(runID, fakeRun(runID, 78, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 78, "created", watchSlug, "main"))

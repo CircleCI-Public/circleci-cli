@@ -189,13 +189,13 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		}
 
 	default:
-		proj, pErr := client.GetProjectInfo(ctx, projectSlug)
+		proj, pErr := client.GetProjectBySlug(ctx, projectSlug)
 		if pErr != nil {
 			return apiErr(pErr, projectSlug)
 		}
 		now := time.Now().UTC()
 		runs, sErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-			ProjectIDs: []string{proj.ID},
+			ProjectIDs: []string{proj.ID.String()},
 			From:       now.AddDate(0, 0, -90),
 			To:         now,
 			Filter:     apiclient.BuildRunFilter(branch, ""),
@@ -223,7 +223,7 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 // waitForRunBySHA searches for a run matching the given commit SHA via V3 search,
 // polling every 5 seconds for up to shaWaitDuration() if not immediately found.
 func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.RunV3, error) {
-	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
 	if err != nil {
 		return nil, apiErr(err, projectSlug)
 	}
@@ -241,7 +241,7 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 	for {
 		now := time.Now().UTC()
 		runs, searchErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-			ProjectIDs: []string{proj.ID},
+			ProjectIDs: []string{proj.ID.String()},
 			From:       now.AddDate(0, 0, -1),
 			To:         now,
 			Filter:     filter,

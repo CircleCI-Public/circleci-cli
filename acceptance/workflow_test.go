@@ -375,7 +375,7 @@ const wfListProjectID = "a0000000-0000-4000-8000-00000000f100"
 
 func setupRecentRuns(t *testing.T, fake *fakes.CircleCI) {
 	t.Helper()
-	addProjectInfo(fake, testSlug, wfListProjectID)
+	addProjectBySlug(fake, testSlug, wfListProjectID)
 	fake.AddRunV3(testRunRecent1, wfListProjectID,
 		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "failed", "main", "abc1234567890"))
 	fake.AddRunV3(testRunRecent2, wfListProjectID,
@@ -430,7 +430,7 @@ func TestWorkflowList_NoArg_Color(t *testing.T) {
 
 func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, testSlug, wfListProjectID)
+	addProjectBySlug(fake, testSlug, wfListProjectID)
 	fake.AddRunV3(testRunRecent1, wfListProjectID,
 		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
 	fake.AddRunWorkflowsV3(testRunRecent1,
@@ -464,7 +464,7 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 
 func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, testSlug, wfListProjectID)
+	addProjectBySlug(fake, testSlug, wfListProjectID)
 	fake.AddRunV3(testRunRecent1, wfListProjectID,
 		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
 	fake.AddRunWorkflowsV3(testRunRecent1,
@@ -489,7 +489,7 @@ func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 
 func TestWorkflowList_NoArg_NoRuns(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	addProjectInfo(fake, testSlug, wfListProjectID)
+	addProjectBySlug(fake, testSlug, wfListProjectID)
 
 	env := testenv.New(t)
 	env.Token = testToken

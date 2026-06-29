@@ -24,8 +24,23 @@ package apiclient
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
+
+// ErrProjectNotFound is returned by GetProjectBySlug when no project matches the slug.
+var ErrProjectNotFound = errors.New("project not found")
+
+// ProjectRef is a project resolved from its slug, carrying the UUIDs that the
+// v3 API needs. Returned by GetProjectBySlug.
+type ProjectRef struct {
+	ID    uuid.UUID
+	Name  string
+	OrgID uuid.UUID
+}
 
 // Project is a followed CircleCI project.
 type Project struct {
@@ -116,6 +131,44 @@ type VCSInfo struct {
 	Provider      string `json:"provider"`
 	DefaultBranch string `json:"default_branch"`
 	VCSURL        string `json:"vcs_url"`
+}
+
+// projectEntity is the v3 response envelope for GET /api/v3/projects.
+type projectEntity struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		Name string `json:"name"`
+	} `json:"attributes"`
+	References struct {
+		Org struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"org"`
+	} `json:"references"`
+}
+
+// GetProjectBySlug resolves a project slug (vcs/org/repo) to its UUID, name, and
+// owning org UUID via GET /api/v3/projects?filter[slug]=. Use this for the
+// slug-to-UUID lookup; GetProjectInfo (v2) returns the fuller settings payload.
+//
+// The endpoint is a collection: a slug matching no project returns an empty list
+// (not a 404), which is surfaced as ErrProjectNotFound.
+func (c *Client) GetProjectBySlug(ctx context.Context, slug string) (*ProjectRef, error) {
+	var env v3List[projectEntity]
+	err := c.getV3(ctx, "/projects", &env,
+		filterParam("slug", slug),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(env.Data) == 0 {
+		return nil, fmt.Errorf("%w: %q", ErrProjectNotFound, slug)
+	}
+	p := env.Data[0]
+	return &ProjectRef{
+		ID:    p.ID,
+		Name:  p.Attributes.Name,
+		OrgID: p.References.Org.ID,
+	}, nil
 }
 
 // GetProjectInfo returns detailed information about a project by slug.
