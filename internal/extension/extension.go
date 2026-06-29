@@ -287,12 +287,12 @@ func resolveProjectID(ctx context.Context, client *apiclient.Client, cfg *config
 		return ""
 	}
 
-	info, err := client.GetProjectInfo(ctx, slug)
+	info, err := client.GetProjectBySlug(ctx, slug)
 	if err != nil {
 		return ""
 	}
 
-	return info.ID
+	return info.ID.String()
 }
 
 func vcsLong(short string) string {

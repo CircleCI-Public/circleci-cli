@@ -183,15 +183,15 @@ func run(ctx context.Context, client *apiclient.Client, thepath, method string, 
 		if err != nil {
 			return cmdutil.GitDetectErr(err, "Or pass the IDs explicitly in the path instead of {project-id}/{org-id}.")
 		}
-		proj, err := client.GetProjectInfo(ctx, info.Slug)
+		proj, err := client.GetProjectBySlug(ctx, info.Slug)
 		if err != nil {
 			return clierrors.New("api.project_lookup_failed", "Could not resolve project",
 				fmt.Sprintf("Failed to look up project %q: %v", info.Slug, err)).
 				WithExitCode(clierrors.ExitAPIError)
 		}
 		r := strings.NewReplacer(
-			"{project-id}", proj.ID,
-			"{org-id}", proj.OrganizationID,
+			"{project-id}", proj.ID.String(),
+			"{org-id}", proj.OrgID.String(),
 		)
 		thepath = r.Replace(thepath)
 	}

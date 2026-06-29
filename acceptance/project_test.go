@@ -47,7 +47,7 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake := fakes.NewCircleCI(t)
 
 	fake.SetCollaborations([]any{
-		map[string]any{"id": "org-uuid-5678", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
+		map[string]any{"id": "a0000000-0000-4000-8000-0000000c0002", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
 	})
 
 	fake.AddFollowedProject(map[string]any{
@@ -65,18 +65,20 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"name":     "beta",
 	})
 	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
-		"id":                "proj-uuid-1234",
+		"id":                "a0000000-0000-4000-8000-0000000c0001",
 		"slug":              "gh/myorg/alpha",
 		"name":              "alpha",
 		"organization_name": "myorg",
 		"organization_slug": "gh/myorg",
-		"organization_id":   "org-uuid-5678",
+		"organization_id":   "a0000000-0000-4000-8000-0000000c0002",
 		"vcs_info": map[string]any{
 			"provider":       "GitHub",
 			"default_branch": "main",
 			"vcs_url":        "https://github.com/myorg/alpha",
 		},
 	})
+	// v3 slug → UUID resolution, used by `project trigger`.
+	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000c0001", "alpha", "a0000000-0000-4000-8000-0000000c0002")
 
 	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx", nil)
 	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx",
@@ -573,8 +575,8 @@ func TestProjectGet_JSON(t *testing.T) {
 	var out map[string]any
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(out["id"], "proj-uuid-1234"))
-	assert.Check(t, cmp.Equal(out["organization_id"], "org-uuid-5678"))
+	assert.Check(t, cmp.Equal(out["id"], "a0000000-0000-4000-8000-0000000c0001"))
+	assert.Check(t, cmp.Equal(out["organization_id"], "a0000000-0000-4000-8000-0000000c0002"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
@@ -596,7 +598,7 @@ func TestProjectGet_NotFound(t *testing.T) {
 // --- project trigger create ---
 
 const (
-	triggerProjectID     = "proj-uuid-1234"
+	triggerProjectID     = "a0000000-0000-4000-8000-0000000c0001"
 	triggerPipelineDefID = "pdef-uuid-5678"
 	triggerRepoID        = "987654321"
 	triggerID            = "trig-uuid-abcd"
@@ -887,7 +889,7 @@ func setupCreateProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"name":              "my-new-repo",
 		"organization_name": "myorg",
 		"organization_slug": "gh/myorg",
-		"organization_id":   "org-uuid-5678",
+		"organization_id":   "a0000000-0000-4000-8000-0000000c0002",
 		"vcs_info": map[string]any{
 			"provider":       "GitHub",
 			"default_branch": "main",
@@ -895,7 +897,7 @@ func setupCreateProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		},
 	})
 	fake.SetCollaborations([]any{
-		map[string]any{"id": "org-uuid-5678", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
+		map[string]any{"id": "a0000000-0000-4000-8000-0000000c0002", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
 		map[string]any{"id": "org-uuid-9999", "name": "other-org", "slug": "gh/other-org", "vcs_type": "github"},
 	})
 	return fake, env

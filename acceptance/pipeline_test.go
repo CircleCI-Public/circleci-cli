@@ -44,7 +44,7 @@ import (
 // keyDown is defined in login_test.go (same package).
 
 const (
-	pipelineProjectID = "proj-uuid-pipeline"
+	pipelineProjectID = "a0000000-0000-4000-8000-0000000b0001"
 	pipelineDefID     = "pdef-uuid-0001"
 	pipelineRepoID    = "987654321"
 )
@@ -76,11 +76,7 @@ func fakePipelineDefPayload(id, name, configProvider, configRepoID, configFile, 
 func setupPipelineFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/myrepo", map[string]any{
-		"id":   pipelineProjectID,
-		"slug": "gh/myorg/myrepo",
-		"name": "myrepo",
-	})
+	fake.AddProjectBySlug("gh/myorg/myrepo", pipelineProjectID, "myrepo", "a0000000-0000-4000-8000-0000000b0003")
 	fake.SetCreatePipelineDefinitionResponse(pipelineProjectID,
 		fakePipelineDefPayload(pipelineDefID, "my-pipeline", "github_app", pipelineRepoID, ".circleci/config.yml", "github_app", pipelineRepoID),
 	)
@@ -412,11 +408,7 @@ func TestPipelineList_BySlug(t *testing.T) {
 
 func TestPipelineList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/empty", map[string]any{
-		"id":   "proj-empty",
-		"slug": "gh/myorg/empty",
-		"name": "empty",
-	})
+	fake.AddProjectBySlug("gh/myorg/empty", "a0000000-0000-4000-8000-0000000b0002", "empty", "a0000000-0000-4000-8000-0000000b0004")
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()

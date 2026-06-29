@@ -127,14 +127,14 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 		projectSlug = info.Slug
 	}
 
-	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
 
 	now := time.Now().UTC()
 	runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-		ProjectIDs: []string{proj.ID},
+		ProjectIDs: []string{proj.ID.String()},
 		From:       now.AddDate(0, 0, -90),
 		To:         now,
 		Filter:     apiclient.BuildRunFilter(branch, ""),

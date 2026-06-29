@@ -176,14 +176,8 @@ func fakeJobV3(id, name, workflowID, projectID string) map[string]any {
 	}
 }
 
-func addProjectInfo(fake *fakes.CircleCI, slug, projectID string) {
-	fake.AddProjectInfo(slug, map[string]any{
-		"id":                projectID,
-		"slug":              slug,
-		"name":              "testrepo",
-		"organization_name": "testorg",
-		"organization_slug": "gh/testorg",
-	})
+func addProjectBySlug(fake *fakes.CircleCI, slug, projectID string) {
+	fake.AddProjectBySlug(slug, projectID, "testrepo", "a0000000-0000-4000-8000-0000000d0001")
 }
 
 // --- run get (V3) ---
@@ -441,7 +435,7 @@ func TestRunGet_NoToken(t *testing.T) {
 func TestRunList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
@@ -464,7 +458,7 @@ func TestRunList(t *testing.T) {
 func TestRunList_Tag(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3Tag("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
 
@@ -487,7 +481,7 @@ func TestRunList_Tag(t *testing.T) {
 func TestRunList_Tag_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3Tag("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
 
 	env := testenv.New(t)
@@ -515,7 +509,7 @@ func TestRunList_Tag_JSON(t *testing.T) {
 func TestRunList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
@@ -539,7 +533,7 @@ func TestRunList_Color(t *testing.T) {
 func TestRunList_Limit(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
@@ -562,7 +556,7 @@ func TestRunList_Limit(t *testing.T) {
 func TestRunList_Limit_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
@@ -586,7 +580,7 @@ func TestRunList_Limit_Color(t *testing.T) {
 func TestRunList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
@@ -618,7 +612,7 @@ func TestRunList_JSON(t *testing.T) {
 func TestRunList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
-	addProjectInfo(fake, slug, runTestProjectID)
+	addProjectBySlug(fake, slug, runTestProjectID)
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 

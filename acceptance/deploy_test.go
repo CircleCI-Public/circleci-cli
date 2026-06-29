@@ -40,18 +40,11 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake := fakes.NewCircleCI(t)
 
 	// Register a project so --project can resolve to IDs.
-	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
-		"id":                "proj-uuid-1234",
-		"slug":              "gh/myorg/alpha",
-		"name":              "alpha",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "org-uuid-5678",
-	})
+	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000f0001", "alpha", "a0000000-0000-4000-8000-0000000f0002")
 
-	fake.AddDeploy("proj-uuid-1234", map[string]any{
+	fake.AddDeploy("a0000000-0000-4000-8000-0000000f0001", map[string]any{
 		"id":               "rel-uuid-0001",
-		"project_id":       "proj-uuid-1234",
+		"project_id":       "a0000000-0000-4000-8000-0000000f0001",
 		"component_id":     "comp-uuid-1111",
 		"component_name":   "web-frontend",
 		"type":             "DEPLOYMENT",
@@ -63,9 +56,9 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"created_at":       "2026-04-28T14:30:00Z",
 		"ended_at":         "2026-04-28T14:35:00Z",
 	})
-	fake.AddDeploy("proj-uuid-1234", map[string]any{
+	fake.AddDeploy("a0000000-0000-4000-8000-0000000f0001", map[string]any{
 		"id":               "rel-uuid-0002",
-		"project_id":       "proj-uuid-1234",
+		"project_id":       "a0000000-0000-4000-8000-0000000f0001",
 		"component_id":     "comp-uuid-2222",
 		"component_name":   "api-server",
 		"type":             "DEPLOYMENT",
@@ -78,9 +71,9 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		"created_at":       "2026-04-27T09:15:00Z",
 		"ended_at":         "2026-04-27T09:25:00Z",
 	})
-	fake.AddDeploy("proj-uuid-1234", map[string]any{
+	fake.AddDeploy("a0000000-0000-4000-8000-0000000f0001", map[string]any{
 		"id":               "rel-uuid-0003",
-		"project_id":       "proj-uuid-1234",
+		"project_id":       "a0000000-0000-4000-8000-0000000f0001",
 		"component_id":     "comp-uuid-1111",
 		"component_name":   "web-frontend",
 		"type":             "ROLLBACK",
@@ -137,14 +130,7 @@ func TestDeployList_JSON(t *testing.T) {
 
 func TestDeployList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/empty", map[string]any{
-		"id":                "proj-uuid-empty",
-		"slug":              "gh/myorg/empty",
-		"name":              "empty",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "org-uuid-5678",
-	})
+	fake.AddProjectBySlug("gh/myorg/empty", "a0000000-0000-4000-8000-0000000f0003", "empty", "a0000000-0000-4000-8000-0000000f0002")
 	env := testenv.New(t)
 	env.Token = "testtoken"
 	env.CircleCIURL = fake.URL()

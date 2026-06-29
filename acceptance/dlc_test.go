@@ -43,14 +43,7 @@ import (
 func setupDLCFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/myrepo", map[string]any{
-		"id":                "proj-dlc-uuid",
-		"slug":              "gh/myorg/myrepo",
-		"name":              "myrepo",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "org-uuid-1234",
-	})
+	fake.AddProjectBySlug("gh/myorg/myrepo", "a0000000-0000-4000-8000-0000000e0001", "myrepo", "a0000000-0000-4000-8000-0000000e0002")
 	// Default DLC purge status is 204 (success); no override needed.
 	env := testenv.New(t)
 	env.Token = testToken
@@ -76,7 +69,7 @@ func TestDLCPurge(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v3/projects/proj-dlc-uuid/dlc"},
+			URL:    url.URL{Path: "/api/v3/projects/a0000000-0000-4000-8000-0000000e0001/dlc"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -101,7 +94,7 @@ func TestDLCPurge_JSON(t *testing.T) {
 	var out map[string]any
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
-	assert.Equal(t, out["project_id"], "proj-dlc-uuid")
+	assert.Equal(t, out["project_id"], "a0000000-0000-4000-8000-0000000e0001")
 	assert.Equal(t, out["project_slug"], "gh/myorg/myrepo")
 }
 
@@ -136,7 +129,7 @@ func TestDLCPurge_ProjectSlug(t *testing.T) {
 
 func TestDLCPurge_Gone(t *testing.T) {
 	fake, env := setupDLCFake(t)
-	fake.SetDLCPurgeStatus("proj-dlc-uuid", http.StatusGone)
+	fake.SetDLCPurgeStatus("a0000000-0000-4000-8000-0000000e0001", http.StatusGone)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,

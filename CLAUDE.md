@@ -104,6 +104,9 @@ internal/
 │
 ├── apiclient/            CircleCI REST API client. Injected via constructor; tests pass
 │                         a custom http.RoundTripper to intercept requests.
+│                         v3 endpoints type id fields (format: uuid in the spec) as
+│                         uuid.UUID, not string — e.g. RunV3.ID, ProjectRef.ID/OrgID.
+│                         Stringify with .String() at call sites that need a string.
 │
 ├── gitremote/            Detect project slug + branch from git remote URL.
 │

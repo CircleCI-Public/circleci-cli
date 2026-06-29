@@ -101,6 +101,7 @@ type CircleCI struct {
 	deletedEnvVars    map[string]bool  // "slug/name" → deleted
 	projectInfos      map[string]any   // project slug → project info response
 	projectsByID      map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
+	projectsBySlug    map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
 	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
 
 	// Context state.
@@ -229,6 +230,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		deletedContextRestrictions:        map[string]bool{},
 		projectInfos:                      map[string]any{},
 		projectsByID:                      map[string]any{},
+		projectsBySlug:                    map[string]any{},
 		deploys:                           map[string][]any{},
 		policyBundles:                     make(map[string]map[string]string),
 		decisionLogs:                      make(map[string][]any),
@@ -330,6 +332,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
 	// Project (v3) routes.
+	r.Get("/api/v3/projects", f.handleResolveProjectBySlug)
 	r.Get("/api/v3/projects/{id}", f.handleGetProjectV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
@@ -1398,6 +1401,37 @@ func (f *CircleCI) handleGetProjectV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, map[string]any{"data": project})
+}
+
+// AddProjectBySlug registers a project resolved by GET
+// /api/v3/projects?filter[slug]=<slug>, returning its UUID, name, and org UUID.
+func (f *CircleCI) AddProjectBySlug(slug, id, name, orgID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.projectsBySlug[slug] = map[string]any{
+		"id":         id,
+		"attributes": map[string]any{"name": name},
+		"references": map[string]any{"org": map[string]any{"id": orgID}},
+	}
+}
+
+func (f *CircleCI) handleResolveProjectBySlug(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("filter[slug]")
+	if slug == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "filter[slug] is required"}})
+		return
+	}
+	f.mu.RLock()
+	project, ok := f.projectsBySlug[slug]
+	f.mu.RUnlock()
+
+	// The endpoint is a collection: an unmatched slug is an empty list, not a 404.
+	data := []any{}
+	if ok {
+		data = append(data, project)
+	}
+	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": nil, "prev": nil}})
 }
 
 // AddPipelineDefinition registers a pipeline definition for a project, returned by

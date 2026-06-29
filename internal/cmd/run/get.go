@@ -172,7 +172,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 			effectiveBranch = info.Branch
 		}
 
-		proj, err := client.GetProjectInfo(ctx, projectSlug)
+		proj, err := client.GetProjectBySlug(ctx, projectSlug)
 		if err != nil {
 			return apiErr(err, projectSlug)
 		}
@@ -180,7 +180,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest run for %s on branch %s", projectSlug, effectiveBranch))
 		now := time.Now().UTC()
 		runs, searchErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-			ProjectIDs: []string{proj.ID},
+			ProjectIDs: []string{proj.ID.String()},
 			From:       now.AddDate(0, 0, -90),
 			To:         now,
 			Filter:     apiclient.BuildRunFilter(effectiveBranch, ""),

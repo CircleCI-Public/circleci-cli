@@ -98,14 +98,14 @@ func NewPurgeCmd() *cobra.Command {
 				return err
 			}
 
-			proj, err := client.GetProjectInfo(ctx, projectSlug)
+			proj, err := client.GetProjectBySlug(ctx, projectSlug)
 			if err != nil {
 				return cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.",
 					"Check the project slug and try again",
 					"Use 'circleci project list' to see followed projects")
 			}
 
-			if err := client.PurgeDLC(ctx, proj.ID); err != nil {
+			if err := client.PurgeDLC(ctx, proj.ID.String()); err != nil {
 				if errors.Is(err, apiclient.ErrDLCGone) {
 					return clierrors.New("dlc.gone", "DLC purge unavailable",
 						"This DLC feature is no longer supported by this version of the CLI. Please upgrade.").
@@ -121,7 +121,7 @@ func NewPurgeCmd() *cobra.Command {
 			}
 
 			out := purgeOutput{
-				ProjectID:   proj.ID,
+				ProjectID:   proj.ID.String(),
 				ProjectSlug: projectSlug,
 			}
 

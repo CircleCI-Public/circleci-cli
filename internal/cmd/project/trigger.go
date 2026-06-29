@@ -104,14 +104,14 @@ func resolveProjectID(ctx context.Context, client *apiclient.Client, projectSlug
 		}
 		projectSlug = info.Slug
 	}
-	proj, err := client.GetProjectInfo(ctx, projectSlug)
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
 	if err != nil {
 		return "", cmdutil.APIErr(err, projectSlug, "project.not_found", "No project found for %q.",
 			"Run 'circleci project link' to bind this repository to a CircleCI project",
 			"Check the project slug and try again",
 			"Use 'circleci project list' to see followed projects")
 	}
-	return proj.ID, nil
+	return proj.ID.String(), nil
 }
 
 // selectPipelineDefinition fetches the list of pipeline definitions for the project

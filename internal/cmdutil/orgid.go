@@ -111,14 +111,14 @@ func orgIDFromGitRemote(ctx context.Context, client *apiclient.Client, detectHin
 	if err != nil {
 		return "", GitDetectErr(err, detectHint)
 	}
-	proj, err := client.GetProjectInfo(ctx, info.Slug)
+	proj, err := client.GetProjectBySlug(ctx, info.Slug)
 	if err != nil {
 		return "", clierrors.New("org.resolve_failed", "Could not resolve organization",
 			fmt.Sprintf("Failed to look up project %q to recover its organization: %s", info.Slug, err.Error())).
 			WithSuggestions(projectFailSuggestion).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
-	return proj.OrganizationID, nil
+	return proj.OrgID.String(), nil
 }
 
 // parseOrgID converts an organization ID string returned by the API into a
