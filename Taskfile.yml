@@ -27,10 +27,6 @@ vars:
   TEST_REPORT: test-reports/tests.xml
   LINT_REPORT: test-reports/lint.xml
 
-  # Docs site toolchain (installed by the `docs:install` task).
-  TOOLS_DIR: bin/tools
-  HUGO: ./bin/tools/hugo
-  HTMLTEST: ./bin/tools/htmltest
   # Hugo project lives in docs/website/; built output lands in docs/website/public.
   SITE_DIR: docs/website
   SITE_OUT: docs/website/public
@@ -178,36 +174,6 @@ tasks:
           --execute.timeout 60s
           --output docs/demos/run-get.{{.ITEM}}
 
-  # Docs site tasks
-  #
-  # The reference page is generated from the live command tree via
-  # `circleci reference`, then rendered into a static site with Hugo. It's a
-  # single page today; the layout is structured so we can split it later.
-
-  docs:install:
-    desc: Download the Hugo and htmltest binaries into bin/tools
-    vars:
-      HUGO_VERSION: 0.150.0
-      HTMLTEST_VERSION: 0.17.0
-      # htmltest names the macOS build "macos"; Hugo uses "darwin".
-      HTMLTEST_OS: '{{if eq OS "darwin"}}macos{{else}}{{OS}}{{end}}'
-      HUGO_ARCH: '{{if eq OS "darwin"}}universal{{else}}{{ARCH}}{{end}}'
-    status:
-      - test -x {{.HUGO}}
-      - test -x {{.HTMLTEST}}
-    cmds:
-      - mkdir -p {{.TOOLS_DIR}}
-      # Use the non-extended Hugo: it's a static pure-Go binary with no glibc
-      # dependency, so it runs on older CI images. The site uses no SCSS/Sass or
-      # image processing, so the "extended" build (dynamically linked) isn't needed.
-      - >-
-        curl -fsSL
-        'https://github.com/gohugoio/hugo/releases/download/v{{.HUGO_VERSION}}/hugo_{{.HUGO_VERSION}}_{{OS}}-{{.HUGO_ARCH}}.tar.gz'
-        | tar -C {{.TOOLS_DIR}} -xz hugo
-      - >-
-        curl -fsSL
-        'https://github.com/wjdp/htmltest/releases/download/v{{.HTMLTEST_VERSION}}/htmltest_{{.HTMLTEST_VERSION}}_{{.HTMLTEST_OS}}_{{ARCH}}.tar.gz'
-        | tar -C {{.TOOLS_DIR}} -xz htmltest
 
   docs:reference:
     desc: Generate the reference page from the live command tree
@@ -254,24 +220,24 @@ tasks:
       - docs:clean
       - docs:reference
     cmds:
-      - '{{.HUGO}} --source {{.SITE_DIR}} --minify --gc'
+      - 'go tool -modfile tools/go.mod hugo --source {{.SITE_DIR}} --minify --gc'
 
   docs:server:
     desc: Serve the docs site locally with live reload
     deps:
       - docs:reference
     cmds:
-      - '{{.HUGO}} server --source {{.SITE_DIR}} {{.CLI_ARGS}}'
+      - 'go tool -modfile tools/go.mod hugo server --source {{.SITE_DIR}} {{.CLI_ARGS}}'
 
   docs:test:
     desc: Validate the built site's internal links with htmltest
     cmds:
-      - '{{.HTMLTEST}} -c {{.SITE_DIR}}/.htmltest.yml {{.CLI_ARGS}}'
+      - 'go tool -modfile tools/go.mod htmltest -c {{.SITE_DIR}}/.htmltest.yml {{.CLI_ARGS}}'
 
   docs:hugo:
     desc: Run the pinned Hugo binary with arbitrary arguments
     cmds:
-      - '{{.HUGO}} --source {{.SITE_DIR}} {{.CLI_ARGS}}'
+      - 'go tool -modfile tools/go.mod hugo --source {{.SITE_DIR}} {{.CLI_ARGS}}'
 
   ci:docs:publish:
     desc: Publish the built site to the gh-pages branch (CI only)
