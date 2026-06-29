@@ -1,0 +1,10 @@
+{{- /* Make every section heading in the reference body a clickable anchor.
+       Hugo already mints the IDs (autoHeadingID); this wraps the heading text
+       in a self-link so readers can click a command section to deep-link it,
+       mirroring the sidebar's #ID links. */ -}}
+<h{{ .Level }} id="{{ .Anchor }}"{{ with .Attributes.class }} class="{{ . }}"{{ end }}>
+  <a class="heading-anchor" href="#{{ .Anchor }}">
+    {{- .Text -}}
+    <span class="heading-anchor-icon" aria-hidden="true">#</span>
+  </a>
+</h{{ .Level }}>
