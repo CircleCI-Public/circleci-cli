@@ -75,9 +75,9 @@ func Require(ctx context.Context, client *apiclient.Client) ([]apiclient.Collabo
 }
 
 func promptCreateOrg(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaboration, error) {
-	iostream.ErrPrintf(ctx, "You don't belong to any CircleCI organizations yet.\n\n")
+	iostream.ErrPrintf(ctx, "You don't belong to any CircleCI organizations yet.\nLet's create one.\n\n")
 
-	name, err := iostream.PromptText(ctx, "Organization name", "")
+	name, err := iostream.PromptText(ctx, "New organization name", "")
 	if err != nil || name == "" {
 		return nil, clierrors.New("org.create_cancelled", "Cancelled",
 			"No organization name entered.").

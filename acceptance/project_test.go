@@ -1085,7 +1085,7 @@ func TestProjectCreate_NoOrgs_Interactive_CreatesOrg(t *testing.T) {
 	})
 
 	assert.Assert(t, t.Run("prompts for org name", func(t *testing.T) {
-		_, err := console.ExpectString("Organization name")
+		_, err := console.ExpectString("New organization name")
 		assert.NilError(t, err)
 		_, err = console.Send("my-new-org\r")
 		assert.NilError(t, err)
