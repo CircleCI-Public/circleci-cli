@@ -222,17 +222,17 @@ jobs:
                 command: task docs:test
       - store_artifacts:
           path: docs/website/public
+      - persist_to_workspace:
+          root: .
+          paths:
+            - "docs/website/public"
 
   docs-publish:
     executor: linux
     steps:
       - setup
-      - run:
-          name: Install docs toolchain (Hugo + htmltest)
-          command: task docs:install
-      - run:
-          name: Generate reference and build the site
-          command: task docs:build
+      - attach_workspace:
+          at: .
       - run:
           name: Publish to gh-pages
           command: task ci:docs:publish
