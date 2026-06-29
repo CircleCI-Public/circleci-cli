@@ -4,19 +4,21 @@
 
        Param `root` is the page-relative path back to the site root ("" on the
        landing page, "../" under /reference), so in-site links resolve at any
-       depth and under any Pages subpath. */ -}}
+       depth and under any Pages subpath.
+       Param `onSurface` (bool) renders the navbar over --color-site-surface
+       instead of --color-site-bg. */ -}}
 {{- $root := .root -}}
-<header class="site-nav">
-  <nav class="site-nav-inner" aria-label="Primary">
-    <a class="site-brand" href="{{ with $root }}{{ . }}{{ else }}./{{ end }}">
-      <svg viewBox="0 0 103.8 105.2" aria-hidden="true">
-        <path d="m 38.6,52.6 c 0,-6.9 5.6,-12.5 12.5,-12.5 6.9,0 12.5,5.6 12.5,12.5 0,6.9 -5.6,12.5 -12.5,12.5 C 44.2,65.2 38.6,59.5 38.6,52.6 Z M 51.1,0 C 26.5,0 5.9,16.8 0.1,39.6 0.1,39.8 0,39.9 0,40.1 c 0,1.4 1.1,2.5 2.5,2.5 l 21.2,0 c 1,0 1.9,-0.6 2.3,-1.5 l 0,0 C 30.4,31.6 39.9,25 51.1,25 66.3,25 78.7,37.4 78.7,52.6 78.7,67.8 66.3,80.2 51.1,80.2 40,80.2 30.4,73.6 26,64.1 l 0,0 c -0.4,-0.9 -1.3,-1.5 -2.3,-1.5 l -21.2,0 c -1.4,0 -2.5,1.1 -2.5,2.5 0,0.2 0,0.3 0.1,0.5 5.8,22.8 26.4,39.6 51,39.6 29.1,0 52.7,-23.6 52.7,-52.7 C 103.8,23.5 80.2,0 51.1,0 Z"/>
-      </svg>
-      <span class="site-brand-name">CircleCI CLI</span>
+<header class="navbar{{ if .onSurface }} navbar--on-surface{{ end }}">
+  <nav class="navbar-inner" aria-label="Primary">
+    <a class="navbar-logo" href="{{ with $root }}{{ . }}{{ else }}./{{ end }}">
+      {{- with resources.Get "img/logo.svg" -}}
+        <span class="navbar-logo-icon">{{ .Content | safeHTML }}</span>
+      {{- end -}}
+      <span class="navbar-logo-text">CLI</span>
     </a>
-    <div class="site-nav-links">
-      <a href="{{ $root }}reference/">Reference</a>
-      <a href="https://github.com/CircleCI-Public/circleci-cli/releases">Release notes</a>
+    <div class="navbar-links">
+      <a class="navbar-link" href="{{ $root }}reference/">Reference</a>
+      <a class="navbar-link" href="https://github.com/CircleCI-Public/circleci-cli/releases">Release notes</a>
     </div>
   </nav>
 </header>

@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode | default "en" }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ block "title" . }}CircleCI CLI{{ end }}</title>
+  <meta name="description" content="{{ block "description" . }}Command reference and documentation for the CircleCI CLI.{{ end }}">
+  <link rel="alternate" type="text/markdown" href="{{ block "llms_href" . }}llms.txt{{ end }}" title="Markdown for LLMs">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@700;800;900&display=swap" rel="stylesheet">
+  {{ block "head" . }}{{ end }}
+  {{ partial "css.html" . }}
+</head>
+<body class="{{ block "body_class" . }}{{ end }}">
+  {{ block "main" . }}{{ end }}
+</body>
+</html>

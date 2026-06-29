@@ -1,22 +1,9 @@
-<!DOCTYPE html>
-<html lang="{{ .Site.LanguageCode | default "en" }}">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{{ .Title }}</title>
-  <meta name="description" content="Command reference for the CircleCI CLI.">
-  <!-- Clean-markdown copy of this reference for LLMs/agents (llmstxt.org).
-       Generated alongside _index.md by the docs:reference task. -->
-  <link rel="alternate" type="text/markdown" href="../llms.txt" title="Markdown for LLMs">
-  <!-- Page-relative links (this page lives at /reference/, so assets are one
-       level up) keep the site correct under the Pages subpath; the content-hash
-       query busts browser/CDN cache when the stylesheet changes. htmltest ignores
-       the query and resolves the file itself. -->
-  {{ $cssVer := os.ReadFile "static/css/main.css" | hash.FNV32a }}
-  <link rel="stylesheet" href="../css/main.css?v={{ $cssVer }}">
-</head>
-<body class="has-site-nav">
-  {{ partial "navbar.html" (dict "root" "../") }}
+{{ define "title" }}{{ .Title }}{{ end }}
+{{ define "description" }}Command reference for the CircleCI CLI.{{ end }}
+{{ define "llms_href" }}../llms.txt{{ end }}
+{{ define "body_class" }}has-site-nav page-reference{{ end }}
+{{ define "main" }}
+  {{ partial "navbar.html" (dict "root" "../" "onSurface" true) }}
 
   {{/* Mobile command-nav toggle. Pure CSS (checkbox + labels): the checkbox
        holds open/closed state, the fixed button toggles it wherever you scroll,
@@ -38,11 +25,11 @@
       </nav>
     </aside>
 
-    <div class="content-col">
+    <div class="content-area">
       <main class="content">
         {{ .Content }}
       </main>
-      <footer class="footer">
+      <footer class="ref-footer">
         <span>CircleCI CLI</span>
         <span>Generated from <code>circleci reference</code></span>
         <span><a href="../llms.txt">View as Markdown</a> · for LLMs</span>
@@ -66,5 +53,4 @@
       });
     })();
   </script>
-</body>
-</html>
+{{ end }}
