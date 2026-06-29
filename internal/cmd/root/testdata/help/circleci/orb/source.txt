@@ -15,6 +15,7 @@ Specify a version with @<version> (e.g. @1.2.3 or @volatile for latest).
 | --------------------- | ------------------------------------------------------------ |
 | `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
 | `--debug`             | enable debug logging                                         |
+| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
 ## Arguments

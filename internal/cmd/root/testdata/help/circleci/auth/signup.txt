@@ -24,6 +24,7 @@ already have a CircleCI account, use 'circleci auth login' instead.
 | --------------------- | ------------------------------------------------------------ |
 | `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
 | `--debug`             | enable debug logging                                         |
+| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
 ## Examples
