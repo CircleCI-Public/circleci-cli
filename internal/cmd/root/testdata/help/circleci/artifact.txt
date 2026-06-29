@@ -2,7 +2,7 @@
 
 List or download artifacts produced by a CircleCI job.
 
-Pass the job UUID to list its artifacts. Use --download to save
+Pass the job UUID to list its artifacts. Use --output to save
 them to a local directory.
 
 JSON fields: path, url, node_index
@@ -40,7 +40,7 @@ e.g. 5034460f-c7c4-4c43-9457-de07e2029e7b.
 - List artifacts for a job: 
   `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b`
 - Download all artifacts into ./artifacts: 
-  `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --download ./artifacts`
+  `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --output ./artifacts`
 - Output as JSON for scripting: 
   `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
 
