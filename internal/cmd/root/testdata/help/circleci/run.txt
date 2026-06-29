@@ -12,19 +12,19 @@ each workflow in turn contains jobs.
 
 ## General Commands
 
-| Command | Description                                         |
-| ------- | --------------------------------------------------- |
-| `list`  | List recent runs for a project                      |
-| `open`  | Open the current project's runs page in the browser |
+| Command | Description                    |
+| ------- | ------------------------------ |
+| `list`  | List recent runs for a project |
 
 ## Targeted Commands
 
-| Command   | Description                    |
-| --------- | ------------------------------ |
-| `cancel`  | Cancel a run                   |
-| `get`     | Get a run's status             |
-| `trigger` | Trigger a new run              |
-| `watch`   | Watch a run until it completes |
+| Command   | Description                                         |
+| --------- | --------------------------------------------------- |
+| `cancel`  | Cancel a run                                        |
+| `get`     | Get a run's status                                  |
+| `open`    | Open the current project's runs page in the browser |
+| `trigger` | Trigger a new run                                   |
+| `watch`   | Watch a run until it completes                      |
 
 ## Inherited Flags
 

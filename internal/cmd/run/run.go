@@ -49,10 +49,10 @@ func NewRunCmd() *cobra.Command {
 
 	cmdutil.AddGroup(cmd, "General commands",
 		newListCmd(),
-		newOpenCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
 		newCancelCmd(),
+		newOpenCmd(),
 		newGetCmd(),
 		newTriggerCmd(),
 		newWatchCmd(),

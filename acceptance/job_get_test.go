@@ -138,7 +138,7 @@ func setupJobGetFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 }
 
 func TestJobGet(t *testing.T) {
-	_, env := setupJobGetFake(t)
+	fake, env := setupJobGetFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -148,7 +148,7 @@ func TestJobGet(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestJobGet_JSON(t *testing.T) {

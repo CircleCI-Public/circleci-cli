@@ -32,6 +32,7 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -136,7 +137,15 @@ func newWatchCmd() *cobra.Command {
 }
 
 func runWatch(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch, sha string, timeout time.Duration, failFast bool) error {
-	isUUID := len(args) == 1 && strings.Contains(args[0], "-")
+	var (
+		id  uuid.UUID
+		err error
+	)
+	isUUID := false
+	if len(args) == 1 {
+		id, err = uuid.Parse(args[0])
+		isUUID = err == nil
+	}
 
 	needsGit := !isUUID && (projectSlug == "" || (branch == "" && sha == "" && len(args) == 0))
 	if needsGit {
@@ -153,11 +162,10 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 	}
 
 	var r *apiclient.RunV3
-	var err error
 
 	switch {
 	case isUUID:
-		r, err = client.GetRunV3(ctx, args[0])
+		r, err = client.GetRunV3(ctx, id)
 		if err != nil {
 			return apiErr(err, args[0])
 		}
@@ -171,7 +179,7 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		}
 		r, err = client.GetRunV3(ctx, p.ID)
 		if err != nil {
-			return apiErr(err, p.ID)
+			return apiErr(err, p.ID.String())
 		}
 
 	case sha != "":
@@ -271,7 +279,7 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 
 // watchUntilDone polls the given run until all workflows reach a terminal
 // state or the timeout elapses.
-func watchUntilDone(ctx context.Context, client *apiclient.Client, runID string, timeout time.Duration, failFast bool) error {
+func watchUntilDone(ctx context.Context, client *apiclient.Client, runID uuid.UUID, timeout time.Duration, failFast bool) error {
 	deadline := time.Now().Add(timeout)
 	start := time.Now()
 	tty := iostream.IsTerminal(ctx)
@@ -374,7 +382,7 @@ func watchInterrupted() *clierrors.CLIError {
 
 // fetchWatchState retrieves the current run state including all workflows
 // and their jobs, reusing buildOutput from get.go.
-func fetchWatchState(ctx context.Context, client *apiclient.Client, runID string) (runGetOutput, error) {
+func fetchWatchState(ctx context.Context, client *apiclient.Client, runID uuid.UUID) (runGetOutput, error) {
 	r, err := client.GetRunV3(ctx, runID)
 	if err != nil {
 		return runGetOutput{}, err
@@ -469,7 +477,7 @@ func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Durati
 	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
 }
 
-func watchFailFastResult(ctx context.Context, state runGetOutput, runID string, elapsed time.Duration) error {
+func watchFailFastResult(ctx context.Context, state runGetOutput, runID uuid.UUID, elapsed time.Duration) error {
 	names := failedJobNames(state)
 	iostream.ErrPrintf(ctx, "%s Run %s has failing job(s): %s — exiting (%s)\n",
 		iostream.SymbolFail(ctx), runID, strings.Join(names, ", "), formatElapsed(elapsed))
@@ -491,7 +499,7 @@ func failedJobNames(state runGetOutput) []string {
 	return names
 }
 
-func watchFinalResult(ctx context.Context, state runGetOutput, runID string, elapsed time.Duration) error {
+func watchFinalResult(ctx context.Context, state runGetOutput, runID uuid.UUID, elapsed time.Duration) error {
 	status := deriveDisplayStatus(state)
 	switch status {
 	case "succeeded":

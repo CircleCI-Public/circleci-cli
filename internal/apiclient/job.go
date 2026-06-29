@@ -153,21 +153,21 @@ type jobStepWire struct {
 
 type jobReferencesWire struct {
 	Project struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"project"`
 	Pipeline struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"pipeline"`
 	Workflow struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"workflow"`
 	User struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"user"`
 }
 
 type jobWire struct {
-	ID         string            `json:"id"`
+	ID         uuid.UUID         `json:"id"`
 	Attributes jobAttributesWire `json:"attributes"`
 	References jobReferencesWire `json:"references"`
 }
@@ -176,7 +176,7 @@ type jobWire struct {
 
 // JobV3 holds job detail from the V3 API.
 type JobV3 struct {
-	ID         string           `json:"id"`
+	ID         uuid.UUID        `json:"id"`
 	Name       string           `json:"name"`
 	Type       string           `json:"type"`
 	Phase      string           `json:"phase"`
@@ -184,9 +184,9 @@ type JobV3 struct {
 	StartedAt  time.Time        `json:"started_at"`
 	StoppedAt  *time.Time       `json:"stopped_at,omitempty"`
 	Executions []JobV3Execution `json:"executions"`
-	ProjectID  string           `json:"project_id"`
-	PipelineID string           `json:"pipeline_id"`
-	WorkflowID string           `json:"workflow_id"`
+	ProjectID  uuid.UUID        `json:"project_id"`
+	PipelineID uuid.UUID        `json:"pipeline_id"`
+	WorkflowID uuid.UUID        `json:"workflow_id"`
 }
 
 // Status derives a display status from phase and outcome.
@@ -219,7 +219,7 @@ func (s JobV3Step) Status() string {
 }
 
 // GetJobV3 fetches job detail from the V3 API by UUID.
-func (c *Client) GetJobV3(ctx context.Context, id string) (*JobV3, error) {
+func (c *Client) GetJobV3(ctx context.Context, id uuid.UUID) (*JobV3, error) {
 	var env v3Entity[jobWire]
 	if err := c.getV3(ctx, "/jobs/%s", &env, routeParams(id)); err != nil {
 		return nil, err

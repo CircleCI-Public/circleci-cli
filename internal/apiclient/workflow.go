@@ -25,6 +25,8 @@ package apiclient
 import (
 	"context"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // --- V3 wire types ---
@@ -40,18 +42,18 @@ type workflowAttributesWire struct {
 
 type workflowReferencesWire struct {
 	Run struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"run"`
 	Project struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"project"`
 	User struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"user"`
 }
 
 type workflowWire struct {
-	ID         string                 `json:"id"`
+	ID         uuid.UUID              `json:"id"`
 	Attributes workflowAttributesWire `json:"attributes"`
 	References workflowReferencesWire `json:"references"`
 }
@@ -75,15 +77,15 @@ func (w workflowWire) toWorkflowV3() WorkflowV3 {
 
 // WorkflowV3 holds workflow detail from the V3 API.
 type WorkflowV3 struct {
-	ID             string     `json:"id"`
+	ID             uuid.UUID  `json:"id"`
 	Name           string     `json:"name"`
 	Phase          string     `json:"phase"`
 	Outcome        string     `json:"outcome,omitempty"`
 	CurrentOutcome string     `json:"current_outcome,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
-	RunID          string     `json:"run_id"`
-	ProjectID      string     `json:"project_id"`
+	RunID          uuid.UUID  `json:"run_id"`
+	ProjectID      uuid.UUID  `json:"project_id"`
 }
 
 // Status derives a display status from phase and outcome.
@@ -92,7 +94,7 @@ func (w WorkflowV3) Status() string {
 }
 
 // GetWorkflowV3 fetches a single workflow by UUID from the V3 API.
-func (c *Client) GetWorkflowV3(ctx context.Context, id string) (*WorkflowV3, error) {
+func (c *Client) GetWorkflowV3(ctx context.Context, id uuid.UUID) (*WorkflowV3, error) {
 	var env v3Entity[workflowWire]
 	if err := c.getV3(ctx, "/workflows/%s", &env, routeParams(id)); err != nil {
 		return nil, err
@@ -102,9 +104,9 @@ func (c *Client) GetWorkflowV3(ctx context.Context, id string) (*WorkflowV3, err
 }
 
 // GetRunWorkflowsV3 fetches workflows for a run from the V3 API.
-func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID string) ([]WorkflowV3, error) {
+func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID uuid.UUID) ([]WorkflowV3, error) {
 	var resp v3List[workflowWire]
-	if err := c.getV3(ctx, "/workflows", &resp, filterParam("run_id", runID)); err != nil {
+	if err := c.getV3(ctx, "/workflows", &resp, filterParam("run_id", runID.String())); err != nil {
 		return nil, err
 	}
 	workflows := make([]WorkflowV3, len(resp.Data))
@@ -128,9 +130,9 @@ func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) 
 
 // CancelWorkflow requests cancellation of a running workflow. Cancellation
 // is processed asynchronously; the V3 API acknowledges with the workflow id.
-func (c *Client) CancelWorkflow(ctx context.Context, id string) error {
+func (c *Client) CancelWorkflow(ctx context.Context, id uuid.UUID) error {
 	var resp v3Entity[struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	}]
 	return c.postV3(ctx, "/workflows/%s/cancel", nil, &resp,
 		routeParams(id),
@@ -178,28 +180,28 @@ type workflowJobAttributesWire struct {
 
 type workflowJobReferencesWire struct {
 	Workflow struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"workflow"`
 	Project struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"project"`
 }
 
 type workflowJobWire struct {
-	ID         string                    `json:"id"`
+	ID         uuid.UUID                 `json:"id"`
 	Attributes workflowJobAttributesWire `json:"attributes"`
 	References workflowJobReferencesWire `json:"references"`
 }
 
 // WorkflowJobV3 is a job belonging to a workflow from the V3 API.
 type WorkflowJobV3 struct {
-	ID             string     `json:"id"`
+	ID             uuid.UUID  `json:"id"`
 	Name           string     `json:"name"`
 	Phase          string     `json:"phase"`
 	Outcome        string     `json:"outcome,omitempty"`
 	CurrentOutcome string     `json:"current_outcome,omitempty"`
 	Type           string     `json:"type,omitempty"`
-	ProjectID      string     `json:"project_id"`
+	ProjectID      uuid.UUID  `json:"project_id"`
 	StartedAt      *time.Time `json:"started_at,omitempty"`
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
 }
@@ -225,10 +227,10 @@ func (w workflowJobWire) toDomain() WorkflowJobV3 {
 }
 
 // GetWorkflowJobsV3 returns all jobs for a workflow via the V3 API.
-func (c *Client) GetWorkflowJobsV3(ctx context.Context, workflowID string) ([]WorkflowJobV3, error) {
+func (c *Client) GetWorkflowJobsV3(ctx context.Context, workflowID uuid.UUID) ([]WorkflowJobV3, error) {
 	var resp v3List[workflowJobWire]
 	err := c.getV3(ctx, "/jobs", &resp,
-		filterParam("workflow_id", workflowID),
+		filterParam("workflow_id", workflowID.String()),
 	)
 	if err != nil {
 		return nil, err

@@ -28,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -87,35 +88,40 @@ func newGetCmd() *cobra.Command {
 }
 
 type workflowGetOutput struct {
-	ID             string      `json:"id"`
+	ID             uuid.UUID   `json:"id"`
 	Name           string      `json:"name"`
 	Phase          string      `json:"phase"`
 	Outcome        string      `json:"outcome,omitempty"`
 	CurrentOutcome string      `json:"current_outcome,omitempty"`
-	RunID          string      `json:"run_id"`
+	RunID          uuid.UUID   `json:"run_id"`
 	CreatedAt      string      `json:"created_at"`
 	EndedAt        string      `json:"ended_at,omitempty"`
 	Jobs           []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Phase          string `json:"phase"`
-	Outcome        string `json:"outcome,omitempty"`
-	CurrentOutcome string `json:"current_outcome,omitempty"`
-	Type           string `json:"type,omitempty"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	Phase          string    `json:"phase"`
+	Outcome        string    `json:"outcome,omitempty"`
+	CurrentOutcome string    `json:"current_outcome,omitempty"`
+	Type           string    `json:"type,omitempty"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bool) error {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return err
+	}
+
 	wf, err := client.GetWorkflowV3(ctx, id)
 	if err != nil {
-		return apiErr(err, id)
+		return apiErr(err, id.String())
 	}
 
 	jobs, err := client.GetWorkflowJobsV3(ctx, id)
 	if err != nil {
-		return apiErr(err, id)
+		return apiErr(err, id.String())
 	}
 
 	out := workflowGetOutput{
@@ -145,17 +151,25 @@ func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bo
 		return iostream.PrintJSON(ctx, out)
 	}
 
-	printGet(ctx, out)
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.WorkflowURL(appURL, id)
+
+	printGet(ctx, out, u)
 	return nil
 }
 
-func printGet(ctx context.Context, w workflowGetOutput) {
+func printGet(ctx context.Context, w workflowGetOutput, u string) {
 	var md strings.Builder
 	md.WriteString("# Workflow\n")
 
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", w.Name)
 	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", w.RunID)
+	_, _ = fmt.Fprintf(&md, "- URL: <%s>\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
 	if w.EndedAt != "" {
@@ -166,7 +180,7 @@ func printGet(ctx context.Context, w workflowGetOutput) {
 		_, _ = fmt.Fprintf(&md, "\n## Jobs\n")
 		table := mdtable.New("Name", "Status", "Type", "ID")
 		for _, j := range w.Jobs {
-			table.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, j.ID)
+			table.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
 		}
 		md.WriteString(table.Render())
 	}

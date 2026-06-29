@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -105,7 +106,7 @@ func newGetCmd() *cobra.Command {
 }
 
 type runGetOutput struct {
-	ID             string           `json:"id"`
+	ID             uuid.UUID        `json:"id"`
 	Phase          string           `json:"phase"`
 	Outcome        string           `json:"outcome,omitempty"`
 	CurrentOutcome string           `json:"current_outcome,omitempty"`
@@ -123,7 +124,7 @@ type errorOutput struct {
 }
 
 type workflowOutput struct {
-	ID             string      `json:"id"`
+	ID             uuid.UUID   `json:"id"`
 	Name           string      `json:"name"`
 	Phase          string      `json:"phase"`
 	Outcome        string      `json:"outcome,omitempty"`
@@ -133,12 +134,12 @@ type workflowOutput struct {
 }
 
 type jobOutput struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Phase          string `json:"phase"`
-	Outcome        string `json:"outcome,omitempty"`
-	CurrentOutcome string `json:"current_outcome,omitempty"`
-	Type           string `json:"type,omitempty"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	Phase          string    `json:"phase"`
+	Outcome        string    `json:"outcome,omitempty"`
+	CurrentOutcome string    `json:"current_outcome,omitempty"`
+	Type           string    `json:"type,omitempty"`
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
@@ -148,9 +149,14 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	)
 
 	if len(args) == 1 {
-		r, err = client.GetRunV3(ctx, args[0])
+		id, err := uuid.Parse(args[0])
 		if err != nil {
-			return apiErr(err, args[0])
+			return err
+		}
+
+		r, err = client.GetRunV3(ctx, id)
+		if err != nil {
+			return apiErr(err, id.String())
 		}
 	} else {
 		info, err := gitremote.Detect()
@@ -195,7 +201,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		// The workflows API can 404 for a run that exists (e.g. workflows
 		// not yet materialised) — still show the run, with no workflows.
 		if !httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return apiErr(err, r.ID)
+			return apiErr(err, r.ID.String())
 		}
 		workflows = nil
 	}
@@ -204,7 +210,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	for i, wf := range workflows {
 		jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
 		if err != nil {
-			return apiErr(err, wf.ID)
+			return apiErr(err, wf.ID.String())
 		}
 		wfJobs[i] = jobs
 	}
@@ -215,7 +221,14 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		return iostream.PrintJSON(ctx, out)
 	}
 
-	printRun(ctx, out)
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.RunURL(appURL, r.ID)
+
+	printRun(ctx, out, u)
 	return nil
 }
 
@@ -301,7 +314,7 @@ func deriveDisplayStatus(r runGetOutput) string {
 	return apiclient.PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
 }
 
-func printRun(ctx context.Context, r runGetOutput) {
+func printRun(ctx context.Context, r runGetOutput, u string) {
 	var md strings.Builder
 	md.WriteString("# Run\n")
 
@@ -315,6 +328,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 	if r.Revision != "" {
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", r.Revision)
 	}
+	_, _ = fmt.Fprintf(&md, "- URL: <%s>\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", deriveDisplayStatus(r))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", r.CreatedAt)
 
@@ -332,6 +346,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 		md.WriteString("## Workflows\n")
 		for _, w := range r.Workflows {
 			_, _ = fmt.Fprintf(&md, "### %s\n", w.Name)
+			_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
 			_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 			if w.Duration != "" {
 				_, _ = fmt.Fprintf(&md, "- Duration: %s\n", w.Duration)
@@ -339,7 +354,7 @@ func printRun(ctx context.Context, r runGetOutput) {
 			md.WriteString("#### Jobs\n")
 			mdTable := mdtable.New("Name", "Status", "Type", "ID")
 			for _, j := range w.Jobs {
-				mdTable.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID+"`")
+				mdTable.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
 			}
 			md.WriteString(mdTable.Render())
 		}

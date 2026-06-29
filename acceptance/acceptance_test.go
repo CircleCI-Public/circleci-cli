@@ -24,8 +24,11 @@ package acceptance_test
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -33,6 +36,24 @@ import (
 )
 
 const testToken = "test-token"
+
+// osc8IDPattern matches the id parameter of an OSC-8 hyperlink. glamour derives
+// it from an fnv hash of the full URL — which includes the random test port —
+// so it must be neutralized alongside the host for stable golden files.
+var osc8IDPattern = regexp.MustCompile(`8;id=\d+;`)
+
+// normalizeAppHost replaces the fake server's app host (e.g.
+// "app.127.0.0.1:54321", derived from the random test port) with a stable
+// placeholder so that golden files containing browser URLs stay deterministic.
+// It also neutralizes the port-dependent OSC-8 hyperlink id emitted in color
+// output.
+func normalizeAppHost(s, fakeURL string) string {
+	u, err := url.Parse(fakeURL)
+	if err == nil && u.Host != "" {
+		s = strings.ReplaceAll(s, "app."+u.Host, "app.circleci.test")
+	}
+	return osc8IDPattern.ReplaceAllString(s, "8;id=link;")
+}
 
 // ignoreCommonHeaders excludes headers that are set uniformly by the API client
 // (and therefore uninteresting to a per-command mutation assertion) so that

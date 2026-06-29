@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -88,27 +89,41 @@ func newGetCmd() *cobra.Command {
 	return cmd
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, id string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bool) error {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return err
+	}
+
 	job, err := client.GetJobV3(ctx, id)
 	if err != nil {
-		return cmdutil.APIErr(err, id, "job.not_found", "No job found for %q.")
+		return cmdutil.APIErr(err, id.String(), "job.not_found", "No job found for %q.")
 	}
 
 	if jsonOut {
 		return iostream.PrintJSON(ctx, job)
 	}
 
-	printGet(ctx, job)
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.JobURL(appURL, job.WorkflowID, id)
+
+	printGet(ctx, job, u)
 	return nil
 }
 
-func printGet(ctx context.Context, j *apiclient.JobV3) {
+func printGet(ctx context.Context, j *apiclient.JobV3, u string) {
+
 	var md strings.Builder
 	md.WriteString("# Job\n")
 
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", j.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", j.Name)
 	_, _ = fmt.Fprintf(&md, "- Type: %s\n", j.Type)
+	_, _ = fmt.Fprintf(&md, "- URL: <%s>\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", j.Status())
 	_, _ = fmt.Fprintf(&md, "- Started: %s\n", j.StartedAt.Format("2006-01-02 15:04:05 UTC"))
 	if j.StoppedAt != nil {

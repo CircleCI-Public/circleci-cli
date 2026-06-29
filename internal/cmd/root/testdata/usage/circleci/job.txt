@@ -3,4 +3,5 @@ Usage:  circleci job <command>
 Available commands:
   artifact
   get
+  open
   output

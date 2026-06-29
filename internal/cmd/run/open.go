@@ -23,19 +23,26 @@
 package run
 
 import (
+	"context"
+	"fmt"
+	"time"
+
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/browser"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newOpenCmd() *cobra.Command {
-	var branch string
-	var currentBranch bool
+	var (
+		projectSlug string
+		branch      string
+	)
 
 	cmd := &cobra.Command{
 		Use:   "open",
@@ -65,52 +72,79 @@ func newOpenCmd() *cobra.Command {
 			# Open when your remote is on CircleCI server
 			$ circleci run open --host https://circleci.example.com
 		`),
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			if branch != "" && currentBranch {
-				return clierrors.New("flag.conflict",
-					"conflicting flags",
-					"--branch and --current-branch cannot be used together").
-					WithSuggestions("Use --current-branch to filter by your checked-out branch, or --branch <name> to specify one explicitly").
-					WithExitCode(clierrors.ExitBadArguments)
-			}
-
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-
-			info, err := gitremote.Detect()
-			if err != nil {
-				return clierrors.New("git.detect_failed",
-					"Could not detect project from git remote", err.Error()).
-					WithSuggestions(
-						"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
-					).
-					WithExitCode(clierrors.ExitBadArguments)
-			}
-
-			appURL, err := cmdutil.AppURL(ctx)
+			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-
-			if currentBranch {
-				branch = info.Branch
-			}
-
-			var u string
-			if branch != "" {
-				u, err = cmdutil.PipelinesURLForBranch(appURL, info.Slug, branch)
-			} else {
-				u, err = cmdutil.PipelinesURL(appURL, info.Slug)
-			}
-			if err != nil {
-				return err
-			}
-
-			return browser.OpenURLOrPrint(iostream.Err(ctx), u)
+			return runOpen(ctx, client, args, projectSlug, branch)
 		},
 	}
 
-	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter runs to a specific branch")
-	cmd.Flags().BoolVar(&currentBranch, "current-branch", false, "Filter runs to the current git branch")
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used for latest-run lookup")
+	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch name (defaults to current branch)")
 
 	return cmd
+}
+
+func runOpen(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string) error {
+
+	var (
+		id  uuid.UUID
+		err error
+	)
+
+	if len(args) == 1 {
+		id, err = uuid.Parse(args[0])
+		if err != nil {
+			return apiErr(err, args[0])
+		}
+	} else {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci run get <uuid>")
+		}
+		if projectSlug == "" {
+			projectSlug = info.Slug
+		}
+
+		effectiveBranch := branch
+		if effectiveBranch == "" {
+			effectiveBranch = info.Branch
+		}
+
+		proj, err := client.GetProjectInfo(ctx, projectSlug)
+		if err != nil {
+			return apiErr(err, projectSlug)
+		}
+
+		sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching latest run for %s on branch %s", projectSlug, effectiveBranch))
+		now := time.Now().UTC()
+		runs, searchErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+			ProjectIDs: []string{proj.ID},
+			From:       now.AddDate(0, 0, -90),
+			To:         now,
+			Filter:     apiclient.BuildRunFilter(effectiveBranch, ""),
+			Limit:      1,
+		})
+		sp.Stop()
+		if searchErr != nil {
+			return apiErr(searchErr, fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+		}
+		if len(runs) == 0 {
+			return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+		}
+		id = runs[0].ID
+	}
+
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.RunURL(appURL, id)
+
+	return browser.OpenURLOrPrint(iostream.Err(ctx), u)
 }
