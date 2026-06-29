@@ -24,7 +24,7 @@
 # Page links are page-relative, so they resolve under any path; baseURL only
 # affects absolute URLs like sitemap.xml. Keep the trailing slash.
 baseURL = "https://cli.circleci.com/"
-languageCode = "en-us"
+locale = "en-us"
 title = "CircleCI CLI"
 
 # Landing page (/) + the reference section (/reference); no taxonomy/term/RSS/404.
