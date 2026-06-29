@@ -52,9 +52,9 @@ func TestMyRuns(t *testing.T) {
 	// web has two runs (newest and oldest overall); api has one in between.
 	// Expected grouping: acme/web (run-1, run-3) then acme/api (run-2).
 	fake.SetUserRuns(
-		fakeMyRunV3("run-3", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
-		fakeMyRunV3("run-1", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
-		fakeMyRunV3("run-2", "proj-b", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a003", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a001", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a002", "a0000000-0000-4000-8000-00000000aa02", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
 	)
 
 	env := testenv.New(t)
@@ -98,9 +98,9 @@ func TestMyRuns_Empty(t *testing.T) {
 func TestMyRuns_Limit(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.SetUserRuns(
-		fakeMyRunV3("run-1", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
-		fakeMyRunV3("run-2", "proj-b", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
-		fakeMyRunV3("run-3", "proj-c", "ended", "succeeded", "https://github.com/acme/cli", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a001", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a002", "a0000000-0000-4000-8000-00000000aa02", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a003", "a0000000-0000-4000-8000-00000000aa03", "ended", "succeeded", "https://github.com/acme/cli", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
 	)
 
 	env := testenv.New(t)
@@ -123,9 +123,9 @@ func TestMyRuns_Limit(t *testing.T) {
 func TestMyRuns_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.SetUserRuns(
-		fakeMyRunV3("run-3", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
-		fakeMyRunV3("run-1", "proj-a", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
-		fakeMyRunV3("run-2", "proj-b", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a003", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a001", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000a002", "a0000000-0000-4000-8000-00000000aa02", "ended", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T09:00:00Z"),
 	)
 
 	env := testenv.New(t)
@@ -150,8 +150,8 @@ func TestMyRuns_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["repository"], "acme/web"))
 	webRuns := out[0]["runs"].([]any)
 	assert.Check(t, cmp.Len(webRuns, 2))
-	assert.Check(t, cmp.Equal(webRuns[0].(map[string]any)["id"], "run-1"))
-	assert.Check(t, cmp.Equal(webRuns[1].(map[string]any)["id"], "run-3"))
+	assert.Check(t, cmp.Equal(webRuns[0].(map[string]any)["id"], "e0000000-0000-4000-8000-00000000a001"))
+	assert.Check(t, cmp.Equal(webRuns[1].(map[string]any)["id"], "e0000000-0000-4000-8000-00000000a003"))
 
 	// Second group: acme/api with one run.
 	assert.Check(t, cmp.Equal(out[1]["repository"], "acme/api"))

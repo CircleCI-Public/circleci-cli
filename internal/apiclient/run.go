@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // --- V3 wire types ---
@@ -58,10 +60,10 @@ type runReferencesWire struct {
 	Event   runEventRefWire   `json:"event"`
 	Trigger runTriggerRefWire `json:"trigger"`
 	Project struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"project"`
 	User struct {
-		ID string `json:"id"`
+		ID uuid.UUID `json:"id"`
 	} `json:"user"`
 }
 
@@ -82,7 +84,7 @@ type runTriggerRefWire struct {
 }
 
 type runWire struct {
-	ID         string            `json:"id"`
+	ID         uuid.UUID         `json:"id"`
 	Attributes runAttributesWire `json:"attributes"`
 	References runReferencesWire `json:"references"`
 }
@@ -97,7 +99,7 @@ type RunError struct {
 
 // RunV3 holds run detail from the V3 API.
 type RunV3 struct {
-	ID             string     `json:"id"`
+	ID             uuid.UUID  `json:"id"`
 	Phase          string     `json:"phase"`
 	Outcome        string     `json:"outcome,omitempty"`
 	CurrentOutcome string     `json:"current_outcome,omitempty"`
@@ -106,7 +108,7 @@ type RunV3 struct {
 	Revision       string     `json:"revision,omitempty"`
 	RepositoryURL  string     `json:"repository_url,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
-	ProjectID      string     `json:"project_id"`
+	ProjectID      uuid.UUID  `json:"project_id"`
 	Errors         []RunError `json:"errors,omitempty"`
 }
 
@@ -148,7 +150,7 @@ func (w runWire) toRunV3() *RunV3 {
 }
 
 // GetRunV3 fetches a single run by UUID from the V3 API.
-func (c *Client) GetRunV3(ctx context.Context, id string) (*RunV3, error) {
+func (c *Client) GetRunV3(ctx context.Context, id uuid.UUID) (*RunV3, error) {
 	var env v3Entity[runWire]
 	if err := c.getV3(ctx, "/runs/%s", &env, routeParams(id)); err != nil {
 		return nil, err

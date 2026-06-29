@@ -207,7 +207,7 @@ func runProjectCreate(ctx context.Context, client *apiclient.Client, vcs, org, n
 		return cmdutil.WriteJSON(iostream.Out(ctx), out)
 	}
 
-	pipelinesURL, _ := cmdutil.PipelinesURL(appURL, out.Slug)
+	pipelinesURL, _ := cmdutil.RunSlugURL(appURL, out.Slug)
 	printCreatedProject(ctx, out, pipelinesURL)
 	return nil
 }

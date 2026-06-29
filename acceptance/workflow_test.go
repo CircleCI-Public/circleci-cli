@@ -55,8 +55,8 @@ func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.AddWorkflowV3(testWorkflowDetailID,
 		fakeWorkflowV3(testWorkflowDetailID, "build", testPipelineForWF, wfProjectID, "ended", "failed"))
 	fake.AddWorkflowJobsV3(testWorkflowDetailID,
-		fakeJobV3("job-uuid-201", "run-tests", testWorkflowDetailID, wfProjectID),
-		fakeJobV3("job-uuid-202", "deploy", testWorkflowDetailID, wfProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-000000000201", "run-tests", testWorkflowDetailID, wfProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-000000000202", "deploy", testWorkflowDetailID, wfProjectID),
 	)
 	fake.SetRerunResponse(testWorkflowDetailID, http.StatusAccepted)
 	fake.SetCancelResponse(testWorkflowDetailID, http.StatusAccepted)
@@ -70,7 +70,7 @@ func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 // --- workflow get ---
 
 func TestWorkflowGet(t *testing.T) {
-	_, env := setupWorkflowFake(t)
+	fake, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -80,11 +80,11 @@ func TestWorkflowGet(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestWorkflowGet_Color(t *testing.T) {
-	_, env := setupWorkflowFake(t)
+	fake, env := setupWorkflowFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -95,7 +95,7 @@ func TestWorkflowGet_Color(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestWorkflowGet_JSON(t *testing.T) {
@@ -223,8 +223,8 @@ func TestWorkflowGet_NoToken_JSON(t *testing.T) {
 func TestWorkflowList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddRunWorkflowsV3(testPipelineForWF,
-		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
-		fakeWorkflowV3("wf-uuid-bbb", "deploy", testPipelineForWF, "proj-1", "ended", "failed"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-0000000000aa", "build", testPipelineForWF, "a0000000-0000-4000-8000-000000000010", "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-0000000000bb", "deploy", testPipelineForWF, "a0000000-0000-4000-8000-000000000010", "ended", "failed"),
 	)
 
 	env := testenv.New(t)
@@ -245,8 +245,8 @@ func TestWorkflowList(t *testing.T) {
 func TestWorkflowList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddRunWorkflowsV3(testPipelineForWF,
-		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
-		fakeWorkflowV3("wf-uuid-bbb", "deploy", testPipelineForWF, "proj-1", "ended", "failed"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-0000000000aa", "build", testPipelineForWF, "a0000000-0000-4000-8000-000000000010", "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-0000000000bb", "deploy", testPipelineForWF, "a0000000-0000-4000-8000-000000000010", "ended", "failed"),
 	)
 
 	env := testenv.New(t)
@@ -268,7 +268,7 @@ func TestWorkflowList_Color(t *testing.T) {
 func TestWorkflowList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddRunWorkflowsV3(testPipelineForWF,
-		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-0000000000aa", "build", testPipelineForWF, "a0000000-0000-4000-8000-000000000010", "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -287,7 +287,7 @@ func TestWorkflowList_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 1))
-	assert.Check(t, cmp.Equal(out[0]["id"], "wf-uuid-aaa"))
+	assert.Check(t, cmp.Equal(out[0]["id"], "b0000000-0000-4000-8000-0000000000aa"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
 	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
@@ -298,7 +298,7 @@ func TestWorkflowList_JSON(t *testing.T) {
 func TestWorkflowList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddRunWorkflowsV3(testPipelineForWF,
-		fakeWorkflowV3("wf-uuid-aaa", "build", testPipelineForWF, "proj-1", "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-0000000000aa", "build", testPipelineForWF, "a0000000-0000-4000-8000-000000000010", "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -371,7 +371,7 @@ func TestWorkflowList_NoToken(t *testing.T) {
 
 const testRunRecent1 = "bbbbbbbb-0000-0000-0000-000000000001"
 const testRunRecent2 = "bbbbbbbb-0000-0000-0000-000000000002"
-const wfListProjectID = "proj-uuid-wflist"
+const wfListProjectID = "a0000000-0000-4000-8000-00000000f100"
 
 func setupRecentRuns(t *testing.T, fake *fakes.CircleCI) {
 	t.Helper()
@@ -381,11 +381,11 @@ func setupRecentRuns(t *testing.T, fake *fakes.CircleCI) {
 	fake.AddRunV3(testRunRecent2, wfListProjectID,
 		fakeRunV3(testRunRecent2, wfListProjectID, "started", "", "main", "abc1234567890"))
 	fake.AddRunWorkflowsV3(testRunRecent1,
-		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
-		fakeWorkflowV3("wf-recent-bbb", "deploy", testRunRecent1, wfListProjectID, "ended", "failed"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-00000000fa01", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-00000000fb01", "deploy", testRunRecent1, wfListProjectID, "ended", "failed"),
 	)
 	fake.AddRunWorkflowsV3(testRunRecent2,
-		fakeWorkflowV3("wf-recent-ccc", "build", testRunRecent2, wfListProjectID, "started", ""),
+		fakeWorkflowV3("b0000000-0000-4000-8000-00000000fc01", "build", testRunRecent2, wfListProjectID, "started", ""),
 	)
 }
 
@@ -434,7 +434,7 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	fake.AddRunV3(testRunRecent1, wfListProjectID,
 		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
 	fake.AddRunWorkflowsV3(testRunRecent1,
-		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-00000000fa01", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)
@@ -454,7 +454,7 @@ func TestWorkflowList_NoArg_JSON(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 1))
 	assert.Check(t, cmp.Equal(out[0]["run_id"], testRunRecent1))
-	assert.Check(t, cmp.Equal(out[0]["id"], "wf-recent-aaa"))
+	assert.Check(t, cmp.Equal(out[0]["id"], "b0000000-0000-4000-8000-00000000fa01"))
 	assert.Check(t, cmp.Equal(out[0]["name"], "build"))
 	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
 	assert.Check(t, cmp.Equal(out[0]["outcome"], "succeeded"))
@@ -468,7 +468,7 @@ func TestWorkflowList_NoArg_JSON_Color(t *testing.T) {
 	fake.AddRunV3(testRunRecent1, wfListProjectID,
 		fakeRunV3(testRunRecent1, wfListProjectID, "ended", "succeeded", "main", "abc1234567890"))
 	fake.AddRunWorkflowsV3(testRunRecent1,
-		fakeWorkflowV3("wf-recent-aaa", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
+		fakeWorkflowV3("b0000000-0000-4000-8000-00000000fa01", "build", testRunRecent1, wfListProjectID, "ended", "succeeded"),
 	)
 
 	env := testenv.New(t)

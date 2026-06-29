@@ -43,8 +43,9 @@ func NewJobCmd() *cobra.Command {
 	}
 
 	cmdutil.AddGroup(cmd, "Targeted commands",
-		newGetCmd(),
 		newArtifactCmd(),
+		newGetCmd(),
+		newOpenCmd(),
 		newOutputCmd(),
 	)
 

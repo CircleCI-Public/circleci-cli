@@ -29,6 +29,7 @@ import (
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -97,7 +98,7 @@ func newCancelCmd() *cobra.Command {
 }
 
 func runCancel(ctx context.Context, client *apiclient.Client, arg, projectSlug string, force bool) error {
-	runID := arg
+	var runID uuid.UUID
 	displayName := arg
 
 	if looksLikeNumber(arg) {
@@ -115,6 +116,12 @@ func runCancel(ctx context.Context, client *apiclient.Client, arg, projectSlug s
 		}
 		runID = r.ID
 		displayName = fmt.Sprintf("#%d", r.Number)
+	} else {
+		id, err := uuid.Parse(arg)
+		if err != nil {
+			return apiErr(err, arg)
+		}
+		runID = id
 	}
 
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,

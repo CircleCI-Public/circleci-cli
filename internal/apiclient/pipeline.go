@@ -27,12 +27,14 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Pipeline represents a CircleCI pipeline.
 type Pipeline struct {
-	ID                string                     `json:"id"`
+	ID                uuid.UUID                  `json:"id"`
 	State             string                     `json:"state"`
 	Number            int64                      `json:"number"`
 	CreatedAt         time.Time                  `json:"created_at"`

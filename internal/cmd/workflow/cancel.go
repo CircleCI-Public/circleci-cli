@@ -27,6 +27,7 @@ import (
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -79,7 +80,12 @@ func newCancelCmd() *cobra.Command {
 				return err
 			}
 
-			return runCancel(ctx, client, args[0], force)
+			id, err := uuid.Parse(args[0])
+			if err != nil {
+				return err
+			}
+
+			return runCancel(ctx, client, id, force)
 		},
 	}
 
@@ -87,7 +93,7 @@ func newCancelCmd() *cobra.Command {
 	return cmd
 }
 
-func runCancel(ctx context.Context, client *apiclient.Client, id string, force bool) error {
+func runCancel(ctx context.Context, client *apiclient.Client, id uuid.UUID, force bool) error {
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 		fmt.Sprintf("Cancel workflow %s? In-progress jobs will be stopped.", id),
 		clierrors.New("workflow.cancel_aborted", "Cancellation aborted",
@@ -101,7 +107,7 @@ func runCancel(ctx context.Context, client *apiclient.Client, id string, force b
 	}
 
 	if err := client.CancelWorkflow(ctx, id); err != nil {
-		return apiErr(err, id)
+		return apiErr(err, id.String())
 	}
 
 	iostream.Printf(ctx, "%s Cancelled workflow %s\n", iostream.SymbolOK(ctx), id)

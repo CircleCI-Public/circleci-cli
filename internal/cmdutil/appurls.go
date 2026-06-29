@@ -27,6 +27,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
@@ -39,8 +41,7 @@ func ParseSlug(slug string) (vcs, org, repo string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-// PipelinesURL returns the CircleCI pipelines page URL for the given project slug.
-func PipelinesURL(appURL, slug string) (string, error) {
+func RunSlugURL(appURL string, slug string) (string, error) {
 	parts := strings.SplitN(slug, "/", 3)
 	if len(parts) != 3 {
 		return "", fmt.Errorf("invalid slug: %q", slug)
@@ -53,13 +54,17 @@ func PipelinesURL(appURL, slug string) (string, error) {
 	), nil
 }
 
-// PipelinesURLForBranch returns the CircleCI pipelines page URL filtered to a specific branch.
-func PipelinesURLForBranch(appURL, slug, branch string) (string, error) {
-	base, err := PipelinesURL(appURL, slug)
-	if err != nil {
-		return "", err
-	}
-	return base + "?branch=" + url.QueryEscape(branch), nil
+// RunURL returns the CircleCI pipelines page URL for the given project slug.
+func RunURL(appURL string, id uuid.UUID) string {
+	return fmt.Sprintf("%s/pipeline/%s", appURL, id)
+}
+
+func WorkflowURL(appURL string, id uuid.UUID) string {
+	return fmt.Sprintf("%s/workflow/%s", appURL, id)
+}
+
+func JobURL(appURL string, workflowID, jobID uuid.UUID) string {
+	return fmt.Sprintf("%s/workflow/%s/job/%s", appURL, workflowID, jobID)
 }
 
 // ProjectURL returns the CircleCI project page URL for the given project slug.

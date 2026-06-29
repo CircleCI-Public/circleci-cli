@@ -20,48 +20,60 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package workflow implements the "circleci workflow" command group.
 package workflow
 
 import (
+	"context"
+
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/browser"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-// NewWorkflowCmd returns the "circleci workflow" command group.
-func NewWorkflowCmd() *cobra.Command {
+func newOpenCmd() *cobra.Command {
+
 	cmd := &cobra.Command{
-		Use:     "workflow <command>",
-		GroupID: "ci",
-		Short:   "Inspect, rerun and cancel workflows (job graphs)",
-		Long: heredoc.Doc(`
-			Work with CircleCI workflows.
-
-			Workflows orchestrate jobs within a run. Use these commands to
-			inspect workflow status, rerun failed jobs, or cancel a running workflow.
-
-			Workflow IDs are shown in the output of 'circleci run get'.
+		Use:   "open <workflow-id>",
+		Short: "Open workflow in browser",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Doc(`
+				<workflow-id> is the UUID of the workflow to look up. Workflow IDs are
+				shown in the output of "circleci run get".
+			`),
+		},
+		Example: heredoc.Doc(`
+			# Open workflow details
+			$ circleci workflow open 5034460f-c7c4-4c43-9457-de07e2029e7b
 		`),
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cliErr := cmdutil.RequireArgs(args, "workflow-id"); cliErr != nil {
+				return cliErr
+			}
+			ctx := cmd.Context()
+			return runOpen(ctx, args[0])
+		},
 	}
-
-	cmdutil.AddGroup(cmd, "General commands",
-		newListCmd(),
-	)
-	cmdutil.AddGroup(cmd, "Targeted commands",
-		newCancelCmd(),
-		newGetCmd(),
-		newOpenCmd(),
-		newRerunCmd(),
-	)
 
 	return cmd
 }
 
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
-		"workflow.not_found", "No workflow found for %q.",
-		"Check the workflow ID with: circleci run get")
+func runOpen(ctx context.Context, idStr string) error {
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		return err
+	}
+
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.WorkflowURL(appURL, id)
+
+	return browser.OpenURLOrPrint(iostream.Err(ctx), u)
 }

@@ -42,7 +42,7 @@ import (
 )
 
 const watchSlug = "gh/testorg/testrepo"
-const watchProjectID = "proj-uuid-watch"
+const watchProjectID = "a0000000-0000-4000-8000-00000000fff0"
 
 // setupWatchFake builds a fake with one run whose single workflow has the
 // given status. It registers the run in both V2 (for number lookup and
@@ -71,8 +71,8 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 	}
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", v3WfOutcome))
 	fake.AddWorkflowJobsV3(wfID,
-		fakeJobV3("job-1", "lint", wfID, watchProjectID),
-		fakeJobV3("job-2", "test", wfID, watchProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-00000000f001", "lint", wfID, watchProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-00000000f002", "test", wfID, watchProjectID),
 	)
 
 	env := testenv.New(t)
@@ -84,7 +84,7 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 // --- watch by number ---
 
 func TestRunWatch_ByNumber(t *testing.T) {
-	_, env := setupWatchFake(t, "watch-pid-001", "watch-wf-001", "success")
+	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-000000000001", "b0000000-0000-4000-8000-0000000f0001", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -94,7 +94,7 @@ func TestRunWatch_ByNumber(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "watch-pid-001"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "f0000000-0000-4000-8000-000000000001"), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
@@ -102,7 +102,7 @@ func TestRunWatch_ByNumber(t *testing.T) {
 
 func TestRunWatch_ByUUID(t *testing.T) {
 	runID := "0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd"
-	_, env := setupWatchFake(t, runID, "watch-wf-uuid-001", "success")
+	_, env := setupWatchFake(t, runID, "b0000000-0000-4000-8000-0000000f0a01", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -119,14 +119,14 @@ func TestRunWatch_ByUUID(t *testing.T) {
 // --- watch latest (no number arg) ---
 
 func TestRunWatch_Latest(t *testing.T) {
-	runID := "watch-pid-002"
-	wfID := "watch-wf-002"
+	runID := "f0000000-0000-4000-8000-000000000002"
+	wfID := "b0000000-0000-4000-8000-0000000f0002"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
 	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-00000000f001", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -146,7 +146,7 @@ func TestRunWatch_Latest(t *testing.T) {
 // --- failed run → exit 1 ---
 
 func TestRunWatch_Failed(t *testing.T) {
-	_, env := setupWatchFake(t, "watch-pid-003", "watch-wf-003", "failed")
+	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-000000000003", "b0000000-0000-4000-8000-0000000f0003", "failed")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -163,10 +163,10 @@ func TestRunWatch_Failed(t *testing.T) {
 // --- failed pipeline with a failed job → suggests viewing logs ---
 
 func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
-	runID := "watch-pid-failedjob"
-	wfID := "watch-wf-failedjob"
+	runID := "f0000000-0000-4000-8000-00000000fa11"
+	wfID := "b0000000-0000-4000-8000-0000000fa011"
 
-	failedJob := fakeJobV3("job-1", "integration-test", wfID, watchProjectID)
+	failedJob := fakeJobV3("d0000000-0000-4000-8000-00000000f001", "integration-test", wfID, watchProjectID)
 	failedJob["attributes"].(map[string]any)["phase"] = "ended"
 	failedJob["attributes"].(map[string]any)["outcome"] = "failed"
 
@@ -178,7 +178,7 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", "failed"))
 	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
-		fakeJobV3("job-2", "lint", wfID, watchProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-00000000f002", "lint", wfID, watchProjectID),
 	)
 
 	env := testenv.New(t)
@@ -201,7 +201,7 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 // --- cancelled run → exit 6 ---
 
 func TestRunWatch_Cancelled(t *testing.T) {
-	_, env := setupWatchFake(t, "watch-pid-004", "watch-wf-004", "canceled")
+	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-000000000004", "b0000000-0000-4000-8000-0000000f0004", "canceled")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -217,7 +217,7 @@ func TestRunWatch_Cancelled(t *testing.T) {
 // --- --sha: run already present ---
 
 func TestRunWatch_SHA(t *testing.T) {
-	_, env := setupWatchFake(t, "watch-pid-005", "watch-wf-005", "success")
+	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-000000000005", "b0000000-0000-4000-8000-0000000f0005", "success")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
@@ -257,10 +257,10 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
 
 func TestRunWatch_FailFast(t *testing.T) {
-	runID := "watch-pid-failfast"
-	wfID := "watch-wf-failfast"
+	runID := "f0000000-0000-4000-8000-00000000fa22"
+	wfID := "b0000000-0000-4000-8000-0000000fa022"
 
-	failedJob := fakeJobV3("job-1", "integration-test", wfID, watchProjectID)
+	failedJob := fakeJobV3("d0000000-0000-4000-8000-00000000f001", "integration-test", wfID, watchProjectID)
 	failedJob["attributes"].(map[string]any)["phase"] = "ended"
 	failedJob["attributes"].(map[string]any)["outcome"] = "failed"
 
@@ -272,7 +272,7 @@ func TestRunWatch_FailFast(t *testing.T) {
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
 	fake.AddWorkflowJobsV3(wfID,
 		failedJob,
-		fakeJobV3("job-2", "lint", wfID, watchProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-00000000f002", "lint", wfID, watchProjectID),
 	)
 
 	env := testenv.New(t)
@@ -294,8 +294,8 @@ func TestRunWatch_FailFast(t *testing.T) {
 // --- watch timeout while run still running → exit 8 ---
 
 func TestRunWatch_Timeout(t *testing.T) {
-	runID := "watch-pid-006"
-	wfID := "watch-wf-006"
+	runID := "f0000000-0000-4000-8000-000000000006"
+	wfID := "b0000000-0000-4000-8000-0000000f0006"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
@@ -303,7 +303,7 @@ func TestRunWatch_Timeout(t *testing.T) {
 	fake.AddRun(runID, fakeRun(runID, 77, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 77, "created", watchSlug, "main"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-00000000f001", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -324,8 +324,8 @@ func TestRunWatch_Timeout(t *testing.T) {
 func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows", "os.Interrupt is not supported on Windows")
 
-	runID := "watch-pid-interrupt"
-	wfID := "watch-wf-interrupt"
+	runID := "f0000000-0000-4000-8000-00000000ff33"
+	wfID := "b0000000-0000-4000-8000-0000000ff033"
 
 	fake := fakes.NewCircleCI(t)
 	addProjectInfo(fake, watchSlug, watchProjectID)
@@ -333,7 +333,7 @@ func TestRunWatch_InterruptDuringPolling(t *testing.T) {
 	fake.AddRun(runID, fakeRun(runID, 78, "created", watchSlug, "main"))
 	fake.AddProjectRuns(watchSlug, fakeRun(runID, 78, "created", watchSlug, "main"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "started", ""))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-1", "test", wfID, watchProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-00000000f001", "test", wfID, watchProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken

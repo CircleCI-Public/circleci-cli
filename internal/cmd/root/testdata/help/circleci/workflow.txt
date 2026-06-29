@@ -23,6 +23,7 @@ Workflow IDs are shown in the output of 'circleci run get'.
 | -------- | ------------------------- |
 | `cancel` | Cancel a running workflow |
 | `get`    | Get workflow details      |
+| `open`   | Open workflow in browser  |
 | `rerun`  | Rerun a workflow          |
 
 ## Inherited Flags

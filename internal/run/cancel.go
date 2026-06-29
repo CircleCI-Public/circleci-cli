@@ -27,13 +27,15 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/google/uuid"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
 // ErrNothingToCancel is returned by Cancel when the run exists but all
 // of its workflows are already in a terminal state.
 type ErrNothingToCancel struct {
-	RunID string
+	RunID uuid.UUID
 }
 
 func (e *ErrNothingToCancel) Error() string {
@@ -46,7 +48,7 @@ func (e *ErrNothingToCancel) Error() string {
 //
 // Returns ErrNothingToCancel when the run exists but all workflows are
 // already in a terminal state.
-func Cancel(ctx context.Context, client *apiclient.Client, runID string) error {
+func Cancel(ctx context.Context, client *apiclient.Client, runID uuid.UUID) error {
 	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
 		return err

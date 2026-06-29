@@ -29,6 +29,7 @@ import (
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -94,14 +95,14 @@ type projectRuns struct {
 }
 
 type runEntry struct {
-	ID             string `json:"id"`
-	Phase          string `json:"phase"`
-	Outcome        string `json:"outcome,omitempty"`
-	CurrentOutcome string `json:"current_outcome,omitempty"`
-	Branch         string `json:"branch,omitempty"`
-	Tag            string `json:"tag,omitempty"`
-	Revision       string `json:"revision,omitempty"`
-	CreatedAt      string `json:"created_at"`
+	ID             uuid.UUID `json:"id"`
+	Phase          string    `json:"phase"`
+	Outcome        string    `json:"outcome,omitempty"`
+	CurrentOutcome string    `json:"current_outcome,omitempty"`
+	Branch         string    `json:"branch,omitempty"`
+	Tag            string    `json:"tag,omitempty"`
+	Revision       string    `json:"revision,omitempty"`
+	CreatedAt      string    `json:"created_at"`
 }
 
 func runMyRuns(ctx context.Context, client *apiclient.Client, limit int, jsonOut bool) error {
@@ -180,7 +181,7 @@ func printRuns(ctx context.Context, groups []projectRuns) {
 			table.Row(
 				refDisplay(e.Branch, e.Tag),
 				e.Revision,
-				"`"+e.ID+"`",
+				"`"+e.ID.String()+"`",
 				e.CreatedAt,
 				apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome),
 			)

@@ -2,6 +2,7 @@
 - ID: `8e50c384-0083-43d0-bc8f-93f0db589d6b`
 - Name: yaml-lint
 - Type: build
+- URL: <http://app.circleci.test/workflow/c266c3a7-0dad-459a-aa7b-dd13e005b9a0/job/8e50c384-0083-43d0-bc8f-93f0db589d6b>
 - Status: succeeded
 - Started: 2026-05-19 20:29:13 UTC
 - Stopped: 2026-05-19 20:29:22 UTC

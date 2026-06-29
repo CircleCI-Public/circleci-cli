@@ -25,10 +25,10 @@ package workflow
 import (
 	"context"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -121,20 +121,20 @@ func newListCmd() *cobra.Command {
 }
 
 type workflowListOutput struct {
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Phase          string `json:"phase"`
-	Outcome        string `json:"outcome,omitempty"`
-	CurrentOutcome string `json:"current_outcome,omitempty"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	Phase          string    `json:"phase"`
+	Outcome        string    `json:"outcome,omitempty"`
+	CurrentOutcome string    `json:"current_outcome,omitempty"`
 }
 
 type workflowRecentOutput struct {
-	RunID          string `json:"run_id"`
-	ID             string `json:"id"`
-	Name           string `json:"name"`
-	Phase          string `json:"phase"`
-	Outcome        string `json:"outcome,omitempty"`
-	CurrentOutcome string `json:"current_outcome,omitempty"`
+	RunID          uuid.UUID `json:"run_id"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	Phase          string    `json:"phase"`
+	Outcome        string    `json:"outcome,omitempty"`
+	CurrentOutcome string    `json:"current_outcome,omitempty"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug string, jsonOut bool) error {
@@ -145,7 +145,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 
 	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
-		return apiErr(err, runID)
+		return apiErr(err, runID.String())
 	}
 
 	var out []workflowListOutput
@@ -173,7 +173,7 @@ func runList(ctx context.Context, client *apiclient.Client, arg, projectSlug str
 
 	table := mdtable.New("ID", "Name", "Status")
 	for _, wf := range out {
-		table.Row(wf.ID, wf.Name, apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome))
+		table.Row(wf.ID.String(), wf.Name, apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome))
 	}
 	iostream.PrintMarkdown(ctx, "# Workflows\n"+table.Render())
 	return nil
@@ -210,7 +210,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 		for _, r := range runs {
 			workflows, wErr := client.GetRunWorkflowsV3(ctx, r.ID)
 			if wErr != nil {
-				return apiErr(wErr, r.ID)
+				return apiErr(wErr, r.ID.String())
 			}
 			for _, wf := range workflows {
 				out = append(out, workflowRecentOutput{
@@ -242,7 +242,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 	for _, r := range runs {
 		workflows, wErr := client.GetRunWorkflowsV3(ctx, r.ID)
 		if wErr != nil {
-			return apiErr(wErr, r.ID)
+			return apiErr(wErr, r.ID.String())
 		}
 
 		revision := r.Revision
@@ -259,7 +259,7 @@ func runListRecent(ctx context.Context, client *apiclient.Client, projectSlug, b
 			if i > 0 {
 				ref, revision = "", ""
 			}
-			table.Row(ref, revision, wf.Name, wf.Status(), "`"+wf.ID+"`")
+			table.Row(ref, revision, wf.Name, wf.Status(), "`"+wf.ID.String()+"`")
 		}
 	}
 	iostream.PrintMarkdown(ctx, "# Workflows\n"+table.Render())
@@ -277,14 +277,14 @@ func refDisplay(branch, tag string) string {
 
 // resolveRunID returns a run UUID from either a UUID string or a
 // run number (requires project slug resolution from git if not provided).
-func resolveRunID(ctx context.Context, client *apiclient.Client, arg, projectSlug string) (string, error) {
-	if strings.Contains(arg, "-") {
-		return arg, nil
+func resolveRunID(ctx context.Context, client *apiclient.Client, arg, projectSlug string) (uuid.UUID, error) {
+	if id, err := uuid.Parse(arg); err == nil {
+		return id, nil
 	}
 
 	number, err := strconv.ParseInt(arg, 10, 64)
 	if err != nil {
-		return "", clierrors.New("args.invalid_run_id", "Invalid run ID",
+		return uuid.Nil, clierrors.New("args.invalid_run_id", "Invalid run ID",
 			"Expected a run UUID or run number, got: "+arg).
 			WithSuggestions("Use 'circleci run list' to find run IDs and numbers").
 			WithExitCode(clierrors.ExitBadArguments)
@@ -293,14 +293,14 @@ func resolveRunID(ctx context.Context, client *apiclient.Client, arg, projectSlu
 	if projectSlug == "" {
 		info, gitErr := gitremote.Detect()
 		if gitErr != nil {
-			return "", cmdutil.GitDetectErr(gitErr, "Or specify --project explicitly")
+			return uuid.Nil, cmdutil.GitDetectErr(gitErr, "Or specify --project explicitly")
 		}
 		projectSlug = info.Slug
 	}
 
 	r, rErr := client.GetPipelineByNumber(ctx, projectSlug, number)
 	if rErr != nil {
-		return "", apiErr(rErr, arg)
+		return uuid.Nil, apiErr(rErr, arg)
 	}
 	return r.ID, nil
 }

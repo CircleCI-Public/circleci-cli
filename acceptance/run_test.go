@@ -44,8 +44,8 @@ import (
 
 const (
 	getRunID         = "5034460f-c7c4-4c43-9457-de07e2029e7b"
-	testWfID         = "wf-uuid-001"
-	runTestProjectID = "proj-uuid-001"
+	testWfID         = "b0000000-0000-4000-8000-000000000001"
+	runTestProjectID = "a0000000-0000-4000-8000-000000000001"
 
 	// Shared across multiple test files.
 	testPipelineID = "aaaaaaaa-0000-0000-0000-000000000001"
@@ -91,7 +91,7 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 				},
 			},
 			"project": map[string]any{"id": projectID},
-			"user":    map[string]any{"id": "user-uuid-001"},
+			"user":    map[string]any{"id": "c0000000-0000-4000-8000-000000000001"},
 		},
 	}
 }
@@ -126,7 +126,7 @@ func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) map[strin
 		"references": map[string]any{
 			"run":     map[string]any{"id": runID},
 			"project": map[string]any{"id": projectID},
-			"user":    map[string]any{"id": "user-uuid-001"},
+			"user":    map[string]any{"id": "c0000000-0000-4000-8000-000000000001"},
 		},
 	}
 }
@@ -195,8 +195,8 @@ func TestRunGet_ByID(t *testing.T) {
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID,
-		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
-		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-000000000002", "deploy", wfID, runTestProjectID),
 	)
 
 	env := testenv.New(t)
@@ -211,7 +211,7 @@ func TestRunGet_ByID(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestRunGet_ByID_WorkflowsNotFound(t *testing.T) {
@@ -232,7 +232,7 @@ func TestRunGet_ByID_WorkflowsNotFound(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestRunGet_ByID_Color(t *testing.T) {
@@ -242,8 +242,8 @@ func TestRunGet_ByID_Color(t *testing.T) {
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
 	fake.AddWorkflowJobsV3(wfID,
-		fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID),
-		fakeJobV3("job-uuid-2", "deploy", wfID, runTestProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID),
+		fakeJobV3("d0000000-0000-4000-8000-000000000002", "deploy", wfID, runTestProjectID),
 	)
 
 	env := testenv.New(t)
@@ -259,7 +259,7 @@ func TestRunGet_ByID_Color(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestRunGet_ByID_JSON(t *testing.T) {
@@ -268,7 +268,7 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -305,7 +305,7 @@ func TestRunGet_ByID_JQ(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -328,7 +328,7 @@ func TestRunGet_ByID_JSON_Color(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -368,7 +368,7 @@ func TestRunGet_WithErrors(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
 func TestRunGet_WithErrors_JSON(t *testing.T) {
@@ -442,9 +442,9 @@ func TestRunList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -465,8 +465,8 @@ func TestRunList_Tag(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3Tag("pid-2", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3Tag("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -488,7 +488,7 @@ func TestRunList_Tag_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3Tag("pid-2", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3Tag("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "v1.2.3", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -516,9 +516,9 @@ func TestRunList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -540,9 +540,9 @@ func TestRunList_Limit(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -563,9 +563,9 @@ func TestRunList_Limit_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
-	fake.AddRunV3("pid-3", runTestProjectID, fakeRunV3("pid-3", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "main", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000003", runTestProjectID, "ended", "succeeded", "main", "1111111122222222"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -587,8 +587,8 @@ func TestRunList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -607,7 +607,7 @@ func TestRunList_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
-	assert.Check(t, cmp.Equal(out[0]["id"], "pid-1"))
+	assert.Check(t, cmp.Equal(out[0]["id"], "e0000000-0000-4000-8000-000000000001"))
 	assert.Check(t, cmp.Equal(out[0]["phase"], "ended"))
 	assert.Check(t, cmp.Equal(out[0]["current_outcome"], "succeeded"))
 	assert.Check(t, cmp.Equal(out[1]["current_outcome"], "failed"))
@@ -619,8 +619,8 @@ func TestRunList_JSON_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug
 	addProjectInfo(fake, slug, runTestProjectID)
-	fake.AddRunV3("pid-1", runTestProjectID, fakeRunV3("pid-1", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
-	fake.AddRunV3("pid-2", runTestProjectID, fakeRunV3("pid-2", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -813,7 +813,7 @@ func TestArgWhitespaceTrimmed(t *testing.T) {
 	wfID := testWfID
 	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234"))
 	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
-	fake.AddWorkflowJobsV3(wfID, fakeJobV3("job-uuid-1", "run-tests", wfID, runTestProjectID))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -835,9 +835,9 @@ func TestArgWhitespaceTrimmed(t *testing.T) {
 func TestRunCancel(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
-	wfID := "wf-cancel-001"
+	wfID := "b0000000-0000-4000-8000-00000000c001"
 	fake.AddRun(runID, fakeRun(runID, 42, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "started", ""))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "a0000000-0000-4000-8000-00000000c001", "started", ""))
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)
@@ -870,9 +870,9 @@ func TestRunCancel(t *testing.T) {
 func TestRunCancel_Started(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID
-	wfID := "wf-cancel-started"
+	wfID := "b0000000-0000-4000-8000-00000000c002"
 	fake.AddRun(runID, fakeRun(runID, 42, "running", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "started", ""))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "a0000000-0000-4000-8000-00000000c001", "started", ""))
 	fake.SetCancelResponse(wfID, 202)
 
 	env := testenv.New(t)
@@ -912,9 +912,9 @@ func TestRunCancel_RequiresForce(t *testing.T) {
 func TestRunCancel_AlreadyDone(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := "5034460f-c7c4-4c43-9457-de07e2029e7c"
-	wfID := "wf-cancel-002"
+	wfID := "b0000000-0000-4000-8000-00000000c003"
 	fake.AddRun(runID, fakeRun(runID, 43, "created", watchSlug, "main"))
-	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "proj-cancel", "ended", "succeeded"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, "a0000000-0000-4000-8000-00000000c001", "ended", "succeeded"))
 
 	env := testenv.New(t)
 	env.Token = testToken

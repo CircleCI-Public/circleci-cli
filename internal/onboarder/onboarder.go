@@ -234,7 +234,7 @@ func postSignupGuidance(ctx context.Context) error {
 
 	iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
 	iostream.Printf(ctx, "  Organization: %s\n", proj.OrganizationName)
-	if pipelinesURL, err := cmdutil.PipelinesURL(appURL, proj.Slug); err == nil {
+	if pipelinesURL, err := cmdutil.RunSlugURL(appURL, proj.Slug); err == nil {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")

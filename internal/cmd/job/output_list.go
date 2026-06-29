@@ -47,7 +47,7 @@ const maxStepOutputFetches = 8
 
 // jobOutputList is the typed output of "circleci job output list".
 type jobOutputList struct {
-	ID        string           `json:"id"`
+	ID        uuid.UUID        `json:"id"`
 	Name      string           `json:"name"`
 	Execution int              `json:"execution"`
 	Steps     []stepOutputItem `json:"steps"`
@@ -138,7 +138,7 @@ func newOutputListCmd() *cobra.Command {
 }
 
 func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int, jsonOut bool) error {
-	job, err := client.GetJobV3(ctx, jobID.String())
+	job, err := client.GetJobV3(ctx, jobID)
 	if err != nil {
 		return cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
 	}
@@ -196,7 +196,7 @@ func executionSteps(job *apiclient.JobV3, execution int) ([]apiclient.JobV3Step,
 	}
 	return nil, clierrors.New("job.execution_not_found", "Execution not found",
 		fmt.Sprintf("Job %q has no execution with index %d.", job.ID, execution)).
-		WithSuggestions("This job ran with " + executionCount(job) + "; check the index with: circleci job get " + job.ID).
+		WithSuggestions("This job ran with " + executionCount(job) + "; check the index with: circleci job get " + job.ID.String()).
 		WithExitCode(clierrors.ExitNotFound)
 }
 

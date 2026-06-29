@@ -1,21 +1,10 @@
 # CircleCI CLI
 
-Work with CircleCI jobs.
-
-Jobs are the individual units of work within a workflow.
+Open workflow in browser
 
 ## Usage
 
-`circleci job <command> [flags]`
-
-## Targeted Commands
-
-| Command    | Description                          |
-| ---------- | ------------------------------------ |
-| `artifact` | List or download artifacts for a job |
-| `get`      | Get job details                      |
-| `open`     | Open job in browser                  |
-| `output`   | Work with job step output            |
+`circleci workflow open <workflow-id> [flags]`
 
 ## Inherited Flags
 
@@ -24,6 +13,16 @@ Jobs are the individual units of work within a workflow.
 | `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
 | `--debug`             | enable debug logging                                         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Arguments
+
+<workflow-id> is the UUID of the workflow to look up. Workflow IDs are
+shown in the output of "circleci run get".
+
+## Examples
+
+- Open workflow details: 
+  `circleci workflow open 5034460f-c7c4-4c43-9457-de07e2029e7b`
 
 ## Learn More
 
