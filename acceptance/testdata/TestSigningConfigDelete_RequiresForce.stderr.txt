@@ -1,4 +1,4 @@
-error: Deleting signing config "cfg-zzzz" is irreversible.
+error: Deleting signing config "eccccccc-cccc-cccc-cccc-cccccccccccc" is irreversible.
 
 Suggestions:
   • Pass --force (-f) to skip this prompt in non-interactive mode

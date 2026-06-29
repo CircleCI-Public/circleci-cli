@@ -42,7 +42,7 @@ import (
 
 func TestSigningConfigCreate(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-abc", "Distribution.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
 	env := setupIOSEnv(t, fake)
 
 	dir := t.TempDir()
@@ -54,7 +54,7 @@ func TestSigningConfigCreate(t *testing.T) {
 			"signing-config", "create",
 			"--org", testIOSOrgID,
 			"--name", "production-signing",
-			"--cert-id", "cert-abc",
+			"--cert-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
 			"--profile", profilePath,
 		},
 		Env:     env.Environ(),
@@ -67,19 +67,19 @@ func TestSigningConfigCreate(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/signing-configs"},
+			URL:    url.URL{Path: "/api/v3/signing/configs"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"cert_id":"cert-abc","name":"production-signing","org_id":"11111111-1111-1111-1111-111111111111","provisioning_profiles":[{"file_name":"MyApp.mobileprovision","blob":"ZmFrZS1wcm9maWxlLWJ5dGVz"}]}`),
+			Body: new(`{"data":{"attributes":{"name":"production-signing","provisioning_profiles":[{"file_name":"MyApp.mobileprovision","blob":"ZmFrZS1wcm9maWxlLWJ5dGVz"}]},"references":{"org":{"id":"11111111-1111-1111-1111-111111111111"},"signing_certificate":{"id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
 
 func TestSigningConfigCreate_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-abc", "Distribution.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
 	env := setupIOSEnv(t, fake)
 
 	dir := t.TempDir()
@@ -91,7 +91,7 @@ func TestSigningConfigCreate_JSON(t *testing.T) {
 			"signing-config", "create",
 			"--org", testIOSOrgID,
 			"--name", "production-signing",
-			"--cert-id", "cert-abc",
+			"--cert-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
 			"--profile", profilePath,
 			"--json",
 		},
@@ -113,7 +113,7 @@ func TestSigningConfigCreate_MissingProfile(t *testing.T) {
 			"signing-config", "create",
 			"--org", testIOSOrgID,
 			"--name", "x",
-			"--cert-id", "cert-abc",
+			"--cert-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
 		},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -136,7 +136,7 @@ func TestSigningConfigCreate_UnknownCertID(t *testing.T) {
 			"signing-config", "create",
 			"--org", testIOSOrgID,
 			"--name", "production-signing",
-			"--cert-id", "cert-does-not-exist",
+			"--cert-id", "dddddddd-dddd-dddd-dddd-dddddddddddd",
 			"--profile", profilePath,
 		},
 		Env:     env.Environ(),
@@ -149,8 +149,8 @@ func TestSigningConfigCreate_UnknownCertID(t *testing.T) {
 
 func TestSigningConfigCreate_DuplicateName(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-abc", "Distribution.p12"))
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-1111", "production-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e1111111-1111-1111-1111-111111111111", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyApp.mobileprovision"))
 	env := setupIOSEnv(t, fake)
 
@@ -163,7 +163,7 @@ func TestSigningConfigCreate_DuplicateName(t *testing.T) {
 			"signing-config", "create",
 			"--org", testIOSOrgID,
 			"--name", "production-signing",
-			"--cert-id", "cert-abc",
+			"--cert-id", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
 			"--profile", profilePath,
 		},
 		Env:     env.Environ(),
@@ -178,9 +178,9 @@ func TestSigningConfigCreate_DuplicateName(t *testing.T) {
 
 func TestSigningConfigList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-1111", "production-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e1111111-1111-1111-1111-111111111111", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyApp.mobileprovision"))
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-2222", "staging-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e2222222-2222-2222-2222-222222222222", "staging-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyAppStaging.mobileprovision",
 		"MyAppExtensionStaging.mobileprovision"))
 	env := setupIOSEnv(t, fake)
@@ -198,9 +198,9 @@ func TestSigningConfigList(t *testing.T) {
 
 func TestSigningConfigList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-1111", "production-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e1111111-1111-1111-1111-111111111111", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyApp.mobileprovision"))
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-2222", "staging-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e2222222-2222-2222-2222-222222222222", "staging-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyAppStaging.mobileprovision",
 		"MyAppExtensionStaging.mobileprovision"))
 	env := setupIOSEnv(t, fake)
@@ -219,9 +219,9 @@ func TestSigningConfigList_Color(t *testing.T) {
 
 func TestSigningConfigList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-1111", "production-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e1111111-1111-1111-1111-111111111111", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyApp.mobileprovision"))
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-2222", "staging-signing", "cert-abc", "Distribution.p12",
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e2222222-2222-2222-2222-222222222222", "staging-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
 		"MyAppStaging.mobileprovision",
 		"MyAppExtensionStaging.mobileprovision"))
 	env := setupIOSEnv(t, fake)
@@ -256,24 +256,24 @@ func TestSigningConfigList_Empty(t *testing.T) {
 
 func TestSigningConfigDelete(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-zzzz", "old", "cert-abc", "Distribution.p12"))
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("eccccccc-cccc-cccc-cccc-cccccccccccc", "old", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "delete", "cfg-zzzz", "--force"},
+		Args:    []string{"signing-config", "delete", "eccccccc-cccc-cccc-cccc-cccccccccccc", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-	assert.Check(t, fake.DeletedIOSBundle("cfg-zzzz"))
+	assert.Check(t, fake.DeletedIOSBundle("eccccccc-cccc-cccc-cccc-cccccccccccc"))
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v2/signing-configs/cfg-zzzz"},
+			URL:    url.URL{Path: "/api/v3/signing/configs/eccccccc-cccc-cccc-cccc-cccccccccccc"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -289,7 +289,7 @@ func TestSigningConfigDelete_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "delete", "cfg-missing", "--force"},
+		Args:    []string{"signing-config", "delete", "eddddddd-dddd-dddd-dddd-dddddddddddd", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -300,17 +300,17 @@ func TestSigningConfigDelete_NotFound(t *testing.T) {
 
 func TestSigningConfigDelete_RequiresForce(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-zzzz", "old", "cert-abc", "Distribution.p12"))
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("eccccccc-cccc-cccc-cccc-cccccccccccc", "old", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"signing-config", "delete", "cfg-zzzz"},
+		Args:    []string{"signing-config", "delete", "eccccccc-cccc-cccc-cccc-cccccccccccc"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-	assert.Check(t, !fake.DeletedIOSBundle("cfg-zzzz"))
+	assert.Check(t, !fake.DeletedIOSBundle("eccccccc-cccc-cccc-cccc-cccccccccccc"))
 }

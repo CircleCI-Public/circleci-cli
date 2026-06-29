@@ -32,6 +32,7 @@ import (
 	"strconv"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -162,6 +163,14 @@ func newCreateCmd() *cobra.Command {
 			}
 			ctx := cmd.Context()
 
+			parsedCertID, err := uuid.Parse(certID)
+			if err != nil {
+				return clierrors.New("signing_config.invalid_cert_id", "Invalid certificate ID",
+					fmt.Sprintf("%q is not a valid certificate ID.", certID)).
+					WithSuggestions("Run: circleci certificate list").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
+
 			profiles := make([]apiclient.IOSProvisioningProfile, len(profilePath))
 			for i, p := range profilePath {
 				fileName, blob, err := iossigning.EncodeFile(p)
@@ -180,14 +189,14 @@ func newCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			id, err := client.CreateIOSSigningConfig(ctx, resolvedOrgID.String(), name, certID, profiles)
+			id, err := client.CreateIOSSigningConfig(ctx, resolvedOrgID, name, parsedCertID, profiles)
 			if err != nil {
 				return createAPIErr(err, name, certID)
 			}
 
 			if jsonOut {
 				return iostream.PrintJSON(ctx, map[string]string{
-					"id":      id,
+					"id":      id.String(),
 					"name":    name,
 					"cert_id": certID,
 				})
@@ -210,7 +219,7 @@ func newCreateCmd() *cobra.Command {
 // --- signing-config list ---
 
 type listEntry struct {
-	ID                   string                             `json:"id"`
+	ID                   uuid.UUID                          `json:"id"`
 	Name                 string                             `json:"name,omitempty"`
 	Certificate          *apiclient.IOSCertificateRef       `json:"certificate,omitempty"`
 	ProvisioningProfiles []apiclient.IOSProvisioningProfile `json:"provisioning_profiles,omitempty"`
@@ -258,7 +267,7 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, resolvedOrgID.String(), jsonOut)
+			return runList(ctx, client, resolvedOrgID, jsonOut)
 		},
 	}
 
@@ -269,10 +278,10 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(ctx context.Context, client *apiclient.Client, orgID string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, orgID uuid.UUID, jsonOut bool) error {
 	configs, err := client.ListIOSSigningConfigs(ctx, orgID)
 	if err != nil {
-		return apiErr(err, orgID)
+		return apiErr(err, orgID.String())
 	}
 
 	entries := make([]listEntry, len(configs))
@@ -300,7 +309,9 @@ func runList(ctx context.Context, client *apiclient.Client, orgID string, jsonOu
 		if e.Certificate != nil {
 			certFile = e.Certificate.FileName
 		}
-		tbl.Row(e.ID, e.Name, certFile, strconv.Itoa(len(e.ProvisioningProfiles)))
+		// Wrap the ID in backticks so it renders as a red code span, matching
+		// how IDs are displayed in other list commands.
+		tbl.Row("`"+e.ID.String()+"`", e.Name, certFile, strconv.Itoa(len(e.ProvisioningProfiles)))
 	}
 	iostream.PrintMarkdown(ctx, "# iOS Signing Configs\n"+tbl.Render())
 	return nil
@@ -343,15 +354,22 @@ func newDeleteCmd() *cobra.Command {
 				return err
 			}
 			ctx := cmd.Context()
-			id := args[0]
+			idArg := args[0]
+			id, err := uuid.Parse(idArg)
+			if err != nil {
+				return clierrors.New("signing_config.invalid_id", "Invalid signing config ID",
+					fmt.Sprintf("%q is not a valid signing config ID.", idArg)).
+					WithSuggestions("Run: circleci signing-config list --org <org>").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 
 			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
-				fmt.Sprintf("Delete signing config %q? Pipelines using it will fail until updated.", id),
+				fmt.Sprintf("Delete signing config %q? Pipelines using it will fail until updated.", idArg),
 				clierrors.New("signing_config.delete_aborted", "Deletion aborted",
 					"Signing config deletion was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled),
 				clierrors.New("signing_config.delete_requires_force", "Deletion requires --force",
-					fmt.Sprintf("Deleting signing config %q is irreversible.", id)).
+					fmt.Sprintf("Deleting signing config %q is irreversible.", idArg)).
 					WithExitCode(clierrors.ExitCancelled),
 			); err != nil {
 				return err
@@ -362,9 +380,9 @@ func newDeleteCmd() *cobra.Command {
 				return err
 			}
 			if err := client.DeleteIOSSigningConfig(ctx, id); err != nil {
-				return apiErr(err, id)
+				return apiErr(err, idArg)
 			}
-			iostream.Printf(ctx, "%s Deleted signing config %s\n", iostream.SymbolOK(ctx), id)
+			iostream.Printf(ctx, "%s Deleted signing config %s\n", iostream.SymbolOK(ctx), idArg)
 			return nil
 		},
 	}

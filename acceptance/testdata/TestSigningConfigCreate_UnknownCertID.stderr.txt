@@ -1,4 +1,4 @@
-error: No certificate with id "cert-does-not-exist" exists in this organization.
+error: No certificate with id "dddddddd-dddd-dddd-dddd-dddddddddddd" exists in this organization.
 
 Suggestions:
   • Check the value passed to --cert-id and try again

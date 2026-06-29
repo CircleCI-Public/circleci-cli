@@ -116,12 +116,12 @@ func TestCertificateUpload(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/certificates"},
+			URL:    url.URL{Path: "/api/v3/signing/certificates"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"cert_blob":"ZmFrZS1wMTItYnl0ZXM=","cert_file_name":"Distribution.p12","cert_password":"hunter2","org_id":"11111111-1111-1111-1111-111111111111"}`),
+			Body: new(`{"data":{"attributes":{"cert_blob":"ZmFrZS1wMTItYnl0ZXM=","cert_password":"hunter2","file_name":"Distribution.p12"},"references":{"org":{"id":"11111111-1111-1111-1111-111111111111"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -245,8 +245,8 @@ func TestCertificateUpload_NoToken(t *testing.T) {
 
 func TestCertificateList(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-aaaa", "Distribution.p12"))
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-bbbb", "Development.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Development.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -262,8 +262,8 @@ func TestCertificateList(t *testing.T) {
 
 func TestCertificateList_Color(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-aaaa", "Distribution.p12"))
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-bbbb", "Development.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Development.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -280,8 +280,8 @@ func TestCertificateList_Color(t *testing.T) {
 
 func TestCertificateList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-aaaa", "Distribution.p12"))
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-bbbb", "Development.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "Development.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -333,24 +333,24 @@ func TestCertificateList_NoOrgIDOutsideGit(t *testing.T) {
 
 func TestCertificateDelete(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-zzzz", "Old.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cccccccc-cccc-cccc-cccc-cccccccccccc", "Old.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "delete", "cert-zzzz", "--force"},
+		Args:    []string{"certificate", "delete", "cccccccc-cccc-cccc-cccc-cccccccccccc", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-	assert.Check(t, fake.DeletedIOSCert("cert-zzzz"))
+	assert.Check(t, fake.DeletedIOSCert("cccccccc-cccc-cccc-cccc-cccccccccccc"))
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v2/certificates/cert-zzzz"},
+			URL:    url.URL{Path: "/api/v3/signing/certificates/cccccccc-cccc-cccc-cccc-cccccccccccc"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -366,7 +366,7 @@ func TestCertificateDelete_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "delete", "cert-missing", "--force"},
+		Args:    []string{"certificate", "delete", "dddddddd-dddd-dddd-dddd-dddddddddddd", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -377,36 +377,36 @@ func TestCertificateDelete_NotFound(t *testing.T) {
 
 func TestCertificateDelete_RequiresForce(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-zzzz", "Old.p12"))
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cccccccc-cccc-cccc-cccc-cccccccccccc", "Old.p12"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "delete", "cert-zzzz"},
+		Args:    []string{"certificate", "delete", "cccccccc-cccc-cccc-cccc-cccccccccccc"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 6, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-	assert.Check(t, !fake.DeletedIOSCert("cert-zzzz"))
+	assert.Check(t, !fake.DeletedIOSCert("cccccccc-cccc-cccc-cccc-cccccccccccc"))
 }
 
 func TestCertificateDelete_InUse(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cert-zzzz", "Old.p12"))
-	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("cfg-1111", "production-signing", "cert-zzzz", "Old.p12",
+	fake.AddIOSCert(testIOSOrgID, fakeIOSCert("cccccccc-cccc-cccc-cccc-cccccccccccc", "Old.p12"))
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("e1111111-1111-1111-1111-111111111111", "production-signing", "cccccccc-cccc-cccc-cccc-cccccccccccc", "Old.p12",
 		"MyApp.mobileprovision"))
 	env := setupIOSEnv(t, fake)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"certificate", "delete", "cert-zzzz", "--force"},
+		Args:    []string{"certificate", "delete", "cccccccc-cccc-cccc-cccc-cccccccccccc", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 4, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-	assert.Check(t, !fake.DeletedIOSCert("cert-zzzz"))
+	assert.Check(t, !fake.DeletedIOSCert("cccccccc-cccc-cccc-cccc-cccccccccccc"))
 }

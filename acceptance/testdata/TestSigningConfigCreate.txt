@@ -1,1 +1,1 @@
-✓ Created signing config "production-signing" (id: bundle-00001)
+✓ Created signing config "production-signing" (id: 10000000-0000-0000-0000-000000000001)

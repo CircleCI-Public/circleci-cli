@@ -30,6 +30,7 @@ import (
 	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -164,14 +165,14 @@ func newUploadCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			certID, err := client.UploadIOSCertificate(ctx, resolvedOrgID.String(), fileName, blob, password)
+			certID, err := client.UploadIOSCertificate(ctx, resolvedOrgID, fileName, blob, password)
 			if err != nil {
 				return apiErr(err, fileName)
 			}
 
 			if jsonOut {
 				return iostream.PrintJSON(ctx, map[string]string{
-					"id":        certID,
+					"id":        certID.String(),
 					"file_name": fileName,
 				})
 			}
@@ -192,9 +193,9 @@ func newUploadCmd() *cobra.Command {
 // --- certificate list ---
 
 type listEntry struct {
-	ID       string `json:"id"`
-	FileName string `json:"file_name,omitempty"`
-	CertType string `json:"cert_type,omitempty"`
+	ID       uuid.UUID `json:"id"`
+	FileName string    `json:"file_name,omitempty"`
+	CertType string    `json:"cert_type,omitempty"`
 }
 
 func newListCmd() *cobra.Command {
@@ -240,7 +241,7 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, resolvedOrgID.String(), jsonOut)
+			return runList(ctx, client, resolvedOrgID, jsonOut)
 		},
 	}
 
@@ -251,10 +252,10 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(ctx context.Context, client *apiclient.Client, orgID string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, orgID uuid.UUID, jsonOut bool) error {
 	certs, err := client.ListIOSCertificates(ctx, orgID)
 	if err != nil {
-		return apiErr(err, orgID)
+		return apiErr(err, orgID.String())
 	}
 
 	entries := make([]listEntry, len(certs))
@@ -277,7 +278,9 @@ func runList(ctx context.Context, client *apiclient.Client, orgID string, jsonOu
 
 	tbl := mdtable.New("ID", "Certificate Name", "Type")
 	for _, e := range entries {
-		tbl.Row(e.ID, e.FileName, e.CertType)
+		// Wrap the ID in backticks so it renders as a red code span, matching
+		// how IDs are displayed in other list commands.
+		tbl.Row("`"+e.ID.String()+"`", e.FileName, e.CertType)
 	}
 	iostream.PrintMarkdown(ctx, "# iOS Certificates\n"+tbl.Render())
 	return nil
@@ -321,15 +324,22 @@ func newDeleteCmd() *cobra.Command {
 				return err
 			}
 			ctx := cmd.Context()
-			certID := args[0]
+			certIDArg := args[0]
+			certID, err := uuid.Parse(certIDArg)
+			if err != nil {
+				return clierrors.New("certificate.invalid_id", "Invalid certificate ID",
+					fmt.Sprintf("%q is not a valid certificate ID.", certIDArg)).
+					WithSuggestions("Run: circleci certificate list --org <org>").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 
 			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
-				fmt.Sprintf("Delete certificate %q? This action cannot be undone.", certID),
+				fmt.Sprintf("Delete certificate %q? This action cannot be undone.", certIDArg),
 				clierrors.New("certificate.delete_aborted", "Deletion aborted",
 					"Certificate deletion was not confirmed.").
 					WithExitCode(clierrors.ExitCancelled),
 				clierrors.New("certificate.delete_requires_force", "Deletion requires --force",
-					fmt.Sprintf("Deleting certificate %q is irreversible.", certID)).
+					fmt.Sprintf("Deleting certificate %q is irreversible.", certIDArg)).
 					WithExitCode(clierrors.ExitCancelled),
 			); err != nil {
 				return err
@@ -342,16 +352,16 @@ func newDeleteCmd() *cobra.Command {
 			if err := client.DeleteIOSCertificate(ctx, certID); err != nil {
 				if httpcl.HasStatusCode(err, http.StatusConflict) {
 					return clierrors.New("certificate.in_use", "Cannot delete certificate",
-						fmt.Sprintf("Certificate %q is referenced by one or more signing configs.", certID)).
+						fmt.Sprintf("Certificate %q is referenced by one or more signing configs.", certIDArg)).
 						WithSuggestions(
 							"Run: circleci signing-config list --org <org>",
 							"Delete the signing configs that reference this certificate, then retry",
 						).
 						WithExitCode(clierrors.ExitAPIError)
 				}
-				return apiErr(err, certID)
+				return apiErr(err, certIDArg)
 			}
-			iostream.Printf(ctx, "%s Deleted certificate %s\n", iostream.SymbolOK(ctx), certID)
+			iostream.Printf(ctx, "%s Deleted certificate %s\n", iostream.SymbolOK(ctx), certIDArg)
 			return nil
 		},
 	}

@@ -1,4 +1,4 @@
-error: No iOS certificate found for "cert-missing".
+error: No iOS certificate found for "dddddddd-dddd-dddd-dddd-dddddddddddd".
 API: {"message":"not found"}
 
 
