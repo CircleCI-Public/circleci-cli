@@ -46,6 +46,10 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
+	fake.SetCollaborations([]any{
+		map[string]any{"id": "org-uuid-5678", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
+	})
+
 	fake.AddFollowedProject(map[string]any{
 		"slug":     "gh/myorg/alpha",
 		"username": "myorg",
@@ -1031,4 +1035,49 @@ func TestProjectCreate_NoArgs_NoGitRepo(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "project name"))
+}
+
+func TestProjectCreate_NoOrgs(t *testing.T) {
+	fake, env := setupCreateProjectFake(t)
+	fake.SetCollaborations(nil)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "not a member of any CircleCI organizations"))
+}
+
+func TestProjectCreate_NoOrgs_NoOrgFlag(t *testing.T) {
+	fake, env := setupCreateProjectFake(t)
+	fake.SetCollaborations(nil)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "not a member of any CircleCI organizations"))
+}
+
+func TestProjectCreate_WrongOrg(t *testing.T) {
+	_, env := setupCreateProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "create", "my-new-repo", "--org", "gh/wrong-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "not a member of organization"))
+	assert.Check(t, strings.Contains(result.Stderr, "gh/wrong-org"))
 }
