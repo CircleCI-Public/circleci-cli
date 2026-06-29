@@ -162,13 +162,13 @@ type v3List[T any] struct {
 	} `json:"page"`
 }
 
-// pageSize returns a request option that sets page[size].
-// A size of 0 is ignored (server default is used).
-func pageSize(n int) func(*httpcl.Request) {
+// pageLimit returns a request option that sets page[limit].
+// A limit of 0 is ignored (server default is used).
+func pageLimit(n int) func(*httpcl.Request) {
 	if n <= 0 {
 		return func(*httpcl.Request) {}
 	}
-	return queryParam("page[size]", fmt.Sprintf("%d", n))
+	return queryParam("page[limit]", fmt.Sprintf("%d", n))
 }
 
 // pageCursor returns a request option that sets page[cursor].
