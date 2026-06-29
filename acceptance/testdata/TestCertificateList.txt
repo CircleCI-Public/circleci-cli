@@ -1,5 +1,5 @@
 # iOS Certificates
-| ID        | Certificate Name | Type         |
-| --------- | ---------------- | ------------ |
-| cert-aaaa | Distribution.p12 | distribution |
-| cert-bbbb | Development.p12  | distribution |
+| ID                                     | Certificate Name | Type         |
+| -------------------------------------- | ---------------- | ------------ |
+| `aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa` | Distribution.p12 | distribution |
+| `bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb` | Development.p12  | distribution |

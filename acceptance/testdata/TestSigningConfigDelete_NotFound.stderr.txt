@@ -1,4 +1,4 @@
-error: No iOS signing config found for "cfg-missing".
+error: No iOS signing config found for "eddddddd-dddd-dddd-dddd-dddddddddddd".
 API: {"message":"not found"}
 
 

@@ -1,4 +1,4 @@
-error: Deleting certificate "cert-zzzz" is irreversible.
+error: Deleting certificate "cccccccc-cccc-cccc-cccc-cccccccccccc" is irreversible.
 
 Suggestions:
   • Pass --force (-f) to skip this prompt in non-interactive mode

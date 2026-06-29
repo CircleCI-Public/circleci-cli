@@ -1,4 +1,4 @@
-error: Certificate "cert-zzzz" is referenced by one or more signing configs.
+error: Certificate "cccccccc-cccc-cccc-cccc-cccccccccccc" is referenced by one or more signing configs.
 
 Suggestions:
   • Run: circleci signing-config list --org <org>
