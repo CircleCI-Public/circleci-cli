@@ -30,6 +30,7 @@ Token values are only shown once at creation time and cannot be retrieved afterw
 | --------------------- | ------------------------------------------------------------ |
 | `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
 | `--debug`             | enable debug logging                                         |
+| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
 
 ## Learn More

@@ -452,6 +452,8 @@ func (s Streams) IsTerminal() bool {
 
 // ColorEnabled reports whether color and Unicode symbols should be used.
 // False when: not a TTY, NO_COLOR set, CIRCLE_NO_COLOR set, or TERM=dumb.
+// The --no-color flag is honored here too: root canonicalizes it into NO_COLOR
+// before streams are built, so colorDisabled() already accounts for it.
 func (s Streams) ColorEnabled() bool {
 	return s.IsTerminal() && !colorDisabled()
 }

@@ -86,6 +86,16 @@ func NewRootCmd(version string) *cobra.Command {
 			extension.ParseRootFlags(cmd)
 		}
 
+		// --no-color is canonicalized into the NO_COLOR env var here, before
+		// streams are built or anything renders. This is the only way to reach
+		// third-party renderers (glamour, lipgloss, the bubbletea viewport pager)
+		// that strip color based on NO_COLOR but know nothing about our flags.
+		// Doing it once in bootstrap keeps the flag behaving exactly like the env
+		// var everywhere, instead of gating each render path individually.
+		if noColor, _ := cmd.Flags().GetBool("no-color"); noColor {
+			_ = os.Setenv("NO_COLOR", "1")
+		}
+
 		theme, err := cmd.Flags().GetString("theme")
 		if err == nil && !iostream.IsValidTheme(theme) {
 			return func() {}, clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: '"+theme+"'").
@@ -177,6 +187,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().BoolP("debug", "", false, "enable debug logging")
 	cmd.PersistentFlags().StringP("theme", "", "auto", "set the color theme (default: auto)")
 	_ = cmd.PersistentFlags().MarkHidden("theme")
+	cmd.PersistentFlags().BoolP("no-color", "", false, "disable ANSI color output (same as setting NO_COLOR)")
 
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
