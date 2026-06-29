@@ -212,9 +212,6 @@ jobs:
           checksum: *checksum
           steps:
             - run:
-                name: Install docs toolchain (Hugo + htmltest)
-                command: task docs:install
-            - run:
                 name: Generate reference and build the site
                 command: task docs:build
             - run:
