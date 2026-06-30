@@ -164,6 +164,10 @@ func IsInteractive(ctx context.Context) bool {
 	return fromContext(ctx).IsInteractive()
 }
 
+func SpinnerEnabled(ctx context.Context) bool {
+	return fromContext(ctx).SpinnerEnabled()
+}
+
 func SymbolOK(ctx context.Context) string {
 	return fromContext(ctx).SymbolSuccess(theme.IconOK)
 }
@@ -463,6 +467,14 @@ func (s Streams) ColorEnabled() bool {
 // or CIRCLE_NO_INTERACTIVE is set.
 func (s Streams) IsInteractive() bool {
 	return s.IsTerminal() && !interactiveEnvDisabled()
+}
+
+// SpinnerEnabled reports whether an animated spinner should run: only in an
+// interactive session with CIRCLE_SPINNER_DISABLED unset. Long-lived bubbletea
+// programs that animate their own spinner (e.g. the run-get flow) should consult
+// this and keep their loading placeholder static otherwise.
+func (s Streams) SpinnerEnabled() bool {
+	return s.IsInteractive() && !spinnerDisabled()
 }
 
 func (s Streams) SymbolSuccess(strs ...string) string {

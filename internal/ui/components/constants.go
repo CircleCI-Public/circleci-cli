@@ -27,6 +27,8 @@ const (
 	KeyCtrlC     = "ctrl+c"
 	KeyEnter     = "enter"
 	KeyEsc       = "esc"
+	KeyTab       = "tab"
+	KeyShiftTab  = "shift+tab"
 	KeyBackspace = "backspace"
 	KeyHome      = "home"
 	KeyEnd       = "end"
@@ -35,6 +37,7 @@ const (
 	// Letter keys. The value is the literal bubbletea reports; uppercase
 	// variants are the shifted key (e.g. "N" for shift+n).
 	KeyQ      = "q"
+	KeyR      = "r"
 	KeyN      = "n"
 	KeyShiftN = "N"
 	KeyG      = "g"

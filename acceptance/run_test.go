@@ -436,6 +436,7 @@ func TestRunGet_NoToken(t *testing.T) {
 const (
 	irunRun1ID = "e0000000-0000-4000-8000-0000000000a1"
 	irunRun2ID = "e0000000-0000-4000-8000-0000000000a2"
+	irunRun3ID = "e0000000-0000-4000-8000-0000000000a3"
 	irunWfID   = "b0000000-0000-4000-8000-0000000000a1"
 	irunJob1ID = "d0000000-0000-4000-8000-0000000000a1"
 	irunJob2ID = "d0000000-0000-4000-8000-0000000000a2"
@@ -462,6 +463,9 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	addProjectBySlug(fake, testSlug, runTestProjectID)
 	fake.AddRunV3(irunRun1ID, runTestProjectID, fakeRunV3(irunRun1ID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
 	fake.AddRunV3(irunRun2ID, runTestProjectID, fakeRunV3(irunRun2ID, runTestProjectID, "ended", "failed", "main", "deadbeef12345678"))
+	// A run on a different branch, surfaced only when the picker is toggled to
+	// "all branches" (the search filters by branch otherwise).
+	fake.AddRunV3(irunRun3ID, runTestProjectID, fakeRunV3(irunRun3ID, runTestProjectID, "ended", "succeeded", "feature", "facefeed12345678"))
 
 	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
 	fake.AddRunWorkflowsV3(irunRun1ID, wf)
@@ -745,6 +749,37 @@ func TestRunGet_Interactive_Back(t *testing.T) {
 
 	// The workflow summary carries the workflow UUID.
 	_, err = console.ExpectString(irunWfID)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_SwitchBranch toggles the run picker from the current
+// branch (main) to "all branches": the feature-branch run, hidden while scoped
+// to main, appears once the search is unfiltered. The switch key is the
+// platform's binding — shift+tab normally, plain Tab on Windows, where the
+// ConPTY/ultraviolet input stack does not deliver shift+tab.
+func TestRunGet_Interactive_SwitchBranch(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	// Scoped to main: the main run shows, the feature run does not yet.
+	_, err := console.ExpectString("abc1234 [main]")
+	assert.NilError(t, err)
+
+	// Cycle main → all branches (no default branch is known here, so the cycle is
+	// just the two scopes), re-fetching without a branch filter.
+	switchSeq := "\x1b[Z" // shift+tab (CSI Z)
+	if runtime.GOOS == "windows" {
+		switchSeq = "\t" // Windows binds plain Tab
+	}
+	_, err = console.Send(switchSeq)
+	assert.NilError(t, err)
+
+	// The feature-branch run is now listed.
+	_, err = console.ExpectString("facefee [feature]")
+	assert.NilError(t, err)
+
+	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
 	assert.NilError(t, err)
 }
 

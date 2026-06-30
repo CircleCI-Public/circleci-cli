@@ -275,8 +275,11 @@ func displayRun(ctx context.Context, client *apiclient.Client, r *apiclient.RunV
 // pickers are cancellable with esc/ctrl+c, which returns nil (no output).
 func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlug, branch string) error {
 	effectiveBranch := branch
+	var defaultBranch string
 	// Only consult the git remote for whatever the flags did not supply, so
-	// --project and --branch together work outside a repository.
+	// --project and --branch together work outside a repository. The default
+	// branch is taken from the remote when detection runs; with both flags given
+	// it stays empty, which disables the run picker's branch toggle.
 	if projectSlug == "" || effectiveBranch == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -288,6 +291,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		if effectiveBranch == "" {
 			effectiveBranch = info.Branch
 		}
+		defaultBranch = info.DefaultBranch
 	}
 
 	proj, err := client.GetProjectBySlug(ctx, projectSlug)
@@ -295,43 +299,40 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return apiErr(err, projectSlug)
 	}
 
+	// fetchRuns lists the 10 most recent runs for a branch as picker items. It is
+	// used for the initial load and re-run on each branch-scope toggle.
+	fetchRuns := func(ctx context.Context, br string) ([]ui.RunGetItem, error) {
+		now := time.Now().UTC()
+		runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+			ProjectIDs: []string{proj.ID.String()},
+			From:       now.AddDate(0, 0, -90),
+			To:         now,
+			Filter:     apiclient.BuildRunFilter(br, ""),
+			Limit:      10,
+		})
+		if err != nil {
+			return nil, apiErr(err, fmt.Sprintf("%s@%s", projectSlug, br))
+		}
+		return runItems(runs), nil
+	}
+
 	sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
-	now := time.Now().UTC()
-	runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-		ProjectIDs: []string{proj.ID.String()},
-		From:       now.AddDate(0, 0, -90),
-		To:         now,
-		Filter:     apiclient.BuildRunFilter(effectiveBranch, ""),
-		Limit:      10,
-	})
+	items, err := fetchRuns(ctx, effectiveBranch)
 	sp.Stop()
 	if err != nil {
-		return apiErr(err, fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+		return err
 	}
-	if len(runs) == 0 {
+	if len(items) == 0 {
 		return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
 	}
 
-	runItems := make([]ui.RunGetItem, len(runs))
-	for i := range runs {
-		e := toListEntry(&runs[i])
-		ref := e.Branch
-		if ref == "" {
-			ref = e.Tag
-		}
-		// The status symbol is supplied as an icon (the picker colors it and
-		// renders raw text, so it cannot use the emoji from PhaseOutcomeStatus);
-		// the label is e.g. "03d8295 [main] - 20 seconds ago".
-		runItems[i] = ui.RunGetItem{
-			ID:    runs[i].ID,
-			Icon:  apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
-			Label: fmt.Sprintf("%s [%s] - %s", e.Revision, ref, relativeTime(runs[i].CreatedAt)),
-		}
-	}
-
 	model := ui.NewRunGetFlow(ctx, ui.RunGetFlowOptions{
-		Runs:            runItems,
+		Runs:            items,
 		Color:           iostream.ColorEnabled(ctx),
+		Animate:         iostream.SpinnerEnabled(ctx),
+		CurrentBranch:   effectiveBranch,
+		DefaultBranch:   defaultBranch,
+		FetchRuns:       fetchRuns,
 		FetchWorkflows:  workflowItems(client),
 		FetchJobs:       jobItems(client),
 		FetchExecutions: executionItems(client),
@@ -355,12 +356,13 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	// after the program has exited, reusing each command's existing output code.
 	switch res.Action {
 	case ui.RunGetActionShowRun:
-		for i := range runs {
-			if runs[i].ID == res.RunID {
-				return displayRun(ctx, client, &runs[i], false)
-			}
+		// Fetch the run by ID rather than reusing the picker list: a branch toggle
+		// may have left the chosen run out of the currently loaded slice.
+		r, err := client.GetRunV3(ctx, res.RunID)
+		if err != nil {
+			return apiErr(err, res.RunID.String())
 		}
-		return nil
+		return displayRun(ctx, client, r, false)
 	case ui.RunGetActionShowWorkflow:
 		return workflow.Get(ctx, client, res.WorkflowID.String(), false)
 	case ui.RunGetActionShowJob:
@@ -489,7 +491,9 @@ func stepRows(exec apiclient.JobV3Execution) []ui.RunGetStepItem {
 	var numW, durW int
 	for i, s := range exec.Steps {
 		num := strconv.Itoa(s.Num)
-		var dur string
+		// A step with no stop time is still running (or never started); show "~"
+		// in the duration column rather than a blank gap.
+		dur := "~"
 		if s.StoppedAt != nil {
 			dur = formatElapsed(s.StoppedAt.Sub(s.StartedAt))
 		}
@@ -672,6 +676,27 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 	}
 
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+// runItems maps recent runs to selectable picker items. The status symbol is
+// supplied as an icon (the picker colors it and renders raw text, so it cannot
+// use the emoji from PhaseOutcomeStatus); the label is e.g.
+// "03d8295 [main] - 20 seconds ago".
+func runItems(runs []apiclient.RunV3) []ui.RunGetItem {
+	items := make([]ui.RunGetItem, len(runs))
+	for i := range runs {
+		e := toListEntry(&runs[i])
+		ref := e.Branch
+		if ref == "" {
+			ref = e.Tag
+		}
+		items[i] = ui.RunGetItem{
+			ID:    runs[i].ID,
+			Icon:  apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
+			Label: fmt.Sprintf("%s [%s] - %s", e.Revision, ref, relativeTime(runs[i].CreatedAt)),
+		}
+	}
+	return items
 }
 
 // relativeTime renders how long ago t was in coarse, human-friendly units

@@ -31,11 +31,13 @@ import "charm.land/lipgloss/v2"
 // 256-color codes are used (not hex) so terminals with reduced color depth
 // degrade gracefully instead of falling back to white.
 var (
-	ColorAccent  = lipgloss.Color("205") // pink — in-progress state, focused input
-	ColorSuccess = lipgloss.Color("42")  // green — completed actions
-	ColorError   = lipgloss.Color("196") // red — failures
-	ColorWarning = lipgloss.Color("220") // yellow — warnings, "press Y to confirm"
-	ColorMuted   = lipgloss.Color("244") // gray — footer hints, less important text
+	ColorAccent    = lipgloss.Color("205") // pink — focused input
+	ColorSecondary = lipgloss.Color("179") // gold — secondary labels (e.g. scope in a title)
+	ColorRunning   = lipgloss.Color("39")  // blue — in-progress state
+	ColorSuccess   = lipgloss.Color("42")  // green — completed actions
+	ColorError     = lipgloss.Color("196") // red — failures
+	ColorWarning   = lipgloss.Color("220") // yellow — warnings, "press Y to confirm"
+	ColorMuted     = lipgloss.Color("244") // gray — footer hints, less important text
 )
 
 // Style presets that combine the colors above with shared layout choices
@@ -50,6 +52,15 @@ var (
 	// AccentStyle is for active or in-progress UI: the spinner glyph, the
 	// focused-input cursor accent, anything the user's eye should track.
 	AccentStyle = lipgloss.NewStyle().Foreground(ColorAccent)
+
+	// SecondaryStyle is for a secondary label that should read as distinct from
+	// the primary accent without competing with it — e.g. the active scope
+	// "(main branch)" appended to a picker title.
+	SecondaryStyle = lipgloss.NewStyle().Foreground(ColorSecondary)
+
+	// RunningStyle marks in-progress state (e.g. a running job's status glyph),
+	// distinct from the pink accent used for focus/spinner.
+	RunningStyle = lipgloss.NewStyle().Foreground(ColorRunning)
 
 	// HelperStyle is for de-emphasized hint text — footers like
 	// "(esc to quit)", inline shortcuts, secondary instructions.
