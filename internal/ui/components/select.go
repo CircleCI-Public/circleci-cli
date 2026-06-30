@@ -124,6 +124,24 @@ func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.cursor++
 			}
 			m.clampOffset()
+		case KeyPgUp:
+			m.cursor -= m.visibleRows()
+			if m.cursor < 0 {
+				m.cursor = 0
+			}
+			m.clampOffset()
+		case KeyPgDown:
+			m.cursor += m.visibleRows()
+			if m.cursor > len(m.options)-1 {
+				m.cursor = len(m.options) - 1
+			}
+			m.clampOffset()
+		case KeyHome, "g":
+			m.cursor = 0
+			m.clampOffset()
+		case KeyEnd, "G":
+			m.cursor = len(m.options) - 1
+			m.clampOffset()
 		}
 	}
 	return m, nil
