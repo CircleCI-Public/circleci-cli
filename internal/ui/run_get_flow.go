@@ -26,8 +26,10 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"time"
 
 	"charm.land/bubbles/v2/spinner"
+	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
@@ -84,9 +86,6 @@ const (
 	RunGetActionShowWorkflow
 	// RunGetActionShowJob displays a single job.
 	RunGetActionShowJob
-	// RunGetActionShowStep displays the output of a single job step, identified
-	// by JobID + Execution + StepNum.
-	RunGetActionShowStep
 	// RunGetActionShowJobOutput displays the full per-step output report for a
 	// job (the equivalent of "circleci job output list").
 	RunGetActionShowJobOutput
@@ -127,10 +126,6 @@ type RunGetResult struct {
 	RunID      uuid.UUID
 	WorkflowID uuid.UUID
 	JobID      uuid.UUID
-	// Execution and StepNum are set only for RunGetActionShowStep (the chosen
-	// step's parallel execution and step number).
-	Execution int
-	StepNum   int
 	// Err is set when a mid-flow fetch (workflows, jobs or steps) failed; Action
 	// is RunGetActionCancel in that case.
 	Err error
@@ -144,6 +139,12 @@ type RunGetFlowOptions struct {
 	FetchWorkflows  func(ctx context.Context, runID uuid.UUID) ([]RunGetItem, error)
 	FetchJobs       func(ctx context.Context, workflowID uuid.UUID) ([]RunGetItem, error)
 	FetchExecutions func(ctx context.Context, jobID uuid.UUID) ([]RunGetExecution, error)
+	// FetchStepStdout reads a step's stdout from byte offset, returning the new
+	// bytes (raw, ANSI intact) and whether stdout has finished. The pager polls
+	// this until terminal. FetchStepStderr reads the step's full stderr once
+	// stdout terminates (stdout always completes first).
+	FetchStepStdout func(ctx context.Context, jobID uuid.UUID, execution, stepNum int, offset int64) (data []byte, terminal bool, err error)
+	FetchStepStderr func(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error)
 	Color           bool
 	// Animate reports whether the loading spinner should animate. Pass false when
 	// CIRCLE_SPINNER_DISABLED is set (or the session is non-interactive) so the
@@ -205,6 +206,8 @@ const (
 	runGetStageLoadingExecutions
 	runGetStageExecutionSelect
 	runGetStageStepSelect
+	runGetStageLoadingStep
+	runGetStageStepPager
 	runGetStageDone
 )
 
@@ -217,9 +220,10 @@ const (
 //  3. Pick a job, or "all jobs in workflow" (→ RunGetActionShowWorkflow).
 //  4. For a job with parallelism > 1, pick an execution (skipped otherwise).
 //  5. Pick a step, or one of two summaries — "job report" (→ RunGetActionShowJob)
-//     or the full per-step output report (→ RunGetActionShowJobOutput). Picking
-//     a step yields RunGetActionShowStep; the cursor starts on the first failed
-//     step.
+//     or the full per-step output report (→ RunGetActionShowJobOutput). The
+//     cursor starts on the first failed step. Picking a step opens its output in
+//     an in-flow pager (r refreshes, esc returns to the step picker) rather than
+//     ending the program.
 //
 // Between selections the next level's items are fetched off the Update loop via
 // a tea.Cmd, with a spinner shown meanwhile. esc moves back one step (on the
@@ -240,8 +244,10 @@ type RunGetFlowModel struct {
 	spin         spinner.Model
 	loadingLabel string
 
-	// height is the latest terminal height, passed to each picker so long lists
-	// (e.g. many steps) scroll instead of overflowing the screen.
+	// width and height are the latest terminal size. height is passed to each
+	// picker so long lists scroll instead of overflowing; both size the step
+	// output pager.
+	width  int
 	height int
 
 	// Remembered cursors so moving back redisplays a picker where it was left.
@@ -272,11 +278,33 @@ type RunGetFlowModel struct {
 	workflowID uuid.UUID
 	jobID      uuid.UUID
 	execution  int // chosen parallel execution index (0 when single-execution)
+	stepNum    int // chosen step number, for the output pager
+	// stepCursor remembers the step picker's cursor index of the step opened in
+	// the pager, so returning from the pager (esc) resumes on it. -1 means "no
+	// remembered step" — a fresh entry into the step picker defaults to the first
+	// failed step instead.
+	stepCursor int
 
 	// restoreStep is set when an executions re-fetch was triggered by refreshing
 	// the step picker; onExecutions then re-enters the same execution's steps
 	// rather than routing back through the execution picker.
 	restoreStep bool
+
+	// Step output pager state. pager scrolls the selected step's output, streamed
+	// raw (ANSI intact) so colors survive. pagerBuf accumulates stdout (then
+	// stderr); pagerOffset is the next stdout byte to request; pagerTerminal marks
+	// stdout finished; pagerStderrDone marks stderr appended. pagerFetching guards
+	// against overlapping fetches; pagerEpoch invalidates polls/fetches from a
+	// superseded stream (e.g. when leaving the pager). pagerReady gates rendering
+	// until a terminal size is known.
+	pager           viewport.Model
+	pagerBuf        []byte
+	pagerOffset     int64
+	pagerTerminal   bool
+	pagerStderrDone bool
+	pagerFetching   bool
+	pagerEpoch      int
+	pagerReady      bool
 
 	result RunGetResult
 }
@@ -300,6 +328,20 @@ type (
 		items []RunGetExecution
 		err   error
 	}
+	runGetStepStdoutMsg struct {
+		epoch    int
+		data     []byte
+		terminal bool
+		err      error
+	}
+	runGetStepStderrMsg struct {
+		epoch int
+		data  []byte
+		err   error
+	}
+	runGetStepPollMsg struct {
+		epoch int
+	}
 )
 
 // NewRunGetFlow returns a RunGetFlowModel ready to pass to tea.NewProgram.
@@ -312,6 +354,7 @@ func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel 
 		runs:         opts.Runs,
 		scopes:       buildRunScopes(opts.CurrentBranch, opts.DefaultBranch),
 		activeBranch: opts.CurrentBranch,
+		stepCursor:   -1,
 	}
 	m.runSelect = m.newRunSelect()
 	return m
@@ -323,9 +366,11 @@ func (m RunGetFlowModel) Result() RunGetResult { return m.result }
 func (m RunGetFlowModel) Init() tea.Cmd { return nil }
 
 func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	// Remember the terminal height for pickers built on later stages, and let it
-	// fall through to the active picker (below) so a live resize re-windows it.
+	// Remember the terminal size for pickers built on later stages and for the
+	// pager, and let it fall through to the active stage (below) so a live resize
+	// re-windows it.
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.width = ws.Width
 		m.height = ws.Height
 	}
 
@@ -347,6 +392,12 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onJobs(msg)
 	case runGetExecutionsMsg:
 		return m.onExecutions(msg)
+	case runGetStepStdoutMsg:
+		return m.onStepStdout(msg)
+	case runGetStepStderrMsg:
+		return m.onStepStderr(msg)
+	case runGetStepPollMsg:
+		return m.onStepPoll(msg)
 	}
 
 	switch m.stage {
@@ -360,7 +411,9 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateExecutionSelect(msg)
 	case runGetStageStepSelect:
 		return m.updateStepSelect(msg)
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions:
+	case runGetStageStepPager:
+		return m.updateStepPager(msg)
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep:
 		// ctrl+c can still abort while a fetch is in flight.
 		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
@@ -385,7 +438,8 @@ func (m RunGetFlowModel) loading() bool {
 	return m.stage == runGetStageLoadingRuns ||
 		m.stage == runGetStageLoadingWorkflows ||
 		m.stage == runGetStageLoadingJobs ||
-		m.stage == runGetStageLoadingExecutions
+		m.stage == runGetStageLoadingExecutions ||
+		m.stage == runGetStageLoadingStep
 }
 
 // quit records the result and switches to the done stage, whose empty View
@@ -610,10 +664,13 @@ func (m RunGetFlowModel) onExecutions(msg runGetExecutionsMsg) (tea.Model, tea.C
 	}
 }
 
-// enterStepSelect scopes the step picker to one execution and shows it.
+// enterStepSelect scopes the step picker to one execution and shows it. This is
+// a fresh entry (from the execution picker or a single-execution job), so the
+// cursor defaults to the first failed step rather than a remembered one.
 func (m RunGetFlowModel) enterStepSelect(exec RunGetExecution) RunGetFlowModel {
 	m.execution = exec.Index
 	m.steps = exec.Steps
+	m.stepCursor = -1
 	m.stepSelect = m.newStepSelect()
 	m.stage = runGetStageStepSelect
 	return m
@@ -690,7 +747,8 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
-	sel := m.stepSelect.Selected()
+	picked := m.stepSelect.Selected()
+	sel := picked
 	if meta := m.stepMetaCount(); meta > 0 {
 		switch sel {
 		case 0: // "job report" — short summary
@@ -700,13 +758,157 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		sel -= meta
 	}
+	// A chosen step streams its output into the pager (rather than quitting the
+	// flow), so esc can return here. Remember the picker index so esc resumes on
+	// this step, then start the stream.
 	step := m.steps[sel]
-	return m.quit(RunGetResult{
-		Action:    RunGetActionShowStep,
-		JobID:     m.jobID,
-		Execution: step.Execution,
-		StepNum:   step.StepNum,
-	})
+	m.execution = step.Execution
+	m.stepNum = step.StepNum
+	m.stepCursor = picked
+	m.stage = runGetStageLoadingStep
+	m.loadingLabel = "Fetching step output"
+	return m, m.loadingCmd(m.startStepStream())
+}
+
+// startStepStream resets the pager buffers and begins a new stdout stream from
+// offset 0 under a fresh epoch (which invalidates any in-flight fetch or pending
+// poll from a previous stream). It returns the first fetch command.
+func (m *RunGetFlowModel) startStepStream() tea.Cmd {
+	m.pagerEpoch++
+	m.pagerBuf = nil
+	m.pagerOffset = 0
+	m.pagerTerminal = false
+	m.pagerStderrDone = false
+	m.pagerFetching = true
+	return m.cmdFetchStepStdout(m.pagerEpoch)
+}
+
+// onStepStdout appends a stdout chunk to the buffer and refreshes the pager.
+// While stdout has not terminated it schedules the next 2s poll; once it has, it
+// kicks off the one-shot stderr fetch. Stale chunks (from a superseded stream)
+// are dropped.
+func (m RunGetFlowModel) onStepStdout(msg runGetStepStdoutMsg) (tea.Model, tea.Cmd) {
+	if msg.epoch != m.pagerEpoch {
+		return m, nil
+	}
+	if msg.err != nil {
+		return m.quit(RunGetResult{Action: RunGetActionCancel, Err: msg.err})
+	}
+	m.pagerFetching = false
+	m.pagerBuf = append(m.pagerBuf, msg.data...)
+	m.pagerOffset += int64(len(msg.data))
+	m.pagerTerminal = msg.terminal
+	m.showPager()
+
+	if !m.pagerTerminal {
+		return m, m.cmdStepPoll(m.pagerEpoch)
+	}
+	// stdout finished; fetch stderr once and append it.
+	if !m.pagerStderrDone && m.opts.FetchStepStderr != nil {
+		m.pagerFetching = true
+		return m, m.cmdFetchStepStderr(m.pagerEpoch)
+	}
+	return m, nil
+}
+
+// onStepStderr appends the step's stderr once stdout has finished. A stderr
+// error is non-fatal — the stdout already shown stays — so it is ignored.
+func (m RunGetFlowModel) onStepStderr(msg runGetStepStderrMsg) (tea.Model, tea.Cmd) {
+	if msg.epoch != m.pagerEpoch {
+		return m, nil
+	}
+	m.pagerFetching = false
+	m.pagerStderrDone = true
+	if msg.err == nil && len(msg.data) > 0 {
+		m.pagerBuf = append(m.pagerBuf, msg.data...)
+		m.showPager()
+	}
+	return m, nil
+}
+
+// onStepPoll is the 2s heartbeat: it requests the next stdout chunk from the
+// current offset, unless the stream has moved on (stale epoch), a fetch is
+// already running, or stdout has terminated.
+func (m RunGetFlowModel) onStepPoll(msg runGetStepPollMsg) (tea.Model, tea.Cmd) {
+	if msg.epoch != m.pagerEpoch || m.pagerFetching || m.pagerTerminal {
+		return m, nil
+	}
+	m.pagerFetching = true
+	return m, m.cmdFetchStepStdout(m.pagerEpoch)
+}
+
+// showPager renders the accumulated raw output into the viewport, building it on
+// first use. New output follows the bottom only when the view was already at the
+// bottom, so a user who has scrolled up to read is not yanked down.
+func (m *RunGetFlowModel) showPager() {
+	atBottom := m.pagerReady && m.pager.AtBottom()
+	m.syncPager()
+	m.stage = runGetStageStepPager
+	if !atBottom && m.pagerReady {
+		return
+	}
+	if m.pagerReady {
+		m.pager.GotoBottom()
+	}
+}
+
+// syncPager (re)builds the pager viewport to the current terminal size and loads
+// the accumulated output. It no-ops on sizing until a terminal size is known
+// (the first WindowSizeMsg), after which updateStepPager keeps it sized.
+func (m *RunGetFlowModel) syncPager() {
+	if m.width <= 0 || m.height <= 0 {
+		return
+	}
+	height := m.height - MarkdownViewportFooterHeight
+	if height < 1 {
+		height = 1
+	}
+	if !m.pagerReady {
+		m.pager = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(height))
+		m.pagerReady = true
+	} else {
+		m.pager.SetWidth(m.width)
+		m.pager.SetHeight(height)
+	}
+	content := string(m.pagerBuf)
+	if content == "" {
+		content = theme.HelperStyle.Render("(no output yet)")
+	}
+	m.pager.SetContent(content)
+}
+
+// updateStepPager drives the step-output pager: scrolling via the viewport,
+// g/G to jump to top/bottom, esc to return to the step picker, ctrl+c to quit.
+// Output streams in on its own (polled until terminal), so there is no reload key.
+func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.syncPager()
+		return m, nil
+	case tea.KeyPressMsg:
+		switch msg.String() {
+		case components.KeyCtrlC:
+			return m.quit(RunGetResult{Action: RunGetActionCancel})
+		case components.KeyEsc:
+			// Leave the pager: bump the epoch so any in-flight fetch or pending
+			// poll is ignored, then return to the step picker. stepCursor still
+			// holds the opened step, so the picker resumes on it.
+			m.pagerEpoch++
+			m.pagerFetching = false
+			m.stepSelect = m.newStepSelect()
+			m.stage = runGetStageStepSelect
+			return m, nil
+		case components.KeyG, components.KeyHome:
+			m.pager.GotoTop()
+			return m, nil
+		case components.KeyShiftG, components.KeyEnd:
+			m.pager.GotoBottom()
+			return m, nil
+		}
+	}
+	var cmd tea.Cmd
+	m.pager, cmd = m.pager.Update(msg)
+	return m, cmd
 }
 
 func (m RunGetFlowModel) View() tea.View {
@@ -721,18 +923,43 @@ func (m RunGetFlowModel) View() tea.View {
 		return m.executionSelect.View()
 	case runGetStageStepSelect:
 		return m.stepSelect.View()
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions:
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep:
 		label := theme.HelperStyle.Render(m.loadingLabel)
 		if m.opts.Animate {
 			label = m.spin.View() + " " + label
 		}
 		return tea.NewView(label)
+	case runGetStageStepPager:
+		return m.stepPagerView()
 	case runGetStageDone:
 		// Empty final frame so the last picker is cleared before the program
 		// exits and the summary prints in its place.
 		return tea.NewView("")
 	}
 	return tea.NewView("")
+}
+
+// stepPagerView renders the step-output pager: the scrollable viewport above a
+// footer of scroll position and key hints, on the alternate screen so the full
+// terminal is available and the prior flow output is restored on exit.
+func (m RunGetFlowModel) stepPagerView() tea.View {
+	if !m.pagerReady {
+		return tea.NewView("")
+	}
+	body := lipgloss.JoinVertical(lipgloss.Left, m.pager.View(), m.stepPagerFooter())
+	v := tea.NewView(body)
+	v.AltScreen = true
+	return v
+}
+
+func (m RunGetFlowModel) stepPagerFooter() string {
+	hint := "↑/↓ scroll · g/G top/bottom · esc back"
+	pct := fmt.Sprintf("%3.0f%%", m.pager.ScrollPercent()*100)
+	status := ""
+	if !m.pagerTerminal {
+		status = theme.AccentStyle.Render("streaming…") + "  "
+	}
+	return "\n" + status + theme.HelperStyle.Render(hint+"  "+pct)
 }
 
 // --- picker builders ---
@@ -833,9 +1060,15 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 		labels = append(labels, s.Label)
 		icons = append(icons, colorizeStatusIcon(s.Icon, m.opts.Color))
 	}
+	// Resume on the remembered step (set when one was opened in the pager);
+	// otherwise land on the first failed step.
+	cursor := m.stepCursor
+	if cursor < 0 {
+		cursor = m.firstFailedStepCursor()
+	}
 	return components.NewSelectModel("Select a step", labels).
 		WithIcons(icons).
-		WithCursor(m.firstFailedStepCursor()).
+		WithCursor(cursor).
 		WithHint(runGetBackHint).
 		WithHeight(m.height)
 }
@@ -953,4 +1186,30 @@ func (m RunGetFlowModel) cmdFetchExecutions() tea.Cmd {
 		items, err := fn(ctx, jobID)
 		return runGetExecutionsMsg{items: items, err: err}
 	}
+}
+
+func (m RunGetFlowModel) cmdFetchStepStdout(epoch int) tea.Cmd {
+	ctx, fn := m.ctx, m.opts.FetchStepStdout
+	jobID, execution, stepNum, offset := m.jobID, m.execution, m.stepNum, m.pagerOffset
+	return func() tea.Msg {
+		data, terminal, err := fn(ctx, jobID, execution, stepNum, offset)
+		return runGetStepStdoutMsg{epoch: epoch, data: data, terminal: terminal, err: err}
+	}
+}
+
+func (m RunGetFlowModel) cmdFetchStepStderr(epoch int) tea.Cmd {
+	ctx, fn := m.ctx, m.opts.FetchStepStderr
+	jobID, execution, stepNum := m.jobID, m.execution, m.stepNum
+	return func() tea.Msg {
+		data, err := fn(ctx, jobID, execution, stepNum)
+		return runGetStepStderrMsg{epoch: epoch, data: data, err: err}
+	}
+}
+
+// cmdStepPoll schedules the next stdout poll 2 seconds out, tagged with the
+// stream epoch so a poll from a superseded stream is ignored on arrival.
+func (m RunGetFlowModel) cmdStepPoll(epoch int) tea.Cmd {
+	return tea.Tick(2*time.Second, func(time.Time) tea.Msg {
+		return runGetStepPollMsg{epoch: epoch}
+	})
 }

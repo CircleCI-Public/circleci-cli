@@ -363,6 +363,30 @@ func decorateOutcome(outcome string) string {
 	}
 }
 
+// GetJobStdoutRange fetches a step's stdout starting at byte offset, returning
+// the bytes from that offset and whether stdout has finished — the API reports
+// completion via the "X-Terminal: true" response header. Pass offset 0 for the
+// first read and the number of bytes already consumed thereafter to resume
+// (sent as "Range: bytes=<offset>-"). Bytes are returned raw, with ANSI styling
+// intact, for colored display in a pager.
+func (c *Client) GetJobStdoutRange(ctx context.Context, jobID uuid.UUID, execution, stepNum int, offset int64) (data []byte, terminal bool, err error) {
+	var output []byte
+	var header http.Header
+	_, err = c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout",
+		httpcl.RouteParams(jobID),
+		filterParam("execution", strconv.Itoa(execution)),
+		filterParam("step_num", strconv.Itoa(stepNum)),
+		httpcl.Header("Range", fmt.Sprintf("bytes=%d-", offset)),
+		httpcl.BytesDecoder(&output),
+		httpcl.CaptureHeader(&header),
+	))
+	if err != nil {
+		return nil, false, err
+	}
+	terminal = header.Get("X-Terminal") == "true"
+	return output, terminal, nil
+}
+
 func (c *Client) GetJobStdout(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
 	var output []byte
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout",

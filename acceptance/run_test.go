@@ -445,6 +445,9 @@ const (
 	// back a step" (except on the first picker, where it quits).
 	keyEsc = "\x1b"
 	keyUp  = "\x1b[A"
+	// keyCtrlC is the ETX byte; in raw mode the picker decodes it as ctrl+c and
+	// quits the whole flow.
+	keyCtrlC = "\x03"
 )
 
 // setupRunGetInteractiveFake wires a project with two recent runs on branch
@@ -610,7 +613,18 @@ func TestRunGet_Interactive_SelectStep(t *testing.T) {
 	_, err := console.Send("\r")
 	assert.NilError(t, err)
 
+	// Its output streams into the pager.
 	_, err = console.ExpectString("FAILURE: 2 tests failed")
+	assert.NilError(t, err)
+
+	// esc returns to the step picker, resuming on the same step.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+	_, err = console.ExpectString("Spin up environment")
+	assert.NilError(t, err)
+
+	// ctrl+c quits the flow.
+	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }
 
@@ -668,7 +682,12 @@ func TestRunGet_Interactive_ParallelExecution(t *testing.T) {
 	_, err = console.Send("\r")
 	assert.NilError(t, err)
 
+	// The step's output streams into the pager.
 	_, err = console.ExpectString("deploy failed")
+	assert.NilError(t, err)
+
+	// ctrl+c quits the flow from the pager.
+	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }
 
