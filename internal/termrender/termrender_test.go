@@ -29,6 +29,7 @@ import (
 	"io"
 	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -208,6 +209,39 @@ func TestRenderProgressBarThenScroll(t *testing.T) {
 	assert.Check(t, cmp.Equal(strings.HasPrefix(got, "download 100%\n"), true))
 	assert.Check(t, !strings.Contains(got, "download 0%"))
 	assert.Check(t, !strings.Contains(got, "download 50%"))
+}
+
+// TestRenderHugeCursorParamsDoNotBlowUp guards against an OOM/hang where a
+// cursor-positioning or repeat sequence with an enormous parameter forced a
+// multi-gigabyte blank-padded row. Each case must return promptly and produce a
+// row no larger than the column cap.
+func TestRenderHugeCursorParamsDoNotBlowUp(t *testing.T) {
+	cases := map[string]string{
+		"cursor forward":  "x\x1b[999999999Cy\n",
+		"cursor position": "\x1b[1;999999999Hy\n",
+		"horizontal abs":  "\x1b[999999999Gy\n",
+		"repeat":          "x\x1b[999999999b\n",
+	}
+	for name, in := range cases {
+		t.Run(name, func(t *testing.T) {
+			done := make(chan string, 1)
+			go func() {
+				var buf bytes.Buffer
+				assert.Check(t, Render(&buf, strings.NewReader(in)) == nil)
+				done <- buf.String()
+			}()
+			select {
+			case got := <-done:
+				// The cursor caps at maxColumns; printing one rune there yields at
+				// most maxColumns+1 cells — bounded, not gigabytes.
+				line := strings.TrimSuffix(got, "\n")
+				assert.Check(t, len([]rune(line)) <= maxColumns+1,
+					"rendered line length %d exceeds cap %d", len([]rune(line)), maxColumns)
+			case <-time.After(10 * time.Second):
+				t.Fatal("Render did not return: a huge cursor parameter ballooned a row")
+			}
+		})
+	}
 }
 
 // readOnly hides any io.ByteReader implementation so Render must fall back to

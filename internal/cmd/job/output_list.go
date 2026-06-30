@@ -47,6 +47,15 @@ import (
 // a job with many steps doesn't open an unbounded number of connections.
 const maxStepOutputFetches = 8
 
+// DefaultStepOutputTail is the default for --tail: how many lines of each
+// step's output are embedded in the human-readable markdown. The markdown is
+// rendered through glamour, whose cost (syntax tokenizing + reflow) is
+// superlinear and grinds to a halt on a step with hundreds of thousands of
+// lines. We keep the tail — the end of a log is where failures and final state
+// are — and point at "job output get" for the rest. The --json output is never
+// truncated; it always carries full output.
+const DefaultStepOutputTail = 200
+
 // jobOutputList is the typed output of "circleci job output list".
 type jobOutputList struct {
 	ID        uuid.UUID        `json:"id"`
@@ -73,6 +82,7 @@ func newOutputListCmd() *cobra.Command {
 	var (
 		execution int
 		jsonOut   bool
+		tail      int
 	)
 
 	cmd := &cobra.Command{
@@ -97,6 +107,11 @@ func newOutputListCmd() *cobra.Command {
 			virtual terminal so progress redraws (carriage returns, cursor
 			movement) collapse to the final state a human would have seen.
 
+			Only the last --tail lines of each step are shown (the end of a log
+			is where failures and final state are); pass --tail 0 to show every
+			line. This limit applies to the rendered view only — --json always
+			carries each step's full output.
+
 			JSON fields: id, name, execution,
 			             steps[].num/name/type/phase/outcome/started_at/stopped_at/
 			             exit_code/command/output
@@ -111,6 +126,9 @@ func newOutputListCmd() *cobra.Command {
 			# As JSON, with the output of the failing step
 			$ circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b --json \
 			    | jq '.steps[] | select(.exit_code != 0) | .output'
+
+			# Show every line of every step in the rendered view
+			$ circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b --tail 0
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -128,11 +146,12 @@ func newOutputListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runOutputList(ctx, client, jobID, execution, jsonOut)
+			return runOutputList(ctx, client, jobID, execution, tail, jsonOut)
 		},
 	}
 
 	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to list output from")
+	cmd.Flags().IntVar(&tail, "tail", DefaultStepOutputTail, "Show only the last N lines of each step's output in the rendered view (0 for all)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -142,12 +161,13 @@ func newOutputListCmd() *cobra.Command {
 // OutputList renders a job's steps with their output exactly as "circleci job
 // output list" does. It is exported so interactive callers (e.g. "circleci run
 // get") can reuse the same full report without duplicating the fetch/render
-// logic.
-func OutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int, jsonOut bool) error {
-	return runOutputList(ctx, client, jobID, execution, jsonOut)
+// logic. tail bounds how many lines of each step are shown in the rendered view
+// (0 for all); DefaultStepOutputTail is the command's default.
+func OutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, tail int, jsonOut bool) error {
+	return runOutputList(ctx, client, jobID, execution, tail, jsonOut)
 }
 
-func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int, jsonOut bool) error {
+func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, tail int, jsonOut bool) error {
 	job, err := client.GetJobV3(ctx, jobID)
 	if err != nil {
 		return cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
@@ -193,7 +213,7 @@ func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 		return iostream.PrintJSON(ctx, data)
 	}
 
-	printOutputList(ctx, data)
+	printOutputList(ctx, data, tail)
 	return nil
 }
 
@@ -253,7 +273,7 @@ func renderStepOutput(ctx context.Context, client *apiclient.Client, jobID uuid.
 	return sb.String(), nil
 }
 
-func printOutputList(ctx context.Context, data *jobOutputList) {
+func printOutputList(ctx context.Context, data *jobOutputList, tail int) {
 	var md strings.Builder
 	md.WriteString("# Job Output\n")
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", data.ID)
@@ -281,15 +301,40 @@ func printOutputList(ctx context.Context, data *jobOutputList) {
 			md.WriteString("\n_(no output)_\n")
 			continue
 		}
-		fence := codeFence(s.Output)
-		// s.Output already ends in a newline, so the closing fence lands on its
+		// Embed only the tail in the rendered view; glamour cannot handle a huge
+		// code block. The full output is always available via --json or the
+		// per-step "job output get" command named in the notice.
+		output, omitted := tailLines(s.Output, tail)
+		if omitted > 0 {
+			_, _ = fmt.Fprintf(&md, "\n_… %d earlier lines hidden; run `circleci job output get %s --step-num %d` for the full output._\n",
+				omitted, data.ID, s.Num)
+		}
+		fence := codeFence(output)
+		// output already ends in a newline, so the closing fence lands on its
 		// own line.
 		_, _ = fmt.Fprintf(&md, "\n%stext\n", fence)
-		md.WriteString(s.Output)
+		md.WriteString(output)
 		_, _ = fmt.Fprintf(&md, "%s\n", fence)
 	}
 
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+// tailLines returns the last limit lines of s along with the number of lines
+// hidden from the front. s is expected to be newline-terminated; if it has
+// limit or fewer lines it is returned unchanged with omitted == 0. A limit of
+// zero or less means no limit.
+func tailLines(s string, limit int) (tail string, omitted int) {
+	total := strings.Count(s, "\n")
+	if limit <= 0 || total <= limit {
+		return s, 0
+	}
+	omitted = total - limit
+	cut := 0
+	for n := 0; n < omitted; n++ {
+		cut += strings.IndexByte(s[cut:], '\n') + 1
+	}
+	return s[cut:], omitted
 }
 
 // codeFence returns a backtick fence long enough to wrap s without a run of

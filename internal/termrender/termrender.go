@@ -66,6 +66,14 @@ import (
 // as tall as the largest block a tool repaints at once.
 const DefaultHeight = 100
 
+// maxColumns bounds how far a cursor-positioning sequence may push the column.
+// Printable content extends a line naturally and is never truncated, but a
+// movement/position/repeat command with an absurd parameter — e.g.
+// "\x1b[999999999C", or binary data misparsed as a CSI parameter — must not be
+// able to force a multi-gigabyte blank-padded row (an OOM that looks like a
+// hang). No real terminal or progress redraw addresses columns beyond this.
+const maxColumns = 1 << 16
+
 // Render replays the captured terminal output read from src and writes the
 // rendered plain text to dst. Input is consumed one byte at a time and output
 // is streamed as lines scroll off, so memory stays flat regardless of how large
@@ -197,7 +205,7 @@ func (r *renderer) csi(cmd ansi.Cmd, params ansi.Params) {
 	case 'B', 'e': // CUD / VPR — cursor down
 		r.cy = min(r.cy+param(params, 0, 1), r.height-1)
 	case 'C', 'a': // CUF / HPR — cursor forward
-		r.cx += param(params, 0, 1)
+		r.cx = r.clampCol(r.cx + param(params, 0, 1))
 	case 'D': // CUB — cursor back
 		r.cx = max(r.cx-param(params, 0, 1), 0)
 	case 'E': // CNL — cursor next line
@@ -207,12 +215,12 @@ func (r *renderer) csi(cmd ansi.Cmd, params ansi.Params) {
 		r.cy = max(r.cy-param(params, 0, 1), 0)
 		r.cx = 0
 	case 'G', '`': // CHA / HPA — cursor horizontal absolute (1-based)
-		r.cx = max(param(params, 0, 1)-1, 0)
+		r.cx = r.clampCol(param(params, 0, 1) - 1)
 	case 'd': // VPA — line position absolute (1-based)
 		r.cy = min(max(param(params, 0, 1)-1, 0), r.height-1)
 	case 'H', 'f': // CUP / HVP — cursor position (row;col, 1-based)
 		r.cy = min(max(param(params, 0, 1)-1, 0), r.height-1)
-		r.cx = max(param(params, 1, 1)-1, 0)
+		r.cx = r.clampCol(param(params, 1, 1) - 1)
 	case 'J': // ED — erase in display
 		r.eraseDisplay(param(params, 0, 0))
 	case 'K': // EL — erase in line
@@ -225,12 +233,27 @@ func (r *renderer) csi(cmd ansi.Cmd, params ansi.Params) {
 		r.scrollDown(param(params, 0, 1))
 	case 'b': // REP — repeat the last printed rune
 		if r.lastRune != 0 {
-			for n := param(params, 0, 1); n > 0; n-- {
+			for n := min(param(params, 0, 1), maxColumns); n > 0; n-- {
 				r.print(r.lastRune)
 			}
 		}
 	}
 	// SGR ('m') and everything else are intentionally ignored.
+}
+
+// clampCol bounds a target cursor column to [0, max(maxColumns, current line
+// length)]. The current line's length is allowed so the cursor can always reach
+// the end of genuinely long printed content, while an absurd absolute column
+// from a malformed sequence is capped before it can balloon a row in padTo.
+func (r *renderer) clampCol(x int) int {
+	if x < 0 {
+		return 0
+	}
+	hi := maxColumns
+	if l := len(r.rows[r.cy]); l > hi {
+		hi = l
+	}
+	return min(x, hi)
 }
 
 // index moves the cursor down one row, scrolling the window (and emitting the
