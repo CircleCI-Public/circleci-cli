@@ -23,6 +23,7 @@
 package job
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"net/http"
@@ -39,6 +40,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
 )
 
 // maxStepOutputFetches bounds how many step outputs are fetched concurrently so
@@ -246,8 +248,8 @@ func renderStepOutput(ctx context.Context, client *apiclient.Client, jobID uuid.
 	}
 
 	var sb strings.Builder
-	renderTerminal(&sb, stdout)
-	renderTerminal(&sb, stderr)
+	_ = termrender.Render(&sb, bytes.NewReader(stdout))
+	_ = termrender.Render(&sb, bytes.NewReader(stderr))
 	return sb.String(), nil
 }
 

@@ -23,14 +23,12 @@
 package job
 
 import (
-	"bufio"
+	"bytes"
 	"context"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/charmbracelet/x/vt"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
@@ -39,6 +37,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
 )
 
 func newOutputGetCmd() *cobra.Command {
@@ -165,84 +164,8 @@ func writeOutput(out io.Writer, b []byte, strip bool) {
 		_, _ = out.Write(b)
 		return
 	}
-	renderTerminal(out, b)
-}
-
-// Dimensions of the virtual terminal used to render captured output. The width
-// is wide enough to avoid wrapping typical log and progress-bar lines; the
-// scrollback is large enough to retain the full output of a single step.
-const (
-	renderWidth      = 200
-	renderHeight     = 100
-	renderScrollback = 100_000
-)
-
-// renderTerminal replays captured step output through a virtual terminal and
-// writes the resulting plain text to dst. A naive ANSI strip is not enough:
-// tools like Docker redraw progress with carriage returns and cursor movement,
-// so stripping the escapes alone leaves a pile of stale, half-drawn lines.
-// Emulating a terminal collapses those redraws to the final state a human would
-// have seen.
-func renderTerminal(dst io.Writer, b []byte) {
-	if len(b) == 0 {
-		return
-	}
-
-	e := vt.NewEmulator(renderWidth, renderHeight)
-	e.SetScrollbackSize(renderScrollback)
-
-	// The emulator answers terminal queries — Device Attributes ("\x1b[c"),
-	// OSC color queries ("\x1b]11;?\a"), in-band resize — by writing the reply
-	// to its input pipe, which is an *unbuffered* io.Pipe. Captured CI logs
-	// routinely contain such queries (goreleaser, Docker, etc.), so unless that
-	// pipe is drained, the very first reply makes e.Write block forever — and
-	// because it's an uninterruptible pipe write, the whole command hangs past
-	// Ctrl-C. We only want the rendered screen, so discard the replies.
-	//
-	// Stop the drain by closing the input pipe's write end (which makes the
-	// reader see EOF through io.Pipe's own synchronization) rather than
-	// e.Close(): the latter also flips an unsynchronised "closed" flag that the
-	// draining Read reads concurrently, which is a data race.
-	go func() { _, _ = io.Copy(io.Discard, e) }()
-	if pw, ok := e.InputPipe().(io.Closer); ok {
-		defer func() { _ = pw.Close() }()
-	}
-
-	// Enable line-feed/new-line mode so a bare "\n" also returns to column 0,
-	// matching the cooked-mode terminal these tools assume they're writing to.
-	_, _ = e.WriteString("\x1b[20h")
-	_, _ = e.Write(b)
-
-	// Write straight through a small buffer rather than materialising the whole
-	// rendered output as one string; the screen can be tens of thousands of
-	// lines once scrollback is included.
-	w := bufio.NewWriter(dst)
-
-	// Buffer blank lines and only emit them once real content follows. This
-	// drops the trailing blank rows of the fixed-height screen (and any trailing
-	// blank scrollback lines) while preserving blank lines between content.
-	pendingBlanks := 0
-	emit := func(line string) {
-		if line == "" {
-			pendingBlanks++
-			return
-		}
-		for ; pendingBlanks > 0; pendingBlanks-- {
-			_ = w.WriteByte('\n')
-		}
-		_, _ = w.WriteString(line)
-		_ = w.WriteByte('\n')
-	}
-
-	sb := e.Scrollback()
-	for i := 0; i < sb.Len(); i++ {
-		emit(strings.TrimRight(sb.Line(i).String(), " "))
-	}
-	// strings.Lines is an allocation-free iterator (each line is a reslice of the
-	// screen string); strings.Split would allocate a slice plus a header per line.
-	for line := range strings.Lines(e.String()) {
-		emit(strings.TrimRight(line, " \n"))
-	}
-
-	_ = w.Flush()
+	// Render the captured stream down to plain text: strip ANSI styling and
+	// collapse cursor/carriage-return redraws (Docker pulls, progress bars) to
+	// the final state a human would have seen. See internal/termrender.
+	_ = termrender.Render(out, bytes.NewReader(b))
 }
