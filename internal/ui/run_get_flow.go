@@ -42,9 +42,10 @@ const (
 	runGetJobReportLabel    = "Job report (summary)"
 	runGetJobOutputLabel    = "Full job report (including step output)"
 
-	// runGetStepOffset is the number of leading meta options (job report, full
-	// output report) before the steps in the step picker.
-	runGetStepOffset = 2
+	// runGetMetaCount is the number of leading job-summary options (job report,
+	// full output report). They sit on the first picker after the job: the step
+	// picker for a single-execution job, or the execution picker otherwise.
+	runGetMetaCount = 2
 
 	// runGetBackHint replaces the default footer on the workflow, job and step
 	// pickers, where esc goes back a step rather than quitting.
@@ -96,6 +97,16 @@ type RunGetStepItem struct {
 	StepNum   int
 }
 
+// RunGetExecution is one parallel execution of a job, carrying its steps. When a
+// job's parallelism is greater than one the flow inserts an execution picker
+// before the step picker; with a single execution that picker is skipped.
+type RunGetExecution struct {
+	Label string
+	Icon  string
+	Index int
+	Steps []RunGetStepItem
+}
+
 // RunGetResult is the outcome of a completed RunGetFlowModel run, read via
 // Result() after tea.Program.Run() returns.
 type RunGetResult struct {
@@ -103,7 +114,8 @@ type RunGetResult struct {
 	RunID      uuid.UUID
 	WorkflowID uuid.UUID
 	JobID      uuid.UUID
-	// Execution and StepNum are set only for RunGetActionShowStep.
+	// Execution and StepNum are set only for RunGetActionShowStep (the chosen
+	// step's parallel execution and step number).
 	Execution int
 	StepNum   int
 	// Err is set when a mid-flow fetch (workflows, jobs or steps) failed; Action
@@ -115,11 +127,11 @@ type RunGetResult struct {
 // program decoupled from the API client: the caller supplies the already-built
 // run list and closures that return the next level's items on demand.
 type RunGetFlowOptions struct {
-	Runs           []RunGetItem
-	FetchWorkflows func(ctx context.Context, runID uuid.UUID) ([]RunGetItem, error)
-	FetchJobs      func(ctx context.Context, workflowID uuid.UUID) ([]RunGetItem, error)
-	FetchSteps     func(ctx context.Context, jobID uuid.UUID) ([]RunGetStepItem, error)
-	Color          bool
+	Runs            []RunGetItem
+	FetchWorkflows  func(ctx context.Context, runID uuid.UUID) ([]RunGetItem, error)
+	FetchJobs       func(ctx context.Context, workflowID uuid.UUID) ([]RunGetItem, error)
+	FetchExecutions func(ctx context.Context, jobID uuid.UUID) ([]RunGetExecution, error)
+	Color           bool
 }
 
 type runGetStage int
@@ -130,7 +142,8 @@ const (
 	runGetStageWorkflowSelect
 	runGetStageLoadingJobs
 	runGetStageJobSelect
-	runGetStageLoadingSteps
+	runGetStageLoadingExecutions
+	runGetStageExecutionSelect
 	runGetStageStepSelect
 	runGetStageDone
 )
@@ -142,7 +155,8 @@ const (
 //  1. Pick a run from the recent list.
 //  2. Pick a workflow, or "see all workflows" (→ RunGetActionShowRun).
 //  3. Pick a job, or "all jobs in workflow" (→ RunGetActionShowWorkflow).
-//  4. Pick a step, or one of two summaries — "job report" (→ RunGetActionShowJob)
+//  4. For a job with parallelism > 1, pick an execution (skipped otherwise).
+//  5. Pick a step, or one of two summaries — "job report" (→ RunGetActionShowJob)
 //     or the full per-step output report (→ RunGetActionShowJobOutput). Picking
 //     a step yields RunGetActionShowStep; the cursor starts on the first failed
 //     step.
@@ -157,28 +171,32 @@ type RunGetFlowModel struct {
 
 	stage runGetStage
 
-	runSelect      components.SelectModel
-	workflowSelect components.SelectModel
-	jobSelect      components.SelectModel
-	stepSelect     components.SelectModel
+	runSelect       components.SelectModel
+	workflowSelect  components.SelectModel
+	jobSelect       components.SelectModel
+	executionSelect components.SelectModel
+	stepSelect      components.SelectModel
 
 	spin         spinner.Model
 	loadingLabel string
 
 	// Remembered cursors so moving back redisplays a picker where it was left.
-	runCursor      int
-	workflowCursor int
-	jobCursor      int
+	runCursor       int
+	workflowCursor  int
+	jobCursor       int
+	executionCursor int
 
-	// Fetched data for the current selections, parallel to the pickers (offset
-	// by one for the leading "see all" / "job report" option).
-	workflows []RunGetItem
-	jobs      []RunGetItem
-	steps     []RunGetStepItem
+	// Fetched data for the current selections, parallel to the pickers (the
+	// workflow/job/step pickers are offset by their leading summary options).
+	workflows  []RunGetItem
+	jobs       []RunGetItem
+	executions []RunGetExecution
+	steps      []RunGetStepItem
 
 	runID      uuid.UUID
 	workflowID uuid.UUID
 	jobID      uuid.UUID
+	execution  int // chosen parallel execution index (0 when single-execution)
 
 	result RunGetResult
 }
@@ -193,8 +211,8 @@ type (
 		items []RunGetItem
 		err   error
 	}
-	runGetStepsMsg struct {
-		items []RunGetStepItem
+	runGetExecutionsMsg struct {
+		items []RunGetExecution
 		err   error
 	}
 )
@@ -231,8 +249,8 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onWorkflows(msg)
 	case runGetJobsMsg:
 		return m.onJobs(msg)
-	case runGetStepsMsg:
-		return m.onSteps(msg)
+	case runGetExecutionsMsg:
+		return m.onExecutions(msg)
 	}
 
 	switch m.stage {
@@ -242,9 +260,11 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateWorkflowSelect(msg)
 	case runGetStageJobSelect:
 		return m.updateJobSelect(msg)
+	case runGetStageExecutionSelect:
+		return m.updateExecutionSelect(msg)
 	case runGetStageStepSelect:
 		return m.updateStepSelect(msg)
-	case runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingSteps:
+	case runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions:
 		// ctrl+c can still abort while a fetch is in flight.
 		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
@@ -258,7 +278,7 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m RunGetFlowModel) loading() bool {
 	return m.stage == runGetStageLoadingWorkflows ||
 		m.stage == runGetStageLoadingJobs ||
-		m.stage == runGetStageLoadingSteps
+		m.stage == runGetStageLoadingExecutions
 }
 
 // quit records the result and switches to the done stage, whose empty View
@@ -373,30 +393,45 @@ func (m RunGetFlowModel) updateJobSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 	m.jobCursor = sel
 	m.jobID = m.jobs[sel-1].ID
-	m.stage = runGetStageLoadingSteps
+	m.stage = runGetStageLoadingExecutions
 	m.loadingLabel = "Fetching steps"
-	return m, tea.Batch(m.spin.Tick, m.cmdFetchSteps())
+	return m, tea.Batch(m.spin.Tick, m.cmdFetchExecutions())
 }
 
-func (m RunGetFlowModel) onSteps(msg runGetStepsMsg) (tea.Model, tea.Cmd) {
+func (m RunGetFlowModel) onExecutions(msg runGetExecutionsMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		return m.quit(RunGetResult{Action: RunGetActionCancel, Err: msg.err})
 	}
-	// A job with no resolvable steps has nothing to pick — skip straight to the
-	// job report rather than show a one-option picker.
-	if len(msg.items) == 0 {
+	m.executions = msg.items
+	switch len(m.executions) {
+	case 0:
+		// No resolvable steps — skip straight to the job report rather than show
+		// an empty picker.
 		return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+	case 1:
+		// Single execution: no execution picker, go straight to its steps.
+		return m.enterStepSelect(m.executions[0]), nil
+	default:
+		m.executionCursor = m.firstFailedExecutionCursor()
+		m.executionSelect = m.newExecutionSelect()
+		m.stage = runGetStageExecutionSelect
+		return m, nil
 	}
-	m.steps = msg.items
-	m.stepSelect = m.newStepSelect()
-	m.stage = runGetStageStepSelect
-	return m, nil
 }
 
-// updateStepSelect handles the step picker. esc returns to the job picker;
-// ctrl+c quits. The leading option shows the job report; picking a step shows
-// that step's output.
-func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
+// enterStepSelect scopes the step picker to one execution and shows it.
+func (m RunGetFlowModel) enterStepSelect(exec RunGetExecution) RunGetFlowModel {
+	m.execution = exec.Index
+	m.steps = exec.Steps
+	m.stepSelect = m.newStepSelect()
+	m.stage = runGetStageStepSelect
+	return m
+}
+
+// updateExecutionSelect handles the execution picker, shown only when a job has
+// parallelism > 1. Its leading options are the job summaries; the remaining
+// rows are executions. esc returns to the job picker; ctrl+c quits.
+func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
 		switch k.String() {
 		case components.KeyCtrlC:
@@ -408,19 +443,61 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 	}
 
+	updated, cmd := m.executionSelect.Update(msg)
+	m.executionSelect = updated.(components.SelectModel)
+	if !m.executionSelect.Done() {
+		return m, cmd
+	}
+
+	sel := m.executionSelect.Selected()
+	switch sel {
+	case 0: // "job report" — short summary, all executions
+		return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+	case 1: // "full output report" — every step's output, all executions
+		return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+	}
+	m.executionCursor = sel
+	return m.enterStepSelect(m.executions[sel-runGetMetaCount]), nil
+}
+
+// updateStepSelect handles the step picker. esc returns to the execution picker
+// when there was one, else to the job picker; ctrl+c quits. The job-summary
+// options lead the picker only for a single-execution job; for a parallel job
+// they live on the execution picker instead, so here it is steps only.
+func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		switch k.String() {
+		case components.KeyCtrlC:
+			return m.quit(RunGetResult{Action: RunGetActionCancel})
+		case components.KeyEsc:
+			if len(m.executions) > 1 {
+				m.executionSelect = m.newExecutionSelect()
+				m.stage = runGetStageExecutionSelect
+			} else {
+				m.jobSelect = m.newJobSelect()
+				m.stage = runGetStageJobSelect
+			}
+			return m, nil
+		}
+	}
+
 	updated, cmd := m.stepSelect.Update(msg)
 	m.stepSelect = updated.(components.SelectModel)
 	if !m.stepSelect.Done() {
 		return m, cmd
 	}
 
-	switch m.stepSelect.Selected() {
-	case 0: // "job report" — short summary
-		return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
-	case 1: // "full output report" — every step's output
-		return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+	sel := m.stepSelect.Selected()
+	if meta := m.stepMetaCount(); meta > 0 {
+		switch sel {
+		case 0: // "job report" — short summary
+			return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+		case 1: // "full output report" — every step's output
+			return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+		}
+		sel -= meta
 	}
-	step := m.steps[m.stepSelect.Selected()-runGetStepOffset]
+	step := m.steps[sel]
 	return m.quit(RunGetResult{
 		Action:    RunGetActionShowStep,
 		JobID:     m.jobID,
@@ -437,9 +514,11 @@ func (m RunGetFlowModel) View() tea.View {
 		return m.workflowSelect.View()
 	case runGetStageJobSelect:
 		return m.jobSelect.View()
+	case runGetStageExecutionSelect:
+		return m.executionSelect.View()
 	case runGetStageStepSelect:
 		return m.stepSelect.View()
-	case runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingSteps:
+	case runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions:
 		return tea.NewView(m.spin.View() + " " + theme.HelperStyle.Render(m.loadingLabel))
 	case runGetStageDone:
 		// Empty final frame so the last picker is cleared before the program
@@ -476,11 +555,41 @@ func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 		WithHint(runGetBackHint)
 }
 
-func (m RunGetFlowModel) newStepSelect() components.SelectModel {
-	labels := make([]string, 0, len(m.steps)+runGetStepOffset)
-	icons := make([]string, 0, len(m.steps)+runGetStepOffset)
+func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
+	labels := make([]string, 0, len(m.executions)+runGetMetaCount)
+	icons := make([]string, 0, len(m.executions)+runGetMetaCount)
 	labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel)
 	icons = append(icons, m.metaIcon(), m.metaIcon())
+	for _, e := range m.executions {
+		labels = append(labels, e.Label)
+		icons = append(icons, colorizeStatusIcon(e.Icon, m.opts.Color))
+	}
+	return components.NewSelectModel("Select an execution", labels).
+		WithIcons(icons).
+		WithCursor(m.executionCursor).
+		WithHint(runGetBackHint)
+}
+
+// firstFailedExecutionCursor returns the picker index of the first failed/errored
+// execution (offset past the leading summary options), so the cursor lands on
+// the likely target. Falls back to the first summary option when none failed.
+func (m RunGetFlowModel) firstFailedExecutionCursor() int {
+	for i, e := range m.executions {
+		if e.Icon == "✗" || e.Icon == "!" {
+			return i + runGetMetaCount
+		}
+	}
+	return 0
+}
+
+func (m RunGetFlowModel) newStepSelect() components.SelectModel {
+	meta := m.stepMetaCount()
+	labels := make([]string, 0, len(m.steps)+meta)
+	icons := make([]string, 0, len(m.steps)+meta)
+	if meta > 0 {
+		labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel)
+		icons = append(icons, m.metaIcon(), m.metaIcon())
+	}
 	for _, s := range m.steps {
 		labels = append(labels, s.Label)
 		icons = append(icons, colorizeStatusIcon(s.Icon, m.opts.Color))
@@ -491,13 +600,24 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 		WithHint(runGetBackHint)
 }
 
+// stepMetaCount is how many leading job-summary options the step picker carries:
+// the two summaries when it is the first picker after the job (single
+// execution), or zero when an execution picker already hosted them.
+func (m RunGetFlowModel) stepMetaCount() int {
+	if len(m.executions) > 1 {
+		return 0
+	}
+	return runGetMetaCount
+}
+
 // firstFailedStepCursor returns the picker index of the first failed/errored
-// step (offset past the leading summary options), so the cursor lands on the
-// likely target. Falls back to the first summary option when none failed.
+// step (offset past any leading summary options), so the cursor lands on the
+// likely target. Falls back to the first option when none failed.
 func (m RunGetFlowModel) firstFailedStepCursor() int {
+	off := m.stepMetaCount()
 	for i, s := range m.steps {
 		if s.Icon == "✗" || s.Icon == "!" {
-			return i + runGetStepOffset
+			return i + off
 		}
 	}
 	return 0
@@ -579,10 +699,10 @@ func (m RunGetFlowModel) cmdFetchJobs() tea.Cmd {
 	}
 }
 
-func (m RunGetFlowModel) cmdFetchSteps() tea.Cmd {
-	ctx, fn, jobID := m.ctx, m.opts.FetchSteps, m.jobID
+func (m RunGetFlowModel) cmdFetchExecutions() tea.Cmd {
+	ctx, fn, jobID := m.ctx, m.opts.FetchExecutions, m.jobID
 	return func() tea.Msg {
 		items, err := fn(ctx, jobID)
-		return runGetStepsMsg{items: items, err: err}
+		return runGetExecutionsMsg{items: items, err: err}
 	}
 }

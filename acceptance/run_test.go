@@ -448,11 +448,13 @@ const (
 
 // setupRunGetInteractiveFake wires a project with two recent runs on branch
 // main — one succeeded, one failed — where the first run has a "build" workflow
-// containing two jobs. The "run-tests" job has two steps (one of which failed)
-// with step output registered. It registers the per-resource GET endpoints the
-// drill-down reaches, so "see all workflows" (run summary), "all jobs"
-// (workflow summary), the job report and full output report, and a single
-// step's output all resolve.
+// containing two jobs. The "run-tests" job has a single execution with two steps
+// (one failed); the "deploy" job has parallelism 2 (execution 0 succeeded,
+// execution 1 failed) so it exercises the execution picker. Step output is
+// registered for the failing steps. It registers the per-resource GET endpoints
+// the drill-down reaches, so "see all workflows" (run summary), "all jobs"
+// (workflow summary), the job report and full output report, the execution
+// picker, and a single step's output all resolve.
 func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
@@ -493,6 +495,31 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	fake.AddJobStdout(irunJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
 	fake.AddJobStderr(irunJob1ID, 0, 101, []byte(""))
 
+	// A parallel job (parallelism 2): execution 0 succeeded, execution 1 failed.
+	deployStep := func(outcome string, exit int) []map[string]any {
+		return []map[string]any{
+			{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
+			{"name": "deploy", "type": "run", "num": 50, "phase": "ended", "outcome": outcome, "exit_code": exit, "started_at": now, "ended_at": now},
+		}
+	}
+	fake.AddJobV3(irunJob2ID, map[string]any{"data": map[string]any{
+		"id": irunJob2ID,
+		"attributes": map[string]any{
+			"name": "deploy", "type": "build", "phase": "ended", "outcome": "failed",
+			"started_at": now, "ended_at": now,
+			"parallel_executions": []map[string]any{
+				{"steps": deployStep("succeeded", 0)},
+				{"steps": deployStep("failed", 1)},
+			},
+		},
+		"references": map[string]any{
+			"workflow": map[string]any{"id": irunWfID},
+			"project":  map[string]any{"id": runTestProjectID},
+		},
+	}})
+	fake.AddJobStdout(irunJob2ID, 1, 50, []byte("deploy failed\n"))
+	fake.AddJobStderr(irunJob2ID, 1, 50, []byte(""))
+
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
@@ -520,6 +547,31 @@ func drillToStepPicker(t *testing.T, console *expect.Console) {
 
 	// The step picker is ready once a step row has rendered.
 	_, err = console.ExpectString("Spin up environment")
+	assert.NilError(t, err)
+}
+
+// drillToExecutionPicker drives the flow run → workflow (build) → job (deploy,
+// which has parallelism 2) and returns once the execution picker is showing.
+func drillToExecutionPicker(t *testing.T, console *expect.Console) {
+	t.Helper()
+	_, err := console.ExpectString("Select a run")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("build")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + "\r") // skip "see all workflows"
+	assert.NilError(t, err)
+
+	// Pick "deploy": skip "all jobs in workflow" and "run-tests".
+	_, err = console.ExpectString("deploy")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + keyDown + "\r")
+	assert.NilError(t, err)
+
+	// The execution picker is ready once an execution row has rendered.
+	_, err = console.ExpectString("Execution 1")
 	assert.NilError(t, err)
 }
 
@@ -589,6 +641,47 @@ func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString("FAILURE: 2 tests failed")
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_ParallelExecution drills into a job with parallelism > 1,
+// which inserts an execution picker before the step picker. The execution cursor
+// defaults to the failed execution; its step picker then defaults to the failed
+// step, whose output is printed.
+func TestRunGet_Interactive_ParallelExecution(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToExecutionPicker(t, console)
+
+	// Cursor defaults to the failed Execution 1; select it.
+	_, err := console.Send("\r")
+	assert.NilError(t, err)
+
+	// The step picker is scoped to execution 1 and has no summary options (those
+	// live on the execution picker); its cursor defaults to the failed step.
+	_, err = console.ExpectString("deploy [exit: 1]")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("deploy failed")
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_ParallelJobReport confirms the job summaries live on the
+// execution picker for a parallel job: picking "Job report (summary)" there
+// prints the short job summary (which lists the workflow ID).
+func TestRunGet_Interactive_ParallelJobReport(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToExecutionPicker(t, console)
+
+	// Cursor starts on the failed Execution 1 (index 3); three ups reach the
+	// first option, "Job report (summary)".
+	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString(irunWfID)
 	assert.NilError(t, err)
 }
 
