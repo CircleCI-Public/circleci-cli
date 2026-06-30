@@ -23,6 +23,7 @@
 package components
 
 import (
+	"fmt"
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
@@ -32,13 +33,16 @@ import (
 
 // SelectModel is a single-choice picker rendered as a vertical list with a
 // cursor (›) marking the focused option. ↑/↓ or k/j move; Enter confirms;
-// Esc/Ctrl+C cancels.
+// Esc/Ctrl+C cancels. When the option list is taller than the available height
+// the list scrolls to keep the cursor visible (see WithHeight).
 type SelectModel struct {
 	prompt  string
 	options []string
 	icons   []string
 	hint    string
 	cursor  int
+	offset  int // index of the first visible option when the list scrolls
+	height  int // terminal rows available; 0 = unlimited (render every option)
 	chosen  bool
 }
 
@@ -79,6 +83,17 @@ func (m SelectModel) WithCursor(i int) SelectModel {
 		i = len(m.options) - 1
 	}
 	m.cursor = i
+	m.clampOffset()
+	return m
+}
+
+// WithHeight sets the number of terminal rows available to the picker. When the
+// option list is taller than this, the list scrolls to keep the cursor visible
+// and a position indicator ("(3–12 of 40)") is appended to the hint. Zero (the
+// default) imposes no limit and renders every option.
+func (m SelectModel) WithHeight(rows int) SelectModel {
+	m.height = rows
+	m.clampOffset()
 	return m
 }
 
@@ -91,21 +106,57 @@ func (m SelectModel) Done() bool { return m.chosen }
 func (m SelectModel) Init() tea.Cmd { return nil }
 
 func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
+	switch msg := msg.(type) {
+	case tea.WindowSizeMsg:
+		m.height = msg.Height
+		m.clampOffset()
+	case tea.KeyPressMsg:
+		switch msg.String() {
 		case KeyEnter:
 			m.chosen = true
 		case "up", "k":
 			if m.cursor > 0 {
 				m.cursor--
 			}
+			m.clampOffset()
 		case "down", "j":
 			if m.cursor < len(m.options)-1 {
 				m.cursor++
 			}
+			m.clampOffset()
 		}
 	}
 	return m, nil
+}
+
+// visibleRows is how many option rows fit, reserving two lines for the prompt
+// and the hint. Zero height (or a list that already fits) means no limit.
+func (m SelectModel) visibleRows() int {
+	if m.height <= 0 || m.height-2 >= len(m.options) {
+		return len(m.options)
+	}
+	if rows := m.height - 2; rows > 0 {
+		return rows
+	}
+	return 1
+}
+
+// clampOffset scrolls the visible window so the cursor stays inside it and the
+// window never runs past the end of the list.
+func (m *SelectModel) clampOffset() {
+	rows := m.visibleRows()
+	if m.cursor < m.offset {
+		m.offset = m.cursor
+	}
+	if m.cursor >= m.offset+rows {
+		m.offset = m.cursor - rows + 1
+	}
+	if maxOffset := len(m.options) - rows; m.offset > maxOffset {
+		m.offset = maxOffset
+	}
+	if m.offset < 0 {
+		m.offset = 0
+	}
 }
 
 func (m SelectModel) View() tea.View {
@@ -117,7 +168,14 @@ func (m SelectModel) View() tea.View {
 		return tea.NewView(b.String())
 	}
 
-	for i, opt := range m.options {
+	rows := m.visibleRows()
+	start := m.offset
+	end := start + rows
+	if end > len(m.options) {
+		end = len(m.options)
+	}
+	for i := start; i < end; i++ {
+		opt := m.options[i]
 		// The icon (if any) sits before the label and outside the accent style,
 		// so its status color is preserved on the highlighted row. The label is
 		// styled separately. With no icon this reduces to the original layout.
@@ -131,7 +189,17 @@ func (m SelectModel) View() tea.View {
 			b.WriteString("  " + p + opt + "\n")
 		}
 	}
-	b.WriteString(theme.HelperStyle.Render(m.hint))
+
+	hint := m.hint
+	if rows < len(m.options) {
+		// The list is scrolling; show which slice of it is visible.
+		pos := fmt.Sprintf("(%d–%d of %d)", start+1, end, len(m.options))
+		if hint != "" {
+			hint += "  "
+		}
+		hint += pos
+	}
+	b.WriteString(theme.HelperStyle.Render(hint))
 	return tea.NewView(b.String())
 }
 

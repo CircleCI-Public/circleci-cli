@@ -330,11 +330,11 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	}
 
 	model := ui.NewRunGetFlow(ctx, ui.RunGetFlowOptions{
-		Runs:           runItems,
-		Color:          iostream.ColorEnabled(ctx),
-		FetchWorkflows: workflowItems(client),
-		FetchJobs:      jobItems(client),
-		FetchSteps:     stepItems(client),
+		Runs:            runItems,
+		Color:           iostream.ColorEnabled(ctx),
+		FetchWorkflows:  workflowItems(client),
+		FetchJobs:       jobItems(client),
+		FetchExecutions: executionItems(client),
 	})
 
 	final, err := tea.NewProgram(model,
@@ -370,7 +370,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		// default as "circleci job output get").
 		return job.OutputGet(ctx, client, res.JobID, res.Execution, res.StepNum, !iostream.IsTerminal(ctx))
 	case ui.RunGetActionShowJobOutput:
-		return job.OutputList(ctx, client, res.JobID, res.Execution, false)
+		return showJobOutput(ctx, client, res.JobID)
 	case ui.RunGetActionCancel:
 		return nil
 	default:
@@ -423,61 +423,123 @@ func jobItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.R
 	}
 }
 
-// stepItems returns a fetch closure for the run-get picker: it lists a job's
-// steps as selectable items labelled with a status symbol and name, addressed
-// by their parallel-execution index and step number. When a job has more than
-// one execution the label is prefixed with the execution index to disambiguate.
-func stepItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.RunGetStepItem, error) {
-	return func(ctx context.Context, jobID uuid.UUID) ([]ui.RunGetStepItem, error) {
+// executionItems returns a fetch closure for the run-get picker: it lists a
+// job's parallel executions, each carrying its steps. The flow shows the
+// execution picker only when there is more than one; otherwise it goes straight
+// to the single execution's steps.
+func executionItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.RunGetExecution, error) {
+	return func(ctx context.Context, jobID uuid.UUID) ([]ui.RunGetExecution, error) {
 		j, err := client.GetJobV3(ctx, jobID)
 		if err != nil {
 			return nil, cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
 		}
-		// First pass: collect each step's number and duration strings so the two
-		// leading columns can be sized to the widest value across all steps.
-		type stepRow struct {
-			exec int
-			step apiclient.JobV3Step
-			num  string
-			dur  string
-		}
-		var rows []stepRow
-		var numW, durW int
+		// Right-align the index so the durations line up when indices differ in
+		// width (e.g. "Execution  9" vs "Execution 10").
+		var idxW int
 		for _, exec := range j.Executions {
-			for _, s := range exec.Steps {
-				num := strconv.Itoa(s.Num)
-				var dur string
-				if s.StoppedAt != nil {
-					dur = formatElapsed(s.StoppedAt.Sub(s.StartedAt))
-				}
-				numW = max(numW, len(num))
-				durW = max(durW, len(dur))
-				rows = append(rows, stepRow{exec: exec.Index, step: s, num: num, dur: dur})
-			}
+			idxW = max(idxW, len(strconv.Itoa(exec.Index)))
 		}
 
-		// Second pass: format each row, e.g. "101 - 1m4s - run tests [exit: 1]".
-		// The number column is right-aligned and the duration column left-aligned,
-		// each to its computed width and followed by " - ".
-		multiExec := len(j.Executions) > 1
-		items := make([]ui.RunGetStepItem, len(rows))
-		for i, r := range rows {
-			label := fmt.Sprintf("%*s - %-*s - %s", numW, r.num, durW, r.dur, r.step.Name)
-			if r.step.ExitCode != nil {
-				label += fmt.Sprintf(" [exit: %d]", *r.step.ExitCode)
+		execs := make([]ui.RunGetExecution, len(j.Executions))
+		for i, exec := range j.Executions {
+			label := fmt.Sprintf("Execution %*d", idxW, exec.Index)
+			if d, ok := executionDuration(exec); ok {
+				label += " - " + formatElapsed(d)
 			}
-			if multiExec {
-				label = fmt.Sprintf("exec %d · %s", r.exec, label)
-			}
-			items[i] = ui.RunGetStepItem{
-				Icon:      apiclient.PhaseOutcomeSymbol(r.step.Phase, r.step.Outcome, ""),
-				Label:     label,
-				Execution: r.exec,
-				StepNum:   r.step.Num,
+			execs[i] = ui.RunGetExecution{
+				Index: exec.Index,
+				Icon:  executionIcon(exec),
+				Label: label,
+				Steps: stepRows(exec),
 			}
 		}
-		return items, nil
+		return execs, nil
 	}
+}
+
+// executionDuration is an execution's wall-clock time: from the earliest step
+// start to the latest step end. The bool is false until at least one step has
+// finished, so a still-running execution shows no duration.
+func executionDuration(exec apiclient.JobV3Execution) (time.Duration, bool) {
+	var start, end time.Time
+	for _, s := range exec.Steps {
+		if start.IsZero() || s.StartedAt.Before(start) {
+			start = s.StartedAt
+		}
+		if s.StoppedAt != nil && s.StoppedAt.After(end) {
+			end = *s.StoppedAt
+		}
+	}
+	if start.IsZero() || end.IsZero() || end.Before(start) {
+		return 0, false
+	}
+	return end.Sub(start), true
+}
+
+// stepRows builds the selectable step rows for one execution, e.g.
+// "101 - 1m4s - run tests [exit: 1]". The number column is right-aligned and the
+// duration column left-aligned, each sized to the widest value in the execution
+// and followed by " - ".
+func stepRows(exec apiclient.JobV3Execution) []ui.RunGetStepItem {
+	type row struct {
+		step     apiclient.JobV3Step
+		num, dur string
+	}
+	rows := make([]row, len(exec.Steps))
+	var numW, durW int
+	for i, s := range exec.Steps {
+		num := strconv.Itoa(s.Num)
+		var dur string
+		if s.StoppedAt != nil {
+			dur = formatElapsed(s.StoppedAt.Sub(s.StartedAt))
+		}
+		numW = max(numW, len(num))
+		durW = max(durW, len(dur))
+		rows[i] = row{step: s, num: num, dur: dur}
+	}
+
+	items := make([]ui.RunGetStepItem, len(rows))
+	for i, r := range rows {
+		label := fmt.Sprintf("%*s - %-*s - %s", numW, r.num, durW, r.dur, r.step.Name)
+		if r.step.ExitCode != nil {
+			label += fmt.Sprintf(" [exit: %d]", *r.step.ExitCode)
+		}
+		items[i] = ui.RunGetStepItem{
+			Icon:      apiclient.PhaseOutcomeSymbol(r.step.Phase, r.step.Outcome, ""),
+			Label:     label,
+			Execution: exec.Index,
+			StepNum:   r.step.Num,
+		}
+	}
+	return items
+}
+
+// executionIcon derives a status symbol for a whole execution: failed if any of
+// its steps failed or errored, otherwise succeeded.
+func executionIcon(exec apiclient.JobV3Execution) string {
+	for _, s := range exec.Steps {
+		switch apiclient.PhaseOutcomeSymbol(s.Phase, s.Outcome, "") {
+		case "✗", "!":
+			return "✗"
+		}
+	}
+	return "✓"
+}
+
+// showJobOutput prints the full per-step output report for every execution of a
+// job. The "full output report" summary is job-level, so a parallel job shows
+// all executions rather than only one — job.OutputList renders one at a time.
+func showJobOutput(ctx context.Context, client *apiclient.Client, jobID uuid.UUID) error {
+	j, err := client.GetJobV3(ctx, jobID)
+	if err != nil {
+		return cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
+	}
+	for _, exec := range j.Executions {
+		if err := job.OutputList(ctx, client, jobID, exec.Index, false); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
