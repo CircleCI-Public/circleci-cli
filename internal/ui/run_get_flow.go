@@ -180,6 +180,10 @@ type RunGetFlowModel struct {
 	spin         spinner.Model
 	loadingLabel string
 
+	// height is the latest terminal height, passed to each picker so long lists
+	// (e.g. many steps) scroll instead of overflowing the screen.
+	height int
+
 	// Remembered cursors so moving back redisplays a picker where it was left.
 	runCursor       int
 	workflowCursor  int
@@ -235,6 +239,12 @@ func (m RunGetFlowModel) Result() RunGetResult { return m.result }
 func (m RunGetFlowModel) Init() tea.Cmd { return nil }
 
 func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	// Remember the terminal height for pickers built on later stages, and let it
+	// fall through to the active picker (below) so a live resize re-windows it.
+	if ws, ok := msg.(tea.WindowSizeMsg); ok {
+		m.height = ws.Height
+	}
+
 	switch msg := msg.(type) {
 	case spinner.TickMsg:
 		// Only animate while a fetch is in flight; otherwise let the spinner
@@ -534,7 +544,8 @@ func (m RunGetFlowModel) newRunSelect() components.SelectModel {
 	// The default hint ("…esc to quit") is correct here: the first picker quits.
 	return components.NewSelectModel("Select a run", itemLabels(m.opts.Runs)).
 		WithIcons(m.itemIcons(m.opts.Runs)).
-		WithCursor(m.runCursor)
+		WithCursor(m.runCursor).
+		WithHeight(m.height)
 }
 
 func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
@@ -543,7 +554,8 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 	return components.NewSelectModel("Select a workflow", labels).
 		WithIcons(icons).
 		WithCursor(m.workflowCursor).
-		WithHint(runGetBackHint)
+		WithHint(runGetBackHint).
+		WithHeight(m.height)
 }
 
 func (m RunGetFlowModel) newJobSelect() components.SelectModel {
@@ -552,7 +564,8 @@ func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 	return components.NewSelectModel("Select a job", labels).
 		WithIcons(icons).
 		WithCursor(m.jobCursor).
-		WithHint(runGetBackHint)
+		WithHint(runGetBackHint).
+		WithHeight(m.height)
 }
 
 func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
@@ -567,7 +580,8 @@ func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 	return components.NewSelectModel("Select an execution", labels).
 		WithIcons(icons).
 		WithCursor(m.executionCursor).
-		WithHint(runGetBackHint)
+		WithHint(runGetBackHint).
+		WithHeight(m.height)
 }
 
 // firstFailedExecutionCursor returns the picker index of the first failed/errored
@@ -597,7 +611,8 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	return components.NewSelectModel("Select a step", labels).
 		WithIcons(icons).
 		WithCursor(m.firstFailedStepCursor()).
-		WithHint(runGetBackHint)
+		WithHint(runGetBackHint).
+		WithHeight(m.height)
 }
 
 // stepMetaCount is how many leading job-summary options the step picker carries:
