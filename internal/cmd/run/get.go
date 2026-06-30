@@ -29,20 +29,26 @@ import (
 	"strings"
 	"time"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
 const (
-	statusCanceled = "canceled"
+	statusCanceled     = "canceled"
+	maxWorkflowFetches = 8
 )
 
 func newGetCmd() *cobra.Command {
@@ -143,10 +149,14 @@ type jobOutput struct {
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
-	var (
-		r   *apiclient.RunV3
-		err error
-	)
+	// With no run ID and an interactive terminal, walk the user through a series
+	// of pickers (run → workflow → job) instead of silently resolving the latest
+	// run. JSON output stays non-interactive so scripting is unaffected.
+	if len(args) == 0 && !jsonOut && iostream.IsInteractive(ctx) {
+		return runGetInteractive(ctx, client, projectSlug, branch)
+	}
+
+	var r *apiclient.RunV3
 
 	if len(args) == 1 {
 		id, err := uuid.Parse(args[0])
@@ -196,6 +206,14 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		r = &runs[0]
 	}
 
+	return displayRun(ctx, client, r, jsonOut)
+}
+
+// displayRun fetches a run's workflows and their jobs, then renders the run
+// summary as JSON or markdown. This is the shared output path for both the
+// direct "circleci run get" invocation and the interactive picker's
+// "see all workflows" choice, so both produce identical output.
+func displayRun(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3, jsonOut bool) error {
 	workflows, err := client.GetRunWorkflowsV3(ctx, r.ID)
 	if err != nil {
 		// The workflows API can 404 for a run that exists (e.g. workflows
@@ -208,11 +226,20 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 
 	wfJobs := make([][]apiclient.WorkflowJobV3, len(workflows))
 	for i, wf := range workflows {
-		jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
+		g, ctx := errgroup.WithContext(ctx)
+		g.SetLimit(maxWorkflowFetches)
+		g.Go(func() error {
+			jobs, err := client.GetWorkflowJobsV3(ctx, wf.ID)
+			if err != nil {
+				return apiErr(err, wf.ID.String())
+			}
+			wfJobs[i] = jobs
+			return nil
+		})
+		err = g.Wait()
 		if err != nil {
-			return apiErr(err, wf.ID.String())
+			return err
 		}
-		wfJobs[i] = jobs
 	}
 
 	out := buildOutput(r, workflows, wfJobs)
@@ -230,6 +257,161 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 
 	printRun(ctx, out, u)
 	return nil
+}
+
+// runGetInteractive drives the interactive picker flow used when "circleci run
+// get" is run in a terminal with no run ID:
+//
+//  1. Pick from the 10 most recent runs on the current branch.
+//  2. Pick a workflow, or "see all workflows" to print the run summary
+//     (identical to "circleci run get <id>").
+//  3. For a chosen workflow, pick a job, or "all jobs in workflow" to print the
+//     workflow summary (identical to "circleci workflow get <id>"). Picking a
+//     job prints the job summary (identical to "circleci job get <id>").
+//
+// Each terminal choice reuses the existing command's output code so the
+// rendered markdown matches its non-interactive counterpart exactly. The
+// pickers are cancellable with esc/ctrl+c, which returns nil (no output).
+func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlug, branch string) error {
+	effectiveBranch := branch
+	// Only consult the git remote for whatever the flags did not supply, so
+	// --project and --branch together work outside a repository.
+	if projectSlug == "" || effectiveBranch == "" {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci run get <uuid>")
+		}
+		if projectSlug == "" {
+			projectSlug = info.Slug
+		}
+		if effectiveBranch == "" {
+			effectiveBranch = info.Branch
+		}
+	}
+
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
+	if err != nil {
+		return apiErr(err, projectSlug)
+	}
+
+	sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
+	now := time.Now().UTC()
+	runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+		ProjectIDs: []string{proj.ID.String()},
+		From:       now.AddDate(0, 0, -90),
+		To:         now,
+		Filter:     apiclient.BuildRunFilter(effectiveBranch, ""),
+		Limit:      10,
+	})
+	sp.Stop()
+	if err != nil {
+		return apiErr(err, fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+	}
+	if len(runs) == 0 {
+		return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+	}
+
+	runItems := make([]ui.RunGetItem, len(runs))
+	for i := range runs {
+		e := toListEntry(&runs[i])
+		ref := e.Branch
+		if ref == "" {
+			ref = e.Tag
+		}
+		// e.g. "✓ 03d8295 [main] - 20 seconds ago". A plain Unicode symbol is
+		// used (not the emoji from PhaseOutcomeStatus) because the picker
+		// renders raw text and cannot process emoji shortcodes.
+		runItems[i] = ui.RunGetItem{
+			ID: runs[i].ID,
+			Label: fmt.Sprintf("%s %s [%s] - %s",
+				apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
+				e.Revision, ref, relativeTime(runs[i].CreatedAt)),
+		}
+	}
+
+	model := ui.NewRunGetFlow(ctx, ui.RunGetFlowOptions{
+		Runs:           runItems,
+		Color:          iostream.ColorEnabled(ctx),
+		FetchWorkflows: workflowItems(client),
+		FetchJobs:      jobItems(client),
+	})
+
+	final, err := tea.NewProgram(model,
+		tea.WithContext(ctx),
+		tea.WithInput(iostream.In(ctx)),
+		tea.WithOutput(iostream.Err(ctx)),
+	).Run()
+	if err != nil {
+		return err
+	}
+
+	res := final.(ui.RunGetFlowModel).Result()
+	if res.Err != nil {
+		return res.Err
+	}
+
+	// The picker only collected the choice; the matching summary is printed now,
+	// after the program has exited, reusing each command's existing output code.
+	switch res.Action {
+	case ui.RunGetActionShowRun:
+		for i := range runs {
+			if runs[i].ID == res.RunID {
+				return displayRun(ctx, client, &runs[i], false)
+			}
+		}
+		return nil
+	case ui.RunGetActionShowWorkflow:
+		return workflow.Get(ctx, client, res.WorkflowID.String(), false)
+	case ui.RunGetActionShowJob:
+		return job.Get(ctx, client, res.JobID.String(), false)
+	case ui.RunGetActionCancel:
+		return nil
+	default:
+		return nil
+	}
+}
+
+// workflowItems returns a fetch closure for the run-get picker: it lists a
+// run's workflows as selectable items labelled with a status symbol and name. A
+// 404 means the run exists but has no workflows yet, returned as an empty list
+// so the picker still offers the run summary.
+func workflowItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+	return func(ctx context.Context, runID uuid.UUID) ([]ui.RunGetItem, error) {
+		wfs, err := client.GetRunWorkflowsV3(ctx, runID)
+		if err != nil {
+			if httpcl.HasStatusCode(err, http.StatusNotFound) {
+				return nil, nil
+			}
+			return nil, apiErr(err, runID.String())
+		}
+		items := make([]ui.RunGetItem, len(wfs))
+		for i, w := range wfs {
+			items[i] = ui.RunGetItem{
+				ID:    w.ID,
+				Label: fmt.Sprintf("%s %s", apiclient.PhaseOutcomeSymbol(w.Phase, w.Outcome, w.CurrentOutcome), w.Name),
+			}
+		}
+		return items, nil
+	}
+}
+
+// jobItems returns a fetch closure for the run-get picker: it lists a
+// workflow's jobs as selectable items labelled with a status symbol and name.
+func jobItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+	return func(ctx context.Context, workflowID uuid.UUID) ([]ui.RunGetItem, error) {
+		jobs, err := client.GetWorkflowJobsV3(ctx, workflowID)
+		if err != nil {
+			return nil, apiErr(err, workflowID.String())
+		}
+		items := make([]ui.RunGetItem, len(jobs))
+		for i, j := range jobs {
+			items[i] = ui.RunGetItem{
+				ID:    j.ID,
+				Label: fmt.Sprintf("%s %s", apiclient.PhaseOutcomeSymbol(j.Phase, j.Outcome, j.CurrentOutcome), j.Name),
+			}
+		}
+		return items, nil
+	}
 }
 
 func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
@@ -362,4 +544,31 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 	}
 
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+// relativeTime renders how long ago t was in coarse, human-friendly units
+// (e.g. "20 seconds ago", "3 minutes ago"). Future times clamp to "0 seconds
+// ago" so clock skew never produces a negative count.
+func relativeTime(t time.Time) string {
+	d := time.Since(t)
+	if d < 0 {
+		d = 0
+	}
+	switch {
+	case d < time.Minute:
+		return pluralAgo(int(d.Seconds()), "second")
+	case d < time.Hour:
+		return pluralAgo(int(d.Minutes()), "minute")
+	case d < 24*time.Hour:
+		return pluralAgo(int(d.Hours()), "hour")
+	default:
+		return pluralAgo(int(d.Hours()/24), "day")
+	}
+}
+
+func pluralAgo(n int, unit string) string {
+	if n == 1 {
+		return fmt.Sprintf("1 %s ago", unit)
+	}
+	return fmt.Sprintf("%d %ss ago", n, unit)
 }

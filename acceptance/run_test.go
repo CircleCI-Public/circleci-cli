@@ -31,6 +31,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/pete-woods/go-expect"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -428,6 +429,168 @@ func TestRunGet_NoToken(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- run get (interactive picker) ---
+
+const (
+	irunRun1ID = "e0000000-0000-4000-8000-0000000000a1"
+	irunRun2ID = "e0000000-0000-4000-8000-0000000000a2"
+	irunWfID   = "b0000000-0000-4000-8000-0000000000a1"
+	irunJob1ID = "d0000000-0000-4000-8000-0000000000a1"
+	irunJob2ID = "d0000000-0000-4000-8000-0000000000a2"
+
+	// keyEsc is a lone Escape byte. In the interactive picker esc means "go
+	// back a step" (except on the first picker, where it quits).
+	keyEsc = "\x1b"
+)
+
+// setupRunGetInteractiveFake wires a project with two recent runs on branch
+// main — one succeeded, one failed — where the first run has a "build" workflow
+// containing two jobs. It registers the per-resource GET endpoints the
+// drill-down reaches, so "see all workflows" (run summary), "all jobs"
+// (workflow summary), and a single job (job summary) all resolve.
+func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+
+	addProjectBySlug(fake, testSlug, runTestProjectID)
+	fake.AddRunV3(irunRun1ID, runTestProjectID, fakeRunV3(irunRun1ID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3(irunRun2ID, runTestProjectID, fakeRunV3(irunRun2ID, runTestProjectID, "ended", "failed", "main", "deadbeef12345678"))
+
+	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
+	fake.AddRunWorkflowsV3(irunRun1ID, wf)
+	fake.AddWorkflowV3(irunWfID, wf)
+	fake.AddWorkflowJobsV3(irunWfID,
+		fakeJobV3(irunJob1ID, "run-tests", irunWfID, runTestProjectID),
+		fakeJobV3(irunJob2ID, "deploy", irunWfID, runTestProjectID),
+	)
+	fake.AddJobV3(irunJob1ID, map[string]any{"data": fakeJobV3(irunJob1ID, "run-tests", irunWfID, runTestProjectID)})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	return env
+}
+
+// startRunGetInteractive launches "run get" with no run ID in interactive mode,
+// pinning the project and branch so the flow does not depend on a git remote.
+func startRunGetInteractive(t *testing.T, env *testenv.TestEnv) *expect.Console {
+	t.Helper()
+	return binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--project", testSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+}
+
+// Because the whole flow is one long-lived bubbletea program, its renderer
+// diffs against the previous frame: a changed title line (e.g. "Select a run" →
+// "Select a workflow") is emitted as a partial update and never appears
+// contiguously in the PTY stream. The picker option lines, however, differ
+// wholesale between stages and so are rewritten in full — so these tests assert
+// on option text and final output, matching the title only on the first frame.
+
+// TestRunGet_Interactive_SelectJob drills all the way down: pick a run, pick a
+// workflow, pick a job. The picker labels show a plain Unicode status symbol
+// (not the markdown emoji), and the final job summary is printed after the
+// program exits — its UUID appears only in that output, never in the pickers.
+func TestRunGet_Interactive_SelectJob(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	assert.Assert(t, t.Run("pick run", func(t *testing.T) {
+		_, err := console.ExpectString("Select a run")
+		assert.NilError(t, err)
+		// "<symbol> <revision> [<branch>] - <ago>"; assert the stable prefix.
+		_, err = console.ExpectString("✓ abc1234 [main]")
+		assert.NilError(t, err)
+		_, err = console.Send("\r") // first run is highlighted by default
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("pick workflow", func(t *testing.T) {
+		_, err := console.ExpectString("✓ build")
+		assert.NilError(t, err)
+		_, err = console.Send(keyDown + "\r") // skip "see all workflows"
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("pick job", func(t *testing.T) {
+		_, err := console.ExpectString("✓ run-tests")
+		assert.NilError(t, err)
+		_, err = console.Send(keyDown + "\r") // skip "all jobs"
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("job summary printed", func(t *testing.T) {
+		_, err := console.ExpectString(irunJob1ID)
+		assert.NilError(t, err)
+	}))
+}
+
+// TestRunGet_Interactive_AllWorkflows picks a run then chooses "see all
+// workflows", which prints the same run summary as "run get <id>".
+func TestRunGet_Interactive_AllWorkflows(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	_, err := console.ExpectString("Select a run")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("See all workflows")
+	assert.NilError(t, err)
+	_, err = console.Send("\r") // "see all workflows" is the first option
+	assert.NilError(t, err)
+
+	// The run summary carries the run UUID, which never appears in the pickers.
+	_, err = console.ExpectString(irunRun1ID)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_Back exercises esc as back-navigation: from the
+// workflow picker, esc returns to the run picker (it does not quit). After
+// re-selecting, choosing "all jobs in workflow" prints the workflow summary.
+func TestRunGet_Interactive_Back(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	_, err := console.ExpectString("Select a run")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	// At the workflow picker, esc goes back to the run picker.
+	_, err = console.ExpectString("See all workflows")
+	assert.NilError(t, err)
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+
+	// The run picker is shown again rather than the program exiting; its option
+	// lines are rewritten in full, so the run row reappears.
+	_, err = console.ExpectString("✓ abc1234 [main]")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	// Back at the workflow picker, pick the build workflow this time.
+	_, err = console.ExpectString("✓ build")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + "\r")
+	assert.NilError(t, err)
+
+	// Choose "all jobs in workflow", which prints the workflow summary.
+	_, err = console.ExpectString("All jobs in workflow")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	// The workflow summary carries the workflow UUID.
+	_, err = console.ExpectString(irunWfID)
+	assert.NilError(t, err)
 }
 
 // --- run list (V3 search) ---
