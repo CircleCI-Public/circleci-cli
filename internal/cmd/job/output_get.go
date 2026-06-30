@@ -128,6 +128,13 @@ func newOutputGetCmd() *cobra.Command {
 	return cmd
 }
 
+// OutputGet renders a job step's stdout/stderr exactly as "circleci job output
+// get" does. It is exported so interactive callers (e.g. "circleci run get")
+// can reuse the same output without duplicating the fetch/render logic.
+func OutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int, strip bool) error {
+	return runOutputGet(ctx, client, jobID, execution, stepNum, strip)
+}
+
 func runOutputGet(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int, strip bool) error {
 	var stdout, stderr []byte
 
