@@ -724,6 +724,7 @@ func (s Streams) renderMarkdownAt(md string, width int) (_ string, err error) {
 	r, err := glamour.NewTermRenderer(
 		glamour.WithWordWrap(width),
 		glamour.WithTableFitContent(),
+		glamour.WithEmoji(),
 		glamour.WithStyles(s.styleConfig()),
 		glamour.WithInlineTableLinks(true),
 	)

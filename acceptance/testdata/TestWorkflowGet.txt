@@ -3,12 +3,12 @@
 - Name: build
 - Run: `aaaaaaaa-0000-0000-0000-000000000010`
 - URL: <http://app.circleci.test/workflow/cccccccc-0000-0000-0000-000000000010>
-- Status: failed
+- Status: :x: failed
 - Created: 2020-01-01 12:00:00 UTC
 - Ended: 2020-01-01 12:02:34 UTC
 
 ## Jobs
-| Name      | Status    | Type  | ID                                     |
-| --------- | --------- | ----- | -------------------------------------- |
-| run-tests | succeeded | build | `d0000000-0000-4000-8000-000000000201` |
-| deploy    | succeeded | build | `d0000000-0000-4000-8000-000000000202` |
+| Name      | Status                       | Type  | ID                                     |
+| --------- | ---------------------------- | ----- | -------------------------------------- |
+| run-tests | :white_check_mark: succeeded | build | `d0000000-0000-4000-8000-000000000201` |
+| deploy    | :white_check_mark: succeeded | build | `d0000000-0000-4000-8000-000000000202` |
