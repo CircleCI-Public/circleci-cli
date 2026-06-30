@@ -266,28 +266,49 @@ func (w jobWire) toJobV3() *JobV3 {
 // phase, outcome, and current_outcome fields.
 func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
 	switch phase {
+	case "created":
+		return ":hourglass_flowing_sand: created"
 	case "queued":
-		return "queued"
+		return ":hourglass: queued"
 	case "started":
 		switch currentOutcome {
 		case "failed":
-			return "failing"
+			return ":red_circle: failing"
 		case "canceled":
-			return "canceling"
+			return ":no_entry_sign: canceling"
 		case "errored":
-			return "erroring"
+			return ":warning: erroring"
 		default:
-			return "running"
+			return ":large_blue_circle: running"
 		}
 	case "ended":
 		// The V3 runs API reports only current_outcome, never outcome,
 		// even once a run has ended (a rerun can change it later).
 		if outcome == "" {
-			return currentOutcome
+			return decorateOutcome(currentOutcome)
 		}
-		return outcome
+		return decorateOutcome(outcome)
 	default:
 		return phase
+	}
+}
+
+// decorateOutcome prefixes a terminal run/job outcome with a status emoji.
+// Unknown outcomes pass through undecorated so new API values stay readable.
+func decorateOutcome(outcome string) string {
+	switch outcome {
+	case "succeeded":
+		return ":white_check_mark: " + outcome
+	case "failed":
+		return ":x: " + outcome
+	case "canceled":
+		return ":white_circle: " + outcome
+	case "unauthorized":
+		return ":lock: " + outcome
+	case "errored", "infrastructure_fail", "timedout":
+		return ":warning: " + outcome
+	default:
+		return outcome
 	}
 }
 

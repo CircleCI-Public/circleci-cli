@@ -4,14 +4,14 @@
 - Execution: 0
 
 ## 0: Spin up environment
-- Status: succeeded
+- Status: :white_check_mark: succeeded
 - Duration: 1.3s
 ### Output
 
 _(no output)_
 
 ## 101: Checkout code
-- Status: succeeded
+- Status: :white_check_mark: succeeded
 - Duration: 969ms
 ### Output
 
@@ -21,7 +21,7 @@ Done.
 ```
 
 ## 103: task lint-yaml
-- Status: succeeded
+- Status: :white_check_mark: succeeded
 - Duration: 649ms
 - Exit Code: 0
 - Command: `#!/bin/bash -eo pipefail` … `task lint-yaml`
