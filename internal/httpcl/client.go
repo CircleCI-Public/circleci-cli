@@ -197,6 +197,9 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	status = resp.StatusCode
 
 	if status >= 200 && status < 300 {
+		if r.respHeader != nil {
+			*r.respHeader = resp.Header
+		}
 		if r.decoder != nil {
 			if err := r.decoder(resp.Body); err != nil {
 				return status, fmt.Errorf("httpcl: decode response: %w", err)

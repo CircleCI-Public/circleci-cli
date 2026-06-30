@@ -39,6 +39,7 @@ type Request struct {
 	contentType string
 	decoder     func(io.Reader) error
 	headers     http.Header
+	respHeader  *http.Header
 	query       url.Values
 	routeParams []any
 }
@@ -121,6 +122,13 @@ func BytesDecoder(resp *[]byte) func(*Request) {
 // Header sets a single request header.
 func Header(key, val string) func(*Request) {
 	return func(r *Request) { r.headers.Add(key, val) }
+}
+
+// CaptureHeader stores the response headers into h on a 2xx response, so callers
+// can read values the typed decoders don't expose (e.g. a streaming endpoint's
+// X-Terminal marker).
+func CaptureHeader(h *http.Header) func(*Request) {
+	return func(r *Request) { r.respHeader = h }
 }
 
 // QueryParam sets a single query parameter.

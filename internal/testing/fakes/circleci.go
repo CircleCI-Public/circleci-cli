@@ -788,7 +788,35 @@ func (f *CircleCI) handleGetJobStdout(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
+	// Honor a "Range: bytes=X-" resume offset and report the stream complete via
+	// X-Terminal (the fake's stdout is always whole), so the pager fetches once
+	// and stops polling.
+	content = content[rangeOffset(r, len(content)):]
+	w.Header().Set("X-Terminal", "true")
 	render.Data(w, r, content)
+}
+
+// rangeOffset parses the resume offset from a "Range: bytes=X-" header, clamped
+// to [0, n]. Missing or malformed ranges start at 0.
+func rangeOffset(r *http.Request, n int) int {
+	const prefix = "bytes="
+	v := r.Header.Get("Range")
+	i := strings.Index(v, prefix)
+	if i < 0 {
+		return 0
+	}
+	v = v[i+len(prefix):]
+	if j := strings.IndexByte(v, '-'); j >= 0 {
+		v = v[:j]
+	}
+	off, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || off < 0 {
+		return 0
+	}
+	if off > n {
+		off = n
+	}
+	return off
 }
 
 func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {

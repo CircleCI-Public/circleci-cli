@@ -336,6 +336,8 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		FetchWorkflows:  workflowItems(client),
 		FetchJobs:       jobItems(client),
 		FetchExecutions: executionItems(client),
+		FetchStepStdout: stepStdout(client),
+		FetchStepStderr: stepStderr(client),
 	})
 
 	final, err := tea.NewProgram(model,
@@ -367,10 +369,6 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return workflow.Get(ctx, client, res.WorkflowID.String(), false)
 	case ui.RunGetActionShowJob:
 		return job.Get(ctx, client, res.JobID.String(), false)
-	case ui.RunGetActionShowStep:
-		// On a terminal, pass the raw step output through unchanged (the same
-		// default as "circleci job output get").
-		return job.OutputGet(ctx, client, res.JobID, res.Execution, res.StepNum, !iostream.IsTerminal(ctx))
 	case ui.RunGetActionShowJobOutput:
 		return showJobOutput(ctx, client, res.JobID)
 	case ui.RunGetActionCancel:
@@ -456,6 +454,36 @@ func executionItems(client *apiclient.Client) func(context.Context, uuid.UUID) (
 			}
 		}
 		return execs, nil
+	}
+}
+
+// stepStdout returns the run-get step pager's stdout reader: a ranged fetch from
+// byte offset that reports whether stdout has terminated, so the pager can poll
+// until it completes. Output is returned raw (ANSI intact) for colored display.
+func stepStdout(client *apiclient.Client) func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error) {
+	return func(ctx context.Context, jobID uuid.UUID, execution, stepNum int, offset int64) ([]byte, bool, error) {
+		data, terminal, err := client.GetJobStdoutRange(ctx, jobID, execution, stepNum, offset)
+		if err != nil {
+			return nil, false, cmdutil.APIErr(err, fmt.Sprintf("step %d of job %s", stepNum, jobID),
+				"job.output_not_found", "No output found for %s.")
+		}
+		return data, terminal, nil
+	}
+}
+
+// stepStderr returns the run-get step pager's stderr reader, fetched once stdout
+// terminates. A missing stderr (404) is treated as empty rather than an error.
+func stepStderr(client *apiclient.Client) func(context.Context, uuid.UUID, int, int) ([]byte, error) {
+	return func(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
+		data, err := client.GetJobStderr(ctx, jobID, execution, stepNum)
+		if err != nil {
+			if httpcl.HasStatusCode(err, http.StatusNotFound) {
+				return nil, nil
+			}
+			return nil, cmdutil.APIErr(err, fmt.Sprintf("step %d of job %s", stepNum, jobID),
+				"job.output_not_found", "No output found for %s.")
+		}
+		return data, nil
 	}
 }
 

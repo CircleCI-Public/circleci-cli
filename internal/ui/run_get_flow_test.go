@@ -24,6 +24,7 @@ package ui
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -185,4 +186,119 @@ func TestRunGetFlow_SpinnerRespectsAnimate(t *testing.T) {
 	assert.Assert(t, cmd != nil)
 	_, isBatch := cmd().(tea.BatchMsg)
 	assert.Check(t, isBatch, "animation on: loading cmd should batch the spinner tick")
+}
+
+// stepSelectFlow builds a flow parked on the step picker of a single-execution
+// job with two steps (the second failed), a known terminal size so the pager can
+// build, and the given stdout/stderr fetchers.
+func stepSelectFlow(stdout func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error),
+	stderr func(context.Context, uuid.UUID, int, int) ([]byte, error),
+) RunGetFlowModel {
+	m := NewRunGetFlow(context.Background(), RunGetFlowOptions{
+		Runs:            []RunGetItem{runItem("aaaaaaa [main] - now")},
+		FetchStepStdout: stdout,
+		FetchStepStderr: stderr,
+	})
+	u, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
+	m = u.(RunGetFlowModel)
+
+	m.jobID = uuid.New()
+	m.executions = []RunGetExecution{{Index: 0}} // single execution → step picker carries the summary options
+	m.steps = []RunGetStepItem{
+		{Label: "checkout", Icon: "✓", Execution: 0, StepNum: 100},
+		{Label: "run tests", Icon: "✗", Execution: 0, StepNum: 101},
+	}
+	m.stepCursor = -1
+	m.stepSelect = m.newStepSelect()
+	m.stage = runGetStageStepSelect
+	return m
+}
+
+// runMsg executes a synchronous (non-tick) command and returns its message.
+func runMsg(t *testing.T, cmd tea.Cmd) tea.Msg {
+	t.Helper()
+	assert.Assert(t, cmd != nil)
+	return cmd()
+}
+
+// TestRunGetFlow_StepPagerStreams selects a step and drives the streaming pager:
+// stdout arrives over two polled chunks then terminates, after which stderr is
+// appended. It asserts the raw ANSI is preserved (colors), the footer reflects
+// streaming vs. done, and every chunk lands in the buffer.
+func TestRunGetFlow_StepPagerStreams(t *testing.T) {
+	chunks := [][]byte{
+		[]byte("\x1b[31mERROR\x1b[0m first line\n"),
+		[]byte("second line\n"),
+	}
+	terminal := []bool{false, true}
+	var n int
+	stdout := func(_ context.Context, _ uuid.UUID, _, _ int, _ int64) ([]byte, bool, error) {
+		i := n
+		n++
+		if i >= len(chunks) {
+			return nil, true, nil
+		}
+		return chunks[i], terminal[i], nil
+	}
+	stderr := func(_ context.Context, _ uuid.UUID, _, _ int) ([]byte, error) {
+		return []byte("stderr tail\n"), nil
+	}
+
+	m := stepSelectFlow(stdout, stderr)
+
+	// The cursor defaults to the failed step ("run tests"); selecting it starts
+	// the stream.
+	u, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = u.(RunGetFlowModel)
+	assert.Equal(t, m.stage, runGetStageLoadingStep)
+	assert.Equal(t, m.stepNum, 101)
+
+	// First stdout chunk → the pager opens, still streaming, and a poll is queued.
+	u, cmd = m.Update(runMsg(t, cmd))
+	m = u.(RunGetFlowModel)
+	assert.Equal(t, m.stage, runGetStageStepPager)
+	assert.Check(t, cmp.Contains(string(m.pagerBuf), "\x1b[31mERROR\x1b[0m"), "raw ANSI/colors must be preserved")
+	assert.Check(t, cmp.Contains(view(m), "ERROR first line"))
+	assert.Check(t, cmp.Contains(view(m), "streaming…"))
+	assert.Assert(t, cmd != nil) // poll scheduled
+
+	// Simulate the 2s poll firing (without waiting): it fetches the next chunk,
+	// which terminates stdout and triggers the one-shot stderr fetch.
+	u, cmd = m.Update(runGetStepPollMsg{epoch: m.pagerEpoch})
+	m = u.(RunGetFlowModel)
+	u, cmd = m.Update(runMsg(t, cmd)) // deliver second stdout chunk (terminal)
+	m = u.(RunGetFlowModel)
+	assert.Check(t, m.pagerTerminal)
+	u, _ = m.Update(runMsg(t, cmd)) // deliver stderr
+	m = u.(RunGetFlowModel)
+
+	body := view(m)
+	assert.Check(t, cmp.Contains(body, "ERROR first line"))
+	assert.Check(t, cmp.Contains(body, "second line"))
+	assert.Check(t, cmp.Contains(body, "stderr tail"))
+	assert.Check(t, !strings.Contains(body, "streaming…"), "streaming indicator should clear once terminal")
+}
+
+// TestRunGetFlow_StepPagerEscResumes confirms esc from the pager returns to the
+// step picker with the cursor restored to the step that was opened.
+func TestRunGetFlow_StepPagerEscResumes(t *testing.T) {
+	stdout := func(_ context.Context, _ uuid.UUID, _, _ int, _ int64) ([]byte, bool, error) {
+		return []byte("output\n"), true, nil
+	}
+	stderr := func(_ context.Context, _ uuid.UUID, _, _ int) ([]byte, error) { return nil, nil }
+
+	m := stepSelectFlow(stdout, stderr)
+	picked := m.stepSelect.Selected() // failed step ("run tests")
+
+	u, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	m = u.(RunGetFlowModel)
+	u, _ = m.Update(runMsg(t, cmd)) // stdout arrives (terminal) → pager opens
+	m = u.(RunGetFlowModel)
+	assert.Equal(t, m.stage, runGetStageStepPager)
+
+	// esc returns to the step picker, resuming on the opened step.
+	u, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
+	m = u.(RunGetFlowModel)
+	assert.Equal(t, m.stage, runGetStageStepSelect)
+	assert.Equal(t, m.stepSelect.Selected(), picked)
 }
