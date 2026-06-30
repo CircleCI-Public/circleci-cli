@@ -951,7 +951,8 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 		Scope struct {
 			ProjectIDs []string `json:"project_ids"`
 		} `json:"scope"`
-		Page struct {
+		Filter string `json:"filter"`
+		Page   struct {
 			Limit int `json:"limit"`
 		} `json:"page"`
 	}
@@ -961,10 +962,16 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	branch := runBranchFilter(body.Filter)
+
 	f.mu.RLock()
 	var results []any
 	for _, pid := range body.Scope.ProjectIDs {
-		results = append(results, f.runsV3ByProject[pid]...)
+		for _, run := range f.runsV3ByProject[pid] {
+			if branch == "" || runBranch(run) == branch {
+				results = append(results, run)
+			}
+		}
 	}
 	f.mu.RUnlock()
 
@@ -976,6 +983,35 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 		"data": results,
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
+}
+
+// runBranchFilter extracts the branch pinned by a V3 search filter expression
+// like `pipeline.git.branch == "main"`. It returns "" when no branch is pinned,
+// meaning "match every branch".
+func runBranchFilter(filter string) string {
+	const key = `pipeline.git.branch == "`
+	i := strings.Index(filter, key)
+	if i < 0 {
+		return ""
+	}
+	rest := filter[i+len(key):]
+	j := strings.Index(rest, `"`)
+	if j < 0 {
+		return ""
+	}
+	return rest[:j]
+}
+
+// runBranch reads attributes.vcs.branch from a stored fake run, or "" if absent.
+func runBranch(run any) string {
+	m, ok := run.(map[string]any)
+	if !ok {
+		return ""
+	}
+	attrs, _ := m["attributes"].(map[string]any)
+	vcs, _ := attrs["vcs"].(map[string]any)
+	branch, _ := vcs["branch"].(string)
+	return branch
 }
 
 func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
