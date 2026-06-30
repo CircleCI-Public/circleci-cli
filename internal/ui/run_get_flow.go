@@ -27,6 +27,7 @@ import (
 
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
@@ -42,6 +43,12 @@ const (
 	// runGetBackHint replaces the default footer on the workflow and job
 	// pickers, where esc goes back a step rather than quitting.
 	runGetBackHint = "(↑/↓ to move, enter to select, esc to go back)"
+
+	// runGetMetaGlyph fills the icon column for the leading "see all" / "all
+	// jobs" summary options. They carry no status, so rather than leave a blank
+	// gap they get a muted "list" mark that reads as "show everything here" and
+	// keeps the column aligned with the status-bearing rows below.
+	runGetMetaGlyph = "≡"
 )
 
 // RunGetAction is the terminal choice the user reached in the run-get flow.
@@ -59,9 +66,12 @@ const (
 	RunGetActionShowJob
 )
 
-// RunGetItem is one selectable row: a display label plus the UUID it maps to.
+// RunGetItem is one selectable row: a display label, an optional status symbol
+// (uncolored — the flow colors it when color is enabled), and the UUID it maps
+// to.
 type RunGetItem struct {
 	Label string
+	Icon  string
 	ID    uuid.UUID
 }
 
@@ -342,20 +352,34 @@ func (m RunGetFlowModel) View() tea.View {
 func (m RunGetFlowModel) newRunSelect() components.SelectModel {
 	// The default hint ("…esc to quit") is correct here: the first picker quits.
 	return components.NewSelectModel("Select a run", itemLabels(m.opts.Runs)).
+		WithIcons(m.itemIcons(m.opts.Runs)).
 		WithCursor(m.runCursor)
 }
 
 func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 	labels := append([]string{runGetAllWorkflowsLabel}, itemLabels(m.workflows)...)
+	icons := append([]string{m.metaIcon()}, m.itemIcons(m.workflows)...)
 	return components.NewSelectModel("Select a workflow", labels).
+		WithIcons(icons).
 		WithCursor(m.workflowCursor).
 		WithHint(runGetBackHint)
 }
 
 func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 	labels := append([]string{runGetAllJobsLabel}, itemLabels(m.jobs)...)
+	icons := append([]string{m.metaIcon()}, m.itemIcons(m.jobs)...)
 	return components.NewSelectModel("Select a job", labels).
+		WithIcons(icons).
 		WithHint(runGetBackHint)
+}
+
+// metaIcon is the glyph for the leading summary option, dimmed when color is on
+// so it stays distinct from the status icons on the rows below.
+func (m RunGetFlowModel) metaIcon() string {
+	if m.opts.Color {
+		return theme.HelperStyle.Render(runGetMetaGlyph)
+	}
+	return runGetMetaGlyph
 }
 
 func itemLabels(items []RunGetItem) []string {
@@ -364,6 +388,47 @@ func itemLabels(items []RunGetItem) []string {
 		labels[i] = it.Label
 	}
 	return labels
+}
+
+// itemIcons renders each item's status symbol, colored per the theme when color
+// is enabled. Disabled color yields the plain symbol, which still conveys status.
+func (m RunGetFlowModel) itemIcons(items []RunGetItem) []string {
+	icons := make([]string, len(items))
+	for i, it := range items {
+		icons[i] = colorizeStatusIcon(it.Icon, m.opts.Color)
+	}
+	return icons
+}
+
+// colorizeStatusIcon wraps a status symbol in its theme color. Unknown symbols
+// (and all symbols when color is off) are returned unchanged.
+func colorizeStatusIcon(symbol string, color bool) string {
+	if !color || symbol == "" {
+		return symbol
+	}
+	if style, ok := statusIconStyle(symbol); ok {
+		return style.Render(symbol)
+	}
+	return symbol
+}
+
+// statusIconStyle maps a symbol from apiclient.PhaseOutcomeSymbol to a theme
+// color. The bool is false for symbols that should stay uncolored.
+func statusIconStyle(symbol string) (lipgloss.Style, bool) {
+	switch symbol {
+	case "✓":
+		return theme.SuccessStyle, true // succeeded
+	case "✗":
+		return theme.ErrorStyle, true // failed
+	case "!":
+		return theme.WarningStyle, true // errored / timed out
+	case "●":
+		return theme.AccentStyle, true // running
+	case "○", "⊘":
+		return theme.HelperStyle, true // created/queued, canceled
+	default:
+		return lipgloss.Style{}, false
+	}
 }
 
 // --- commands ---

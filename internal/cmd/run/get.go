@@ -318,14 +318,13 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		if ref == "" {
 			ref = e.Tag
 		}
-		// e.g. "✓ 03d8295 [main] - 20 seconds ago". A plain Unicode symbol is
-		// used (not the emoji from PhaseOutcomeStatus) because the picker
-		// renders raw text and cannot process emoji shortcodes.
+		// The status symbol is supplied as an icon (the picker colors it and
+		// renders raw text, so it cannot use the emoji from PhaseOutcomeStatus);
+		// the label is e.g. "03d8295 [main] - 20 seconds ago".
 		runItems[i] = ui.RunGetItem{
-			ID: runs[i].ID,
-			Label: fmt.Sprintf("%s %s [%s] - %s",
-				apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
-				e.Revision, ref, relativeTime(runs[i].CreatedAt)),
+			ID:    runs[i].ID,
+			Icon:  apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
+			Label: fmt.Sprintf("%s [%s] - %s", e.Revision, ref, relativeTime(runs[i].CreatedAt)),
 		}
 	}
 
@@ -388,7 +387,8 @@ func workflowItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([
 		for i, w := range wfs {
 			items[i] = ui.RunGetItem{
 				ID:    w.ID,
-				Label: fmt.Sprintf("%s %s", apiclient.PhaseOutcomeSymbol(w.Phase, w.Outcome, w.CurrentOutcome), w.Name),
+				Icon:  apiclient.PhaseOutcomeSymbol(w.Phase, w.Outcome, w.CurrentOutcome),
+				Label: w.Name,
 			}
 		}
 		return items, nil
@@ -407,7 +407,8 @@ func jobItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.R
 		for i, j := range jobs {
 			items[i] = ui.RunGetItem{
 				ID:    j.ID,
-				Label: fmt.Sprintf("%s %s", apiclient.PhaseOutcomeSymbol(j.Phase, j.Outcome, j.CurrentOutcome), j.Name),
+				Icon:  apiclient.PhaseOutcomeSymbol(j.Phase, j.Outcome, j.CurrentOutcome),
+				Label: j.Name,
 			}
 		}
 		return items, nil

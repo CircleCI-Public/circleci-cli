@@ -36,6 +36,7 @@ import (
 type SelectModel struct {
 	prompt  string
 	options []string
+	icons   []string
 	hint    string
 	cursor  int
 	chosen  bool
@@ -52,6 +53,18 @@ func NewSelectModel(prompt string, options []string) SelectModel {
 // WithHint returns a copy of the model with a custom footer hint line.
 func (m SelectModel) WithHint(hint string) SelectModel {
 	m.hint = hint
+	return m
+}
+
+// WithIcons attaches an optional status icon to each option. icons is parallel
+// to the options passed to NewSelectModel; an empty string means "no icon" for
+// that row. Each icon is rendered in a fixed column before the label and is
+// emitted verbatim — already styled by the caller if color is wanted — outside
+// the cursor/selection styling, so a status color survives even on the
+// highlighted or chosen row. Rows align one column further in when any option
+// carries an icon.
+func (m SelectModel) WithIcons(icons []string) SelectModel {
+	m.icons = icons
 	return m
 }
 
@@ -100,17 +113,33 @@ func (m SelectModel) View() tea.View {
 	b.WriteString(theme.TitleStyle.Render("? "+m.prompt) + "\n")
 
 	if m.chosen {
-		b.WriteString("  " + theme.SuccessStyle.Render(m.options[m.cursor]) + "\n")
+		b.WriteString("  " + m.iconPrefix(m.cursor) + theme.SuccessStyle.Render(m.options[m.cursor]) + "\n")
 		return tea.NewView(b.String())
 	}
 
 	for i, opt := range m.options {
-		if i == m.cursor {
+		// The icon (if any) sits before the label and outside the accent style,
+		// so its status color is preserved on the highlighted row. The label is
+		// styled separately. With no icon this reduces to the original layout.
+		p := m.iconPrefix(i)
+		switch {
+		case i == m.cursor && p != "":
+			b.WriteString(theme.AccentStyle.Render("› ") + p + theme.AccentStyle.Render(opt) + "\n")
+		case i == m.cursor:
 			b.WriteString(theme.AccentStyle.Render("› "+opt) + "\n")
-		} else {
-			b.WriteString("  " + opt + "\n")
+		default:
+			b.WriteString("  " + p + opt + "\n")
 		}
 	}
 	b.WriteString(theme.HelperStyle.Render(m.hint))
 	return tea.NewView(b.String())
+}
+
+// iconPrefix returns option i's icon followed by a space, or "" when the option
+// has no icon. The trailing space gives a one-column gap before the label.
+func (m SelectModel) iconPrefix(i int) string {
+	if i < len(m.icons) && m.icons[i] != "" {
+		return m.icons[i] + " "
+	}
+	return ""
 }

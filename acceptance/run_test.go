@@ -493,9 +493,10 @@ func startRunGetInteractive(t *testing.T, env *testenv.TestEnv) *expect.Console 
 // on option text and final output, matching the title only on the first frame.
 
 // TestRunGet_Interactive_SelectJob drills all the way down: pick a run, pick a
-// workflow, pick a job. The picker labels show a plain Unicode status symbol
-// (not the markdown emoji), and the final job summary is printed after the
-// program exits — its UUID appears only in that output, never in the pickers.
+// workflow, pick a job. Each row's status symbol is a separate (colored) icon
+// column, so assertions match the label text rather than "<symbol> <label>".
+// The final job summary is printed after the program exits — its UUID appears
+// only in that output, never in the pickers.
 func TestRunGet_Interactive_SelectJob(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
@@ -503,22 +504,23 @@ func TestRunGet_Interactive_SelectJob(t *testing.T) {
 	assert.Assert(t, t.Run("pick run", func(t *testing.T) {
 		_, err := console.ExpectString("Select a run")
 		assert.NilError(t, err)
-		// "<symbol> <revision> [<branch>] - <ago>"; assert the stable prefix.
-		_, err = console.ExpectString("✓ abc1234 [main]")
+		// Label is "<revision> [<branch>] - <ago>"; the ✓ icon is a separate,
+		// colored column so it is not contiguous with the label.
+		_, err = console.ExpectString("abc1234 [main]")
 		assert.NilError(t, err)
 		_, err = console.Send("\r") // first run is highlighted by default
 		assert.NilError(t, err)
 	}))
 
 	assert.Assert(t, t.Run("pick workflow", func(t *testing.T) {
-		_, err := console.ExpectString("✓ build")
+		_, err := console.ExpectString("build")
 		assert.NilError(t, err)
 		_, err = console.Send(keyDown + "\r") // skip "see all workflows"
 		assert.NilError(t, err)
 	}))
 
 	assert.Assert(t, t.Run("pick job", func(t *testing.T) {
-		_, err := console.ExpectString("✓ run-tests")
+		_, err := console.ExpectString("run-tests")
 		assert.NilError(t, err)
 		_, err = console.Send(keyDown + "\r") // skip "all jobs"
 		assert.NilError(t, err)
@@ -571,13 +573,13 @@ func TestRunGet_Interactive_Back(t *testing.T) {
 
 	// The run picker is shown again rather than the program exiting; its option
 	// lines are rewritten in full, so the run row reappears.
-	_, err = console.ExpectString("✓ abc1234 [main]")
+	_, err = console.ExpectString("abc1234 [main]")
 	assert.NilError(t, err)
 	_, err = console.Send("\r")
 	assert.NilError(t, err)
 
 	// Back at the workflow picker, pick the build workflow this time.
-	_, err = console.ExpectString("✓ build")
+	_, err = console.ExpectString("build")
 	assert.NilError(t, err)
 	_, err = console.Send(keyDown + "\r")
 	assert.NilError(t, err)
