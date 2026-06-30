@@ -23,6 +23,8 @@
 package acceptance_test
 
 import (
+	"fmt"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -213,6 +215,53 @@ func TestJobOutputList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestJobOutputList_LargeOutputIsTruncated verifies that a step with a very
+// large output is capped in the rendered markdown (so glamour stays fast) while
+// the full output is still available via --json.
+func TestJobOutputList_LargeOutputIsTruncated(t *testing.T) {
+	fake, env := setupJobGetFake(t)
+	var big strings.Builder
+	for i := 0; i < 600; i++ {
+		fmt.Fprintf(&big, "log line %d\n", i)
+	}
+	fake.AddJobStdout(testJobID, 0, 103, []byte(big.String()))
+
+	rendered := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(rendered.ExitCode, 0))
+	// The tail is kept, the head is hidden, and the user is told how to get more.
+	assert.Check(t, cmp.Contains(rendered.Stdout, "log line 599"))
+	assert.Check(t, !strings.Contains(rendered.Stdout, "log line 0\n"))
+	assert.Check(t, cmp.Contains(rendered.Stdout, "earlier lines hidden"))
+
+	jsonOut := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(jsonOut.ExitCode, 0))
+	// --json is never truncated: both ends of the log are present.
+	assert.Check(t, cmp.Contains(jsonOut.Stdout, "log line 0"))
+	assert.Check(t, cmp.Contains(jsonOut.Stdout, "log line 599"))
+
+	all := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "list", testJobID, "--tail", "0"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(all.ExitCode, 0))
+	// --tail 0 shows everything, with no truncation notice.
+	assert.Check(t, cmp.Contains(all.Stdout, "log line 0"))
+	assert.Check(t, cmp.Contains(all.Stdout, "log line 599"))
+	assert.Check(t, !strings.Contains(all.Stdout, "earlier lines hidden"))
 }
 
 func TestJobOutputList_Execution(t *testing.T) {

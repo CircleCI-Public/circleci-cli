@@ -535,7 +535,7 @@ func showJobOutput(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 		return cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
 	}
 	for _, exec := range j.Executions {
-		if err := job.OutputList(ctx, client, jobID, exec.Index, false); err != nil {
+		if err := job.OutputList(ctx, client, jobID, exec.Index, job.DefaultStepOutputTail, false); err != nil {
 			return err
 		}
 	}
