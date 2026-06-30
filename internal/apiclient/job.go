@@ -293,6 +293,57 @@ func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
 	}
 }
 
+// PhaseOutcomeSymbol is like PhaseOutcomeStatus but returns a single plain
+// Unicode glyph rather than an emoji shortcode + word. Use it in contexts that
+// render raw text and so cannot process emoji — e.g. the interactive list
+// pickers, where ":white_check_mark:" would show literally.
+func PhaseOutcomeSymbol(phase, outcome, currentOutcome string) string {
+	switch phase {
+	case "created", "queued":
+		return "○"
+	case "started":
+		switch currentOutcome {
+		case "failed":
+			return "✗"
+		case "canceled":
+			return "⊘"
+		case "errored":
+			return "!"
+		default:
+			return "●"
+		}
+	case "ended":
+		// As in PhaseOutcomeStatus, the V3 runs API reports only
+		// current_outcome once a run has ended.
+		if outcome == "" {
+			return outcomeSymbol(currentOutcome)
+		}
+		return outcomeSymbol(outcome)
+	default:
+		return "•"
+	}
+}
+
+// outcomeSymbol maps a terminal outcome to a plain Unicode glyph, the
+// emoji-free counterpart of decorateOutcome. Unknown outcomes fall back to a
+// neutral bullet.
+func outcomeSymbol(outcome string) string {
+	switch outcome {
+	case "succeeded":
+		return "✓"
+	case "failed":
+		return "✗"
+	case "canceled":
+		return "⊘"
+	case "unauthorized":
+		return "⊘"
+	case "errored", "infrastructure_fail", "timedout":
+		return "!"
+	default:
+		return "•"
+	}
+}
+
 // decorateOutcome prefixes a terminal run/job outcome with a status emoji.
 // Unknown outcomes pass through undecorated so new API values stay readable.
 func decorateOutcome(outcome string) string {

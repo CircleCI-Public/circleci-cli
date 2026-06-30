@@ -89,6 +89,13 @@ func newGetCmd() *cobra.Command {
 	return cmd
 }
 
+// Get renders a job's details exactly as "circleci job get" does. It is
+// exported so interactive callers (e.g. "circleci run get") can reuse the same
+// output without duplicating the formatting code.
+func Get(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bool) error {
+	return runGet(ctx, client, idStr, jsonOut)
+}
+
 func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bool) error {
 	id, err := uuid.Parse(idStr)
 	if err != nil {
