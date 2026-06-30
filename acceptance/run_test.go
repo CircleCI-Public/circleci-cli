@@ -443,13 +443,16 @@ const (
 	// keyEsc is a lone Escape byte. In the interactive picker esc means "go
 	// back a step" (except on the first picker, where it quits).
 	keyEsc = "\x1b"
+	keyUp  = "\x1b[A"
 )
 
 // setupRunGetInteractiveFake wires a project with two recent runs on branch
 // main — one succeeded, one failed — where the first run has a "build" workflow
-// containing two jobs. It registers the per-resource GET endpoints the
+// containing two jobs. The "run-tests" job has two steps (one of which failed)
+// with step output registered. It registers the per-resource GET endpoints the
 // drill-down reaches, so "see all workflows" (run summary), "all jobs"
-// (workflow summary), and a single job (job summary) all resolve.
+// (workflow summary), the job report and full output report, and a single
+// step's output all resolve.
 func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
@@ -465,12 +468,59 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 		fakeJobV3(irunJob1ID, "run-tests", irunWfID, runTestProjectID),
 		fakeJobV3(irunJob2ID, "deploy", irunWfID, runTestProjectID),
 	)
-	fake.AddJobV3(irunJob1ID, map[string]any{"data": fakeJobV3(irunJob1ID, "run-tests", irunWfID, runTestProjectID)})
+
+	// The job the step picker drills into: two steps, the second failed.
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(irunJob1ID, map[string]any{"data": map[string]any{
+		"id": irunJob1ID,
+		"attributes": map[string]any{
+			"name": "run-tests", "type": "build", "phase": "ended", "outcome": "failed",
+			"started_at": now, "ended_at": now,
+			"parallel_executions": []map[string]any{{
+				"steps": []map[string]any{
+					{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
+					{"name": "run tests", "type": "run", "num": 101, "phase": "ended", "outcome": "failed", "exit_code": 1, "started_at": now, "ended_at": now},
+				},
+			}},
+		},
+		"references": map[string]any{
+			"workflow": map[string]any{"id": irunWfID},
+			"project":  map[string]any{"id": runTestProjectID},
+		},
+	}})
+	fake.AddJobStdout(irunJob1ID, 0, 0, []byte("environment ready\n"))
+	fake.AddJobStderr(irunJob1ID, 0, 0, []byte(""))
+	fake.AddJobStdout(irunJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
+	fake.AddJobStderr(irunJob1ID, 0, 101, []byte(""))
 
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return env
+}
+
+// drillToStepPicker drives the flow run → workflow (build) → job (run-tests)
+// and returns once the step picker is showing.
+func drillToStepPicker(t *testing.T, console *expect.Console) {
+	t.Helper()
+	_, err := console.ExpectString("Select a run")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("build")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + "\r") // skip "see all workflows"
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("run-tests")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + "\r") // skip "all jobs in workflow"
+	assert.NilError(t, err)
+
+	// The step picker is ready once a step row has rendered.
+	_, err = console.ExpectString("Spin up environment")
+	assert.NilError(t, err)
 }
 
 // startRunGetInteractive launches "run get" with no run ID in interactive mode,
@@ -492,44 +542,54 @@ func startRunGetInteractive(t *testing.T, env *testenv.TestEnv) *expect.Console 
 // wholesale between stages and so are rewritten in full — so these tests assert
 // on option text and final output, matching the title only on the first frame.
 
-// TestRunGet_Interactive_SelectJob drills all the way down: pick a run, pick a
-// workflow, pick a job. Each row's status symbol is a separate (colored) icon
-// column, so assertions match the label text rather than "<symbol> <label>".
-// The final job summary is printed after the program exits — its UUID appears
-// only in that output, never in the pickers.
-func TestRunGet_Interactive_SelectJob(t *testing.T) {
+// TestRunGet_Interactive_SelectStep drills run → workflow → job and lands on the
+// step picker, whose cursor defaults to the first failed step. Selecting it
+// prints that step's raw output after the program exits.
+func TestRunGet_Interactive_SelectStep(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
+	drillToStepPicker(t, console)
 
-	assert.Assert(t, t.Run("pick run", func(t *testing.T) {
-		_, err := console.ExpectString("Select a run")
-		assert.NilError(t, err)
-		// Label is "<revision> [<branch>] - <ago>"; the ✓ icon is a separate,
-		// colored column so it is not contiguous with the label.
-		_, err = console.ExpectString("abc1234 [main]")
-		assert.NilError(t, err)
-		_, err = console.Send("\r") // first run is highlighted by default
-		assert.NilError(t, err)
-	}))
+	// The cursor defaults to the first failed step ("run tests"); select it.
+	_, err := console.Send("\r")
+	assert.NilError(t, err)
 
-	assert.Assert(t, t.Run("pick workflow", func(t *testing.T) {
-		_, err := console.ExpectString("build")
-		assert.NilError(t, err)
-		_, err = console.Send(keyDown + "\r") // skip "see all workflows"
-		assert.NilError(t, err)
-	}))
+	_, err = console.ExpectString("FAILURE: 2 tests failed")
+	assert.NilError(t, err)
+}
 
-	assert.Assert(t, t.Run("pick job", func(t *testing.T) {
-		_, err := console.ExpectString("run-tests")
-		assert.NilError(t, err)
-		_, err = console.Send(keyDown + "\r") // skip "all jobs"
-		assert.NilError(t, err)
-	}))
+// TestRunGet_Interactive_JobReport picks the "Job report (summary)" option at the
+// top of the step picker, which prints the short job summary. The summary lists
+// the workflow ID, which the full output report does not — so it confirms the
+// summary (not the full report) was printed.
+func TestRunGet_Interactive_JobReport(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToStepPicker(t, console)
 
-	assert.Assert(t, t.Run("job summary printed", func(t *testing.T) {
-		_, err := console.ExpectString(irunJob1ID)
-		assert.NilError(t, err)
-	}))
+	// Cursor starts on the failed step (index 3); three ups reach the first
+	// option, "Job report (summary)".
+	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString(irunWfID)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_FullOutputReport picks the "Full job report" option,
+// which prints every step's rendered output.
+func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToStepPicker(t, console)
+
+	// Cursor starts on the failed step (index 3); two ups reach the second
+	// option, "Full job report (including step output)".
+	_, err := console.Send(keyUp + keyUp + "\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("FAILURE: 2 tests failed")
+	assert.NilError(t, err)
 }
 
 // TestRunGet_Interactive_AllWorkflows picks a run then chooses "see all

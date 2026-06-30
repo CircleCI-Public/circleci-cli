@@ -137,6 +137,14 @@ func newOutputListCmd() *cobra.Command {
 	return cmd
 }
 
+// OutputList renders a job's steps with their output exactly as "circleci job
+// output list" does. It is exported so interactive callers (e.g. "circleci run
+// get") can reuse the same full report without duplicating the fetch/render
+// logic.
+func OutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int, jsonOut bool) error {
+	return runOutputList(ctx, client, jobID, execution, jsonOut)
+}
+
 func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int, jsonOut bool) error {
 	job, err := client.GetJobV3(ctx, jobID)
 	if err != nil {
