@@ -103,6 +103,7 @@ type CircleCI struct {
 	projectsByID      map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
 	projectsBySlug    map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
 	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
+	createOrgResp     any              // preset response for POST /organization
 
 	// Context state.
 	contexts                   map[string]any   // context id → context object
@@ -276,6 +277,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// project slug, so we match three separate path segments rather than {slug}.
 	r.Get("/api/v1.1/projects", f.handleListProjects)
 	r.Post("/api/v1.1/project/{vcs}/{org}/{repo}/follow", f.handleFollowProject)
+	r.Post("/api/v2/organization", f.handleCreateOrg)
 	r.Post("/api/v2/organization/{vcs}/{org}/project", f.handleCreateProject)
 	r.Get("/api/v3/users", f.handleGetMe)
 	r.Get("/api/v2/me/collaborations", f.handleGetCollaborations)
@@ -1477,6 +1479,14 @@ func (f *CircleCI) AddFollowedProject(proj any) {
 	f.followedProjects = append(f.followedProjects, proj)
 }
 
+// SetCreateOrgResponse registers the response body returned when
+// POST /api/v2/organization is called. Pass nil to simulate a 422 error.
+func (f *CircleCI) SetCreateOrgResponse(resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.createOrgResp = resp
+}
+
 // SetCreateProjectResponse registers the response body returned when
 // POST /api/v2/organization/{vcs}/{org}/project is called.
 // Pass nil to simulate a 422 error.
@@ -1530,6 +1540,20 @@ func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	render.JSON(w, r, map[string]any{"following": true})
+}
+
+func (f *CircleCI) handleCreateOrg(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	resp := f.createOrgResp
+	f.mu.RUnlock()
+
+	if resp == nil {
+		render.Status(r, http.StatusUnprocessableEntity)
+		render.JSON(w, r, map[string]any{"message": "org creation not configured"})
+		return
+	}
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, resp)
 }
 
 func (f *CircleCI) handleCreateProject(w http.ResponseWriter, r *http.Request) {

@@ -159,14 +159,9 @@ func postSignupGuidance(ctx context.Context) error {
 
 	appURL, _ := cmdutil.AppURL(ctx)
 
-	orgs, err := org.List(ctx, client)
+	orgs, err := org.Require(ctx, client)
 	if err != nil {
 		printManualGuidance(ctx)
-		return nil
-	}
-
-	if len(orgs) == 0 {
-		printNoOrgGuidance(ctx, appURL)
 		return nil
 	}
 
@@ -243,25 +238,6 @@ func postSignupGuidance(ctx context.Context) error {
 
 func printManualGuidance(ctx context.Context) {
 	iostream.Printf(ctx, "\nRun 'circleci project create' to connect this repo to CircleCI.\n")
-}
-
-func printNoOrgGuidance(ctx context.Context, appURL string) {
-	if appURL != "" {
-		iostream.Printf(ctx, `
-Your account isn't part of a CircleCI organization yet.
-Create or join one at: %s
-
-Then run:
-  circleci project create
-`, appURL)
-	} else {
-		iostream.Printf(ctx, `
-Your account isn't part of a CircleCI organization yet.
-
-Then run:
-  circleci project create
-`)
-	}
 }
 
 func resolveMode(ctx context.Context, opts Options) (mode, error) {

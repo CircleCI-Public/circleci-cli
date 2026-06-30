@@ -323,7 +323,6 @@ func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stdout, "isn't part of a CircleCI organization"))
 	assert.Check(t, strings.Contains(result.Stdout, "circleci project create"))
 }
 
