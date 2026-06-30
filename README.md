@@ -31,7 +31,7 @@ Windows, and Linux.
 
 ## Preview: CLI v1.x now available
 
-A ground-up rewrite of the CircleCI CLI is available for preview.
+A ground-up rewrite of the agent-friendly CircleCI CLI is available for preview.
 
 ### What's new
 
@@ -79,9 +79,9 @@ WinGet:
 winget install --id CircleCI.CLI.Preview
 ```
 
-### Stable installation
+### Previous stable version
 
-Install the current stable version via HomeBrew, Snap, WinGet, or Chocolatey
+If you need the previous stable version, install via HomeBrew, Snap, WinGet, or Chocolatey:
 
 Homebrew:
 ```shell
