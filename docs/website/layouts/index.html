@@ -34,8 +34,6 @@
               <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
                 <li role="option" tabindex="-1" data-panel="brew" aria-selected="true">macOS — Homebrew</li>
                 <li class="picker-divider" aria-hidden="true"></li>
-                <li role="option" tabindex="-1" data-panel="winget" aria-selected="false">Windows — WinGet</li>
-                <li class="picker-divider" aria-hidden="true"></li>
                 <li role="option" tabindex="-1" data-panel="snap" aria-selected="false">Linux — Snap</li>
               </ul>
             </div>
@@ -57,18 +55,6 @@
 <span class="install-prompt">$ </span>brew trust circleci-public/circleci <span class="install-muted"># for brew &gt; v6</span>
 <span class="install-prompt">$ </span>brew install circleci@next</pre>
                 <button class="copy-btn" type="button" aria-label="Copy commands" data-cmd="brew tap circleci-public/circleci&#10;brew trust circleci-public/circleci # for brew greater than v6&#10;brew install circleci@next">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
-                    <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div class="install-panel" id="install-panel-winget" hidden>
-              <div class="install-code-block">
-                <pre class="install-pre"><span class="install-prompt">$ </span>winget install --id CircleCI.CLI.Preview</pre>
-                <button class="copy-btn" type="button" aria-label="Copy command" data-cmd="winget install --id CircleCI.CLI.Preview">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
                     <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
