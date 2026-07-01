@@ -24,6 +24,7 @@ package jq_test
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -149,6 +150,126 @@ func TestEvaluate(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var w bytes.Buffer
 			err := jq.Evaluate(tt.input, &w, tt.opts)
+			if tt.expectError != "" {
+				assert.Check(t, cmp.ErrorContains(err, tt.expectError))
+				return
+			}
+			assert.NilError(t, err)
+			assert.Check(t, golden.String(w.String(), tt.name+".txt"))
+		})
+	}
+}
+
+// TestErrorClassification checks that failures originating in the jq expression
+// (parse, compile, runtime eval) surface as *jq.Error, while failures in the
+// input data do not — so callers can tell a bad --jq expression apart from bad
+// data.
+func TestErrorClassification(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		expr   string
+		stream bool // use EvaluateStream instead of Evaluate
+		wantJQ bool // expect the error to be a *jq.Error
+	}{
+		{name: "parse_error", input: `{}`, expr: `[1,`, wantJQ: true},
+		{name: "compile_error", input: `{}`, expr: `.[] | undefined_func`, wantJQ: true},
+		{name: "eval_error", input: `{"name":"a"}`, expr: `.name + 1`, wantJQ: true},
+		{name: "eval_error_stream", input: `{"result":1}`, expr: `{(.result): 1}`, stream: true, wantJQ: true},
+		// inputs is only defined for the stream evaluator; a single-value
+		// Evaluate rejects it at compile time — still a jq expression error.
+		{name: "inputs_without_stream", input: `{}`, expr: `[.,inputs]`, wantJQ: true},
+		// A malformed value in the input stream is a data error, not a jq error.
+		{name: "malformed_input", input: `{oops}`, expr: `.`, stream: true, wantJQ: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w bytes.Buffer
+			var err error
+			if tt.stream {
+				err = jq.EvaluateStream(strings.NewReader(tt.input), &w, jq.Options{Expr: tt.expr})
+			} else {
+				err = jq.Evaluate(strings.NewReader(tt.input), &w, jq.Options{Expr: tt.expr})
+			}
+			assert.Assert(t, err != nil)
+
+			var jqErr *jq.Error
+			isJQ := errors.As(err, &jqErr)
+			assert.Check(t, cmp.Equal(isJQ, tt.wantJQ), "err: %v", err)
+			if isJQ {
+				assert.Check(t, cmp.Equal(jqErr.Expr, tt.expr))
+			}
+		})
+	}
+}
+
+// stream is three JSONL test-result records, as a JSON value stream would be
+// produced downstream of a JSONL writer.
+const stream = `{"name":"a","result":"failure","run_time":1.5}
+{"name":"b","result":"failure","run_time":2}
+{"name":"c","result":"skipped","run_time":0.5}
+`
+
+func TestEvaluateStream(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       io.Reader
+		opts        jq.Options
+		expectError string
+	}{
+		{
+			// A simple filter runs once per record: one result per line.
+			name:  "stream_per_record",
+			input: strings.NewReader(stream),
+			opts:  jq.Options{Expr: `.name`},
+		},
+		{
+			// inputs pulls the remaining records so the whole set is aggregated.
+			name:  "stream_count",
+			input: strings.NewReader(stream),
+			opts:  jq.Options{Expr: `[.,inputs] | length`},
+		},
+		{
+			name:  "stream_group_by",
+			input: strings.NewReader(stream),
+			opts:  jq.Options{Expr: `[.,inputs] | group_by(.result) | map({(.[0].result): length})`, Indent: "  "},
+		},
+		{
+			name:  "stream_reduce_sum",
+			input: strings.NewReader(stream),
+			opts:  jq.Options{Expr: `reduce inputs as $x (.run_time; . + $x.run_time)`},
+		},
+		{
+			// An empty stream yields no output (like jq without --null-input).
+			name:  "stream_empty",
+			input: strings.NewReader(""),
+			opts:  jq.Options{Expr: `[.,inputs] | length`},
+		},
+		{
+			// halt stops the whole stream, not just the current record.
+			name:  "stream_halt",
+			input: strings.NewReader(stream),
+			opts:  jq.Options{Expr: `.name, halt`},
+		},
+		{
+			name:        "stream_malformed",
+			input:       strings.NewReader(`{"name":"a"} {oops}`),
+			opts:        jq.Options{Expr: `.name`},
+			expectError: "invalid character",
+		},
+		{
+			name:  "stream_invalid_query",
+			input: strings.NewReader(stream),
+			opts:  jq.Options{Expr: `[1,2,,3]`},
+			expectError: `failed to parse jq expression at line 1, column 6:
+    [1,2,,3]
+         ^  unexpected token ","`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var w bytes.Buffer
+			err := jq.EvaluateStream(tt.input, &w, tt.opts)
 			if tt.expectError != "" {
 				assert.Check(t, cmp.ErrorContains(err, tt.expectError))
 				return

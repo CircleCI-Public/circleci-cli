@@ -118,6 +118,49 @@ func TestTestList_JSON_Limit(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".jsonl"))
 }
 
+func TestTestList_JSON_JQPerRecord(t *testing.T) {
+	_, env := setupTestListFake(t)
+
+	// A plain filter runs once per record: one name per line, in API order.
+	result := runTestList(t, env, "--json", "--all", "--jq", ".name")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestTestList_JSON_JQAggregate(t *testing.T) {
+	_, env := setupTestListFake(t)
+
+	// inputs pulls the rest of the JSONL stream so jq can aggregate across
+	// records: tally every outcome by result.
+	result := runTestList(t, env, "--json", "--all", "--jq",
+		"[.,inputs] | group_by(.result) | map({(.[0].result): length})")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestTestList_JSON_JQEvalError(t *testing.T) {
+	_, env := setupTestListFake(t)
+
+	// A runtime type error in the expression must be reported as an invalid
+	// --jq expression (exit 2), not mislabeled as a CircleCI API error (exit 4).
+	result := runTestList(t, env, "--json", "--all", "--jq", ".name + 1")
+
+	assert.Equal(t, result.ExitCode, 2, "stdout: %s stderr: %s", result.Stdout, result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestTestList_JSON_JQParseError(t *testing.T) {
+	_, env := setupTestListFake(t)
+
+	// A malformed expression is likewise an invalid argument (exit 2).
+	result := runTestList(t, env, "--json", "--all", "--jq", "[1,")
+
+	assert.Equal(t, result.ExitCode, 2, "stdout: %s stderr: %s", result.Stdout, result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestTestList_JSON_SortConflict(t *testing.T) {
 	_, env := setupTestListFake(t)
 

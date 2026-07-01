@@ -277,6 +277,10 @@ func PrintJSONFromReader(ctx context.Context, r io.Reader) error {
 	return fromContext(ctx).PrintJSONFromReader(ctx, r)
 }
 
+func PrintJSONStream(ctx context.Context, produce func(emit func(any) error) error) error {
+	return fromContext(ctx).PrintJSONStream(ctx, produce)
+}
+
 func PrintMarkdown(ctx context.Context, md string) {
 	fromContext(ctx).PrintMarkdown(md)
 }
@@ -708,6 +712,47 @@ func (s Streams) PrintJSONFromReader(ctx context.Context, r io.Reader) error {
 
 	_, err := io.Copy(s.Out, r)
 	return err
+}
+
+// PrintJSONStream renders a sequence of values that the caller supplies through
+// the emit callback. Without a --jq filter each value is written immediately as
+// its own JSONL record, so nothing is buffered. With a filter the whole
+// sequence is collected and run through a single jq evaluation, letting the
+// expression aggregate across records (e.g. `[.,inputs] | length`,
+// `group_by(.result)`); jq's per-input semantics mean simple filters like
+// `.name` still emit one result per record.
+//
+// produce is invoked exactly once; it should call emit for each value and
+// return any error encountered while producing them. emit errors surface to
+// produce so it can decide whether to stop (callers streaming to a pipe that a
+// downstream reader closed typically ignore them).
+func (s Streams) PrintJSONStream(ctx context.Context, produce func(emit func(any) error) error) error {
+	jqFilter := filterFromContext(ctx)
+
+	if jqFilter == "" {
+		return produce(func(v any) error {
+			return s.PrintJSON(ctx, v)
+		})
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := produce(func(v any) error {
+		return enc.Encode(v)
+	}); err != nil {
+		return err
+	}
+
+	indent := ""
+	if s.IsTerminal() {
+		indent = "  "
+	}
+	return jq.EvaluateStream(&buf, s.Out, jq.Options{
+		Expr:     jqFilter,
+		Indent:   indent,
+		Colorize: s.ColorEnabled(),
+	})
 }
 
 func filterFromContext(ctx context.Context) string {

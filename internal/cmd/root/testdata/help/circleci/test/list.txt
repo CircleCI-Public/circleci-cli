@@ -21,6 +21,12 @@ Use --sort to order results by name, classname, result or run_time
 
 JSON fields: classname, name, result, run_time, message
 
+--json emits one JSON object per line (JSONL). Combine it with --jq to
+aggregate across records: the expression runs once per record (so
+'.name' prints one name per line), and jq's inputs builtin pulls the
+rest of the stream, e.g. '[.,inputs] | length' or
+'[.,inputs] | group_by(.result) | map({(.[0].result): length})'.
+
 For more information about output formatting flags, see `circleci help formatting`.
 
 ## Usage
@@ -70,6 +76,8 @@ UUIDs are shown in "circleci job get" and "circleci run get --json".
   `circleci test list <job-id> --all --filter name=login`
 - Limit output and emit JSON for scripting: 
   `circleci test list <job-id> --limit 20 --json`
+- Count failed tests by aggregating the JSONL stream with jq: 
+  `circleci test list <job-id> --json --jq '[.,inputs] | length'`
 
 ## Learn More
 

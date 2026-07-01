@@ -1,0 +1,10 @@
+{
+  "error": true,
+  "code": "jq.eval_failed",
+  "message": "cannot add: string (\"TestAlpha\") and number (1)\nexpression: .name + 1",
+  "suggestions": [
+    "Check the --jq expression for syntax or type errors",
+    "See the jq manual: https://jqlang.github.io/jq/manual/"
+  ],
+  "exit_code": 2
+}
