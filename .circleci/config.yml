@@ -93,6 +93,54 @@ commands:
       - store_test_results:
           path: ./test-reports
 
+  install-testsuite-extension:
+    # The docs reference is generated from the live command tree (see
+    # `task docs:reference`), which discovers extensions by
+    # scanning PATH for `circleci-<name>` executables. Installing the testsuite
+    # plugin onto PATH here makes `circleci testsuite` appear in the published
+    # reference.
+    steps:
+      - run:
+          name: Install circleci-testsuite extension
+          command: |
+            set -euo pipefail
+
+            RELEASES="https://circleci-binary-releases.s3.amazonaws.com/circleci-cli-plugins/circleci-testsuite"
+
+            arch="$(uname -m)"
+            case "$arch" in
+              "x86_64") ARCH=amd64 ;;
+              "aarch64" | "arm64") ARCH=arm64 ;;
+              *) echo "Unsupported architecture: $arch"; exit 1 ;;
+            esac
+
+            os="$(uname -s)"
+            case "$os" in
+              "Linux") OS=linux ;;
+              "Darwin") OS=darwin ;;
+              *) echo "Unsupported OS: $os"; exit 1 ;;
+            esac
+
+            # Resolve the current version and the checksum for our platform's binary.
+            release="$(curl -fsSL "$RELEASES/latest/release.json")"
+            version="$(echo "$release" | jq -r '.version')"
+            name="$OS/$ARCH/circleci-testsuite.gz"
+            sha="$(echo "$release" | jq -r --arg n "$name" '.binaries[] | select(.name == $n) | .sha256')"
+            if [ -z "$version" ] || [ -z "$sha" ] || [ "$sha" = "null" ]; then
+              echo "Could not resolve circleci-testsuite binary for $OS/$ARCH"; exit 1
+            fi
+            echo "Installing circleci-testsuite $version ($OS/$ARCH)"
+
+            # "latest" holds only the manifest; the binaries live under the version.
+            curl -fsSL "$RELEASES/$version/$name" -o /tmp/circleci-testsuite.gz
+            echo "$sha  /tmp/circleci-testsuite.gz" | sha256sum -c -
+            gunzip -f /tmp/circleci-testsuite.gz
+
+            # $HOME/.local/bin is already on PATH via install-task's BASH_ENV export.
+            dest="$HOME/.local/bin"
+            mkdir -p "$dest"
+            install -m 0755 /tmp/circleci-testsuite "$dest/circleci-testsuite"
+
 executors:
   linux:
     docker:
@@ -208,6 +256,9 @@ jobs:
     executor: linux
     steps:
       - setup
+      # Install the testsuite plugin onto PATH so it is picked up by the reference
+      # generator and documented alongside the built-in commands.
+      - install-testsuite-extension
       - go/with-cache:
           checksum: *checksum
           steps:
