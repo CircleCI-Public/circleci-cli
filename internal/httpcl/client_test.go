@@ -54,6 +54,17 @@ func TestClient_Call(t *testing.T) {
 			"header":   r.Header.Get("X-Header"),
 		})
 	})
+	r.Get("/jsonl", func(w http.ResponseWriter, r *http.Request) {
+		// Newline-delimited JSON, including a blank line and trailing newline
+		// to exercise the decoder's whitespace tolerance.
+		_, _ = w.Write([]byte(`{"name":"a","ok":true}` + "\n" +
+			`{"name":"b","ok":false}` + "\n\n" +
+			`{"name":"c","ok":true}` + "\n"))
+	})
+	r.Get("/jsonl-empty", func(w http.ResponseWriter, r *http.Request) {})
+	r.Get("/jsonl-bad", func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"name":"a","ok":true}` + "\n" + `{not json}` + "\n"))
+	})
 	r.Get("/status/{status}", func(w http.ResponseWriter, r *http.Request) {
 		status, err := strconv.Atoi(chi.URLParam(r, "status"))
 		if err != nil {
@@ -95,6 +106,53 @@ func TestClient_Call(t *testing.T) {
 			"message":  "hello",
 			"query":    "q1=first&q1=second&q2=other",
 		}))
+	})
+
+	t.Run("jsonl", func(t *testing.T) {
+		type record struct {
+			Name string `json:"name"`
+			OK   bool   `json:"ok"`
+		}
+
+		t.Run("invokes the callback once per record", func(t *testing.T) {
+			var records []record
+			status, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/jsonl",
+				httpcl.JSONLDecoder(func(rec record) {
+					records = append(records, rec)
+				}),
+			))
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(status, http.StatusOK))
+			assert.Check(t, cmp.DeepEqual(records, []record{
+				{Name: "a", OK: true},
+				{Name: "b", OK: false},
+				{Name: "c", OK: true},
+			}))
+		})
+
+		t.Run("empty body never calls the callback", func(t *testing.T) {
+			calls := 0
+			status, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/jsonl-empty",
+				httpcl.JSONLDecoder(func(record) {
+					calls++
+				}),
+			))
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(status, http.StatusOK))
+			assert.Check(t, cmp.Equal(calls, 0))
+		})
+
+		t.Run("malformed line returns the decode error after earlier records", func(t *testing.T) {
+			var seen []string
+			_, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/jsonl-bad",
+				httpcl.JSONLDecoder(func(rec record) {
+					seen = append(seen, rec.Name)
+				}),
+			))
+			assert.Check(t, err != nil)
+			// The well-formed record before the bad line was still delivered.
+			assert.Check(t, cmp.DeepEqual(seen, []string{"a"}))
+		})
 	})
 
 	t.Run("errors", func(t *testing.T) {

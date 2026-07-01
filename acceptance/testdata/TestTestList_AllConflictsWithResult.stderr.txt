@@ -1,0 +1,4 @@
+error: --all cannot be combined with a --filter result= value
+
+Suggestions:
+  • Use --all to show every result, or result= filters to pick specific outcomes — not both

@@ -309,7 +309,7 @@ func printOutputList(ctx context.Context, data *jobOutputList, tail int) {
 			_, _ = fmt.Fprintf(&md, "\n_… %d earlier lines hidden; run `circleci job output get %s --step-num %d` for the full output._\n",
 				omitted, data.ID, s.Num)
 		}
-		fence := codeFence(output)
+		fence := cmdutil.CodeFence(output)
 		// output already ends in a newline, so the closing fence lands on its
 		// own line.
 		_, _ = fmt.Fprintf(&md, "\n%stext\n", fence)
@@ -335,25 +335,4 @@ func tailLines(s string, limit int) (tail string, omitted int) {
 		cut += strings.IndexByte(s[cut:], '\n') + 1
 	}
 	return s[cut:], omitted
-}
-
-// codeFence returns a backtick fence long enough to wrap s without a run of
-// backticks inside s prematurely closing the block (CommonMark fencing rule).
-func codeFence(s string) string {
-	longest, run := 0, 0
-	for _, r := range s {
-		if r == '`' {
-			run++
-			if run > longest {
-				longest = run
-			}
-			continue
-		}
-		run = 0
-	}
-	n := 3
-	if longest+1 > n {
-		n = longest + 1
-	}
-	return strings.Repeat("`", n)
 }

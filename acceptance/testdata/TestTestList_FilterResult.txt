@@ -1,0 +1,4 @@
+# Test results
+| Result  | Name        | Classname | Time (s) |
+| ------- | ----------- | --------- | -------- |
+| skipped | TestCharlie | pkg/bar   | 0.00     |

@@ -1,0 +1,2 @@
+{"classname":"pkg/foo","name":"TestBravo","result":"failure","run_time":1.5,"message":"assertion failed\nexpected 1 got 2"}
+{"classname":"pkg/bar","name":"TestDelta","result":"failure","run_time":0.3,"message":"panic: boom"}

@@ -501,6 +501,11 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	fake.AddJobStderr(irunJob1ID, 0, 0, []byte(""))
 	fake.AddJobStdout(irunJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
 	fake.AddJobStderr(irunJob1ID, 0, 101, []byte(""))
+	// Test metadata for the "Failed tests" meta option (served as JSONL).
+	fake.AddJobTests(irunJob1ID,
+		map[string]any{"classname": "pkg/foo", "name": "TestThatFailed", "result": "failure", "run_time": 0.5, "message": "assertion failed: want 1 got 2"},
+		map[string]any{"classname": "pkg/foo", "name": "TestThatPassed", "result": "success", "run_time": 0.1, "message": ""},
+	)
 
 	// A parallel job (parallelism 2): execution 0 succeeded, execution 1 failed.
 	deployStep := func(outcome string, exit int) []map[string]any {
@@ -637,9 +642,9 @@ func TestRunGet_Interactive_JobReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 3); three ups reach the first
-	// option, "Job report (summary)".
-	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
+	// Cursor starts on the failed step (index 4, below the three meta options);
+	// four ups reach the first option, "Job report (summary)".
+	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString(irunWfID)
@@ -653,12 +658,39 @@ func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 3); two ups reach the second
-	// option, "Full job report (including step output)".
-	_, err := console.Send(keyUp + keyUp + "\r")
+	// Cursor starts on the failed step (index 4, below the three meta options);
+	// three ups reach the second option, "Full job report (including step output)".
+	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString("FAILURE: 2 tests failed")
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_FailedTests picks the "Failed tests" meta option, then
+// selects the one failed test and reads its message in the pager.
+func TestRunGet_Interactive_FailedTests(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToStepPicker(t, console)
+
+	// Cursor starts on the failed step (index 4); two ups reach the third option,
+	// "Failed tests".
+	_, err := console.Send(keyUp + keyUp + "\r")
+	assert.NilError(t, err)
+
+	// The failed-test picker lists the one failing test (passing tests excluded).
+	_, err = console.ExpectString("TestThatFailed (pkg/foo)")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	// Its message opens in the pager.
+	_, err = console.ExpectString("assertion failed: want 1 got 2")
+	assert.NilError(t, err)
+
+	// ctrl+c quits the flow from the pager.
+	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }
 
@@ -699,9 +731,9 @@ func TestRunGet_Interactive_ParallelJobReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToExecutionPicker(t, console)
 
-	// Cursor starts on the failed Execution 1 (index 3); three ups reach the
-	// first option, "Job report (summary)".
-	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
+	// Cursor starts on the failed Execution 1 (index 4, below the three meta
+	// options); four ups reach the first option, "Job report (summary)".
+	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString(irunWfID)

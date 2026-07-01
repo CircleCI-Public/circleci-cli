@@ -1,0 +1,4 @@
+# Test results
+| Result  | Name      | Classname | Time (s) |
+| ------- | --------- | --------- | -------- |
+| failure | TestDelta | pkg/bar   | 0.30     |

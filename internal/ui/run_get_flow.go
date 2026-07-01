@@ -56,11 +56,13 @@ const (
 	runGetAllJobsLabel      = "All jobs in workflow (workflow summary)"
 	runGetJobReportLabel    = "Job report (summary)"
 	runGetJobOutputLabel    = "Full job report (including step output)"
+	runGetFailedTestsLabel  = "Failed tests"
 
 	// runGetMetaCount is the number of leading job-summary options (job report,
-	// full output report). They sit on the first picker after the job: the step
-	// picker for a single-execution job, or the execution picker otherwise.
-	runGetMetaCount = 2
+	// full output report, failed tests). They sit on the first picker after the
+	// job: the step picker for a single-execution job, or the execution picker
+	// otherwise.
+	runGetMetaCount = 3
 
 	// runGetBackHint replaces the default footer on the workflow, job and step
 	// pickers, where esc goes back a step rather than quitting and r re-fetches.
@@ -71,6 +73,12 @@ const (
 	// gap they get a muted "list" mark that reads as "show everything here" and
 	// keeps the column aligned with the status-bearing rows below.
 	runGetMetaGlyph = "≡"
+
+	// runGetFailedTestsGlyph marks the "failed tests" summary option. It is a
+	// muted question mark — a state-neutral "did the tests pass?" prompt — rather
+	// than a status symbol, since the option is offered whether or not any test
+	// actually failed.
+	runGetFailedTestsGlyph = "?"
 )
 
 // RunGetAction is the terminal choice the user reached in the run-get flow.
@@ -109,6 +117,14 @@ type RunGetStepItem struct {
 	StepNum   int
 }
 
+// RunGetTestItem is one selectable failed test: a display label, a status
+// symbol, and the test's message shown in the pager when the row is picked.
+type RunGetTestItem struct {
+	Label   string
+	Icon    string
+	Message string
+}
+
 // RunGetExecution is one parallel execution of a job, carrying its steps. When a
 // job's parallelism is greater than one the flow inserts an execution picker
 // before the step picker; with a single execution that picker is skipped.
@@ -145,7 +161,10 @@ type RunGetFlowOptions struct {
 	// stdout terminates (stdout always completes first).
 	FetchStepStdout func(ctx context.Context, jobID uuid.UUID, execution, stepNum int, offset int64) (data []byte, terminal bool, err error)
 	FetchStepStderr func(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error)
-	Color           bool
+	// FetchFailedTests lists a job's failed tests for the "failed tests" picker.
+	// Each item carries the message shown in the pager when the test is picked.
+	FetchFailedTests func(ctx context.Context, jobID uuid.UUID) ([]RunGetTestItem, error)
+	Color            bool
 	// Animate reports whether the loading spinner should animate. Pass false when
 	// CIRCLE_SPINNER_DISABLED is set (or the session is non-interactive) so the
 	// loading line stays static instead of repainting.
@@ -208,6 +227,8 @@ const (
 	runGetStageStepSelect
 	runGetStageLoadingStep
 	runGetStageStepPager
+	runGetStageLoadingTests
+	runGetStageTestSelect
 	runGetStageDone
 )
 
@@ -219,11 +240,14 @@ const (
 //  2. Pick a workflow, or "see all workflows" (→ RunGetActionShowRun).
 //  3. Pick a job, or "all jobs in workflow" (→ RunGetActionShowWorkflow).
 //  4. For a job with parallelism > 1, pick an execution (skipped otherwise).
-//  5. Pick a step, or one of two summaries — "job report" (→ RunGetActionShowJob)
-//     or the full per-step output report (→ RunGetActionShowJobOutput). The
-//     cursor starts on the first failed step. Picking a step opens its output in
-//     an in-flow pager (r refreshes, esc returns to the step picker) rather than
+//  5. Pick a step, or one of three summaries — "job report" (→ RunGetActionShowJob),
+//     the full per-step output report (→ RunGetActionShowJobOutput), or "failed
+//     tests", which opens a further picker of the job's failed tests. The cursor
+//     starts on the first failed step. Picking a step opens its output in an
+//     in-flow pager (r refreshes, esc returns to the step picker) rather than
 //     ending the program.
+//  6. From the failed-tests picker, picking a test opens its message in the same
+//     pager (esc returns to the test picker).
 //
 // Between selections the next level's items are fetched off the Update loop via
 // a tea.Cmd, with a spinner shown meanwhile. esc moves back one step (on the
@@ -240,6 +264,7 @@ type RunGetFlowModel struct {
 	jobSelect       components.SelectModel
 	executionSelect components.SelectModel
 	stepSelect      components.SelectModel
+	testSelect      components.SelectModel
 
 	spin         spinner.Model
 	loadingLabel string
@@ -273,6 +298,14 @@ type RunGetFlowModel struct {
 	jobs       []RunGetItem
 	executions []RunGetExecution
 	steps      []RunGetStepItem
+	tests      []RunGetTestItem
+
+	// testCursor remembers the failed-test picker's cursor of the test opened in
+	// the pager, so returning (esc) resumes on it. testReturnStage records which
+	// picker offered the "failed tests" option (execution or step), so esc from
+	// the test picker returns there.
+	testCursor      int
+	testReturnStage runGetStage
 
 	runID      uuid.UUID
 	workflowID uuid.UUID
@@ -305,6 +338,10 @@ type RunGetFlowModel struct {
 	pagerFetching   bool
 	pagerEpoch      int
 	pagerReady      bool
+	// pagerReturnStage is the picker esc returns to from the pager: the step
+	// picker for streamed step output, or the failed-test picker for a test
+	// message.
+	pagerReturnStage runGetStage
 
 	result RunGetResult
 }
@@ -326,6 +363,10 @@ type (
 	}
 	runGetExecutionsMsg struct {
 		items []RunGetExecution
+		err   error
+	}
+	runGetTestsMsg struct {
+		items []RunGetTestItem
 		err   error
 	}
 	runGetStepStdoutMsg struct {
@@ -392,6 +433,8 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onJobs(msg)
 	case runGetExecutionsMsg:
 		return m.onExecutions(msg)
+	case runGetTestsMsg:
+		return m.onTests(msg)
 	case runGetStepStdoutMsg:
 		return m.onStepStdout(msg)
 	case runGetStepStderrMsg:
@@ -411,9 +454,11 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateExecutionSelect(msg)
 	case runGetStageStepSelect:
 		return m.updateStepSelect(msg)
+	case runGetStageTestSelect:
+		return m.updateTestSelect(msg)
 	case runGetStageStepPager:
 		return m.updateStepPager(msg)
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep:
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		// ctrl+c can still abort while a fetch is in flight.
 		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
@@ -439,7 +484,8 @@ func (m RunGetFlowModel) loading() bool {
 		m.stage == runGetStageLoadingWorkflows ||
 		m.stage == runGetStageLoadingJobs ||
 		m.stage == runGetStageLoadingExecutions ||
-		m.stage == runGetStageLoadingStep
+		m.stage == runGetStageLoadingStep ||
+		m.stage == runGetStageLoadingTests
 }
 
 // quit records the result and switches to the done stage, whose empty View
@@ -676,6 +722,94 @@ func (m RunGetFlowModel) enterStepSelect(exec RunGetExecution) RunGetFlowModel {
 	return m
 }
 
+// enterFailedTests begins loading the job's failed tests for the further test
+// picker, remembering which picker (returnStage) offered the option so esc from
+// the test picker routes back there.
+func (m RunGetFlowModel) enterFailedTests(returnStage runGetStage) (tea.Model, tea.Cmd) {
+	m.testReturnStage = returnStage
+	m.testCursor = 0
+	m.stage = runGetStageLoadingTests
+	m.loadingLabel = "Fetching failed tests"
+	return m, m.loadingCmd(m.cmdFetchTests())
+}
+
+func (m RunGetFlowModel) onTests(msg runGetTestsMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		return m.quit(RunGetResult{Action: RunGetActionCancel, Err: msg.err})
+	}
+	m.tests = msg.items
+	m.testCursor = 0
+	m.testSelect = m.newTestSelect()
+	m.stage = runGetStageTestSelect
+	return m, nil
+}
+
+// updateTestSelect handles the failed-test picker. esc returns to the picker
+// that offered the option (execution or step); ctrl+c quits; r re-fetches.
+// Picking a test opens its message in the pager. When the job recorded no failed
+// tests the picker shows a single placeholder row that simply goes back.
+func (m RunGetFlowModel) updateTestSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok {
+		switch k.String() {
+		case components.KeyCtrlC:
+			return m.quit(RunGetResult{Action: RunGetActionCancel})
+		case components.KeyEsc:
+			return m.returnFromTestSelect(), nil
+		case components.KeyR:
+			m.stage = runGetStageLoadingTests
+			m.loadingLabel = "Refreshing failed tests"
+			return m, m.loadingCmd(m.cmdFetchTests())
+		}
+	}
+
+	updated, cmd := m.testSelect.Update(msg)
+	m.testSelect = updated.(components.SelectModel)
+	if !m.testSelect.Done() {
+		return m, cmd
+	}
+
+	if len(m.tests) == 0 {
+		// The placeholder row is the only entry; there is nothing to open.
+		return m.returnFromTestSelect(), nil
+	}
+	sel := m.testSelect.Selected()
+	m.testCursor = sel
+	m.openTestMessage(m.tests[sel].Message)
+	return m, nil
+}
+
+// returnFromTestSelect rebuilds and shows whichever picker offered the failed-
+// tests option: the execution picker for a parallel job, else the step picker.
+func (m RunGetFlowModel) returnFromTestSelect() RunGetFlowModel {
+	if m.testReturnStage == runGetStageExecutionSelect {
+		m.executionSelect = m.newExecutionSelect()
+		m.stage = runGetStageExecutionSelect
+	} else {
+		m.stepSelect = m.newStepSelect()
+		m.stage = runGetStageStepSelect
+	}
+	return m
+}
+
+// openTestMessage loads a test's message into the pager as static content (no
+// streaming) and shows it from the top, with esc set to return to the test
+// picker. The message is shown raw so any ANSI colors survive, matching the
+// step-output pager.
+func (m *RunGetFlowModel) openTestMessage(message string) {
+	m.pagerEpoch++
+	m.pagerFetching = false
+	m.pagerTerminal = true
+	m.pagerStderrDone = true
+	m.pagerBuf = []byte(message)
+	m.pagerOffset = int64(len(message))
+	m.pagerReturnStage = runGetStageTestSelect
+	m.syncPager()
+	if m.pagerReady {
+		m.pager.GotoTop()
+	}
+	m.stage = runGetStageStepPager
+}
+
 // updateExecutionSelect handles the execution picker, shown only when a job has
 // parallelism > 1. Its leading options are the job summaries; the remaining
 // rows are executions. esc returns to the job picker; ctrl+c quits.
@@ -707,6 +841,8 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 		return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
 	case 1: // "full output report" — every step's output, all executions
 		return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+	case 2: // "failed tests" — open the failed-test picker
+		return m.enterFailedTests(runGetStageExecutionSelect)
 	}
 	m.executionCursor = sel
 	return m.enterStepSelect(m.executions[sel-runGetMetaCount]), nil
@@ -755,6 +891,8 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
 		case 1: // "full output report" — every step's output
 			return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+		case 2: // "failed tests" — open the failed-test picker
+			return m.enterFailedTests(runGetStageStepSelect)
 		}
 		sel -= meta
 	}
@@ -765,6 +903,7 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.execution = step.Execution
 	m.stepNum = step.StepNum
 	m.stepCursor = picked
+	m.pagerReturnStage = runGetStageStepSelect
 	m.stage = runGetStageLoadingStep
 	m.loadingLabel = "Fetching step output"
 	return m, m.loadingCmd(m.startStepStream())
@@ -891,12 +1030,17 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
 		case components.KeyEsc:
 			// Leave the pager: bump the epoch so any in-flight fetch or pending
-			// poll is ignored, then return to the step picker. stepCursor still
-			// holds the opened step, so the picker resumes on it.
+			// poll is ignored, then return to whichever picker opened it. The
+			// remembered cursor (stepCursor / testCursor) resumes on the opened row.
 			m.pagerEpoch++
 			m.pagerFetching = false
-			m.stepSelect = m.newStepSelect()
-			m.stage = runGetStageStepSelect
+			if m.pagerReturnStage == runGetStageTestSelect {
+				m.testSelect = m.newTestSelect()
+				m.stage = runGetStageTestSelect
+			} else {
+				m.stepSelect = m.newStepSelect()
+				m.stage = runGetStageStepSelect
+			}
 			return m, nil
 		case components.KeyG, components.KeyHome:
 			m.pager.GotoTop()
@@ -923,7 +1067,9 @@ func (m RunGetFlowModel) View() tea.View {
 		return m.executionSelect.View()
 	case runGetStageStepSelect:
 		return m.stepSelect.View()
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep:
+	case runGetStageTestSelect:
+		return m.testSelect.View()
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		label := theme.HelperStyle.Render(m.loadingLabel)
 		if m.opts.Animate {
 			label = m.spin.View() + " " + label
@@ -1023,8 +1169,8 @@ func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 	labels := make([]string, 0, len(m.executions)+runGetMetaCount)
 	icons := make([]string, 0, len(m.executions)+runGetMetaCount)
-	labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel)
-	icons = append(icons, m.metaIcon(), m.metaIcon())
+	labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel)
+	icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon())
 	for _, e := range m.executions {
 		labels = append(labels, e.Label)
 		icons = append(icons, colorizeStatusIcon(e.Icon, m.opts.Color))
@@ -1053,8 +1199,8 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	labels := make([]string, 0, len(m.steps)+meta)
 	icons := make([]string, 0, len(m.steps)+meta)
 	if meta > 0 {
-		labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel)
-		icons = append(icons, m.metaIcon(), m.metaIcon())
+		labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel)
+		icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon())
 	}
 	for _, s := range m.steps {
 		labels = append(labels, s.Label)
@@ -1069,6 +1215,28 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	return components.NewSelectModel("Select a step", labels).
 		WithIcons(icons).
 		WithCursor(cursor).
+		WithHint(runGetBackHint).
+		WithHeight(m.height)
+}
+
+// newTestSelect builds the failed-test picker. With no failed tests it shows a
+// single placeholder row so the picker still renders (and esc/enter go back).
+func (m RunGetFlowModel) newTestSelect() components.SelectModel {
+	var labels, icons []string
+	if len(m.tests) == 0 {
+		labels = []string{"(no failed tests recorded)"}
+		icons = []string{m.metaIcon()}
+	} else {
+		labels = make([]string, len(m.tests))
+		icons = make([]string, len(m.tests))
+		for i, t := range m.tests {
+			labels[i] = t.Label
+			icons[i] = colorizeStatusIcon(t.Icon, m.opts.Color)
+		}
+	}
+	return components.NewSelectModel("Select a failed test", labels).
+		WithIcons(icons).
+		WithCursor(m.testCursor).
 		WithHint(runGetBackHint).
 		WithHeight(m.height)
 }
@@ -1099,10 +1267,23 @@ func (m RunGetFlowModel) firstFailedStepCursor() int {
 // metaIcon is the glyph for the leading summary option, dimmed when color is on
 // so it stays distinct from the status icons on the rows below.
 func (m RunGetFlowModel) metaIcon() string {
+	return m.mutedGlyph(runGetMetaGlyph)
+}
+
+// failedTestsIcon is the glyph for the "failed tests" summary option: a muted
+// question mark, distinct from the plain list mark on the other summaries but
+// still state-neutral (the option appears whether or not any test failed).
+func (m RunGetFlowModel) failedTestsIcon() string {
+	return m.mutedGlyph(runGetFailedTestsGlyph)
+}
+
+// mutedGlyph dims a summary-option glyph when color is on so it stays distinct
+// from the status icons on the rows below.
+func (m RunGetFlowModel) mutedGlyph(glyph string) string {
 	if m.opts.Color {
-		return theme.HelperStyle.Render(runGetMetaGlyph)
+		return theme.HelperStyle.Render(glyph)
 	}
-	return runGetMetaGlyph
+	return glyph
 }
 
 func itemLabels(items []RunGetItem) []string {
@@ -1185,6 +1366,19 @@ func (m RunGetFlowModel) cmdFetchExecutions() tea.Cmd {
 	return func() tea.Msg {
 		items, err := fn(ctx, jobID)
 		return runGetExecutionsMsg{items: items, err: err}
+	}
+}
+
+// cmdFetchTests lists the job's failed tests. A nil FetchFailedTests (e.g. an
+// unwired test harness) yields an empty list rather than panicking.
+func (m RunGetFlowModel) cmdFetchTests() tea.Cmd {
+	ctx, fn, jobID := m.ctx, m.opts.FetchFailedTests, m.jobID
+	return func() tea.Msg {
+		if fn == nil {
+			return runGetTestsMsg{}
+		}
+		items, err := fn(ctx, jobID)
+		return runGetTestsMsg{items: items, err: err}
 	}
 }
 

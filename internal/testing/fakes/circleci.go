@@ -76,6 +76,7 @@ type CircleCI struct {
 	workflowJobsV3 map[string][]any  // workflow id → V3 job list items
 	jobStdout      map[string][]byte // "jobID/index/stepNum" → plain text stdout
 	jobStderr      map[string][]byte // "jobID/index/stepNum" → plain text stderr
+	jobTests       map[string][]any  // job UUID → test result objects (served as JSONL)
 
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
@@ -208,6 +209,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
+		jobTests:                          map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
 		workflowsV3:                       map[string]any{},
@@ -330,6 +332,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/jobs/{id}/artifacts", f.handleGetJobArtifactsV3)
 	r.Get("/api/v3/jobs/{id}/stdout", f.handleGetJobStdout)
 	r.Get("/api/v3/jobs/{id}/stderr", f.handleGetJobStderr)
+	r.Get("/api/v3/jobs/{id}/tests", f.handleGetJobTests)
 	// Workflow (v3) routes.
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
@@ -830,6 +833,36 @@ func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Data(w, r, content)
+}
+
+// AddJobTests registers test-result records for a job UUID, served as
+// newline-delimited JSON (JSONL) at GET /api/v3/jobs/<id>/tests. Each record
+// should be a map with classname, name, result, run_time and message fields.
+func (f *CircleCI) AddJobTests(id string, tests ...any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobTests[id] = tests
+}
+
+// handleGetJobTests serves a job's test metadata as JSONL — one JSON object per
+// line — mirroring the real endpoint. A job with no registered tests returns an
+// empty 200 body.
+func (f *CircleCI) handleGetJobTests(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	tests := f.jobTests[id]
+	f.mu.RUnlock()
+
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.WriteHeader(http.StatusOK)
+	for _, tc := range tests {
+		b, err := json.Marshal(tc)
+		if err != nil {
+			continue
+		}
+		_, _ = w.Write(b)
+		_, _ = w.Write([]byte("\n"))
+	}
 }
 
 // jobStepKey builds the "jobID/execution/stepNum" lookup key from the request,

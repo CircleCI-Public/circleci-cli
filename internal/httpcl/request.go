@@ -24,6 +24,7 @@ package httpcl
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/url"
@@ -78,6 +79,29 @@ func JSONDecoder(v any) func(*Request) {
 	return func(r *Request) {
 		r.decoder = func(rd io.Reader) error {
 			return json.NewDecoder(rd).Decode(v)
+		}
+	}
+}
+
+// JSONLDecoder decodes a 2xx response body as newline-delimited JSON (JSONL),
+// invoking fn once per decoded record as it is read off the wire so callers can
+// consume records as a stream rather than buffering them. Blank lines and
+// surrounding whitespace between records are tolerated. Decoding runs to EOF; a
+// malformed record returns the decode error.
+func JSONLDecoder[T any](fn func(T)) func(*Request) {
+	return func(r *Request) {
+		r.decoder = func(rd io.Reader) error {
+			dec := json.NewDecoder(rd)
+			for {
+				var v T
+				if err := dec.Decode(&v); err != nil {
+					if errors.Is(err, io.EOF) {
+						return nil
+					}
+					return err
+				}
+				fn(v)
+			}
 		}
 	}
 }

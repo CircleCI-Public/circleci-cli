@@ -1,0 +1,14 @@
+# Test
+- Name: TestAnsi
+- Classname: pkg/foo
+- Result: failure
+- Time: 0.50s
+
+## Message
+
+```text
+Building
+FAIL: expected 1 got 2
+downloading 100%
+done
+```

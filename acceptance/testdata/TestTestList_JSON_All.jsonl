@@ -1,0 +1,5 @@
+{"classname":"pkg/foo","name":"TestAlpha","result":"success","run_time":0.1,"message":""}
+{"classname":"pkg/foo","name":"TestBravo","result":"failure","run_time":1.5,"message":"assertion failed\nexpected 1 got 2"}
+{"classname":"pkg/bar","name":"TestCharlie","result":"skipped","run_time":0,"message":"not supported on darwin"}
+{"classname":"pkg/bar","name":"TestDelta","result":"failure","run_time":0.3,"message":"panic: boom"}
+{"classname":"pkg/baz","name":"TestEcho","result":"success","run_time":0.05,"message":""}
