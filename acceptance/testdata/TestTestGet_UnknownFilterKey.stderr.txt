@@ -1,4 +1,4 @@
 error: test get only supports the classname filter; got "result"
 
 Suggestions:
-  • Use "circleci test list" to filter by result or name
+  • Use "circleci testresult list" to filter by result or name

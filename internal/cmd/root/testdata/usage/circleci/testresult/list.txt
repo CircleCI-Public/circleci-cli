@@ -1,4 +1,4 @@
-Usage:  circleci test list <job-id> [flags]
+Usage:  circleci testresult list <job-id> [flags]
 
 Flags:
   --all                  Show all results (passing, failed and skipped), not just failures

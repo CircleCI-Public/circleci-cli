@@ -8,15 +8,15 @@ Work with CircleCI from the command line.
 
 ## CI Commands
 
-| Command    | Description                                      |
-| ---------- | ------------------------------------------------ |
-| `artifact` | List and download a job's artifact files         |
-| `config`   | Generate, validate, process and pack config YAML |
-| `job`      | Inspect a job's details, output and artifacts    |
-| `pipeline` | Define what will happen in a run                 |
-| `run`      | Trigger, watch and cancel CI runs                |
-| `test`     | Inspect test results for a job                   |
-| `workflow` | Inspect, rerun and cancel workflows (job graphs) |
+| Command      | Description                                      |
+| ------------ | ------------------------------------------------ |
+| `artifact`   | List and download a job's artifact files         |
+| `config`     | Generate, validate, process and pack config YAML |
+| `job`        | Inspect a job's details, output and artifacts    |
+| `pipeline`   | Define what will happen in a run                 |
+| `run`        | Trigger, watch and cancel CI runs                |
+| `testresult` | Inspect test results for a job                   |
+| `workflow`   | Inspect, rerun and cancel workflows (job graphs) |
 
 ## Management Commands
 

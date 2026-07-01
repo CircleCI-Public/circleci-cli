@@ -1,4 +1,4 @@
-Usage:  circleci test get <job-id> <name> [flags]
+Usage:  circleci testresult get <job-id> <name> [flags]
 
 Flags:
   --filter stringArray   Disambiguate by classname=<value> when a name is shared; repeatable

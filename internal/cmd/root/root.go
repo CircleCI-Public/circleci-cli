@@ -56,7 +56,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/setup"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/signingconfig"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/step"
-	cmdtest "github.com/CircleCI-Public/circleci-cli/internal/cmd/test"
+	cmdtestresult "github.com/CircleCI-Public/circleci-cli/internal/cmd/testresult"
 	cmdversion "github.com/CircleCI-Public/circleci-cli/internal/cmd/version"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -239,7 +239,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(setup.NewSetupCmd())
 	cmd.AddCommand(signingconfig.NewSigningConfigCmd())
 	cmd.AddCommand(step.NewStepCmd())
-	cmd.AddCommand(cmdtest.NewTestCmd())
+	cmd.AddCommand(cmdtestresult.NewTestResultCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
 
 	// Wire in MCP commands. ophis sets its own terse Short; override it so the

@@ -24,6 +24,6 @@ Available commands:
   runner
   setting
   signing-config
-  test
+  testresult
   version
   workflow

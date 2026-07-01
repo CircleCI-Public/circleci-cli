@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package test
+package testresult
 
 import (
 	"context"
@@ -97,25 +97,25 @@ func newListCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# List failed tests for a job (the default)
-			$ circleci test list 8e50c384-0083-43d0-bc8f-93f0db589d6b
+			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b
 
 			# Show every result: passing, failed and skipped
-			$ circleci test list 8e50c384-0083-43d0-bc8f-93f0db589d6b --all
+			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b --all
 
 			# Show skipped tests instead
-			$ circleci test list 8e50c384-0083-43d0-bc8f-93f0db589d6b --filter result=skipped
+			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b --filter result=skipped
 
 			# Failed tests in a specific suite, slowest last (sorted by run_time)
-			$ circleci test list <job-id> --filter result=failure --filter classname=api --sort run_time
+			$ circleci testresult list <job-id> --filter result=failure --filter classname=api --sort run_time
 
 			# Every result for tests whose name matches "login"
-			$ circleci test list <job-id> --all --filter name=login
+			$ circleci testresult list <job-id> --all --filter name=login
 
 			# Limit output and emit JSON for scripting
-			$ circleci test list <job-id> --limit 20 --json
+			$ circleci testresult list <job-id> --limit 20 --json
 
 			# Count failed tests by aggregating the JSONL stream with jq
-			$ circleci test list <job-id> --json --jq '[.,inputs] | length'
+			$ circleci testresult list <job-id> --json --jq '[.,inputs] | length'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {

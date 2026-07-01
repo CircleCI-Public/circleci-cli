@@ -20,8 +20,8 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package test implements the "circleci test" command group.
-package test
+// Package testresult implements the "circleci testresult" command group.
+package testresult
 
 import (
 	"github.com/MakeNowJust/heredoc"
@@ -31,10 +31,10 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
-// NewTestCmd returns the "circleci test" command group.
-func NewTestCmd() *cobra.Command {
+// NewTestResultCmd returns the "circleci testresult" command group.
+func NewTestResultCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "test <command>",
+		Use:     "testresult <command>",
 		GroupID: "ci",
 		Short:   "Inspect test results for a job",
 		Long: heredoc.Doc(`

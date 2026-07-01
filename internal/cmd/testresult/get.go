@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package test
+package testresult
 
 import (
 	"context"
@@ -67,7 +67,7 @@ func newGetCmd() *cobra.Command {
 			repeated to accept any of several suites.
 
 			To browse or filter across all of a job's tests, use
-			'circleci test list'.
+			'circleci testresult list'.
 
 			By default the message is replayed through a virtual terminal and
 			embedded in the output. Pass --plain to print only the message exactly
@@ -78,16 +78,16 @@ func newGetCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# Get a test by name
-			$ circleci test get 8e50c384-0083-43d0-bc8f-93f0db589d6b TestLogin
+			$ circleci testresult get 8e50c384-0083-43d0-bc8f-93f0db589d6b TestLogin
 
 			# Disambiguate when the name appears in multiple suites
-			$ circleci test get <job-id> TestLogin --filter classname=api
+			$ circleci testresult get <job-id> TestLogin --filter classname=api
 
 			# Print only the raw test message
-			$ circleci test get <job-id> TestLogin --plain
+			$ circleci testresult get <job-id> TestLogin --plain
 
 			# Output as JSON
-			$ circleci test get <job-id> TestLogin --json
+			$ circleci testresult get <job-id> TestLogin --json
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -184,7 +184,7 @@ func parseClassnameFilter(filters []string) ([]string, error) {
 		if strings.TrimSpace(key) != "classname" {
 			return nil, badArg("args.invalid_filter", "Invalid filter key",
 				fmt.Sprintf("test get only supports the classname filter; got %q", key)).
-				WithSuggestions(`Use "circleci test list" to filter by result or name`)
+				WithSuggestions(`Use "circleci testresult list" to filter by result or name`)
 		}
 		classnames = append(classnames, strings.ToLower(val))
 	}
@@ -234,7 +234,7 @@ func testNotFound(jobID, name string, filtered bool) error {
 		msg = fmt.Sprintf("No test named %q with a matching classname was found in job %s.", name, jobID)
 	}
 	return clierrors.New("test.not_found", "Test not found", msg).
-		WithSuggestions(fmt.Sprintf("List the job's tests with: circleci test list %s --all", jobID)).
+		WithSuggestions(fmt.Sprintf("List the job's tests with: circleci testresult list %s --all", jobID)).
 		WithExitCode(clierrors.ExitNotFound)
 }
 
@@ -249,7 +249,7 @@ func ambiguousTest(jobID, name string, matches []apiclient.TestResult) error {
 		}
 		seen[m.Classname] = true
 		suggestions = append(suggestions,
-			fmt.Sprintf("circleci test get %s %q --filter classname=%s", jobID, name, m.Classname))
+			fmt.Sprintf("circleci testresult get %s %q --filter classname=%s", jobID, name, m.Classname))
 	}
 	return badArg("test.ambiguous", "Ambiguous test name",
 		fmt.Sprintf("%d tests are named %q; add --filter classname=<value> to select one.", len(matches), name)).
