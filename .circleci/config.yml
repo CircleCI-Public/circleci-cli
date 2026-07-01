@@ -288,6 +288,7 @@ workflows:
             - ok-to-deploy
 
       - deploy:
+          serial-group: << pipeline.project.slug >>/deploy
           requires:
             - ok-to-deploy
           context:
@@ -295,6 +296,7 @@ workflows:
             - macos-codesigning
 
       - docs-publish:
+          serial-group: << pipeline.project.slug >>/docs-publish
           requires:
             - ok-to-deploy
           context:
