@@ -59,6 +59,7 @@ var (
 
 	keyR    = tea.KeyPressMsg{Code: 'r', Text: "r"}
 	keyDown = tea.KeyPressMsg{Code: tea.KeyDown}
+	keyUp   = tea.KeyPressMsg{Code: tea.KeyUp}
 	keyEnt  = tea.KeyPressMsg{Code: tea.KeyEnter}
 	keyEsc  = tea.KeyPressMsg{Code: tea.KeyEscape}
 )
@@ -243,6 +244,115 @@ func newStepFlow(
 		FetchStepStdout: stdout,
 		FetchStepStderr: stderr,
 	})
+}
+
+// newTestsFlow builds a single-execution flow whose run → workflow → job chain
+// leads to a step picker with one failed step, and whose FetchFailedTests
+// returns the given failed tests for the "Failed tests" meta option.
+func newTestsFlow(failed []ui.RunGetTestItem) ui.RunGetFlowModel {
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - now")},
+		CurrentBranch: "main",
+		FetchWorkflows: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✓", Label: "build"}}, nil
+		},
+		FetchJobs: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✗", Label: "test"}}, nil
+		},
+		FetchExecutions: func(context.Context, uuid.UUID) ([]ui.RunGetExecution, error) {
+			return []ui.RunGetExecution{{Index: 0, Steps: []ui.RunGetStepItem{
+				{Label: "run tests", Icon: "✗", Execution: 0, StepNum: 101},
+			}}}, nil
+		},
+		FetchFailedTests: func(context.Context, uuid.UUID) ([]ui.RunGetTestItem, error) {
+			return failed, nil
+		},
+	})
+}
+
+// driveToFailedTestsPicker navigates run → workflow → job to the step picker,
+// then selects the "Failed tests" meta option to open the failed-test picker.
+// On the step picker the cursor lands on the failed step ("run tests"), which
+// sits just below the three meta rows, so one keyUp reaches "Failed tests". It
+// stops after sending the select; callers wait on their own distinctive row (a
+// test label, or the empty-state placeholder) since the title/rows arrive in one
+// frame that a single WaitFor would consume whole.
+func driveToFailedTestsPicker(t *testing.T, tm *teatest.TestModel) {
+	t.Helper()
+	tm.Send(keyEnt) // select the only run
+	waitForOutput(t, tm, "See all workflows")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "build"
+	waitForOutput(t, tm, "All jobs in workflow")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "test"
+	waitForOutput(t, tm, "Failed tests")
+	tm.Send(keyUp)  // failed step → "Failed tests"
+	tm.Send(keyEnt) // open the failed-test picker
+}
+
+// TestRunGetFlow_FailedTestsPager drives the "Failed tests" meta option, opens
+// the first failed test, and confirms its message shows in the pager.
+func TestRunGetFlow_FailedTestsPager(t *testing.T) {
+	failed := []ui.RunGetTestItem{
+		{Icon: "✗", Label: "TestAlpha (pkg/foo)", Message: "alpha boom\nexpected 1 got 2"},
+		{Icon: "✗", Label: "TestBravo (pkg/bar)", Message: "bravo boom"},
+	}
+	tm := startFlow(t, newTestsFlow(failed))
+
+	assert.Assert(t, t.Run("navigate to the failed-test picker", func(t *testing.T) {
+		driveToFailedTestsPicker(t, tm)
+		waitForOutput(t, tm, "TestAlpha (pkg/foo)")
+	}))
+
+	assert.Assert(t, t.Run("open the first failed test's message in the pager", func(t *testing.T) {
+		tm.Send(keyEnt) // cursor defaults to the first test
+		waitForOutput(t, tm, "expected 1 got 2")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "alpha boom"))
+		assert.Check(t, cmp.Contains(v, "esc back"))
+	}))
+}
+
+// TestRunGetFlow_FailedTestsPagerEscResumes confirms esc from the message pager
+// returns to the failed-test picker.
+func TestRunGetFlow_FailedTestsPagerEscResumes(t *testing.T) {
+	failed := []ui.RunGetTestItem{
+		{Icon: "✗", Label: "TestAlpha (pkg/foo)", Message: "alpha boom"},
+		{Icon: "✗", Label: "TestBravo (pkg/bar)", Message: "bravo boom"},
+	}
+	tm := startFlow(t, newTestsFlow(failed))
+
+	assert.Assert(t, t.Run("open a failed test's message", func(t *testing.T) {
+		driveToFailedTestsPicker(t, tm)
+		waitForOutput(t, tm, "TestAlpha (pkg/foo)")
+		tm.Send(keyEnt)
+		waitForOutput(t, tm, "alpha boom")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the failed-test picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a failed test"))
+		assert.Check(t, cmp.Contains(v, "TestBravo (pkg/bar)"))
+	}))
+}
+
+// TestRunGetFlow_FailedTestsEmpty shows the placeholder row when a job recorded
+// no failed tests, and esc returns to the step picker.
+func TestRunGetFlow_FailedTestsEmpty(t *testing.T) {
+	tm := startFlow(t, newTestsFlow(nil))
+
+	assert.Assert(t, t.Run("placeholder row for no failed tests", func(t *testing.T) {
+		driveToFailedTestsPicker(t, tm)
+		waitForOutput(t, tm, "no failed tests recorded")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the step picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a step"))
+	}))
 }
 
 // driveToStepPicker selects the only run, then the single workflow and job (each

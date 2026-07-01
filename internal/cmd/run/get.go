@@ -327,17 +327,18 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	}
 
 	model := ui.NewRunGetFlow(ctx, ui.RunGetFlowOptions{
-		Runs:            items,
-		Color:           iostream.ColorEnabled(ctx),
-		Animate:         iostream.SpinnerEnabled(ctx),
-		CurrentBranch:   effectiveBranch,
-		DefaultBranch:   defaultBranch,
-		FetchRuns:       fetchRuns,
-		FetchWorkflows:  workflowItems(client),
-		FetchJobs:       jobItems(client),
-		FetchExecutions: executionItems(client),
-		FetchStepStdout: stepStdout(client),
-		FetchStepStderr: stepStderr(client),
+		Runs:             items,
+		Color:            iostream.ColorEnabled(ctx),
+		Animate:          iostream.SpinnerEnabled(ctx),
+		CurrentBranch:    effectiveBranch,
+		DefaultBranch:    defaultBranch,
+		FetchRuns:        fetchRuns,
+		FetchWorkflows:   workflowItems(client),
+		FetchJobs:        jobItems(client),
+		FetchExecutions:  executionItems(client),
+		FetchStepStdout:  stepStdout(client),
+		FetchStepStderr:  stepStderr(client),
+		FetchFailedTests: failedTestItems(client),
 	})
 
 	final, err := tea.NewProgram(model,
@@ -484,6 +485,35 @@ func stepStderr(client *apiclient.Client) func(context.Context, uuid.UUID, int, 
 				"job.output_not_found", "No output found for %s.")
 		}
 		return data, nil
+	}
+}
+
+// failedTestItems returns a fetch closure for the run-get failed-test picker: it
+// streams the job's test results and keeps the failures, each carrying its
+// message for the pager. The message is passed through verbatim (ANSI intact) so
+// the pager can colorize it just like step output.
+func failedTestItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.RunGetTestItem, error) {
+	return func(ctx context.Context, jobID uuid.UUID) ([]ui.RunGetTestItem, error) {
+		var items []ui.RunGetTestItem
+		err := client.StreamJobTests(ctx, jobID, func(tr apiclient.TestResult) {
+			if tr.Result != "failure" {
+				return
+			}
+			label := tr.Name
+			if tr.Classname != "" {
+				label = fmt.Sprintf("%s (%s)", tr.Name, tr.Classname)
+			}
+			items = append(items, ui.RunGetTestItem{
+				Icon:    "✗",
+				Label:   label,
+				Message: tr.Message,
+			})
+		})
+		if err != nil {
+			return nil, cmdutil.APIErr(err, jobID.String(),
+				"job.tests_not_found", "No test results found for job %q.")
+		}
+		return items, nil
 	}
 }
 
