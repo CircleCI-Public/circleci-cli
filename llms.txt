@@ -361,11 +361,11 @@ Watch a run until it completes
 When omitted, the latest run for the current branch is watched
 (override the branch with --branch, or match a commit with --sha).
 
-### `circleci test <command>`
+### `circleci testresult <command>`
 
 Inspect test results for a job
 
-#### `circleci test get <job-id> <name> [flags]`
+#### `circleci testresult get <job-id> <name> [flags]`
 
 Get a single test result by name
 
@@ -385,7 +385,7 @@ UUIDs are shown in "circleci job get" and "circleci run get --json".
 <name> is the exact test name to look up. If more than one test
 shares that name, use --filter classname=<value> to disambiguate.
 
-#### `circleci test list <job-id> [flags]`
+#### `circleci testresult list <job-id> [flags]`
 
 List test results for a job
 
@@ -407,7 +407,7 @@ UUIDs are shown in "circleci job get" and "circleci run get --json".
 **Aliases:**
 
 
-`circleci test ls`
+`circleci testresult ls`
 
 ### `circleci workflow <command>`
 
