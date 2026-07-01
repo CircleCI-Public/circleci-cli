@@ -20,199 +20,232 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package ui_test
 
 import (
+	"bytes"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/teatest/v2"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
-func TestSearchMatches(t *testing.T) {
+// startPager runs a markdown pager over content at the given terminal size and
+// waits for the first frame (so the initial WindowSizeMsg has rendered).
+func startPager(t *testing.T, content string, w, h int) *teatest.TestModel {
+	t.Helper()
+	m := ui.NewMarkdownViewportModel(func(int) string { return content })
+	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(w, h))
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte("q quit"))
+	}, teatest.WithDuration(time.Second))
+	return tm
+}
+
+// pagerType sends each rune of s as a key press, mirroring a user typing at the
+// "/" search prompt.
+func pagerType(tm *teatest.TestModel, s string) {
+	for _, r := range s {
+		tm.Send(tea.KeyPressMsg{Code: r, Text: string(r)})
+	}
+}
+
+// pagerSnapshot quits the pager (q) and returns its final, ANSI-stripped frame.
+// The pager renders its current search state in the footer, so the snapshot is
+// where committed-search assertions are made. q is safe only outside the search
+// prompt (inside it, q is typed into the pattern).
+func pagerSnapshot(t *testing.T, tm *teatest.TestModel) string {
+	t.Helper()
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(ui.MarkdownViewportModel)
+	return ansi.Strip(fm.View().Content)
+}
+
+// search opens the prompt, types query, and commits it with Enter.
+func search(tm *teatest.TestModel, query string) {
+	tm.Send(tea.KeyPressMsg{Code: '/', Text: "/"})
+	pagerType(tm, query)
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+}
+
+// TestPagerSearchMatchCount exercises the search matcher's behavior through the
+// pager footer: the "n/m" counter's denominator reflects how many hits a
+// committed pattern found (the focus starts on the first, so it reads "1/m"),
+// and a missed pattern shows the not-found notice. The cases cover literal
+// matching, smart case, per-line regex anchors, the invalid-regex literal
+// fallback, and ANSI-insensitive matching.
+func TestPagerSearchMatchCount(t *testing.T) {
 	tests := []struct {
 		name    string
 		content string
 		query   string
-		want    int
+		want    string // substring expected in the footer ("1/<total>" or the notice)
 	}{
-		{"literal substring", "alpha beta\nbeta gamma", "beta", 2},
-		{"smart case insensitive", "Alpha\nalpha", "alpha", 2},
-		{"smart case sensitive on uppercase", "Alpha\nalpha", "Alpha", 1},
-		{"regex anchors per line", "cat\nscatter\ncat", "^cat$", 2},
-		{"invalid regex falls back to literal", "a(b\nc", "a(b", 1},
-		{"no match", "hello world", "zzz", 0},
-		{"empty query", "hello", "", 0},
-		{"matches ignore ansi styling", "\x1b[31mred\x1b[0m text", "red text", 1},
+		{"literal substring", "alpha beta\nbeta gamma", "beta", "1/2"},
+		{"smart case insensitive", "Alpha\nalpha", "alpha", "1/2"},
+		{"smart case sensitive on uppercase", "Alpha\nalpha", "Alpha", "1/1"},
+		{"regex anchors per line", "cat\nscatter\ncat", "^cat$", "1/2"},
+		{"invalid regex falls back to literal", "a(b\nc", "a(b", "1/1"},
+		{"no match shows not found", "hello world", "zzz", "pattern not found: zzz"},
+		{"matches ignore ansi styling", "\x1b[31mred\x1b[0m text", "red text", "1/1"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := searchMatches(tt.content, tt.query)
-			assert.Equal(t, len(got), tt.want)
+			tm := startPager(t, tt.content, 80, 24)
+			search(tm, tt.query)
+			assert.Check(t, cmp.Contains(pagerSnapshot(t, tm), tt.want))
 		})
 	}
 }
 
-func TestSearchMatchColumnsSkipAnsi(t *testing.T) {
-	// "text" sits after the colored "red " word; its columns must be measured
-	// against the visible text, not the byte string with escape codes.
-	got := searchMatches("\x1b[31mred\x1b[0m text", "text")
-	assert.Equal(t, len(got), 1)
-	assert.Equal(t, got[0], searchMatch{line: 0, colStart: 4, colEnd: 8})
+// TestPagerSearchCommits confirms typing a pattern and pressing Enter commits
+// it: the footer shows the committed pattern and focuses the first of its
+// matches.
+func TestPagerSearchCommits(t *testing.T) {
+	tm := startPager(t, strings.Repeat("needle in a haystack\nfiller line\n", 20), 80, 24)
+	search(tm, "needle")
+
+	view := pagerSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(view, "/needle"))
+	assert.Check(t, cmp.Contains(view, "1/20"))
 }
 
-// sized returns a ready pager populated with content, as if the terminal had
-// reported its size.
-func sized(content string) MarkdownViewportModel {
-	m := NewMarkdownViewportModel(func(int) string { return content })
-	model, _ := m.Update(tea.WindowSizeMsg{Width: 40, Height: 10})
-	return model.(MarkdownViewportModel)
+// TestPagerSearchNext advances the focused match with n.
+func TestPagerSearchNext(t *testing.T) {
+	tm := startPager(t, strings.Repeat("needle in a haystack\nfiller line\n", 20), 80, 24)
+	search(tm, "needle")
+
+	assert.Assert(t, t.Run("n advances to the next match", func(t *testing.T) {
+		tm.Send(tea.KeyPressMsg{Code: 'n', Text: "n"})
+		assert.Check(t, cmp.Contains(pagerSnapshot(t, tm), "2/20"))
+	}))
 }
 
-func typeKeys(m MarkdownViewportModel, s string) MarkdownViewportModel {
-	for _, r := range s {
-		model, _ := m.Update(tea.KeyPressMsg{Code: r, Text: string(r)})
-		m = model.(MarkdownViewportModel)
-	}
-	return m
+// TestPagerSearchPrevWraps confirms N from the first match wraps to the last,
+// less-style.
+func TestPagerSearchPrevWraps(t *testing.T) {
+	tm := startPager(t, strings.Repeat("needle in a haystack\nfiller line\n", 20), 80, 24)
+	search(tm, "needle")
+
+	assert.Assert(t, t.Run("N from the first match wraps to the last", func(t *testing.T) {
+		tm.Send(tea.KeyPressMsg{Code: 'N', Text: "N"})
+		assert.Check(t, cmp.Contains(pagerSnapshot(t, tm), "20/20"))
+	}))
 }
 
-func press(m MarkdownViewportModel, code rune) MarkdownViewportModel {
-	model, _ := m.Update(tea.KeyPressMsg{Code: code})
-	return model.(MarkdownViewportModel)
+// TestPagerSearchScrollsToMatch confirms advancing to a match below the fold
+// scrolls the viewport (the footer's scroll percentage leaves 0%).
+func TestPagerSearchScrollsToMatch(t *testing.T) {
+	tm := startPager(t, strings.Repeat("needle in a haystack\nfiller line\n", 20), 80, 10)
+	search(tm, "needle")
+
+	assert.Assert(t, t.Run("advancing past the fold scrolls the viewport", func(t *testing.T) {
+		for range 11 {
+			tm.Send(tea.KeyPressMsg{Code: 'n', Text: "n"})
+		}
+
+		view := pagerSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(view, "12/20"))
+		assert.Check(t, !strings.Contains(view, "  0%"), "viewport should have scrolled off the top: %q", view)
+	}))
 }
 
-func TestPagerSearchFlow(t *testing.T) {
-	content := strings.Repeat("needle in a haystack\nfiller line\n", 20)
-	m := sized(content)
+// TestPagerSearchBackspace confirms backspace edits the in-progress pattern
+// before it is committed.
+func TestPagerSearchBackspace(t *testing.T) {
+	tm := startPager(t, strings.Repeat("hello\n", 30), 80, 24)
+	tm.Send(tea.KeyPressMsg{Code: '/', Text: "/"})
+	pagerType(tm, "helx")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyBackspace})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-	// "/" opens the prompt; characters accumulate in the input.
-	m = press(m, '/')
-	assert.Equal(t, m.searching, true)
-	m = typeKeys(m, "needle")
-	assert.Equal(t, m.input, "needle")
-	assert.Assert(t, strings.Contains(m.View().Content, "/needle"))
-
-	// Enter commits the search, highlights matches, and leaves search mode.
-	m = press(m, tea.KeyEnter)
-	assert.Equal(t, m.searching, false)
-	assert.Equal(t, m.query, "needle")
-	assert.Equal(t, len(m.matches), 20)
-	assert.Equal(t, m.current, 0)
-	assert.Equal(t, m.notFound, false)
-	assert.Assert(t, strings.Contains(ansi.Strip(m.View().Content), "1/20"))
-
-	// n advances the focused match and scrolls to one that's off screen; N goes back.
-	m = press(m, 'n')
-	assert.Equal(t, m.current, 1)
-	for i := 0; i < 10; i++ {
-		m = press(m, 'n')
-	}
-	assert.Assert(t, m.viewport.YOffset() > 0) // scrolled to reach a lower match
-	assert.Equal(t, m.current, 11)
-	m = press(m, 'N')
-	assert.Equal(t, m.current, 10)
-
-	// N from the first match wraps to the last.
-	for m.current != 0 {
-		m = press(m, 'N')
-	}
-	m = press(m, 'N')
-	assert.Equal(t, m.current, 19)
+	view := pagerSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(view, "/hel "), "the x should have been deleted before commit")
+	assert.Check(t, !strings.Contains(view, "helx"))
 }
 
-func TestPagerSearchBackspaceAndCancel(t *testing.T) {
-	m := sized(strings.Repeat("hello\n", 30))
+// TestPagerSearchCancelCommitsNothing confirms Esc at the prompt abandons the
+// pattern: nothing is committed and no highlights appear.
+func TestPagerSearchCancelCommitsNothing(t *testing.T) {
+	tm := startPager(t, strings.Repeat("hello\n", 30), 80, 24)
+	tm.Send(tea.KeyPressMsg{Code: '/', Text: "/"})
+	pagerType(tm, "hello")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 
-	m = press(m, '/')
-	m = typeKeys(m, "helx")
-	m = press(m, tea.KeyBackspace)
-	assert.Equal(t, m.input, "hel")
-
-	// Esc cancels the prompt and commits nothing.
-	m = press(m, tea.KeyEscape)
-	assert.Equal(t, m.searching, false)
-	assert.Equal(t, m.query, "")
+	view := pagerSnapshot(t, tm)
+	assert.Check(t, !strings.Contains(view, "/hello"), "cancelled search must not commit")
+	assert.Check(t, !strings.Contains(view, "pattern not found"))
 }
 
-func TestPagerSearchNotFound(t *testing.T) {
-	m := sized(strings.Repeat("hello world\n", 30))
-
-	m = press(m, '/')
-	m = typeKeys(m, "absent")
-	m = press(m, tea.KeyEnter)
-
-	assert.Equal(t, m.notFound, true)
-	assert.Equal(t, len(m.matches), 0)
-	assert.Assert(t, strings.Contains(ansi.Strip(m.View().Content), "pattern not found"))
-}
-
+// TestPagerSearchEmptyCommitRepeatsLast confirms a bare "/" + Enter repeats the
+// previous pattern, like less.
 func TestPagerSearchEmptyCommitRepeatsLast(t *testing.T) {
-	m := sized(strings.Repeat("repeat me\nother\n", 30))
+	tm := startPager(t, strings.Repeat("repeat me\nother\n", 30), 80, 24)
+	search(tm, "repeat")
 
-	m = press(m, '/')
-	m = typeKeys(m, "repeat")
-	m = press(m, tea.KeyEnter)
-	assert.Equal(t, len(m.matches), 30)
+	assert.Assert(t, t.Run("a bare slash-enter repeats the previous pattern", func(t *testing.T) {
+		tm.Send(tea.KeyPressMsg{Code: '/', Text: "/"})
+		tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-	// A bare "/" + Enter repeats the previous pattern, like less.
-	m = press(m, '/')
-	m = press(m, tea.KeyEnter)
-	assert.Equal(t, m.query, "repeat")
-	assert.Equal(t, len(m.matches), 30)
+		view := pagerSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(view, "/repeat"))
+		assert.Check(t, cmp.Contains(view, "1/30"))
+	}))
 }
 
+// TestPagerSearchSurvivesResize confirms a resize re-renders from scratch yet
+// keeps the search applied, so matches stay highlighted against the re-wrapped
+// content.
 func TestPagerSearchSurvivesResize(t *testing.T) {
-	m := sized(strings.Repeat("target\nfiller\n", 30))
+	tm := startPager(t, strings.Repeat("target\nfiller\n", 30), 80, 24)
+	search(tm, "target")
 
-	m = press(m, '/')
-	m = typeKeys(m, "target")
-	m = press(m, tea.KeyEnter)
-	assert.Equal(t, len(m.matches), 30)
+	assert.Assert(t, t.Run("the search survives a resize", func(t *testing.T) {
+		tm.Send(tea.WindowSizeMsg{Width: 60, Height: 20})
 
-	// Resizing re-renders from scratch; the search must be re-applied so matches
-	// stay highlighted against the freshly re-wrapped content.
-	model, _ := m.Update(tea.WindowSizeMsg{Width: 60, Height: 20})
-	m = model.(MarkdownViewportModel)
-	assert.Equal(t, m.query, "target")
-	assert.Equal(t, len(m.matches), 30)
+		view := pagerSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(view, "/target"))
+		assert.Check(t, cmp.Contains(view, "1/30"))
+	}))
 }
 
-func TestPagerEscClearsSearchThenQuits(t *testing.T) {
-	m := sized(strings.Repeat("target\nfiller\n", 30))
+// TestPagerEscClearsSearch confirms the first Esc after a search dismisses it
+// (dropping the highlights and counter) without quitting the pager — the
+// subsequent q is what ends the program, and its final frame shows the search
+// gone.
+func TestPagerEscClearsSearch(t *testing.T) {
+	tm := startPager(t, strings.Repeat("target\nfiller\n", 30), 80, 24)
+	search(tm, "target")
 
-	m = press(m, '/')
-	m = typeKeys(m, "target")
-	m = press(m, tea.KeyEnter)
-	assert.Equal(t, len(m.matches), 30)
+	assert.Assert(t, t.Run("esc clears the search without quitting the pager", func(t *testing.T) {
+		tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
 
-	// First Esc dismisses the search without quitting.
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	m = model.(MarkdownViewportModel)
-	assert.Equal(t, m.query, "")
-	assert.Equal(t, len(m.matches), 0)
-	assert.Assert(t, !isQuit(cmd))
-
-	// With nothing left to clear, Esc quits.
-	_, cmd = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	assert.Assert(t, isQuit(cmd))
+		// The pager stays open: the q inside pagerSnapshot is what quits, and its
+		// final frame shows the search gone.
+		view := pagerSnapshot(t, tm)
+		assert.Check(t, !strings.Contains(view, "/target"), "search should have been cleared")
+		assert.Check(t, !strings.Contains(view, "1/30"))
+	}))
 }
 
-// isQuit reports whether cmd is bubbletea's quit command.
-func isQuit(cmd tea.Cmd) bool {
-	if cmd == nil {
-		return false
-	}
-	_, ok := cmd().(tea.QuitMsg)
-	return ok
+// TestPagerEscQuitsWhenNoSearch confirms Esc with no active search quits the
+// pager.
+func TestPagerEscQuitsWhenNoSearch(t *testing.T) {
+	tm := startPager(t, strings.Repeat("target\nfiller\n", 30), 80, 24)
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
 }
 
+// TestSearchMatchStylesDistinct guards that the focused match looks different
+// from the rest, or n/N gives no visual feedback.
 func TestSearchMatchStylesDistinct(t *testing.T) {
-	// The focused match must look different from the rest, or n/N gives no
-	// visual feedback.
-	assert.Assert(t, theme.SearchMatchStyle.GetBackground() != theme.SearchSelectedStyle.GetBackground())
+	assert.Check(t, theme.SearchMatchStyle.GetBackground() != theme.SearchSelectedStyle.GetBackground())
 }

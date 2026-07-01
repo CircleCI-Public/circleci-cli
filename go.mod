@@ -11,6 +11,7 @@ require (
 	github.com/CircleCI-Public/chunk-cli v0.7.95
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/charmbracelet/x/ansi v0.11.7
+	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/cli/browser v1.3.0
 	github.com/go-chi/chi/v5 v5.3.0
@@ -47,10 +48,12 @@ require (
 	github.com/ajg/form v1.7.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.26.1 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
+	github.com/aymanbagabas/go-udiff v0.4.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
 	github.com/charmbracelet/ultraviolet v0.0.0-20260615092913-2399af76d5b1 // indirect
 	github.com/charmbracelet/x/conpty v0.2.0 // indirect
+	github.com/charmbracelet/x/exp/golden v0.0.0-20251109135125-8916d276318f // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20260615092313-b57e5e6d29bb // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect

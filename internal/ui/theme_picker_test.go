@@ -20,128 +20,194 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package ui_test
 
 import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/teatest/v2"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
-func newTestPicker(t *testing.T) ThemePickerModel {
+// echoRender returns a render callback that echoes the theme and width it was
+// asked for, so tests can assert the preview tracks the highlighted option.
+func echoRender() func(string, int) string {
+	return func(theme string, width int) string {
+		return fmt.Sprintf("rendered:%s@%d", theme, width)
+	}
+}
+
+// newTestPicker builds a three-theme picker with animation on (the interactive
+// default: a cache-miss preview renders asynchronously behind a placeholder).
+func newTestPicker(t *testing.T) ui.ThemePickerModel {
 	t.Helper()
 	labels := []string{"auto (default)", "dark", "light"}
 	themes := []string{"auto", "dark", "light"}
-	// The render callback echoes which theme/width it was asked for so the test
-	// can assert the preview tracks the highlighted option.
-	render := func(theme string, width int) string {
-		return fmt.Sprintf("rendered:%s@%d", theme, width)
-	}
-	return NewThemePickerModel("Select a theme", labels, themes, render, false, true).WithCursor(0)
+	return ui.NewThemePickerModel("Select a theme", labels, themes, echoRender(), false, true).WithCursor(0)
 }
 
-// updatePicker applies msg and then runs any returned command to completion,
-// feeding each resulting message back in. The preview is rendered off the Update
-// loop via a command, so tests must drain it to observe the rendered content.
-// SelectModel emits no commands, so the chain is at most one render command deep.
-func updatePicker(m ThemePickerModel, msg tea.Msg) ThemePickerModel {
+// newStaticPicker is newTestPicker with animation off, so previews render
+// synchronously into every frame. teatest drives it through its alt-screen
+// program loop; a synchronous preview means each frame's model already holds the
+// rendered content, so assertions read the final model's View rather than racing
+// the async render through the output stream.
+func newStaticPicker(t *testing.T) ui.ThemePickerModel {
+	t.Helper()
+	labels := []string{"auto (default)", "dark", "light"}
+	themes := []string{"auto", "dark", "light"}
+	return ui.NewThemePickerModel("Select a theme", labels, themes, echoRender(), false, false).WithCursor(0)
+}
+
+// updatePicker applies msg and runs any returned command to completion, feeding
+// each resulting message back in. The preview is rendered off the Update loop
+// via a command, so synchronous tests must drain it to observe the content.
+// SelectModel emits no commands, so the chain is at most one render deep.
+func updatePicker(m ui.ThemePickerModel, msg tea.Msg) ui.ThemePickerModel {
 	model, cmd := m.Update(msg)
-	m = model.(ThemePickerModel)
+	m = model.(ui.ThemePickerModel)
 	for cmd != nil {
 		next := cmd()
 		if next == nil {
 			break
 		}
 		model, cmd = m.Update(next)
-		m = model.(ThemePickerModel)
+		m = model.(ui.ThemePickerModel)
 	}
 	return m
 }
 
-// Before the first window size arrives the view is empty and the preview is not
-// rendered.
+// themeHarness drives a ThemePickerModel as a teatest program and quits on
+// quitMsg without disturbing the inner model, so its live View (with the preview
+// pane) can be snapshotted before the program's own quit paths run.
+type themeHarness struct {
+	m ui.ThemePickerModel
+}
+
+func (h themeHarness) Init() tea.Cmd { return h.m.Init() }
+
+func (h themeHarness) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(quitMsg); ok {
+		return h, tea.Quit
+	}
+	u, cmd := h.m.Update(msg)
+	h.m = u.(ui.ThemePickerModel)
+	return h, cmd
+}
+
+func (h themeHarness) View() tea.View { return h.m.View() }
+
+// startPicker runs a picker at a known terminal size and waits for the selector
+// pane's first frame (so the initial window size has been laid out).
+func startPicker(t *testing.T, m ui.ThemePickerModel) *teatest.TestModel {
+	t.Helper()
+	tm := teatest.NewTestModel(t, themeHarness{m: m}, teatest.WithInitialTermSize(100, 24))
+	waitForOutput(t, tm, "Select a theme")
+	return tm
+}
+
+// themeFinal returns the inner model after the program ends — reached either by
+// the picker's own quit (enter/esc) or by a prior quitMsg. State and View are
+// read from it, sidestepping the alt-screen output stream.
+func themeFinal(t *testing.T, tm *teatest.TestModel) ui.ThemePickerModel {
+	t.Helper()
+	return tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(themeHarness).m
+}
+
+// TestThemePickerNotReady confirms the view is empty before a window size
+// arrives (so the program prints nothing until it can lay out the split). This
+// is the pre-program state, asserted directly on the exported View.
 func TestThemePickerNotReady(t *testing.T) {
-	m := newTestPicker(t)
-	assert.Equal(t, m.View().Content, "")
+	assert.Check(t, cmp.Equal(newTestPicker(t).View().Content, ""))
 }
 
-// A window size renders the preview for the initially-highlighted theme, and
-// the body shows both panes.
+// TestThemePickerRendersPreview confirms a window size lays out both panes: the
+// selector list and the preview rendered for the initially-highlighted theme.
 func TestThemePickerRendersPreview(t *testing.T) {
-	m := newTestPicker(t)
-	m = updatePicker(m, tea.WindowSizeMsg{Width: 100, Height: 24})
+	tm := startPicker(t, newStaticPicker(t))
+	tm.Send(quitMsg{})
 
-	view := m.View().Content
-	assert.Assert(t, strings.Contains(view, "Select a theme"), "selector pane missing")
-	assert.Assert(t, strings.Contains(view, "rendered:auto@"), "preview for first theme missing")
+	view := ansi.Strip(themeFinal(t, tm).View().Content)
+	assert.Check(t, cmp.Contains(view, "Select a theme"), "selector pane missing")
+	assert.Check(t, cmp.Contains(view, "rendered:auto@"), "preview for first theme missing")
 }
 
-// Before the async render lands (cmd not yet run), the preview shows the
-// loading placeholder rather than blank space.
+// TestThemePickerShowsLoadingPlaceholder confirms that before the async render
+// lands the preview shows the loading placeholder, not blank space. The command
+// is deliberately left undrained — a transient state the program loop would race
+// past — so this drives Update directly.
 func TestThemePickerShowsLoadingPlaceholder(t *testing.T) {
 	m := newTestPicker(t)
-	// Apply the size but do NOT drain the render command, so the model is still
-	// in its loading state.
 	model, cmd := m.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
-	m = model.(ThemePickerModel)
-	assert.Assert(t, cmd != nil, "a cache miss should return a render command")
+	m = model.(ui.ThemePickerModel)
+	assert.Check(t, cmd != nil, "a cache miss should return a render command")
 
 	view := m.View().Content
-	assert.Assert(t, strings.Contains(view, "Loading"), "loading placeholder missing")
-	assert.Assert(t, !strings.Contains(view, "rendered:auto@"), "preview should not be rendered yet")
+	assert.Check(t, strings.Contains(view, "Loading"), "loading placeholder missing")
+	assert.Check(t, !strings.Contains(view, "rendered:auto@"), "preview should not be rendered yet")
 }
 
-// With animation enabled the spinner ticks (Init schedules it); with animation
-// disabled (CIRCLE_SPINNER_DISABLED / non-TTY) it stays still so scripted
-// sessions don't see continuous repaints.
+// TestThemePickerSpinnerAnimationGating confirms the spinner ticks only when
+// animation is enabled; disabled (CIRCLE_SPINNER_DISABLED / non-TTY) it stays
+// still and renders synchronously so scripted sessions don't see repaints. This
+// inspects Init/command behavior, so it drives the model directly.
 func TestThemePickerSpinnerAnimationGating(t *testing.T) {
 	labels := []string{"auto"}
 	themes := []string{"auto"}
 	render := func(string, int) string { return "x" }
 
-	animated := NewThemePickerModel("t", labels, themes, render, false, true)
-	assert.Assert(t, animated.Init() != nil, "animated picker should start ticking")
+	assert.Assert(t, t.Run("animation enabled starts the spinner ticking", func(t *testing.T) {
+		animated := ui.NewThemePickerModel("t", labels, themes, render, false, true)
+		assert.Check(t, animated.Init() != nil, "animated picker should start ticking")
+	}))
+	assert.Assert(t, t.Run("animation disabled stays still and renders synchronously", func(t *testing.T) {
+		static := ui.NewThemePickerModel("t", labels, themes, render, false, false)
+		assert.Check(t, static.Init() == nil, "static picker should not tick")
 
-	static := NewThemePickerModel("t", labels, themes, render, false, false)
-	assert.Assert(t, static.Init() == nil, "static picker should not tick")
-
-	// With animation disabled the preview renders synchronously — no async
-	// command, no loading placeholder, just the content.
-	model, cmd := static.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
-	static = model.(ThemePickerModel)
-	assert.Assert(t, cmd == nil, "static picker should render synchronously, not via a command")
-	assert.Assert(t, strings.Contains(static.View().Content, "x"), "preview content should be rendered")
-	assert.Assert(t, !strings.Contains(static.View().Content, "Loading"), "no placeholder when synchronous")
+		model, cmd := static.Update(tea.WindowSizeMsg{Width: 100, Height: 24})
+		static = model.(ui.ThemePickerModel)
+		assert.Check(t, cmd == nil, "static picker should render synchronously, not via a command")
+		view := static.View().Content
+		assert.Check(t, strings.Contains(view, "x"), "preview content should be rendered")
+		assert.Check(t, !strings.Contains(view, "Loading"), "no placeholder when synchronous")
+	}))
 }
 
-// Moving the cursor re-renders the preview for the newly-highlighted theme.
+// TestThemePickerPreviewFollowsCursor confirms moving the cursor re-renders the
+// preview for the newly-highlighted theme and advances the selection.
 func TestThemePickerPreviewFollowsCursor(t *testing.T) {
-	m := newTestPicker(t)
-	m = updatePicker(m, tea.WindowSizeMsg{Width: 100, Height: 24})
-	m = updatePicker(m, tea.KeyPressMsg{Code: tea.KeyDown})
+	tm := startPicker(t, newStaticPicker(t))
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	tm.Send(quitMsg{})
 
-	assert.Equal(t, m.Selected(), 1)
-	assert.Assert(t, strings.Contains(m.View().Content, "rendered:dark@"), "preview did not follow cursor")
+	m := themeFinal(t, tm)
+	assert.Check(t, cmp.Contains(ansi.Strip(m.View().Content), "rendered:dark@"), "preview did not follow the cursor")
+	assert.Check(t, cmp.Equal(m.Selected(), 1))
 }
 
-// Enter confirms the highlighted theme without cancelling.
+// TestThemePickerEnterSelects confirms Enter confirms the highlighted theme
+// without cancelling.
 func TestThemePickerEnterSelects(t *testing.T) {
-	m := newTestPicker(t)
-	m = updatePicker(m, tea.WindowSizeMsg{Width: 100, Height: 24})
-	m = updatePicker(m, tea.KeyPressMsg{Code: tea.KeyDown})
+	tm := startPicker(t, newStaticPicker(t))
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
 
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = model.(ThemePickerModel)
-	assert.Assert(t, cmd != nil, "enter should quit")
-	assert.Equal(t, m.Cancelled(), false)
-	assert.Equal(t, m.Selected(), 1)
+	m := themeFinal(t, tm)
+	assert.Check(t, cmp.Equal(m.Cancelled(), false))
+	assert.Check(t, cmp.Equal(m.Selected(), 1))
 }
 
-// Revisiting a theme is served from cache: render runs once per theme, not on
-// every pass over it. This is what keeps navigation from blocking on glamour.
+// TestThemePickerCachesRenders confirms revisiting a theme is served from cache:
+// render runs once per theme, not on every pass, which is what keeps navigation
+// from blocking on glamour. It drains commands synchronously to count renders
+// deterministically.
 func TestThemePickerCachesRenders(t *testing.T) {
 	labels := []string{"auto", "dark", "light"}
 	themes := []string{"auto", "dark", "light"}
@@ -150,7 +216,7 @@ func TestThemePickerCachesRenders(t *testing.T) {
 		calls[theme]++
 		return "rendered:" + theme
 	}
-	m := NewThemePickerModel("Select a theme", labels, themes, render, false, true).WithCursor(0)
+	m := ui.NewThemePickerModel("Select a theme", labels, themes, render, false, true).WithCursor(0)
 	m = updatePicker(m, tea.WindowSizeMsg{Width: 100, Height: 24})
 
 	// Walk down to the bottom and back up to the top, crossing each theme twice.
@@ -162,18 +228,14 @@ func TestThemePickerCachesRenders(t *testing.T) {
 	}
 
 	for theme, n := range calls {
-		assert.Equal(t, n, 1, "theme %q rendered %d times, want 1", theme, n)
+		assert.Check(t, cmp.Equal(n, 1), "theme %q rendered %d times, want 1", theme, n)
 	}
-	assert.Equal(t, len(calls), 3, "every theme should have been rendered once")
+	assert.Check(t, cmp.Equal(len(calls), 3), "every theme should have been rendered once")
 }
 
-// Esc cancels.
+// TestThemePickerEscCancels confirms Esc quits with the cancelled flag set.
 func TestThemePickerEscCancels(t *testing.T) {
-	m := newTestPicker(t)
-	m = updatePicker(m, tea.WindowSizeMsg{Width: 100, Height: 24})
-
-	model, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	m = model.(ThemePickerModel)
-	assert.Assert(t, cmd != nil, "esc should quit")
-	assert.Equal(t, m.Cancelled(), true)
+	tm := startPicker(t, newStaticPicker(t))
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
+	assert.Check(t, cmp.Equal(themeFinal(t, tm).Cancelled(), true))
 }

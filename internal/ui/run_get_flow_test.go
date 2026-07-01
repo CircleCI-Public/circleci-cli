@@ -20,211 +20,253 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package ui_test
 
 import (
+	"bytes"
 	"context"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
+	"github.com/charmbracelet/x/exp/teatest/v2"
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
-func runItem(label string) RunGetItem {
-	return RunGetItem{ID: uuid.New(), Icon: "✓", Label: label}
-}
-
-// view renders the model with ANSI styling stripped, so substring assertions are
-// stable regardless of the platform's lipgloss color profile (which on Windows
-// can insert escape codes that split an asserted substring).
-func view(m RunGetFlowModel) string {
-	return ansi.Strip(m.View().Content)
-}
-
+// switchKey is the run picker's "switch branch" key, and switchLabel its footer
+// label — platform-specific, matching the binding the flow uses (shift+tab
+// normally, plain Tab on Windows where shift+tab is dropped).
 var (
-	// switchKey cycles the run picker to the next branch scope. It is the
-	// platform's bound key: shift+tab normally, plain Tab on Windows.
 	switchKey = func() tea.KeyPressMsg {
-		if switchScopeKey == "shift+tab" {
-			return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
+		if runtime.GOOS == "windows" {
+			return tea.KeyPressMsg{Code: tea.KeyTab}
 		}
-		return tea.KeyPressMsg{Code: tea.KeyTab}
+		return tea.KeyPressMsg{Code: tea.KeyTab, Mod: tea.ModShift}
 	}()
-	// keyR refreshes the current stage's data.
-	keyR = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	switchLabel = func() string {
+		if runtime.GOOS == "windows" {
+			return "tab"
+		}
+		return "shift+tab"
+	}()
+
+	keyR    = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	keyDown = tea.KeyPressMsg{Code: tea.KeyDown}
+	keyEnt  = tea.KeyPressMsg{Code: tea.KeyEnter}
+	keyEsc  = tea.KeyPressMsg{Code: tea.KeyEscape}
 )
+
+// quitMsg tells flowHarness to end the program. The flow ignores unknown message
+// types, so sending it does not perturb the model's state — the harness quits
+// the program with the inner model parked on its current (live) stage, so its
+// View can be snapshotted. (The flow's own quit paths switch to a "done" stage
+// that renders an empty frame, which would defeat a snapshot.)
+type quitMsg struct{}
+
+// flowHarness drives a RunGetFlowModel as a standalone teatest program and quits
+// on quitMsg without disturbing the inner model.
+type flowHarness struct {
+	m ui.RunGetFlowModel
+}
+
+func (h flowHarness) Init() tea.Cmd { return h.m.Init() }
+
+func (h flowHarness) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if _, ok := msg.(quitMsg); ok {
+		return h, tea.Quit
+	}
+	u, cmd := h.m.Update(msg)
+	h.m = u.(ui.RunGetFlowModel)
+	return h, cmd
+}
+
+func (h flowHarness) View() tea.View { return h.m.View() }
+
+// startFlow runs a flow at a known terminal size and waits for the run picker.
+func startFlow(t *testing.T, m ui.RunGetFlowModel) *teatest.TestModel {
+	t.Helper()
+	tm := teatest.NewTestModel(t, flowHarness{m: m}, teatest.WithInitialTermSize(80, 24))
+	waitForOutput(t, tm, "Select a run")
+	return tm
+}
+
+// waitForOutput blocks until the program's cumulative output contains s. The
+// timeout is generous so the streaming pager's 2s stdout poll has time to fire;
+// it returns as soon as the substring appears, so fast assertions stay fast.
+func waitForOutput(t *testing.T, tm *teatest.TestModel, s string) {
+	t.Helper()
+	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
+		return bytes.Contains(b, []byte(s))
+	}, teatest.WithDuration(4*time.Second))
+}
+
+// flowSnapshot quits via quitMsg and returns the inner model's final,
+// ANSI-stripped frame.
+func flowSnapshot(t *testing.T, tm *teatest.TestModel) string {
+	t.Helper()
+	tm.Send(quitMsg{})
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(flowHarness)
+	return ansi.Strip(fm.m.View().Content)
+}
+
+func runItem(label string) ui.RunGetItem {
+	return ui.RunGetItem{ID: uuid.New(), Icon: "✓", Label: label}
+}
 
 // fetchByBranch returns a FetchRuns that maps a branch filter ("" = all
 // branches) to its run list, returning an empty list for unmapped branches.
-func fetchByBranch(byBranch map[string][]RunGetItem) func(context.Context, string) ([]RunGetItem, error) {
-	return func(_ context.Context, branch string) ([]RunGetItem, error) {
+func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, string) ([]ui.RunGetItem, error) {
+	return func(_ context.Context, branch string) ([]ui.RunGetItem, error) {
 		return byBranch[branch], nil
 	}
 }
 
 // newToggleFlow builds a run-get flow on branch "feature" with default branch
-// "main". Animation is left off, so loadingCmd returns the bare fetch command
-// and tests can execute it directly without unwrapping a spinner batch.
-func newToggleFlow(fetch func(context.Context, string) ([]RunGetItem, error)) RunGetFlowModel {
-	return NewRunGetFlow(context.Background(), RunGetFlowOptions{
-		Runs:          []RunGetItem{runItem("aaaaaaa [feature] - 1 minute ago")},
+// "main". Animation is off so the loading command is the bare fetch (no spinner
+// tick), keeping the program loop deterministic under teatest.
+func newToggleFlow(fetch func(context.Context, string) ([]ui.RunGetItem, error)) ui.RunGetFlowModel {
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [feature] - 1 minute ago")},
 		CurrentBranch: "feature",
 		DefaultBranch: "main",
 		FetchRuns:     fetch,
 	})
 }
 
-// applyRunsFetch drives a key press that triggers a runs fetch: it confirms the
-// model entered the loading stage, executes the (bare, animation-off) fetch
-// command, feeds the resulting message back, and returns the updated model.
-func applyRunsFetch(t *testing.T, m RunGetFlowModel, key tea.Msg) RunGetFlowModel {
-	t.Helper()
-	updated, cmd := m.Update(key)
-	m = updated.(RunGetFlowModel)
-	assert.Equal(t, m.stage, runGetStageLoadingRuns)
-	assert.Assert(t, cmd != nil)
-
-	msg := cmd()
-	runs, ok := msg.(runGetRunsMsg)
-	assert.Assert(t, ok, "expected runGetRunsMsg, got %T", msg)
-
-	updated, _ = m.Update(runs)
-	return updated.(RunGetFlowModel)
-}
-
 // TestRunGetFlow_TitleNamesActiveScope shows the active scope, bracketed, in the
 // picker title.
 func TestRunGetFlow_TitleNamesActiveScope(t *testing.T) {
-	assert.Check(t, cmp.Contains(view(newToggleFlow(fetchByBranch(nil))), "Select a run [feature]"))
+	tm := startFlow(t, newToggleFlow(fetchByBranch(nil)))
+	assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a run [feature]"))
 }
 
-// TestRunGetFlow_FooterShortcuts shows the footer advertises the refresh and
+// TestRunGetFlow_FooterShortcuts confirms the footer advertises the refresh and
 // branch-switch shortcuts (the active branch is named in the title, not here).
 func TestRunGetFlow_FooterShortcuts(t *testing.T) {
-	v := view(newToggleFlow(fetchByBranch(nil)))
+	v := flowSnapshot(t, startFlow(t, newToggleFlow(fetchByBranch(nil))))
 	assert.Check(t, cmp.Contains(v, "r to refresh"))
-	// The switch key is platform-specific (shift+tab, or Tab on Windows).
-	assert.Check(t, cmp.Contains(v, switchScopeKeyLabel+" to switch branch"))
+	assert.Check(t, cmp.Contains(v, switchLabel+" to switch branch"))
 }
 
-// TestRunGetFlow_ToggleCyclesScopes drives shift+tab through the full cycle:
+// TestRunGetFlow_ToggleCyclesScopes drives the switch key through the full cycle:
 // current branch → default branch → all branches → back to current, swapping the
-// run list and title each step.
+// run list each step. Each hop is a gated subtest whose WaitFor doubles as the
+// assertion that the step landed (run rows are unique per scope, and rewritten
+// in full, so their presence proves the toggle re-fetched and re-rendered that
+// scope — titles share the "Select a run " prefix and are diff-rewritten in
+// place, so they do not appear contiguously in the output stream). Gating stops
+// the cycle at the first stalled hop rather than cascading misleading failures.
 func TestRunGetFlow_ToggleCyclesScopes(t *testing.T) {
-	m := newToggleFlow(fetchByBranch(map[string][]RunGetItem{
-		"feature": {runItem("aaaaaaa [feature] - 1 minute ago")},
+	tm := startFlow(t, newToggleFlow(fetchByBranch(map[string][]ui.RunGetItem{
+		// The feature re-fetch returns a distinct row ("refetched") from the
+		// initial list ("1 minute ago") so the wrap back to it has a unique token
+		// to sync on — the original row is already in the output from startup.
+		"feature": {runItem("aaaaaaa [feature] - refetched")},
 		"main":    {runItem("bbbbbbb [main] - 2 minutes ago")},
 		"":        {runItem("ccccccc [other] - 3 minutes ago")},
+	})))
+
+	assert.Assert(t, t.Run("feature → main", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "bbbbbbb [main]")
 	}))
-
-	m = applyRunsFetch(t, m, switchKey) // feature → main
-	assert.Equal(t, m.activeBranch, "main")
-	assert.Check(t, cmp.Contains(view(m), "Select a run [main]"))
-	assert.Check(t, cmp.Contains(view(m), "bbbbbbb [main]"))
-
-	m = applyRunsFetch(t, m, switchKey) // main → all branches
-	assert.Equal(t, m.activeBranch, "")
-	assert.Check(t, cmp.Contains(view(m), "Select a run [all branches]"))
-	assert.Check(t, cmp.Contains(view(m), "ccccccc [other]"))
-
-	m = applyRunsFetch(t, m, switchKey) // all branches → feature (wrap)
-	assert.Equal(t, m.activeBranch, "feature")
-	assert.Check(t, cmp.Contains(view(m), "Select a run [feature]"))
+	assert.Assert(t, t.Run("main → all branches", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "ccccccc [other]")
+	}))
+	assert.Assert(t, t.Run("all branches → feature (wrap)", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "aaaaaaa [feature] - refetched")
+	}))
 }
 
 // TestRunGetFlow_ToggleNoRuns keeps the current list and surfaces a footer note
 // when the next scope has no runs.
 func TestRunGetFlow_ToggleNoRuns(t *testing.T) {
-	m := newToggleFlow(fetchByBranch(map[string][]RunGetItem{
+	tm := startFlow(t, newToggleFlow(fetchByBranch(map[string][]ui.RunGetItem{
 		"feature": {runItem("aaaaaaa [feature] - 1 minute ago")},
 		// "main" unmapped → empty result.
+	})))
+
+	assert.Assert(t, t.Run("toggle to a scope with no runs", func(t *testing.T) {
+		tm.Send(switchKey) // feature → main (empty)
+		waitForOutput(t, tm, "No runs found on main")
 	}))
 
-	m = applyRunsFetch(t, m, switchKey) // feature → main (empty)
-	assert.Equal(t, m.activeBranch, "feature")
-	v := view(m)
-	assert.Check(t, cmp.Contains(v, "No runs found on main"))
-	assert.Check(t, cmp.Contains(v, "aaaaaaa [feature]"))
+	assert.Assert(t, t.Run("keeps the current list with a footer note", func(t *testing.T) {
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "No runs found on main"))
+		assert.Check(t, cmp.Contains(v, "aaaaaaa [feature]"))
+	}))
 }
 
 // TestRunGetFlow_RefreshRefetchesActiveScope confirms r re-fetches the active
 // branch and swaps in the fresh list without changing scope.
 func TestRunGetFlow_RefreshRefetchesActiveScope(t *testing.T) {
-	m := newToggleFlow(fetchByBranch(map[string][]RunGetItem{
+	tm := startFlow(t, newToggleFlow(fetchByBranch(map[string][]ui.RunGetItem{
 		"feature": {runItem("zzzzzzz [feature] - just now")},
-	}))
+	})))
 
-	m = applyRunsFetch(t, m, keyR)
-	assert.Equal(t, m.activeBranch, "feature")
-	assert.Check(t, cmp.Contains(view(m), "zzzzzzz [feature]"))
+	tm.Send(keyR)
+	waitForOutput(t, tm, "zzzzzzz [feature]")
 }
 
-// TestRunGetFlow_SpinnerRespectsAnimate confirms the loading command honors the
-// Animate flag: bare fetch when off (CIRCLE_SPINNER_DISABLED / non-interactive),
-// batched with the spinner tick when on.
-func TestRunGetFlow_SpinnerRespectsAnimate(t *testing.T) {
-	opts := func(animate bool) RunGetFlowOptions {
-		return RunGetFlowOptions{
-			Runs:          []RunGetItem{runItem("aaaaaaa [feature] - now")},
-			CurrentBranch: "feature",
-			DefaultBranch: "main",
-			FetchRuns:     fetchByBranch(nil),
-			Animate:       animate,
-		}
-	}
-
-	_, cmd := NewRunGetFlow(context.Background(), opts(false)).Update(keyR)
-	assert.Assert(t, cmd != nil)
-	_, isRuns := cmd().(runGetRunsMsg)
-	assert.Check(t, isRuns, "animation off: loading cmd should be the bare fetch")
-
-	_, cmd = NewRunGetFlow(context.Background(), opts(true)).Update(keyR)
-	assert.Assert(t, cmd != nil)
-	_, isBatch := cmd().(tea.BatchMsg)
-	assert.Check(t, isBatch, "animation on: loading cmd should batch the spinner tick")
-}
-
-// stepSelectFlow builds a flow parked on the step picker of a single-execution
-// job with two steps (the second failed), a known terminal size so the pager can
-// build, and the given stdout/stderr fetchers.
-func stepSelectFlow(stdout func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error),
+// newStepFlow builds a flow whose run → workflow → job → (single) execution
+// chain leads to a step picker with two steps, the second failed. The cursor
+// defaults to the failed step. Branch "main" keeps the run-picker title tidy.
+func newStepFlow(
+	stdout func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error),
 	stderr func(context.Context, uuid.UUID, int, int) ([]byte, error),
-) RunGetFlowModel {
-	m := NewRunGetFlow(context.Background(), RunGetFlowOptions{
-		Runs:            []RunGetItem{runItem("aaaaaaa [main] - now")},
+) ui.RunGetFlowModel {
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - now")},
+		CurrentBranch: "main",
+		FetchWorkflows: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✓", Label: "build"}}, nil
+		},
+		FetchJobs: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✗", Label: "test"}}, nil
+		},
+		FetchExecutions: func(context.Context, uuid.UUID) ([]ui.RunGetExecution, error) {
+			return []ui.RunGetExecution{{Index: 0, Steps: []ui.RunGetStepItem{
+				{Label: "checkout", Icon: "✓", Execution: 0, StepNum: 100},
+				{Label: "run tests", Icon: "✗", Execution: 0, StepNum: 101},
+			}}}, nil
+		},
 		FetchStepStdout: stdout,
 		FetchStepStderr: stderr,
 	})
-	u, _ := m.Update(tea.WindowSizeMsg{Width: 80, Height: 24})
-	m = u.(RunGetFlowModel)
-
-	m.jobID = uuid.New()
-	m.executions = []RunGetExecution{{Index: 0}} // single execution → step picker carries the summary options
-	m.steps = []RunGetStepItem{
-		{Label: "checkout", Icon: "✓", Execution: 0, StepNum: 100},
-		{Label: "run tests", Icon: "✗", Execution: 0, StepNum: 101},
-	}
-	m.stepCursor = -1
-	m.stepSelect = m.newStepSelect()
-	m.stage = runGetStageStepSelect
-	return m
 }
 
-// runMsg executes a synchronous (non-tick) command and returns its message.
-func runMsg(t *testing.T, cmd tea.Cmd) tea.Msg {
+// driveToStepPicker selects the only run, then the single workflow and job (each
+// picker leads with a "see all" summary option, so the real item is one row
+// down), landing on the step picker with the cursor on the failed step.
+func driveToStepPicker(t *testing.T, tm *teatest.TestModel) {
 	t.Helper()
-	assert.Assert(t, cmd != nil)
-	return cmd()
+	// Each picker is recognized by a unique, fully-rewritten row rather than its
+	// title: titles share the "Select a " prefix and are diff-rewritten in place,
+	// so they do not appear contiguously in the output stream.
+	tm.Send(keyEnt) // select the only run
+	waitForOutput(t, tm, "See all workflows")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "build"
+	waitForOutput(t, tm, "All jobs in workflow")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "test"
+	waitForOutput(t, tm, "checkout")
 }
 
-// TestRunGetFlow_StepPagerStreams selects a step and drives the streaming pager:
-// stdout arrives over two polled chunks then terminates, after which stderr is
-// appended. It asserts the raw ANSI is preserved (colors), the footer reflects
-// streaming vs. done, and every chunk lands in the buffer.
+// TestRunGetFlow_StepPagerStreams selects the failed step and drives the
+// streaming pager: stdout arrives over two polled chunks then terminates, after
+// which stderr is appended. It asserts the raw ANSI is preserved (colors), the
+// footer reflects streaming vs. done, and every chunk lands in the pager.
 func TestRunGetFlow_StepPagerStreams(t *testing.T) {
 	chunks := [][]byte{
 		[]byte("\x1b[31mERROR\x1b[0m first line\n"),
@@ -232,7 +274,7 @@ func TestRunGetFlow_StepPagerStreams(t *testing.T) {
 	}
 	terminal := []bool{false, true}
 	var n int
-	stdout := func(_ context.Context, _ uuid.UUID, _, _ int, _ int64) ([]byte, bool, error) {
+	stdout := func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error) {
 		i := n
 		n++
 		if i >= len(chunks) {
@@ -240,65 +282,60 @@ func TestRunGetFlow_StepPagerStreams(t *testing.T) {
 		}
 		return chunks[i], terminal[i], nil
 	}
-	stderr := func(_ context.Context, _ uuid.UUID, _, _ int) ([]byte, error) {
+	stderr := func(context.Context, uuid.UUID, int, int) ([]byte, error) {
 		return []byte("stderr tail\n"), nil
 	}
 
-	m := stepSelectFlow(stdout, stderr)
+	tm := startFlow(t, newStepFlow(stdout, stderr))
 
-	// The cursor defaults to the failed step ("run tests"); selecting it starts
-	// the stream.
-	u, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = u.(RunGetFlowModel)
-	assert.Equal(t, m.stage, runGetStageLoadingStep)
-	assert.Equal(t, m.stepNum, 101)
+	assert.Assert(t, t.Run("navigate to the failed step", func(t *testing.T) {
+		driveToStepPicker(t, tm)
+	}))
+	assert.Assert(t, t.Run("stream stdout then stderr to completion", func(t *testing.T) {
+		// The cursor defaults to the failed step ("run tests"); selecting it
+		// streams. The first chunk opens the pager (still streaming); the 2s stdout
+		// poll then fires on its own, terminating stdout and triggering the
+		// one-shot stderr fetch — the final token to sync on.
+		tm.Send(keyEnt)
+		waitForOutput(t, tm, "stderr tail")
+	}))
 
-	// First stdout chunk → the pager opens, still streaming, and a poll is queued.
-	u, cmd = m.Update(runMsg(t, cmd))
-	m = u.(RunGetFlowModel)
-	assert.Equal(t, m.stage, runGetStageStepPager)
-	assert.Check(t, cmp.Contains(string(m.pagerBuf), "\x1b[31mERROR\x1b[0m"), "raw ANSI/colors must be preserved")
-	assert.Check(t, cmp.Contains(view(m), "ERROR first line"))
-	assert.Check(t, cmp.Contains(view(m), "streaming…"))
-	assert.Assert(t, cmd != nil) // poll scheduled
+	assert.Assert(t, t.Run("the pager shows every chunk and clears the streaming indicator", func(t *testing.T) {
+		// teatest's WaitFor consumes the stream, so the content is asserted from
+		// the snapshot, which holds the whole accumulated buffer.
+		tm.Send(quitMsg{})
+		fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(flowHarness)
+		raw := fm.m.View().Content
+		body := ansi.Strip(raw)
 
-	// Simulate the 2s poll firing (without waiting): it fetches the next chunk,
-	// which terminates stdout and triggers the one-shot stderr fetch.
-	u, cmd = m.Update(runGetStepPollMsg{epoch: m.pagerEpoch})
-	m = u.(RunGetFlowModel)
-	u, cmd = m.Update(runMsg(t, cmd)) // deliver second stdout chunk (terminal)
-	m = u.(RunGetFlowModel)
-	assert.Check(t, m.pagerTerminal)
-	u, _ = m.Update(runMsg(t, cmd)) // deliver stderr
-	m = u.(RunGetFlowModel)
-
-	body := view(m)
-	assert.Check(t, cmp.Contains(body, "ERROR first line"))
-	assert.Check(t, cmp.Contains(body, "second line"))
-	assert.Check(t, cmp.Contains(body, "stderr tail"))
-	assert.Check(t, !strings.Contains(body, "streaming…"), "streaming indicator should clear once terminal")
+		assert.Check(t, cmp.Contains(body, "ERROR first line"))
+		assert.Check(t, cmp.Contains(body, "second line"))
+		assert.Check(t, cmp.Contains(body, "stderr tail"))
+		assert.Check(t, !strings.Contains(body, "streaming…"), "streaming indicator should clear once terminal")
+		assert.Check(t, cmp.Contains(raw, "\x1b[31m"), "raw ANSI/colors must be preserved")
+	}))
 }
 
 // TestRunGetFlow_StepPagerEscResumes confirms esc from the pager returns to the
 // step picker with the cursor restored to the step that was opened.
 func TestRunGetFlow_StepPagerEscResumes(t *testing.T) {
-	stdout := func(_ context.Context, _ uuid.UUID, _, _ int, _ int64) ([]byte, bool, error) {
+	stdout := func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error) {
 		return []byte("output\n"), true, nil
 	}
-	stderr := func(_ context.Context, _ uuid.UUID, _, _ int) ([]byte, error) { return nil, nil }
+	stderr := func(context.Context, uuid.UUID, int, int) ([]byte, error) { return nil, nil }
 
-	m := stepSelectFlow(stdout, stderr)
-	picked := m.stepSelect.Selected() // failed step ("run tests")
+	tm := startFlow(t, newStepFlow(stdout, stderr))
 
-	u, cmd := m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
-	m = u.(RunGetFlowModel)
-	u, _ = m.Update(runMsg(t, cmd)) // stdout arrives (terminal) → pager opens
-	m = u.(RunGetFlowModel)
-	assert.Equal(t, m.stage, runGetStageStepPager)
+	assert.Assert(t, t.Run("open the failed step's output", func(t *testing.T) {
+		driveToStepPicker(t, tm)
+		tm.Send(keyEnt) // terminal immediately
+		waitForOutput(t, tm, "output")
+	}))
 
-	// esc returns to the step picker, resuming on the opened step.
-	u, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEscape})
-	m = u.(RunGetFlowModel)
-	assert.Equal(t, m.stage, runGetStageStepSelect)
-	assert.Equal(t, m.stepSelect.Selected(), picked)
+	assert.Assert(t, t.Run("esc returns to the step picker on the opened step", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a step"))
+		assert.Check(t, cmp.Contains(v, "› ✗ run tests"), "cursor should resume on the opened step")
+	}))
 }
