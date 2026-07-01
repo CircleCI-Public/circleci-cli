@@ -9,7 +9,7 @@ classname is matched as a case-insensitive substring and may be
 repeated to accept any of several suites.
 
 To browse or filter across all of a job's tests, use
-'circleci test list'.
+'circleci testresult list'.
 
 By default the message is replayed through a virtual terminal and
 embedded in the output. Pass --plain to print only the message exactly
@@ -22,7 +22,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Usage
 
-`circleci test get <job-id> <name> [flags]`
+`circleci testresult get <job-id> <name> [flags]`
 
 ## Flags
 
@@ -53,13 +53,13 @@ shares that name, use --filter classname=<value> to disambiguate.
 ## Examples
 
 - Get a test by name: 
-  `circleci test get 8e50c384-0083-43d0-bc8f-93f0db589d6b TestLogin`
+  `circleci testresult get 8e50c384-0083-43d0-bc8f-93f0db589d6b TestLogin`
 - Disambiguate when the name appears in multiple suites: 
-  `circleci test get <job-id> TestLogin --filter classname=api`
+  `circleci testresult get <job-id> TestLogin --filter classname=api`
 - Print only the raw test message: 
-  `circleci test get <job-id> TestLogin --plain`
+  `circleci testresult get <job-id> TestLogin --plain`
 - Output as JSON: 
-  `circleci test get <job-id> TestLogin --json`
+  `circleci testresult get <job-id> TestLogin --json`
 
 ## Learn More
 

@@ -67,13 +67,13 @@ func setupTestListFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	return fake, env
 }
 
-// runTestList runs "circleci test list" with the given extra args against the
+// runTestList runs "circleci testresult list" with the given extra args against the
 // standard fixture and returns the CLI result.
 func runTestList(t *testing.T, env *testenv.TestEnv, extra ...string) binary.CLIResult {
 	t.Helper()
 	return binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    append([]string{"test", "list", testTestsJobID}, extra...),
+		Args:    append([]string{"testresult", "list", testTestsJobID}, extra...),
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -289,7 +289,7 @@ func TestTestList_MissingArg(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"test", "list"},
+		Args:    []string{"testresult", "list"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

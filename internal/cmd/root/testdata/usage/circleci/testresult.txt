@@ -1,0 +1,5 @@
+Usage:  circleci testresult <command>
+
+Available commands:
+  get
+  list

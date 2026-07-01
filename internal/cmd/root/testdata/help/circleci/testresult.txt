@@ -9,7 +9,7 @@ web UI.
 
 ## Usage
 
-`circleci test <command> [flags]`
+`circleci testresult <command> [flags]`
 
 ## General Commands
 

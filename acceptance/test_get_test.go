@@ -52,12 +52,12 @@ func setupTestGetFake(t *testing.T) *testenv.TestEnv {
 	return env
 }
 
-// runTestGet runs "circleci test get <job-id> <extra...>" against the fixture.
+// runTestGet runs "circleci testresult get <job-id> <extra...>" against the fixture.
 func runTestGet(t *testing.T, env *testenv.TestEnv, extra ...string) binary.CLIResult {
 	t.Helper()
 	return binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    append([]string{"test", "get", testTestsJobID}, extra...),
+		Args:    append([]string{"testresult", "get", testTestsJobID}, extra...),
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
