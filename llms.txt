@@ -361,6 +361,54 @@ Watch a run until it completes
 When omitted, the latest run for the current branch is watched
 (override the branch with --branch, or match a commit with --sha).
 
+### `circleci test <command>`
+
+Inspect test results for a job
+
+#### `circleci test get <job-id> <name> [flags]`
+
+Get a single test result by name
+
+| Flag                   | Description                                                         |
+| ---------------------- | ------------------------------------------------------------------- |
+| `--filter stringArray` | Disambiguate by classname=<value> when a name is shared; repeatable |
+| `--jq string`          | Process values from the response using jq syntax                    |
+| `--json`               | Output as JSON                                                      |
+| `--plain`              | Print only the raw test message, verbatim and unformatted           |
+
+
+**Arguments:**
+
+<job-id> is the UUID of the job whose test results to search. Job
+UUIDs are shown in "circleci job get" and "circleci run get --json".
+
+<name> is the exact test name to look up. If more than one test
+shares that name, use --filter classname=<value> to disambiguate.
+
+#### `circleci test list <job-id> [flags]`
+
+List test results for a job
+
+| Flag                   | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| `--all`                | Show all results (passing, failed and skipped), not just failures |
+| `--filter stringArray` | Filter tests by key=value (result, name, classname); repeatable   |
+| `--jq string`          | Process values from the response using jq syntax                  |
+| `--json`               | Output as JSON                                                    |
+| `--limit int`          | Maximum number of results to show (0 = no limit)                  |
+| `--sort string`        | Sort by name, classname, result or run_time                       |
+
+
+**Arguments:**
+
+<job-id> is the UUID of the job whose test results to list. Job
+UUIDs are shown in "circleci job get" and "circleci run get --json".
+
+**Aliases:**
+
+
+`circleci test ls`
+
 ### `circleci workflow <command>`
 
 Inspect, rerun and cancel workflows (job graphs)
