@@ -1,0 +1,40 @@
+# CircleCI CLI
+
+Work with the test metadata CircleCI collects for a job.
+
+When a job stores test results (via the 'store_test_results' step),
+CircleCI parses them into per-test records. Use these commands to
+review which tests failed, passed or were skipped without opening the
+web UI.
+
+## Usage
+
+`circleci test <command> [flags]`
+
+## General Commands
+
+| Command | Description                 |
+| ------- | --------------------------- |
+| `list`  | List test results for a job |
+
+## Targeted Commands
+
+| Command | Description                      |
+| ------- | -------------------------------- |
+| `get`   | Get a single test result by name |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

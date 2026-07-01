@@ -1,0 +1,5 @@
+# Test results
+| Result  | Name      | Classname | Time (s) |
+| ------- | --------- | --------- | -------- |
+| failure | TestBravo | pkg/foo   | 1.50     |
+| failure | TestDelta | pkg/bar   | 0.30     |

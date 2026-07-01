@@ -1,0 +1,79 @@
+# CircleCI CLI
+
+Show the test results recorded for a CircleCI job.
+
+By default only failed tests are shown. Pass --all to show every
+result, or --filter result=<value> to select specific outcomes.
+
+--filter takes key=value and may be repeated. Repeating the same key
+matches any of its values (OR); different keys must all match (AND).
+Supported keys:
+  result      exact match: success, failure or skipped
+  name        case-insensitive substring match on the test name
+  classname   case-insensitive substring match on the suite/classname
+
+The result selection (failed-only default, --all, or result= filters)
+decides which outcomes are shown; name and classname filters narrow
+within that selection. --all cannot be combined with a result= filter.
+
+Use --sort to order results by name, classname, result or run_time
+(ascending), and --limit to cap the number of rows.
+
+JSON fields: classname, name, result, run_time, message
+
+For more information about output formatting flags, see `circleci help formatting`.
+
+## Usage
+
+`circleci test list <job-id> [flags]`
+
+## Aliases
+
+`circleci test ls`
+
+## Flags
+
+| Flag                   | Description                                                       |
+| ---------------------- | ----------------------------------------------------------------- |
+| `--all`                | Show all results (passing, failed and skipped), not just failures |
+| `--filter stringArray` | Filter tests by key=value (result, name, classname); repeatable   |
+| `--jq string`          | Process values from the response using jq syntax                  |
+| `--json`               | Output as JSON                                                    |
+| `--limit int`          | Maximum number of results to show (0 = no limit)                  |
+| `--sort string`        | Sort by name, classname, result or run_time                       |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | enable debug logging                                         |
+| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+
+## Arguments
+
+<job-id> is the UUID of the job whose test results to list. Job
+UUIDs are shown in "circleci job get" and "circleci run get --json".
+
+## Examples
+
+- List failed tests for a job (the default): 
+  `circleci test list 8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- Show every result: passing, failed and skipped: 
+  `circleci test list 8e50c384-0083-43d0-bc8f-93f0db589d6b --all`
+- Show skipped tests instead: 
+  `circleci test list 8e50c384-0083-43d0-bc8f-93f0db589d6b --filter result=skipped`
+- Failed tests in a specific suite, slowest last (sorted by run_time): 
+  `circleci test list <job-id> --filter result=failure --filter classname=api --sort run_time`
+- Every result for tests whose name matches "login": 
+  `circleci test list <job-id> --all --filter name=login`
+- Limit output and emit JSON for scripting: 
+  `circleci test list <job-id> --limit 20 --json`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

@@ -1,0 +1,11 @@
+# Test
+- Name: TestDup
+- Classname: pkg/bar
+- Result: failure
+- Time: 0.20s
+
+## Message
+
+```text
+boom in bar
+```

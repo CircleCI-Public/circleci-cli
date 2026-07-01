@@ -1,0 +1,6 @@
+{
+  "error": true,
+  "code": "args.conflicting_flags",
+  "message": "--plain and --json cannot be combined; choose one output format",
+  "exit_code": 2
+}

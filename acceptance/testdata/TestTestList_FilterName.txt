@@ -1,0 +1,4 @@
+# Test results
+| Result  | Name      | Classname | Time (s) |
+| ------- | --------- | --------- | -------- |
+| failure | TestBravo | pkg/foo   | 1.50     |

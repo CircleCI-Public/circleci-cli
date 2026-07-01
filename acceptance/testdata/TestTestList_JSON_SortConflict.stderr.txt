@@ -1,0 +1,9 @@
+{
+  "error": true,
+  "code": "args.conflicting_flags",
+  "message": "--sort cannot be combined with --json; JSON is streamed in the order the API returns it",
+  "suggestions": [
+    "Drop --sort, or sort the JSONL stream downstream (e.g. with jq)"
+  ],
+  "exit_code": 2
+}

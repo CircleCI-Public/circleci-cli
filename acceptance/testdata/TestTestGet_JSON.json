@@ -1,0 +1,1 @@
+{"classname":"pkg/foo","name":"TestSolo","result":"failure","run_time":0.42,"message":"want 1, got 2"}

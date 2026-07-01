@@ -1,0 +1,10 @@
+Usage:  circleci test list <job-id> [flags]
+
+Flags:
+  --all                  Show all results (passing, failed and skipped), not just failures
+  --filter stringArray   Filter tests by key=value (result, name, classname); repeatable
+  --jq string            Process values from the response using jq syntax
+  --json                 Output as JSON
+  --limit int            Maximum number of results to show (0 = no limit)
+  --sort string          Sort by name, classname, result or run_time
+  

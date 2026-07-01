@@ -1,0 +1,4 @@
+# Test results
+| Result  | Name      | Classname | Time (s) |
+| ------- | --------- | --------- | -------- |
+| success | TestAlpha | pkg/foo   | 0.10     |

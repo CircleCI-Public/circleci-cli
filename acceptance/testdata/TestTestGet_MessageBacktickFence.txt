@@ -1,0 +1,15 @@
+# Test
+- Name: TestFence
+- Classname: pkg/foo
+- Result: failure
+- Time: 0.10s
+
+## Message
+
+````text
+before
+```go
+code()
+```
+after
+````

@@ -1,0 +1,5 @@
+error: 2 tests are named "TestDup"; add --filter classname=<value> to select one.
+
+Suggestions:
+  • circleci test get 8e50c384-0083-43d0-bc8f-93f0db589d6b "TestDup" --filter classname=pkg/foo
+  • circleci test get 8e50c384-0083-43d0-bc8f-93f0db589d6b "TestDup" --filter classname=pkg/bar

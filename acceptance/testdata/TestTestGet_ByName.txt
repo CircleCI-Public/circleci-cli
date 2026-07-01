@@ -1,0 +1,11 @@
+# Test
+- Name: TestSolo
+- Classname: pkg/foo
+- Result: failure
+- Time: 0.42s
+
+## Message
+
+```text
+want 1, got 2
+```
