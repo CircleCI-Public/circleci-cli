@@ -24,6 +24,7 @@ package test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -37,6 +38,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/jq"
 	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
@@ -86,6 +88,12 @@ func newListCmd() *cobra.Command {
 			(ascending), and --limit to cap the number of rows.
 
 			JSON fields: classname, name, result, run_time, message
+
+			--json emits one JSON object per line (JSONL). Combine it with --jq to
+			aggregate across records: the expression runs once per record (so
+			'.name' prints one name per line), and jq's inputs builtin pulls the
+			rest of the stream, e.g. '[.,inputs] | length' or
+			'[.,inputs] | group_by(.result) | map({(.[0].result): length})'.
 		`),
 		Example: heredoc.Doc(`
 			# List failed tests for a job (the default)
@@ -105,6 +113,9 @@ func newListCmd() *cobra.Command {
 
 			# Limit output and emit JSON for scripting
 			$ circleci test list <job-id> --limit 20 --json
+
+			# Count failed tests by aggregating the JSONL stream with jq
+			$ circleci test list <job-id> --json --jq '[.,inputs] | length'
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -147,9 +158,11 @@ func runList(ctx context.Context, client *apiclient.Client, idStr string, filter
 		return badArg("args.invalid_limit", "Invalid limit", "--limit must be zero or greater")
 	}
 
-	// --json emits JSONL (one record per line) streamed straight through the
-	// decode callback, so nothing is buffered. Sorting would require holding the
-	// whole response in memory, so it is incompatible with the JSON stream.
+	// --json emits JSONL (one record per line). Without a --jq filter records
+	// stream straight through the decode callback, so nothing is buffered; with
+	// a filter the stream is collected so jq can aggregate across records.
+	// Sorting would require holding the whole response in memory regardless, and
+	// jq can order the stream itself, so --sort is incompatible with --json.
 	if jsonOut {
 		if sortKey != "" {
 			return badArg("args.conflicting_flags", "Cannot sort streamed JSON",
@@ -189,26 +202,32 @@ func runList(ctx context.Context, client *apiclient.Client, idStr string, filter
 	return nil
 }
 
-// streamJSON writes each matching test result as a line of JSON (JSONL) as it
-// is decoded, applying the filter and limit inline. Writing is driven entirely
-// by the decode callback so the response is never buffered.
+// streamJSON emits each matching test result as JSONL, applying the filter and
+// limit inline. Values are handed to iostream.PrintJSONStream, which streams
+// them unbuffered when no --jq filter is set and otherwise collects them so the
+// jq expression can aggregate across records.
 func streamJSON(ctx context.Context, client *apiclient.Client, id uuid.UUID, keep func(apiclient.TestResult) bool, limit int) error {
 	count := 0
-	err := client.StreamJobTests(ctx, id, func(tr apiclient.TestResult) {
-		if !keep(tr) {
-			return
-		}
-		if limit > 0 && count >= limit {
-			return
-		}
-		count++
-		// iostream.PrintJSON encodes one compact value plus a trailing newline
-		// on a non-terminal, which is exactly one JSONL record; on a terminal it
-		// colorizes each record. A write failure (e.g. a closed pipe from a
-		// downstream "head") is ignored so the pipeline stays quiet.
-		_ = iostream.PrintJSON(ctx, tr)
+	err := iostream.PrintJSONStream(ctx, func(emit func(any) error) error {
+		return client.StreamJobTests(ctx, id, func(tr apiclient.TestResult) {
+			if !keep(tr) {
+				return
+			}
+			if limit > 0 && count >= limit {
+				return
+			}
+			count++
+			// A write failure (e.g. a closed pipe from a downstream "head") is
+			// ignored so the pipeline stays quiet.
+			_ = emit(tr)
+		})
 	})
 	if err != nil {
+		// A bad --jq expression is a user input error; let the top-level handler
+		// report it as such rather than mislabeling it as an API failure.
+		if errors.As(err, new(*jq.Error)) {
+			return err
+		}
 		return apiErr(err, id.String())
 	}
 	return nil

@@ -33,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
+	"github.com/CircleCI-Public/circleci-cli/internal/jq"
 )
 
 var version = "dev"
@@ -67,6 +68,23 @@ func run() int {
 				_, _ = fmt.Fprintln(os.Stderr, "extension terminated by signal")
 			}
 			return clierrors.ExitGeneralError
+		}
+		// A failed --jq expression is a user input error, not an API/IO failure.
+		// Convert it to a structured CLIError so it renders like other argument
+		// errors — and so command paths that stream JSON can't mislabel it as an
+		// API error. This covers every --jq command, since the error type comes
+		// straight from the jq package.
+		if jqErr, ok := errors.AsType[*jq.Error](err); ok {
+			msg := jqErr.Error()
+			if jqErr.Expr != "" {
+				msg += "\nexpression: " + jqErr.Expr
+			}
+			err = clierrors.New("jq.eval_failed", "Invalid --jq expression", msg).
+				WithSuggestions(
+					"Check the --jq expression for syntax or type errors",
+					"See the jq manual: https://jqlang.github.io/jq/manual/",
+				).
+				WithExitCode(clierrors.ExitBadArguments)
 		}
 		if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 			if jsonFlagPresent() {

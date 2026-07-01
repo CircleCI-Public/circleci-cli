@@ -46,23 +46,32 @@ type Options struct {
 	Colorize bool
 }
 
-// Evaluate runs a jq expression against the JSON in r and writes the results
-// to w. Scalar results are written as raw strings (no quotes); objects and
-// arrays are marshalled as JSON, optionally with indentation and color.
-func Evaluate(r io.Reader, w io.Writer, opts Options) error {
-	query, err := gojq.Parse(opts.Expr)
-	if err != nil {
-		if e, ok := errors.AsType[*gojq.ParseError](err); ok {
-			str, line, column := lineColumn(opts.Expr, e.Offset-len(e.Token))
-			return fmt.Errorf(
-				"failed to parse jq expression at line %d, column %d:\n    %s\n    %*c  %w",
-				line, column, str, column, '^', err,
-			)
-		}
-		return err
-	}
+// errHalt is a sentinel signalling that a jq program invoked halt (a HaltError
+// with a nil value). It stops output without being treated as a failure.
+var errHalt = errors.New("jq: halt")
 
-	code, err := gojq.Compile(query, gojq.WithEnvironLoader(os.Environ))
+// Error wraps a failure that originates in the jq expression itself — a parse
+// error, a compile error, or a runtime evaluation error (e.g. building an
+// object with a non-string key). Callers use errors.As to distinguish a bad
+// --jq expression from input/data errors (a malformed value in the stream) so
+// they can report it as an invalid argument rather than an API or I/O failure.
+type Error struct {
+	Expr string // the offending jq expression
+	Err  error  // the underlying parse/compile/eval error
+}
+
+func (e *Error) Error() string { return e.Err.Error() }
+func (e *Error) Unwrap() error { return e.Err }
+
+// Evaluate runs a jq expression against the single JSON value in r and writes
+// the results to w. Scalar results are written as raw strings (no quotes);
+// objects and arrays are marshalled as JSON, optionally with indentation and
+// color.
+//
+// Use EvaluateStream when r holds a stream of values that the expression should
+// aggregate across (via jq's input/inputs).
+func Evaluate(r io.Reader, w io.Writer, opts Options) error {
+	code, err := compile(opts.Expr)
 	if err != nil {
 		return err
 	}
@@ -73,40 +82,123 @@ func Evaluate(r io.Reader, w io.Writer, opts Options) error {
 	}
 
 	var v any
-	err = json.Unmarshal(b, &v)
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+
+	if err := writeResults(code.Run(v), w, opts); err != nil && !errors.Is(err, errHalt) {
+		return &Error{Expr: opts.Expr, Err: err}
+	}
+	return nil
+}
+
+// EvaluateStream runs a jq expression against a stream of JSON values read from
+// r (values may be whitespace- or newline-separated, as produced by a JSONL
+// writer). Output formatting matches Evaluate.
+//
+// The expression is evaluated with jq's standard multi-input semantics: it runs
+// once per input value (so a simple filter like `.name` prints one result per
+// record), and the input/inputs builtins pull the remaining values from the
+// same stream. This lets expressions aggregate across records, e.g.
+// `[.,inputs] | length` or `reduce inputs as $x (0; . + $x.run_time)`.
+func EvaluateStream(r io.Reader, w io.Writer, opts Options) error {
+	inputs := &streamIter{dec: json.NewDecoder(r)}
+	code, err := compile(opts.Expr, gojq.WithInputIter(inputs))
 	if err != nil {
 		return err
 	}
 
-	iter := code.Run(v)
+	for {
+		v, ok := inputs.Next()
+		if !ok {
+			return nil
+		}
+		if err, isErr := v.(error); isErr {
+			return err // a malformed value in the stream (a data error, not the expr)
+		}
+		if err := writeResults(code.Run(v), w, opts); err != nil {
+			if errors.Is(err, errHalt) {
+				return nil // halt stops the whole stream, not just this input
+			}
+			return &Error{Expr: opts.Expr, Err: err}
+		}
+	}
+}
+
+// compile parses and compiles a jq expression, wrapping parse errors with the
+// offending source line and column. extra compiler options are appended to the
+// standard environ loader.
+func compile(expr string, extra ...gojq.CompilerOption) (*gojq.Code, error) {
+	query, err := gojq.Parse(expr)
+	if err != nil {
+		if e, ok := errors.AsType[*gojq.ParseError](err); ok {
+			str, line, column := lineColumn(expr, e.Offset-len(e.Token))
+			return nil, &Error{Expr: expr, Err: fmt.Errorf(
+				"failed to parse jq expression at line %d, column %d:\n    %s\n    %*c  %w",
+				line, column, str, column, '^', err,
+			)}
+		}
+		return nil, &Error{Expr: expr, Err: err}
+	}
+
+	opts := append([]gojq.CompilerOption{gojq.WithEnvironLoader(os.Environ)}, extra...)
+	code, err := gojq.Compile(query, opts...)
+	if err != nil {
+		return nil, &Error{Expr: expr, Err: err}
+	}
+	return code, nil
+}
+
+// writeResults drains a single jq run, formatting each produced value to w. It
+// returns errHalt when the program called halt so callers can stop cleanly.
+func writeResults(iter gojq.Iter, w io.Writer, opts Options) error {
 	for {
 		v, ok := iter.Next()
 		if !ok {
-			break
+			return nil
 		}
 
 		if err, ok := v.(error); ok {
 			if e, ok := errors.AsType[*gojq.HaltError](err); ok && e.Value() == nil {
-				break
+				return errHalt
 			}
 			return err
 		}
 
 		if text, ok := scalarString(v); ok {
-			_, err = fmt.Fprintln(w, text)
-			if err != nil {
+			if _, err := fmt.Fprintln(w, text); err != nil {
 				return err
 			}
 			continue
 		}
 
-		err = writeJSON(w, v, opts.Indent, opts.Colorize)
-		if err != nil {
+		if err := writeJSON(w, v, opts.Indent, opts.Colorize); err != nil {
 			return err
 		}
 	}
+}
 
-	return nil
+// streamIter adapts a json.Decoder to gojq.Iter, decoding one JSON value per
+// call. A decode error is surfaced as the iterator value (gojq's convention for
+// in-band errors) after which the iterator is exhausted; io.EOF ends it cleanly.
+type streamIter struct {
+	dec  *json.Decoder
+	done bool
+}
+
+func (it *streamIter) Next() (any, bool) {
+	if it.done {
+		return nil, false
+	}
+	var v any
+	if err := it.dec.Decode(&v); err != nil {
+		it.done = true
+		if err == io.EOF {
+			return nil, false
+		}
+		return err, true
+	}
+	return v, true
 }
 
 // scalarString converts a jq scalar value to its raw string representation.
