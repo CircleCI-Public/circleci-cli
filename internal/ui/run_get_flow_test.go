@@ -216,6 +216,68 @@ func TestRunGetFlow_ToggleCyclesScopes(t *testing.T) {
 	}))
 }
 
+// TestRunGetFlow_ToggleReachesMyRuns confirms that wiring FetchMyRuns appends a
+// "my runs" scope to the shift+tab cycle: feature → main → all branches → my
+// runs. The my-runs scope is fetched cross-project (via FetchMyRuns) rather than
+// by branch, and is named "[my runs]" in the picker title.
+func TestRunGetFlow_ToggleReachesMyRuns(t *testing.T) {
+	tm := startFlow(t, ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [feature] - 1 minute ago")},
+		CurrentBranch: "feature",
+		DefaultBranch: "main",
+		FetchRuns: fetchByBranch(map[string][]ui.RunGetItem{
+			"feature": {runItem("aaaaaaa [feature] - 1 minute ago")},
+			"main":    {runItem("bbbbbbb [main] - 2 minutes ago")},
+			"":        {runItem("ccccccc [other] - 3 minutes ago")},
+		}),
+		FetchMyRuns: func(context.Context) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{runItem("ddddddd [mine] - 4 minutes ago")}, nil
+		},
+	}))
+
+	assert.Assert(t, t.Run("feature → main", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "bbbbbbb [main]")
+	}))
+	assert.Assert(t, t.Run("main → all branches", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "ccccccc [other]")
+	}))
+	assert.Assert(t, t.Run("all branches → my runs", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "ddddddd [mine]")
+	}))
+	assert.Assert(t, t.Run("names the my-runs scope in the title", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a run [my runs]"))
+	}))
+}
+
+// TestRunGetFlow_MyRunsOmittedWithoutFetch confirms that without FetchMyRuns the
+// cycle stays branch-only (no "my runs" scope is added).
+func TestRunGetFlow_MyRunsOmittedWithoutFetch(t *testing.T) {
+	tm := startFlow(t, newToggleFlow(fetchByBranch(map[string][]ui.RunGetItem{
+		// A distinct refetch row so the wrap back to feature has a unique token to
+		// sync on (the initial row is already in the startup output).
+		"feature": {runItem("aaaaaaa [feature] - refetched")},
+		"main":    {runItem("bbbbbbb [main] - 2 minutes ago")},
+		"":        {runItem("ccccccc [other] - 3 minutes ago")},
+	})))
+
+	// feature → main → all branches → wrap to feature (three scopes, no my runs).
+	assert.Assert(t, t.Run("feature → main", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "bbbbbbb [main]")
+	}))
+	assert.Assert(t, t.Run("main → all branches", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "ccccccc [other]")
+	}))
+	assert.Assert(t, t.Run("all branches → feature (wrap, skipping my runs)", func(t *testing.T) {
+		tm.Send(switchKey)
+		waitForOutput(t, tm, "aaaaaaa [feature] - refetched")
+	}))
+}
+
 // TestRunGetFlow_ToggleNoRuns keeps the current list and surfaces a footer note
 // when the next scope has no runs.
 func TestRunGetFlow_ToggleNoRuns(t *testing.T) {

@@ -437,6 +437,7 @@ const (
 	irunRun1ID = "e0000000-0000-4000-8000-0000000000a1"
 	irunRun2ID = "e0000000-0000-4000-8000-0000000000a2"
 	irunRun3ID = "e0000000-0000-4000-8000-0000000000a3"
+	irunRun4ID = "e0000000-0000-4000-8000-0000000000a4"
 	irunWfID   = "b0000000-0000-4000-8000-0000000000a1"
 	irunJob1ID = "d0000000-0000-4000-8000-0000000000a1"
 	irunJob2ID = "d0000000-0000-4000-8000-0000000000a2"
@@ -469,6 +470,9 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	// A run on a different branch, surfaced only when the picker is toggled to
 	// "all branches" (the search filters by branch otherwise).
 	fake.AddRunV3(irunRun3ID, runTestProjectID, fakeRunV3(irunRun3ID, runTestProjectID, "ended", "succeeded", "feature", "facefeed12345678"))
+	// A cross-project run surfaced only under the "my runs" scope (user-filtered,
+	// not branch-filtered). Its distinct revision gives the toggle a unique token.
+	fake.SetUserRuns(fakeRunV3(irunRun4ID, runTestProjectID, "ended", "succeeded", "mine", "cafed00d12345678"))
 
 	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
 	fake.AddRunWorkflowsV3(irunRun1ID, wf)
@@ -816,8 +820,8 @@ func TestRunGet_Interactive_SwitchBranch(t *testing.T) {
 	_, err := console.ExpectString("abc1234 [main]")
 	assert.NilError(t, err)
 
-	// Cycle main → all branches (no default branch is known here, so the cycle is
-	// just the two scopes), re-fetching without a branch filter.
+	// Cycle main → all branches (no default branch is known here; the cycle is
+	// main → all branches → my runs), re-fetching without a branch filter.
 	switchSeq := "\x1b[Z" // shift+tab (CSI Z)
 	if runtime.GOOS == "windows" {
 		switchSeq = "\t" // Windows binds plain Tab
@@ -827,6 +831,42 @@ func TestRunGet_Interactive_SwitchBranch(t *testing.T) {
 
 	// The feature-branch run is now listed.
 	_, err = console.ExpectString("facefee [feature]")
+	assert.NilError(t, err)
+
+	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_SwitchToMyRuns cycles the run picker past "all branches"
+// to the "my runs" scope, which lists the authenticated user's runs across all
+// projects (via GET /api/v3/runs?filter[user_id]=me) rather than filtering by
+// branch. The cross-project run — hidden under both branch scopes — appears once
+// the scope reaches "my runs".
+func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	// Scoped to main: the main run shows, the my-runs entry does not yet.
+	_, err := console.ExpectString("abc1234 [main]")
+	assert.NilError(t, err)
+
+	switchSeq := "\x1b[Z" // shift+tab (CSI Z)
+	if runtime.GOOS == "windows" {
+		switchSeq = "\t" // Windows binds plain Tab
+	}
+	// main → all branches → my runs.
+	_, err = console.Send(switchSeq)
+	assert.NilError(t, err)
+	_, err = console.ExpectString("facefee [feature]")
+	assert.NilError(t, err)
+	_, err = console.Send(switchSeq)
+	assert.NilError(t, err)
+
+	// The user's cross-project run is now listed. (The picker title also names the
+	// scope "[my runs]", asserted in the ui package's flow test — the PTY renderer
+	// diffs the title line so it does not appear contiguously in this stream.)
+	_, err = console.ExpectString("cafed00 [mine]")
 	assert.NilError(t, err)
 
 	// esc on the first picker quits, so the program exits cleanly.
