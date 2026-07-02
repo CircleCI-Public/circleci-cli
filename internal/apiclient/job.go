@@ -263,33 +263,52 @@ func (w jobWire) toJobV3() *JobV3 {
 }
 
 // PhaseOutcomeStatus derives a human-readable status string from V3
-// phase, outcome, and current_outcome fields.
+// phase, outcome, and current_outcome fields, prefixed with a status emoji.
 func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
+	emoji, text := phaseOutcomeParts(phase, outcome, currentOutcome)
+	if emoji == "" {
+		return text
+	}
+	return emoji + " " + text
+}
+
+// PhaseOutcomeText is PhaseOutcomeStatus without the leading emoji — the plain
+// status word (e.g. "running", "not run", "succeeded"). Use it where emoji
+// shortcodes cannot be rendered, such as the interactive list pickers.
+func PhaseOutcomeText(phase, outcome, currentOutcome string) string {
+	_, text := phaseOutcomeParts(phase, outcome, currentOutcome)
+	return text
+}
+
+// phaseOutcomeParts splits a V3 phase/outcome/current_outcome into its status
+// emoji and human word, the single source of truth behind PhaseOutcomeStatus
+// and PhaseOutcomeText. An empty emoji means the word stands alone.
+func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text string) {
 	switch phase {
 	case "created":
-		return ":hourglass_flowing_sand: created"
+		return ":hourglass_flowing_sand:", "created"
 	case "queued":
-		return ":hourglass: queued"
+		return ":hourglass:", "queued"
 	case "started":
 		switch currentOutcome {
 		case "failed":
-			return ":red_circle: failing"
+			return ":red_circle:", "failing"
 		case "canceled":
-			return ":no_entry_sign: canceling"
+			return ":no_entry_sign:", "canceling"
 		case "errored":
-			return ":warning: erroring"
+			return ":warning:", "erroring"
 		default:
-			return ":large_blue_circle: running"
+			return ":large_blue_circle:", "running"
 		}
 	case "ended":
 		// The V3 runs API reports only current_outcome, never outcome,
 		// even once a run has ended (a rerun can change it later).
 		if outcome == "" {
-			return decorateOutcome(currentOutcome)
+			return outcomeParts(currentOutcome)
 		}
-		return decorateOutcome(outcome)
+		return outcomeParts(outcome)
 	default:
-		return phase
+		return "", phase
 	}
 }
 
@@ -325,7 +344,7 @@ func PhaseOutcomeSymbol(phase, outcome, currentOutcome string) string {
 }
 
 // outcomeSymbol maps a terminal outcome to a plain Unicode glyph, the
-// emoji-free counterpart of decorateOutcome. Unknown outcomes fall back to a
+// emoji-free counterpart of outcomeParts. Unknown outcomes fall back to a
 // neutral bullet.
 func outcomeSymbol(outcome string) string {
 	switch outcome {
@@ -337,6 +356,8 @@ func outcomeSymbol(outcome string) string {
 		return "⊘"
 	case "unauthorized":
 		return "⊘"
+	case "not_run":
+		return "⊘"
 	case "errored", "infrastructure_fail", "timedout":
 		return "!"
 	default:
@@ -344,22 +365,28 @@ func outcomeSymbol(outcome string) string {
 	}
 }
 
-// decorateOutcome prefixes a terminal run/job outcome with a status emoji.
-// Unknown outcomes pass through undecorated so new API values stay readable.
-func decorateOutcome(outcome string) string {
+// outcomeParts splits a terminal run/job outcome into its status emoji and
+// human word. An empty emoji means the word stands alone, so unknown outcomes
+// pass through undecorated and new API values stay readable.
+func outcomeParts(outcome string) (emoji, text string) {
 	switch outcome {
 	case "succeeded":
-		return ":white_check_mark: " + outcome
+		return ":white_check_mark:", "succeeded"
 	case "failed":
-		return ":x: " + outcome
+		return ":x:", "failed"
 	case "canceled":
-		return ":white_circle: " + outcome
+		return ":white_circle:", "canceled"
 	case "unauthorized":
-		return ":lock: " + outcome
+		return ":lock:", "unauthorized"
+	case "not_run":
+		// A run that never executed (e.g. its config could not be fetched or
+		// compiled) — a no-entry glyph, not a warning, since nothing ran. The
+		// underscore-free wording reads better than the raw "not_run" outcome.
+		return ":no_entry_sign:", "not run"
 	case "errored", "infrastructure_fail", "timedout":
-		return ":warning: " + outcome
+		return ":warning:", outcome
 	default:
-		return outcome
+		return "", outcome
 	}
 }
 

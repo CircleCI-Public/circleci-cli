@@ -859,6 +859,32 @@ func TestRunList(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
+// TestRunList_NoVCS covers a run that resolved no commit — e.g. a not_run run
+// whose config could not be fetched. The Ref and Revision cells should show "-"
+// rather than blank, and the status should read "not run".
+func TestRunList_NoVCS(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "not_run", "", ""))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "not run"), "status should read 'not run': %s", result.Stdout)
+	assert.Check(t, strings.Contains(result.Stdout, " - "), "empty ref/revision cells should show '-': %s", result.Stdout)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
 func TestRunList_Tag(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	slug := watchSlug

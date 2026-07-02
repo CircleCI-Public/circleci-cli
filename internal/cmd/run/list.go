@@ -182,16 +182,26 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 func printList(ctx context.Context, entries []runListEntry) {
 	table := mdtable.New("Ref", "Revision", "ID", "Created", "Status")
 	for _, e := range entries {
-		table.Row(refDisplay(e.Branch, e.Tag), e.Revision, "`"+e.ID.String()+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
+		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), "`"+e.ID.String()+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }
 
 // refDisplay renders the git ref for a run: the branch, or the tag (marked
-// with 🏷) for runs triggered by a tag rather than a branch.
+// with 🏷) for runs triggered by a tag rather than a branch. A run that
+// resolved neither — e.g. one that never ran because its config could not be
+// fetched — shows "-" so the column is not blank.
 func refDisplay(branch, tag string) string {
 	if branch == "" && tag != "" {
 		return "🏷 " + tag
 	}
-	return branch
+	return orDash(branch)
+}
+
+// orDash returns s, or "-" when s is empty, so table cells never render blank.
+func orDash(s string) string {
+	if s == "" {
+		return "-"
+	}
+	return s
 }
