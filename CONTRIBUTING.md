@@ -50,6 +50,16 @@ changes to your submission during the review process.
 #### Before submitting
 
 - Test your change thoroughly
+- If you changed a command's help text (`Short`, `Long`, `Example`, or its
+  flags), the golden snapshots of `--help`/usage output under
+  `internal/cmd/root/testdata/` will be out of date. Regenerate them with:
+
+  ```sh
+  go test ./internal/cmd/root/... -update
+  ```
+
+  Then review the diff with `git diff internal/cmd/root/testdata/` to confirm
+  only the intended commands changed before committing the updated files.
 
 # Hall of Fame
 
