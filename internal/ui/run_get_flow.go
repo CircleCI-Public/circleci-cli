@@ -30,7 +30,6 @@ import (
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
-	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
@@ -68,6 +67,11 @@ const (
 	// runGetBackHint replaces the default footer on the workflow, job and step
 	// pickers, where esc goes back a step rather than quitting and r re-fetches.
 	runGetBackHint = "(↑/↓ to move, enter to select, r to refresh, esc to go back)"
+
+	// stepPagerHint is the footer key-hint line for the step-output / test-message
+	// pager. Unlike the markdown pager, esc goes back to the picker rather than
+	// quitting.
+	stepPagerHint = "↑/↓ scroll · g/G top/bottom · / search · esc back"
 
 	// runGetMetaGlyph fills the icon column for the leading "see all" / "all
 	// jobs" summary options. They carry no status, so rather than leave a blank
@@ -340,21 +344,20 @@ type RunGetFlowModel struct {
 	// rather than routing back through the execution picker.
 	restoreStep bool
 
-	// Step output pager state. pager scrolls the selected step's output, streamed
-	// raw (ANSI intact) so colors survive. pagerBuf accumulates stdout (then
-	// stderr); pagerOffset is the next stdout byte to request; pagerTerminal marks
-	// stdout finished; pagerStderrDone marks stderr appended. pagerFetching guards
-	// against overlapping fetches; pagerEpoch invalidates polls/fetches from a
-	// superseded stream (e.g. when leaving the pager). pagerReady gates rendering
-	// until a terminal size is known.
-	pager           viewport.Model
+	// Step output pager state. pager (a components.PagerModel) scrolls the selected
+	// step's output, streamed raw (ANSI intact) so colors survive, and provides the
+	// less-style "/" search. pagerBuf accumulates stdout (then stderr); pagerOffset
+	// is the next stdout byte to request; pagerTerminal marks stdout finished;
+	// pagerStderrDone marks stderr appended. pagerFetching guards against
+	// overlapping fetches; pagerEpoch invalidates polls/fetches from a superseded
+	// stream (e.g. when leaving the pager).
+	pager           components.PagerModel
 	pagerBuf        []byte
 	pagerOffset     int64
 	pagerTerminal   bool
 	pagerStderrDone bool
 	pagerFetching   bool
 	pagerEpoch      int
-	pagerReady      bool
 	// pagerReturnStage is the picker esc returns to from the pager: the step
 	// picker for streamed step output, or the failed-test picker for a test
 	// message.
@@ -409,6 +412,7 @@ func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel 
 		opts:         opts,
 		stage:        runGetStageRunSelect,
 		spin:         components.NewSpinner(opts.Color),
+		pager:        components.NewPager().WithHint(stepPagerHint),
 		runs:         opts.Runs,
 		scopes:       buildRunScopes(opts.CurrentBranch, opts.DefaultBranch),
 		activeBranch: opts.CurrentBranch,
@@ -821,10 +825,11 @@ func (m *RunGetFlowModel) openTestMessage(message string) {
 	m.pagerBuf = []byte(message)
 	m.pagerOffset = int64(len(message))
 	m.pagerReturnStage = runGetStageTestSelect
+	// Fresh content: drop any search carried over from a previously viewed step,
+	// then show it from the top.
+	m.pager = m.pager.ResetSearch()
 	m.syncPager()
-	if m.pagerReady {
-		m.pager.GotoTop()
-	}
+	m.pager = m.pager.GotoTop()
 	m.stage = runGetStageStepPager
 }
 
@@ -937,6 +942,8 @@ func (m *RunGetFlowModel) startStepStream() tea.Cmd {
 	m.pagerTerminal = false
 	m.pagerStderrDone = false
 	m.pagerFetching = true
+	// Fresh stream: drop any search carried over from a previously viewed step.
+	m.pager = m.pager.ResetSearch()
 	return m.cmdFetchStepStdout(m.pagerEpoch)
 }
 
@@ -994,59 +1001,55 @@ func (m RunGetFlowModel) onStepPoll(msg runGetStepPollMsg) (tea.Model, tea.Cmd) 
 	return m, m.cmdFetchStepStdout(m.pagerEpoch)
 }
 
-// showPager renders the accumulated raw output into the viewport, building it on
-// first use. New output follows the bottom only when the view was already at the
-// bottom, so a user who has scrolled up to read is not yanked down.
+// showPager loads the accumulated raw output into the pager. New output follows
+// the bottom only when the view was already at the bottom, so a reader who has
+// scrolled up is not yanked down (the pager handles that in
+// SetContentFollowingTail).
 func (m *RunGetFlowModel) showPager() {
-	atBottom := m.pagerReady && m.pager.AtBottom()
-	m.syncPager()
+	if m.width > 0 && m.height > 0 {
+		m.pager = m.pager.SetSize(m.width, m.height)
+	}
+	m.pager = m.pager.SetContentFollowingTail(m.pagerContent())
 	m.stage = runGetStageStepPager
-	if !atBottom && m.pagerReady {
-		return
-	}
-	if m.pagerReady {
-		m.pager.GotoBottom()
-	}
 }
 
-// syncPager (re)builds the pager viewport to the current terminal size and loads
-// the accumulated output. It no-ops on sizing until a terminal size is known
-// (the first WindowSizeMsg), after which updateStepPager keeps it sized.
+// syncPager loads the accumulated output into the pager, preserving the scroll
+// position. Used when the content is set once (a test message) rather than
+// streamed.
 func (m *RunGetFlowModel) syncPager() {
-	if m.width <= 0 || m.height <= 0 {
-		return
+	if m.width > 0 && m.height > 0 {
+		m.pager = m.pager.SetSize(m.width, m.height)
 	}
-	height := m.height - MarkdownViewportFooterHeight
-	if height < 1 {
-		height = 1
-	}
-	if !m.pagerReady {
-		m.pager = viewport.New(viewport.WithWidth(m.width), viewport.WithHeight(height))
-		m.pagerReady = true
-	} else {
-		m.pager.SetWidth(m.width)
-		m.pager.SetHeight(height)
-	}
-	content := string(m.pagerBuf)
-	if content == "" {
-		content = theme.HelperStyle.Render("(no output yet)")
-	}
-	m.pager.SetContent(content)
+	m.pager = m.pager.SetContent(m.pagerContent())
 }
 
-// updateStepPager drives the step-output pager: scrolling via the viewport,
-// g/G to jump to top/bottom, esc to return to the step picker, ctrl+c to quit.
-// Output streams in on its own (polled until terminal), so there is no reload key.
+// pagerContent is the string shown in the pager: the accumulated raw output, or
+// a placeholder while nothing has arrived yet.
+func (m RunGetFlowModel) pagerContent() string {
+	if len(m.pagerBuf) == 0 {
+		return theme.HelperStyle.Render("(no output yet)")
+	}
+	return string(m.pagerBuf)
+}
+
+// updateStepPager drives the step-output pager. Scrolling, g/G jump-to-ends and
+// the whole "/" search interaction are handled by the pager component; this
+// method binds only the lifecycle keys the pager leaves alone: ctrl+c quits, and
+// esc dismisses an active search or (with none) returns to the picker that opened
+// the pager. Output streams in on its own (polled until terminal), so there is no
+// reload key.
 func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.syncPager()
-		return m, nil
-	case tea.KeyPressMsg:
-		switch msg.String() {
+	// Guard on Searching so esc/ctrl+c reach the "/" prompt (cancel) rather than
+	// acting as lifecycle keys while a pattern is being typed.
+	if k, ok := msg.(tea.KeyPressMsg); ok && !m.pager.Searching() {
+		switch k.String() {
 		case components.KeyCtrlC:
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
 		case components.KeyEsc:
+			if m.pager.SearchActive() {
+				m.pager = m.pager.ClearSearch()
+				return m, nil
+			}
 			// Leave the pager: bump the epoch so any in-flight fetch or pending
 			// poll is ignored, then return to whichever picker opened it. The
 			// remembered cursor (stepCursor / testCursor) resumes on the opened row.
@@ -1059,12 +1062,6 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.stepSelect = m.newStepSelect()
 				m.stage = runGetStageStepSelect
 			}
-			return m, nil
-		case components.KeyG, components.KeyHome:
-			m.pager.GotoTop()
-			return m, nil
-		case components.KeyShiftG, components.KeyEnd:
-			m.pager.GotoBottom()
 			return m, nil
 		}
 	}
@@ -1103,27 +1100,16 @@ func (m RunGetFlowModel) View() tea.View {
 	return tea.NewView("")
 }
 
-// stepPagerView renders the step-output pager: the scrollable viewport above a
-// footer of scroll position and key hints, on the alternate screen so the full
-// terminal is available and the prior flow output is restored on exit.
+// stepPagerView renders the step-output pager via the pager component (a
+// scrollable viewport above a footer of scroll position, search state and key
+// hints, on the alternate screen). While output is still streaming a "streaming…"
+// indicator leads the footer.
 func (m RunGetFlowModel) stepPagerView() tea.View {
-	if !m.pagerReady {
-		return tea.NewView("")
-	}
-	body := lipgloss.JoinVertical(lipgloss.Left, m.pager.View(), m.stepPagerFooter())
-	v := tea.NewView(body)
-	v.AltScreen = true
-	return v
-}
-
-func (m RunGetFlowModel) stepPagerFooter() string {
-	hint := "↑/↓ scroll · g/G top/bottom · esc back"
-	pct := fmt.Sprintf("%3.0f%%", m.pager.ScrollPercent()*100)
 	status := ""
 	if !m.pagerTerminal {
 		status = theme.AccentStyle.Render("streaming…") + "  "
 	}
-	return "\n" + status + theme.HelperStyle.Render(hint+"  "+pct)
+	return m.pager.View(status)
 }
 
 // --- picker builders ---
