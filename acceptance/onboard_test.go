@@ -322,7 +322,7 @@ func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stdout, "Project followed: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Project connected: my-repo"))
 	assert.Check(t, strings.Contains(result.Stdout, "Organization: myorg"))
 	assert.Check(t, strings.Contains(result.Stdout, "Commit and push .circleci/config.yml"))
 }

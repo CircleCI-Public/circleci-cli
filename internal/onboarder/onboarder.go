@@ -243,13 +243,13 @@ func postSignupGuidance(ctx context.Context) error {
 
 func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) error {
 	if err := client.FollowProject(ctx, vcs, orgName, repoName); err != nil {
-		iostream.ErrPrintf(ctx, "%s Could not follow project: %s\n", iostream.SymbolWarn(ctx), err)
+		iostream.ErrPrintf(ctx, "%s Could not connect project: %s\n", iostream.SymbolWarn(ctx), err)
 		printManualGuidance(ctx)
 		return nil
 	}
 
 	slug := fmt.Sprintf("%s/%s/%s", vcs, orgName, repoName)
-	iostream.Printf(ctx, "%s Project followed: %s\n", iostream.SymbolOK(ctx), repoName)
+	iostream.Printf(ctx, "%s Project connected: %s\n", iostream.SymbolOK(ctx), repoName)
 	iostream.Printf(ctx, "  Organization: %s\n", orgName)
 	if pipelinesURL, err := cmdutil.RunSlugURL(appURL, slug); err == nil {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
