@@ -44,7 +44,7 @@ func NewPurgeCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "purge --project <slug>",
+		Use:   "purge",
 		Short: "Purge the Docker Layer Cache for a project",
 		Long: heredoc.Doc(`
 			Purge the docker layer cache (DLC) for a project.

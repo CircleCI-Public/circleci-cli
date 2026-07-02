@@ -1,4 +1,4 @@
-Usage:  circleci project dlc purge --project <slug> [flags]
+Usage:  circleci project dlc purge [flags]
 
 Flags:
   --json             Output as JSON
