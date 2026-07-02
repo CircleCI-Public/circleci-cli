@@ -24,6 +24,8 @@ package cmdutil
 
 import (
 	"context"
+	"net/url"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
@@ -65,4 +67,21 @@ func ResolveProjectID(ctx context.Context, client *apiclient.Client, projectSlug
 			"Use 'circleci project list' to see followed projects")
 	}
 	return proj.ID.String(), nil
+}
+
+// RepoSlug reduces a repository URL to its "org/repo" form, e.g.
+// "https://github.com/acme/web" → "acme/web". It returns "" for an empty URL and
+// the input unchanged if it cannot be parsed. Used to label cross-project run
+// listings ("my runs" and the run picker's my-runs scope) from each run's
+// repository URL. (When only a project UUID is known, apiclient.GetProjectByID
+// can resolve a name, but the run listings do not currently do so.)
+func RepoSlug(repoURL string) string {
+	if repoURL == "" {
+		return ""
+	}
+	u, err := url.Parse(repoURL)
+	if err != nil || u.Path == "" {
+		return repoURL
+	}
+	return strings.TrimSuffix(strings.TrimPrefix(u.Path, "/"), ".git")
 }

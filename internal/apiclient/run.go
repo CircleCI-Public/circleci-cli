@@ -221,11 +221,21 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 
 // ListMyRunsV3 lists runs triggered by the authenticated user across all
 // projects, via GET /api/v3/runs?filter[user_id]=me. limit caps the page size;
-// a value <= 0 uses the server default.
-func (c *Client) ListMyRunsV3(ctx context.Context, limit int) ([]RunV3, error) {
+// a value <= 0 uses the server default. A non-empty status narrows the list to
+// runs with that pipeline status (e.g. "failed", "on_hold"); an empty status
+// lists every status.
+//
+// Unlike the runs/search endpoint, this endpoint has no pipeline.status filter —
+// it filters on the run's own phase and current_outcome — so the status is
+// converted to those via StatusPhaseOutcome.
+func (c *Client) ListMyRunsV3(ctx context.Context, limit int, status string) ([]RunV3, error) {
+	phase, currentOutcome := StatusPhaseOutcome(status)
 	var resp v3List[runWire]
 	if err := c.getV3(ctx, "/runs", &resp,
-		filterParam("user_id", "me"), pageLimit(limit)); err != nil {
+		filterParam("user_id", "me"),
+		filterParam("phase", phase),
+		filterParam("current_outcome", currentOutcome),
+		pageLimit(limit)); err != nil {
 		return nil, err
 	}
 
@@ -234,6 +244,58 @@ func (c *Client) ListMyRunsV3(ctx context.Context, limit int) ([]RunV3, error) {
 		runs[i] = *w.toRunV3()
 	}
 	return runs, nil
+}
+
+// Pipeline status values, as reported by the V3 runs API and accepted by the
+// pipeline.status search filter.
+const (
+	StatusCanceled     = "canceled"
+	StatusError        = "error"
+	StatusFailed       = "failed"
+	StatusFailing      = "failing"
+	StatusNotRun       = "not_run"
+	StatusOnHold       = "on_hold"
+	StatusQueued       = "queued"
+	StatusRunning      = "running"
+	StatusSuccess      = "success"
+	StatusUnauthorized = "unauthorized"
+)
+
+// StatusPhaseOutcome maps a pipeline.status value (the tokens above, as used by
+// the runs/search pipeline.status filter and the run picker's status cycle) to
+// the run phase and current_outcome the my-runs list endpoint filters on
+// (filter[phase], filter[current_outcome]). An empty status — or an unknown one —
+// yields two empty strings, which filterParam then omits (no status filter).
+//
+// The pipeline status is an aggregate; a run carries phase ∈ {created, queued,
+// started, ended} and current_outcome. Terminal statuses are an "ended" phase
+// with the matching outcome; in-progress statuses are the "started" (or
+// "queued") phase, narrowed by current_outcome only where one distinguishes them
+// (a partially-failed run is "started"/"failed" → "failing"; a plainly-running
+// one is just "started").
+func StatusPhaseOutcome(status string) (phase, currentOutcome string) {
+	switch status {
+	case StatusSuccess:
+		return "ended", "succeeded"
+	case StatusFailed:
+		return "ended", "failed"
+	case StatusCanceled:
+		return "ended", "canceled"
+	case StatusError:
+		return "ended", "errored"
+	case StatusNotRun:
+		return "ended", "not_run"
+	case StatusUnauthorized:
+		return "ended", "unauthorized"
+	case StatusFailing:
+		return "started", "failed"
+	case StatusRunning:
+		return "started", ""
+	case StatusQueued:
+		return "queued", ""
+	default:
+		return "", ""
+	}
 }
 
 // BuildRunFilter constructs a filter expression for the V3 runs/search endpoint.

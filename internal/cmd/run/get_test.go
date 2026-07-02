@@ -98,7 +98,7 @@ func TestRunItemLabel(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			label := runItemLabel(&tc.run)
+			label := runItemLabel(&tc.run, "")
 			assert.Check(t, strings.HasPrefix(label, tc.want+" - "), "got %q, want prefix %q", label, tc.want+" - ")
 			assert.Check(t, !strings.Contains(label, "[]"), "label should never show empty brackets: %q", label)
 		})

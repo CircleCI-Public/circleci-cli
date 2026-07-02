@@ -49,8 +49,8 @@ func fakeMyRunV3(id, projectID, phase, outcome, repoURL, branch, revision, creat
 
 func TestMyRuns(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	// web has two runs (newest and oldest overall); api has one in between.
-	// Expected grouping: acme/web (run-1, run-3) then acme/api (run-2).
+	// Three runs across two projects. Output is a single table in API order (no
+	// grouping, no reordering), with each run's project in its own column.
 	fake.SetUserRuns(
 		fakeMyRunV3("e0000000-0000-4000-8000-00000000a003", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T08:00:00Z"),
 		fakeMyRunV3("e0000000-0000-4000-8000-00000000a001", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "abc1234def5678", "2026-06-19T10:00:00Z"),
@@ -69,10 +69,11 @@ func TestMyRuns(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stdout, "## acme/web"))
-	assert.Check(t, strings.Contains(result.Stdout, "## acme/api"))
-	// web (carrying the most recent run) groups before api.
-	assert.Check(t, strings.Index(result.Stdout, "acme/web") < strings.Index(result.Stdout, "acme/api"))
+	assert.Check(t, strings.Contains(result.Stdout, "Project")) // column header
+	assert.Check(t, strings.Contains(result.Stdout, "acme/web"))
+	assert.Check(t, strings.Contains(result.Stdout, "acme/api"))
+	// No per-project grouping headers.
+	assert.Check(t, !strings.Contains(result.Stdout, "## "))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
@@ -93,6 +94,32 @@ func TestMyRuns_Empty(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "No runs found."))
+}
+
+// TestMyRuns_UnknownProject covers a run the my-runs API returns without a
+// repository_url: the Project column shows "(unknown)" (the project name is not
+// looked up), and the run still lists.
+func TestMyRuns_UnknownProject(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	// fakeRunV3 carries no repository_url.
+	fake.SetUserRuns(
+		fakeRunV3("e0000000-0000-4000-8000-00000000b001", "a0000000-0000-4000-8000-00000000bb01", "ended", "succeeded", "main", "abc1234def5678"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "(unknown)"))
+	assert.Check(t, strings.Contains(result.Stdout, "abc1234"))
 }
 
 func TestMyRuns_Limit(t *testing.T) {
@@ -144,20 +171,19 @@ func TestMyRuns_JSON(t *testing.T) {
 	var out []map[string]any
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Len(out, 2))
+	// A flat array of runs, one per run, in the API's order (no grouping). Each
+	// carries the project name and its UUID.
+	assert.Check(t, cmp.Len(out, 3))
 
-	// First group: acme/web with its two runs, newest first.
-	assert.Check(t, cmp.Equal(out[0]["repository"], "acme/web"))
-	webRuns := out[0]["runs"].([]any)
-	assert.Check(t, cmp.Len(webRuns, 2))
-	assert.Check(t, cmp.Equal(webRuns[0].(map[string]any)["id"], "e0000000-0000-4000-8000-00000000a001"))
-	assert.Check(t, cmp.Equal(webRuns[1].(map[string]any)["id"], "e0000000-0000-4000-8000-00000000a003"))
-
-	// Second group: acme/api with one run.
-	assert.Check(t, cmp.Equal(out[1]["repository"], "acme/api"))
-	apiRuns := out[1]["runs"].([]any)
-	assert.Check(t, cmp.Len(apiRuns, 1))
-	assert.Check(t, cmp.Equal(apiRuns[0].(map[string]any)["current_outcome"], "failed"))
+	assert.Check(t, cmp.Equal(out[0]["id"], "e0000000-0000-4000-8000-00000000a003"))
+	assert.Check(t, cmp.Equal(out[0]["project"], "acme/web"))
+	assert.Check(t, cmp.Equal(out[0]["project_id"], "a0000000-0000-4000-8000-00000000aa01"))
+	assert.Check(t, cmp.Equal(out[1]["id"], "e0000000-0000-4000-8000-00000000a001"))
+	assert.Check(t, cmp.Equal(out[1]["project"], "acme/web"))
+	assert.Check(t, cmp.Equal(out[2]["id"], "e0000000-0000-4000-8000-00000000a002"))
+	assert.Check(t, cmp.Equal(out[2]["project"], "acme/api"))
+	assert.Check(t, cmp.Equal(out[2]["project_id"], "a0000000-0000-4000-8000-00000000aa02"))
+	assert.Check(t, cmp.Equal(out[2]["current_outcome"], "failed"))
 }
 
 func TestMyRuns_NoToken(t *testing.T) {

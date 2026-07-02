@@ -171,6 +171,23 @@ func (c *Client) GetProjectBySlug(ctx context.Context, slug string) (*ProjectRef
 	}, nil
 }
 
+// GetProjectByID resolves a project UUID to its name (and owning org UUID) via
+// GET /api/v3/projects/:id. Use this to label runs when only the project UUID is
+// known — e.g. the cross-project "my runs" listing, where runs span projects
+// whose slugs were never resolved.
+func (c *Client) GetProjectByID(ctx context.Context, id uuid.UUID) (*ProjectRef, error) {
+	var env v3Entity[projectEntity]
+	if err := c.getV3(ctx, "/projects/%s", &env, routeParams(id)); err != nil {
+		return nil, err
+	}
+	p := env.Data
+	return &ProjectRef{
+		ID:    p.ID,
+		Name:  p.Attributes.Name,
+		OrgID: p.References.Org.ID,
+	}, nil
+}
+
 // GetProjectInfo returns detailed information about a project by slug.
 func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*ProjectInfo, error) {
 	var info ProjectInfo
