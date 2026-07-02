@@ -40,6 +40,7 @@ type SelectModel struct {
 	options []string
 	icons   []string
 	hint    string
+	note    string // optional lines rendered between the title and the options
 	cursor  int
 	offset  int // index of the first visible option when the list scrolls
 	height  int // terminal rows available; 0 = unlimited (render every option)
@@ -57,6 +58,17 @@ func NewSelectModel(prompt string, options []string) SelectModel {
 // WithHint returns a copy of the model with a custom footer hint line.
 func (m SelectModel) WithHint(hint string) SelectModel {
 	m.hint = hint
+	return m
+}
+
+// WithNote returns a copy of the model with an informational note rendered
+// between the title and the options (e.g. a run's config error). An empty note
+// renders nothing. The note is emitted verbatim — style it in the caller if
+// color is wanted — and may span multiple lines, which are reserved for when
+// the option list scrolls.
+func (m SelectModel) WithNote(note string) SelectModel {
+	m.note = note
+	m.clampOffset()
 	return m
 }
 
@@ -147,13 +159,24 @@ func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// visibleRows is how many option rows fit, reserving two lines for the prompt
-// and the hint. Zero height (or a list that already fits) means no limit.
+// reservedRows is the number of non-option lines the view occupies: the prompt,
+// the hint, and each line of the note (when set).
+func (m SelectModel) reservedRows() int {
+	reserved := 2 // prompt + hint
+	if m.note != "" {
+		reserved += strings.Count(m.note, "\n") + 1
+	}
+	return reserved
+}
+
+// visibleRows is how many option rows fit, reserving lines for the prompt, hint
+// and note. Zero height (or a list that already fits) means no limit.
 func (m SelectModel) visibleRows() int {
-	if m.height <= 0 || m.height-2 >= len(m.options) {
+	reserved := m.reservedRows()
+	if m.height <= 0 || m.height-reserved >= len(m.options) {
 		return len(m.options)
 	}
-	if rows := m.height - 2; rows > 0 {
+	if rows := m.height - reserved; rows > 0 {
 		return rows
 	}
 	return 1
@@ -180,6 +203,10 @@ func (m *SelectModel) clampOffset() {
 func (m SelectModel) View() tea.View {
 	var b strings.Builder
 	b.WriteString(theme.TitleStyle.Render("? "+m.prompt) + "\n")
+
+	if m.note != "" {
+		b.WriteString(m.note + "\n")
+	}
 
 	if m.chosen {
 		b.WriteString("  " + m.iconPrefix(m.cursor) + theme.SuccessStyle.Render(m.options[m.cursor]) + "\n")

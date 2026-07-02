@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"runtime"
+	"strings"
 	"time"
 
 	"charm.land/bubbles/v2/spinner"
@@ -106,6 +107,18 @@ type RunGetItem struct {
 	Label string
 	Icon  string
 	ID    uuid.UUID
+	// Errors, set only for run rows, are the run's config/setup errors. When the
+	// run is selected they are shown beneath the workflow picker's title so a run
+	// that produced no workflows (e.g. a config that failed to compile) explains
+	// itself rather than presenting an empty list.
+	Errors []RunGetError
+}
+
+// RunGetError is a single run-level error (type + message) surfaced under the
+// workflow picker title.
+type RunGetError struct {
+	Type    string
+	Message string
 }
 
 // RunGetStepItem is one selectable job step. Steps have no UUID; they are
@@ -306,6 +319,10 @@ type RunGetFlowModel struct {
 	// the test picker returns there.
 	testCursor      int
 	testReturnStage runGetStage
+
+	// runErrors are the selected run's config/setup errors, captured when the run
+	// is picked and rendered under the workflow picker's title.
+	runErrors []RunGetError
 
 	runID      uuid.UUID
 	workflowID uuid.UUID
@@ -530,6 +547,7 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	m.runCursor = m.runSelect.Selected()
 	m.runID = m.runs[m.runCursor].ID
+	m.runErrors = m.runs[m.runCursor].Errors
 	m.stage = runGetStageLoadingWorkflows
 	m.loadingLabel = "Fetching workflows"
 	return m, m.loadingCmd(m.cmdFetchWorkflows())
@@ -1151,9 +1169,39 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 	icons := append([]string{m.metaIcon()}, m.itemIcons(m.workflows)...)
 	return components.NewSelectModel("Select a workflow", labels).
 		WithIcons(icons).
+		WithNote(m.runErrorNote()).
 		WithCursor(m.workflowCursor).
 		WithHint(runGetBackHint).
 		WithHeight(m.height)
+}
+
+// runErrorNote formats the selected run's errors for display under the workflow
+// picker title: one "<type>: <message>" line per error, wrapped to the terminal
+// width and tinted with the warning color when color is enabled. It is empty
+// when the run had no errors, so the picker renders as before.
+func (m RunGetFlowModel) runErrorNote() string {
+	if len(m.runErrors) == 0 {
+		return ""
+	}
+	lines := make([]string, len(m.runErrors))
+	for i, e := range m.runErrors {
+		line := e.Message
+		if e.Type != "" {
+			line = e.Type + ": " + e.Message
+		}
+		lines[i] = line
+	}
+	note := strings.Join(lines, "\n")
+	style := theme.WarningStyle
+	if !m.opts.Color {
+		style = lipgloss.NewStyle()
+	}
+	// Wrap to the terminal width (leaving a small margin) so a long config error
+	// spans multiple lines the picker can account for, rather than overflowing.
+	if m.width > 4 {
+		style = style.Width(m.width - 2)
+	}
+	return style.Render(note)
 }
 
 func (m RunGetFlowModel) newJobSelect() components.SelectModel {

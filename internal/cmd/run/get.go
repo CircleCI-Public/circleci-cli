@@ -744,12 +744,26 @@ func runItems(runs []apiclient.RunV3) []ui.RunGetItem {
 	items := make([]ui.RunGetItem, len(runs))
 	for i := range runs {
 		items[i] = ui.RunGetItem{
-			ID:    runs[i].ID,
-			Icon:  apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
-			Label: runItemLabel(&runs[i]),
+			ID:     runs[i].ID,
+			Icon:   apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
+			Label:  runItemLabel(&runs[i]),
+			Errors: runItemErrors(runs[i].Errors),
 		}
 	}
 	return items
+}
+
+// runItemErrors adapts a run's API errors to the picker's error type, so the
+// flow can show them under the workflow picker's title.
+func runItemErrors(errs []apiclient.RunError) []ui.RunGetError {
+	if len(errs) == 0 {
+		return nil
+	}
+	out := make([]ui.RunGetError, len(errs))
+	for i, e := range errs {
+		out[i] = ui.RunGetError{Type: e.Type, Message: e.Message}
+	}
+	return out
 }
 
 // runItemLabel renders a run's picker label. Normally that is the short
