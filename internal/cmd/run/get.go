@@ -299,15 +299,16 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return apiErr(err, projectSlug)
 	}
 
-	// fetchRuns lists the 10 most recent runs for a branch as picker items. It is
-	// used for the initial load and re-run on each branch-scope toggle.
-	fetchRuns := func(ctx context.Context, br string) ([]ui.RunGetItem, error) {
+	// fetchRuns lists the 10 most recent runs for a branch as picker items,
+	// optionally narrowed to a pipeline status. It is used for the initial load
+	// and re-run on each branch-scope toggle or status-filter change.
+	fetchRuns := func(ctx context.Context, br, status string) ([]ui.RunGetItem, error) {
 		now := time.Now().UTC()
 		runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
 			ProjectIDs: []string{proj.ID.String()},
 			From:       now.AddDate(0, 0, -90),
 			To:         now,
-			Filter:     apiclient.BuildRunFilter(br, ""),
+			Filter:     apiclient.BuildRunFilter(br, status),
 			Limit:      10,
 		})
 		if err != nil {
@@ -316,11 +317,12 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return runItems(runs), nil
 	}
 
-	// fetchMyRuns lists the authenticated user's recent runs across all projects,
-	// backing the run picker's "my runs" scope. Unlike fetchRuns it is neither
-	// project- nor branch-scoped (the counterpart to "circleci my runs").
-	fetchMyRuns := func(ctx context.Context) ([]ui.RunGetItem, error) {
-		runs, err := client.ListMyRunsV3(ctx, 10)
+	// fetchMyRuns lists the authenticated user's recent runs across all projects
+	// (optionally narrowed to a pipeline status), backing the run picker's "my
+	// runs" scope. Unlike fetchRuns it is neither project- nor branch-scoped (the
+	// counterpart to "circleci my runs").
+	fetchMyRuns := func(ctx context.Context, status string) ([]ui.RunGetItem, error) {
+		runs, err := client.ListMyRunsV3(ctx, 10, status)
 		if err != nil {
 			return nil, apiErr(err, "your runs")
 		}
@@ -328,7 +330,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	}
 
 	sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
-	items, err := fetchRuns(ctx, effectiveBranch)
+	items, err := fetchRuns(ctx, effectiveBranch, "")
 	sp.Stop()
 	if err != nil {
 		return err
@@ -345,6 +347,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		DefaultBranch:    defaultBranch,
 		FetchRuns:        fetchRuns,
 		FetchMyRuns:      fetchMyRuns,
+		StatusFilters:    runStatusFilters,
 		FetchWorkflows:   workflowItems(client),
 		FetchJobs:        jobItems(client),
 		FetchExecutions:  executionItems(client),
@@ -746,6 +749,20 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 	}
 
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+// runStatusFilters are the pipeline statuses the run picker's "s" key cycles
+// through, in order (the picker prepends an "all statuses" entry). The values
+// are apiclient pipeline.status tokens; the labels are the human wording.
+var runStatusFilters = []ui.RunStatusFilter{
+	{Value: apiclient.StatusCanceled, Label: "canceled"},
+	{Value: apiclient.StatusFailed, Label: "failed"},
+	{Value: apiclient.StatusFailing, Label: "failing"},
+	{Value: apiclient.StatusOnHold, Label: "needs approval"},
+	{Value: apiclient.StatusNotRun, Label: "not run"},
+	{Value: apiclient.StatusQueued, Label: "queued"},
+	{Value: apiclient.StatusRunning, Label: "running"},
+	{Value: apiclient.StatusSuccess, Label: "success"},
 }
 
 // runItems maps recent runs to selectable picker items. The status symbol is

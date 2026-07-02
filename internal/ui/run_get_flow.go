@@ -24,7 +24,6 @@ package ui
 
 import (
 	"context"
-	"fmt"
 	"runtime"
 	"strings"
 	"time"
@@ -191,26 +190,32 @@ type RunGetFlowOptions struct {
 	// DefaultBranch is the project's default branch. When the two differ, the run
 	// picker offers a shift+tab toggle between them, re-fetching via FetchRuns.
 	// When DefaultBranch is empty or equal to CurrentBranch, the toggle is hidden.
+	// The status argument to FetchRuns is the active status filter (the "s" key),
+	// a pipeline.status value ("" = every status).
 	CurrentBranch string
 	DefaultBranch string
-	FetchRuns     func(ctx context.Context, branch string) ([]RunGetItem, error)
+	FetchRuns     func(ctx context.Context, branch, status string) ([]RunGetItem, error)
 	// FetchMyRuns lists the authenticated user's recent runs across all projects
 	// (the counterpart to "circleci my runs"). When set, the run picker's
 	// shift+tab cycle gains a "my runs" scope that fetches via this callback
-	// rather than by branch; when nil the scope is omitted.
-	FetchMyRuns func(ctx context.Context) ([]RunGetItem, error)
+	// rather than by branch; when nil the scope is omitted. status is the active
+	// status filter, as for FetchRuns.
+	FetchMyRuns func(ctx context.Context, status string) ([]RunGetItem, error)
+	// StatusFilters are the pipeline statuses the "s" key cycles through, in
+	// order. The picker prepends an "all statuses" (no filter) entry, so pressing
+	// "s" cycles no-filter → each status → back. When empty, the "s" action is
+	// omitted.
+	StatusFilters []RunStatusFilter
 }
 
 // runScope is one entry in the run picker's shift+tab cycle: a branch filter
 // ("" means all branches) with the label shown in the picker title and loading
-// line, and the note shown when the scope has no runs. A myRuns scope is not
-// branch-filtered at all — it lists the user's runs across all projects via
-// FetchMyRuns instead of FetchRuns.
+// line. A myRuns scope is not branch-filtered at all — it lists the user's runs
+// across all projects via FetchMyRuns instead of FetchRuns.
 type runScope struct {
-	branch    string // "" = all branches (ignored when myRuns)
-	myRuns    bool   // list the authenticated user's runs across all projects
-	label     string // title/loading wording, e.g. "main branch", "all branches"
-	emptyNote string // shown when the scope has no runs
+	branch string // "" = all branches (ignored when myRuns)
+	myRuns bool   // list the authenticated user's runs across all projects
+	label  string // title/loading wording, e.g. "main branch", "all branches"
 }
 
 // titleName is the bracket-inner text for the picker title: the bare branch
@@ -227,6 +232,19 @@ func (s runScope) titleName() string {
 	}
 }
 
+// where is the location phrase used in the "no runs" footer note, e.g.
+// "on main", "on any branch", or "in your runs".
+func (s runScope) where() string {
+	switch {
+	case s.myRuns:
+		return "in your runs"
+	case s.branch == "":
+		return "on any branch"
+	default:
+		return "on " + s.branch
+	}
+}
+
 // buildRunScopes assembles the toggle cycle: the current branch, then the
 // default branch when it is known and distinct, then "all branches", and
 // finally "my runs" when includeMyRuns is set (i.e. FetchMyRuns is wired). The
@@ -234,17 +252,44 @@ func (s runScope) titleName() string {
 // only one branch to name.
 func buildRunScopes(current, defaultBranch string, includeMyRuns bool) []runScope {
 	branchScope := func(b string) runScope {
-		return runScope{branch: b, label: b + " branch", emptyNote: "No runs found on " + b}
+		return runScope{branch: b, label: b + " branch"}
 	}
 	scopes := []runScope{branchScope(current)}
 	if defaultBranch != "" && defaultBranch != current {
 		scopes = append(scopes, branchScope(defaultBranch))
 	}
-	scopes = append(scopes, runScope{label: "all branches", emptyNote: "No runs found on any branch"})
+	scopes = append(scopes, runScope{label: "all branches"})
 	if includeMyRuns {
-		scopes = append(scopes, runScope{myRuns: true, label: "your runs", emptyNote: "You have no recent runs"})
+		scopes = append(scopes, runScope{myRuns: true, label: "your runs"})
 	}
 	return scopes
+}
+
+// RunStatusFilter is one selectable pipeline-status filter offered by the run
+// picker's "s" key: the API pipeline.status value and the label shown to the
+// user. The caller supplies the list (from apiclient status constants) so the
+// ui package stays decoupled from the API client.
+type RunStatusFilter struct {
+	Value string // pipeline.status value
+	Label string // title/footer wording, e.g. "failed", "needs approval"
+}
+
+// buildStatusCycle prepends the "all statuses" (no-filter) entry to the caller's
+// selectable statuses, so pressing "s" cycles no-filter → each status → back.
+// With no selectable statuses the cycle is just the no-filter entry and the "s"
+// action is suppressed (see statusFilterEnabled).
+func buildStatusCycle(selectable []RunStatusFilter) []RunStatusFilter {
+	return append([]RunStatusFilter{{Label: "all statuses"}}, selectable...)
+}
+
+// runsEmptyNote is the transient footer note shown when a scope+status
+// combination has no runs, e.g. "No runs found on main" or "No failed runs in
+// your runs".
+func runsEmptyNote(scope runScope, status RunStatusFilter) string {
+	if status.Value == "" {
+		return "No runs found " + scope.where()
+	}
+	return "No " + status.Label + " runs " + scope.where()
 }
 
 type runGetStage int
@@ -317,15 +362,18 @@ type RunGetFlowModel struct {
 
 	// runs is the run list currently shown by the first picker. It starts as
 	// opts.Runs (the CurrentBranch runs) and is replaced when the user cycles to
-	// another scope with shift+tab. scopes is the ordered cycle of scopes (current
-	// branch, default branch, all branches, and optionally "my runs");
-	// activeScopeIdx is the index into scopes of the scope runs currently holds.
-	// toggleNote carries a transient footer message (e.g. when a scope has no
-	// runs).
+	// another scope (shift+tab) or status filter (s); it is empty when the active
+	// scope+status has no runs (the picker then shows an empty-state placeholder).
+	// scopes is the ordered cycle of scopes (current branch, default branch, all
+	// branches, and optionally "my runs"); activeScopeIdx is the index into scopes
+	// of the scope runs currently holds. statusFilters is the status-filter cycle
+	// (an "all statuses" entry followed by opts.StatusFilters); statusIdx is the
+	// index into it of the active filter (0 = all statuses).
 	runs           []RunGetItem
 	scopes         []runScope
 	activeScopeIdx int
-	toggleNote     string
+	statusFilters  []RunStatusFilter
+	statusIdx      int
 
 	// Fetched data for the current selections, parallel to the pickers (the
 	// workflow/job/step pickers are offset by their leading summary options).
@@ -387,9 +435,10 @@ type RunGetFlowModel struct {
 // async message types carrying fetch results back into the Update loop.
 type (
 	runGetRunsMsg struct {
-		items    []RunGetItem
-		scopeIdx int
-		err      error
+		items     []RunGetItem
+		scopeIdx  int
+		statusIdx int
+		err       error
 	}
 	runGetWorkflowsMsg struct {
 		items []RunGetItem
@@ -426,14 +475,16 @@ type (
 // NewRunGetFlow returns a RunGetFlowModel ready to pass to tea.NewProgram.
 func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel {
 	m := RunGetFlowModel{
-		ctx:    ctx,
-		opts:   opts,
-		stage:  runGetStageRunSelect,
-		spin:   components.NewSpinner(opts.Color),
-		pager:  components.NewPager().WithHint(stepPagerHint),
-		runs:   opts.Runs,
-		scopes: buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil),
-		// activeScopeIdx starts at 0: the current branch is always the first scope.
+		ctx:           ctx,
+		opts:          opts,
+		stage:         runGetStageRunSelect,
+		spin:          components.NewSpinner(opts.Color),
+		pager:         components.NewPager().WithHint(stepPagerHint),
+		runs:          opts.Runs,
+		scopes:        buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil),
+		statusFilters: buildStatusCycle(opts.StatusFilters),
+		// activeScopeIdx and statusIdx start at 0: the current branch is always the
+		// first scope, and "all statuses" the first filter.
 		stepCursor: -1,
 	}
 	m.runSelect = m.newRunSelect()
@@ -547,17 +598,27 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case switchScopeKey:
 			if len(m.scopes) >= 2 {
 				next := (m.activeScopeIdx + 1) % len(m.scopes)
-				m.toggleNote = ""
 				m.stage = runGetStageLoadingRuns
 				m.loadingLabel = "Fetching runs for " + m.scopes[next].label
-				return m, m.loadingCmd(m.cmdFetchRuns(next))
+				return m, m.loadingCmd(m.cmdFetchRuns(next, m.statusIdx))
+			}
+			return m, nil
+		case components.KeyS:
+			if m.statusFilterEnabled() {
+				return m.fetchStatus((m.statusIdx + 1) % len(m.statusFilters))
+			}
+			return m, nil
+		case components.KeyShiftS:
+			// Jump straight back to "all statuses" (index 0); a no-op when already
+			// there.
+			if m.statusFilterEnabled() && m.statusIdx != 0 {
+				return m.fetchStatus(0)
 			}
 			return m, nil
 		case components.KeyR:
-			m.toggleNote = ""
 			m.stage = runGetStageLoadingRuns
 			m.loadingLabel = "Refreshing runs"
-			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx))
+			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx))
 		}
 	}
 
@@ -565,6 +626,13 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.runSelect = updated.(components.SelectModel)
 	if !m.runSelect.Done() {
 		return m, cmd
+	}
+
+	if len(m.runs) == 0 {
+		// The empty-state placeholder is the only row; there is nothing to open.
+		// Rebuild the picker to clear its "chosen" flag and stay put.
+		m.runSelect = m.newRunSelect()
+		return m, nil
 	}
 
 	m.runCursor = m.runSelect.Selected()
@@ -575,21 +643,20 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, m.loadingCmd(m.cmdFetchWorkflows())
 }
 
-// onRuns handles a completed shift+tab scope toggle. On error it quits; when the
-// scope has no runs it keeps the current list and shows a footer note; otherwise
-// it swaps in the scope's runs with the cursor reset.
+// onRuns handles a completed re-fetch (a shift+tab scope toggle, an "s" status
+// change, or an "r" refresh). On error it quits; otherwise it swaps in the new
+// runs and commits the scope and status that produced them, with the cursor
+// reset. An empty result is committed too (the picker shows an empty-state
+// placeholder) so cycling never gets stuck — the next toggle advances from the
+// just-committed filter rather than retrying the same empty one.
 func (m RunGetFlowModel) onRuns(msg runGetRunsMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		return m.quit(RunGetResult{Action: RunGetActionCancel, Err: msg.err})
 	}
-	if len(msg.items) == 0 {
-		m.toggleNote = m.scopes[msg.scopeIdx].emptyNote
-	} else {
-		m.runs = msg.items
-		m.activeScopeIdx = msg.scopeIdx
-		m.runCursor = 0
-		m.toggleNote = ""
-	}
+	m.runs = msg.items
+	m.activeScopeIdx = msg.scopeIdx
+	m.statusIdx = msg.statusIdx
+	m.runCursor = 0
 	m.runSelect = m.newRunSelect()
 	m.stage = runGetStageRunSelect
 	return m, nil
@@ -598,6 +665,26 @@ func (m RunGetFlowModel) onRuns(msg runGetRunsMsg) (tea.Model, tea.Cmd) {
 // activeScope is the scope whose runs are currently shown.
 func (m RunGetFlowModel) activeScope() runScope {
 	return m.scopes[m.activeScopeIdx]
+}
+
+// statusFilterEnabled reports whether the "s" status-filter action is available:
+// true only when the caller supplied at least one selectable status (the cycle
+// then holds the "all statuses" entry plus those).
+func (m RunGetFlowModel) statusFilterEnabled() bool {
+	return len(m.statusFilters) > 1
+}
+
+// fetchStatus begins loading the active scope's runs under the status filter at
+// idx, with a loading label naming the status ("all statuses" reads as plain
+// "Fetching runs").
+func (m RunGetFlowModel) fetchStatus(idx int) (tea.Model, tea.Cmd) {
+	m.stage = runGetStageLoadingRuns
+	if s := m.statusFilters[idx]; s.Value != "" {
+		m.loadingLabel = "Fetching " + s.Label + " runs"
+	} else {
+		m.loadingLabel = "Fetching runs"
+	}
+	return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, idx))
 }
 
 func (m RunGetFlowModel) onWorkflows(msg runGetWorkflowsMsg) (tea.Model, tea.Cmd) {
@@ -1108,39 +1195,54 @@ func (m RunGetFlowModel) stepPagerView() tea.View {
 // --- picker builders ---
 
 func (m RunGetFlowModel) newRunSelect() components.SelectModel {
-	// Name the active scope in the title so it is clear which branch's runs are
-	// listed (e.g. "Select a run [main]" or "… [all branches]"), bracketed to
-	// match the per-row "[branch]" labels and colored so it stands out from the
-	// rest of the (bold, uncolored) title.
+	// Name the active scope and status filter in the title so it is clear which
+	// runs are listed (e.g. "Select a run [main]", "… [all branches · failed]",
+	// or "… [failed]" when there is only one scope). The bracket matches the
+	// per-row "[branch]" labels and is colored so it stands out from the rest of
+	// the (bold, uncolored) title.
 	prompt := "Select a run"
+	var parts []string
 	if len(m.scopes) >= 2 {
-		scope := "[" + m.activeScope().titleName() + "]"
+		parts = append(parts, m.activeScope().titleName())
+	}
+	if status := m.statusFilters[m.statusIdx]; status.Value != "" {
+		parts = append(parts, status.Label)
+	}
+	if len(parts) > 0 {
+		scope := "[" + strings.Join(parts, " · ") + "]"
 		if m.opts.Color {
 			scope = theme.SecondaryStyle.Render(scope)
 		}
 		prompt = "Select a run " + scope
 	}
-	return components.NewSelectModel(prompt, itemLabels(m.runs)).
-		WithIcons(m.itemIcons(m.runs)).
+	// A scope+status filter can match nothing; rather than a blank picker, show a
+	// single placeholder row explaining the empty result (enter on it is a no-op).
+	labels, icons := itemLabels(m.runs), m.itemIcons(m.runs)
+	if len(m.runs) == 0 {
+		labels = []string{"(" + runsEmptyNote(m.activeScope(), m.statusFilters[m.statusIdx]) + ")"}
+		icons = []string{m.metaIcon()}
+	}
+	return components.NewSelectModel(prompt, labels).
+		WithIcons(icons).
 		WithCursor(m.runCursor).
 		WithHint(m.runSelectHint()).
 		WithHeight(m.height)
 }
 
 // runSelectHint is the footer for the run picker. The first picker quits on esc,
-// so it keeps the default movement hints and, when a scope toggle is available,
-// advertises the switch shortcut (shift+tab, or Tab on Windows; the active scope
-// is named in the title, not here). A transient toggleNote (e.g. "No runs found
-// on …") is prefixed when set.
+// so it advertises the refresh, status filter ("s", plus "S" to clear it) and —
+// when a scope toggle is available — the trigger-switch shortcut (shift+tab, or
+// Tab on Windows; the active scope and status are named in the title, not here).
 func (m RunGetFlowModel) runSelectHint() string {
-	hint := "(↑/↓ to move, enter to select, r to refresh, esc to quit)"
+	parts := []string{"↑/↓", "enter", "(r)efresh"}
 	if len(m.scopes) >= 2 {
-		hint = fmt.Sprintf("(↑/↓ to move, enter to select, r to refresh, %s to switch branch, esc to quit)", switchScopeKeyLabel)
+		parts = append(parts, "("+switchScopeKeyLabel+") change trigger")
 	}
-	if m.toggleNote != "" {
-		hint = m.toggleNote + "  " + hint
+	if m.statusFilterEnabled() {
+		parts = append(parts, "(s)tatus")
 	}
-	return hint
+	parts = append(parts, "esc to quit")
+	return strings.Join(parts, ", ")
 }
 
 func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
@@ -1364,12 +1466,14 @@ func statusIconStyle(symbol string) (lipgloss.Style, bool) {
 
 // --- commands ---
 
-// cmdFetchRuns fetches the runs for the scope at scopeIdx: the user's runs
-// across all projects for a "my runs" scope (via FetchMyRuns), otherwise the
-// branch-filtered runs (via FetchRuns). The scope index rides along on the
-// result so onRuns can attribute it back to a scope.
-func (m RunGetFlowModel) cmdFetchRuns(scopeIdx int) tea.Cmd {
+// cmdFetchRuns fetches the runs for the scope at scopeIdx filtered by the status
+// at statusIdx: the user's runs across all projects for a "my runs" scope (via
+// FetchMyRuns), otherwise the branch-filtered runs (via FetchRuns). The scope
+// and status indexes ride along on the result so onRuns can commit them once the
+// fetch succeeds.
+func (m RunGetFlowModel) cmdFetchRuns(scopeIdx, statusIdx int) tea.Cmd {
 	ctx, scope := m.ctx, m.scopes[scopeIdx]
+	status := m.statusFilters[statusIdx].Value
 	fetchRuns, fetchMine := m.opts.FetchRuns, m.opts.FetchMyRuns
 	return func() tea.Msg {
 		var (
@@ -1377,11 +1481,11 @@ func (m RunGetFlowModel) cmdFetchRuns(scopeIdx int) tea.Cmd {
 			err   error
 		)
 		if scope.myRuns {
-			items, err = fetchMine(ctx)
+			items, err = fetchMine(ctx, status)
 		} else {
-			items, err = fetchRuns(ctx, scope.branch)
+			items, err = fetchRuns(ctx, scope.branch, status)
 		}
-		return runGetRunsMsg{items: items, scopeIdx: scopeIdx, err: err}
+		return runGetRunsMsg{items: items, scopeIdx: scopeIdx, statusIdx: statusIdx, err: err}
 	}
 }
 
