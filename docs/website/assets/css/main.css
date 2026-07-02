@@ -567,12 +567,11 @@ a:hover {
 
 .install-pre {
   margin: 0;
-  min-width: 0;
   font-family: var(--font-mono);
   font-size: 0.875rem;
   color: var(--color-site-fg);
-  white-space: pre;
-  overflow-x: auto;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
 }
 
 .install-prompt {
