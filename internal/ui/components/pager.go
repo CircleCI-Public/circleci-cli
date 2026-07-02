@@ -41,8 +41,8 @@ const PagerFooterHeight = 2
 // It wraps a viewport, owns the search engine, and renders a footer showing the
 // scroll position, key hints and search state. It handles scrolling (↑/↓, page
 // keys via the viewport), jump-to-top/bottom (g/G, home/end) and the whole "/"
-// search interaction (typing, n/N navigation, match highlighting, scroll-to-
-// match).
+// search interaction (typing, up/down to recall recent patterns, n/N navigation,
+// match highlighting, scroll-to-match).
 //
 // It deliberately does NOT handle the lifecycle keys (q, esc, ctrl+c): those mean
 // different things to different hosts — quit here, go back to a picker there — so
@@ -155,10 +155,12 @@ func (m PagerModel) SetContentFollowingTail(raw string) PagerModel {
 	return m
 }
 
-// ResetSearch clears all search state (query, matches, prompt) and re-applies
-// plain content. Use it when opening fresh content that should start unsearched.
+// ResetSearch clears the committed search (query, matches, prompt) and re-applies
+// plain content, while preserving the in-memory recall history. Use it when
+// opening fresh content that should start unsearched but still offer previous
+// patterns for recall at the "/" prompt.
 func (m PagerModel) ResetSearch() PagerModel {
-	m.search = newSearchState()
+	m.search = m.search.reset()
 	m.applyContent()
 	return m
 }

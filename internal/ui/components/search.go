@@ -57,6 +57,17 @@ type searchState struct {
 	matches   []searchMatch
 	current   int
 	notFound  bool
+
+	// history is the list of committed patterns, oldest first, recalled at the
+	// prompt with up/down like less. histIdx is the recall cursor while the prompt
+	// is open: it indexes history, and equals len(history) when sitting on the
+	// live (un-recalled) input. draft stashes that live input while the user pages
+	// back through history, so paging forward past the newest entry restores it.
+	// History is in-memory only and is deliberately preserved across reset so it
+	// survives moving between steps in a single session.
+	history []string
+	histIdx int
+	draft   string
 }
 
 // searchMatch locates a single hit: the logical line it sits on (index into the
@@ -70,16 +81,26 @@ type searchMatch struct {
 
 func newSearchState() searchState { return searchState{current: -1} }
 
+// reset returns a fresh search state that keeps the recall history but drops the
+// committed query, matches and prompt. The pager uses it when opening new content
+// that should start unsearched while still offering previous patterns for recall.
+func (s searchState) reset() searchState {
+	return searchState{current: -1, history: s.history}
+}
+
 // active reports whether there is a committed search to dismiss — a query with
 // matches, or a not-found notice.
 func (s searchState) active() bool { return s.query != "" || s.notFound }
 
 // begin opens a fresh "/" prompt, clearing any in-progress input and not-found
 // notice (the committed query is kept so it can be repeated with a bare Enter).
+// The recall cursor is parked on the live input, past the newest history entry.
 func (s *searchState) begin() {
 	s.searching = true
 	s.input = ""
 	s.notFound = false
+	s.histIdx = len(s.history)
+	s.draft = ""
 }
 
 // inputKey processes a key press while the "/" prompt is active: editing the
@@ -92,6 +113,7 @@ func (s *searchState) inputKey(msg tea.KeyPressMsg) (committed bool) {
 		// An empty pattern repeats the previous search, matching less.
 		if s.input != "" {
 			s.query = s.input
+			s.pushHistory(s.input)
 		}
 		s.input = ""
 		return true
@@ -104,10 +126,56 @@ func (s *searchState) inputKey(msg tea.KeyPressMsg) (committed bool) {
 			s.input = string(r[:len(r)-1])
 		}
 		return false
+	case KeyUp:
+		s.recallOlder()
+		return false
+	case KeyDown:
+		s.recallNewer()
+		return false
 	}
 	// Append printable characters. msg.Text is empty for non-printable keys.
 	s.input += msg.Text
 	return false
+}
+
+// pushHistory records a committed pattern as the most recent entry. An existing
+// identical entry is first removed so a repeated or recalled pattern moves to the
+// newest slot (like less) rather than duplicating.
+func (s *searchState) pushHistory(pattern string) {
+	for i, p := range s.history {
+		if p == pattern {
+			s.history = append(s.history[:i], s.history[i+1:]...)
+			break
+		}
+	}
+	s.history = append(s.history, pattern)
+}
+
+// recallOlder replaces the prompt input with the previous history entry (up).
+// The first step back stashes the live draft so recallNewer can restore it.
+func (s *searchState) recallOlder() {
+	if s.histIdx == 0 {
+		return // already at the oldest entry
+	}
+	if s.histIdx == len(s.history) {
+		s.draft = s.input
+	}
+	s.histIdx--
+	s.input = s.history[s.histIdx]
+}
+
+// recallNewer moves toward more recent history entries (down), restoring the
+// stashed live draft once it pages past the newest entry.
+func (s *searchState) recallNewer() {
+	if s.histIdx >= len(s.history) {
+		return // already on the live input
+	}
+	s.histIdx++
+	if s.histIdx == len(s.history) {
+		s.input = s.draft
+		return
+	}
+	s.input = s.history[s.histIdx]
 }
 
 // run (re)evaluates the committed query against content, focuses the first match

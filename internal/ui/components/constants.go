@@ -34,6 +34,8 @@ const (
 	KeyEnd       = "end"
 	KeyPgUp      = "pgup"
 	KeyPgDown    = "pgdown"
+	KeyUp        = "up"
+	KeyDown      = "down"
 	KeySlash     = "/"
 
 	// Letter keys. The value is the literal bubbletea reports; uppercase

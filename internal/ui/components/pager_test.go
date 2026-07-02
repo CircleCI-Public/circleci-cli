@@ -243,6 +243,78 @@ func TestPagerModel_ResetSearchDropsHighlights(t *testing.T) {
 	assert.Check(t, !fm.ResetSearch().SearchActive(), "ResetSearch should drop the committed search")
 }
 
+// pagerFinalModel quits the pager (q) and returns the underlying PagerModel for
+// post-run assertions.
+func pagerFinalModel(t *testing.T, tm *teatest.TestModel) components.PagerModel {
+	t.Helper()
+	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
+	return tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(pagerHarness).m
+}
+
+// TestPagerModel_SearchHistoryRecall confirms that after committing searches, the
+// "/" prompt recalls recent patterns with up/down (most-recent first), like less,
+// and that committing a recalled pattern searches for it.
+func TestPagerModel_SearchHistoryRecall(t *testing.T) {
+	content := strings.Repeat("alpha\nbeta\ngamma\n", 10)
+	tm := startPager(t, content, 80, 24)
+
+	// Build a history: alpha (oldest), then beta, then gamma (newest).
+	pagerSearch(tm, "alpha")
+	pagerSearch(tm, "beta")
+	pagerSearch(tm, "gamma")
+
+	// Open a fresh prompt and page back: the first up recalls the newest (gamma),
+	// the second recalls beta.
+	tm.Send(tea.KeyPressMsg{Code: '/', Text: "/"})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})
+	// Commit the recalled pattern (beta) and confirm it drove the search.
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter})
+
+	view := pagerSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(view, "/beta"), "up should recall a recent pattern: %q", view)
+	assert.Check(t, cmp.Contains(view, "1/10"))
+}
+
+// TestPagerModel_SearchHistoryDownRestoresDraft confirms paging back up then down
+// past the newest entry restores the in-progress draft the user had typed. The
+// draft "dra" matches nothing, so committing it surfaces the not-found notice —
+// proving the draft (not the recalled "alpha") was what got committed.
+func TestPagerModel_SearchHistoryDownRestoresDraft(t *testing.T) {
+	tm := startPager(t, strings.Repeat("alpha\nbeta\n", 10), 80, 24)
+	pagerSearch(tm, "alpha")
+
+	tm.Send(tea.KeyPressMsg{Code: '/', Text: "/"})
+	pagerType(tm, "dra")
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyUp})    // recall "alpha", stashing "dra"
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyDown})  // back to the live draft
+	tm.Send(tea.KeyPressMsg{Code: tea.KeyEnter}) // commit whatever is in the prompt
+
+	view := pagerSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(view, "pattern not found: dra"),
+		"down should restore the typed draft, so committing searches for it: %q", view)
+}
+
+// TestPagerModel_SearchHistorySurvivesReset confirms recall history persists
+// across ResetSearch (opening fresh content), so a session's earlier patterns
+// remain available even after the committed search is cleared.
+func TestPagerModel_SearchHistorySurvivesReset(t *testing.T) {
+	tm := startPager(t, strings.Repeat("alpha\nbeta\n", 10), 80, 24)
+	pagerSearch(tm, "alpha")
+
+	m := pagerFinalModel(t, tm)
+	// Reset (as run get does when opening another step), then recall: the earlier
+	// pattern should still be reachable via up.
+	m = m.ResetSearch()
+	assert.Check(t, !m.SearchActive(), "reset should clear the committed search")
+
+	m, _ = m.Update(tea.KeyPressMsg{Code: '/', Text: "/"})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyUp})
+	m, _ = m.Update(tea.KeyPressMsg{Code: tea.KeyEnter})
+	assert.Check(t, cmp.Contains(ansi.Strip(m.View("").Content), "/alpha"),
+		"history should survive reset and be recalled with up")
+}
+
 // TestPagerModel_NotReadyRendersEmpty confirms a pager that has not yet seen a
 // terminal size renders nothing rather than panicking.
 func TestPagerModel_NotReadyRendersEmpty(t *testing.T) {
