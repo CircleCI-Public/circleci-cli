@@ -874,6 +874,31 @@ func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+// TestRunGet_Interactive_FilterStatus presses "s" to narrow the run picker by
+// pipeline status. The first status in the cycle is "canceled", which no
+// main-branch run has, so the picker keeps its list and shows the empty-status
+// note — confirming "s" issues a status-filtered fetch (the fake filters on
+// pipeline.status).
+func TestRunGet_Interactive_FilterStatus(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	_, err := console.ExpectString("abc1234 [main]")
+	assert.NilError(t, err)
+
+	// all statuses → canceled (no canceled runs on main). Match a contiguous
+	// slice of the note: the PTY renderer rewrites the line char-by-char and may
+	// splice escape sequences between the first letters ("N\x1b[4ho canceled…").
+	_, err = console.Send("s")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("canceled runs on main")
+	assert.NilError(t, err)
+
+	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+}
+
 // --- run list (V3 search) ---
 
 func TestRunList(t *testing.T) {

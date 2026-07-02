@@ -57,11 +57,13 @@ var (
 		return "shift+tab"
 	}()
 
-	keyR    = tea.KeyPressMsg{Code: 'r', Text: "r"}
-	keyDown = tea.KeyPressMsg{Code: tea.KeyDown}
-	keyUp   = tea.KeyPressMsg{Code: tea.KeyUp}
-	keyEnt  = tea.KeyPressMsg{Code: tea.KeyEnter}
-	keyEsc  = tea.KeyPressMsg{Code: tea.KeyEscape}
+	keyR      = tea.KeyPressMsg{Code: 'r', Text: "r"}
+	keyS      = tea.KeyPressMsg{Code: 's', Text: "s"}
+	keyShiftS = tea.KeyPressMsg{Code: 'S', Text: "S"}
+	keyDown   = tea.KeyPressMsg{Code: tea.KeyDown}
+	keyUp     = tea.KeyPressMsg{Code: tea.KeyUp}
+	keyEnt    = tea.KeyPressMsg{Code: tea.KeyEnter}
+	keyEsc    = tea.KeyPressMsg{Code: tea.KeyEscape}
 )
 
 // quitMsg tells flowHarness to end the program. The flow ignores unknown message
@@ -122,9 +124,10 @@ func runItem(label string) ui.RunGetItem {
 }
 
 // fetchByBranch returns a FetchRuns that maps a branch filter ("" = all
-// branches) to its run list, returning an empty list for unmapped branches.
-func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, string) ([]ui.RunGetItem, error) {
-	return func(_ context.Context, branch string) ([]ui.RunGetItem, error) {
+// branches) to its run list, returning an empty list for unmapped branches. The
+// status argument is ignored (status filtering is covered separately).
+func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, string, string) ([]ui.RunGetItem, error) {
+	return func(_ context.Context, branch, _ string) ([]ui.RunGetItem, error) {
 		return byBranch[branch], nil
 	}
 }
@@ -132,7 +135,7 @@ func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, st
 // newToggleFlow builds a run-get flow on branch "feature" with default branch
 // "main". Animation is off so the loading command is the bare fetch (no spinner
 // tick), keeping the program loop deterministic under teatest.
-func newToggleFlow(fetch func(context.Context, string) ([]ui.RunGetItem, error)) ui.RunGetFlowModel {
+func newToggleFlow(fetch func(context.Context, string, string) ([]ui.RunGetItem, error)) ui.RunGetFlowModel {
 	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
 		Runs:          []ui.RunGetItem{runItem("aaaaaaa [feature] - 1 minute ago")},
 		CurrentBranch: "feature",
@@ -149,11 +152,11 @@ func TestRunGetFlow_TitleNamesActiveScope(t *testing.T) {
 }
 
 // TestRunGetFlow_FooterShortcuts confirms the footer advertises the refresh and
-// branch-switch shortcuts (the active branch is named in the title, not here).
+// trigger-switch shortcuts (the active branch is named in the title, not here).
 func TestRunGetFlow_FooterShortcuts(t *testing.T) {
 	v := flowSnapshot(t, startFlow(t, newToggleFlow(fetchByBranch(nil))))
-	assert.Check(t, cmp.Contains(v, "r to refresh"))
-	assert.Check(t, cmp.Contains(v, switchLabel+" to switch branch"))
+	assert.Check(t, cmp.Contains(v, "(r)efresh"))
+	assert.Check(t, cmp.Contains(v, "("+switchLabel+") change trigger"))
 }
 
 // TestRunGetFlow_WorkflowPickerShowsRunErrors verifies that selecting a run
@@ -230,7 +233,7 @@ func TestRunGetFlow_ToggleReachesMyRuns(t *testing.T) {
 			"main":    {runItem("bbbbbbb [main] - 2 minutes ago")},
 			"":        {runItem("ccccccc [other] - 3 minutes ago")},
 		}),
-		FetchMyRuns: func(context.Context) ([]ui.RunGetItem, error) {
+		FetchMyRuns: func(context.Context, string) ([]ui.RunGetItem, error) {
 			return []ui.RunGetItem{runItem("ddddddd [mine] - 4 minutes ago")}, nil
 		},
 	}))
@@ -278,8 +281,9 @@ func TestRunGetFlow_MyRunsOmittedWithoutFetch(t *testing.T) {
 	}))
 }
 
-// TestRunGetFlow_ToggleNoRuns keeps the current list and surfaces a footer note
-// when the next scope has no runs.
+// TestRunGetFlow_ToggleNoRuns swaps in an empty-state placeholder (committing the
+// empty scope, so the title names it) when the toggled-to scope has no runs.
+// Committing the empty scope is what keeps cycling from getting stuck.
 func TestRunGetFlow_ToggleNoRuns(t *testing.T) {
 	tm := startFlow(t, newToggleFlow(fetchByBranch(map[string][]ui.RunGetItem{
 		"feature": {runItem("aaaaaaa [feature] - 1 minute ago")},
@@ -291,10 +295,11 @@ func TestRunGetFlow_ToggleNoRuns(t *testing.T) {
 		waitForOutput(t, tm, "No runs found on main")
 	}))
 
-	assert.Assert(t, t.Run("keeps the current list with a footer note", func(t *testing.T) {
+	assert.Assert(t, t.Run("shows the empty-state placeholder under the new scope", func(t *testing.T) {
 		v := flowSnapshot(t, tm)
-		assert.Check(t, cmp.Contains(v, "No runs found on main"))
-		assert.Check(t, cmp.Contains(v, "aaaaaaa [feature]"))
+		assert.Check(t, cmp.Contains(v, "(No runs found on main)"))
+		assert.Check(t, cmp.Contains(v, "Select a run [main]"))
+		assert.Check(t, !strings.Contains(v, "aaaaaaa [feature]"))
 	}))
 }
 
@@ -307,6 +312,153 @@ func TestRunGetFlow_RefreshRefetchesActiveScope(t *testing.T) {
 
 	tm.Send(keyR)
 	waitForOutput(t, tm, "zzzzzzz [feature]")
+}
+
+// newStatusFlow builds a single-branch (main) run-get flow whose FetchRuns maps
+// the active status filter to a run list, with the given selectable statuses on
+// the "s" cycle. The initial list is the "all statuses" set.
+func newStatusFlow(byStatus map[string][]ui.RunGetItem, statuses []ui.RunStatusFilter) ui.RunGetFlowModel {
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          byStatus[""],
+		CurrentBranch: "main",
+		FetchRuns: func(_ context.Context, _, status string) ([]ui.RunGetItem, error) {
+			return byStatus[status], nil
+		},
+		StatusFilters: statuses,
+	})
+}
+
+// TestRunGetFlow_StatusFilterCycles drives the "s" key through the status cycle
+// (all statuses → canceled → failed), swapping the run list each step, and
+// confirms the active status is named in the picker title alongside the scope.
+func TestRunGetFlow_StatusFilterCycles(t *testing.T) {
+	tm := startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{
+			"":         {runItem("aaaaaaa [main] - all")},
+			"canceled": {runItem("bbbbbbb [main] - canceled")},
+			"failed":   {runItem("ccccccc [main] - failed")},
+		},
+		[]ui.RunStatusFilter{
+			{Value: "canceled", Label: "canceled"},
+			{Value: "failed", Label: "failed"},
+		},
+	))
+
+	assert.Assert(t, t.Run("all statuses → canceled", func(t *testing.T) {
+		tm.Send(keyS)
+		waitForOutput(t, tm, "bbbbbbb [main] - canceled")
+	}))
+	assert.Assert(t, t.Run("canceled → failed", func(t *testing.T) {
+		tm.Send(keyS)
+		waitForOutput(t, tm, "ccccccc [main] - failed")
+	}))
+	assert.Assert(t, t.Run("names scope and status in the title", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a run [main · failed]"))
+	}))
+}
+
+// TestRunGetFlow_StatusFilterNoRuns swaps in an empty-state placeholder and names
+// the (committed) status in the title when the chosen status has no runs.
+func TestRunGetFlow_StatusFilterNoRuns(t *testing.T) {
+	tm := startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{
+			"": {runItem("aaaaaaa [main] - all")},
+			// "canceled" unmapped → empty result.
+		},
+		[]ui.RunStatusFilter{{Value: "canceled", Label: "canceled"}},
+	))
+
+	assert.Assert(t, t.Run("filter to a status with no runs", func(t *testing.T) {
+		tm.Send(keyS)
+		waitForOutput(t, tm, "No canceled runs on main")
+	}))
+	assert.Assert(t, t.Run("shows the empty-state placeholder, status in title", func(t *testing.T) {
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "(No canceled runs on main)"))
+		assert.Check(t, cmp.Contains(v, "Select a run [main · canceled]"))
+		assert.Check(t, !strings.Contains(v, "aaaaaaa [main] - all"))
+	}))
+}
+
+// TestRunGetFlow_StatusFilterAdvancesPastEmpty is the regression test for the
+// "stuck" bug: pressing "s" onto an empty status must still commit it, so a
+// further "s" reaches the following status rather than retrying the empty one.
+// With the bug the empty status is not committed, so the second "s" recomputes
+// the same empty next and "failed" is never reached.
+func TestRunGetFlow_StatusFilterAdvancesPastEmpty(t *testing.T) {
+	tm := startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{
+			"":       {runItem("aaaaaaa [main] - all")},
+			"failed": {runItem("ccccccc [main] - failed")},
+			// "canceled" unmapped → empty result.
+		},
+		[]ui.RunStatusFilter{
+			{Value: "canceled", Label: "canceled"},
+			{Value: "failed", Label: "failed"},
+		},
+	))
+
+	assert.Assert(t, t.Run("all statuses → canceled (empty)", func(t *testing.T) {
+		tm.Send(keyS)
+		waitForOutput(t, tm, "No canceled runs on main")
+	}))
+	assert.Assert(t, t.Run("canceled → failed reaches runs (not stuck on canceled)", func(t *testing.T) {
+		tm.Send(keyS)
+		waitForOutput(t, tm, "ccccccc [main] - failed")
+	}))
+}
+
+// TestRunGetFlow_StatusFilterResetsWithShiftS confirms capital "S" jumps straight
+// back to "all statuses" from any status, rather than cycling one step. The
+// all-statuses re-fetch returns a distinct row from the startup list so the
+// reset has a unique token to sync on.
+func TestRunGetFlow_StatusFilterResetsWithShiftS(t *testing.T) {
+	byStatus := map[string][]ui.RunGetItem{
+		"":       {runItem("ddddddd [main] - all-refetched")},
+		"failed": {runItem("ccccccc [main] - failed")},
+	}
+	tm := startFlow(t, ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - startup")},
+		CurrentBranch: "main",
+		FetchRuns: func(_ context.Context, _, status string) ([]ui.RunGetItem, error) {
+			return byStatus[status], nil
+		},
+		StatusFilters: []ui.RunStatusFilter{
+			{Value: "canceled", Label: "canceled"},
+			{Value: "failed", Label: "failed"},
+		},
+	}))
+
+	assert.Assert(t, t.Run("cycle to failed", func(t *testing.T) {
+		tm.Send(keyS) // all → canceled (empty)
+		waitForOutput(t, tm, "No canceled runs on main")
+		tm.Send(keyS) // canceled → failed
+		waitForOutput(t, tm, "ccccccc [main] - failed")
+	}))
+	assert.Assert(t, t.Run("shift+S resets to all statuses", func(t *testing.T) {
+		tm.Send(keyShiftS)
+		// Sync on the contiguous revision token (the "- all-refetched" suffix is
+		// spliced with insert-mode escapes in the diffed stream); assert the rest on
+		// the fully-rendered snapshot.
+		waitForOutput(t, tm, "ddddddd [main]")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "ddddddd [main] - all-refetched"))
+		// The title drops the status now that the filter is cleared.
+		assert.Check(t, cmp.Contains(v, "Select a run [main]"))
+		assert.Check(t, !strings.Contains(v, "· failed"))
+	}))
+}
+
+// TestRunGetFlow_StatusFilterOmittedWithoutFilters confirms that without
+// StatusFilters the footer omits the "s" hint and pressing "s" is a no-op.
+func TestRunGetFlow_StatusFilterOmittedWithoutFilters(t *testing.T) {
+	tm := startFlow(t, newToggleFlow(fetchByBranch(map[string][]ui.RunGetItem{
+		"feature": {runItem("aaaaaaa [feature] - 1 minute ago")},
+	})))
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "aaaaaaa [feature]"))
+	assert.Check(t, !strings.Contains(v, "(s)tatus"))
 }
 
 // newStepFlow builds a flow whose run → workflow → job → (single) execution

@@ -42,6 +42,8 @@ const (
 	// variants are the shifted key (e.g. "N" for shift+n).
 	KeyQ      = "q"
 	KeyR      = "r"
+	KeyS      = "s"
+	KeyShiftS = "S"
 	KeyN      = "n"
 	KeyShiftN = "N"
 	KeyG      = "g"

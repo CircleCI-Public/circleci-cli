@@ -221,11 +221,13 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 
 // ListMyRunsV3 lists runs triggered by the authenticated user across all
 // projects, via GET /api/v3/runs?filter[user_id]=me. limit caps the page size;
-// a value <= 0 uses the server default.
-func (c *Client) ListMyRunsV3(ctx context.Context, limit int) ([]RunV3, error) {
+// a value <= 0 uses the server default. A non-empty status narrows the list to
+// runs with that pipeline status (e.g. "failed", "on_hold"); an empty status
+// lists every status.
+func (c *Client) ListMyRunsV3(ctx context.Context, limit int, status string) ([]RunV3, error) {
 	var resp v3List[runWire]
 	if err := c.getV3(ctx, "/runs", &resp,
-		filterParam("user_id", "me"), pageLimit(limit)); err != nil {
+		filterParam("user_id", "me"), filterParam("status", status), pageLimit(limit)); err != nil {
 		return nil, err
 	}
 
@@ -235,6 +237,21 @@ func (c *Client) ListMyRunsV3(ctx context.Context, limit int) ([]RunV3, error) {
 	}
 	return runs, nil
 }
+
+// Pipeline status values, as reported by the V3 runs API and accepted by the
+// pipeline.status search filter (and the my-runs filter[status] query param).
+const (
+	StatusCanceled     = "canceled"
+	StatusError        = "error"
+	StatusFailed       = "failed"
+	StatusFailing      = "failing"
+	StatusNotRun       = "not_run"
+	StatusOnHold       = "on_hold"
+	StatusQueued       = "queued"
+	StatusRunning      = "running"
+	StatusSuccess      = "success"
+	StatusUnauthorized = "unauthorized"
+)
 
 // BuildRunFilter constructs a filter expression for the V3 runs/search endpoint.
 func BuildRunFilter(branch, status string) string {
