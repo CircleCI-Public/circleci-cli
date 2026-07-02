@@ -47,7 +47,7 @@ func newListCmd() *cobra.Command {
 		Short:   "List orbs in the registry",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				- <namespace>: optional. When given, lists all orbs in that namespace.
+				- namespace: optional. When given, lists all orbs in that namespace.
 				  When omitted, lists certified orbs globally.
 			`),
 		},

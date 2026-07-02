@@ -46,7 +46,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-<job-id> is the UUID of the job whose steps and output to list. Job
+job-id is the UUID of the job whose steps and output to list. Job
 UUIDs are shown in the output of "circleci workflow get" and
 "circleci job get".
 

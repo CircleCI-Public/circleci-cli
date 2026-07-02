@@ -41,7 +41,7 @@ func newRerunCmd() *cobra.Command {
 		Short: "Rerun a workflow",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<workflow-id> is the UUID of the workflow to rerun. Workflow IDs are
+				workflow-id is the UUID of the workflow to rerun. Workflow IDs are
 				shown in the output of "circleci run get".
 			`),
 		},

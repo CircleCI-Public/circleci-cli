@@ -40,7 +40,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-- <namespace>: optional. When given, lists all orbs in that namespace.
+- namespace: optional. When given, lists all orbs in that namespace.
   When omitted, lists certified orbs globally.
 
 ## Examples

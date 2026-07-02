@@ -36,7 +36,7 @@ launch-agent-config.yaml.
 
 ## Arguments
 
-<resource-class> is the runner resource class to generate config for,
+resource-class is the runner resource class to generate config for,
 in the form "namespace/name" (e.g. my-org/my-runner).
 
 ## Examples

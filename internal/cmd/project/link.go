@@ -56,7 +56,7 @@ func newLinkCmd() *cobra.Command {
 			re-detecting from the git remote each time.
 
 			Resolution order:
-			  1. --project <slug>, if given.
+			  1. --project slug, if given.
 			  2. The git remote (origin) of the current directory.
 			  3. An interactive prompt — used when neither of the above
 			     yields a project the API recognises.
@@ -88,7 +88,7 @@ func newLinkCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>)")
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo or circleci/orgID/projectID)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite an existing .circleci/info.yml")
 
 	return cmd

@@ -195,7 +195,7 @@ func newTokenCreateCmd() *cobra.Command {
 		Short: "Create a token for a resource class",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<resource-class> is the runner resource class to create a token for,
+				resource-class is the runner resource class to create a token for,
 				in the form "namespace/name" (e.g. my-org/my-runner).
 			`),
 		},
@@ -285,8 +285,8 @@ func newTokenDeleteCmd() *cobra.Command {
 		Short:   "Delete a runner token",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<token-id> is the ID of the token to delete (a UUID). Find token IDs
-				with: circleci runner token list --resource-class <namespace/name>
+				token-id is the ID of the token to delete (a UUID). Find token IDs
+				with: circleci runner token list --resource-class namespace/name
 			`),
 		},
 		Long: heredoc.Doc(`
@@ -295,7 +295,7 @@ func newTokenDeleteCmd() *cobra.Command {
 			Any runner agents using this token will immediately lose their ability
 			to claim new jobs. Running jobs are not affected.
 
-			Find token IDs with: circleci runner token list <resource-class>
+			Find token IDs with: circleci runner token list resource-class
 
 			In a terminal, you will be prompted to confirm before deleting.
 			Use --force (-f) to skip the prompt for scripting.

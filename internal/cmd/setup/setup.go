@@ -60,9 +60,9 @@ func NewSetupCmd() *cobra.Command {
 			flow from the legacy CLI is not reimplemented.
 
 			For new usage, prefer:
-			  circleci auth login                 interactive, browser-based
-			  circleci setting set host <host>    store the host
-			  circleci setting set token <token>  store the token
+			  circleci auth login                interactive, browser-based
+			  circleci setting set host host     store the host
+			  circleci setting set token token   store the token
 		`),
 		Example: heredoc.Doc(`
 			# Configure the CLI non-interactively (the path the orb uses)

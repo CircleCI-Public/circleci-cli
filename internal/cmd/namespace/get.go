@@ -42,7 +42,7 @@ func newGetCmd() *cobra.Command {
 		Short: "Get details of a namespace",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<name> is the name of the namespace to look up, e.g. "myorg".
+				name is the name of the namespace to look up, e.g. "myorg".
 			`),
 		},
 		Long: heredoc.Doc(`

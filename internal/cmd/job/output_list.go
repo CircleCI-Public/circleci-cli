@@ -90,7 +90,7 @@ func newOutputListCmd() *cobra.Command {
 		Short: "List a job's steps with their output",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose steps and output to list. Job
+				job-id is the UUID of the job whose steps and output to list. Job
 				UUIDs are shown in the output of "circleci workflow get" and
 				"circleci job get".
 			`),

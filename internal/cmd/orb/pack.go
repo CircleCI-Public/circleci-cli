@@ -40,7 +40,7 @@ func newPackCmd() *cobra.Command {
 		Short: "Pack a multi-file orb directory into a single YAML",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				- <path>: path to an orb source directory or a single orb YAML file.
+				- path: path to an orb source directory or a single orb YAML file.
 			`),
 		},
 		Long: heredoc.Doc(`

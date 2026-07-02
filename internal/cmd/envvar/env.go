@@ -50,7 +50,7 @@ func NewEnvVarCmd() *cobra.Command {
 			Environment variable values are masked in list output (shown as "xxxx").
 			The full value is never retrievable after it has been set.
 
-			Also available as: circleci project envvar <command>
+			Also available as: circleci project envvar command
 		`),
 		Example: heredoc.Doc(`
 			# List all environment variables for the current project

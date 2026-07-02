@@ -45,7 +45,7 @@ func newGetCmd() *cobra.Command {
 		Short: "Get workflow details",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<workflow-id> is the UUID of the workflow to look up. Workflow IDs are
+				workflow-id is the UUID of the workflow to look up. Workflow IDs are
 				shown in the output of "circleci run get".
 			`),
 		},

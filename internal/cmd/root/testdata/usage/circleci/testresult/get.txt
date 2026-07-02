@@ -1,7 +1,7 @@
 Usage:  circleci testresult get <job-id> <name> [flags]
 
 Flags:
-  --filter stringArray   Disambiguate by classname=<value> when a name is shared; repeatable
+  --filter stringArray   Disambiguate by classname=value when a name is shared; repeatable
   --jq string            Process values from the response using jq syntax
   --json                 Output as JSON
   --plain                Print only the raw test message, verbatim and unformatted

@@ -46,7 +46,7 @@ func NewNamespaceCmd() *cobra.Command {
 
 			Namespaces are unique identifiers used to publish orbs.
 			Each organization may claim one namespace. Orbs are published
-			and referenced as <namespace>/<orb>. All published orbs are world-readable.
+			and referenced as namespace/orb. All published orbs are world-readable.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},

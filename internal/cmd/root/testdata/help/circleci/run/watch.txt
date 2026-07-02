@@ -43,7 +43,7 @@ without waiting for the remaining workflows to finish.
 
 ## Arguments
 
-<run-id> is optional and selects the run to watch. It can be:
+run-id is optional and selects the run to watch. It can be:
 - a run UUID (shown in "circleci run list --json")
 - a run number (shown in "circleci run list"); the project is
   inferred from the git remote unless overridden with --project

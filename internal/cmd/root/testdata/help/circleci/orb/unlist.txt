@@ -28,7 +28,7 @@ Unlisted orbs can still be used if you know the exact orb reference.
 
 ## Arguments
 
-- <ns>/<orb>: the orb to update, as "namespace/orb-name"
+- ns/orb: the orb to update, as "namespace/orb-name"
 
 ## Examples
 

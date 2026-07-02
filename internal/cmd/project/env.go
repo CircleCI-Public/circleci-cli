@@ -164,8 +164,8 @@ func NewEnvSetCmd() *cobra.Command {
 		Short: "Set a project environment variable",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<name> is the name of the environment variable to create or
-				update. <value> is the value to store; it is never retrievable
+				name is the name of the environment variable to create or
+				update. value is the value to store; it is never retrievable
 				after being set and is masked in all subsequent list output.
 			`),
 		},
@@ -241,7 +241,7 @@ func NewEnvDeleteCmd() *cobra.Command {
 		Short:   "Delete a project environment variable",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<name> is the name of the environment variable to delete from
+				name is the name of the environment variable to delete from
 				the project. This action is irreversible.
 			`),
 		},

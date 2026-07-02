@@ -2,7 +2,7 @@
 
 Remove an orb from an orb registry category.
 
-Use 'circleci orb get <ns>/<orb>' to see the current categories
+Use 'circleci orb get ns/orb' to see the current categories
 for an orb, and 'circleci orb list-categories' for all available
 categories.
 
@@ -21,8 +21,8 @@ categories.
 
 ## Arguments
 
-- <ns>/<orb>: the orb to remove, as "namespace/orb-name"
-- <category>: the registry category name, e.g. "Testing"
+- ns/orb: the orb to remove, as "namespace/orb-name"
+- category: the registry category name, e.g. "Testing"
 
 ## Examples
 

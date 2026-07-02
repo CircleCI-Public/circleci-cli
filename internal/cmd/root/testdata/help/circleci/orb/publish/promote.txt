@@ -2,7 +2,7 @@
 
 Promote a dev orb version to a stable semver version.
 
-The dev version ref must be in the form <ns>/<orb>@dev:<label>.
+The dev version ref must be in the form ns/orb@dev:label.
 The --bump flag determines how the version is incremented
 from the latest stable release.
 
@@ -27,7 +27,7 @@ from the latest stable release.
 
 ## Arguments
 
-- <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+- ns/orb@dev:label: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
 
 ## Examples
 

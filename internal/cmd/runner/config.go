@@ -47,7 +47,7 @@ func newConfigCmd() *cobra.Command {
 		Short: "Generate a runner agent configuration file",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<resource-class> is the runner resource class to generate config for,
+				resource-class is the runner resource class to generate config for,
 				in the form "namespace/name" (e.g. my-org/my-runner).
 			`),
 		},

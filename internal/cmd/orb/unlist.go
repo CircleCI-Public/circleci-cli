@@ -41,7 +41,7 @@ func newUnlistCmd() *cobra.Command {
 		Short: "Hide or restore an orb in the registry",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				- <ns>/<orb>: the orb to update, as "namespace/orb-name"
+				- ns/orb: the orb to update, as "namespace/orb-name"
 			`),
 		},
 		Long: heredoc.Doc(`

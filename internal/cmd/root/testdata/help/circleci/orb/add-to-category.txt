@@ -20,8 +20,8 @@ to see available categories.
 
 ## Arguments
 
-- <ns>/<orb>: the orb to add, as "namespace/orb-name"
-- <category>: the registry category name, e.g. "Testing"
+- ns/orb: the orb to add, as "namespace/orb-name"
+- category: the registry category name, e.g. "Testing"
 
 ## Examples
 

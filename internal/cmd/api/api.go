@@ -61,7 +61,7 @@ func NewAPICmd() *cobra.Command {
 		Short: "Call the CircleCI REST API directly",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<path> is the request path. It is relative to /api/v3 by default
+				path is the request path. It is relative to /api/v3 by default
 				(e.g. "projects/{project-id}"). To target
 				a different version prefix, include it explicitly, e.g. "api/v2/me".
 			`),
@@ -70,7 +70,7 @@ func NewAPICmd() *cobra.Command {
 			Make an authenticated HTTP request to the REST APIs and print
 			the raw response body.
 
-			<path> is relative to /api/v3 (e.g. projects/{project-id}). To target
+			path is relative to /api/v3 (e.g. projects/{project-id}). To target
 			a different version prefix, include it explicitly:
 			  circleci api api/v2/me
 

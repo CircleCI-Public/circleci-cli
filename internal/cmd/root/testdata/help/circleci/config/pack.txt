@@ -32,7 +32,7 @@ The merged YAML is printed to stdout.
 
 ## Arguments
 
-<path> is the path to a split config directory to pack,
+path is the path to a split config directory to pack,
 e.g. ".circleci" or "src/ci". The directory structure is
 mapped to YAML keys in the merged document.
 

@@ -28,7 +28,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-<name> is the name of the namespace to look up, e.g. "myorg".
+name is the name of the namespace to look up, e.g. "myorg".
 
 ## Examples
 

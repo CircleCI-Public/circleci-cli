@@ -31,7 +31,7 @@ Pass a file path or "-" to read from stdin.
 
 ## Arguments
 
-<path> is the path to a pipeline config file to compile,
+path is the path to a pipeline config file to compile,
 e.g. ".circleci/config.yml". Pass "-" to read the config
 from stdin.
 

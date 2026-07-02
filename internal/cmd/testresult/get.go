@@ -50,11 +50,11 @@ func newGetCmd() *cobra.Command {
 		Short: "Get a single test result by name",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose test results to search. Job
+				job-id is the UUID of the job whose test results to search. Job
 				UUIDs are shown in "circleci job get" and "circleci run get --json".
 
-				<name> is the exact test name to look up. If more than one test
-				shares that name, use --filter classname=<value> to disambiguate.
+				name is the exact test name to look up. If more than one test
+				shares that name, use --filter classname=value to disambiguate.
 			`),
 		},
 		Long: heredoc.Doc(`
@@ -62,7 +62,7 @@ func newGetCmd() *cobra.Command {
 
 			The name must match exactly. When several tests share a name — for
 			example the same test running under different suites — the lookup is
-			ambiguous and fails; pass --filter classname=<value> to narrow to one.
+			ambiguous and fails; pass --filter classname=value to narrow to one.
 			classname is matched as a case-insensitive substring and may be
 			repeated to accept any of several suites.
 
@@ -103,7 +103,7 @@ func newGetCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Disambiguate by classname=<value> when a name is shared; repeatable")
+	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Disambiguate by classname=value when a name is shared; repeatable")
 	cmd.Flags().BoolVar(&plain, "plain", false, "Print only the raw test message, verbatim and unformatted")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)

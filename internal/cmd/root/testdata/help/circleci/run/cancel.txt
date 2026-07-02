@@ -33,7 +33,7 @@ Use --force (-f) to skip the prompt for scripting.
 
 ## Arguments
 
-<run-number-or-id> identifies the run to cancel. It can be:
+run-number-or-id identifies the run to cancel. It can be:
 - a run UUID (shown in "circleci run list --json")
 - a run number (shown in "circleci run list"); the project is
   inferred from the git remote unless overridden with --project

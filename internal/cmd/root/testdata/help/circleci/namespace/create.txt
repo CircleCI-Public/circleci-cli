@@ -33,7 +33,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-<name> is the namespace name to create. It must be globally unique
+name is the namespace name to create. It must be globally unique
 across CircleCI, e.g. "myorg".
 
 ## Examples

@@ -1,6 +1,6 @@
 # CircleCI CLI
 
-Print the device ID for this CLI installation as "<os>:<uuid>".
+Print the device ID for this CLI installation as "os:uuid".
 
 The UUID is generated on first use and stored in the config file.
 The OS prefix (e.g. darwin, linux) is added at print time so you
@@ -9,7 +9,7 @@ is sent with every OAuth authorization request, so you can match
 a token in the CircleCI UI back to this installation.
 
 JSON fields:
-  device_id  string  Stable identifier in the form <os>:<uuid>
+  device_id  string  Stable identifier in the form os:uuid
 
 ## Usage
 

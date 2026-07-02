@@ -49,7 +49,7 @@ func newProcessCmd() *cobra.Command {
 		Short: "Compile and expand a pipeline config file",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<path> is the path to a pipeline config file to compile,
+				path is the path to a pipeline config file to compile,
 				e.g. ".circleci/config.yml". Pass "-" to read the config
 				from stdin.
 			`),

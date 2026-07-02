@@ -42,7 +42,7 @@ func newGenerateCmd() *cobra.Command {
 		Short: "Generate .circleci/config.yml from a repository scan",
 		Long: heredoc.Doc(`
 			Detect the language stack, container image, and setup commands for a
-			repository, then write a starter pipeline to <path>/.circleci/config.yml.
+			repository, then write a starter pipeline to path/.circleci/config.yml.
 
 			If no supported stack is detected, a minimal cimg/base:stable template
 			with a placeholder build step is written instead so you have something

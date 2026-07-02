@@ -30,7 +30,7 @@ Exit code 7 if the orb is invalid.
 
 ## Arguments
 
-- <path>: path to an orb YAML file. Pass '-' to read from stdin.
+- path: path to an orb YAML file. Pass '-' to read from stdin.
 
 ## Examples
 

@@ -5,7 +5,7 @@ Record the CircleCI project for the current checkout in
 re-detecting from the git remote each time.
 
 Resolution order:
-  1. --project <slug>, if given.
+  1. --project slug, if given.
   2. The git remote (origin) of the current directory.
   3. An interactive prompt — used when neither of the above
      yields a project the API recognises.
@@ -23,10 +23,10 @@ is passed.
 
 ## Flags
 
-| Flag               | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `-f, --force`      | Overwrite an existing .circleci/info.yml                        |
-| `--project string` | Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>) |
+| Flag               | Description                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| `-f, --force`      | Overwrite an existing .circleci/info.yml                    |
+| `--project string` | Project slug (e.g. gh/org/repo or circleci/orgID/projectID) |
 
 ## Inherited Flags
 

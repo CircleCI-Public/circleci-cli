@@ -2,5 +2,5 @@ Usage:  circleci project link [flags]
 
 Flags:
   -f, --force            Overwrite an existing .circleci/info.yml
-      --project string   Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>)
+      --project string   Project slug (e.g. gh/org/repo or circleci/orgID/projectID)
   

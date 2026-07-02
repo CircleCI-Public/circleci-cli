@@ -37,7 +37,7 @@ Use --force (-f) to skip the prompt for scripting.
 
 ## Arguments
 
-<name> is the name of the environment variable to delete from
+name is the name of the environment variable to delete from
 the project. This action is irreversible.
 
 ## Examples

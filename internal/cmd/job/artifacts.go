@@ -45,7 +45,7 @@ func newArtifactCmd() *cobra.Command {
 		Short: "List or download artifacts for a job",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose artifacts to list or download.
+				job-id is the UUID of the job whose artifacts to list or download.
 				Job UUIDs are shown in the output of "circleci workflow get" and
 				"circleci run get --json".
 			`),

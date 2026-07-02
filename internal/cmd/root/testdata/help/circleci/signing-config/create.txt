@@ -44,12 +44,12 @@ For more information about output formatting flags, see `circleci help formattin
 - Create a signing config (org inferred from git remote): 
   `circleci signing-config create \`
 - --name production-signing \
-- --cert-id <cert-id> \
+- --cert-id cert-id \
 - --profile ./MyApp.mobileprovision
 - Multiple profiles: 
   `circleci signing-config create \`
 - --name multi-target-signing \
-- --cert-id <cert-id> \
+- --cert-id cert-id \
 - --profile ./MyApp.mobileprovision \
 - --profile ./MyAppExtension.mobileprovision
 - Explicit org and capture the id for scripting: 

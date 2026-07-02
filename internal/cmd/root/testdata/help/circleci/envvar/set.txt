@@ -30,8 +30,8 @@ unless overridden with --project.
 
 ## Arguments
 
-<name> is the name of the environment variable to create or
-update. <value> is the value to store; it is never retrievable
+name is the name of the environment variable to create or
+update. value is the value to store; it is never retrievable
 after being set and is masked in all subsequent list output.
 
 ## Examples

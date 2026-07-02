@@ -63,7 +63,7 @@ func newListCmd() *cobra.Command {
 		Short:   "List test results for a job",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose test results to list. Job
+				job-id is the UUID of the job whose test results to list. Job
 				UUIDs are shown in "circleci job get" and "circleci run get --json".
 			`),
 		},
@@ -71,7 +71,7 @@ func newListCmd() *cobra.Command {
 			Show the test results recorded for a CircleCI job.
 
 			By default only failed tests are shown. Pass --all to show every
-			result, or --filter result=<value> to select specific outcomes.
+			result, or --filter result=value to select specific outcomes.
 
 			--filter takes key=value and may be repeated. Repeating the same key
 			matches any of its values (OR); different keys must all match (AND).

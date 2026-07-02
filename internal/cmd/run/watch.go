@@ -69,7 +69,7 @@ func newWatchCmd() *cobra.Command {
 		Short: "Watch a run until it completes",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<run-id> is optional and selects the run to watch. It can be:
+				run-id is optional and selects the run to watch. It can be:
 				- a run UUID (shown in "circleci run list --json")
 				- a run number (shown in "circleci run list"); the project is
 				  inferred from the git remote unless overridden with --project

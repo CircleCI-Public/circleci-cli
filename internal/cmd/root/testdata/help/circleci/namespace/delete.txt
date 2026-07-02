@@ -35,7 +35,7 @@ Use --dry-run (-n) to preview what would be deleted without deleting.
 
 ## Arguments
 
-<name> is the name of the namespace to delete, e.g. "myorg".
+name is the name of the namespace to delete, e.g. "myorg".
 
 ## Examples
 

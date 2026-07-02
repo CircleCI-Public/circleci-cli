@@ -64,7 +64,7 @@ func newGetCmd() *cobra.Command {
 		Short: "Get a run's status",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<run-id> is optional and is the UUID of the run to look up. When
+				run-id is optional and is the UUID of the run to look up. When
 				omitted, the latest run is resolved from the project and branch
 				inferred from the current git repository's remote and checked-out
 				branch (override with --project and --branch).

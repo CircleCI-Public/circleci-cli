@@ -31,7 +31,7 @@ Use --force (-f) to skip the prompt for scripting.
 
 ## Arguments
 
-<workflow-id> is the UUID of the workflow to cancel. Workflow IDs are
+workflow-id is the UUID of the workflow to cancel. Workflow IDs are
 shown in the output of "circleci run get".
 
 ## Examples

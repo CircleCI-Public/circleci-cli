@@ -137,13 +137,13 @@ func newCreateCmd() *cobra.Command {
 			# Create a signing config (org inferred from git remote)
 			$ circleci signing-config create \
 			    --name production-signing \
-			    --cert-id <cert-id> \
+			    --cert-id cert-id \
 			    --profile ./MyApp.mobileprovision
 
 			# Multiple profiles
 			$ circleci signing-config create \
 			    --name multi-target-signing \
-			    --cert-id <cert-id> \
+			    --cert-id cert-id \
 			    --profile ./MyApp.mobileprovision \
 			    --profile ./MyAppExtension.mobileprovision
 
@@ -328,7 +328,7 @@ func newDeleteCmd() *cobra.Command {
 		Short:   "Delete an iOS signing config",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<signing-config-id> is the ID of the signing config to delete
+				signing-config-id is the ID of the signing config to delete
 				(see: circleci signing-config list).
 			`),
 		},

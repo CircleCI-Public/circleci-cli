@@ -39,7 +39,7 @@ func newDeviceIDCmd() *cobra.Command {
 		Use:   "id",
 		Short: "Show the device ID for this CLI installation",
 		Long: heredoc.Doc(`
-			Print the device ID for this CLI installation as "<os>:<uuid>".
+			Print the device ID for this CLI installation as "os:uuid".
 
 			The UUID is generated on first use and stored in the config file.
 			The OS prefix (e.g. darwin, linux) is added at print time so you
@@ -48,7 +48,7 @@ func newDeviceIDCmd() *cobra.Command {
 			a token in the CircleCI UI back to this installation.
 
 			JSON fields:
-			  device_id  string  Stable identifier in the form <os>:<uuid>
+			  device_id  string  Stable identifier in the form os:uuid
 		`),
 		Example: heredoc.Doc(`
 			# Print the device ID

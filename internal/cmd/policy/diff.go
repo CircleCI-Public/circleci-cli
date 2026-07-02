@@ -45,7 +45,7 @@ func newDiffCmd() *cobra.Command {
 		Short: "Show diff between local and remote policy bundles",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
-				<path> is the path to a local directory of .rego policy files,
+				path is the path to a local directory of .rego policy files,
 				e.g. "./policies". Its contents are compared against the remote
 				policy bundle.
 			`),
