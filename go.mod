@@ -29,7 +29,7 @@ require (
 	github.com/njayp/ophis v1.1.4
 	github.com/pete-woods/go-expect v0.1.4
 	github.com/segmentio/analytics-go/v3 v3.3.0
-	github.com/shirou/gopsutil/v4 v4.26.5
+	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/zalando/go-keyring v0.2.8
