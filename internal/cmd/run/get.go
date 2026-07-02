@@ -743,18 +743,76 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 func runItems(runs []apiclient.RunV3) []ui.RunGetItem {
 	items := make([]ui.RunGetItem, len(runs))
 	for i := range runs {
-		e := toListEntry(&runs[i])
-		ref := e.Branch
-		if ref == "" {
-			ref = e.Tag
-		}
 		items[i] = ui.RunGetItem{
-			ID:    runs[i].ID,
-			Icon:  apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
-			Label: fmt.Sprintf("%s [%s] - %s", e.Revision, ref, relativeTime(runs[i].CreatedAt)),
+			ID:     runs[i].ID,
+			Icon:   apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
+			Label:  runItemLabel(&runs[i]),
+			Errors: runItemErrors(runs[i].Errors),
 		}
 	}
 	return items
+}
+
+// runItemErrors adapts a run's API errors to the picker's error type, so the
+// flow can show them under the workflow picker's title.
+func runItemErrors(errs []apiclient.RunError) []ui.RunGetError {
+	if len(errs) == 0 {
+		return nil
+	}
+	out := make([]ui.RunGetError, len(errs))
+	for i, e := range errs {
+		out[i] = ui.RunGetError{Type: e.Type, Message: e.Message}
+	}
+	return out
+}
+
+// runItemLabel renders a run's picker label. Normally that is the short
+// revision and ref (e.g. "03d8295 [main] - 20 seconds ago"). A run that never
+// resolved a commit — an errored run whose config could not be fetched, or one
+// from an unknown trigger — carries no revision, branch or tag, which would
+// leave the label blank but for the timestamp. For those, fall back to the
+// run's first error, then its status word, so the row still says something.
+func runItemLabel(r *apiclient.RunV3) string {
+	e := toListEntry(r)
+	ref := e.Branch
+	if ref == "" {
+		ref = e.Tag
+	}
+	var desc string
+	switch {
+	case e.Revision != "" && ref != "":
+		desc = fmt.Sprintf("%s [%s]", e.Revision, ref)
+	case e.Revision != "":
+		desc = e.Revision
+	case ref != "":
+		desc = "[" + ref + "]"
+	case len(r.Errors) > 0:
+		desc = errorSummary(r.Errors[0])
+	default:
+		desc = apiclient.PhaseOutcomeText(r.Phase, r.Outcome, r.CurrentOutcome)
+	}
+	return desc + " - " + relativeTime(r.CreatedAt)
+}
+
+// errorSummary condenses a run error into a single short line for a picker row:
+// its first sentence, capped in length, falling back to the error type when the
+// message is empty.
+func errorSummary(e apiclient.RunError) string {
+	msg := strings.TrimSpace(e.Message)
+	if i := strings.IndexAny(msg, "\r\n"); i >= 0 {
+		msg = msg[:i]
+	}
+	if i := strings.Index(msg, ". "); i >= 0 {
+		msg = msg[:i+1]
+	}
+	if msg == "" {
+		msg = e.Type
+	}
+	const maxLen = 60
+	if len(msg) > maxLen {
+		msg = strings.TrimSpace(msg[:maxLen]) + "…"
+	}
+	return msg
 }
 
 // relativeTime renders how long ago t was in coarse, human-friendly units

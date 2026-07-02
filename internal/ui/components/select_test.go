@@ -123,6 +123,24 @@ func TestSelectModel_FitsWithoutScrolling(t *testing.T) {
 	assert.Check(t, !strings.Contains(view, " of "), "unexpected scroll indicator: %q", view)
 }
 
+// TestSelectModel_Note verifies WithNote renders its line(s) between the title
+// and the options, and that a note reserves rows so the option window shrinks
+// accordingly (leaving room for the note without overflowing the height).
+func TestSelectModel_Note(t *testing.T) {
+	m := components.NewSelectModel("Pick", selectOptions(4)).WithNote("config-fetch: no config found")
+	view := finalView(t, start(t, m, 80, 24))
+
+	assert.Check(t, cmp.Contains(view, "config-fetch: no config found"))
+	// The note sits above the options.
+	assert.Check(t, strings.Index(view, "config-fetch") < strings.Index(view, "option-00"),
+		"note should render before the options: %q", view)
+
+	// With height 7, reserving prompt + hint + a 1-line note leaves 4 option rows,
+	// so a 20-option list scrolls and the window shows 4 (not 5) options.
+	scroll := finalView(t, start(t, components.NewSelectModel("Pick", selectOptions(20)).WithNote("boom"), 80, 7))
+	assert.Check(t, cmp.Contains(scroll, "(1–4 of 20)"), "note should shrink the window by one row: %q", scroll)
+}
+
 // TestSelectModel_ScrollsToKeepCursorVisible verifies the visible window slides
 // to keep the cursor in view, hides the off-window options, and shows a position
 // indicator. With height 7, two rows are reserved (prompt + hint), leaving 5

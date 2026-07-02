@@ -156,6 +156,34 @@ func TestRunGetFlow_FooterShortcuts(t *testing.T) {
 	assert.Check(t, cmp.Contains(v, switchLabel+" to switch branch"))
 }
 
+// TestRunGetFlow_WorkflowPickerShowsRunErrors verifies that selecting a run
+// whose RunGetItem carries errors surfaces the error type and message under the
+// workflow picker title — e.g. a config that failed to compile, which produced
+// no workflows.
+func TestRunGetFlow_WorkflowPickerShowsRunErrors(t *testing.T) {
+	errRun := ui.RunGetItem{
+		ID:    uuid.New(),
+		Icon:  "⊘",
+		Label: "No configuration was found - now",
+		Errors: []ui.RunGetError{
+			{Type: "config-fetch", Message: "No configuration was found in your project."},
+		},
+	}
+	tm := startFlow(t, ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{errRun},
+		CurrentBranch: "main",
+		FetchWorkflows: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return nil, nil // the failed config produced no workflows
+		},
+	}))
+
+	tm.Send(keyEnt) // select the errored run
+	waitForOutput(t, tm, "Select a workflow")
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "config-fetch: No configuration was found in your project."))
+}
+
 // TestRunGetFlow_ToggleCyclesScopes drives the switch key through the full cycle:
 // current branch → default branch → all branches → back to current, swapping the
 // run list each step. Each hop is a gated subtest whose WaitFor doubles as the
