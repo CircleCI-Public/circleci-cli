@@ -63,9 +63,7 @@ brew uninstall circleci
 ```
 Then:
 ```shell
-brew tap circleci-public/circleci
-brew trust circleci-public/circleci # for brew greater than v6
-brew install circleci@next
+brew install circleci-public/circleci/circleci@next
 ```
 
 Snap (edge channel):
