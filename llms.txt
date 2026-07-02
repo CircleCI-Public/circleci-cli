@@ -784,7 +784,7 @@ Open the deploys page in the browser
 
 Purge a project's Docker layer cache (DLC)
 
-#### `circleci dlc purge --project <slug> [flags]`
+#### `circleci dlc purge [flags]`
 
 Purge the Docker Layer Cache for a project
 
@@ -1247,7 +1247,7 @@ non-interactive mode it is used automatically.
 
 Purge a project's Docker layer cache (DLC)
 
-##### `circleci project dlc purge --project <slug> [flags]`
+##### `circleci project dlc purge [flags]`
 
 Purge the Docker Layer Cache for a project
 
