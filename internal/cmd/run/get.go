@@ -316,6 +316,17 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return runItems(runs), nil
 	}
 
+	// fetchMyRuns lists the authenticated user's recent runs across all projects,
+	// backing the run picker's "my runs" scope. Unlike fetchRuns it is neither
+	// project- nor branch-scoped (the counterpart to "circleci my runs").
+	fetchMyRuns := func(ctx context.Context) ([]ui.RunGetItem, error) {
+		runs, err := client.ListMyRunsV3(ctx, 10)
+		if err != nil {
+			return nil, apiErr(err, "your runs")
+		}
+		return runItems(runs), nil
+	}
+
 	sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
 	items, err := fetchRuns(ctx, effectiveBranch)
 	sp.Stop()
@@ -333,6 +344,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		CurrentBranch:    effectiveBranch,
 		DefaultBranch:    defaultBranch,
 		FetchRuns:        fetchRuns,
+		FetchMyRuns:      fetchMyRuns,
 		FetchWorkflows:   workflowItems(client),
 		FetchJobs:        jobItems(client),
 		FetchExecutions:  executionItems(client),
