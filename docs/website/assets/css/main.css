@@ -489,29 +489,34 @@ a:hover {
 }
 
 /* ── Install / picker bar ───────────────────────────────────────────────── */
-.install-selector {
-  position: relative;
-  display: inline-block;
-  margin-bottom: 0.625rem;
+.install-bar {
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  border: 1px solid var(--color-site-border-strong);
+  background-color: var(--color-site-surface);
 }
 
 .install-dropdown-btn {
-  display: inline-flex;
+  display: flex;
   flex-shrink: 0;
   cursor: pointer;
   align-items: center;
   gap: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-site-border-strong);
+  border-right: 1px solid var(--color-site-border-strong);
   padding-inline: 1rem;
-  padding-block: 0.5rem;
+  padding-block: 0.75rem;
   font-family: var(--font-sans);
   font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.2;
   white-space: nowrap;
   color: var(--color-site-heading);
-  background-color: var(--color-site-surface);
+  background: transparent;
+  border-top: none;
+  border-bottom: none;
+  border-left: none;
 }
 
 @media (hover: hover) {
@@ -529,58 +534,17 @@ a:hover {
   transform: rotate(180deg);
 }
 
-.install-panel {
-  max-width: 28rem;
-}
-
-.install-panel-note {
-  margin: 0.625rem 0 0.25rem;
-  font-size: 0.8125rem;
-  color: var(--color-site-muted);
-}
-
-.install-panel-note:first-child {
-  margin-top: 0;
-}
-
-.install-code-block {
-  position: relative;
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
-  border-radius: 0.5rem;
-  border: 1px solid var(--color-site-border-strong);
-  background-color: var(--color-site-surface);
-  padding: 0.625rem 2.75rem 0.625rem 0.875rem;
-  margin-bottom: 0.5rem;
-}
-
-.install-code-block:last-child {
-  margin-bottom: 0;
-}
-
-.install-code-block .copy-btn {
-  position: absolute;
-  top: 0.375rem;
-  right: 0.375rem;
-}
-
-.install-pre {
-  margin: 0;
+.install-cmd-wrap {
+  padding-inline: 1rem;
   font-family: var(--font-mono);
   font-size: 0.875rem;
+  white-space: nowrap;
   color: var(--color-site-fg);
-  white-space: pre-wrap;
-  overflow-wrap: break-word;
 }
 
 .install-prompt {
   color: var(--color-site-muted);
   user-select: none;
-}
-
-.install-muted {
-  color: var(--color-site-muted);
 }
 
 .copy-btn {
@@ -597,6 +561,9 @@ a:hover {
   line-height: 0;
 }
 
+.install-bar .copy-btn {
+  margin-right: 0.25rem;
+}
 
 @media (hover: hover) {
   .copy-btn:hover {
@@ -648,15 +615,16 @@ a:hover {
 }
 
 @media (width < 52rem) {
-  .install-selector,
-  .install-panel {
+  .install-bar {
+    display: flex;
     width: 100%;
-    max-width: 100%;
   }
 
-  .install-dropdown-btn {
-    width: 100%;
-    justify-content: space-between;
+  .install-cmd-wrap {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
   }
 }
 

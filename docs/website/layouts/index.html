@@ -22,7 +22,7 @@
           </p>
 
           <div class="hero-install-wrap" id="install-picker">
-            <div class="install-selector">
+            <div class="install-bar">
               <button class="install-dropdown-btn" id="install-dropdown-btn"
                       type="button" aria-haspopup="listbox" aria-expanded="false"
                       aria-controls="install-menu">
@@ -31,64 +31,26 @@
                   <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
-                <li role="option" tabindex="-1" data-panel="brew" aria-selected="true">macOS — Homebrew</li>
-                <li class="picker-divider" aria-hidden="true"></li>
-                <li role="option" tabindex="-1" data-panel="winget" aria-selected="false">Windows — WinGet</li>
-                <li class="picker-divider" aria-hidden="true"></li>
-                <li role="option" tabindex="-1" data-panel="snap" aria-selected="false">Linux — Snap</li>
-              </ul>
+              <span class="install-cmd-wrap">
+                <span class="install-prompt">$ </span><span id="install-cmd">brew install circleci</span>
+              </span>
+              <button class="copy-btn" id="install-copy-btn" type="button" aria-label="Copy command" data-copy-target="install-cmd">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
+                  <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
+                </svg>
+              </button>
             </div>
 
-            <div class="install-panel" id="install-panel-brew">
-              <p class="install-panel-note">If you have the stable CLI installed:</p>
-              <div class="install-code-block">
-                <pre class="install-pre"><span class="install-prompt">$ </span>brew uninstall circleci</pre>
-                <button class="copy-btn" type="button" aria-label="Copy command" data-cmd="brew uninstall circleci">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
-                    <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
-                  </svg>
-                </button>
-              </div>
-              <p class="install-panel-note">Then:</p>
-              <div class="install-code-block">
-                <pre class="install-pre"><span class="install-prompt">$ </span>brew tap circleci-public/circleci
-<span class="install-prompt">$ </span>brew trust circleci-public/circleci <span class="install-muted"># for brew &gt; v6</span>
-<span class="install-prompt">$ </span>brew install circleci@next</pre>
-                <button class="copy-btn" type="button" aria-label="Copy commands" data-cmd="brew tap circleci-public/circleci&#10;brew trust circleci-public/circleci # for brew greater than v6&#10;brew install circleci@next">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
-                    <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div class="install-panel" id="install-panel-winget" hidden>
-              <div class="install-code-block">
-                <pre class="install-pre"><span class="install-prompt">$ </span>winget install --id CircleCI.CLI.Preview</pre>
-                <button class="copy-btn" type="button" aria-label="Copy command" data-cmd="winget install --id CircleCI.CLI.Preview">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
-                    <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div class="install-panel" id="install-panel-snap" hidden>
-              <div class="install-code-block">
-                <pre class="install-pre"><span class="install-prompt">$ </span>sudo snap install circleci --channel=edge
-<span class="install-prompt">$ </span>sudo snap connect circleci:password-manager-service</pre>
-                <button class="copy-btn" type="button" aria-label="Copy commands" data-cmd="sudo snap install circleci --channel=edge&#10;sudo snap connect circleci:password-manager-service">
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
-                    <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
+            <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
+              <li role="option" tabindex="-1" data-cmd="brew install circleci" aria-selected="true">macOS — Homebrew</li>
+              <li class="picker-divider" aria-hidden="true"></li>
+              <li role="option" tabindex="-1" data-cmd="winget install --id CircleCI.CLI" aria-selected="false">Windows — WinGet</li>
+              <li role="option" tabindex="-1" data-cmd="choco install circleci-cli -y" aria-selected="false">Windows — Chocolatey</li>
+              <li class="picker-divider" aria-hidden="true"></li>
+              <li role="option" tabindex="-1" data-cmd="brew install circleci" aria-selected="false">Linux — Homebrew</li>
+              <li role="option" tabindex="-1" data-cmd="sudo snap install circleci" aria-selected="false">Linux — Snap</li>
+            </ul>
           </div>
 
           <p class="hero-ref-link"><a href="reference/">View command reference &rarr;</a></p>
@@ -141,8 +103,9 @@
     var btn    = document.getElementById('install-dropdown-btn');
     var menu   = document.getElementById('install-menu');
     var lbl    = document.getElementById('install-selected-label');
-    function opts()   { return Array.from(menu.querySelectorAll('[role="option"]')); }
-    function panels() { return Array.from(picker.querySelectorAll('.install-panel')); }
+    var cmdEl  = document.getElementById('install-cmd');
+
+    function opts() { return Array.from(menu.querySelectorAll('[role="option"]')); }
 
     function open() {
       menu.hidden = false;
@@ -160,9 +123,8 @@
     function select(opt) {
       opts().forEach(function (el) { el.setAttribute('aria-selected', 'false'); });
       opt.setAttribute('aria-selected', 'true');
-      lbl.textContent = opt.textContent.trim();
-      var panelId = 'install-panel-' + opt.dataset.panel;
-      panels().forEach(function (p) { p.hidden = p.id !== panelId; });
+      lbl.textContent = opt.textContent;
+      cmdEl.textContent = opt.dataset.cmd;
       close(true);
     }
 
