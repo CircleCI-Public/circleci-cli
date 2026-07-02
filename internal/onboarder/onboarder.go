@@ -31,6 +31,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
@@ -165,11 +166,11 @@ func postSignupGuidance(ctx context.Context) error {
 		return nil
 	}
 
-	var orgSlug string
+	var selectedOrg apiclient.Collaboration
 	switch {
 	case len(orgs) == 1:
-		orgSlug = orgs[0].Slug
-		iostream.Printf(ctx, "%s Using organization %s\n", iostream.SymbolOK(ctx), orgSlug)
+		selectedOrg = orgs[0]
+		iostream.Printf(ctx, "%s Using organization %s\n", iostream.SymbolOK(ctx), selectedOrg.Slug)
 	case iostream.IsInteractive(ctx):
 		iostream.ErrPrintf(ctx, "\nLet's create your CircleCI project.\n\n")
 		labels := make([]string, len(orgs))
@@ -185,13 +186,13 @@ func postSignupGuidance(ctx context.Context) error {
 			printManualGuidance(ctx)
 			return nil
 		}
-		orgSlug = orgs[idx].Slug
+		selectedOrg = orgs[idx]
 	default:
 		printManualGuidance(ctx)
 		return nil
 	}
 
-	vcs, orgName, err := org.ParseSlug(orgSlug)
+	vcs, orgName, err := org.ParseSlug(selectedOrg.Slug)
 	if err != nil {
 		printManualGuidance(ctx)
 		return nil
@@ -220,6 +221,10 @@ func postSignupGuidance(ctx context.Context) error {
 		}
 	}
 
+	if selectedOrg.VCSType != "circleci" {
+		return followClassicProject(ctx, client, appURL, vcs, orgName, name)
+	}
+
 	proj, err := client.CreateProject(ctx, vcs, orgName, name)
 	if err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
@@ -233,6 +238,23 @@ func postSignupGuidance(ctx context.Context) error {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+	return nil
+}
+
+func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) error {
+	if err := client.FollowProject(ctx, vcs, orgName, repoName); err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not follow project: %s\n", iostream.SymbolWarn(ctx), err)
+		printManualGuidance(ctx)
+		return nil
+	}
+
+	slug := fmt.Sprintf("%s/%s/%s", vcs, orgName, repoName)
+	iostream.Printf(ctx, "%s Project followed: %s\n", iostream.SymbolOK(ctx), repoName)
+	iostream.Printf(ctx, "  Organization: %s\n", orgName)
+	if pipelinesURL, err := cmdutil.RunSlugURL(appURL, slug); err == nil {
+		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
+	}
+	iostream.Printf(ctx, "\nCommit and push .circleci/config.yml to start your first pipeline.\n")
 	return nil
 }
 

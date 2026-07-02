@@ -289,7 +289,7 @@ func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
 	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
-	_, env := onboardAuthenticatedEnv(t, "testuser")
+	_, env := onboardStandaloneEnv(t, "testuser")
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -302,6 +302,29 @@ func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "Project created: my-repo"))
 	assert.Check(t, strings.Contains(result.Stdout, "Organization: myorg"))
 	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
+}
+
+func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	_, env := onboardAuthenticatedEnv(t, "testuser")
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Project followed: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Organization: myorg"))
+	assert.Check(t, strings.Contains(result.Stdout, "Commit and push .circleci/config.yml"))
 }
 
 func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
@@ -334,7 +357,7 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
-	fake, env := onboardAuthenticatedEnv(t, "testuser")
+	fake, env := onboardStandaloneEnv(t, "testuser")
 	fake.SetCreateProjectResponse(nil)
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -347,6 +370,35 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "Could not create project"))
 	assert.Check(t, strings.Contains(result.Stdout, "circleci project create"))
+}
+
+func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+
+	fake := fakes.NewCircleCI(t)
+	fake.SetMe(map[string]any{
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":  "Test User",
+			"login": login,
+		},
+	})
+	fake.SetCollaborations([]any{
+		map[string]any{"id": "org-uuid-1234", "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
+	})
+	fake.SetCreateProjectResponse(map[string]any{
+		"id":                "proj-uuid-5678",
+		"slug":              "circleci/myorg/my-repo",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "circleci/myorg",
+		"organization_id":   "org-uuid-1234",
+	})
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+	env.Token = "test-token"
+	return fake, env
 }
 
 func onboardAuthenticatedEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv.TestEnv) {
