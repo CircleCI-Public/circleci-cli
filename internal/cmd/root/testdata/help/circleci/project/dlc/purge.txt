@@ -15,7 +15,7 @@ JSON fields (--json): project_id, project_slug
 
 ## Usage
 
-`circleci project dlc purge --project <slug> [flags]`
+`circleci project dlc purge [flags]`
 
 ## Flags
 
