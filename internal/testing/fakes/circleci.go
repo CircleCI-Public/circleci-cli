@@ -72,11 +72,12 @@ type CircleCI struct {
 	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3         map[string]any    // job UUID → V3 response body
-	workflowJobsV3 map[string][]any  // workflow id → V3 job list items
-	jobStdout      map[string][]byte // "jobID/index/stepNum" → plain text stdout
-	jobStderr      map[string][]byte // "jobID/index/stepNum" → plain text stderr
-	jobTests       map[string][]any  // job UUID → test result objects (served as JSONL)
+	jobsV3             map[string]any    // job UUID → V3 response body
+	workflowJobsV3     map[string][]any  // workflow id → V3 job list items
+	jobStdout          map[string][]byte // "jobID/index/stepNum" → plain text stdout
+	jobStderr          map[string][]byte // "jobID/index/stepNum" → plain text stderr
+	jobStdoutCondensed map[string]any    // "jobID/index/stepNum" → condensed_stdout attributes
+	jobTests           map[string][]any  // job UUID → test result objects (served as JSONL)
 
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
@@ -209,6 +210,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
+		jobStdoutCondensed:                map[string]any{},
 		jobTests:                          map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
@@ -331,6 +333,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
 	r.Get("/api/v3/jobs/{id}/artifacts", f.handleGetJobArtifactsV3)
 	r.Get("/api/v3/jobs/{id}/stdout", f.handleGetJobStdout)
+	r.Get("/api/v3/jobs/{id}/stdout/condensed", f.handleGetJobStdoutCondensed)
 	r.Get("/api/v3/jobs/{id}/stderr", f.handleGetJobStderr)
 	r.Get("/api/v3/jobs/{id}/tests", f.handleGetJobTests)
 	// Workflow (v3) routes.
@@ -514,6 +517,23 @@ func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content []byt
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobStderr[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
+}
+
+// AddJobStdoutCondensed registers the condensed stdout for a step, served at
+// GET /api/v3/jobs/<id>/stdout/condensed?filter[execution]=<execution>&filter[step_num]=<stepNum>.
+func (f *CircleCI) AddJobStdoutCondensed(id string, execution, stepNum int, condensed string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobStdoutCondensed[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = map[string]any{
+		"data": map[string]any{
+			"id": id,
+			"attributes": map[string]any{
+				"execution":        execution,
+				"step_num":         stepNum,
+				"condensed_stdout": condensed,
+			},
+		},
+	}
 }
 
 // SetTriggerResponse registers the response body returned when POST
@@ -820,6 +840,19 @@ func rangeOffset(r *http.Request, n int) int {
 		off = n
 	}
 	return off
+}
+
+func (f *CircleCI) handleGetJobStdoutCondensed(w http.ResponseWriter, r *http.Request) {
+	key := jobStepKey(r)
+	f.mu.RLock()
+	body, ok := f.jobStdoutCondensed[key]
+	f.mu.RUnlock()
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, body)
 }
 
 func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {

@@ -45,6 +45,7 @@ func newOutputCmd() *cobra.Command {
 
 	cmd.AddCommand(newOutputGetCmd())
 	cmd.AddCommand(newOutputListCmd())
+	cmd.AddCommand(newOutputCondensedCmd())
 
 	return cmd
 }

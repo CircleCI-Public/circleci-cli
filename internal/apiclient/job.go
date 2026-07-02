@@ -429,6 +429,31 @@ func (c *Client) GetJobStdout(ctx context.Context, jobID uuid.UUID, execution, s
 	return output, nil
 }
 
+// JobStdoutCondensed is a step's stdout filtered down to its most
+// error-relevant lines, suitable for AI-agent consumption.
+type JobStdoutCondensed struct {
+	Execution       int    `json:"execution"`
+	StepNum         int    `json:"step_num"`
+	CondensedStdout string `json:"condensed_stdout"`
+}
+
+type jobStdoutCondensedWire struct {
+	Attributes JobStdoutCondensed `json:"attributes"`
+}
+
+// GetJobStdoutCondensed fetches a step's stdout condensed to its most
+// error-relevant lines (noisy/repetitive output filtered out server-side).
+func (c *Client) GetJobStdoutCondensed(ctx context.Context, jobID uuid.UUID, execution, stepNum int) (*JobStdoutCondensed, error) {
+	var env v3Entity[jobStdoutCondensedWire]
+	if err := c.getV3(ctx, "/jobs/%s/stdout/condensed", &env, routeParams(jobID),
+		filterParam("execution", strconv.Itoa(execution)),
+		filterParam("step_num", strconv.Itoa(stepNum)),
+	); err != nil {
+		return nil, err
+	}
+	return &env.Data.Attributes, nil
+}
+
 func (c *Client) GetJobStderr(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
 	var output []byte
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stderr",
