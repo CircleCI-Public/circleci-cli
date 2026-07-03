@@ -28,6 +28,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
@@ -168,7 +169,7 @@ func newMethodSelect(host string) components.SelectModel {
 	return components.NewSelectModel(
 		"How would you like to authenticate "+loginHostDisplay(host)+"?",
 		loginMethodOptions,
-	).WithHint("(↑/↓ to move, enter to select, esc to go back)")
+	).WithKeys(components.BindMove, components.BindSelect, components.BindBack)
 }
 
 // Result returns the final login outcome. Only valid after tea.Program.Run() returns.
@@ -215,7 +216,7 @@ func (m LoginFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.keyEnterPrompt(keyMsg)
 		}
 	case stageWaiting:
-		if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == components.KeyCtrlC {
+		if keyMsg, ok := msg.(tea.KeyPressMsg); ok && key.Matches(keyMsg, components.KeyCtrlC) {
 			m.result.Cancelled = true
 			return m, tea.Quit
 		}
@@ -231,8 +232,7 @@ func (m LoginFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 // components.SelectModel.
 func (m LoginFlowModel) updateHostSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case components.KeyCtrlC, components.KeyEsc:
+		if key.Matches(keyMsg, components.KeyCtrlC, components.KeyEsc) {
 			m.result.Cancelled = true
 			return m, tea.Quit
 		}
@@ -270,11 +270,11 @@ func (m LoginFlowModel) updateHostInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 // delegates remaining input to the embedded components.SelectModel.
 func (m LoginFlowModel) updateMethodSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(keyMsg, components.KeyCtrlC):
 			m.result.Cancelled = true
 			return m, tea.Quit
-		case components.KeyEsc:
+		case key.Matches(keyMsg, components.KeyEsc):
 			// Go back: restore fresh host select, or return to URL input.
 			if m.result.Host == defaultHost {
 				m.hostSelect = newHostSelect()
@@ -302,16 +302,16 @@ func (m LoginFlowModel) updateMethodSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m LoginFlowModel) keyHostInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case components.KeyCtrlC:
+	switch {
+	case key.Matches(msg, components.KeyCtrlC):
 		m.result.Cancelled = true
 		return m, tea.Quit
-	case components.KeyEsc:
+	case key.Matches(msg, components.KeyEsc):
 		m.hostInput.Blur()
 		m.hostSelect = newHostSelect()
 		m.stage = stageHostSelect
 		return m, nil
-	case components.KeyEnter:
+	case key.Matches(msg, components.KeyEnter):
 		raw := strings.TrimSpace(m.hostInput.Value())
 		if raw == "" {
 			return m, nil
@@ -336,11 +336,11 @@ func (m LoginFlowModel) keyHostInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 // components.TokenModel. Esc goes back to the method picker; Ctrl+C cancels.
 func (m LoginFlowModel) updateTokenInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(keyMsg, components.KeyCtrlC):
 			m.result.Cancelled = true
 			return m, tea.Quit
-		case components.KeyEsc:
+		case key.Matches(keyMsg, components.KeyEsc):
 			m.tokenInput = components.NewTokenModel()
 			m.methodSelect = newMethodSelect(m.result.Host)
 			m.stage = stageMethodSelect
@@ -364,11 +364,11 @@ func (m LoginFlowModel) updateTokenInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m LoginFlowModel) keyEnterPrompt(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
-	switch msg.String() {
-	case components.KeyCtrlC, components.KeyEsc:
+	switch {
+	case key.Matches(msg, components.KeyCtrlC, components.KeyEsc):
 		m.result.Cancelled = true
 		return m, tea.Quit
-	case components.KeyEnter:
+	case key.Matches(msg, components.KeyEnter):
 		_ = browser.OpenURL(m.flow.AuthorizeURL)
 		m.stage = stageWaiting
 		return m, m.spin.Tick

@@ -25,6 +25,7 @@ package ui
 import (
 	"fmt"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -107,7 +108,7 @@ func NewThemePickerModel(prompt string, labels, themes []string, render func(the
 		// The hint is cleared here and shown as a full-width footer below the
 		// split so a long help line doesn't widen the left column at the
 		// preview's expense.
-		selector: components.NewSelectModel(prompt, labels).WithHint(""),
+		selector: components.NewSelectModel(prompt, labels).WithKeys(),
 		preview:  components.NewPreviewModel(),
 		themes:   themes,
 		render:   render,
@@ -170,11 +171,11 @@ func (m ThemePickerModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case components.KeyEsc, components.KeyCtrlC:
+		switch {
+		case key.Matches(msg, components.KeyEsc, components.KeyCtrlC):
 			m.cancelled = true
 			return m, tea.Quit
-		case components.KeyEnter:
+		case key.Matches(msg, components.KeyEnter):
 			updated, _ := m.selector.Update(msg)
 			m.selector = updated.(components.SelectModel)
 			return m, tea.Quit
@@ -282,7 +283,11 @@ func (m ThemePickerModel) View() tea.View {
 
 	left := lipgloss.NewStyle().MarginRight(previewGap).Render(m.selector.View().Content)
 	body := lipgloss.JoinHorizontal(lipgloss.Top, left, m.preview.View())
-	footer := theme.HelperStyle.Render("↑/↓ to preview · enter to select · esc to cancel")
+	footer := components.Hints(
+		key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("↑/↓", "preview")),
+		components.BindSelect,
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+	)
 
 	v := tea.NewView(lipgloss.JoinVertical(lipgloss.Left, body, footer))
 	v.AltScreen = true

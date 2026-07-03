@@ -28,6 +28,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/charmbracelet/x/exp/teatest/v2"
@@ -37,10 +38,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 )
 
-// pagerHint is used for every test pager so startPager can wait for the first
-// frame by matching a stable substring, and so search assertions have known
-// surrounding text.
-const pagerHint = "/ search · q quit"
+// pagerKeys is used for every test pager so startPager can wait for the first
+// frame by matching a stable substring ("q quit"), and so search assertions have
+// known surrounding text.
+var pagerKeys = []key.Binding{components.BindSearch, components.BindQuit}
 
 // pagerHarness drives a PagerModel as a standalone program in teatest. The pager
 // deliberately leaves the lifecycle keys (q/esc/ctrl+c) to its host, so the
@@ -55,10 +56,10 @@ func (h pagerHarness) Init() tea.Cmd { return h.m.Init() }
 
 func (h pagerHarness) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok && !h.m.Searching() {
-		switch k.String() {
-		case components.KeyCtrlC, components.KeyQ:
+		switch {
+		case key.Matches(k, components.KeyCtrlC, components.BindQuit):
 			return h, tea.Quit
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			if h.m.SearchActive() {
 				h.m = h.m.ClearSearch()
 				return h, nil
@@ -78,7 +79,7 @@ func (h pagerHarness) View() tea.View { return h.m.View("") }
 // content, and waits for the first frame.
 func startPager(t *testing.T, content string, w, h int) *teatest.TestModel {
 	t.Helper()
-	m := components.NewPager().WithHint(pagerHint).WithReflow(func(int) string { return content })
+	m := components.NewPager().WithKeys(pagerKeys...).WithReflow(func(int) string { return content })
 	tm := teatest.NewTestModel(t, pagerHarness{m: m}, teatest.WithInitialTermSize(w, h))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte("q quit"))
@@ -206,7 +207,7 @@ func TestPagerModel_TailFollow(t *testing.T) {
 
 	// A fresh, empty viewport counts as "at the bottom", so the first content set
 	// sticks to the tail.
-	m := components.NewPager().WithHint(pagerHint).SetSize(80, 10)
+	m := components.NewPager().WithKeys(pagerKeys...).SetSize(80, 10)
 	m = m.SetContentFollowingTail(content)
 	assert.Check(t, cmp.Equal(m.ScrollPercent(), 1.0), "streaming should follow the tail")
 
@@ -219,7 +220,7 @@ func TestPagerModel_TailFollow(t *testing.T) {
 // TestPagerModel_SetContentPreservesPosition verifies SetContent (the non-
 // streaming setter) leaves the scroll position where it is.
 func TestPagerModel_SetContentPreservesPosition(t *testing.T) {
-	m := components.NewPager().WithHint(pagerHint).SetSize(80, 10)
+	m := components.NewPager().WithKeys(pagerKeys...).SetSize(80, 10)
 	m = m.SetContent(strings.Repeat("line\n", 100)).GotoBottom()
 	assert.Check(t, cmp.Equal(m.ScrollPercent(), 1.0))
 
@@ -318,7 +319,7 @@ func TestPagerModel_SearchHistorySurvivesReset(t *testing.T) {
 // TestPagerModel_NotReadyRendersEmpty confirms a pager that has not yet seen a
 // terminal size renders nothing rather than panicking.
 func TestPagerModel_NotReadyRendersEmpty(t *testing.T) {
-	m := components.NewPager().WithHint(pagerHint).WithContent("hello")
+	m := components.NewPager().WithKeys(pagerKeys...).WithContent("hello")
 	assert.Check(t, !m.Ready())
 	assert.Check(t, cmp.Equal(m.View("").Content, ""))
 }

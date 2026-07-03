@@ -23,9 +23,11 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
@@ -71,11 +73,11 @@ func (m PromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case components.KeyCtrlC, components.KeyEsc:
+		switch {
+		case key.Matches(keyMsg, components.KeyCtrlC, components.KeyEsc):
 			m.quitting = true
 			return m, tea.Quit
-		case components.KeyEnter:
+		case key.Matches(keyMsg, components.KeyEnter):
 			m.value = m.textInput.Value()
 			if m.value == "" {
 				m.value = m.defaultVal
@@ -111,8 +113,18 @@ func (m PromptModel) View() tea.View {
 
 func (m PromptModel) headerView() string { return theme.TitleStyle.Render(m.header) }
 func (m PromptModel) footerView() string {
+	// Build the whole footer as one styled run. The default hint and the key hints
+	// are all muted, so composing them as plain text and styling once (rather than
+	// concatenating two separately-styled strings) keeps the line contiguous in the
+	// output — an SGR reset mid-line splits it on terminals that don't coalesce
+	// adjacent same-color runs (Windows ConPTY), which breaks matching on it.
+	keys := ansi.Strip(components.Hints(
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+	))
+	line := keys
 	if m.defaultVal != "" {
-		return theme.HelperStyle.Render("(default: " + m.defaultVal + " · enter to confirm, esc to cancel)")
+		line = "default: " + m.defaultVal + " · " + keys
 	}
-	return theme.HelperStyle.Render("(enter to confirm, esc to cancel)")
+	return theme.HelperStyle.Render(line)
 }

@@ -344,7 +344,7 @@ func TestPipelineCreate_Interactive_DefaultConfigPath(t *testing.T) {
 	// Step 1: verify the default config file path is shown in the footer and accept it.
 	_, err := console.ExpectString("Config file path")
 	assert.NilError(t, err)
-	_, err = console.ExpectString("(default: .circleci/config.yml · enter to confirm, esc to cancel)")
+	_, err = console.ExpectString("default: .circleci/config.yml · enter confirm · esc cancel")
 	assert.NilError(t, err)
 	_, err = console.Send("\r")
 	assert.NilError(t, err)

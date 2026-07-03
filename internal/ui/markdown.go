@@ -23,6 +23,7 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
@@ -39,8 +40,14 @@ type MarkdownViewportModel struct {
 	pager components.PagerModel
 }
 
-// markdownPagerHint is the footer key-hint line for the markdown pager.
-const markdownPagerHint = "↑/↓ scroll · f/b page · g/G top/bottom · / search · q quit"
+// markdownPagerKeys is the footer key hint set for the markdown pager.
+var markdownPagerKeys = []key.Binding{
+	components.BindScroll,
+	components.BindPage,
+	components.BindTopBottom,
+	components.BindSearch,
+	components.BindQuit,
+}
 
 // MarkdownViewportFooterHeight is the number of rows reserved below the
 // viewport for the footer (one blank separator row + the help line). Callers
@@ -52,7 +59,7 @@ const MarkdownViewportFooterHeight = components.PagerFooterHeight
 // re-invoked on every resize so the markdown re-wraps.
 func NewMarkdownViewportModel(render func(width int) string) MarkdownViewportModel {
 	return MarkdownViewportModel{
-		pager: components.NewPager().WithHint(markdownPagerHint).WithReflow(render),
+		pager: components.NewPager().WithKeys(markdownPagerKeys...).WithReflow(render),
 	}
 }
 
@@ -62,10 +69,10 @@ func (m MarkdownViewportModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// The lifecycle keys (q/esc) are the host's to bind; guard on Searching so they
 	// are typed into the "/" prompt rather than acted on while it is open.
 	if k, ok := msg.(tea.KeyPressMsg); ok && !m.pager.Searching() {
-		switch k.String() {
-		case components.KeyQ, components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.BindQuit, components.KeyCtrlC):
 			return m, tea.Quit
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			// Esc clears an active search (dropping its highlights) and only quits
 			// when there is no search to dismiss.
 			if m.pager.SearchActive() {

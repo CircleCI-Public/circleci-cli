@@ -23,6 +23,7 @@
 package components
 
 import (
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -56,7 +57,7 @@ func (m TokenModel) Init() tea.Cmd {
 }
 
 func (m TokenModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && keyMsg.String() == KeyEnter {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && key.Matches(keyMsg, KeyEnter) {
 		m.token = m.textInput.Value()
 		return m, nil
 	}
@@ -82,5 +83,8 @@ func (m TokenModel) headerView() string {
 	return theme.TitleStyle.Render("Enter CircleCI personal access token")
 }
 func (m TokenModel) footerView() string {
-	return theme.HelperStyle.Render("(enter to confirm, esc to go back)")
+	return Hints(
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
+		BindBack,
+	)
 }

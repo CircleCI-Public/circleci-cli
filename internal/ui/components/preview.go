@@ -115,7 +115,7 @@ func (m PreviewModel) View() string {
 
 	return lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(theme.ColorMuted).
+		BorderForeground(theme.ColorSecondary).
 		Padding(0, 1).
 		Width(innerWidth).
 		Height(innerHeight).

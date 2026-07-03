@@ -66,6 +66,8 @@ var (
 	keyEsc    = tea.KeyPressMsg{Code: tea.KeyEscape}
 	keyQ      = tea.KeyPressMsg{Code: 'q', Text: "q"}
 	keyHelp   = tea.KeyPressMsg{Code: '?', Text: "?"}
+	keySlash  = tea.KeyPressMsg{Code: '/', Text: "/"}
+	keyRight  = tea.KeyPressMsg{Code: tea.KeyRight}
 )
 
 // quitMsg tells flowHarness to end the program. The flow ignores unknown message
@@ -157,8 +159,8 @@ func TestRunGetFlow_TitleNamesActiveScope(t *testing.T) {
 // trigger-switch shortcuts (the active branch is named in the title, not here).
 func TestRunGetFlow_FooterShortcuts(t *testing.T) {
 	v := flowSnapshot(t, startFlow(t, newToggleFlow(fetchByBranch(nil))))
-	assert.Check(t, cmp.Contains(v, "(r)efresh"))
-	assert.Check(t, cmp.Contains(v, "("+switchLabel+") change trigger"))
+	assert.Check(t, cmp.Contains(v, "r refresh"))
+	assert.Check(t, cmp.Contains(v, switchLabel+" change trigger"))
 }
 
 // newHelpFlow builds a run-get flow with a markdown renderer wired, enabling the
@@ -212,19 +214,19 @@ func TestRunGetFlow_HelpOverlayClosesOnQ(t *testing.T) {
 }
 
 // TestRunGetFlow_HelpHintShownWhenEnabled confirms the run picker footer
-// advertises "? for help" when a markdown renderer is wired.
+// advertises "? help" when a markdown renderer is wired.
 func TestRunGetFlow_HelpHintShownWhenEnabled(t *testing.T) {
 	v := flowSnapshot(t, startFlow(t, newHelpFlow()))
-	assert.Check(t, cmp.Contains(v, "? for help"))
+	assert.Check(t, cmp.Contains(v, "? help"))
 }
 
-// TestRunGetFlow_HelpHintHiddenWhenDisabled confirms the "? for help" hint is
+// TestRunGetFlow_HelpHintHiddenWhenDisabled confirms the "? help" hint is
 // absent (and "?" inert) when no markdown renderer is supplied.
 func TestRunGetFlow_HelpHintHiddenWhenDisabled(t *testing.T) {
 	tm := startFlow(t, newToggleFlow(fetchByBranch(nil)))
 	tm.Send(keyHelp) // inert without a renderer
 	v := flowSnapshot(t, tm)
-	assert.Check(t, !strings.Contains(v, "? for help"))
+	assert.Check(t, !strings.Contains(v, "? help"))
 	assert.Check(t, cmp.Contains(v, "Select a run")) // still on the picker
 }
 
@@ -527,7 +529,7 @@ func TestRunGetFlow_StatusFilterOmittedWithoutFilters(t *testing.T) {
 
 	v := flowSnapshot(t, tm)
 	assert.Check(t, cmp.Contains(v, "aaaaaaa [feature]"))
-	assert.Check(t, !strings.Contains(v, "(s)tatus"))
+	assert.Check(t, !strings.Contains(v, "s status"))
 }
 
 // newStepFlow builds a flow whose run → workflow → job → (single) execution
@@ -796,4 +798,72 @@ func TestRunGetFlow_StepPagerEscResumes(t *testing.T) {
 		assert.Check(t, cmp.Contains(v, "Select a step"))
 		assert.Check(t, cmp.Contains(v, "› ✗ run tests"), "cursor should resume on the opened step")
 	}))
+}
+
+// TestRunGetFlow_FilterDialogOpensOnSlash confirms "/" opens the search dialog
+// with its Branch/Status tabs and OK/Cancel/Reset buttons.
+func TestRunGetFlow_FilterDialogOpensOnSlash(t *testing.T) {
+	tm := startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{"": {runItem("aaaaaaa [main] - all")}},
+		[]ui.RunStatusFilter{{Value: "failed", Label: "failed"}},
+	))
+
+	tm.Send(keySlash)
+	waitForOutput(t, tm, "Cancel")
+
+	v := flowSnapshot(t, tm)
+	for _, want := range []string{"Branch", "Status", "OK", "Cancel", "Reset"} {
+		assert.Check(t, cmp.Contains(v, want), "dialog missing %q", want)
+	}
+}
+
+// TestRunGetFlow_FilterApplyRefetchesRuns drives the dialog to the Status tab,
+// picks "failed", applies with enter, and confirms the run list is re-fetched for
+// that status.
+func TestRunGetFlow_FilterApplyRefetchesRuns(t *testing.T) {
+	tm := startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{
+			"":       {runItem("aaaaaaa [main] - all")},
+			"failed": {runItem("ccccccc [main] - failed")},
+		},
+		[]ui.RunStatusFilter{{Value: "failed", Label: "failed"}},
+	))
+
+	tm.Send(keySlash)
+	waitForOutput(t, tm, "Cancel")
+	tm.Send(keyRight) // Branch → Status tab
+	tm.Send(keyDown)  // all statuses → failed
+	tm.Send(keyEnt)   // apply
+	waitForOutput(t, tm, "ccccccc [main] - failed")
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "Select a run [main · failed]"))
+}
+
+// TestRunGetFlow_FilterCancelReturnsToPicker confirms esc in the dialog returns to
+// the run picker with the list unchanged.
+func TestRunGetFlow_FilterCancelReturnsToPicker(t *testing.T) {
+	tm := startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{"": {runItem("aaaaaaa [main] - all")}},
+		[]ui.RunStatusFilter{{Value: "failed", Label: "failed"}},
+	))
+
+	tm.Send(keySlash)
+	waitForOutput(t, tm, "Cancel")
+	tm.Send(keyEsc)
+	waitForOutput(t, tm, "Select a run")
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "aaaaaaa [main] - all"))
+	assert.Check(t, !strings.Contains(v, "Branch"), "dialog should be dismissed")
+}
+
+// TestRunGetFlow_FilterHintShownWhenEnabled confirms the run picker footer
+// advertises "/ search" when a branch scope or status filter is available.
+func TestRunGetFlow_FilterHintShownWhenEnabled(t *testing.T) {
+	v := flowSnapshot(t, startFlow(t, newStatusFlow(
+		map[string][]ui.RunGetItem{"": {runItem("aaaaaaa [main] - all")}},
+		[]ui.RunStatusFilter{{Value: "failed", Label: "failed"}},
+	)))
+	assert.Check(t, cmp.Contains(v, "/ search"))
 }
