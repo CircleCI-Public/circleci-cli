@@ -37,6 +37,7 @@ const (
 	KeyUp        = "up"
 	KeyDown      = "down"
 	KeySlash     = "/"
+	KeyQuestion  = "?"
 
 	// Letter keys. The value is the literal bubbletea reports; uppercase
 	// variants are the shifted key (e.g. "N" for shift+n).
