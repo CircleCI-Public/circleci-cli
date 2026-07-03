@@ -26,6 +26,8 @@ import (
 	"fmt"
 	"strings"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
@@ -39,8 +41,9 @@ type SelectModel struct {
 	prompt  string
 	options []string
 	icons   []string
-	hint    string
-	note    string // optional lines rendered between the title and the options
+	keys    []key.Binding // footer key bindings; nil renders no hint line
+	help    help.Model    // renders keys into the muted footer line
+	note    string        // optional lines rendered between the title and the options
 	cursor  int
 	offset  int // index of the first visible option when the list scrolls
 	height  int // terminal rows available; 0 = unlimited (render every option)
@@ -51,13 +54,15 @@ func NewSelectModel(prompt string, options []string) SelectModel {
 	return SelectModel{
 		prompt:  prompt,
 		options: options,
-		hint:    "(↑/↓ to move, enter to select, esc to quit)",
+		keys:    []key.Binding{BindMove, BindSelect, BindQuitEsc},
+		help:    footerHelp(),
 	}
 }
 
-// WithHint returns a copy of the model with a custom footer hint line.
-func (m SelectModel) WithHint(hint string) SelectModel {
-	m.hint = hint
+// WithKeys returns a copy of the model with custom footer key bindings, replacing
+// the default (move / select / quit) hint line.
+func (m SelectModel) WithKeys(keys ...key.Binding) SelectModel {
+	m.keys = keys
 	return m
 }
 
@@ -123,35 +128,35 @@ func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.height = msg.Height
 		m.clampOffset()
 	case tea.KeyPressMsg:
-		switch msg.String() {
-		case KeyEnter:
+		switch {
+		case key.Matches(msg, KeyEnter):
 			m.chosen = true
-		case "up", "k":
+		case key.Matches(msg, KeyUp):
 			if m.cursor > 0 {
 				m.cursor--
 			}
 			m.clampOffset()
-		case "down", "j":
+		case key.Matches(msg, KeyDown):
 			if m.cursor < len(m.options)-1 {
 				m.cursor++
 			}
 			m.clampOffset()
-		case KeyPgUp:
+		case key.Matches(msg, KeyPageUp):
 			m.cursor -= m.visibleRows()
 			if m.cursor < 0 {
 				m.cursor = 0
 			}
 			m.clampOffset()
-		case KeyPgDown:
+		case key.Matches(msg, KeyPageDown):
 			m.cursor += m.visibleRows()
 			if m.cursor > len(m.options)-1 {
 				m.cursor = len(m.options) - 1
 			}
 			m.clampOffset()
-		case KeyHome, "g":
+		case key.Matches(msg, KeyTop):
 			m.cursor = 0
 			m.clampOffset()
-		case KeyEnd, "G":
+		case key.Matches(msg, KeyBottom):
 			m.cursor = len(m.options) - 1
 			m.clampOffset()
 		}
@@ -235,16 +240,16 @@ func (m SelectModel) View() tea.View {
 		}
 	}
 
-	hint := m.hint
+	hint := m.help.ShortHelpView(m.keys)
 	if rows < len(m.options) {
 		// The list is scrolling; show which slice of it is visible.
 		pos := fmt.Sprintf("(%d–%d of %d)", start+1, end, len(m.options))
 		if hint != "" {
 			hint += "  "
 		}
-		hint += pos
+		hint += theme.HelperStyle.Render(pos)
 	}
-	b.WriteString(theme.HelperStyle.Render(hint))
+	b.WriteString(hint)
 	return tea.NewView(b.String())
 }
 

@@ -157,8 +157,8 @@ func TestRunGetFlow_TitleNamesActiveScope(t *testing.T) {
 // trigger-switch shortcuts (the active branch is named in the title, not here).
 func TestRunGetFlow_FooterShortcuts(t *testing.T) {
 	v := flowSnapshot(t, startFlow(t, newToggleFlow(fetchByBranch(nil))))
-	assert.Check(t, cmp.Contains(v, "(r)efresh"))
-	assert.Check(t, cmp.Contains(v, "("+switchLabel+") change trigger"))
+	assert.Check(t, cmp.Contains(v, "r refresh"))
+	assert.Check(t, cmp.Contains(v, switchLabel+" change trigger"))
 }
 
 // newHelpFlow builds a run-get flow with a markdown renderer wired, enabling the
@@ -212,19 +212,19 @@ func TestRunGetFlow_HelpOverlayClosesOnQ(t *testing.T) {
 }
 
 // TestRunGetFlow_HelpHintShownWhenEnabled confirms the run picker footer
-// advertises "? for help" when a markdown renderer is wired.
+// advertises "? help" when a markdown renderer is wired.
 func TestRunGetFlow_HelpHintShownWhenEnabled(t *testing.T) {
 	v := flowSnapshot(t, startFlow(t, newHelpFlow()))
-	assert.Check(t, cmp.Contains(v, "? for help"))
+	assert.Check(t, cmp.Contains(v, "? help"))
 }
 
-// TestRunGetFlow_HelpHintHiddenWhenDisabled confirms the "? for help" hint is
+// TestRunGetFlow_HelpHintHiddenWhenDisabled confirms the "? help" hint is
 // absent (and "?" inert) when no markdown renderer is supplied.
 func TestRunGetFlow_HelpHintHiddenWhenDisabled(t *testing.T) {
 	tm := startFlow(t, newToggleFlow(fetchByBranch(nil)))
 	tm.Send(keyHelp) // inert without a renderer
 	v := flowSnapshot(t, tm)
-	assert.Check(t, !strings.Contains(v, "? for help"))
+	assert.Check(t, !strings.Contains(v, "? help"))
 	assert.Check(t, cmp.Contains(v, "Select a run")) // still on the picker
 }
 
@@ -527,7 +527,7 @@ func TestRunGetFlow_StatusFilterOmittedWithoutFilters(t *testing.T) {
 
 	v := flowSnapshot(t, tm)
 	assert.Check(t, cmp.Contains(v, "aaaaaaa [feature]"))
-	assert.Check(t, !strings.Contains(v, "(s)tatus"))
+	assert.Check(t, !strings.Contains(v, "s status"))
 }
 
 // newStepFlow builds a flow whose run → workflow → job → (single) execution

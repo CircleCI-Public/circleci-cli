@@ -29,6 +29,7 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -39,16 +40,30 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
-// switchScopeKey is the run picker's "switch branch" key, with its display
-// label. Non-Windows uses shift+tab; on Windows the ConPTY/ultraviolet input
-// stack drops shift+tab (the modifier is discarded and CSI Z yields no key
-// event at all), so plain Tab is bound instead.
-var switchScopeKey, switchScopeKeyLabel = func() (string, string) {
+// switchScopeBinding is the run picker's "switch trigger" shortcut, built from
+// the platform key binding: shift+tab normally, or plain Tab on Windows, where
+// the ConPTY/ultraviolet input stack drops shift+tab (the modifier is discarded
+// and CSI Z yields no key event at all). Its help label names that key.
+var switchScopeBinding = func() key.Binding {
+	k := components.KeyShiftTab
 	if runtime.GOOS == "windows" {
-		return components.KeyTab, "tab"
+		k = components.KeyTab
 	}
-	return components.KeyShiftTab, "shift+tab"
+	return key.NewBinding(key.WithKeys(k.Keys()...), key.WithHelp(k.Keys()[0], "change trigger"))
 }()
+
+// switchScopeKeyLabel names the platform switch-trigger key for help prose.
+var switchScopeKeyLabel = switchScopeBinding.Help().Key
+
+// stepPagerKeys is the footer key hint set for the step-output / test-message
+// pager. Unlike the markdown pager, esc goes back to the picker rather than
+// quitting.
+var stepPagerKeys = []key.Binding{
+	components.BindScroll,
+	components.BindTopBottom,
+	components.BindSearch,
+	components.BindBack,
+}
 
 // runGetHelpMarkdown is the content of the "?" keyboard-shortcut overlay offered
 // on the run-get pickers. It is rendered to styled, width-wrapped text by the
@@ -109,15 +124,6 @@ const (
 	// job: the step picker for a single-execution job, or the execution picker
 	// otherwise.
 	runGetMetaCount = 3
-
-	// runGetBackHint replaces the default footer on the workflow, job and step
-	// pickers, where esc goes back a step rather than quitting and r re-fetches.
-	runGetBackHint = "(↑/↓ to move, enter to select, r to refresh, esc to go back)"
-
-	// stepPagerHint is the footer key-hint line for the step-output / test-message
-	// pager. Unlike the markdown pager, esc goes back to the picker rather than
-	// quitting.
-	stepPagerHint = "↑/↓ scroll · g/G top/bottom · / search · esc back"
 
 	// runGetMetaGlyph fills the icon column for the leading "see all" / "all
 	// jobs" summary options. They carry no status, so rather than leave a blank
@@ -541,7 +547,7 @@ func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel 
 		opts:          opts,
 		stage:         runGetStageRunSelect,
 		spin:          components.NewSpinner(opts.Color),
-		pager:         components.NewPager().WithHint(stepPagerHint),
+		pager:         components.NewPager().WithKeys(stepPagerKeys...),
 		runs:          opts.Runs,
 		scopes:        buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil),
 		statusFilters: buildStatusCycle(opts.StatusFilters),
@@ -619,7 +625,7 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateHelp(msg)
 	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		// ctrl+c can still abort while a fetch is in flight.
-		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
+		if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
 		}
 	case runGetStageDone:
@@ -661,10 +667,10 @@ func (m RunGetFlowModel) quit(res RunGetResult) (tea.Model, tea.Cmd) {
 // there is no earlier step to return to.
 func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC, components.KeyEsc:
+		switch {
+		case key.Matches(k, components.KeyCtrlC, components.KeyEsc):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case switchScopeKey:
+		case key.Matches(k, switchScopeBinding):
 			if len(m.scopes) >= 2 {
 				next := (m.activeScopeIdx + 1) % len(m.scopes)
 				m.stage = runGetStageLoadingRuns
@@ -672,23 +678,23 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadingCmd(m.cmdFetchRuns(next, m.statusIdx))
 			}
 			return m, nil
-		case components.KeyS:
+		case key.Matches(k, components.BindStatus):
 			if m.statusFilterEnabled() {
 				return m.fetchStatus((m.statusIdx + 1) % len(m.statusFilters))
 			}
 			return m, nil
-		case components.KeyShiftS:
+		case key.Matches(k, components.KeyStatusClear):
 			// Jump straight back to "all statuses" (index 0); a no-op when already
 			// there.
 			if m.statusFilterEnabled() && m.statusIdx != 0 {
 				return m.fetchStatus(0)
 			}
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingRuns
 			m.loadingLabel = "Refreshing runs"
 			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx))
-		case components.KeyQuestion:
+		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageRunSelect)
 		}
 	}
@@ -773,18 +779,18 @@ func (m RunGetFlowModel) onWorkflows(msg runGetWorkflowsMsg) (tea.Model, tea.Cmd
 // picker; ctrl+c quits. Selecting the leading option shows the whole run.
 func (m RunGetFlowModel) updateWorkflowSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			m.runSelect = m.newRunSelect()
 			m.stage = runGetStageRunSelect
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingWorkflows
 			m.loadingLabel = "Refreshing workflows"
 			return m, m.loadingCmd(m.cmdFetchWorkflows())
-		case components.KeyQuestion:
+		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageWorkflowSelect)
 		}
 	}
@@ -821,18 +827,18 @@ func (m RunGetFlowModel) onJobs(msg runGetJobsMsg) (tea.Model, tea.Cmd) {
 // advances to the step picker.
 func (m RunGetFlowModel) updateJobSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			m.workflowSelect = m.newWorkflowSelect()
 			m.stage = runGetStageWorkflowSelect
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingJobs
 			m.loadingLabel = "Refreshing jobs"
 			return m, m.loadingCmd(m.cmdFetchJobs())
-		case components.KeyQuestion:
+		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageJobSelect)
 		}
 	}
@@ -927,16 +933,16 @@ func (m RunGetFlowModel) onTests(msg runGetTestsMsg) (tea.Model, tea.Cmd) {
 // tests the picker shows a single placeholder row that simply goes back.
 func (m RunGetFlowModel) updateTestSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			return m.returnFromTestSelect(), nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingTests
 			m.loadingLabel = "Refreshing failed tests"
 			return m, m.loadingCmd(m.cmdFetchTests())
-		case components.KeyQuestion:
+		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageTestSelect)
 		}
 	}
@@ -995,18 +1001,18 @@ func (m *RunGetFlowModel) openTestMessage(message string) {
 // rows are executions. esc returns to the job picker; ctrl+c quits.
 func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			m.jobSelect = m.newJobSelect()
 			m.stage = runGetStageJobSelect
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingExecutions
 			m.loadingLabel = "Refreshing steps"
 			return m, m.loadingCmd(m.cmdFetchExecutions())
-		case components.KeyQuestion:
+		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageExecutionSelect)
 		}
 	}
@@ -1036,10 +1042,10 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 // they live on the execution picker instead, so here it is steps only.
 func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			if len(m.executions) > 1 {
 				m.executionSelect = m.newExecutionSelect()
 				m.stage = runGetStageExecutionSelect
@@ -1048,7 +1054,7 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.stage = runGetStageJobSelect
 			}
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			// Steps come from the job's executions; re-fetch them and re-enter the
 			// current execution's steps (restoreStep) instead of bouncing back to
 			// the execution picker.
@@ -1056,7 +1062,7 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingExecutions
 			m.loadingLabel = "Refreshing steps"
 			return m, m.loadingCmd(m.cmdFetchExecutions())
-		case components.KeyQuestion:
+		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageStepSelect)
 		}
 	}
@@ -1217,10 +1223,10 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Guard on Searching so esc/ctrl+c reach the "/" prompt (cancel) rather than
 	// acting as lifecycle keys while a pattern is being typed.
 	if k, ok := msg.(tea.KeyPressMsg); ok && !m.pager.Searching() {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			if m.pager.SearchActive() {
 				m.pager = m.pager.ClearSearch()
 				return m, nil
@@ -1271,7 +1277,7 @@ func (m RunGetFlowModel) openHelp(returnStage runGetStage) (tea.Model, tea.Cmd) 
 // flow routes back to whichever picker opened it. ctrl+c still quits the whole
 // program, unless the "/" search prompt is capturing input.
 func (m RunGetFlowModel) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC && !m.help.Searching() {
+	if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) && !m.help.Searching() {
 		return m.quit(RunGetResult{Action: RunGetActionCancel})
 	}
 	var cmd tea.Cmd
@@ -1359,37 +1365,38 @@ func (m RunGetFlowModel) newRunSelect() components.SelectModel {
 	return components.NewSelectModel(prompt, labels).
 		WithIcons(icons).
 		WithCursor(m.runCursor).
-		WithHint(m.runSelectHint()).
+		WithKeys(m.runSelectKeys()...).
 		WithHeight(m.height)
 }
 
-// runSelectHint is the footer for the run picker. The first picker quits on esc,
-// so it advertises the refresh, status filter ("s", plus "S" to clear it) and —
-// when a scope toggle is available — the trigger-switch shortcut (shift+tab, or
-// Tab on Windows; the active scope and status are named in the title, not here).
-func (m RunGetFlowModel) runSelectHint() string {
-	parts := []string{"↑/↓", "enter", "(r)efresh"}
+// runSelectKeys is the footer for the run picker. The first picker quits on esc,
+// so it advertises the refresh, status filter ("s") and — when a scope toggle is
+// available — the trigger-switch shortcut (shift+tab, or Tab on Windows; the
+// active scope and status are named in the title, not here).
+func (m RunGetFlowModel) runSelectKeys() []key.Binding {
+	keys := []key.Binding{components.BindMove, components.BindSelect, components.BindRefresh}
 	if len(m.scopes) >= 2 {
-		parts = append(parts, "("+switchScopeKeyLabel+") change trigger")
+		keys = append(keys, switchScopeBinding)
 	}
 	if m.statusFilterEnabled() {
-		parts = append(parts, "(s)tatus")
+		keys = append(keys, components.BindStatus)
 	}
 	if m.helpEnabled() {
-		parts = append(parts, "? for help")
+		keys = append(keys, components.BindHelp)
 	}
-	parts = append(parts, "esc to quit")
-	return strings.Join(parts, ", ")
+	keys = append(keys, components.BindQuitEsc)
+	return keys
 }
 
-// backHint is the footer for the workflow, job, execution, step and test
+// backKeys is the footer for the workflow, job, execution, step and test
 // pickers, where esc goes back a step. It advertises the "?" help overlay when a
-// markdown renderer was supplied, otherwise falling back to the plain hint.
-func (m RunGetFlowModel) backHint() string {
-	if !m.helpEnabled() {
-		return runGetBackHint
+// markdown renderer was supplied.
+func (m RunGetFlowModel) backKeys() []key.Binding {
+	keys := []key.Binding{components.BindMove, components.BindSelect, components.BindRefresh, components.BindBack}
+	if m.helpEnabled() {
+		keys = append(keys, components.BindHelp)
 	}
-	return strings.TrimSuffix(runGetBackHint, ")") + ", ? for help)"
+	return keys
 }
 
 func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
@@ -1399,7 +1406,7 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 		WithIcons(icons).
 		WithNote(m.runErrorNote()).
 		WithCursor(m.workflowCursor).
-		WithHint(m.backHint()).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1438,7 +1445,7 @@ func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 	return components.NewSelectModel("Select a job", labels).
 		WithIcons(icons).
 		WithCursor(m.jobCursor).
-		WithHint(m.backHint()).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1454,7 +1461,7 @@ func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 	return components.NewSelectModel("Select an execution", labels).
 		WithIcons(icons).
 		WithCursor(m.executionCursor).
-		WithHint(m.backHint()).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1491,7 +1498,7 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	return components.NewSelectModel("Select a step", labels).
 		WithIcons(icons).
 		WithCursor(cursor).
-		WithHint(m.backHint()).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1513,7 +1520,7 @@ func (m RunGetFlowModel) newTestSelect() components.SelectModel {
 	return components.NewSelectModel("Select a failed test", labels).
 		WithIcons(icons).
 		WithCursor(m.testCursor).
-		WithHint(m.backHint()).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 

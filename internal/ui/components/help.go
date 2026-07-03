@@ -23,13 +23,20 @@
 package components
 
 import (
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
-// helpHint is the footer key-hint line for the help overlay.
-const helpHint = "↑/↓ scroll · g/G top/bottom · / search · esc/q back"
+// helpKeys is the footer key hint set for the help overlay. esc/q both dismiss
+// it, so they share a single binding.
+var helpKeys = []key.Binding{
+	BindScroll,
+	BindTopBottom,
+	BindSearch,
+	key.NewBinding(key.WithKeys("esc", "q"), key.WithHelp("esc/q", "back")),
+}
 
 // HelpModel is a scrollable full-screen help overlay: markdown rendered in a
 // frame (a PagerModel, so it scrolls and offers the less-style "/" search),
@@ -51,7 +58,7 @@ type HelpModel struct {
 func NewHelp(render func(width int) string) HelpModel {
 	return HelpModel{
 		pager: NewPager().
-			WithHint(helpHint).
+			WithKeys(helpKeys...).
 			WithReflow(render).
 			WithBorder(theme.ColorSecondary),
 	}
@@ -88,15 +95,15 @@ func (m HelpModel) Init() tea.Cmd { return nil }
 // open rather than closing the overlay.
 func (m HelpModel) Update(msg tea.Msg) (HelpModel, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok && !m.pager.Searching() {
-		switch k.String() {
-		case KeyEsc:
+		switch {
+		case key.Matches(k, KeyEsc):
 			if m.pager.SearchActive() {
 				m.pager = m.pager.ClearSearch()
 				return m, nil
 			}
 			m.dismissed = true
 			return m, nil
-		case KeyQ:
+		case key.Matches(k, BindQuit):
 			m.dismissed = true
 			return m, nil
 		}

@@ -27,6 +27,7 @@ import (
 	"regexp"
 	"strings"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -107,8 +108,8 @@ func (s *searchState) begin() {
 // pattern, cancelling with Esc, or committing with Enter. It returns true when
 // Enter committed a pattern, so the caller should follow with run.
 func (s *searchState) inputKey(msg tea.KeyPressMsg) (committed bool) {
-	switch msg.String() {
-	case KeyEnter:
+	switch {
+	case key.Matches(msg, KeyEnter):
 		s.searching = false
 		// An empty pattern repeats the previous search, matching less.
 		if s.input != "" {
@@ -117,19 +118,19 @@ func (s *searchState) inputKey(msg tea.KeyPressMsg) (committed bool) {
 		}
 		s.input = ""
 		return true
-	case KeyEsc, KeyCtrlC:
+	case key.Matches(msg, KeyEsc, KeyCtrlC):
 		s.searching = false
 		s.input = ""
 		return false
-	case KeyBackspace:
+	case key.Matches(msg, KeyBackspace):
 		if r := []rune(s.input); len(r) > 0 {
 			s.input = string(r[:len(r)-1])
 		}
 		return false
-	case KeyUp:
+	case key.Matches(msg, KeyHistPrev):
 		s.recallOlder()
 		return false
-	case KeyDown:
+	case key.Matches(msg, KeyHistNext):
 		s.recallNewer()
 		return false
 	}

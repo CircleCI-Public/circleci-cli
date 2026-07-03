@@ -23,6 +23,7 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
@@ -49,12 +50,12 @@ func (m ConfirmModel) Init() tea.Cmd { return nil }
 
 func (m ConfirmModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case "y", "Y":
+		switch {
+		case key.Matches(keyMsg, components.KeyYes):
 			m.confirmed = true
 			m.done = true
 			return m, tea.Quit
-		case "n", "N", components.KeyEsc, components.KeyCtrlC, components.KeyEnter:
+		case key.Matches(keyMsg, components.KeyNo, components.KeyEsc, components.KeyCtrlC, components.KeyEnter):
 			m.done = true
 			return m, tea.Quit
 		}

@@ -23,6 +23,7 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -65,11 +66,11 @@ func (m SecretModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case components.KeyCtrlC, components.KeyEsc:
+		switch {
+		case key.Matches(keyMsg, components.KeyCtrlC, components.KeyEsc):
 			m.quitting = true
 			return m, tea.Quit
-		case components.KeyEnter:
+		case key.Matches(keyMsg, components.KeyEnter):
 			m.value = m.textInput.Value()
 			return m, tea.Quit
 		}
@@ -101,4 +102,4 @@ func (m SecretModel) View() tea.View {
 }
 
 func (m SecretModel) headerView() string { return theme.TitleStyle.Render(m.header) }
-func (m SecretModel) footerView() string { return theme.HelperStyle.Render("(esc to quit)") }
+func (m SecretModel) footerView() string { return components.Hints(components.BindQuitEsc) }
