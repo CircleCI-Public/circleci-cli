@@ -299,15 +299,16 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return apiErr(err, projectSlug)
 	}
 
-	// fetchRuns lists the 10 most recent runs for a branch as picker items. It is
-	// used for the initial load and re-run on each branch-scope toggle.
-	fetchRuns := func(ctx context.Context, br string) ([]ui.RunGetItem, error) {
+	// fetchRuns lists the 10 most recent runs for a branch as picker items,
+	// optionally narrowed to a pipeline status. It is used for the initial load
+	// and re-run on each branch-scope toggle or status-filter change.
+	fetchRuns := func(ctx context.Context, br, status string) ([]ui.RunGetItem, error) {
 		now := time.Now().UTC()
 		runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
 			ProjectIDs: []string{proj.ID.String()},
 			From:       now.AddDate(0, 0, -90),
 			To:         now,
-			Filter:     apiclient.BuildRunFilter(br, ""),
+			Filter:     apiclient.BuildRunFilter(br, status),
 			Limit:      10,
 		})
 		if err != nil {
@@ -316,19 +317,22 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return runItems(runs), nil
 	}
 
-	// fetchMyRuns lists the authenticated user's recent runs across all projects,
-	// backing the run picker's "my runs" scope. Unlike fetchRuns it is neither
-	// project- nor branch-scoped (the counterpart to "circleci my runs").
-	fetchMyRuns := func(ctx context.Context) ([]ui.RunGetItem, error) {
-		runs, err := client.ListMyRunsV3(ctx, 10)
+	// fetchMyRuns lists the authenticated user's recent runs across all projects
+	// (optionally narrowed to a pipeline status), backing the run picker's "my
+	// runs" scope. Unlike fetchRuns it is neither project- nor branch-scoped (the
+	// counterpart to "circleci my runs"). Because it spans projects, each row folds
+	// its project (the "org/repo" slug from the run's repository URL) into the ref
+	// bracket as "[project:branch]".
+	fetchMyRuns := func(ctx context.Context, status string) ([]ui.RunGetItem, error) {
+		runs, err := client.ListMyRunsV3(ctx, 10, status)
 		if err != nil {
 			return nil, apiErr(err, "your runs")
 		}
-		return runItems(runs), nil
+		return runItemsWithProjects(runs, true), nil
 	}
 
 	sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
-	items, err := fetchRuns(ctx, effectiveBranch)
+	items, err := fetchRuns(ctx, effectiveBranch, "")
 	sp.Stop()
 	if err != nil {
 		return err
@@ -345,6 +349,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		DefaultBranch:    defaultBranch,
 		FetchRuns:        fetchRuns,
 		FetchMyRuns:      fetchMyRuns,
+		StatusFilters:    runStatusFilters,
 		FetchWorkflows:   workflowItems(client),
 		FetchJobs:        jobItems(client),
 		FetchExecutions:  executionItems(client),
@@ -748,17 +753,42 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 	iostream.PrintMarkdown(ctx, md.String())
 }
 
+// runStatusFilters are the pipeline statuses the run picker's "s" key cycles
+// through, in order (the picker prepends an "all statuses" entry). The values
+// are apiclient pipeline.status tokens; the labels are the human wording.
+var runStatusFilters = []ui.RunStatusFilter{
+	{Value: apiclient.StatusCanceled, Label: "canceled"},
+	{Value: apiclient.StatusFailed, Label: "failed"},
+	{Value: apiclient.StatusFailing, Label: "failing"},
+	{Value: apiclient.StatusNotRun, Label: "not run"},
+	{Value: apiclient.StatusQueued, Label: "queued"},
+	{Value: apiclient.StatusRunning, Label: "running"},
+	{Value: apiclient.StatusSuccess, Label: "success"},
+}
+
 // runItems maps recent runs to selectable picker items. The status symbol is
 // supplied as an icon (the picker colors it and renders raw text, so it cannot
 // use the emoji from PhaseOutcomeStatus); the label is e.g.
 // "03d8295 [main] - 20 seconds ago".
 func runItems(runs []apiclient.RunV3) []ui.RunGetItem {
+	return runItemsWithProjects(runs, false)
+}
+
+// runItemsWithProjects maps runs to picker items. When withProject is set (the
+// cross-project "my runs" scope), each run's project — its "org/repo" slug from
+// the repository URL — is folded into the ref bracket as "[project:branch]";
+// otherwise (a single-project branch scope) the bracket is just the branch/tag.
+func runItemsWithProjects(runs []apiclient.RunV3, withProject bool) []ui.RunGetItem {
 	items := make([]ui.RunGetItem, len(runs))
 	for i := range runs {
+		project := ""
+		if withProject {
+			project = cmdutil.RepoSlug(runs[i].RepositoryURL)
+		}
 		items[i] = ui.RunGetItem{
 			ID:     runs[i].ID,
 			Icon:   apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
-			Label:  runItemLabel(&runs[i]),
+			Label:  runItemLabel(&runs[i], project),
 			Errors: runItemErrors(runs[i].Errors),
 		}
 	}
@@ -779,25 +809,36 @@ func runItemErrors(errs []apiclient.RunError) []ui.RunGetError {
 }
 
 // runItemLabel renders a run's picker label. Normally that is the short
-// revision and ref (e.g. "03d8295 [main] - 20 seconds ago"). A run that never
-// resolved a commit — an errored run whose config could not be fetched, or one
-// from an unknown trigger — carries no revision, branch or tag, which would
-// leave the label blank but for the timestamp. For those, fall back to the
-// run's first error, then its status word, so the row still says something.
-func runItemLabel(r *apiclient.RunV3) string {
+// revision and ref (e.g. "03d8295 [main] - 20 seconds ago"). When project is set
+// (the cross-project "my runs" scope) it leads the bracket as "[project:main]".
+// A run that never resolved a commit — an errored run whose config could not be
+// fetched, or one from an unknown trigger — carries no revision, branch or tag,
+// which would leave the label blank but for the timestamp. For those, fall back
+// to the run's first error, then its status word, so the row still says
+// something.
+func runItemLabel(r *apiclient.RunV3, project string) string {
 	e := toListEntry(r)
 	ref := e.Branch
 	if ref == "" {
 		ref = e.Tag
 	}
+	// Fold the project (when set) into the ref bracket: "[project:main]", or just
+	// "[project]" for a run with no branch/tag.
+	bracket := ref
+	switch {
+	case project != "" && ref != "":
+		bracket = project + ":" + ref
+	case project != "":
+		bracket = project
+	}
 	var desc string
 	switch {
-	case e.Revision != "" && ref != "":
-		desc = fmt.Sprintf("%s [%s]", e.Revision, ref)
+	case e.Revision != "" && bracket != "":
+		desc = fmt.Sprintf("%s [%s]", e.Revision, bracket)
 	case e.Revision != "":
 		desc = e.Revision
-	case ref != "":
-		desc = "[" + ref + "]"
+	case bracket != "":
+		desc = "[" + bracket + "]"
 	case len(r.Errors) > 0:
 		desc = errorSummary(r.Errors[0])
 	default:

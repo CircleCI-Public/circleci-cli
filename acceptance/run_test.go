@@ -472,7 +472,11 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	fake.AddRunV3(irunRun3ID, runTestProjectID, fakeRunV3(irunRun3ID, runTestProjectID, "ended", "succeeded", "feature", "facefeed12345678"))
 	// A cross-project run surfaced only under the "my runs" scope (user-filtered,
 	// not branch-filtered). Its distinct revision gives the toggle a unique token.
-	fake.SetUserRuns(fakeRunV3(irunRun4ID, runTestProjectID, "ended", "succeeded", "mine", "cafed00d12345678"))
+	// It carries a repository URL, which the picker folds into its ref bracket as
+	// "[org/repo:branch]".
+	myRun := fakeRunV3(irunRun4ID, runTestProjectID, "ended", "succeeded", "mine", "cafed00d12345678")
+	myRun["attributes"].(map[string]any)["vcs"].(map[string]any)["repository_url"] = "https://github.com/testorg/testrepo"
+	fake.SetUserRuns(myRun)
 
 	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
 	fake.AddRunWorkflowsV3(irunRun1ID, wf)
@@ -863,13 +867,77 @@ func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
 	_, err = console.Send(switchSeq)
 	assert.NilError(t, err)
 
-	// The user's cross-project run is now listed. (The picker title also names the
-	// scope "[my runs]", asserted in the ui package's flow test — the PTY renderer
-	// diffs the title line so it does not appear contiguously in this stream.)
-	_, err = console.ExpectString("cafed00 [mine]")
+	// The user's cross-project run is now listed, its project (the "org/repo" slug
+	// from its repository URL) folded into the ref bracket as "[project:branch]".
+	// (The picker title also names the scope "[my runs]", asserted in the ui
+	// package's flow test — the PTY renderer diffs the title line so it does not
+	// appear contiguously here.)
+	_, err = console.ExpectString("cafed00 [testorg/testrepo:mine]")
 	assert.NilError(t, err)
 
 	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_FilterStatus presses "s" to narrow the run picker by
+// pipeline status. The first status in the cycle is "canceled", which no
+// main-branch run has, so the picker keeps its list and shows the empty-status
+// note — confirming "s" issues a status-filtered fetch (the fake filters on
+// pipeline.status).
+func TestRunGet_Interactive_FilterStatus(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	_, err := console.ExpectString("abc1234 [main]")
+	assert.NilError(t, err)
+
+	// all statuses → canceled (no canceled runs on main). Match a contiguous
+	// slice of the note: the PTY renderer rewrites the line char-by-char and may
+	// splice escape sequences between the first letters ("N\x1b[4ho canceled…").
+	_, err = console.Send("s")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("canceled runs on main")
+	assert.NilError(t, err)
+
+	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_FilterStatusMyRuns filters the cross-project "my runs"
+// scope by status. That scope lists via GET /api/v3/runs, which has no status
+// filter — the CLI converts the status to filter[phase]/filter[current_outcome]
+// (apiclient.StatusPhaseOutcome). The only user run succeeded, so filtering to
+// "canceled" empties the list, exercising that conversion end-to-end.
+func TestRunGet_Interactive_FilterStatusMyRuns(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	_, err := console.ExpectString("abc1234 [main]")
+	assert.NilError(t, err)
+
+	switchSeq := "\x1b[Z" // shift+tab (CSI Z)
+	if runtime.GOOS == "windows" {
+		switchSeq = "\t" // Windows binds plain Tab
+	}
+	// main → all branches → my runs.
+	_, err = console.Send(switchSeq)
+	assert.NilError(t, err)
+	_, err = console.ExpectString("facefee [feature]")
+	assert.NilError(t, err)
+	_, err = console.Send(switchSeq)
+	assert.NilError(t, err)
+	_, err = console.ExpectString("cafed00 [testorg/testrepo:mine]")
+	assert.NilError(t, err)
+
+	// my runs, all statuses → canceled: the one user run succeeded, so the
+	// phase=ended/current_outcome=canceled filter matches nothing.
+	_, err = console.Send("s")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("canceled runs in your runs")
+	assert.NilError(t, err)
+
 	_, err = console.Send(keyEsc)
 	assert.NilError(t, err)
 }
