@@ -283,3 +283,74 @@ func TestRenderFlushesBeforeReturningReadError(t *testing.T) {
 	// Content read before the error is still flushed.
 	assert.Check(t, cmp.Equal(buf.String(), "done\n"))
 }
+
+func renderStyled(t *testing.T, in string) string {
+	t.Helper()
+	var buf bytes.Buffer
+	assert.NilError(t, RenderStyled(&buf, strings.NewReader(in)))
+	return buf.String()
+}
+
+// TestRenderStyled covers the color-preserving mode: SGR styling survives, but
+// redraws still collapse. Sequences are re-serialized into a normalized,
+// self-contained form (each run begins with a reset, "\x1b[0;…m", and every
+// styled line ends with a reset), so equal styling coalesces and never bleeds
+// past a line.
+func TestRenderStyled(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{
+			name: "plain text is unstyled",
+			in:   "alpha\nbeta\n",
+			want: "alpha\nbeta\n",
+		},
+		{
+			name: "basic color preserved and normalized",
+			in:   "\x1b[31mred\x1b[0m plain\n",
+			want: "\x1b[0;31mred\x1b[0m plain\n",
+		},
+		{
+			name: "carriage-return redraw keeps the final frame's color",
+			in:   "\x1b[31mwork 0%\x1b[0m\r\x1b[32mwork done\x1b[0m\n",
+			want: "\x1b[0;32mwork done\x1b[0m\n",
+		},
+		{
+			name: "attributes combine",
+			in:   "\x1b[1m\x1b[34mbold blue\x1b[0m\n",
+			want: "\x1b[0;1;34mbold blue\x1b[0m\n",
+		},
+		{
+			name: "256-color foreground",
+			in:   "\x1b[38;5;208morange\x1b[0m\n",
+			want: "\x1b[0;38;5;208morange\x1b[0m\n",
+		},
+		{
+			name: "truecolor foreground",
+			in:   "\x1b[38;2;10;20;30mtc\x1b[0m\n",
+			want: "\x1b[0;38;2;10;20;30mtc\x1b[0m\n",
+		},
+		{
+			name: "erase to end of line after a redraw",
+			in:   "loading...\r\x1b[32mdone\x1b[0m\x1b[K\n",
+			want: "\x1b[0;32mdone\x1b[0m\n",
+		},
+		{
+			name: "unclosed color persists across lines, each line self-contained",
+			in:   "\x1b[33myellow\nnext\n",
+			want: "\x1b[0;33myellow\x1b[0m\n\x1b[0;33mnext\x1b[0m\n",
+		},
+		{
+			name: "later same-category code wins",
+			in:   "\x1b[31m\x1b[32mgreen\x1b[0m\n",
+			want: "\x1b[0;32mgreen\x1b[0m\n",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Check(t, cmp.Equal(renderStyled(t, tt.in), tt.want))
+		})
+	}
+}

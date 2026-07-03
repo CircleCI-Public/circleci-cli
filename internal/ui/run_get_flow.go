@@ -23,6 +23,7 @@
 package ui
 
 import (
+	"bytes"
 	"context"
 	"runtime"
 	"strings"
@@ -33,6 +34,7 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
@@ -1182,13 +1184,27 @@ func (m *RunGetFlowModel) syncPager() {
 	m.pager = m.pager.SetContent(m.pagerContent())
 }
 
-// pagerContent is the string shown in the pager: the accumulated raw output, or
-// a placeholder while nothing has arrived yet.
+// pagerContent is the string shown in the pager: the accumulated raw output
+// replayed through a terminal model (so carriage-return / cursor-movement
+// redraws collapse to their final state) with colors preserved, or a
+// placeholder while nothing has arrived yet.
+//
+// Raw output carries the redraws a terminal resolves in place: apt, Docker and
+// friends repaint progress with "\r" and cursor moves. lipgloss, which renders
+// the pager, instead treats each "\r" (and other control) as a line break, so a
+// single logical line explodes into many visual rows the viewport never budgeted
+// for — inflating the frame and pushing the footer off the bottom of the screen.
+// termrender.RenderStyled replays the stream into the text a human would have
+// seen, keeping SGR styling intact so the output stays colored.
 func (m RunGetFlowModel) pagerContent() string {
 	if len(m.pagerBuf) == 0 {
 		return theme.HelperStyle.Render("(no output yet)")
 	}
-	return string(m.pagerBuf)
+	var buf strings.Builder
+	if err := termrender.RenderStyled(&buf, bytes.NewReader(m.pagerBuf)); err != nil {
+		return string(m.pagerBuf) // fall back to the raw bytes on a render error
+	}
+	return buf.String()
 }
 
 // updateStepPager drives the step-output pager. Scrolling, g/G jump-to-ends and
