@@ -3,7 +3,7 @@
 Print the raw YAML source of an orb version.
 
 If no version is specified, the latest published version is shown.
-Specify a version with @<version> (e.g. @1.2.3 or @volatile for latest).
+Specify a version with `@<version>` (e.g. @1.2.3 or @volatile for latest).
 
 ## Usage
 
@@ -13,15 +13,15 @@ Specify a version with @<version> (e.g. @1.2.3 or @volatile for latest).
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
-- <ns>/<orb>[@<version>]: the orb to print, as "namespace/orb-name".
-  Optionally append @<version> (e.g. @1.2.3, @volatile, or @dev:my-branch).
+- `<ns>/<orb>[@<version>]`: the orb to print, as "namespace/orb-name".
+  Optionally append `@<version>` (e.g. @1.2.3, @volatile, or @dev:my-branch).
   When omitted, the latest published version is shown.
 
 ## Examples

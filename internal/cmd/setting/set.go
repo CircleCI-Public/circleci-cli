@@ -41,11 +41,11 @@ func newSetCmd() *cobra.Command {
 		Use:   "set <key> <value>",
 		Short: "Set a CLI setting",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				- <key> is the setting to change: token, host, telemetry, or theme.
-				- <value> is the value to store. Pass "-" to read it from stdin.
+			"help:arguments": heredoc.Docf(`
+				- %[1]s<key>%[1]s is the setting to change: token, host, telemetry, or theme.
+				- %[1]s<value>%[1]s is the value to store. Pass "-" to read it from stdin.
 				  May be omitted for "theme" to pick interactively.
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Set a CLI setting by key.

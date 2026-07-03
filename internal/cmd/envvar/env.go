@@ -41,7 +41,7 @@ func NewEnvVarCmd() *cobra.Command {
 		Use:     "envvar <command>",
 		GroupID: "management",
 		Short:   "List, set and delete a project's environment variables",
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			List, set, and delete environment variables for a CircleCI project.
 
 			The project is inferred from the current git repository's remote
@@ -50,8 +50,8 @@ func NewEnvVarCmd() *cobra.Command {
 			Environment variable values are masked in list output (shown as "xxxx").
 			The full value is never retrievable after it has been set.
 
-			Also available as: circleci project envvar <command>
-		`),
+			Also available as: circleci project envvar %[1]s<command>%[1]s
+		`, "`"),
 		Example: heredoc.Doc(`
 			# List all environment variables for the current project
 			$ circleci envvar list

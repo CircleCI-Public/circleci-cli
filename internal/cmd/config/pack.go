@@ -38,11 +38,11 @@ func newPackCmd() *cobra.Command {
 		Use:   "pack <path>",
 		Short: "Bundle split config files into a single YAML document",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<path> is the path to a split config directory to pack,
-				e.g. ".circleci" or "src/ci". The directory structure is
+			"help:arguments": heredoc.Docf(`
+				%[1]s<path>%[1]s is the path to a split config directory to pack,
+				for example, %[1]s.circleci%[1]s or %[1]ssrc/ci%[1]s. The directory structure is
 				mapped to YAML keys in the merged document.
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Bundle a split CircleCI config directory into a single YAML document.

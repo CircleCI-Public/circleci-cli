@@ -47,11 +47,11 @@ func NewArtifactCmd() *cobra.Command {
 		GroupID: "ci",
 		Short:   "List and download a job's artifact files",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose artifacts you want to
+			"help:arguments": heredoc.Docf(`
+				%[1]s<job-id>%[1]s is the UUID of the job whose artifacts you want to
 				list or download,
-				e.g. 5034460f-c7c4-4c43-9457-de07e2029e7b.
-			`),
+				for example. %[1]s5034460f-c7c4-4c43-9457-de07e2029e7b%[1]s.
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			List or download artifacts produced by a CircleCI job.

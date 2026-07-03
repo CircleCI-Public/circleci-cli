@@ -9,8 +9,8 @@ flow from the legacy CLI is not reimplemented.
 
 For new usage, prefer:
   circleci auth login                 interactive, browser-based
-  circleci setting set host <host>    store the host
-  circleci setting set token <token>  store the token
+  circleci setting set host `<host>`    store the host
+  circleci setting set token `<token>`  store the token
 
 ## Usage
 
@@ -28,10 +28,10 @@ For new usage, prefer:
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Examples
 

@@ -8,7 +8,7 @@ unless overridden with --project.
 Environment variable values are masked in list output (shown as "xxxx").
 The full value is never retrievable after it has been set.
 
-Also available as: circleci project envvar <command>
+Also available as: circleci project envvar `<command>`
 
 ## Usage
 
@@ -31,10 +31,10 @@ Also available as: circleci project envvar <command>
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Examples
 

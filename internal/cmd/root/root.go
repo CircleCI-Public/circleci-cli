@@ -183,12 +183,12 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.Version = version
 	cmd.SetVersionTemplate("circleci version {{.Version}}\n")
 
-	cmd.PersistentFlags().StringP("config", "c", "", "path to config file (default: ~/.config/circleci/config.yml)")
-	cmd.PersistentFlags().BoolP("quiet", "q", false, "suppress informational output; data on stdout is unaffected")
-	cmd.PersistentFlags().BoolP("debug", "", false, "enable debug logging")
-	cmd.PersistentFlags().StringP("theme", "", "auto", "set the color theme (default: auto)")
+	cmd.PersistentFlags().StringP("config", "c", "", "Path to config file (default: ~/.config/circleci/config.yml)")
+	cmd.PersistentFlags().BoolP("quiet", "q", false, "Suppress informational output. Data on stdout is unaffected")
+	cmd.PersistentFlags().BoolP("debug", "", false, "Enable debug logging")
+	cmd.PersistentFlags().StringP("theme", "", "auto", "Set the color theme (default: auto)")
 	_ = cmd.PersistentFlags().MarkHidden("theme")
-	cmd.PersistentFlags().BoolP("no-color", "", false, "disable ANSI color output (same as setting NO_COLOR)")
+	cmd.PersistentFlags().BoolP("no-color", "", false, "Disable ANSI color output (same as setting NO_COLOR)")
 
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")

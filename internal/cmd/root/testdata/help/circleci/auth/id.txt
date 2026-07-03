@@ -1,6 +1,6 @@
 # CircleCI CLI
 
-Print the device ID for this CLI installation as "<os>:<uuid>".
+Print the device ID for this CLI installation as "`<os>:<uuid>`".
 
 The UUID is generated on first use and stored in the config file.
 The OS prefix (e.g. darwin, linux) is added at print time so you
@@ -9,7 +9,7 @@ is sent with every OAuth authorization request, so you can match
 a token in the CircleCI UI back to this installation.
 
 JSON fields:
-  device_id  string  Stable identifier in the form <os>:<uuid>
+  device_id  string  Stable identifier in the form `<os>:<uuid>`
 
 ## Usage
 
@@ -25,10 +25,10 @@ JSON fields:
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Examples
 

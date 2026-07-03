@@ -1,7 +1,7 @@
 # CircleCI CLI
 
 Detect the language stack, container image, and setup commands for a
-repository, then write a starter pipeline to <path>/.circleci/config.yml.
+repository, then write a starter pipeline to `<path>/.circleci/config.yml`.
 
 If no supported stack is detected, a minimal cimg/base:stable template
 with a placeholder build step is written instead so you have something
@@ -19,10 +19,10 @@ directory is created if needed, and the file is written atomically.
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Examples
 

@@ -43,10 +43,10 @@ func newCreateCmd() *cobra.Command {
 		Use:   "create <name> --org <org>",
 		Short: "Create a namespace",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<name> is the namespace name to create. It must be globally unique
+			"help:arguments": heredoc.Docf(`
+				%[1]s<name>%[1]s is the namespace name to create. It must be globally unique
 				across CircleCI, e.g. "myorg".
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Create a CircleCI orb namespace for an organization.

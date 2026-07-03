@@ -40,10 +40,10 @@ func newOpenCmd() *cobra.Command {
 		Use:   "open <workflow-id>",
 		Short: "Open workflow in browser",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<workflow-id> is the UUID of the workflow to look up. Workflow IDs are
+			"help:arguments": heredoc.Docf(`
+				%[1]s<workflow-id>%[1]s is the UUID of the workflow to look up. Workflow IDs are
 				shown in the output of "circleci run get".
-			`),
+			`, "`"),
 		},
 		Example: heredoc.Doc(`
 			# Open workflow details

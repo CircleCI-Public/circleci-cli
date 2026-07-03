@@ -51,7 +51,7 @@ func NewSetupCmd() *cobra.Command {
 		Use:    "setup",
 		Short:  "Configure the CLI with a host and token (legacy compatibility)",
 		Hidden: true,
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Persist a CircleCI host and API token to the CLI config file.
 
 			This command exists only for backwards compatibility with the
@@ -61,9 +61,9 @@ func NewSetupCmd() *cobra.Command {
 
 			For new usage, prefer:
 			  circleci auth login                 interactive, browser-based
-			  circleci setting set host <host>    store the host
-			  circleci setting set token <token>  store the token
-		`),
+			  circleci setting set host %[1]s<host>%[1]s    store the host
+			  circleci setting set token %[1]s<token>%[1]s  store the token
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Configure the CLI non-interactively (the path the orb uses)
 			$ circleci setup --no-prompt --host https://circleci.com --token mytoken123

@@ -40,10 +40,10 @@ func newRenameCmd() *cobra.Command {
 		Use:   "rename <name> <new-name>",
 		Short: "Rename a namespace",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				- <name> is the current name of the namespace, e.g. "oldname".
-				- <new-name> is the new name to assign, e.g. "newname".
-			`),
+			"help:arguments": heredoc.Docf(`
+				- %[1]s<name>%[1]s is the current name of the namespace, e.g. "oldname".
+				- %[1]s<new-name>%[1]s is the new name to assign, e.g. "newname".
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Rename a CircleCI orb namespace.

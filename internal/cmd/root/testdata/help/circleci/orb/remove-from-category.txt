@@ -2,7 +2,7 @@
 
 Remove an orb from an orb registry category.
 
-Use 'circleci orb get <ns>/<orb>' to see the current categories
+Use 'circleci orb get `<ns>/<orb>`' to see the current categories
 for an orb, and 'circleci orb list-categories' for all available
 categories.
 
@@ -14,15 +14,15 @@ categories.
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
-- <ns>/<orb>: the orb to remove, as "namespace/orb-name"
-- <category>: the registry category name, e.g. "Testing"
+- `<ns>/<orb>`: the orb to remove, as "namespace/orb-name"
+- `<category>`: the registry category name, e.g. "Testing"
 
 ## Examples
 
