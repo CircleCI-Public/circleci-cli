@@ -97,6 +97,20 @@ This has some additional keys:
 | ` + "`" + switchScopeKeyLabel + "`" + ` | Switch trigger — cycle branches and your runs |
 | ` + "`s`" + ` | Cycle the status filter |
 | ` + "`S`" + ` | Clear the status filter (back to all statuses) |
+| ` + "`/`" + ` | Open the filter dialog — pick a branch and status from lists |
+
+### The filter dialog
+
+Opened with ` + "`/`" + ` on the run picker:
+
+| Key | Action |
+| --- | --- |
+| ` + "`tab`" + ` | Move between the lists and the OK / Cancel / Reset buttons |
+| ` + "`←` / `→`" + ` | Switch the Branch / Status tab (or move between buttons) |
+| ` + "`↑` / `↓`" + ` | Move within the active list |
+| ` + "`enter`" + ` | Apply the selection (or activate the focused button) |
+| ` + "`o` / `c` / `r`" + ` | Shortcut for OK / Cancel / Reset |
+| ` + "`esc`" + ` | Cancel and return to the run picker |
 
 ## Pager
 
@@ -332,6 +346,7 @@ func buildRunScopes(current, defaultBranch string, includeMyRuns bool) []runScop
 type RunStatusFilter struct {
 	Value string // pipeline.status value
 	Label string // title/footer wording, e.g. "failed", "needs approval"
+	Icon  string // status glyph shown in the filter dialog's status list
 }
 
 // buildStatusCycle prepends the "all statuses" (no-filter) entry to the caller's
@@ -339,7 +354,9 @@ type RunStatusFilter struct {
 // With no selectable statuses the cycle is just the no-filter entry and the "s"
 // action is suppressed (see statusFilterEnabled).
 func buildStatusCycle(selectable []RunStatusFilter) []RunStatusFilter {
-	return append([]RunStatusFilter{{Label: "all statuses"}}, selectable...)
+	// The no-filter entry is marked with a star in the filter dialog (it is not a
+	// real status, it clears the filter).
+	return append([]RunStatusFilter{{Label: "all statuses", Icon: "★"}}, selectable...)
 }
 
 // runsEmptyNote is the transient footer note shown when a scope+status
@@ -368,6 +385,7 @@ const (
 	runGetStageStepPager
 	runGetStageLoadingTests
 	runGetStageTestSelect
+	runGetStageRunFilter
 	runGetStageHelp
 	runGetStageDone
 )
@@ -497,6 +515,10 @@ type RunGetFlowModel struct {
 	help            components.HelpModel
 	helpReturnStage runGetStage
 
+	// filter is the "/" search dialog on the run picker: a tabbed Branch/Status
+	// chooser with OK/Cancel/Reset buttons. It is (re)built each time "/" opens it.
+	filter runFilterDialog
+
 	result RunGetResult
 }
 
@@ -619,6 +641,8 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateStepSelect(msg)
 	case runGetStageTestSelect:
 		return m.updateTestSelect(msg)
+	case runGetStageRunFilter:
+		return m.updateRunFilter(msg)
 	case runGetStageStepPager:
 		return m.updateStepPager(msg)
 	case runGetStageHelp:
@@ -694,6 +718,11 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingRuns
 			m.loadingLabel = "Refreshing runs"
 			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx))
+		case key.Matches(k, components.BindSearch):
+			if m.filterEnabled() {
+				return m.openRunFilter()
+			}
+			return m, nil
 		case key.Matches(k, components.BindHelp):
 			return m.openHelp(runGetStageRunSelect)
 		}
@@ -762,6 +791,68 @@ func (m RunGetFlowModel) fetchStatus(idx int) (tea.Model, tea.Cmd) {
 		m.loadingLabel = "Fetching runs"
 	}
 	return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, idx))
+}
+
+// filterEnabled reports whether the "/" search dialog is worth offering: true
+// when there is more than one branch scope to choose from or at least one
+// selectable status filter. With neither there is nothing to pick, so "/" is
+// inert and its footer hint is suppressed.
+func (m RunGetFlowModel) filterEnabled() bool {
+	return len(m.scopes) >= 2 || m.statusFilterEnabled()
+}
+
+// openRunFilter builds and shows the "/" search dialog seeded with the active
+// scope and status, sized to the current terminal.
+func (m RunGetFlowModel) openRunFilter() (tea.Model, tea.Cmd) {
+	m.filter = newRunFilterDialog(m.scopes, m.statusFilters, m.activeScopeIdx, m.statusIdx, m.opts.Color)
+	if m.width > 0 && m.height > 0 {
+		m.filter = m.filter.SetSize(m.width, m.height)
+	}
+	m.stage = runGetStageRunFilter
+	return m, nil
+}
+
+// updateRunFilter drives the search dialog. ctrl+c still quits the whole program;
+// otherwise the dialog handles its own keys and reports its outcome. Applying a
+// selection re-fetches the runs for the chosen scope+status (a no-op that just
+// returns to the picker when nothing changed); cancelling returns to the picker
+// unchanged.
+func (m RunGetFlowModel) updateRunFilter(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
+		return m.quit(RunGetResult{Action: RunGetActionCancel})
+	}
+
+	m.filter, _ = m.filter.Update(msg)
+	switch m.filter.Outcome() {
+	case runFilterOpen:
+		// Still open — keep showing the dialog.
+	case runFilterApply:
+		scopeIdx, statusIdx := m.filter.Selected()
+		if scopeIdx == m.activeScopeIdx && statusIdx == m.statusIdx {
+			// Nothing changed — just close the dialog and redisplay the picker.
+			m.runSelect = m.newRunSelect()
+			m.stage = runGetStageRunSelect
+			return m, nil
+		}
+		m.stage = runGetStageLoadingRuns
+		m.loadingLabel = filterLoadingLabel(m.scopes[scopeIdx], m.statusFilters[statusIdx])
+		return m, m.loadingCmd(m.cmdFetchRuns(scopeIdx, statusIdx))
+	case runFilterCancel:
+		m.runSelect = m.newRunSelect()
+		m.stage = runGetStageRunSelect
+		return m, nil
+	}
+	return m, nil
+}
+
+// filterLoadingLabel is the loading line shown while the dialog's chosen
+// scope+status is fetched, e.g. "Fetching failed runs for main branch".
+func filterLoadingLabel(scope runScope, status RunStatusFilter) string {
+	label := "Fetching"
+	if status.Value != "" {
+		label += " " + status.Label
+	}
+	return label + " runs for " + scope.label
 }
 
 func (m RunGetFlowModel) onWorkflows(msg runGetWorkflowsMsg) (tea.Model, tea.Cmd) {
@@ -1302,6 +1393,8 @@ func (m RunGetFlowModel) View() tea.View {
 		return m.stepSelect.View()
 	case runGetStageTestSelect:
 		return m.testSelect.View()
+	case runGetStageRunFilter:
+		return m.filter.View()
 	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		label := theme.HelperStyle.Render(m.loadingLabel)
 		if m.opts.Animate {
@@ -1380,6 +1473,9 @@ func (m RunGetFlowModel) runSelectKeys() []key.Binding {
 	}
 	if m.statusFilterEnabled() {
 		keys = append(keys, components.BindStatus)
+	}
+	if m.filterEnabled() {
+		keys = append(keys, components.BindSearch)
 	}
 	if m.helpEnabled() {
 		keys = append(keys, components.BindHelp)

@@ -29,6 +29,8 @@ import (
 	"charm.land/bubbles/v2/help"
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"charm.land/lipgloss/v2/list"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
@@ -48,6 +50,12 @@ type SelectModel struct {
 	offset  int // index of the first visible option when the list scrolls
 	height  int // terminal rows available; 0 = unlimited (render every option)
 	chosen  bool
+
+	// itemStyleFunc, when set, supplies a per-option label style so a caller can
+	// mark a row as special (e.g. a muted "all statuses" no-filter entry). It is
+	// overlaid with the accent foreground on the cursor row so selection still
+	// reads. Nil means every label renders plain (accent only on the cursor).
+	itemStyleFunc func(i int) lipgloss.Style
 }
 
 func NewSelectModel(prompt string, options []string) SelectModel {
@@ -74,6 +82,16 @@ func (m SelectModel) WithKeys(keys ...key.Binding) SelectModel {
 func (m SelectModel) WithNote(note string) SelectModel {
 	m.note = note
 	m.clampOffset()
+	return m
+}
+
+// WithItemStyleFunc returns a copy whose option labels are styled per-index by
+// fn. The returned style applies to the label text (not the icon or cursor
+// arrow); on the cursor row the accent foreground is layered on top so the
+// highlighted row still stands out while keeping fn's other attributes (e.g.
+// italic). Use it to give a special row a distinct look.
+func (m SelectModel) WithItemStyleFunc(fn func(i int) lipgloss.Style) SelectModel {
+	m.itemStyleFunc = fn
 	return m
 }
 
@@ -164,10 +182,14 @@ func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-// reservedRows is the number of non-option lines the view occupies: the prompt,
-// the hint, and each line of the note (when set).
+// reservedRows is the number of non-option lines the view occupies: the hint,
+// the prompt (when set), and each line of the note (when set). The prompt is
+// omitted for an embedded picker (empty prompt), so it reserves no row then.
 func (m SelectModel) reservedRows() int {
-	reserved := 2 // prompt + hint
+	reserved := 1 // hint
+	if m.prompt != "" {
+		reserved++
+	}
 	if m.note != "" {
 		reserved += strings.Count(m.note, "\n") + 1
 	}
@@ -207,7 +229,11 @@ func (m *SelectModel) clampOffset() {
 
 func (m SelectModel) View() tea.View {
 	var b strings.Builder
-	b.WriteString(theme.TitleStyle.Render("? "+m.prompt) + "\n")
+	// An empty prompt (an embedded picker, e.g. inside a tabbed dialog) renders
+	// no title line so the host owns the heading.
+	if m.prompt != "" {
+		b.WriteString(theme.TitleStyle.Render("? "+m.prompt) + "\n")
+	}
 
 	if m.note != "" {
 		b.WriteString(m.note + "\n")
@@ -224,21 +250,7 @@ func (m SelectModel) View() tea.View {
 	if end > len(m.options) {
 		end = len(m.options)
 	}
-	for i := start; i < end; i++ {
-		opt := m.options[i]
-		// The icon (if any) sits before the label and outside the accent style,
-		// so its status color is preserved on the highlighted row. The label is
-		// styled separately. With no icon this reduces to the original layout.
-		p := m.iconPrefix(i)
-		switch {
-		case i == m.cursor && p != "":
-			b.WriteString(theme.AccentStyle.Render("› ") + p + theme.AccentStyle.Render(opt) + "\n")
-		case i == m.cursor:
-			b.WriteString(theme.AccentStyle.Render("› "+opt) + "\n")
-		default:
-			b.WriteString("  " + p + opt + "\n")
-		}
-	}
+	b.WriteString(m.renderOptions(start, end) + "\n")
 
 	hint := m.help.ShortHelpView(m.keys)
 	if rows < len(m.options) {
@@ -251,6 +263,62 @@ func (m SelectModel) View() tea.View {
 	}
 	b.WriteString(hint)
 	return tea.NewView(b.String())
+}
+
+// renderOptions renders the visible window [start, end) as a lipgloss list. The
+// enumerator column is unused (each row builds its own "› "/"  " prefix) so that
+// the cursor arrow, its space and the label render as a single styled run for the
+// highlighted row. Keeping that text contiguous matters: bubbletea diffs frames
+// and a PTY (especially Windows ConPTY) may split a row that is emitted as
+// several separately-styled pieces, which breaks terminals and tests that match
+// on the visible row. A status icon, when present, is still kept outside the
+// accent style so its own color survives.
+func (m SelectModel) renderOptions(start, end int) string {
+	l := list.New().
+		Enumerator(func(list.Items, int) string { return "" }).
+		EnumeratorStyle(lipgloss.NewStyle())
+	for i := start; i < end; i++ {
+		l.Item(m.renderRow(i))
+	}
+	return l.String()
+}
+
+// renderRow renders option i as "› label" (cursor) or "  label", styled so the
+// row's visible text stays contiguous. The icon, when present, sits between the
+// prefix and the label outside the accent style.
+func (m SelectModel) renderRow(i int) string {
+	prefix := "  "
+	if i == m.cursor {
+		prefix = "› "
+	}
+	label, icon := m.options[i], m.iconPrefix(i)
+	switch {
+	case icon != "" && i == m.cursor:
+		return theme.AccentStyle.Render(prefix) + icon + m.labelStyle(i).Render(label)
+	case icon != "":
+		return prefix + icon + m.labelStyle(i).Render(label)
+	case i == m.cursor:
+		// One contiguous run: the arrow, its space and the label.
+		return m.labelStyle(i).Render(prefix + label)
+	default:
+		return prefix + m.labelStyle(i).Render(label)
+	}
+}
+
+// labelStyle is the style applied to option i's label: the caller-supplied
+// per-item style (WithItemStyleFunc), with the accent foreground layered on when
+// the row is the cursor so the highlighted row still stands out. With no per-item
+// style this is the plain label, accent-colored only on the cursor — matching the
+// original rendering.
+func (m SelectModel) labelStyle(i int) lipgloss.Style {
+	var st lipgloss.Style
+	if m.itemStyleFunc != nil {
+		st = m.itemStyleFunc(i)
+	}
+	if i == m.cursor {
+		st = st.Foreground(theme.ColorAccent)
+	}
+	return st
 }
 
 // iconPrefix returns option i's icon followed by a space, or "" when the option

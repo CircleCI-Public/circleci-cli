@@ -27,6 +27,7 @@ import (
 	"charm.land/bubbles/v2/textinput"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
@@ -112,12 +113,18 @@ func (m PromptModel) View() tea.View {
 
 func (m PromptModel) headerView() string { return theme.TitleStyle.Render(m.header) }
 func (m PromptModel) footerView() string {
-	keys := components.Hints(
+	// Build the whole footer as one styled run. The default hint and the key hints
+	// are all muted, so composing them as plain text and styling once (rather than
+	// concatenating two separately-styled strings) keeps the line contiguous in the
+	// output — an SGR reset mid-line splits it on terminals that don't coalesce
+	// adjacent same-color runs (Windows ConPTY), which breaks matching on it.
+	keys := ansi.Strip(components.Hints(
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
-	)
+	))
+	line := keys
 	if m.defaultVal != "" {
-		return theme.HelperStyle.Render("default: "+m.defaultVal+" · ") + keys
+		line = "default: " + m.defaultVal + " · " + keys
 	}
-	return keys
+	return theme.HelperStyle.Render(line)
 }

@@ -175,18 +175,21 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 }
 
 // RunCLIInteractive executes the circleci binary attached to a PTY and returns
-// both the running command and the console so callers can drive interactive
-// input with Expect/Send. Call cmd.Wait() after interaction is complete.
+// the console so callers can drive interactive input with Expect/Send. Call
+// cmd.Wait() after interaction is complete.
 func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
 	t.Helper()
 
-	// Use 500 columns so OAuth authorize URLs (≈300 chars) are never
-	// hard-wrapped, keeping the URL on a single line for easy extraction.
-	// (Bubbletea also needs a non-zero terminal size to render anything.)
+	// 100 columns is wide enough for the OAuth authorize URL, which is now short
+	// (PAR/RFC 9126 keeps it to a client_id + request_uri, ≈80 chars, e.g.
+	// https://circleci.com/oauth/authorize?request_uri=…), so it stays on a single
+	// line for easy extraction. Keeping the terminal narrow also keeps full-screen
+	// TUIs (the theme picker's preview, the run filter dialog) from rendering very
+	// wide. (Bubbletea also needs a non-zero terminal size to render anything.)
 	c, err := expect.NewConsole(
 		expect.WithStdout(os.Stdout),
 		expect.WithDefaultTimeout(5*time.Second),
-		expect.WithTermSize(500, 80),
+		expect.WithTermSize(100, 80),
 	)
 	assert.NilError(t, err)
 	t.Cleanup(func() {

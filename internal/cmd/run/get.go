@@ -759,14 +759,17 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 // runStatusFilters are the pipeline statuses the run picker's "s" key cycles
 // through, in order (the picker prepends an "all statuses" entry). The values
 // are apiclient pipeline.status tokens; the labels are the human wording.
+// The icons reuse the picker's status glyphs (see colorizeStatusIcon in the ui
+// package), so the filter dialog colors them the same as the run rows: ✓ green,
+// ✗ red, ! yellow, ● blue, ○ / ⊘ muted.
 var runStatusFilters = []ui.RunStatusFilter{
-	{Value: apiclient.StatusCanceled, Label: "canceled"},
-	{Value: apiclient.StatusFailed, Label: "failed"},
-	{Value: apiclient.StatusFailing, Label: "failing"},
-	{Value: apiclient.StatusNotRun, Label: "not run"},
-	{Value: apiclient.StatusQueued, Label: "queued"},
-	{Value: apiclient.StatusRunning, Label: "running"},
-	{Value: apiclient.StatusSuccess, Label: "success"},
+	{Value: apiclient.StatusCanceled, Label: "canceled", Icon: "⊘"},
+	{Value: apiclient.StatusFailed, Label: "failed", Icon: "✗"},
+	{Value: apiclient.StatusFailing, Label: "failing", Icon: "!"},
+	{Value: apiclient.StatusNotRun, Label: "not run", Icon: "⊘"},
+	{Value: apiclient.StatusQueued, Label: "queued", Icon: "○"},
+	{Value: apiclient.StatusRunning, Label: "running", Icon: "●"},
+	{Value: apiclient.StatusSuccess, Label: "success", Icon: "✓"},
 }
 
 // runItems maps recent runs to selectable picker items. The status symbol is
