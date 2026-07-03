@@ -64,6 +64,8 @@ var (
 	keyUp     = tea.KeyPressMsg{Code: tea.KeyUp}
 	keyEnt    = tea.KeyPressMsg{Code: tea.KeyEnter}
 	keyEsc    = tea.KeyPressMsg{Code: tea.KeyEscape}
+	keyQ      = tea.KeyPressMsg{Code: 'q', Text: "q"}
+	keyHelp   = tea.KeyPressMsg{Code: '?', Text: "?"}
 )
 
 // quitMsg tells flowHarness to end the program. The flow ignores unknown message
@@ -157,6 +159,73 @@ func TestRunGetFlow_FooterShortcuts(t *testing.T) {
 	v := flowSnapshot(t, startFlow(t, newToggleFlow(fetchByBranch(nil))))
 	assert.Check(t, cmp.Contains(v, "(r)efresh"))
 	assert.Check(t, cmp.Contains(v, "("+switchLabel+") change trigger"))
+}
+
+// newHelpFlow builds a run-get flow with a markdown renderer wired, enabling the
+// "?" help overlay. The renderer returns the markdown verbatim so tests can
+// assert on its content without depending on glamour styling.
+func newHelpFlow() ui.RunGetFlowModel {
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:           []ui.RunGetItem{runItem("aaaaaaa [main] - 1 minute ago")},
+		CurrentBranch:  "main",
+		RenderMarkdown: func(md string, _ int) string { return md },
+	})
+}
+
+// TestRunGetFlow_HelpOverlay confirms that "?" opens the keyboard-shortcut help,
+// rendered in a rounded border to set it apart from the plain pickers.
+func TestRunGetFlow_HelpOverlay(t *testing.T) {
+	tm := startFlow(t, newHelpFlow())
+
+	tm.Send(keyHelp)
+	waitForOutput(t, tm, "Keyboard shortcuts")
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "Keyboard shortcuts"))
+	assert.Check(t, cmp.Contains(v, "╭")) // framed in a rounded border
+}
+
+// TestRunGetFlow_HelpOverlayReturnsOnEsc confirms esc dismisses the help overlay
+// and returns to the picker it was opened from.
+func TestRunGetFlow_HelpOverlayReturnsOnEsc(t *testing.T) {
+	tm := startFlow(t, newHelpFlow())
+
+	tm.Send(keyHelp)
+	waitForOutput(t, tm, "Keyboard shortcuts")
+
+	tm.Send(keyEsc)
+	waitForOutput(t, tm, "Select a run")
+	assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a run"))
+}
+
+// TestRunGetFlow_HelpOverlayClosesOnQ confirms that "q" also dismisses the help
+// overlay and returns to the picker.
+func TestRunGetFlow_HelpOverlayClosesOnQ(t *testing.T) {
+	tm := startFlow(t, newHelpFlow())
+
+	tm.Send(keyHelp)
+	waitForOutput(t, tm, "Keyboard shortcuts")
+
+	tm.Send(keyQ)
+	waitForOutput(t, tm, "Select a run")
+	assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a run"))
+}
+
+// TestRunGetFlow_HelpHintShownWhenEnabled confirms the run picker footer
+// advertises "? for help" when a markdown renderer is wired.
+func TestRunGetFlow_HelpHintShownWhenEnabled(t *testing.T) {
+	v := flowSnapshot(t, startFlow(t, newHelpFlow()))
+	assert.Check(t, cmp.Contains(v, "? for help"))
+}
+
+// TestRunGetFlow_HelpHintHiddenWhenDisabled confirms the "? for help" hint is
+// absent (and "?" inert) when no markdown renderer is supplied.
+func TestRunGetFlow_HelpHintHiddenWhenDisabled(t *testing.T) {
+	tm := startFlow(t, newToggleFlow(fetchByBranch(nil)))
+	tm.Send(keyHelp) // inert without a renderer
+	v := flowSnapshot(t, tm)
+	assert.Check(t, !strings.Contains(v, "? for help"))
+	assert.Check(t, cmp.Contains(v, "Select a run")) // still on the picker
 }
 
 // TestRunGetFlow_WorkflowPickerShowsRunErrors verifies that selecting a run

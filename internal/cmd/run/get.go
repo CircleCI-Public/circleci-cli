@@ -356,6 +356,9 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		FetchStepStdout:  stepStdout(client),
 		FetchStepStderr:  stepStderr(client),
 		FetchFailedTests: failedTestItems(client),
+		RenderMarkdown: func(md string, width int) string {
+			return iostream.RenderMarkdownAt(ctx, md, width)
+		},
 	})
 
 	final, err := tea.NewProgram(model,

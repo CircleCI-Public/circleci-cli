@@ -285,6 +285,23 @@ func PrintMarkdown(ctx context.Context, md string) {
 	fromContext(ctx).PrintMarkdown(md)
 }
 
+// RenderMarkdownAt renders md as styled markdown wrapped to width columns when
+// color is enabled, falling back to the raw markdown otherwise. Unlike
+// PrintMarkdown it returns the string rather than writing it, for interactive
+// full-screen views (e.g. the run-get help overlay) that re-wrap their content
+// to the live terminal width.
+func RenderMarkdownAt(ctx context.Context, md string, width int) string {
+	s := fromContext(ctx)
+	if !s.ColorEnabled() {
+		return md
+	}
+	out, err := s.renderMarkdownAt(md, width)
+	if err != nil {
+		return md
+	}
+	return out
+}
+
 func Out(ctx context.Context) io.Writer {
 	return fromContext(ctx).Out
 }

@@ -48,6 +48,51 @@ var switchScopeKey, switchScopeKeyLabel = func() (string, string) {
 	return components.KeyShiftTab, "shift+tab"
 }()
 
+// runGetHelpMarkdown is the content of the "?" keyboard-shortcut overlay offered
+// on the run-get pickers. It is rendered to styled, width-wrapped text by the
+// caller-supplied RenderMarkdown and shown in a scrollable frame. The scope
+// toggle names the platform key (shift+tab, or Tab on Windows), matching the
+// binding the run picker actually uses.
+var runGetHelpMarkdown = `# Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| ` + "`esc`" + ` | Go back to the previous screen (quit from the first one) |
+| ` + "`ctrl+c`" + ` | Quit the app immediately |
+
+## Moving around a picker
+
+| Key | Action |
+| --- | --- |
+| ` + "`↑` / `↓`" + ` (or ` + "`k` / `j`" + `) | Move the cursor up / down |
+| ` + "`PgUp` / `PgDn`" + ` | Jump a page at a time |
+| ` + "`g` / `G`" + ` | Jump to the first / last item |
+| ` + "`enter`" + ` | Open the highlighted item |
+| ` + "`r`" + ` | Refresh the current data |
+| ` + "`esc`" + ` | Return to the previous picker |
+
+## The run picker
+
+This has some additional keys:
+
+| Key | Action |
+| --- | --- |
+| ` + "`" + switchScopeKeyLabel + "`" + ` | Switch trigger — cycle branches and your runs |
+| ` + "`s`" + ` | Cycle the status filter |
+| ` + "`S`" + ` | Clear the status filter (back to all statuses) |
+
+## Pager
+
+When paging through markdown, step or test output:
+
+| Key | Action |
+| --- | --- |
+| ` + "`↑` / `↓`" + ` | Scroll one line |
+| ` + "`g` / `G`" + ` | Jump to top / bottom |
+| ` + "`/`" + ` | Search (then ` + "`n` / `N`" + ` for next / previous match) |
+| ` + "`esc`" + ` | Return to the previous screen |
+`
+
 // Labels for the "show everything at this level" option that heads each of the
 // workflow and job pickers.
 const (
@@ -206,6 +251,13 @@ type RunGetFlowOptions struct {
 	// "s" cycles no-filter → each status → back. When empty, the "s" action is
 	// omitted.
 	StatusFilters []RunStatusFilter
+
+	// RenderMarkdown renders markdown as styled text wrapped to width columns,
+	// backing the "?" keyboard-shortcut help overlay the pickers offer. The flow
+	// supplies its own help markdown; the caller only provides the renderer (which
+	// keeps the ui package decoupled from glamour). When nil, the "?" key is inert
+	// and no help hint is shown.
+	RenderMarkdown func(md string, width int) string
 }
 
 // runScope is one entry in the run picker's shift+tab cycle: a branch filter
@@ -308,6 +360,7 @@ const (
 	runGetStageStepPager
 	runGetStageLoadingTests
 	runGetStageTestSelect
+	runGetStageHelp
 	runGetStageDone
 )
 
@@ -429,6 +482,13 @@ type RunGetFlowModel struct {
 	// message.
 	pagerReturnStage runGetStage
 
+	// help is the "?" keyboard-shortcut overlay (a scrollable markdown frame);
+	// helpReturnStage is the picker esc/q returns to when it is dismissed. help is
+	// the zero value (unusable) when RenderMarkdown is nil, in which case "?" is
+	// inert.
+	help            components.HelpModel
+	helpReturnStage runGetStage
+
 	result RunGetResult
 }
 
@@ -486,6 +546,11 @@ func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel 
 		// activeScopeIdx and statusIdx start at 0: the current branch is always the
 		// first scope, and "all statuses" the first filter.
 		stepCursor: -1,
+	}
+	if opts.RenderMarkdown != nil {
+		m.help = components.NewHelp(func(w int) string {
+			return opts.RenderMarkdown(runGetHelpMarkdown, w)
+		})
 	}
 	m.runSelect = m.newRunSelect()
 	return m
@@ -548,6 +613,8 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateTestSelect(msg)
 	case runGetStageStepPager:
 		return m.updateStepPager(msg)
+	case runGetStageHelp:
+		return m.updateHelp(msg)
 	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		// ctrl+c can still abort while a fetch is in flight.
 		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
@@ -619,6 +686,8 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingRuns
 			m.loadingLabel = "Refreshing runs"
 			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx))
+		case components.KeyQuestion:
+			return m.openHelp(runGetStageRunSelect)
 		}
 	}
 
@@ -713,6 +782,8 @@ func (m RunGetFlowModel) updateWorkflowSelect(msg tea.Msg) (tea.Model, tea.Cmd) 
 			m.stage = runGetStageLoadingWorkflows
 			m.loadingLabel = "Refreshing workflows"
 			return m, m.loadingCmd(m.cmdFetchWorkflows())
+		case components.KeyQuestion:
+			return m.openHelp(runGetStageWorkflowSelect)
 		}
 	}
 
@@ -759,6 +830,8 @@ func (m RunGetFlowModel) updateJobSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingJobs
 			m.loadingLabel = "Refreshing jobs"
 			return m, m.loadingCmd(m.cmdFetchJobs())
+		case components.KeyQuestion:
+			return m.openHelp(runGetStageJobSelect)
 		}
 	}
 
@@ -861,6 +934,8 @@ func (m RunGetFlowModel) updateTestSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingTests
 			m.loadingLabel = "Refreshing failed tests"
 			return m, m.loadingCmd(m.cmdFetchTests())
+		case components.KeyQuestion:
+			return m.openHelp(runGetStageTestSelect)
 		}
 	}
 
@@ -929,6 +1004,8 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 			m.stage = runGetStageLoadingExecutions
 			m.loadingLabel = "Refreshing steps"
 			return m, m.loadingCmd(m.cmdFetchExecutions())
+		case components.KeyQuestion:
+			return m.openHelp(runGetStageExecutionSelect)
 		}
 	}
 
@@ -977,6 +1054,8 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingExecutions
 			m.loadingLabel = "Refreshing steps"
 			return m, m.loadingCmd(m.cmdFetchExecutions())
+		case components.KeyQuestion:
+			return m.openHelp(runGetStageStepSelect)
 		}
 	}
 
@@ -1150,6 +1229,43 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// helpEnabled reports whether the "?" keyboard-shortcut overlay is available:
+// true only when the caller supplied a markdown renderer.
+func (m RunGetFlowModel) helpEnabled() bool { return m.opts.RenderMarkdown != nil }
+
+// openHelp shows the keyboard-shortcut overlay, remembering the picker
+// (returnStage) esc/q returns to. It is a no-op when no renderer was supplied.
+// The overlay is sized to the current terminal and reset (search dropped,
+// scrolled to top) so a re-open starts clean.
+func (m RunGetFlowModel) openHelp(returnStage runGetStage) (tea.Model, tea.Cmd) {
+	if !m.helpEnabled() {
+		return m, nil
+	}
+	m.helpReturnStage = returnStage
+	if m.width > 0 && m.height > 0 {
+		m.help = m.help.SetSize(m.width, m.height)
+	}
+	m.help = m.help.Reopen()
+	m.stage = runGetStageHelp
+	return m, nil
+}
+
+// updateHelp drives the help overlay. Scrolling and the "/" search are handled by
+// the help component; esc/q (handled there too) dismiss it, at which point the
+// flow routes back to whichever picker opened it. ctrl+c still quits the whole
+// program, unless the "/" search prompt is capturing input.
+func (m RunGetFlowModel) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC && !m.help.Searching() {
+		return m.quit(RunGetResult{Action: RunGetActionCancel})
+	}
+	var cmd tea.Cmd
+	m.help, cmd = m.help.Update(msg)
+	if m.help.Dismissed() {
+		m.stage = m.helpReturnStage
+	}
+	return m, cmd
+}
+
 func (m RunGetFlowModel) View() tea.View {
 	switch m.stage {
 	case runGetStageRunSelect:
@@ -1172,6 +1288,8 @@ func (m RunGetFlowModel) View() tea.View {
 		return tea.NewView(label)
 	case runGetStageStepPager:
 		return m.stepPagerView()
+	case runGetStageHelp:
+		return m.help.View()
 	case runGetStageDone:
 		// Empty final frame so the last picker is cleared before the program
 		// exits and the summary prints in its place.
@@ -1241,8 +1359,21 @@ func (m RunGetFlowModel) runSelectHint() string {
 	if m.statusFilterEnabled() {
 		parts = append(parts, "(s)tatus")
 	}
+	if m.helpEnabled() {
+		parts = append(parts, "? for help")
+	}
 	parts = append(parts, "esc to quit")
 	return strings.Join(parts, ", ")
+}
+
+// backHint is the footer for the workflow, job, execution, step and test
+// pickers, where esc goes back a step. It advertises the "?" help overlay when a
+// markdown renderer was supplied, otherwise falling back to the plain hint.
+func (m RunGetFlowModel) backHint() string {
+	if !m.helpEnabled() {
+		return runGetBackHint
+	}
+	return strings.TrimSuffix(runGetBackHint, ")") + ", ? for help)"
 }
 
 func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
@@ -1252,7 +1383,7 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 		WithIcons(icons).
 		WithNote(m.runErrorNote()).
 		WithCursor(m.workflowCursor).
-		WithHint(runGetBackHint).
+		WithHint(m.backHint()).
 		WithHeight(m.height)
 }
 
@@ -1291,7 +1422,7 @@ func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 	return components.NewSelectModel("Select a job", labels).
 		WithIcons(icons).
 		WithCursor(m.jobCursor).
-		WithHint(runGetBackHint).
+		WithHint(m.backHint()).
 		WithHeight(m.height)
 }
 
@@ -1307,7 +1438,7 @@ func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 	return components.NewSelectModel("Select an execution", labels).
 		WithIcons(icons).
 		WithCursor(m.executionCursor).
-		WithHint(runGetBackHint).
+		WithHint(m.backHint()).
 		WithHeight(m.height)
 }
 
@@ -1344,7 +1475,7 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	return components.NewSelectModel("Select a step", labels).
 		WithIcons(icons).
 		WithCursor(cursor).
-		WithHint(runGetBackHint).
+		WithHint(m.backHint()).
 		WithHeight(m.height)
 }
 
@@ -1366,7 +1497,7 @@ func (m RunGetFlowModel) newTestSelect() components.SelectModel {
 	return components.NewSelectModel("Select a failed test", labels).
 		WithIcons(icons).
 		WithCursor(m.testCursor).
-		WithHint(runGetBackHint).
+		WithHint(m.backHint()).
 		WithHeight(m.height)
 }
 

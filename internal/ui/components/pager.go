@@ -24,6 +24,7 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
@@ -80,6 +81,12 @@ type PagerModel struct {
 	// hint is the key-hint text shown at the right of the footer.
 	hint string
 
+	// border, when set (bordered), frames the viewport. It is applied as the
+	// viewport's Style, so the viewport reserves the frame from its own dimensions
+	// and the content is re-wrapped to the reduced width. Unset renders flush.
+	border   lipgloss.Style
+	bordered bool
+
 	ready  bool
 	width  int
 	height int
@@ -94,6 +101,20 @@ func NewPager() PagerModel {
 // WithHint sets the footer key-hint text (e.g. "↑/↓ scroll · / search · q quit").
 func (m PagerModel) WithHint(hint string) PagerModel {
 	m.hint = hint
+	return m
+}
+
+// WithBorder frames the viewport in a rounded border of the given color, offset
+// from the text by a right pad. Use it to lift an overlay (e.g. the help view)
+// off the content behind it. The border is drawn inside the pager's width, so
+// the content re-wraps to the reduced interior — callers pass the full terminal
+// size as usual. Unset (the default) renders flush, with no border.
+func (m PagerModel) WithBorder(c color.Color) PagerModel {
+	m.border = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(c).
+		PaddingRight(2)
+	m.bordered = true
 	return m
 }
 
@@ -268,8 +289,18 @@ func (m *PagerModel) resize(width, height int) {
 		m.vp.SetWidth(width)
 		m.vp.SetHeight(vpHeight)
 	}
+	// A border is the viewport's own Style: it reserves the frame from the width
+	// and height set above, so the interior — what content must wrap to — is
+	// narrower. Reflow to that interior width, not the full terminal width.
+	contentWidth := width
+	if m.bordered {
+		m.vp.Style = m.border
+		if fw := m.border.GetHorizontalFrameSize(); fw < width {
+			contentWidth = width - fw
+		}
+	}
 	if m.reflow != nil {
-		m.content = m.reflow(width)
+		m.content = m.reflow(contentWidth)
 	}
 	m.search.reapply(m.content, &m.vp)
 }
