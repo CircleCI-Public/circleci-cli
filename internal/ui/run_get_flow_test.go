@@ -686,8 +686,10 @@ func driveToStepPicker(t *testing.T, tm *teatest.TestModel) {
 
 // TestRunGetFlow_StepPagerStreams selects the failed step and drives the
 // streaming pager: stdout arrives over two polled chunks then terminates, after
-// which stderr is appended. It asserts the raw ANSI is preserved (colors), the
-// footer reflects streaming vs. done, and every chunk lands in the pager.
+// which stderr is appended. It asserts the ANSI colors survive (the output is
+// replayed through termrender, which re-serializes SGR — "\x1b[31m" becomes the
+// normalized "\x1b[0;31m"), the footer reflects streaming vs. done, and every
+// chunk lands in the pager.
 func TestRunGetFlow_StepPagerStreams(t *testing.T) {
 	chunks := [][]byte{
 		[]byte("\x1b[31mERROR\x1b[0m first line\n"),
@@ -733,8 +735,43 @@ func TestRunGetFlow_StepPagerStreams(t *testing.T) {
 		assert.Check(t, cmp.Contains(body, "second line"))
 		assert.Check(t, cmp.Contains(body, "stderr tail"))
 		assert.Check(t, !strings.Contains(body, "streaming…"), "streaming indicator should clear once terminal")
-		assert.Check(t, cmp.Contains(raw, "\x1b[31m"), "raw ANSI/colors must be preserved")
+		assert.Check(t, cmp.Contains(raw, "\x1b[0;31m"), "ANSI colors must be preserved (SGR re-serialized by termrender)")
 	}))
+}
+
+// TestRunGetFlow_StepPagerCollapsesCarriageReturns confirms that carriage-return
+// overwrites in step output (apt/npm-style progress bars that redraw a line many
+// times) are collapsed to their final frame. Left intact, lipgloss renders each
+// "\r" as a line break, inflating the viewport past its height and pushing the
+// footer off the bottom of the screen.
+func TestRunGetFlow_StepPagerCollapsesCarriageReturns(t *testing.T) {
+	// One logical line ("\n"-terminated) redrawn three times via "\r", plus a
+	// CRLF-terminated line whose final redraw is colored green — only the last
+	// redraw of each should survive, with its color intact.
+	progress := "0% [Working]\r            \rHit:1 archive InRelease\n" +
+		"downloading 50%\r\x1b[32mdownloading 100%\x1b[0m\r\n"
+	stdout := func(context.Context, uuid.UUID, int, int, int64) ([]byte, bool, error) {
+		return []byte(progress), true, nil
+	}
+	stderr := func(context.Context, uuid.UUID, int, int) ([]byte, error) { return nil, nil }
+
+	tm := startFlow(t, newStepFlow(stdout, stderr))
+	driveToStepPicker(t, tm)
+	tm.Send(keyEnt) // open the failed step's output in the pager
+	waitForOutput(t, tm, "Hit:1 archive InRelease")
+
+	tm.Send(quitMsg{})
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(flowHarness)
+	raw := fm.m.View().Content
+	body := ansi.Strip(raw)
+
+	assert.Check(t, cmp.Contains(body, "Hit:1 archive InRelease"))
+	assert.Check(t, cmp.Contains(body, "downloading 100%"))
+	// The intermediate redraws are overwritten, not shown as extra lines.
+	assert.Check(t, !strings.Contains(body, "0% [Working]"))
+	assert.Check(t, !strings.Contains(body, "downloading 50%"))
+	// The surviving frame keeps its color (green foreground).
+	assert.Check(t, cmp.Contains(raw, "\x1b[0;32mdownloading 100%"))
 }
 
 // TestRunGetFlow_StepPagerEscResumes confirms esc from the pager returns to the
