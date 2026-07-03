@@ -133,23 +133,23 @@ func newCreateCmd() *cobra.Command {
 
 			JSON fields: id, name, cert_id
 		`),
-		Example: heredoc.Doc(`
+		Example: heredoc.Docf(`
 			# Create a signing config (org inferred from git remote)
 			$ circleci signing-config create \
 			    --name production-signing \
-			    --cert-id <cert-id> \
+			    --cert-id %[1]s<cert-id>%[1]s \
 			    --profile ./MyApp.mobileprovision
 
 			# Multiple profiles
 			$ circleci signing-config create \
 			    --name multi-target-signing \
-			    --cert-id <cert-id> \
+			    --cert-id %[1]s<cert-id>%[1]s \
 			    --profile ./MyApp.mobileprovision \
 			    --profile ./MyAppExtension.mobileprovision
 
 			# Explicit org and capture the id for scripting
 			$ circleci signing-config create --org gh/acme --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'
-		`),
+		`, "`"),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if name == "" {
@@ -327,10 +327,10 @@ func newDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete an iOS signing config",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<signing-config-id> is the ID of the signing config to delete
+			"help:arguments": heredoc.Docf(`
+				%[1]s<signing-config-id>%[1]s is the ID of the signing config to delete
 				(see: circleci signing-config list).
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Permanently remove an iOS signing config from your organization.

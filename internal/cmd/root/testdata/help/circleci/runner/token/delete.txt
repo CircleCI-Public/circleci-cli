@@ -5,7 +5,7 @@ Delete a CircleCI runner authentication token by its ID.
 Any runner agents using this token will immediately lose their ability
 to claim new jobs. Running jobs are not affected.
 
-Find token IDs with: circleci runner token list <resource-class>
+Find token IDs with: circleci runner token list `<resource-class>`
 
 In a terminal, you will be prompted to confirm before deleting.
 Use --force (-f) to skip the prompt for scripting.
@@ -28,15 +28,15 @@ Use --force (-f) to skip the prompt for scripting.
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
-<token-id> is the ID of the token to delete (a UUID). Find token IDs
-with: circleci runner token list --resource-class <namespace/name>
+`<token-id>` is the ID of the token to delete (a UUID). Find token IDs
+with: circleci runner token list --resource-class `<namespace/name>`
 
 ## Examples
 

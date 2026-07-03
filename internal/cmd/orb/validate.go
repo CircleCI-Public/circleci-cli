@@ -44,9 +44,9 @@ func newValidateCmd() *cobra.Command {
 		Use:   "validate <path>",
 		Short: "Validate an orb YAML file",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				- <path>: path to an orb YAML file. Pass '-' to read from stdin.
-			`),
+			"help:arguments": heredoc.Docf(`
+				- %[1]s<path>%[1]s: path to an orb YAML file. Pass '-' to read from stdin.
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Validate an orb YAML file against the CircleCI API.

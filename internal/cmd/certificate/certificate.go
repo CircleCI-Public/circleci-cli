@@ -296,10 +296,10 @@ func newDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete an iOS certificate",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<cert-id> is the ID of the certificate to delete
+			"help:arguments": heredoc.Docf(`
+				%[1]s<cert-id>%[1]s is the ID of the certificate to delete
 				(see: circleci certificate list).
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Remove an Apple certificate from your organization's secure storage.

@@ -163,11 +163,11 @@ func NewEnvSetCmd() *cobra.Command {
 		Use:   "set <name> <value>",
 		Short: "Set a project environment variable",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<name> is the name of the environment variable to create or
-				update. <value> is the value to store; it is never retrievable
+			"help:arguments": heredoc.Docf(`
+				%[1]s<name>%[1]s is the name of the environment variable to create or
+				update. %[1]s<value>%[1]s is the value to store; it is never retrievable
 				after being set and is masked in all subsequent list output.
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Create or update an environment variable for a CircleCI project.
@@ -240,10 +240,10 @@ func NewEnvDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete a project environment variable",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<name> is the name of the environment variable to delete from
+			"help:arguments": heredoc.Docf(`
+				%[1]s<name>%[1]s is the name of the environment variable to delete from
 				the project. This action is irreversible.
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Delete an environment variable from a CircleCI project.

@@ -23,15 +23,15 @@ unless overridden with --project.
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
-<name> is the name of the environment variable to create or
-update. <value> is the value to store; it is never retrievable
+`<name>` is the name of the environment variable to create or
+update. `<value>` is the value to store; it is never retrievable
 after being set and is masked in all subsequent list output.
 
 ## Examples

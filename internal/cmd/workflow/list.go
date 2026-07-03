@@ -52,15 +52,15 @@ func newListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List workflows for a run or recent runs",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<run-id> is optional and selects a single run. It can be:
+			"help:arguments": heredoc.Docf(`
+				%[1]s<run-id>%[1]s is optional and selects a single run. It can be:
 				- a run UUID (shown in "circleci run list --json")
 				- a run number (shown in "circleci run list"); the project is
 				  inferred from the git remote unless overridden with --project
 
 				When omitted, workflows for recent runs in the current project are
 				listed, grouped by run.
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			List workflows for a CircleCI run.

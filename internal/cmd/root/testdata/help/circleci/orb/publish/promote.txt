@@ -2,7 +2,7 @@
 
 Promote a dev orb version to a stable semver version.
 
-The dev version ref must be in the form <ns>/<orb>@dev:<label>.
+The dev version ref must be in the form `<ns>/<orb>@dev:<label>`.
 The --bump flag determines how the version is incremented
 from the latest stable release.
 
@@ -20,14 +20,14 @@ from the latest stable release.
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
-- <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+- `<ns>/<orb>@dev:<label>`: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
 
 ## Examples
 

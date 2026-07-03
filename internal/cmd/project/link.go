@@ -50,13 +50,13 @@ func newLinkCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "link",
 		Short: "Bind this checkout to a CircleCI project",
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Record the CircleCI project for the current checkout in
 			.circleci/info.yml so other commands can resolve it without
 			re-detecting from the git remote each time.
 
 			Resolution order:
-			  1. --project <slug>, if given.
+			  1. --project %[1]s<slug>%[1]s, if given.
 			  2. The git remote (origin) of the current directory.
 			  3. An interactive prompt — used when neither of the above
 			     yields a project the API recognises.
@@ -67,7 +67,7 @@ func newLinkCmd() *cobra.Command {
 
 			An existing .circleci/info.yml is preserved unless --force
 			is passed.
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Auto-detect from the current git repository
 			$ circleci project link
@@ -88,7 +88,7 @@ func newLinkCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>)")
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo or `circleci/<orgID>/<projectID>`)")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Overwrite an existing .circleci/info.yml")
 
 	return cmd

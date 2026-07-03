@@ -194,10 +194,10 @@ func newTokenCreateCmd() *cobra.Command {
 		Use:   "create <resource-class>",
 		Short: "Create a token for a resource class",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<resource-class> is the runner resource class to create a token for,
+			"help:arguments": heredoc.Docf(`
+				%[1]s<resource-class>%[1]s is the runner resource class to create a token for,
 				in the form "namespace/name" (e.g. my-org/my-runner).
-			`),
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Create a new authentication token for a runner resource class.
@@ -284,22 +284,22 @@ func newTokenDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete a runner token",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<token-id> is the ID of the token to delete (a UUID). Find token IDs
-				with: circleci runner token list --resource-class <namespace/name>
-			`),
+			"help:arguments": heredoc.Docf(`
+				%[1]s<token-id>%[1]s is the ID of the token to delete (a UUID). Find token IDs
+				with: circleci runner token list --resource-class %[1]s<namespace/name>%[1]s
+			`, "`"),
 		},
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Delete a CircleCI runner authentication token by its ID.
 
 			Any runner agents using this token will immediately lose their ability
 			to claim new jobs. Running jobs are not affected.
 
-			Find token IDs with: circleci runner token list <resource-class>
+			Find token IDs with: circleci runner token list %[1]s<resource-class>%[1]s
 
 			In a terminal, you will be prompted to confirm before deleting.
 			Use --force (-f) to skip the prompt for scripting.
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Delete a token by ID (with confirmation prompt)
 			$ circleci runner token delete abc12345-0000-0000-0000-000000000000

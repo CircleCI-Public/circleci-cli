@@ -40,10 +40,10 @@ func newOpenCmd() *cobra.Command {
 		Use:   "open <job-id>",
 		Short: "Open job in browser",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job to look up. Job UUIDs are shown in
+			"help:arguments": heredoc.Docf(`
+				%[1]s<job-id>%[1]s is the UUID of the job to look up. Job UUIDs are shown in
 				the output of "circleci workflow get" and "circleci run get --json".
-			`),
+			`, "`"),
 		},
 		Example: heredoc.Doc(`
 			# Open job by UUID

@@ -38,18 +38,18 @@ func newRemoveFromCategoryCmd() *cobra.Command {
 		Use:   "remove-from-category <ns>/<orb> <category>",
 		Short: "Remove an orb from a registry category",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				- <ns>/<orb>: the orb to remove, as "namespace/orb-name"
-				- <category>: the registry category name, e.g. "Testing"
-			`),
+			"help:arguments": heredoc.Docf(`
+				- %[1]s<ns>/<orb>%[1]s: the orb to remove, as "namespace/orb-name"
+				- %[1]s<category>%[1]s: the registry category name, e.g. "Testing"
+			`, "`"),
 		},
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Remove an orb from an orb registry category.
 
-			Use 'circleci orb get <ns>/<orb>' to see the current categories
+			Use 'circleci orb get %[1]s<ns>/<orb>%[1]s' to see the current categories
 			for an orb, and 'circleci orb list-categories' for all available
 			categories.
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Remove an orb from the Testing category
 			$ circleci orb remove-from-category myorg/my-orb "Testing"

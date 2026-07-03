@@ -62,16 +62,16 @@ func newListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List test results for a job",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose test results to list. Job
+			"help:arguments": heredoc.Docf(`
+				%[1]s<job-id>%[1]s is the UUID of the job whose test results to list. Job
 				UUIDs are shown in "circleci job get" and "circleci run get --json".
-			`),
+			`, "`"),
 		},
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Show the test results recorded for a CircleCI job.
 
 			By default only failed tests are shown. Pass --all to show every
-			result, or --filter result=<value> to select specific outcomes.
+			result, or --filter result=%[1]s<value>%[1]s to select specific outcomes.
 
 			--filter takes key=value and may be repeated. Repeating the same key
 			matches any of its values (OR); different keys must all match (AND).
@@ -94,7 +94,7 @@ func newListCmd() *cobra.Command {
 			'.name' prints one name per line), and jq's inputs builtin pulls the
 			rest of the stream, e.g. '[.,inputs] | length' or
 			'[.,inputs] | group_by(.result) | map({(.[0].result): length})'.
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# List failed tests for a job (the default)
 			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b
