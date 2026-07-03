@@ -24,7 +24,10 @@ package components
 
 import (
 	"fmt"
+	"image/color"
 
+	"charm.land/bubbles/v2/help"
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/viewport"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
@@ -77,23 +80,46 @@ type PagerModel struct {
 	// re-wrapping markdown). When nil, content is left as last set and the viewport
 	// soft-wraps it to the new width.
 	reflow func(width int) string
-	// hint is the key-hint text shown at the right of the footer.
-	hint string
+	// keys are the footer key bindings rendered at the right of the footer.
+	keys []key.Binding
+	// help renders keys into the muted, " · "-joined footer line.
+	help help.Model
+
+	// border, when set (bordered), frames the viewport. It is applied as the
+	// viewport's Style, so the viewport reserves the frame from its own dimensions
+	// and the content is re-wrapped to the reduced width. Unset renders flush.
+	border   lipgloss.Style
+	bordered bool
 
 	ready  bool
 	width  int
 	height int
 }
 
-// NewPager returns an empty pager. Chain WithHint / WithReflow / WithContent to
+// NewPager returns an empty pager. Chain WithKeys / WithReflow / WithContent to
 // configure it before use.
 func NewPager() PagerModel {
-	return PagerModel{search: newSearchState()}
+	return PagerModel{search: newSearchState(), help: footerHelp()}
 }
 
-// WithHint sets the footer key-hint text (e.g. "↑/↓ scroll · / search · q quit").
-func (m PagerModel) WithHint(hint string) PagerModel {
-	m.hint = hint
+// WithKeys sets the footer key bindings (e.g. BindScroll, BindSearch, BindQuit).
+// They are rendered as a muted, " · "-joined hint line at the right of the footer.
+func (m PagerModel) WithKeys(keys ...key.Binding) PagerModel {
+	m.keys = keys
+	return m
+}
+
+// WithBorder frames the viewport in a rounded border of the given color, offset
+// from the text by a right pad. Use it to lift an overlay (e.g. the help view)
+// off the content behind it. The border is drawn inside the pager's width, so
+// the content re-wraps to the reduced interior — callers pass the full terminal
+// size as usual. Unset (the default) renders flush, with no border.
+func (m PagerModel) WithBorder(c color.Color) PagerModel {
+	m.border = lipgloss.NewStyle().
+		BorderStyle(lipgloss.RoundedBorder()).
+		BorderForeground(c).
+		PaddingRight(2)
+	m.bordered = true
 	return m
 }
 
@@ -205,20 +231,20 @@ func (m PagerModel) Update(msg tea.Msg) (PagerModel, tea.Cmd) {
 			}
 			return m, nil
 		}
-		switch msg.String() {
-		case KeySlash:
+		switch {
+		case key.Matches(msg, BindSearch):
 			m.search.begin()
 			return m, nil
-		case KeyN:
+		case key.Matches(msg, KeySearchNext):
 			m.search.next(m.content, &m.vp)
 			return m, nil
-		case KeyShiftN:
+		case key.Matches(msg, KeySearchPrev):
 			m.search.prev(m.content, &m.vp)
 			return m, nil
-		case KeyG, KeyHome:
+		case key.Matches(msg, KeyTop):
 			m.vp.GotoTop()
 			return m, nil
-		case KeyShiftG, KeyEnd:
+		case key.Matches(msg, KeyBottom):
 			m.vp.GotoBottom()
 			return m, nil
 		}
@@ -250,7 +276,7 @@ func (m PagerModel) footer(status string) string {
 		return "\n" + m.search.promptText()
 	}
 	pct := fmt.Sprintf("%3.0f%%", m.vp.ScrollPercent()*100)
-	return "\n" + status + m.search.statusText() + theme.HelperStyle.Render(m.hint+"  "+pct)
+	return "\n" + status + m.search.statusText() + m.help.ShortHelpView(m.keys) + theme.HelperStyle.Render("  "+pct)
 }
 
 // resize sizes the viewport to the terminal (reserving the footer), re-wraps the
@@ -268,8 +294,18 @@ func (m *PagerModel) resize(width, height int) {
 		m.vp.SetWidth(width)
 		m.vp.SetHeight(vpHeight)
 	}
+	// A border is the viewport's own Style: it reserves the frame from the width
+	// and height set above, so the interior — what content must wrap to — is
+	// narrower. Reflow to that interior width, not the full terminal width.
+	contentWidth := width
+	if m.bordered {
+		m.vp.Style = m.border
+		if fw := m.border.GetHorizontalFrameSize(); fw < width {
+			contentWidth = width - fw
+		}
+	}
 	if m.reflow != nil {
-		m.content = m.reflow(width)
+		m.content = m.reflow(contentWidth)
 	}
 	m.search.reapply(m.content, &m.vp)
 }

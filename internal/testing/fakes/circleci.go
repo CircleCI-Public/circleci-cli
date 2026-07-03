@@ -1012,8 +1012,22 @@ func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// The my-runs endpoint has no status filter; it filters on the run's own
+	// phase and current_outcome (see apiclient.StatusPhaseOutcome).
+	phase := r.URL.Query().Get("filter[phase]")
+	currentOutcome := r.URL.Query().Get("filter[current_outcome]")
+
 	f.mu.RLock()
-	results := append([]any(nil), f.userRunsV3...)
+	var results []any
+	for _, run := range f.userRunsV3 {
+		if phase != "" && runAttr(run, "phase") != phase {
+			continue
+		}
+		if currentOutcome != "" && runAttr(run, "current_outcome") != currentOutcome {
+			continue
+		}
+		results = append(results, run)
+	}
 	f.mu.RUnlock()
 
 	if size, err := strconv.Atoi(r.URL.Query().Get("page[limit]")); err == nil && size > 0 && len(results) > size {
@@ -1057,14 +1071,19 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	}
 
 	branch := runBranchFilter(body.Filter)
+	status := runStatusFilterExpr(body.Filter)
 
 	f.mu.RLock()
 	var results []any
 	for _, pid := range body.Scope.ProjectIDs {
 		for _, run := range f.runsV3ByProject[pid] {
-			if branch == "" || runBranch(run) == branch {
-				results = append(results, run)
+			if branch != "" && runBranch(run) != branch {
+				continue
 			}
+			if status != "" && runStatus(run) != status {
+				continue
+			}
+			results = append(results, run)
 		}
 	}
 	f.mu.RUnlock()
@@ -1096,6 +1115,18 @@ func runBranchFilter(filter string) string {
 	return rest[:j]
 }
 
+// runAttr reads a top-level attributes field (e.g. "phase", "current_outcome")
+// from a stored fake run as a string, or "" if absent.
+func runAttr(run any, key string) string {
+	m, ok := run.(map[string]any)
+	if !ok {
+		return ""
+	}
+	attrs, _ := m["attributes"].(map[string]any)
+	s, _ := attrs[key].(string)
+	return s
+}
+
 // runBranch reads attributes.vcs.branch from a stored fake run, or "" if absent.
 func runBranch(run any) string {
 	m, ok := run.(map[string]any)
@@ -1106,6 +1137,45 @@ func runBranch(run any) string {
 	vcs, _ := attrs["vcs"].(map[string]any)
 	branch, _ := vcs["branch"].(string)
 	return branch
+}
+
+// runStatusFilterExpr extracts the pipeline status pinned by a V3 search filter
+// expression like `pipeline.status == "failed"`. It returns "" when no status is
+// pinned, meaning "match every status".
+func runStatusFilterExpr(filter string) string {
+	const key = `pipeline.status == "`
+	i := strings.Index(filter, key)
+	if i < 0 {
+		return ""
+	}
+	rest := filter[i+len(key):]
+	j := strings.Index(rest, `"`)
+	if j < 0 {
+		return ""
+	}
+	return rest[:j]
+}
+
+// runStatus derives a stored fake run's pipeline status token (as filtered on by
+// the search endpoint's pipeline.status and the my-runs filter[status] param)
+// from its phase and current_outcome. An ended run maps its outcome
+// ("succeeded" → "success", others pass through); a non-ended run reports its
+// phase (e.g. "running").
+func runStatus(run any) string {
+	m, ok := run.(map[string]any)
+	if !ok {
+		return ""
+	}
+	attrs, _ := m["attributes"].(map[string]any)
+	phase, _ := attrs["phase"].(string)
+	if phase != "ended" {
+		return phase
+	}
+	outcome, _ := attrs["current_outcome"].(string)
+	if outcome == "succeeded" {
+		return "success"
+	}
+	return outcome
 }
 
 func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {

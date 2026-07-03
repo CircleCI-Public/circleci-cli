@@ -29,6 +29,7 @@ import (
 	"testing"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/exp/teatest/v2"
 	"gotest.tools/v3/assert"
@@ -56,7 +57,7 @@ type selectHarness struct {
 func (h selectHarness) Init() tea.Cmd { return h.m.Init() }
 
 func (h selectHarness) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
+	if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
 		return h, tea.Quit
 	}
 	updated, cmd := h.m.Update(msg)

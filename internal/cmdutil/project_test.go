@@ -20,30 +20,19 @@
 //
 // SPDX-License-Identifier: MIT
 
-package components
+package cmdutil
 
-// Key constants map bubbletea key-press string representations to named values.
-const (
-	KeyCtrlC     = "ctrl+c"
-	KeyEnter     = "enter"
-	KeyEsc       = "esc"
-	KeyTab       = "tab"
-	KeyShiftTab  = "shift+tab"
-	KeyBackspace = "backspace"
-	KeyHome      = "home"
-	KeyEnd       = "end"
-	KeyPgUp      = "pgup"
-	KeyPgDown    = "pgdown"
-	KeyUp        = "up"
-	KeyDown      = "down"
-	KeySlash     = "/"
+import (
+	"testing"
 
-	// Letter keys. The value is the literal bubbletea reports; uppercase
-	// variants are the shifted key (e.g. "N" for shift+n).
-	KeyQ      = "q"
-	KeyR      = "r"
-	KeyN      = "n"
-	KeyShiftN = "N"
-	KeyG      = "g"
-	KeyShiftG = "G"
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
+
+func TestRepoSlug(t *testing.T) {
+	assert.Check(t, cmp.Equal(RepoSlug(""), ""))
+	assert.Check(t, cmp.Equal(RepoSlug("https://github.com/acme/web"), "acme/web"))
+	assert.Check(t, cmp.Equal(RepoSlug("https://github.com/acme/web.git"), "acme/web"))
+	// Unparseable input passes through unchanged.
+	assert.Check(t, cmp.Equal(RepoSlug("not a url"), "not a url"))
+}

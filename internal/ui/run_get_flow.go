@@ -23,31 +23,106 @@
 package ui
 
 import (
+	"bytes"
 	"context"
-	"fmt"
 	"runtime"
 	"strings"
 	"time"
 
+	"charm.land/bubbles/v2/key"
 	"charm.land/bubbles/v2/spinner"
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
-// switchScopeKey is the run picker's "switch branch" key, with its display
-// label. Non-Windows uses shift+tab; on Windows the ConPTY/ultraviolet input
-// stack drops shift+tab (the modifier is discarded and CSI Z yields no key
-// event at all), so plain Tab is bound instead.
-var switchScopeKey, switchScopeKeyLabel = func() (string, string) {
+// switchScopeBinding is the run picker's "switch trigger" shortcut, built from
+// the platform key binding: shift+tab normally, or plain Tab on Windows, where
+// the ConPTY/ultraviolet input stack drops shift+tab (the modifier is discarded
+// and CSI Z yields no key event at all). Its help label names that key.
+var switchScopeBinding = func() key.Binding {
+	k := components.KeyShiftTab
 	if runtime.GOOS == "windows" {
-		return components.KeyTab, "tab"
+		k = components.KeyTab
 	}
-	return components.KeyShiftTab, "shift+tab"
+	return key.NewBinding(key.WithKeys(k.Keys()...), key.WithHelp(k.Keys()[0], "change trigger"))
 }()
+
+// switchScopeKeyLabel names the platform switch-trigger key for help prose.
+var switchScopeKeyLabel = switchScopeBinding.Help().Key
+
+// stepPagerKeys is the footer key hint set for the step-output / test-message
+// pager. Unlike the markdown pager, esc goes back to the picker rather than
+// quitting.
+var stepPagerKeys = []key.Binding{
+	components.BindScroll,
+	components.BindTopBottom,
+	components.BindSearch,
+	components.BindBack,
+}
+
+// runGetHelpMarkdown is the content of the "?" keyboard-shortcut overlay offered
+// on the run-get pickers. It is rendered to styled, width-wrapped text by the
+// caller-supplied RenderMarkdown and shown in a scrollable frame. The scope
+// toggle names the platform key (shift+tab, or Tab on Windows), matching the
+// binding the run picker actually uses.
+var runGetHelpMarkdown = `# Keyboard shortcuts
+
+| Key | Action |
+| --- | --- |
+| ` + "`esc`" + ` | Go back to the previous screen (quit from the first one) |
+| ` + "`ctrl+c`" + ` | Quit the app immediately |
+
+## Moving around a picker
+
+| Key | Action |
+| --- | --- |
+| ` + "`↑` / `↓`" + ` (or ` + "`k` / `j`" + `) | Move the cursor up / down |
+| ` + "`PgUp` / `PgDn`" + ` | Jump a page at a time |
+| ` + "`g` / `G`" + ` | Jump to the first / last item |
+| ` + "`enter`" + ` | Open the highlighted item |
+| ` + "`r`" + ` | Refresh the current data |
+| ` + "`esc`" + ` | Return to the previous picker |
+
+## The run picker
+
+This has some additional keys:
+
+| Key | Action |
+| --- | --- |
+| ` + "`" + switchScopeKeyLabel + "`" + ` | Switch trigger — cycle branches and your runs |
+| ` + "`s`" + ` | Cycle the status filter |
+| ` + "`S`" + ` | Clear the status filter (back to all statuses) |
+| ` + "`/`" + ` | Open the filter dialog — pick a branch and status from lists |
+
+### The filter dialog
+
+Opened with ` + "`/`" + ` on the run picker:
+
+| Key | Action |
+| --- | --- |
+| ` + "`tab`" + ` | Move between the lists and the OK / Cancel / Reset buttons |
+| ` + "`←` / `→`" + ` | Switch the Branch / Status tab (or move between buttons) |
+| ` + "`↑` / `↓`" + ` | Move within the active list |
+| ` + "`enter`" + ` | Apply the selection (or activate the focused button) |
+| ` + "`o` / `c` / `r`" + ` | Shortcut for OK / Cancel / Reset |
+| ` + "`esc`" + ` | Cancel and return to the run picker |
+
+## Pager
+
+When paging through markdown, step or test output:
+
+| Key | Action |
+| --- | --- |
+| ` + "`↑` / `↓`" + ` | Scroll one line |
+| ` + "`g` / `G`" + ` | Jump to top / bottom |
+| ` + "`/`" + ` | Search (then ` + "`n` / `N`" + ` for next / previous match) |
+| ` + "`esc`" + ` | Return to the previous screen |
+`
 
 // Labels for the "show everything at this level" option that heads each of the
 // workflow and job pickers.
@@ -63,15 +138,6 @@ const (
 	// job: the step picker for a single-execution job, or the execution picker
 	// otherwise.
 	runGetMetaCount = 3
-
-	// runGetBackHint replaces the default footer on the workflow, job and step
-	// pickers, where esc goes back a step rather than quitting and r re-fetches.
-	runGetBackHint = "(↑/↓ to move, enter to select, r to refresh, esc to go back)"
-
-	// stepPagerHint is the footer key-hint line for the step-output / test-message
-	// pager. Unlike the markdown pager, esc goes back to the picker rather than
-	// quitting.
-	stepPagerHint = "↑/↓ scroll · g/G top/bottom · / search · esc back"
 
 	// runGetMetaGlyph fills the icon column for the leading "see all" / "all
 	// jobs" summary options. They carry no status, so rather than leave a blank
@@ -191,26 +257,39 @@ type RunGetFlowOptions struct {
 	// DefaultBranch is the project's default branch. When the two differ, the run
 	// picker offers a shift+tab toggle between them, re-fetching via FetchRuns.
 	// When DefaultBranch is empty or equal to CurrentBranch, the toggle is hidden.
+	// The status argument to FetchRuns is the active status filter (the "s" key),
+	// a pipeline.status value ("" = every status).
 	CurrentBranch string
 	DefaultBranch string
-	FetchRuns     func(ctx context.Context, branch string) ([]RunGetItem, error)
+	FetchRuns     func(ctx context.Context, branch, status string) ([]RunGetItem, error)
 	// FetchMyRuns lists the authenticated user's recent runs across all projects
 	// (the counterpart to "circleci my runs"). When set, the run picker's
 	// shift+tab cycle gains a "my runs" scope that fetches via this callback
-	// rather than by branch; when nil the scope is omitted.
-	FetchMyRuns func(ctx context.Context) ([]RunGetItem, error)
+	// rather than by branch; when nil the scope is omitted. status is the active
+	// status filter, as for FetchRuns.
+	FetchMyRuns func(ctx context.Context, status string) ([]RunGetItem, error)
+	// StatusFilters are the pipeline statuses the "s" key cycles through, in
+	// order. The picker prepends an "all statuses" (no filter) entry, so pressing
+	// "s" cycles no-filter → each status → back. When empty, the "s" action is
+	// omitted.
+	StatusFilters []RunStatusFilter
+
+	// RenderMarkdown renders markdown as styled text wrapped to width columns,
+	// backing the "?" keyboard-shortcut help overlay the pickers offer. The flow
+	// supplies its own help markdown; the caller only provides the renderer (which
+	// keeps the ui package decoupled from glamour). When nil, the "?" key is inert
+	// and no help hint is shown.
+	RenderMarkdown func(md string, width int) string
 }
 
 // runScope is one entry in the run picker's shift+tab cycle: a branch filter
 // ("" means all branches) with the label shown in the picker title and loading
-// line, and the note shown when the scope has no runs. A myRuns scope is not
-// branch-filtered at all — it lists the user's runs across all projects via
-// FetchMyRuns instead of FetchRuns.
+// line. A myRuns scope is not branch-filtered at all — it lists the user's runs
+// across all projects via FetchMyRuns instead of FetchRuns.
 type runScope struct {
-	branch    string // "" = all branches (ignored when myRuns)
-	myRuns    bool   // list the authenticated user's runs across all projects
-	label     string // title/loading wording, e.g. "main branch", "all branches"
-	emptyNote string // shown when the scope has no runs
+	branch string // "" = all branches (ignored when myRuns)
+	myRuns bool   // list the authenticated user's runs across all projects
+	label  string // title/loading wording, e.g. "main branch", "all branches"
 }
 
 // titleName is the bracket-inner text for the picker title: the bare branch
@@ -227,6 +306,19 @@ func (s runScope) titleName() string {
 	}
 }
 
+// where is the location phrase used in the "no runs" footer note, e.g.
+// "on main", "on any branch", or "in your runs".
+func (s runScope) where() string {
+	switch {
+	case s.myRuns:
+		return "in your runs"
+	case s.branch == "":
+		return "on any branch"
+	default:
+		return "on " + s.branch
+	}
+}
+
 // buildRunScopes assembles the toggle cycle: the current branch, then the
 // default branch when it is known and distinct, then "all branches", and
 // finally "my runs" when includeMyRuns is set (i.e. FetchMyRuns is wired). The
@@ -234,17 +326,47 @@ func (s runScope) titleName() string {
 // only one branch to name.
 func buildRunScopes(current, defaultBranch string, includeMyRuns bool) []runScope {
 	branchScope := func(b string) runScope {
-		return runScope{branch: b, label: b + " branch", emptyNote: "No runs found on " + b}
+		return runScope{branch: b, label: b + " branch"}
 	}
 	scopes := []runScope{branchScope(current)}
 	if defaultBranch != "" && defaultBranch != current {
 		scopes = append(scopes, branchScope(defaultBranch))
 	}
-	scopes = append(scopes, runScope{label: "all branches", emptyNote: "No runs found on any branch"})
+	scopes = append(scopes, runScope{label: "all branches"})
 	if includeMyRuns {
-		scopes = append(scopes, runScope{myRuns: true, label: "your runs", emptyNote: "You have no recent runs"})
+		scopes = append(scopes, runScope{myRuns: true, label: "your runs"})
 	}
 	return scopes
+}
+
+// RunStatusFilter is one selectable pipeline-status filter offered by the run
+// picker's "s" key: the API pipeline.status value and the label shown to the
+// user. The caller supplies the list (from apiclient status constants) so the
+// ui package stays decoupled from the API client.
+type RunStatusFilter struct {
+	Value string // pipeline.status value
+	Label string // title/footer wording, e.g. "failed", "needs approval"
+	Icon  string // status glyph shown in the filter dialog's status list
+}
+
+// buildStatusCycle prepends the "all statuses" (no-filter) entry to the caller's
+// selectable statuses, so pressing "s" cycles no-filter → each status → back.
+// With no selectable statuses the cycle is just the no-filter entry and the "s"
+// action is suppressed (see statusFilterEnabled).
+func buildStatusCycle(selectable []RunStatusFilter) []RunStatusFilter {
+	// The no-filter entry is marked with a star in the filter dialog (it is not a
+	// real status, it clears the filter).
+	return append([]RunStatusFilter{{Label: "all statuses", Icon: "★"}}, selectable...)
+}
+
+// runsEmptyNote is the transient footer note shown when a scope+status
+// combination has no runs, e.g. "No runs found on main" or "No failed runs in
+// your runs".
+func runsEmptyNote(scope runScope, status RunStatusFilter) string {
+	if status.Value == "" {
+		return "No runs found " + scope.where()
+	}
+	return "No " + status.Label + " runs " + scope.where()
 }
 
 type runGetStage int
@@ -263,6 +385,8 @@ const (
 	runGetStageStepPager
 	runGetStageLoadingTests
 	runGetStageTestSelect
+	runGetStageRunFilter
+	runGetStageHelp
 	runGetStageDone
 )
 
@@ -317,15 +441,18 @@ type RunGetFlowModel struct {
 
 	// runs is the run list currently shown by the first picker. It starts as
 	// opts.Runs (the CurrentBranch runs) and is replaced when the user cycles to
-	// another scope with shift+tab. scopes is the ordered cycle of scopes (current
-	// branch, default branch, all branches, and optionally "my runs");
-	// activeScopeIdx is the index into scopes of the scope runs currently holds.
-	// toggleNote carries a transient footer message (e.g. when a scope has no
-	// runs).
+	// another scope (shift+tab) or status filter (s); it is empty when the active
+	// scope+status has no runs (the picker then shows an empty-state placeholder).
+	// scopes is the ordered cycle of scopes (current branch, default branch, all
+	// branches, and optionally "my runs"); activeScopeIdx is the index into scopes
+	// of the scope runs currently holds. statusFilters is the status-filter cycle
+	// (an "all statuses" entry followed by opts.StatusFilters); statusIdx is the
+	// index into it of the active filter (0 = all statuses).
 	runs           []RunGetItem
 	scopes         []runScope
 	activeScopeIdx int
-	toggleNote     string
+	statusFilters  []RunStatusFilter
+	statusIdx      int
 
 	// Fetched data for the current selections, parallel to the pickers (the
 	// workflow/job/step pickers are offset by their leading summary options).
@@ -381,15 +508,27 @@ type RunGetFlowModel struct {
 	// message.
 	pagerReturnStage runGetStage
 
+	// help is the "?" keyboard-shortcut overlay (a scrollable markdown frame);
+	// helpReturnStage is the picker esc/q returns to when it is dismissed. help is
+	// the zero value (unusable) when RenderMarkdown is nil, in which case "?" is
+	// inert.
+	help            components.HelpModel
+	helpReturnStage runGetStage
+
+	// filter is the "/" search dialog on the run picker: a tabbed Branch/Status
+	// chooser with OK/Cancel/Reset buttons. It is (re)built each time "/" opens it.
+	filter runFilterDialog
+
 	result RunGetResult
 }
 
 // async message types carrying fetch results back into the Update loop.
 type (
 	runGetRunsMsg struct {
-		items    []RunGetItem
-		scopeIdx int
-		err      error
+		items     []RunGetItem
+		scopeIdx  int
+		statusIdx int
+		err       error
 	}
 	runGetWorkflowsMsg struct {
 		items []RunGetItem
@@ -426,15 +565,22 @@ type (
 // NewRunGetFlow returns a RunGetFlowModel ready to pass to tea.NewProgram.
 func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel {
 	m := RunGetFlowModel{
-		ctx:    ctx,
-		opts:   opts,
-		stage:  runGetStageRunSelect,
-		spin:   components.NewSpinner(opts.Color),
-		pager:  components.NewPager().WithHint(stepPagerHint),
-		runs:   opts.Runs,
-		scopes: buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil),
-		// activeScopeIdx starts at 0: the current branch is always the first scope.
+		ctx:           ctx,
+		opts:          opts,
+		stage:         runGetStageRunSelect,
+		spin:          components.NewSpinner(opts.Color),
+		pager:         components.NewPager().WithKeys(stepPagerKeys...),
+		runs:          opts.Runs,
+		scopes:        buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil),
+		statusFilters: buildStatusCycle(opts.StatusFilters),
+		// activeScopeIdx and statusIdx start at 0: the current branch is always the
+		// first scope, and "all statuses" the first filter.
 		stepCursor: -1,
+	}
+	if opts.RenderMarkdown != nil {
+		m.help = components.NewHelp(func(w int) string {
+			return opts.RenderMarkdown(runGetHelpMarkdown, w)
+		})
 	}
 	m.runSelect = m.newRunSelect()
 	return m
@@ -495,11 +641,15 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateStepSelect(msg)
 	case runGetStageTestSelect:
 		return m.updateTestSelect(msg)
+	case runGetStageRunFilter:
+		return m.updateRunFilter(msg)
 	case runGetStageStepPager:
 		return m.updateStepPager(msg)
+	case runGetStageHelp:
+		return m.updateHelp(msg)
 	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		// ctrl+c can still abort while a fetch is in flight.
-		if k, ok := msg.(tea.KeyPressMsg); ok && k.String() == components.KeyCtrlC {
+		if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
 		}
 	case runGetStageDone:
@@ -541,23 +691,40 @@ func (m RunGetFlowModel) quit(res RunGetResult) (tea.Model, tea.Cmd) {
 // there is no earlier step to return to.
 func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC, components.KeyEsc:
+		switch {
+		case key.Matches(k, components.KeyCtrlC, components.KeyEsc):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case switchScopeKey:
+		case key.Matches(k, switchScopeBinding):
 			if len(m.scopes) >= 2 {
 				next := (m.activeScopeIdx + 1) % len(m.scopes)
-				m.toggleNote = ""
 				m.stage = runGetStageLoadingRuns
 				m.loadingLabel = "Fetching runs for " + m.scopes[next].label
-				return m, m.loadingCmd(m.cmdFetchRuns(next))
+				return m, m.loadingCmd(m.cmdFetchRuns(next, m.statusIdx))
 			}
 			return m, nil
-		case components.KeyR:
-			m.toggleNote = ""
+		case key.Matches(k, components.BindStatus):
+			if m.statusFilterEnabled() {
+				return m.fetchStatus((m.statusIdx + 1) % len(m.statusFilters))
+			}
+			return m, nil
+		case key.Matches(k, components.KeyStatusClear):
+			// Jump straight back to "all statuses" (index 0); a no-op when already
+			// there.
+			if m.statusFilterEnabled() && m.statusIdx != 0 {
+				return m.fetchStatus(0)
+			}
+			return m, nil
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingRuns
 			m.loadingLabel = "Refreshing runs"
-			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx))
+			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx))
+		case key.Matches(k, components.BindSearch):
+			if m.filterEnabled() {
+				return m.openRunFilter()
+			}
+			return m, nil
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageRunSelect)
 		}
 	}
 
@@ -565,6 +732,13 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.runSelect = updated.(components.SelectModel)
 	if !m.runSelect.Done() {
 		return m, cmd
+	}
+
+	if len(m.runs) == 0 {
+		// The empty-state placeholder is the only row; there is nothing to open.
+		// Rebuild the picker to clear its "chosen" flag and stay put.
+		m.runSelect = m.newRunSelect()
+		return m, nil
 	}
 
 	m.runCursor = m.runSelect.Selected()
@@ -575,21 +749,20 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, m.loadingCmd(m.cmdFetchWorkflows())
 }
 
-// onRuns handles a completed shift+tab scope toggle. On error it quits; when the
-// scope has no runs it keeps the current list and shows a footer note; otherwise
-// it swaps in the scope's runs with the cursor reset.
+// onRuns handles a completed re-fetch (a shift+tab scope toggle, an "s" status
+// change, or an "r" refresh). On error it quits; otherwise it swaps in the new
+// runs and commits the scope and status that produced them, with the cursor
+// reset. An empty result is committed too (the picker shows an empty-state
+// placeholder) so cycling never gets stuck — the next toggle advances from the
+// just-committed filter rather than retrying the same empty one.
 func (m RunGetFlowModel) onRuns(msg runGetRunsMsg) (tea.Model, tea.Cmd) {
 	if msg.err != nil {
 		return m.quit(RunGetResult{Action: RunGetActionCancel, Err: msg.err})
 	}
-	if len(msg.items) == 0 {
-		m.toggleNote = m.scopes[msg.scopeIdx].emptyNote
-	} else {
-		m.runs = msg.items
-		m.activeScopeIdx = msg.scopeIdx
-		m.runCursor = 0
-		m.toggleNote = ""
-	}
+	m.runs = msg.items
+	m.activeScopeIdx = msg.scopeIdx
+	m.statusIdx = msg.statusIdx
+	m.runCursor = 0
 	m.runSelect = m.newRunSelect()
 	m.stage = runGetStageRunSelect
 	return m, nil
@@ -598,6 +771,88 @@ func (m RunGetFlowModel) onRuns(msg runGetRunsMsg) (tea.Model, tea.Cmd) {
 // activeScope is the scope whose runs are currently shown.
 func (m RunGetFlowModel) activeScope() runScope {
 	return m.scopes[m.activeScopeIdx]
+}
+
+// statusFilterEnabled reports whether the "s" status-filter action is available:
+// true only when the caller supplied at least one selectable status (the cycle
+// then holds the "all statuses" entry plus those).
+func (m RunGetFlowModel) statusFilterEnabled() bool {
+	return len(m.statusFilters) > 1
+}
+
+// fetchStatus begins loading the active scope's runs under the status filter at
+// idx, with a loading label naming the status ("all statuses" reads as plain
+// "Fetching runs").
+func (m RunGetFlowModel) fetchStatus(idx int) (tea.Model, tea.Cmd) {
+	m.stage = runGetStageLoadingRuns
+	if s := m.statusFilters[idx]; s.Value != "" {
+		m.loadingLabel = "Fetching " + s.Label + " runs"
+	} else {
+		m.loadingLabel = "Fetching runs"
+	}
+	return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, idx))
+}
+
+// filterEnabled reports whether the "/" search dialog is worth offering: true
+// when there is more than one branch scope to choose from or at least one
+// selectable status filter. With neither there is nothing to pick, so "/" is
+// inert and its footer hint is suppressed.
+func (m RunGetFlowModel) filterEnabled() bool {
+	return len(m.scopes) >= 2 || m.statusFilterEnabled()
+}
+
+// openRunFilter builds and shows the "/" search dialog seeded with the active
+// scope and status, sized to the current terminal.
+func (m RunGetFlowModel) openRunFilter() (tea.Model, tea.Cmd) {
+	m.filter = newRunFilterDialog(m.scopes, m.statusFilters, m.activeScopeIdx, m.statusIdx, m.opts.Color)
+	if m.width > 0 && m.height > 0 {
+		m.filter = m.filter.SetSize(m.width, m.height)
+	}
+	m.stage = runGetStageRunFilter
+	return m, nil
+}
+
+// updateRunFilter drives the search dialog. ctrl+c still quits the whole program;
+// otherwise the dialog handles its own keys and reports its outcome. Applying a
+// selection re-fetches the runs for the chosen scope+status (a no-op that just
+// returns to the picker when nothing changed); cancelling returns to the picker
+// unchanged.
+func (m RunGetFlowModel) updateRunFilter(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
+		return m.quit(RunGetResult{Action: RunGetActionCancel})
+	}
+
+	m.filter, _ = m.filter.Update(msg)
+	switch m.filter.Outcome() {
+	case runFilterOpen:
+		// Still open — keep showing the dialog.
+	case runFilterApply:
+		scopeIdx, statusIdx := m.filter.Selected()
+		if scopeIdx == m.activeScopeIdx && statusIdx == m.statusIdx {
+			// Nothing changed — just close the dialog and redisplay the picker.
+			m.runSelect = m.newRunSelect()
+			m.stage = runGetStageRunSelect
+			return m, nil
+		}
+		m.stage = runGetStageLoadingRuns
+		m.loadingLabel = filterLoadingLabel(m.scopes[scopeIdx], m.statusFilters[statusIdx])
+		return m, m.loadingCmd(m.cmdFetchRuns(scopeIdx, statusIdx))
+	case runFilterCancel:
+		m.runSelect = m.newRunSelect()
+		m.stage = runGetStageRunSelect
+		return m, nil
+	}
+	return m, nil
+}
+
+// filterLoadingLabel is the loading line shown while the dialog's chosen
+// scope+status is fetched, e.g. "Fetching failed runs for main branch".
+func filterLoadingLabel(scope runScope, status RunStatusFilter) string {
+	label := "Fetching"
+	if status.Value != "" {
+		label += " " + status.Label
+	}
+	return label + " runs for " + scope.label
 }
 
 func (m RunGetFlowModel) onWorkflows(msg runGetWorkflowsMsg) (tea.Model, tea.Cmd) {
@@ -615,17 +870,19 @@ func (m RunGetFlowModel) onWorkflows(msg runGetWorkflowsMsg) (tea.Model, tea.Cmd
 // picker; ctrl+c quits. Selecting the leading option shows the whole run.
 func (m RunGetFlowModel) updateWorkflowSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			m.runSelect = m.newRunSelect()
 			m.stage = runGetStageRunSelect
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingWorkflows
 			m.loadingLabel = "Refreshing workflows"
 			return m, m.loadingCmd(m.cmdFetchWorkflows())
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageWorkflowSelect)
 		}
 	}
 
@@ -661,17 +918,19 @@ func (m RunGetFlowModel) onJobs(msg runGetJobsMsg) (tea.Model, tea.Cmd) {
 // advances to the step picker.
 func (m RunGetFlowModel) updateJobSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			m.workflowSelect = m.newWorkflowSelect()
 			m.stage = runGetStageWorkflowSelect
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingJobs
 			m.loadingLabel = "Refreshing jobs"
 			return m, m.loadingCmd(m.cmdFetchJobs())
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageJobSelect)
 		}
 	}
 
@@ -765,15 +1024,17 @@ func (m RunGetFlowModel) onTests(msg runGetTestsMsg) (tea.Model, tea.Cmd) {
 // tests the picker shows a single placeholder row that simply goes back.
 func (m RunGetFlowModel) updateTestSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			return m.returnFromTestSelect(), nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingTests
 			m.loadingLabel = "Refreshing failed tests"
 			return m, m.loadingCmd(m.cmdFetchTests())
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageTestSelect)
 		}
 	}
 
@@ -831,17 +1092,19 @@ func (m *RunGetFlowModel) openTestMessage(message string) {
 // rows are executions. esc returns to the job picker; ctrl+c quits.
 func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			m.jobSelect = m.newJobSelect()
 			m.stage = runGetStageJobSelect
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingExecutions
 			m.loadingLabel = "Refreshing steps"
 			return m, m.loadingCmd(m.cmdFetchExecutions())
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageExecutionSelect)
 		}
 	}
 
@@ -870,10 +1133,10 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 // they live on the execution picker instead, so here it is steps only.
 func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyPressMsg); ok {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			if len(m.executions) > 1 {
 				m.executionSelect = m.newExecutionSelect()
 				m.stage = runGetStageExecutionSelect
@@ -882,7 +1145,7 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				m.stage = runGetStageJobSelect
 			}
 			return m, nil
-		case components.KeyR:
+		case key.Matches(k, components.BindRefresh):
 			// Steps come from the job's executions; re-fetch them and re-enter the
 			// current execution's steps (restoreStep) instead of bouncing back to
 			// the execution picker.
@@ -890,6 +1153,8 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.stage = runGetStageLoadingExecutions
 			m.loadingLabel = "Refreshing steps"
 			return m, m.loadingCmd(m.cmdFetchExecutions())
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageStepSelect)
 		}
 	}
 
@@ -1016,13 +1281,27 @@ func (m *RunGetFlowModel) syncPager() {
 	m.pager = m.pager.SetContent(m.pagerContent())
 }
 
-// pagerContent is the string shown in the pager: the accumulated raw output, or
-// a placeholder while nothing has arrived yet.
+// pagerContent is the string shown in the pager: the accumulated raw output
+// replayed through a terminal model (so carriage-return / cursor-movement
+// redraws collapse to their final state) with colors preserved, or a
+// placeholder while nothing has arrived yet.
+//
+// Raw output carries the redraws a terminal resolves in place: apt, Docker and
+// friends repaint progress with "\r" and cursor moves. lipgloss, which renders
+// the pager, instead treats each "\r" (and other control) as a line break, so a
+// single logical line explodes into many visual rows the viewport never budgeted
+// for — inflating the frame and pushing the footer off the bottom of the screen.
+// termrender.RenderStyled replays the stream into the text a human would have
+// seen, keeping SGR styling intact so the output stays colored.
 func (m RunGetFlowModel) pagerContent() string {
 	if len(m.pagerBuf) == 0 {
 		return theme.HelperStyle.Render("(no output yet)")
 	}
-	return string(m.pagerBuf)
+	var buf strings.Builder
+	if err := termrender.RenderStyled(&buf, bytes.NewReader(m.pagerBuf)); err != nil {
+		return string(m.pagerBuf) // fall back to the raw bytes on a render error
+	}
+	return buf.String()
 }
 
 // updateStepPager drives the step-output pager. Scrolling, g/G jump-to-ends and
@@ -1035,10 +1314,10 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Guard on Searching so esc/ctrl+c reach the "/" prompt (cancel) rather than
 	// acting as lifecycle keys while a pattern is being typed.
 	if k, ok := msg.(tea.KeyPressMsg); ok && !m.pager.Searching() {
-		switch k.String() {
-		case components.KeyCtrlC:
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
-		case components.KeyEsc:
+		case key.Matches(k, components.KeyEsc):
 			if m.pager.SearchActive() {
 				m.pager = m.pager.ClearSearch()
 				return m, nil
@@ -1063,6 +1342,43 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// helpEnabled reports whether the "?" keyboard-shortcut overlay is available:
+// true only when the caller supplied a markdown renderer.
+func (m RunGetFlowModel) helpEnabled() bool { return m.opts.RenderMarkdown != nil }
+
+// openHelp shows the keyboard-shortcut overlay, remembering the picker
+// (returnStage) esc/q returns to. It is a no-op when no renderer was supplied.
+// The overlay is sized to the current terminal and reset (search dropped,
+// scrolled to top) so a re-open starts clean.
+func (m RunGetFlowModel) openHelp(returnStage runGetStage) (tea.Model, tea.Cmd) {
+	if !m.helpEnabled() {
+		return m, nil
+	}
+	m.helpReturnStage = returnStage
+	if m.width > 0 && m.height > 0 {
+		m.help = m.help.SetSize(m.width, m.height)
+	}
+	m.help = m.help.Reopen()
+	m.stage = runGetStageHelp
+	return m, nil
+}
+
+// updateHelp drives the help overlay. Scrolling and the "/" search are handled by
+// the help component; esc/q (handled there too) dismiss it, at which point the
+// flow routes back to whichever picker opened it. ctrl+c still quits the whole
+// program, unless the "/" search prompt is capturing input.
+func (m RunGetFlowModel) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) && !m.help.Searching() {
+		return m.quit(RunGetResult{Action: RunGetActionCancel})
+	}
+	var cmd tea.Cmd
+	m.help, cmd = m.help.Update(msg)
+	if m.help.Dismissed() {
+		m.stage = m.helpReturnStage
+	}
+	return m, cmd
+}
+
 func (m RunGetFlowModel) View() tea.View {
 	switch m.stage {
 	case runGetStageRunSelect:
@@ -1077,6 +1393,8 @@ func (m RunGetFlowModel) View() tea.View {
 		return m.stepSelect.View()
 	case runGetStageTestSelect:
 		return m.testSelect.View()
+	case runGetStageRunFilter:
+		return m.filter.View()
 	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
 		label := theme.HelperStyle.Render(m.loadingLabel)
 		if m.opts.Animate {
@@ -1085,6 +1403,8 @@ func (m RunGetFlowModel) View() tea.View {
 		return tea.NewView(label)
 	case runGetStageStepPager:
 		return m.stepPagerView()
+	case runGetStageHelp:
+		return m.help.View()
 	case runGetStageDone:
 		// Empty final frame so the last picker is cleared before the program
 		// exits and the summary prints in its place.
@@ -1108,39 +1428,71 @@ func (m RunGetFlowModel) stepPagerView() tea.View {
 // --- picker builders ---
 
 func (m RunGetFlowModel) newRunSelect() components.SelectModel {
-	// Name the active scope in the title so it is clear which branch's runs are
-	// listed (e.g. "Select a run [main]" or "… [all branches]"), bracketed to
-	// match the per-row "[branch]" labels and colored so it stands out from the
-	// rest of the (bold, uncolored) title.
+	// Name the active scope and status filter in the title so it is clear which
+	// runs are listed (e.g. "Select a run [main]", "… [all branches · failed]",
+	// or "… [failed]" when there is only one scope). The bracket matches the
+	// per-row "[branch]" labels and is colored so it stands out from the rest of
+	// the (bold, uncolored) title.
 	prompt := "Select a run"
+	var parts []string
 	if len(m.scopes) >= 2 {
-		scope := "[" + m.activeScope().titleName() + "]"
+		parts = append(parts, m.activeScope().titleName())
+	}
+	if status := m.statusFilters[m.statusIdx]; status.Value != "" {
+		parts = append(parts, status.Label)
+	}
+	if len(parts) > 0 {
+		scope := "[" + strings.Join(parts, " · ") + "]"
 		if m.opts.Color {
 			scope = theme.SecondaryStyle.Render(scope)
 		}
 		prompt = "Select a run " + scope
 	}
-	return components.NewSelectModel(prompt, itemLabels(m.runs)).
-		WithIcons(m.itemIcons(m.runs)).
+	// A scope+status filter can match nothing; rather than a blank picker, show a
+	// single placeholder row explaining the empty result (enter on it is a no-op).
+	labels, icons := itemLabels(m.runs), m.itemIcons(m.runs)
+	if len(m.runs) == 0 {
+		labels = []string{"(" + runsEmptyNote(m.activeScope(), m.statusFilters[m.statusIdx]) + ")"}
+		icons = []string{m.metaIcon()}
+	}
+	return components.NewSelectModel(prompt, labels).
+		WithIcons(icons).
 		WithCursor(m.runCursor).
-		WithHint(m.runSelectHint()).
+		WithKeys(m.runSelectKeys()...).
 		WithHeight(m.height)
 }
 
-// runSelectHint is the footer for the run picker. The first picker quits on esc,
-// so it keeps the default movement hints and, when a scope toggle is available,
-// advertises the switch shortcut (shift+tab, or Tab on Windows; the active scope
-// is named in the title, not here). A transient toggleNote (e.g. "No runs found
-// on …") is prefixed when set.
-func (m RunGetFlowModel) runSelectHint() string {
-	hint := "(↑/↓ to move, enter to select, r to refresh, esc to quit)"
+// runSelectKeys is the footer for the run picker. The first picker quits on esc,
+// so it advertises the refresh, status filter ("s") and — when a scope toggle is
+// available — the trigger-switch shortcut (shift+tab, or Tab on Windows; the
+// active scope and status are named in the title, not here).
+func (m RunGetFlowModel) runSelectKeys() []key.Binding {
+	keys := []key.Binding{components.BindMove, components.BindSelect, components.BindRefresh}
 	if len(m.scopes) >= 2 {
-		hint = fmt.Sprintf("(↑/↓ to move, enter to select, r to refresh, %s to switch branch, esc to quit)", switchScopeKeyLabel)
+		keys = append(keys, switchScopeBinding)
 	}
-	if m.toggleNote != "" {
-		hint = m.toggleNote + "  " + hint
+	if m.statusFilterEnabled() {
+		keys = append(keys, components.BindStatus)
 	}
-	return hint
+	if m.filterEnabled() {
+		keys = append(keys, components.BindSearch)
+	}
+	if m.helpEnabled() {
+		keys = append(keys, components.BindHelp)
+	}
+	keys = append(keys, components.BindQuitEsc)
+	return keys
+}
+
+// backKeys is the footer for the workflow, job, execution, step and test
+// pickers, where esc goes back a step. It advertises the "?" help overlay when a
+// markdown renderer was supplied.
+func (m RunGetFlowModel) backKeys() []key.Binding {
+	keys := []key.Binding{components.BindMove, components.BindSelect, components.BindRefresh, components.BindBack}
+	if m.helpEnabled() {
+		keys = append(keys, components.BindHelp)
+	}
+	return keys
 }
 
 func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
@@ -1150,7 +1502,7 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 		WithIcons(icons).
 		WithNote(m.runErrorNote()).
 		WithCursor(m.workflowCursor).
-		WithHint(runGetBackHint).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1189,7 +1541,7 @@ func (m RunGetFlowModel) newJobSelect() components.SelectModel {
 	return components.NewSelectModel("Select a job", labels).
 		WithIcons(icons).
 		WithCursor(m.jobCursor).
-		WithHint(runGetBackHint).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1205,7 +1557,7 @@ func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 	return components.NewSelectModel("Select an execution", labels).
 		WithIcons(icons).
 		WithCursor(m.executionCursor).
-		WithHint(runGetBackHint).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1242,7 +1594,7 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	return components.NewSelectModel("Select a step", labels).
 		WithIcons(icons).
 		WithCursor(cursor).
-		WithHint(runGetBackHint).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1264,7 +1616,7 @@ func (m RunGetFlowModel) newTestSelect() components.SelectModel {
 	return components.NewSelectModel("Select a failed test", labels).
 		WithIcons(icons).
 		WithCursor(m.testCursor).
-		WithHint(runGetBackHint).
+		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
 }
 
@@ -1364,12 +1716,14 @@ func statusIconStyle(symbol string) (lipgloss.Style, bool) {
 
 // --- commands ---
 
-// cmdFetchRuns fetches the runs for the scope at scopeIdx: the user's runs
-// across all projects for a "my runs" scope (via FetchMyRuns), otherwise the
-// branch-filtered runs (via FetchRuns). The scope index rides along on the
-// result so onRuns can attribute it back to a scope.
-func (m RunGetFlowModel) cmdFetchRuns(scopeIdx int) tea.Cmd {
+// cmdFetchRuns fetches the runs for the scope at scopeIdx filtered by the status
+// at statusIdx: the user's runs across all projects for a "my runs" scope (via
+// FetchMyRuns), otherwise the branch-filtered runs (via FetchRuns). The scope
+// and status indexes ride along on the result so onRuns can commit them once the
+// fetch succeeds.
+func (m RunGetFlowModel) cmdFetchRuns(scopeIdx, statusIdx int) tea.Cmd {
 	ctx, scope := m.ctx, m.scopes[scopeIdx]
+	status := m.statusFilters[statusIdx].Value
 	fetchRuns, fetchMine := m.opts.FetchRuns, m.opts.FetchMyRuns
 	return func() tea.Msg {
 		var (
@@ -1377,11 +1731,11 @@ func (m RunGetFlowModel) cmdFetchRuns(scopeIdx int) tea.Cmd {
 			err   error
 		)
 		if scope.myRuns {
-			items, err = fetchMine(ctx)
+			items, err = fetchMine(ctx, status)
 		} else {
-			items, err = fetchRuns(ctx, scope.branch)
+			items, err = fetchRuns(ctx, scope.branch, status)
 		}
-		return runGetRunsMsg{items: items, scopeIdx: scopeIdx, err: err}
+		return runGetRunsMsg{items: items, scopeIdx: scopeIdx, statusIdx: statusIdx, err: err}
 	}
 }
 

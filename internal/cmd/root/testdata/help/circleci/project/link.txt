@@ -5,7 +5,7 @@ Record the CircleCI project for the current checkout in
 re-detecting from the git remote each time.
 
 Resolution order:
-  1. --project <slug>, if given.
+  1. --project `<slug>`, if given.
   2. The git remote (origin) of the current directory.
   3. An interactive prompt — used when neither of the above
      yields a project the API recognises.
@@ -23,19 +23,19 @@ is passed.
 
 ## Flags
 
-| Flag               | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `-f, --force`      | Overwrite an existing .circleci/info.yml                        |
-| `--project string` | Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>) |
+| Flag                                     | Description                                                     |
+| ---------------------------------------- | --------------------------------------------------------------- |
+| `-f, --force`                            | Overwrite an existing .circleci/info.yml                        |
+| `--project circleci/<orgID>/<projectID>` | Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>) |
 
 ## Inherited Flags
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Examples
 

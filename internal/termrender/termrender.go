@@ -21,14 +21,22 @@
 // SPDX-License-Identifier: MIT
 
 // Package termrender replays captured terminal output and writes the resulting
-// plain text, line by line, to an output writer.
+// text, line by line, to an output writer.
 //
 // It exists to render the stdout/stderr a CI step produced into the text a
-// human would have seen, for callers that are piping to a file or another
-// program. A naive ANSI strip is not enough: tools like Docker redraw progress
-// with carriage returns and cursor movement, so stripping the escapes alone
-// leaves a pile of stale, half-drawn lines. Replaying the stream through a
-// terminal model collapses those redraws to their final state.
+// human would have seen. A naive ANSI strip is not enough: tools like Docker
+// redraw progress with carriage returns and cursor movement, so stripping the
+// escapes alone leaves a pile of stale, half-drawn lines. Replaying the stream
+// through a terminal model collapses those redraws to their final state.
+//
+// Two rendering modes are offered:
+//
+//   - Render writes plain text — SGR styling is discarded. Use it when piping to
+//     a file or another program (grep/awk/less), where escape codes are noise.
+//   - RenderStyled preserves SGR styling (colors, bold, underline, …): each
+//     rendered cell keeps the graphic rendition active when it was drawn, with
+//     redraws still collapsed. Use it for a human-facing viewer such as the
+//     interactive output pager.
 //
 // Unlike a general terminal emulator it is built for the one job of rendering a
 // (potentially enormous) append-only log:
@@ -44,17 +52,16 @@
 //     stream are simply ignored. The renderer never blocks waiting to answer
 //     them.
 //
-// Styling (SGR) is discarded — the output is plain text. Cursor addressing is
-// tracked in columns of one cell per rune; wide-rune (CJK) alignment inside an
-// in-place redraw is therefore approximate, which is immaterial for the ASCII
-// and box-drawing output that progress redraws use in practice.
+// Cursor addressing is tracked in columns of one cell per rune; wide-rune (CJK)
+// alignment inside an in-place redraw is therefore approximate, which is
+// immaterial for the ASCII and box-drawing output that progress redraws use in
+// practice.
 package termrender
 
 import (
 	"bufio"
 	"errors"
 	"io"
-	"strings"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -74,15 +81,38 @@ const DefaultHeight = 100
 // hang). No real terminal or progress redraw addresses columns beyond this.
 const maxColumns = 1 << 16
 
+// initialRowCap is the capacity a line is first allocated with, sized for a
+// typical log line so a filling row does not regrow through several append
+// doublings. Longer lines still grow on demand; the live window is bounded, so
+// over-allocating a short line costs little.
+const initialRowCap = 80
+
+// resetSeq is the SGR sequence that clears all styling, emitted (in styled mode)
+// at the end of a styled line and before applying a new pen.
+const resetSeq = "\x1b[0m"
+
 // Render replays the captured terminal output read from src and writes the
-// rendered plain text to dst. Input is consumed one byte at a time and output
-// is streamed as lines scroll off, so memory stays flat regardless of how large
-// the source is. See the package documentation for the model used.
+// rendered plain text (styling discarded) to dst. Input is consumed one byte at
+// a time and output is streamed as lines scroll off, so memory stays flat
+// regardless of how large the source is. See the package documentation.
 //
 // Whatever was rendered before a read error is still flushed to dst; the read
 // error is then returned.
 func Render(dst io.Writer, src io.Reader) error {
+	return replay(dst, src, false)
+}
+
+// RenderStyled is like Render but preserves SGR styling: each rendered cell
+// keeps the graphic rendition (colors, bold, …) active when it was drawn, with
+// redraws still collapsed to their final state. Use it for a human-facing
+// viewer where colors matter; use Render for plain-text pipe/file output.
+func RenderStyled(dst io.Writer, src io.Reader) error {
+	return replay(dst, src, true)
+}
+
+func replay(dst io.Writer, src io.Reader, styled bool) error {
 	r := newRenderer(dst, DefaultHeight)
+	r.styled = styled
 
 	// Avoid double-buffering when the caller already supplies a byte reader
 	// (e.g. a *bytes.Reader wrapping an in-memory log).
@@ -104,19 +134,31 @@ func Render(dst io.Writer, src io.Reader) error {
 	}
 }
 
+// cell is one rendered character: the rune and the graphic-rendition pen active
+// when it was drawn. In plain mode the pen is always the zero (default) pen.
+type cell struct {
+	r   rune
+	pen pen
+}
+
+// blank is the default-styled space used to pad gaps and erase cells.
+var blank = cell{r: ' '}
+
 // renderer holds the live terminal window and emits lines as they scroll off.
 type renderer struct {
 	w      *bufio.Writer
 	parser *ansi.Parser
 	height int
+	styled bool
 
 	// rows is the live window, always exactly height rows. rows[0] is the top
-	// of the screen; each row is the runes of one (unwrapped) line. A nil row
+	// of the screen; each row is the cells of one (unwrapped) line. A nil row
 	// is blank.
-	rows [][]rune
+	rows [][]cell
 	cx   int // cursor column
 	cy   int // cursor row, within [0, height)
 
+	cur      pen  // current graphic-rendition pen (tracked only in styled mode)
 	lastRune rune // most recently printed rune, for REP
 
 	// pendingBlanks counts blank lines emitted but withheld: they are only
@@ -133,7 +175,7 @@ func newRenderer(dst io.Writer, height int) *renderer {
 	r := &renderer{
 		w:      bufio.NewWriter(dst),
 		height: height,
-		rows:   make([][]rune, height),
+		rows:   make([][]cell, height),
 	}
 	p := ansi.NewParser()
 	p.SetParamsSize(32)
@@ -147,11 +189,26 @@ func newRenderer(dst io.Writer, height int) *renderer {
 	return r
 }
 
-// print writes a printable rune at the cursor and advances one column.
+// print writes a printable rune at the cursor and advances one column. The hot
+// path — appending at the end of the current line — is a single append with no
+// padding or double-write; overwriting an existing cell (an in-place redraw) and
+// filling a gap left by a forward cursor jump are the slower branches. A fresh
+// line is allocated with room for a typical log line so it does not regrow
+// through several doublings as it fills.
 func (r *renderer) print(c rune) {
-	row := r.ensureRow(r.cy)
-	row = padTo(row, r.cx+1)
-	row[r.cx] = c
+	row := r.rows[r.cy]
+	nc := cell{r: c, pen: r.cur}
+	switch {
+	case r.cx < len(row):
+		row[r.cx] = nc // overwrite a cell already on the line (redraw)
+	case r.cx == len(row):
+		if row == nil {
+			row = make([]cell, 0, initialRowCap)
+		}
+		row = append(row, nc)
+	default: // cursor moved past the end: pad the gap with blanks, then write.
+		row = append(padTo(row, r.cx), nc)
+	}
 	r.rows[r.cy] = row
 	r.cx++
 	r.lastRune = c
@@ -190,11 +247,12 @@ func (r *renderer) esc(cmd ansi.Cmd) {
 	case 'c': // RIS — full reset. Treat as a screen clear.
 		r.clearScreen()
 		r.cx, r.cy = 0, 0
+		r.cur = pen{}
 	}
 }
 
 // csi handles a CSI sequence. Private sequences (with a prefix such as '?',
-// e.g. mode sets) are ignored, as is SGR styling.
+// e.g. mode sets) are ignored.
 func (r *renderer) csi(cmd ansi.Cmd, params ansi.Params) {
 	if cmd.Prefix() != 0 {
 		return
@@ -237,8 +295,11 @@ func (r *renderer) csi(cmd ansi.Cmd, params ansi.Params) {
 				r.print(r.lastRune)
 			}
 		}
+	case 'm': // SGR — select graphic rendition
+		if r.styled {
+			r.sgr(params)
+		}
 	}
-	// SGR ('m') and everything else are intentionally ignored.
 }
 
 // clampCol bounds a target cursor column to [0, max(maxColumns, current line
@@ -340,7 +401,7 @@ func (r *renderer) eraseLine(mode int) {
 		}
 	case 1: // start of line to cursor (inclusive)
 		for i := 0; i <= r.cx && i < len(row); i++ {
-			row[i] = ' '
+			row[i] = blank
 		}
 	case 2: // entire line
 		r.rows[r.cy] = nil
@@ -351,30 +412,48 @@ func (r *renderer) eraseLine(mode int) {
 func (r *renderer) eraseChars(n int) {
 	row := r.rows[r.cy]
 	for i := r.cx; i < r.cx+n && i < len(row); i++ {
-		row[i] = ' '
+		row[i] = blank
 	}
-}
-
-// ensureRow returns row y, allocating a (still empty) backing slice on demand.
-func (r *renderer) ensureRow(y int) []rune {
-	if r.rows[y] == nil {
-		r.rows[y] = []rune{}
-	}
-	return r.rows[y]
 }
 
 // emit writes a single finalized row, trimming trailing blanks and buffering
-// wholly-blank lines so trailing blank rows are dropped.
-func (r *renderer) emit(row []rune) {
-	line := strings.TrimRight(string(row), " ")
-	if line == "" {
+// wholly-blank lines so trailing blank rows are dropped. In styled mode the
+// active pen is applied per run of same-styled cells and reset at line end so
+// styling never bleeds past the row.
+func (r *renderer) emit(row []cell) {
+	// Trim trailing default-styled spaces (plain padding). A styled trailing
+	// space — e.g. a colored progress bar — carries a non-default pen and is
+	// kept, matching what the terminal would have shown.
+	end := len(row)
+	for end > 0 && row[end-1] == blank {
+		end--
+	}
+	if end == 0 {
 		r.pendingBlanks++
 		return
 	}
 	for ; r.pendingBlanks > 0; r.pendingBlanks-- {
 		_ = r.w.WriteByte('\n')
 	}
-	_, _ = r.w.WriteString(line)
+
+	if r.styled {
+		var active pen
+		for i := 0; i < end; i++ {
+			c := row[i]
+			if c.pen != active {
+				c.pen.writeTo(r.w)
+				active = c.pen
+			}
+			_, _ = r.w.WriteRune(c.r)
+		}
+		if active != (pen{}) {
+			_, _ = r.w.WriteString(resetSeq)
+		}
+	} else {
+		for i := 0; i < end; i++ {
+			_, _ = r.w.WriteRune(row[i].r)
+		}
+	}
 	_ = r.w.WriteByte('\n')
 }
 
@@ -397,9 +476,9 @@ func param(p ansi.Params, i, def int) int {
 	return v
 }
 
-func padTo(row []rune, n int) []rune {
+func padTo(row []cell, n int) []cell {
 	for len(row) < n {
-		row = append(row, ' ')
+		row = append(row, blank)
 	}
 	return row
 }

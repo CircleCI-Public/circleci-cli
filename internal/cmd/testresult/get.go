@@ -49,20 +49,20 @@ func newGetCmd() *cobra.Command {
 		Use:   "get <job-id> <name>",
 		Short: "Get a single test result by name",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				<job-id> is the UUID of the job whose test results to search. Job
+			"help:arguments": heredoc.Docf(`
+				%[1]s<job-id>%[1]s is the UUID of the job whose test results to search. Job
 				UUIDs are shown in "circleci job get" and "circleci run get --json".
 
-				<name> is the exact test name to look up. If more than one test
-				shares that name, use --filter classname=<value> to disambiguate.
-			`),
+				%[1]s<name>%[1]s is the exact test name to look up. If more than one test
+				shares that name, use --filter classname=%[1]s<value>%[1]s to disambiguate.
+			`, "`"),
 		},
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Get a single test result from a job by its exact name.
 
 			The name must match exactly. When several tests share a name — for
 			example the same test running under different suites — the lookup is
-			ambiguous and fails; pass --filter classname=<value> to narrow to one.
+			ambiguous and fails; pass --filter classname=%[1]s<value>%[1]s to narrow to one.
 			classname is matched as a case-insensitive substring and may be
 			repeated to accept any of several suites.
 
@@ -75,7 +75,7 @@ func newGetCmd() *cobra.Command {
 			piping a failure's output to another tool.
 
 			JSON fields: classname, name, result, run_time, message
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Get a test by name
 			$ circleci testresult get 8e50c384-0083-43d0-bc8f-93f0db589d6b TestLogin
@@ -103,7 +103,7 @@ func newGetCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Disambiguate by classname=<value> when a name is shared; repeatable")
+	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Disambiguate by classname=`<value>` when a name is shared; repeatable")
 	cmd.Flags().BoolVar(&plain, "plain", false, "Print only the raw test message, verbatim and unformatted")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)

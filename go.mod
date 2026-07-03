@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.7
 	charm.land/glamour/v2 v2.0.0
-	charm.land/lipgloss/v2 v2.0.3
+	charm.land/lipgloss/v2 v2.0.4
 	charm.land/log/v2 v2.0.0
 	github.com/CircleCI-Public/chunk-cli v0.7.95
 	github.com/MakeNowJust/heredoc v1.0.0
@@ -29,7 +29,7 @@ require (
 	github.com/njayp/ophis v1.1.4
 	github.com/pete-woods/go-expect v0.1.4
 	github.com/segmentio/analytics-go/v3 v3.3.0
-	github.com/shirou/gopsutil/v4 v4.26.5
+	github.com/shirou/gopsutil/v4 v4.26.6
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
 	github.com/zalando/go-keyring v0.2.8
@@ -51,7 +51,7 @@ require (
 	github.com/aymanbagabas/go-udiff v0.4.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect
 	github.com/charmbracelet/colorprofile v0.4.3 // indirect
-	github.com/charmbracelet/ultraviolet v0.0.0-20260615092913-2399af76d5b1 // indirect
+	github.com/charmbracelet/ultraviolet v0.0.0-20260703014108-f5a850f9c2b7 // indirect
 	github.com/charmbracelet/x/conpty v0.2.0 // indirect
 	github.com/charmbracelet/x/exp/golden v0.0.0-20251109135125-8916d276318f // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20260615092313-b57e5e6d29bb // indirect
@@ -111,6 +111,6 @@ require (
 	gopkg.in/warnings.v0 v0.1.2 // indirect
 )
 
-replace charm.land/lipgloss/v2 => github.com/pete-woods/lipgloss/v2 v2.0.0-20260608100114-97f639bdc7cf
+replace charm.land/lipgloss/v2 => github.com/pete-woods/lipgloss/v2 v2.0.0-20260703152313-68f644e4cf9f
 
-replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260608100929-a377c27c0c6c
+replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260703152611-0a8c8cf28d00

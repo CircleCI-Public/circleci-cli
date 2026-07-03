@@ -41,13 +41,13 @@ func NewNamespaceCmd() *cobra.Command {
 		Use:     "namespace <command>",
 		GroupID: "management",
 		Short:   "Manage the org namespace orbs publish under",
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Work with CircleCI orb namespaces.
 
 			Namespaces are unique identifiers used to publish orbs.
 			Each organization may claim one namespace. Orbs are published
-			and referenced as <namespace>/<orb>. All published orbs are world-readable.
-		`),
+			and referenced as %[1]s<namespace>/<orb>%[1]s. All published orbs are world-readable.
+		`, "`"),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}

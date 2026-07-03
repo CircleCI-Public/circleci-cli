@@ -24,8 +24,6 @@ package my
 
 import (
 	"context"
-	"net/url"
-	"sort"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -49,17 +47,18 @@ func newRunsCmd() *cobra.Command {
 		Aliases: []string{"run"},
 		Short:   "List your recent runs grouped by project",
 		Long: heredoc.Doc(`
-			List recent runs you triggered, grouped by project.
+			List recent runs you triggered, across every project you have access to.
 
-			This is the personal counterpart to "circleci run list": rather than
-			a single project, it shows your runs across everywhere you have access,
-			grouped by project with the most recent run first.
+			This is the personal counterpart to "circleci run list": rather than a
+			single project, it shows your runs everywhere, in the order the API
+			returns them, with the project of each run in its own column.
 
-			JSON: an array of projects, each { repository, runs: [...] }.
-			Run fields: id, phase, outcome, current_outcome, branch, tag, revision, created_at
+			JSON: an array of runs, each { project, project_id, id, phase, outcome,
+			current_outcome, branch, tag, revision, created_at }, where project is
+			the run's "org/repo" repository (when known) and project_id its UUID.
 		`),
 		Example: heredoc.Doc(`
-			# List your recent runs grouped by project
+			# List your recent runs across all projects
 			$ circleci my runs
 
 			# Show more results
@@ -69,7 +68,7 @@ func newRunsCmd() *cobra.Command {
 			$ circleci my runs --json
 
 			# Pull out just the run IDs with jq
-			$ circleci my runs --json --jq '.[].runs[].id'
+			$ circleci my runs --json --jq '.[].id'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -89,12 +88,9 @@ func newRunsCmd() *cobra.Command {
 	return cmd
 }
 
-type projectRuns struct {
-	Repository string     `json:"repository"`
-	Runs       []runEntry `json:"runs"`
-}
-
 type runEntry struct {
+	Project        string    `json:"project,omitempty"`
+	ProjectID      string    `json:"project_id,omitempty"`
 	ID             uuid.UUID `json:"id"`
 	Phase          string    `json:"phase"`
 	Outcome        string    `json:"outcome,omitempty"`
@@ -106,56 +102,51 @@ type runEntry struct {
 }
 
 func runMyRuns(ctx context.Context, client *apiclient.Client, limit int, jsonOut bool) error {
-	runs, err := client.ListMyRunsV3(ctx, limit)
+	runs, err := client.ListMyRunsV3(ctx, limit, "")
 	if err != nil {
 		return cmdutil.APIErr(err, "your runs",
 			"my.runs_failed", "Could not list your runs.")
 	}
 
-	groups := groupByProject(runs)
-
-	if jsonOut {
-		return iostream.PrintJSON(ctx, groups)
+	// Each entry carries the run's "org/repo" repository slug and its project
+	// UUID. JSON exposes both (project + project_id); the table shows the slug.
+	entries := make([]runEntry, len(runs))
+	for i := range runs {
+		entries[i] = toEntry(&runs[i],
+			cmdutil.RepoSlug(runs[i].RepositoryURL),
+			projectIDString(runs[i].ProjectID))
 	}
 
-	if len(groups) == 0 {
+	if jsonOut {
+		return iostream.PrintJSON(ctx, entries)
+	}
+
+	if len(entries) == 0 {
 		iostream.ErrPrintln(ctx, "No runs found.")
 		return nil
 	}
 
-	printRuns(ctx, groups)
+	printRuns(ctx, entries)
 	return nil
 }
 
-// groupByProject sorts runs newest-first, then groups them by repository.
-// Group order follows each project's most recent run, and runs within a group
-// stay newest-first.
-func groupByProject(runs []apiclient.RunV3) []projectRuns {
-	sort.SliceStable(runs, func(i, j int) bool {
-		return runs[i].CreatedAt.After(runs[j].CreatedAt)
-	})
-
-	index := map[string]int{}
-	var groups []projectRuns
-	for i := range runs {
-		repo := repoName(runs[i].RepositoryURL)
-		gi, ok := index[repo]
-		if !ok {
-			gi = len(groups)
-			index[repo] = gi
-			groups = append(groups, projectRuns{Repository: repo})
-		}
-		groups[gi].Runs = append(groups[gi].Runs, toEntry(&runs[i]))
+// projectIDString renders a run's project UUID for JSON, or "" for the nil UUID
+// (so the omitempty project_id field is dropped rather than showing all-zeroes).
+func projectIDString(id uuid.UUID) string {
+	if id == uuid.Nil {
+		return ""
 	}
-	return groups
+	return id.String()
 }
 
-func toEntry(r *apiclient.RunV3) runEntry {
+func toEntry(r *apiclient.RunV3, project, projectID string) runEntry {
 	rev := r.Revision
 	if len(rev) > 7 {
 		rev = rev[:7]
 	}
 	return runEntry{
+		Project:        project,
+		ProjectID:      projectID,
 		ID:             r.ID,
 		Phase:          r.Phase,
 		Outcome:        r.Outcome,
@@ -167,42 +158,28 @@ func toEntry(r *apiclient.RunV3) runEntry {
 	}
 }
 
-func printRuns(ctx context.Context, groups []projectRuns) {
+// printRuns renders every run in API order as one table with a Project column;
+// runs are not grouped or reordered.
+func printRuns(ctx context.Context, entries []runEntry) {
 	var b strings.Builder
-	b.WriteString("# My runs\n")
-	for _, g := range groups {
-		repo := g.Repository
-		if repo == "" {
-			repo = "(unknown repository)"
+	b.WriteString("# My runs\n\n")
+	table := mdtable.New("Project", "Ref", "Revision", "ID", "Created", "Status")
+	for _, e := range entries {
+		project := e.Project
+		if project == "" {
+			project = "(unknown)"
 		}
-		b.WriteString("\n## " + repo + "\n")
-		table := mdtable.New("Ref", "Revision", "ID", "Created", "Status")
-		for _, e := range g.Runs {
-			table.Row(
-				refDisplay(e.Branch, e.Tag),
-				e.Revision,
-				"`"+e.ID.String()+"`",
-				e.CreatedAt,
-				apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome),
-			)
-		}
-		b.WriteString(table.Render())
+		table.Row(
+			project,
+			refDisplay(e.Branch, e.Tag),
+			e.Revision,
+			"`"+e.ID.String()+"`",
+			e.CreatedAt,
+			apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome),
+		)
 	}
+	b.WriteString(table.Render())
 	iostream.PrintMarkdown(ctx, b.String())
-}
-
-// repoName reduces a repository URL to its "org/repo" form for display,
-// e.g. "https://github.com/circleci/foo" -> "circleci/foo". It returns the
-// input unchanged if it cannot be parsed.
-func repoName(repoURL string) string {
-	if repoURL == "" {
-		return ""
-	}
-	u, err := url.Parse(repoURL)
-	if err != nil || u.Path == "" {
-		return repoURL
-	}
-	return strings.TrimSuffix(strings.TrimPrefix(u.Path, "/"), ".git")
 }
 
 // refDisplay renders the git ref for a run: the branch, or the tag (marked

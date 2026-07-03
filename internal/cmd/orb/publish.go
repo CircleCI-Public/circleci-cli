@@ -41,18 +41,18 @@ func newPublishCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "publish <command>",
 		Short: "Publish orb versions",
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Publish orb versions to the CircleCI orb registry.
 
 			To publish a specific version:
-			  circleci orb publish <path> <ns>/<orb>@<version>
+			  circleci orb publish %[1]s<path> <ns>/<orb>@<version>%[1]s
 
 			To promote a dev version to a stable semver:
-			  circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch
+			  circleci orb publish promote %[1]s<ns>/<orb>@dev:<label>%[1]s --bump major|minor|patch
 
 			To increment the latest stable version and publish:
-			  circleci orb publish increment <path> <ns>/<orb> --bump major|minor|patch
-		`),
+			  circleci orb publish increment %[1]s<path> <ns>/<orb>%[1]s --bump major|minor|patch
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Publish a specific version
 			$ circleci orb publish orb.yml myorg/my-orb@1.0.0
@@ -99,17 +99,17 @@ func newPublishPromoteCmd() *cobra.Command {
 		Use:   "promote <ns>/<orb>@dev:<label> --bump major|minor|patch",
 		Short: "Promote a dev orb version to a stable semver",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				- <ns>/<orb>@dev:<label>: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
-			`),
+			"help:arguments": heredoc.Docf(`
+				- %[1]s<ns>/<orb>@dev:<label>%[1]s: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+			`, "`"),
 		},
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Promote a dev orb version to a stable semver version.
 
-			The dev version ref must be in the form <ns>/<orb>@dev:<label>.
+			The dev version ref must be in the form %[1]s<ns>/<orb>@dev:<label>%[1]s.
 			The --bump flag determines how the version is incremented
 			from the latest stable release.
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Promote dev:my-branch to a patch release
 			$ circleci orb publish promote myorg/my-orb@dev:my-branch --bump patch
@@ -151,10 +151,10 @@ func newPublishIncrementCmd() *cobra.Command {
 		Use:   "increment <path> <ns>/<orb> --bump major|minor|patch",
 		Short: "Increment and publish a new orb version",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				- <path>: path to the orb YAML to publish. Pass '-' to read from stdin.
-				- <ns>/<orb>: the orb to publish, as "namespace/orb-name"
-			`),
+			"help:arguments": heredoc.Docf(`
+				- %[1]s<path>%[1]s: path to the orb YAML to publish. Pass '-' to read from stdin.
+				- %[1]s<ns>/<orb>%[1]s: the orb to publish, as "namespace/orb-name"
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Read orb YAML from path, compute the next version by incrementing

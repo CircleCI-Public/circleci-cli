@@ -23,6 +23,7 @@
 package ui
 
 import (
+	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
@@ -60,11 +61,11 @@ func (m SelectModel) Init() tea.Cmd { return nil }
 
 func (m SelectModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
-		switch keyMsg.String() {
-		case components.KeyEsc, components.KeyCtrlC:
+		switch {
+		case key.Matches(keyMsg, components.KeyEsc, components.KeyCtrlC):
 			m.cancelled = true
 			return m, tea.Quit
-		case components.KeyEnter:
+		case key.Matches(keyMsg, components.KeyEnter):
 			updated, _ := m.inner.Update(msg)
 			m.inner = updated.(components.SelectModel)
 			return m, tea.Quit

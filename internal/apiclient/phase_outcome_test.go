@@ -65,3 +65,28 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 			"status %q should be text %q, optionally emoji-prefixed", status, text)
 	}
 }
+
+// TestStatusPhaseOutcome checks the pipeline.status → (phase, current_outcome)
+// reverse mapping the my-runs endpoint filters on: terminal statuses map to an
+// "ended" phase with the matching outcome, in-progress statuses to their
+// started/queued phase, and an empty or unknown status to no filter.
+func TestStatusPhaseOutcome(t *testing.T) {
+	cases := []struct{ status, phase, outcome string }{
+		{apiclient.StatusSuccess, "ended", "succeeded"},
+		{apiclient.StatusFailed, "ended", "failed"},
+		{apiclient.StatusCanceled, "ended", "canceled"},
+		{apiclient.StatusError, "ended", "errored"},
+		{apiclient.StatusNotRun, "ended", "not_run"},
+		{apiclient.StatusUnauthorized, "ended", "unauthorized"},
+		{apiclient.StatusFailing, "started", "failed"},
+		{apiclient.StatusRunning, "started", ""},
+		{apiclient.StatusQueued, "queued", ""},
+		{"", "", ""},
+		{"bogus", "", ""},
+	}
+	for _, c := range cases {
+		phase, outcome := apiclient.StatusPhaseOutcome(c.status)
+		assert.Check(t, is.Equal(phase, c.phase), "status %q phase", c.status)
+		assert.Check(t, is.Equal(outcome, c.outcome), "status %q current_outcome", c.status)
+	}
+}

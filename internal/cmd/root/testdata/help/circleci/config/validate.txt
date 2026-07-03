@@ -27,9 +27,9 @@ JSON fields (--json):
 
 | Flag          | Description                                                 |
 | ------------- | ----------------------------------------------------------- |
-| `--debug`     | enable debug logging                                        |
-| `--no-color`  | disable ANSI color output (same as setting NO_COLOR)        |
-| `-q, --quiet` | suppress informational output; data on stdout is unaffected |
+| `--debug`     | Enable debug logging                                        |
+| `--no-color`  | Disable ANSI color output (same as setting NO_COLOR)        |
+| `-q, --quiet` | Suppress informational output. Data on stdout is unaffected |
 
 ## Examples
 

@@ -40,9 +40,9 @@ func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate [path]",
 		Short: "Generate .circleci/config.yml from a repository scan",
-		Long: heredoc.Doc(`
+		Long: heredoc.Docf(`
 			Detect the language stack, container image, and setup commands for a
-			repository, then write a starter pipeline to <path>/.circleci/config.yml.
+			repository, then write a starter pipeline to %[1]s<path>/.circleci/config.yml%[1]s.
 
 			If no supported stack is detected, a minimal cimg/base:stable template
 			with a placeholder build step is written instead so you have something
@@ -51,7 +51,7 @@ func newGenerateCmd() *cobra.Command {
 			If a config file already exists at that path, generate does not overwrite
 			it; it prints a confirmation and exits successfully. The .circleci/
 			directory is created if needed, and the file is written atomically.
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Generate a config for the current directory
 			$ circleci config generate

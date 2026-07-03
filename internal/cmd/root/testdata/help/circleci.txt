@@ -66,11 +66,11 @@ Work with CircleCI from the command line.
 
 | Flag                  | Description                                                  |
 | --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | enable debug logging                                         |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
 | `-h, --help`          | help for circleci                                            |
-| `--no-color`          | disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | suppress informational output; data on stdout is unaffected  |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 | `-v, --version`       | version for circleci                                         |
 
 ## Learn More
