@@ -183,7 +183,7 @@ func TestRenderScrollsBeyondWindowWithoutLoss(t *testing.T) {
 	const n = DefaultHeight*5 + 37
 	var in strings.Builder
 	for i := 0; i < n; i++ {
-		fmt.Fprintf(&in, "line %d\n", i)
+		_, _ = fmt.Fprintf(&in, "line %d\n", i)
 	}
 
 	lines := strings.Split(strings.TrimSuffix(render(t, in.String()), "\n"), "\n")
@@ -201,7 +201,7 @@ func TestRenderProgressBarThenScroll(t *testing.T) {
 	var in strings.Builder
 	in.WriteString("download 0%\rdownload 50%\rdownload 100%\n")
 	for i := 0; i < DefaultHeight+10; i++ {
-		fmt.Fprintf(&in, "after %d\n", i)
+		_, _ = fmt.Fprintf(&in, "after %d\n", i)
 	}
 
 	got := render(t, in.String())

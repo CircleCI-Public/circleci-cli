@@ -81,6 +81,12 @@ const DefaultHeight = 100
 // hang). No real terminal or progress redraw addresses columns beyond this.
 const maxColumns = 1 << 16
 
+// initialRowCap is the capacity a line is first allocated with, sized for a
+// typical log line so a filling row does not regrow through several append
+// doublings. Longer lines still grow on demand; the live window is bounded, so
+// over-allocating a short line costs little.
+const initialRowCap = 80
+
 // resetSeq is the SGR sequence that clears all styling, emitted (in styled mode)
 // at the end of a styled line and before applying a new pen.
 const resetSeq = "\x1b[0m"
@@ -183,11 +189,26 @@ func newRenderer(dst io.Writer, height int) *renderer {
 	return r
 }
 
-// print writes a printable rune at the cursor and advances one column.
+// print writes a printable rune at the cursor and advances one column. The hot
+// path — appending at the end of the current line — is a single append with no
+// padding or double-write; overwriting an existing cell (an in-place redraw) and
+// filling a gap left by a forward cursor jump are the slower branches. A fresh
+// line is allocated with room for a typical log line so it does not regrow
+// through several doublings as it fills.
 func (r *renderer) print(c rune) {
-	row := r.ensureRow(r.cy)
-	row = padTo(row, r.cx+1)
-	row[r.cx] = cell{r: c, pen: r.cur}
+	row := r.rows[r.cy]
+	nc := cell{r: c, pen: r.cur}
+	switch {
+	case r.cx < len(row):
+		row[r.cx] = nc // overwrite a cell already on the line (redraw)
+	case r.cx == len(row):
+		if row == nil {
+			row = make([]cell, 0, initialRowCap)
+		}
+		row = append(row, nc)
+	default: // cursor moved past the end: pad the gap with blanks, then write.
+		row = append(padTo(row, r.cx), nc)
+	}
 	r.rows[r.cy] = row
 	r.cx++
 	r.lastRune = c
@@ -395,14 +416,6 @@ func (r *renderer) eraseChars(n int) {
 	}
 }
 
-// ensureRow returns row y, allocating a (still empty) backing slice on demand.
-func (r *renderer) ensureRow(y int) []cell {
-	if r.rows[y] == nil {
-		r.rows[y] = []cell{}
-	}
-	return r.rows[y]
-}
-
 // emit writes a single finalized row, trimming trailing blanks and buffering
 // wholly-blank lines so trailing blank rows are dropped. In styled mode the
 // active pen is applied per run of same-styled cells and reset at line end so
@@ -428,7 +441,7 @@ func (r *renderer) emit(row []cell) {
 		for i := 0; i < end; i++ {
 			c := row[i]
 			if c.pen != active {
-				_, _ = r.w.WriteString(c.pen.sequence())
+				c.pen.writeTo(r.w)
 				active = c.pen
 			}
 			_, _ = r.w.WriteRune(c.r)

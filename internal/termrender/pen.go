@@ -23,8 +23,7 @@
 package termrender
 
 import (
-	"strconv"
-	"strings"
+	"bufio"
 
 	"github.com/charmbracelet/x/ansi"
 )
@@ -73,38 +72,133 @@ var (
 	}
 )
 
+// color encodes an SGR color as a fixed-size integer so a pen is cheap to
+// compare and never carries a heap-allocated string. The top nibble is the kind
+// and the low 28 bits the payload:
+//
+//	default    the zero value (no color)
+//	basic      an ANSI 16-color index 0..15 (0..7 normal, 8..15 bright)
+//	palette    a 256-color palette index 0..255
+//	rgb        a truecolor value packed as r<<16 | g<<8 | b
+//
+// The fg/bg role (which decides 30- vs 40-range, 38 vs 48) is not stored — it is
+// known from the field the color lives in, and applied by writeSGR.
+type color uint32
+
+const (
+	colorKindShift       = 28
+	colorPayload   color = (1 << colorKindShift) - 1
+	kindMask       color = 3 << colorKindShift
+
+	colorDefault color = 0
+	kindBasic    color = 1 << colorKindShift
+	kindPalette  color = 2 << colorKindShift
+	kindRGB      color = 3 << colorKindShift
+)
+
+// The payloads are masked (idx to 4 bits, palette to 8, each RGB channel to 8)
+// so a malformed SGR parameter cannot bleed into the kind bits, which also keeps
+// the int→uint32 conversion provably in range.
+func basicColor(idx int) color { return kindBasic | color(idx&0xf) }
+func paletteColor(n int) color { return kindPalette | color(n&0xff) }
+func rgbColor(r, g, b int) color {
+	//#nosec:G115 -- each channel is masked to 8 bits, so the value fits in 24 bits
+	return kindRGB | color((r&0xff)<<16|(g&0xff)<<8|b&0xff)
+}
+
+// writeSGR writes this color's SGR parameters (no leading ';') to w. fg selects
+// the foreground (30/90/38) vs background (40/100/48) forms. The default color
+// (and any other kind) writes nothing — callers skip it. The color constants are
+// bit masks rather than a closed enum, so the switch is not exhaustive over them.
+//
+//nolint:exhaustive // color constants are bit masks, not a closed enum
+func (c color) writeSGR(w *bufio.Writer, fg bool) {
+	switch c & kindMask {
+	case kindBasic:
+		idx := int(c & colorPayload)
+		switch {
+		case idx < 8 && fg:
+			writeInt(w, 30+idx)
+		case idx < 8:
+			writeInt(w, 40+idx)
+		case fg:
+			writeInt(w, 90+idx-8)
+		default:
+			writeInt(w, 100+idx-8)
+		}
+	case kindPalette:
+		writeColorPrefix(w, fg, "5;")
+		writeInt(w, int(c&colorPayload))
+	case kindRGB:
+		p := c & colorPayload
+		writeColorPrefix(w, fg, "2;")
+		writeInt(w, int(p>>16&0xff))
+		_ = w.WriteByte(';')
+		writeInt(w, int(p>>8&0xff))
+		_ = w.WriteByte(';')
+		writeInt(w, int(p&0xff))
+	}
+}
+
+// writeColorPrefix writes the "38;" or "48;" selector plus the mode ("5;" or
+// "2;") for an extended (palette/truecolor) color.
+func writeColorPrefix(w *bufio.Writer, fg bool, mode string) {
+	if fg {
+		_, _ = w.WriteString("38;")
+	} else {
+		_, _ = w.WriteString("48;")
+	}
+	_, _ = w.WriteString(mode)
+}
+
+// writeInt writes n (assumed non-negative — all SGR parameters are) in base 10
+// to w one digit at a time. Recursing to emit the most-significant digit first
+// avoids any intermediate buffer, so it never allocates; the depth is the digit
+// count (at most a handful for the 0..255 range colors use).
+func writeInt(w *bufio.Writer, n int) {
+	if n >= 10 {
+		writeInt(w, n/10)
+	}
+	_ = w.WriteByte(byte('0' + n%10))
+}
+
 // pen is the graphic-rendition (SGR) state active at a cell: foreground and
-// background color fragments plus the boolean attributes. fg/bg hold the SGR
-// parameters for the color ("31", "90", "38;5;9", "38;2;1;2;3"); "" is the
-// terminal default. The zero pen is fully default (no styling). pen is
-// comparable so runs of identically-styled cells coalesce when emitting.
+// background color plus the boolean attributes. The zero pen is fully default
+// (no styling). All fields are fixed-size integers, so pen is comparable with a
+// cheap == (runs of identically-styled cells coalesce when emitting) and carries
+// no heap-allocated strings.
 type pen struct {
-	fg, bg string
+	fg, bg color
 	attrs  penAttr
 }
 
-// sequence returns the SGR sequence that establishes this pen from an unknown
-// prior state. It always begins with a reset (parameter 0) so it is a clean,
-// self-contained transition — attributes from a previous pen never linger. The
-// zero pen yields a bare reset.
-func (p pen) sequence() string {
+// writeTo writes the SGR sequence that establishes this pen from an unknown
+// prior state directly to w. It always begins with a reset (parameter 0) so it
+// is a clean, self-contained transition — attributes from a previous pen never
+// linger. The zero pen yields a bare reset. Writing straight to the buffered
+// writer avoids the per-transition allocation a string return would cost on the
+// styled emit hot path.
+func (p pen) writeTo(w *bufio.Writer) {
 	if p == (pen{}) {
-		return resetSeq
+		_, _ = w.WriteString(resetSeq)
+		return
 	}
-	params := make([]string, 0, len(attrCodes)+3)
-	params = append(params, "0")
+	_, _ = w.WriteString("\x1b[0") // reset, then append the set attributes
 	for _, a := range attrCodes {
 		if p.attrs&a.bit != 0 {
-			params = append(params, a.code)
+			_ = w.WriteByte(';')
+			_, _ = w.WriteString(a.code)
 		}
 	}
-	if p.fg != "" {
-		params = append(params, p.fg)
+	if p.fg != colorDefault {
+		_ = w.WriteByte(';')
+		p.fg.writeSGR(w, true)
 	}
-	if p.bg != "" {
-		params = append(params, p.bg)
+	if p.bg != colorDefault {
+		_ = w.WriteByte(';')
+		p.bg.writeSGR(w, false)
 	}
-	return "\x1b[" + strings.Join(params, ";") + "m"
+	_ = w.WriteByte('m')
 }
 
 // sgr applies an SGR (select graphic rendition) sequence to the current pen.
@@ -124,14 +218,18 @@ func (r *renderer) sgr(params ansi.Params) {
 			r.cur.attrs |= attrOn[n]
 		case attrOff[n] != 0:
 			r.cur.attrs &^= attrOff[n]
-		case (n >= 30 && n <= 37) || (n >= 90 && n <= 97):
-			r.cur.fg = strconv.Itoa(n)
+		case n >= 30 && n <= 37:
+			r.cur.fg = basicColor(n - 30)
+		case n >= 90 && n <= 97:
+			r.cur.fg = basicColor(8 + n - 90)
 		case n == 39:
-			r.cur.fg = ""
-		case (n >= 40 && n <= 47) || (n >= 100 && n <= 107):
-			r.cur.bg = strconv.Itoa(n)
+			r.cur.fg = colorDefault
+		case n >= 40 && n <= 47:
+			r.cur.bg = basicColor(n - 40)
+		case n >= 100 && n <= 107:
+			r.cur.bg = basicColor(8 + n - 100)
 		case n == 49:
-			r.cur.bg = ""
+			r.cur.bg = colorDefault
 		case n == 38:
 			r.cur.fg, i = extColor(params, i)
 		case n == 48:
@@ -142,31 +240,29 @@ func (r *renderer) sgr(params ansi.Params) {
 
 // extColor reads an extended-color selector beginning at index i (a 38 or 48
 // parameter): "…;5;n" (256-color) or "…;2;r;g;b" (truecolor). It returns the
-// full SGR color fragment (e.g. "38;5;9") and the index of the last parameter it
-// consumed, so the caller's loop resumes after it. A malformed/truncated
-// selector yields an empty fragment and consumes what it could.
-func extColor(params ansi.Params, i int) (string, int) {
-	base, _, _ := params.Param(i, 0)
+// encoded color and the index of the last parameter it consumed, so the caller's
+// loop resumes after it. A malformed/truncated selector yields the default color
+// and consumes what it could.
+func extColor(params ansi.Params, i int) (color, int) {
 	mode, _, ok := params.Param(i+1, 0)
 	if !ok {
-		return "", i
+		return colorDefault, i
 	}
 	switch mode {
 	case 5:
 		n, _, ok := params.Param(i+2, 0)
 		if !ok {
-			return "", i + 1
+			return colorDefault, i + 1
 		}
-		return strconv.Itoa(base) + ";5;" + strconv.Itoa(n), i + 2
+		return paletteColor(n), i + 2
 	case 2:
 		red, _, _ := params.Param(i+2, 0)
 		green, _, _ := params.Param(i+3, 0)
 		blue, _, ok := params.Param(i+4, 0)
 		if !ok {
-			return "", i + 3
+			return colorDefault, i + 3
 		}
-		return strconv.Itoa(base) + ";2;" + strconv.Itoa(red) + ";" +
-			strconv.Itoa(green) + ";" + strconv.Itoa(blue), i + 4
+		return rgbColor(red, green, blue), i + 4
 	}
-	return "", i + 1
+	return colorDefault, i + 1
 }
