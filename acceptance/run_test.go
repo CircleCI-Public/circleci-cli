@@ -431,6 +431,36 @@ func TestRunGet_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestRunGet_ProjectDefaultsBranchToMain confirms that with --project given (and
+// no --branch), the latest-run lookup defaults to the main branch without
+// consulting the local git remote — the checkout is meaningless for a possibly
+// different project. Run from a bare temp dir (no repo): it must not error, and
+// must resolve the main-branch run rather than the feature-branch one.
+func TestRunGet_ProjectDefaultsBranchToMain(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, testSlug, runTestProjectID)
+	mainRunID := "e0000000-0000-4000-8000-0000000000b1"
+	featureRunID := "e0000000-0000-4000-8000-0000000000b2"
+	fake.AddRunV3(mainRunID, runTestProjectID, fakeRunV3(mainRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunV3(featureRunID, runTestProjectID, fakeRunV3(featureRunID, runTestProjectID, "ended", "failed", "feature", "deadbeef12345678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--project", testSlug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(), // not a git repo → must not be required
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out["id"], mainRunID)) // the main-branch run, not feature
+}
+
 // --- run get (interactive picker) ---
 
 const (
@@ -880,6 +910,50 @@ func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+// TestRunGet_Interactive_NoProject runs "run get" interactively with neither a
+// --project flag nor a resolvable git remote (a bare temp dir). Rather than
+// erroring that no project could be inferred, the flow falls back to the
+// cross-project "my runs" scope and opens directly on the user's runs.
+func TestRunGet_Interactive_NoProject(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(), // not a git repo → detection fails
+	})
+
+	// The picker opens straight on the user's cross-project runs, its project
+	// folded into the ref bracket as "[project:branch]".
+	_, err := console.ExpectString("cafed00 [testorg/testrepo:mine]")
+	assert.NilError(t, err)
+
+	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_ProjectNoBranch runs the interactive picker with
+// --project but no --branch, outside a git repo. It must not require a remote:
+// the branch defaults to main, so the project's main-branch runs load directly.
+func TestRunGet_Interactive_ProjectNoBranch(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--project", testSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(), // not a git repo → must not be required
+	})
+
+	// The defaulted main branch's run loads (not the feature-branch one).
+	_, err := console.ExpectString("abc1234 [main]")
+	assert.NilError(t, err)
+
+	// esc on the first picker quits, so the program exits cleanly.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+}
+
 // TestRunGet_Interactive_FilterStatus presses "s" to narrow the run picker by
 // pipeline status. The first status in the cycle is "canceled", which no
 // main-branch run has, so the picker keeps its list and shows the empty-status
@@ -935,7 +1009,7 @@ func TestRunGet_Interactive_FilterStatusMyRuns(t *testing.T) {
 	// phase=ended/current_outcome=canceled filter matches nothing.
 	_, err = console.Send("s")
 	assert.NilError(t, err)
-	_, err = console.ExpectString("canceled runs in your runs")
+	_, err = console.ExpectString("canceled runs in my runs")
 	assert.NilError(t, err)
 
 	_, err = console.Send(keyEsc)

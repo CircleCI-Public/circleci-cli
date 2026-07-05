@@ -801,7 +801,7 @@ func TestRunGetFlow_StepPagerEscResumes(t *testing.T) {
 }
 
 // TestRunGetFlow_FilterDialogOpensOnSlash confirms "/" opens the search dialog
-// with its Branch/Status tabs.
+// with its Trigger/Status tabs.
 func TestRunGetFlow_FilterDialogOpensOnSlash(t *testing.T) {
 	tm := startFlow(t, newStatusFlow(
 		map[string][]ui.RunGetItem{"": {runItem("aaaaaaa [main] - all")}},
@@ -809,10 +809,10 @@ func TestRunGetFlow_FilterDialogOpensOnSlash(t *testing.T) {
 	))
 
 	tm.Send(keySlash)
-	waitForOutput(t, tm, "Branch")
+	waitForOutput(t, tm, "Trigger")
 
 	v := flowSnapshot(t, tm)
-	for _, want := range []string{"Branch", "Status", "Filter runs by branch"} {
+	for _, want := range []string{"Trigger", "Status", "Filter runs by trigger"} {
 		assert.Check(t, cmp.Contains(v, want), "dialog missing %q", want)
 	}
 }
@@ -830,8 +830,8 @@ func TestRunGetFlow_FilterApplyRefetchesRuns(t *testing.T) {
 	))
 
 	tm.Send(keySlash)
-	waitForOutput(t, tm, "Branch")
-	tm.Send(keyRight) // Branch → Status tab
+	waitForOutput(t, tm, "Trigger")
+	tm.Send(keyRight) // Trigger → Status tab
 	tm.Send(keyDown)  // all statuses → failed
 	tm.Send(keyEnt)   // apply
 	waitForOutput(t, tm, "ccccccc [main] - failed")
@@ -849,13 +849,13 @@ func TestRunGetFlow_FilterCancelReturnsToPicker(t *testing.T) {
 	))
 
 	tm.Send(keySlash)
-	waitForOutput(t, tm, "Branch")
+	waitForOutput(t, tm, "Trigger")
 	tm.Send(keyEsc)
 	waitForOutput(t, tm, "Select a run")
 
 	v := flowSnapshot(t, tm)
 	assert.Check(t, cmp.Contains(v, "aaaaaaa [main] - all"))
-	assert.Check(t, !strings.Contains(v, "Branch"), "dialog should be dismissed")
+	assert.Check(t, !strings.Contains(v, "Trigger"), "dialog should be dismissed")
 }
 
 // TestRunGetFlow_FilterHintShownWhenEnabled confirms the run picker footer

@@ -50,7 +50,7 @@ var (
 )
 
 // runFilterOutcome is the state of a runFilterDialog after an Update: still open,
-// applied (the user confirmed a branch + status selection), or cancelled.
+// applied (the user confirmed a trigger + status selection), or cancelled.
 type runFilterOutcome int
 
 const (
@@ -59,16 +59,16 @@ const (
 	runFilterCancel
 )
 
-// runFilterTab is the active facet in the dialog: the branch (scope) list or the
+// runFilterTab is the active facet in the dialog: the trigger (scope) list or the
 // status-filter list.
 type runFilterTab int
 
 const (
-	filterTabBranch runFilterTab = iota
+	filterTabTrigger runFilterTab = iota
 	filterTabStatus
 )
 
-// dialog keys. left/right (and tab/shift+tab) switch the active Branch/Status
+// dialog keys. left/right (and tab/shift+tab) switch the active Trigger/Status
 // tab; "r" resets the selection to its defaults. Enter applies and esc cancels
 // (via the shared bindings).
 var (
@@ -78,7 +78,7 @@ var (
 )
 
 // runFilterDialog is the "/" search overlay on the run picker: a two-tab
-// (Branch / Status) chooser that lets the user set the branch scope and status
+// (Trigger / Status) chooser that lets the user set the trigger scope and status
 // filter explicitly from lists. It embeds two components.SelectModel lists (one
 // per tab) so the picker's navigation, scrolling and rendering are reused; the
 // dialog only adds the tab bar on top. Enter applies, esc cancels, "r" resets.
@@ -88,8 +88,8 @@ type runFilterDialog struct {
 	scopes   []runScope
 	statuses []RunStatusFilter
 
-	branchSel components.SelectModel
-	statusSel components.SelectModel
+	triggerSel components.SelectModel
+	statusSel  components.SelectModel
 
 	tab runFilterTab
 
@@ -111,19 +111,39 @@ func newRunFilterDialog(scopes []runScope, statuses []RunStatusFilter, scopeIdx,
 	d := runFilterDialog{
 		scopes:   scopes,
 		statuses: statuses,
-		tab:      filterTabBranch,
+		tab:      filterTabTrigger,
 		color:    color,
 	}
-	d.branchSel = d.newBranchSelect(scopeIdx)
+	d.triggerSel = d.newTriggerSelect(scopeIdx)
 	d.statusSel = d.newStatusSelect(statusIdx)
 	return d
 }
 
-// newBranchSelect builds the chrome-free branch list (no title, no footer) seeded
-// at idx.
-func (d runFilterDialog) newBranchSelect(idx int) components.SelectModel {
-	return components.NewSelectModel("", scopeLabels(d.scopes)).
-		WithCursor(idx).WithKeys().WithHeight(d.listHeight)
+// newTriggerSelect builds the chrome-free trigger list (no title, no footer)
+// seeded at idx. Each trigger carries a glyph (see scopeIcons): a heart for
+// "my runs", and distinct marks for the current branch, default branch and
+// "all branches".
+func (d runFilterDialog) newTriggerSelect(idx int) components.SelectModel {
+	return components.NewSelectModel("", d.scopeLabels()).
+		WithCursor(idx).WithKeys().WithHeight(d.listHeight).
+		WithIcons(d.scopeIcons())
+}
+
+// scopeIcons renders each trigger's glyph for the list, colored per its role
+// (see triggerIconStyle) when color is on: blue for the current branch, green for
+// the default branch, gold for "all branches", and a red heart for "my runs".
+func (d runFilterDialog) scopeIcons() []string {
+	icons := make([]string, len(d.scopes))
+	for i, s := range d.scopes {
+		icon := s.icon
+		if d.color && icon != "" {
+			if style, ok := triggerIconStyle(icon); ok {
+				icon = style.Render(icon)
+			}
+		}
+		icons[i] = icon
+	}
+	return icons
 }
 
 // newStatusSelect builds the chrome-free status list seeded at idx. Each status
@@ -170,12 +190,34 @@ func (d runFilterDialog) statusIcons() []string {
 	return icons
 }
 
-func scopeLabels(scopes []runScope) []string {
-	labels := make([]string, len(scopes))
-	for i, s := range scopes {
-		labels[i] = s.titleName()
+// scopeLabels renders the Trigger tab's row labels. When color is on, each
+// label's trailing "[…]" (the branch name on the current/default branch scopes)
+// is tinted with the secondary gold accent, matching the run picker title's
+// scope bracket.
+func (d runFilterDialog) scopeLabels() []string {
+	labels := make([]string, len(d.scopes))
+	for i, s := range d.scopes {
+		label := s.pickerLabel
+		if d.color {
+			label = colorizeLabelBracket(label)
+		}
+		labels[i] = label
 	}
 	return labels
+}
+
+// colorizeLabelBracket tints a trailing "[…]" segment of a label with the
+// secondary (gold) accent. A label with no trailing bracket (e.g. "all branches",
+// "my runs") is returned unchanged.
+func colorizeLabelBracket(label string) string {
+	if !strings.HasSuffix(label, "]") {
+		return label
+	}
+	open := strings.LastIndexByte(label, '[')
+	if open < 0 {
+		return label
+	}
+	return label[:open] + theme.SecondaryStyle.Render(label[open:])
 }
 
 func statusLabels(statuses []RunStatusFilter) []string {
@@ -202,7 +244,7 @@ func (d runFilterDialog) SetSize(width, height int) runFilterDialog {
 		listHeight = 2
 	}
 	d.listHeight = listHeight
-	d.branchSel = d.branchSel.WithHeight(listHeight)
+	d.triggerSel = d.triggerSel.WithHeight(listHeight)
 	d.statusSel = d.statusSel.WithHeight(listHeight)
 	return d
 }
@@ -214,7 +256,7 @@ func (d runFilterDialog) Outcome() runFilterOutcome { return d.outcome }
 // Selected returns the chosen scope and status indexes. Valid once Outcome() is
 // runFilterApply.
 func (d runFilterDialog) Selected() (scopeIdx, statusIdx int) {
-	return d.branchSel.Selected(), d.statusSel.Selected()
+	return d.triggerSel.Selected(), d.statusSel.Selected()
 }
 
 func (d runFilterDialog) Init() tea.Cmd { return nil }
@@ -222,7 +264,7 @@ func (d runFilterDialog) Init() tea.Cmd { return nil }
 // Update handles the dialog's keys. It never emits a command; navigation (up/
 // down/paging) is forwarded to the active tab's embedded list. ctrl+c is left to
 // the host (it quits the whole program), so the dialog binds esc (cancel), enter
-// (apply), "r" (reset), and left/right + tab/shift+tab (switch the Branch/Status
+// (apply), "r" (reset), and left/right + tab/shift+tab (switch the Trigger/Status
 // tab).
 func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
@@ -244,16 +286,16 @@ func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 		d.reset()
 		return d, nil
 	case key.Matches(k, filterKeyLeft):
-		d.tab = filterTabBranch
+		d.tab = filterTabTrigger
 		return d, nil
 	case key.Matches(k, filterKeyRight):
 		d.tab = filterTabStatus
 		return d, nil
 	case key.Matches(k, components.KeyTab, components.KeyShiftTab):
-		if d.tab == filterTabBranch {
+		if d.tab == filterTabTrigger {
 			d.tab = filterTabStatus
 		} else {
-			d.tab = filterTabBranch
+			d.tab = filterTabTrigger
 		}
 		return d, nil
 	}
@@ -263,20 +305,20 @@ func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 	return d, nil
 }
 
-// reset restores the branch and status selections to their defaults (the current
-// branch, all statuses) and returns to the Branch tab.
+// reset restores the trigger and status selections to their defaults (the current
+// branch, all statuses) and returns to the Trigger tab.
 func (d *runFilterDialog) reset() {
-	d.branchSel = d.newBranchSelect(d.defaultScope)
+	d.triggerSel = d.newTriggerSelect(d.defaultScope)
 	d.statusSel = d.newStatusSelect(d.defaultStatus)
-	d.tab = filterTabBranch
+	d.tab = filterTabTrigger
 }
 
 // forwardToList sends a message to whichever tab's list is active, keeping the
 // embedded SelectModel's navigation and scrolling behaviour.
 func (d *runFilterDialog) forwardToList(msg tea.Msg) {
-	if d.tab == filterTabBranch {
-		updated, _ := d.branchSel.Update(msg)
-		d.branchSel = updated.(components.SelectModel)
+	if d.tab == filterTabTrigger {
+		updated, _ := d.triggerSel.Update(msg)
+		d.triggerSel = updated.(components.SelectModel)
 	} else {
 		updated, _ := d.statusSel.Update(msg)
 		d.statusSel = updated.(components.SelectModel)
@@ -343,10 +385,13 @@ func (d runFilterDialog) renderDialog() string {
 // tabBody lays out the active tab as two columns: the options list on the left, a
 // vertical divider, and the tab's help description on the right. Both columns are
 // sized to a fixed width and height (the same for either tab) so switching tabs
-// never resizes the dialog.
+// never resizes the dialog. The options list is vertically centered in its
+// column so a short list (e.g. the trigger picker) sits beside the middle of the
+// taller help text rather than hugging the top.
 func (d runFilterDialog) tabBody() string {
 	h := d.panelHeight()
 	left := lipgloss.NewStyle().Width(d.listColumnWidth()).Height(h).
+		AlignVertical(lipgloss.Center).
 		Render(strings.TrimRight(d.activeList(), "\n"))
 
 	// The divider is muted so it recedes; the description is left in the terminal's
@@ -372,7 +417,7 @@ func (d runFilterDialog) tabBody() string {
 // render at the same height regardless of which has more options or longer help.
 func (d runFilterDialog) panelHeight() int {
 	h := max(len(d.scopes), len(d.statuses))
-	for _, help := range []string{branchHelpText, statusHelpText} {
+	for _, help := range []string{triggerHelpText, statusHelpText} {
 		wrapped := lipgloss.NewStyle().Width(filterHelpWidth).Render(help)
 		h = max(h, lipgloss.Height(wrapped))
 	}
@@ -383,31 +428,31 @@ func (d runFilterDialog) panelHeight() int {
 // so the column (and thus the dialog) stays the same width on either tab.
 func (d runFilterDialog) listColumnWidth() int {
 	return max(
-		lipgloss.Width(strings.TrimRight(d.branchSel.View().Content, "\n")),
+		lipgloss.Width(strings.TrimRight(d.triggerSel.View().Content, "\n")),
 		lipgloss.Width(strings.TrimRight(d.statusSel.View().Content, "\n")),
 	)
 }
 
 // activeList renders the embedded list for the active tab.
 func (d runFilterDialog) activeList() string {
-	if d.tab == filterTabBranch {
-		return d.branchSel.View().Content
+	if d.tab == filterTabTrigger {
+		return d.triggerSel.View().Content
 	}
 	return d.statusSel.View().Content
 }
 
 // tabHelp is the description shown on the right of the active tab.
 func (d runFilterDialog) tabHelp() string {
-	if d.tab == filterTabBranch {
-		return branchHelpText
+	if d.tab == filterTabTrigger {
+		return triggerHelpText
 	}
 	return statusHelpText
 }
 
 const (
-	branchHelpText = "Filter runs by branch.\n\n" +
+	triggerHelpText = "Filter runs by trigger.\n\n" +
 		"Pick a branch to list only its runs. \"all branches\" shows every branch; " +
-		"\"your runs\" lists your runs across all projects."
+		"\"my runs\" lists your runs across all projects."
 	statusHelpText = "Filter runs by status.\n\n" +
 		"\"all statuses\" clears the filter. Pick a status to show only the runs in " +
 		"that state."
@@ -419,8 +464,8 @@ const (
 // row seams into the window's side borders below.
 func (d runFilterDialog) renderTabs(rowWidth int) string {
 	widths := splitWidth(rowWidth, 2)
-	labels := [2]string{"Branch", "Status"}
-	active := [2]bool{d.tab == filterTabBranch, d.tab == filterTabStatus}
+	labels := [2]string{"Trigger", "Status"}
+	active := [2]bool{d.tab == filterTabTrigger, d.tab == filterTabStatus}
 
 	cells := make([]string, 2)
 	for i := 0; i < 2; i++ {

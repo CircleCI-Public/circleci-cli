@@ -41,13 +41,11 @@ var (
 	dlgReset = tea.KeyPressMsg{Code: 'r', Text: "r"}
 )
 
-// newTestDialog builds a dialog with two branch scopes and two statuses, seeded
-// on the current branch / all statuses, sized to a known terminal.
+// newTestDialog builds a dialog with the trigger scopes (current branch, all
+// branches, your runs — each carrying its glyph) and two statuses, seeded on the
+// current branch / all statuses, sized to a known terminal.
 func newTestDialog() runFilterDialog {
-	scopes := []runScope{
-		{branch: "main", label: "main branch"},
-		{label: "all branches"},
-	}
+	scopes := buildRunScopes("main", "", true, false)
 	statuses := []RunStatusFilter{
 		{Label: "all statuses", Icon: "★"},
 		{Value: "failed", Label: "failed", Icon: "✗"},
@@ -72,13 +70,13 @@ func TestRunFilterDialog_OpensOnActiveSelection(t *testing.T) {
 }
 
 func TestRunFilterDialog_ListNavigationSetsSelection(t *testing.T) {
-	// Branch tab: down selects the second scope.
+	// Trigger tab: down selects the second scope.
 	d := drive(newTestDialog(), dlgDown)
 	scope, _ := d.Selected()
 	assert.Check(t, cmp.Equal(scope, 1))
 
 	// Right switches to the Status tab; down there selects the second status,
-	// leaving the branch selection untouched.
+	// leaving the trigger selection untouched.
 	d = drive(d, dlgRight, dlgDown)
 	scope, status := d.Selected()
 	assert.Check(t, cmp.Equal(scope, 1))
@@ -86,16 +84,16 @@ func TestRunFilterDialog_ListNavigationSetsSelection(t *testing.T) {
 }
 
 func TestRunFilterDialog_TabSwitching(t *testing.T) {
-	// left selects the Branch tab, right the Status tab, regardless of the current
+	// left selects the Trigger tab, right the Status tab, regardless of the current
 	// tab; tab toggles between them.
 	d := drive(newTestDialog(), dlgRight)
 	assert.Check(t, cmp.Equal(d.tab, filterTabStatus))
 	d = drive(d, dlgLeft)
-	assert.Check(t, cmp.Equal(d.tab, filterTabBranch))
+	assert.Check(t, cmp.Equal(d.tab, filterTabTrigger))
 	d = drive(d, dlgTab)
 	assert.Check(t, cmp.Equal(d.tab, filterTabStatus))
 	d = drive(d, dlgTab)
-	assert.Check(t, cmp.Equal(d.tab, filterTabBranch))
+	assert.Check(t, cmp.Equal(d.tab, filterTabTrigger))
 }
 
 func TestRunFilterDialog_EnterApplies(t *testing.T) {
@@ -122,15 +120,16 @@ func TestRunFilterDialog_ResetRestoresDefaults(t *testing.T) {
 	assert.Check(t, cmp.Equal(d.Outcome(), runFilterOpen), "reset should not close the dialog")
 	assert.Check(t, cmp.Equal(scope, 0))
 	assert.Check(t, cmp.Equal(status, 0))
-	assert.Check(t, cmp.Equal(d.tab, filterTabBranch), "reset returns to the Branch tab")
+	assert.Check(t, cmp.Equal(d.tab, filterTabTrigger), "reset returns to the Trigger tab")
 }
 
 func TestRunFilterDialog_ViewShowsTabsAndOptions(t *testing.T) {
-	// The Branch tab is active on open: both tabs, its branch options and its help
-	// description show.
+	// The Trigger tab is active on open: both tabs, its trigger options (the
+	// current branch spelled out with its name, and a heart glyph on "my runs")
+	// and its help description show.
 	v := ansi.Strip(newTestDialog().View().Content)
-	for _, want := range []string{"Branch", "Status", "main", "all branches", "Filter runs by branch"} {
-		assert.Check(t, cmp.Contains(v, want), "branch view missing %q", want)
+	for _, want := range []string{"Trigger", "Status", "current branch [main]", "all branches", "♥ my runs", "Filter runs by trigger"} {
+		assert.Check(t, cmp.Contains(v, want), "trigger view missing %q", want)
 	}
 
 	// Switching to the Status tab shows the status options (with icons: a star for
